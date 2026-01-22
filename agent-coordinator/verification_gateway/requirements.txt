@@ -1,0 +1,19 @@
+# Coordination System Dependencies
+
+# Core
+fastapi>=0.109.0
+uvicorn>=0.27.0
+httpx>=0.26.0
+pydantic>=2.5.0
+
+# MCP Server
+fastmcp>=0.1.0
+# FastMCP is a high-level wrapper around the MCP protocol
+# pip install fastmcp
+# Or from source: pip install git+https://github.com/jlowin/fastmcp.git
+
+# Database (for local testing)
+asyncpg>=0.29.0
+
+# Utilities
+python-dotenv>=1.0.0

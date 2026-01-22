@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openspec validate:*)",
+      "Bash(openspec list:*)",
+      "Bash(bd version:*)",
+      "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools status)",
+      "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools log --oneline -5)",
+      "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools diff --stat)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
