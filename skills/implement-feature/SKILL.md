@@ -52,7 +52,7 @@ git checkout -b openspec/<change-id>
 ### 3. Implement Tasks
 
 ```
-/openspec:apply <change-id>
+/openspec-apply <change-id>
 ```
 
 This will:

@@ -76,7 +76,7 @@ git pull origin main
 ### 5. Archive OpenSpec Proposal
 
 ```
-/openspec:archive <change-id>
+/openspec-archive <change-id>
 ```
 
 This will:

@@ -51,7 +51,7 @@ Understand the current state before proposing changes.
 ### 3. Create OpenSpec Proposal
 
 ```
-/openspec:proposal $ARGUMENTS
+/openspec-proposal $ARGUMENTS
 ```
 
 This will:
