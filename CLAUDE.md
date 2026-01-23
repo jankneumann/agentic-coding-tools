@@ -37,15 +37,17 @@ Use the 3-skill feature workflow with natural approval gates:
 
 - **Separate creative from mechanical work**: Planning and implementation are creative; cleanup/archival is mechanical. Different skills for different work types allows delegation and automation.
 
-- **Use consistent frontmatter format**: Skills should have `name`, `description`, `category`, `tags`, and `triggers` in YAML frontmatter. See `skills/openspec/*.md` for examples.
+- **Use consistent frontmatter format**: Skills should have `name`, `description`, `category`, `tags`, and `triggers` in YAML frontmatter.
+
+- **Flat skill directory structure**: Claude Code skills don't support nested directories. Each skill must be `<skill-name>/SKILL.md`. For namespaced skills, use hyphens: `openspec-proposal/SKILL.md` not `openspec/proposal/SKILL.md`. Symlink to `~/.claude/skills/` for global availability.
 
 ### OpenSpec Integration
 
-- **All planning through OpenSpec**: Use `/openspec:proposal` for any non-trivial feature. This creates a traceable record of decisions and enables spec-driven development.
+- **All planning through OpenSpec**: Use `/openspec-proposal` for any non-trivial feature. This creates a traceable record of decisions and enables spec-driven development.
 
 - **Spec deltas over ad-hoc docs**: Put requirements and scenarios in `openspec/changes/<id>/specs/` rather than separate planning documents. This ensures specs stay updated.
 
-- **Archive after merge**: Always run `/openspec:archive` after PR merge to consolidate spec deltas into `openspec/specs/`.
+- **Archive after merge**: Always run `/openspec-archive` after PR merge to consolidate spec deltas into `openspec/specs/`.
 
 ### Language & Architecture Choices
 
