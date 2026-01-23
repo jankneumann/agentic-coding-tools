@@ -8,7 +8,9 @@
       "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools log --oneline -5)",
       "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools diff --stat)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git -C /Users/jankneumann/Coding/agentic-coding-tools push origin main)",
+      "Bash(git push:*)"
     ]
   }
 }
