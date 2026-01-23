@@ -2,9 +2,17 @@
 
 ## Purpose
 
-A multi-agent coordination system that enables local agents (Claude Code, Codex CLI, Aider) and cloud agents (Claude API, Codex Cloud) to collaborate safely on shared codebases.
+A multi-agent coordination system that enables local agents (Claude Code CLI, Codex CLI, Aider), cloud agents (Claude Code Web, Codex Cloud), and orchestrated agent swarms (Strands Agents) to collaborate safely on shared codebases.
 
-**Problem Statement**: When multiple AI coding agents work on the same codebase they face conflicts (merge conflicts from concurrent edits), context loss (no memory across sessions), no orchestration (no task tracking), and verification gaps (cloud agents can't verify against real environments).
+**Problem Statement**: When multiple AI coding agents work on the same codebase they face conflicts (merge conflicts from concurrent edits), context loss (no memory across sessions), no orchestration (no task tracking), verification gaps (cloud agents can't verify against real environments), and safety risks (autonomous agents executing destructive operations).
+
+## Agent Types
+
+| Type | Platform | Connection | Network Access | Example |
+|------|----------|------------|----------------|---------|
+| Local | Developer machine | MCP (stdio) | Full | Claude Code CLI, Codex CLI, Aider |
+| Cloud-Managed | Vendor infrastructure | HTTP API | Restricted | Claude Code Web, Codex Cloud |
+| Orchestrated | AgentCore Runtime | Strands SDK | Configurable | Custom Strands agents |
 
 ## Requirements
 
@@ -245,7 +253,269 @@ The system SHALL track agent work sessions for coordination and auditing.
 
 ---
 
+### Requirement: Agent Profiles
+
+The system SHALL support configurable agent profiles that define capabilities, trust levels, and operational constraints.
+
+- Profiles SHALL specify allowed operations and tools
+- Profiles SHALL define trust level (0-4)
+- Profiles SHALL configure resource limits (max files, execution time, API calls)
+- Profiles SHALL be assignable per agent_id or agent_type
+- Default profiles SHALL exist for each agent type
+
+#### Scenario: Agent with restricted profile
+- **WHEN** agent with "reviewer" profile attempts file modification
+- **THEN** system checks if "write_file" is in profile's allowed_operations
+- **AND** rejects operation if not permitted with `{success: false, error: "operation_not_permitted"}`
+
+#### Scenario: Resource limit enforcement
+- **WHEN** agent exceeds profile's max_file_modifications limit
+- **THEN** system blocks further modifications
+- **AND** returns `{success: false, error: "resource_limit_exceeded", limit: "max_file_modifications"}`
+
+#### Scenario: Trust level verification
+- **WHEN** agent attempts operation requiring trust_level >= 3
+- **AND** agent's profile has trust_level < 3
+- **THEN** system rejects with `{success: false, error: "insufficient_trust_level"}`
+
+#### Profile Trust Levels
+
+| Level | Name | Typical Capabilities |
+|-------|------|---------------------|
+| 0 | Untrusted | Read-only, no network, all changes require manual review |
+| 1 | Limited | Read-write with locks, documentation domains only |
+| 2 | Standard | Full file access, approved domains, automated verification |
+| 3 | Elevated | Skip Tier 0-1 verification, extended resource limits |
+| 4 | Admin | Full access, can modify policies and profiles |
+
+---
+
+### Requirement: Cloud Agent Integration
+
+The system SHALL support cloud-hosted agents (Claude Code Web, Codex Cloud) with restricted network access.
+
+- Cloud agents SHALL connect via HTTP API
+- Cloud agents SHALL authenticate with session-derived or task-derived credentials
+- The coordination API domain SHALL be compatible with cloud agent network allowlists
+- The system SHALL support GitHub-mediated coordination as fallback
+
+#### Scenario: Claude Code Web agent connects
+- **WHEN** Claude Code Web session starts with coordination environment configured
+- **THEN** agent authenticates via HTTP API using session-derived API key
+- **AND** agent identity includes `agent_type: "claude_code_web"` and session metadata
+
+#### Scenario: Codex Cloud agent connects
+- **WHEN** Codex Cloud task launches with coordination configuration
+- **THEN** agent authenticates via HTTP API using task-specific credentials
+- **AND** all operations are logged with Codex task_id for traceability
+
+#### Scenario: Network-restricted fallback to GitHub
+- **WHEN** cloud agent cannot reach coordination API
+- **THEN** agent MAY use GitHub-mediated coordination
+- **AND** uses issue labels for lock signaling (`locked:path/to/file`)
+- **AND** uses branch naming conventions for task assignment
+
+#### Scenario: Cloud agent environment configuration
+- **WHEN** cloud agent session is configured
+- **THEN** environment includes `COORDINATION_API_URL`, `COORDINATION_API_KEY`, `AGENT_TYPE`
+- **AND** coordination domain is added to network allowlist
+
+---
+
+### Requirement: Network Access Policies
+
+The system SHALL enforce network egress policies for agents accessing external resources.
+
+- Policies SHALL support domain allowlists and denylists
+- Policies SHALL support wildcard patterns (e.g., `*.example.com`)
+- Policies SHALL be assignable per agent profile
+- All network access attempts SHALL be logged
+- Default policy SHALL be deny-all for cloud agents
+
+#### Scenario: Agent requests allowed domain
+- **WHEN** agent with network policy requests URL matching allowlist
+- **THEN** system permits the request
+- **AND** logs access in `network_access_log` with `allowed: true`
+
+#### Scenario: Agent requests blocked domain
+- **WHEN** agent requests URL matching denylist or not in allowlist
+- **THEN** system blocks the request
+- **AND** returns `{success: false, error: "domain_blocked", domain: "example.com"}`
+- **AND** logs attempt with `allowed: false, alert: true`
+
+#### Scenario: Default deny for unspecified domains
+- **WHEN** agent has no explicit policy for a domain
+- **AND** agent profile has `network_default: "deny"`
+- **THEN** request is blocked
+
+#### Default Domain Categories
+
+| Category | Domains | Default For |
+|----------|---------|-------------|
+| Coordination | `coord.yourdomain.com` | All agents |
+| Package Managers | `pypi.org`, `npmjs.com`, `rubygems.org` | trust_level >= 1 |
+| Documentation | `docs.python.org`, `developer.mozilla.org` | trust_level >= 1 |
+| Cloud Providers | `*.amazonaws.com`, `*.azure.com`, `*.googleapis.com` | trust_level >= 2 |
+| Source Control | `github.com`, `gitlab.com` | All agents |
+
+---
+
+### Requirement: Destructive Operation Guardrails
+
+The system SHALL prevent autonomous agents from executing destructive operations without explicit approval.
+
+- The system SHALL maintain a registry of destructive operation patterns
+- Destructive operations SHALL be blocked by default for cloud agents
+- Destructive operations MAY be permitted for elevated trust levels with logging
+- All guardrail violations SHALL be logged to audit trail
+
+#### Destructive Operation Categories
+
+| Category | Patterns | Default Behavior |
+|----------|----------|------------------|
+| Git Force Operations | `git push --force`, `git reset --hard`, `git clean -f` | Block, require approval |
+| Branch Deletion | `git branch -D`, `git push origin --delete` | Block for main/master, warn for others |
+| Mass File Deletion | `rm -rf`, `find -delete`, unscoped `DELETE FROM` | Block, require approval |
+| Credential Modification | Changes to `*.env`, `*credentials*`, `*secrets*` | Block, require manual review |
+| Production Deployment | Deploy commands, infrastructure changes | Block, require approval |
+| Database Migration | Schema changes, data migrations | Require Tier 3+ verification |
+
+#### Scenario: Cloud agent attempts destructive git operation
+- **WHEN** cloud agent submits work containing `git push --force`
+- **THEN** system detects destructive pattern before execution
+- **AND** returns `{success: false, error: "destructive_operation_blocked", operation: "force_push", approval_required: true}`
+- **AND** logs violation to `guardrail_violations`
+
+#### Scenario: Elevated agent executes monitored operation
+- **WHEN** agent with trust_level >= 3 executes operation in guardrail registry
+- **AND** operation is in profile's `elevated_operations` allowlist
+- **THEN** operation proceeds
+- **AND** system logs to audit trail with elevated flag
+- **AND** sends notification to security channel
+
+#### Scenario: Pre-execution static analysis
+- **WHEN** agent submits task completion with code changes
+- **THEN** system runs static analysis to detect destructive patterns
+- **AND** blocks task completion if destructive patterns found
+- **AND** returns specific pattern matches for agent to address
+
+#### Scenario: Credential file modification attempt
+- **WHEN** agent attempts to modify file matching `*.env` or `*credentials*`
+- **THEN** system blocks modification regardless of trust level
+- **AND** adds to approval_queue for human review
+- **AND** returns `{success: false, error: "credential_file_protected", requires: "manual_review"}`
+
+---
+
+### Requirement: Agent Orchestration
+
+The system SHALL support multi-agent orchestration patterns for complex workflows.
+
+- The system SHALL integrate with Strands Agents SDK for orchestration
+- Orchestrators SHALL be able to spawn and manage worker agents
+- The system SHALL support agents-as-tools, swarm, and graph patterns
+- Task dependencies SHALL be enforced across orchestrated agents
+
+#### Scenario: Orchestrator spawns worker agent
+- **WHEN** orchestrator agent calls `spawn_agent(profile, task)`
+- **THEN** system creates new agent session with specified profile
+- **AND** assigns task to spawned agent
+- **AND** returns `{success: true, agent_id: uuid, task_id: uuid}`
+
+#### Scenario: Swarm coordination
+- **WHEN** orchestrator creates swarm with multiple agents
+- **THEN** each agent receives coordination context
+- **AND** agents can communicate via shared work queue
+- **AND** orchestrator receives aggregated results
+
+#### Scenario: Graph-based workflow
+- **WHEN** orchestrator defines workflow graph with agent nodes
+- **THEN** system enforces execution order via task dependencies
+- **AND** conditional edges are evaluated based on task results
+
+---
+
+### Requirement: Audit Trail
+
+The system SHALL maintain comprehensive audit logs for all agent operations.
+
+- All coordination operations SHALL be logged with timestamp, agent_id, operation, and result
+- Guardrail violations SHALL be logged with full context
+- Network access attempts SHALL be logged
+- Audit logs SHALL be immutable (append-only)
+- Logs SHALL be retained for configurable period (default 90 days)
+
+#### Scenario: Operation audit logging
+- **WHEN** agent performs any coordination operation
+- **THEN** system logs `{timestamp, agent_id, agent_type, operation, parameters, result, duration_ms}`
+
+#### Scenario: Guardrail violation logging
+- **WHEN** guardrail blocks an operation
+- **THEN** system logs `{timestamp, agent_id, operation, pattern_matched, context, blocked: true}`
+- **AND** increments agent's violation counter
+
+#### Scenario: Audit log query
+- **WHEN** administrator queries audit logs with filters
+- **THEN** system returns matching entries without modification
+- **AND** supports filtering by agent_id, operation, time_range, result
+
+---
+
+### Requirement: GitHub-Mediated Coordination
+
+The system SHALL support coordination via GitHub for agents with restricted network access.
+
+- File locks SHALL be signaled via issue labels
+- Task assignments SHALL use issue assignment and labels
+- Branch naming conventions SHALL indicate agent ownership
+- The system SHALL sync GitHub state with coordination database
+
+#### Scenario: Lock via GitHub label
+- **WHEN** agent cannot reach coordination API
+- **AND** agent adds label `locked:src/auth/login.ts` to assigned issue
+- **THEN** coordination backend (via webhook) creates corresponding file_lock
+
+#### Scenario: Task assignment via GitHub issue
+- **WHEN** GitHub issue is labeled with `agent:claude-web-1` and `status:assigned`
+- **THEN** coordination backend creates work_queue entry for agent
+
+#### Scenario: Branch-based ownership
+- **WHEN** agent creates branch matching pattern `agent/{agent_id}/{task_id}`
+- **THEN** system associates branch with agent session
+- **AND** files modified on branch are implicitly locked to that agent
+
+---
+
 ## Database Tables
+
+### Core Tables
+| Table | Purpose |
+|-------|---------|
+| `file_locks` | Active file locks with TTL |
+| `changesets` | Records of agent-generated changes |
+| `verification_results` | Outcomes of verification runs |
+| `verification_policies` | Configurable routing rules |
+| `approval_queue` | Human review tracking |
+| `agent_sessions` | Agent work sessions |
+
+### Memory Tables
+| Table | Purpose |
+|-------|---------|
+| `memory_episodic` | Experiences and their outcomes |
+| `memory_working` | Active context for current tasks |
+| `memory_procedural` | Learned skills and patterns |
+| `work_queue` | Task assignment queue |
+
+### Agent Management Tables
+| Table | Purpose |
+|-------|---------|
+| `agent_profiles` | Capability definitions with trust levels |
+| `agent_profile_assignments` | Maps agent_id to profile_id |
+| `network_policies` | Domain allowlists/denylists per profile |
+| `network_access_log` | Audit trail of network requests |
+| `operation_guardrails` | Destructive operation patterns and rules |
+| `guardrail_violations` | Log of blocked/approved destructive attempts |
+| `audit_log` | Immutable log of all coordination operations |
 
 ### Core Tables
 | Table | Purpose |
@@ -276,3 +546,83 @@ The system SHALL track agent work sessions for coordination and auditing.
 | Task completion rate | >90% | Completed / Claimed tasks |
 | Verification pass rate | >80% | First-pass verification success |
 | Mean time to verify | <5 min | From push to verification complete |
+| Guardrail block rate | >99% | Destructive operations caught before execution |
+| Cloud agent coordination success | >95% | Successful API connections from cloud agents |
+| Audit log completeness | 100% | All operations logged without gaps |
+| Trust level accuracy | <1% false positives | Legitimate operations incorrectly blocked |
+
+---
+
+## Preconfigured Agent Profiles
+
+### claude-code-cli
+```yaml
+agent_type: claude_code_cli
+trust_level: 3
+connection: mcp
+network_policy: full_access
+allowed_operations: [read, write, execute, git_push]
+blocked_operations: [git_push_force_main, credential_modify]
+resource_limits:
+  max_file_modifications: unlimited
+  max_execution_time: unlimited
+guardrails: [warn_destructive_git]
+```
+
+### claude-code-web-reviewer
+```yaml
+agent_type: claude_code_web
+trust_level: 2
+connection: http_api
+network_policy: documentation_only
+allowed_operations: [read, analyze, comment, create_review]
+blocked_operations: [write, execute, git_push]
+resource_limits:
+  max_file_reads: 500
+  max_execution_time: 30m
+guardrails: [read_only_filesystem]
+```
+
+### claude-code-web-implementer
+```yaml
+agent_type: claude_code_web
+trust_level: 3
+connection: http_api
+network_policy: package_managers_and_docs
+required_domains: [coord.yourdomain.com]
+allowed_operations: [read, write, execute, git_push_branch]
+blocked_operations: [git_push_force, git_push_main, credential_modify]
+resource_limits:
+  max_file_modifications: 100
+  max_execution_time: 2h
+guardrails: [no_destructive_git, lock_before_write, test_required]
+```
+
+### codex-cloud-worker
+```yaml
+agent_type: codex_cloud
+trust_level: 2
+connection: http_api
+network_policy: coordination_only
+required_domains: [coord.yourdomain.com]
+allowed_operations: [read, write, execute]
+blocked_operations: [git_push]  # Codex creates PRs, doesn't push
+resource_limits:
+  max_file_modifications: 50
+  max_execution_time: 1h
+guardrails: [no_destructive_git, lock_before_write]
+```
+
+### strands-orchestrator
+```yaml
+agent_type: strands_agent
+trust_level: 4
+connection: agentcore_gateway
+network_policy: configurable
+allowed_operations: [read, write, execute, spawn_agent, manage_swarm]
+blocked_operations: [credential_modify]
+resource_limits:
+  max_spawned_agents: 10
+  max_execution_time: 8h
+guardrails: [audit_all_operations]
+```
