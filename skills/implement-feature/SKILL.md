@@ -100,7 +100,13 @@ openspec validate <change-id> --strict
 
 Fix any failures before proceeding.
 
-### 7. Commit Changes
+### 7. Document Lessons Learned
+
+Document any lessons learned during implementation, such as repeatable patterns, gotchas in the code that are noteworthy, and any changes in design that came up during the implementation and test phases in documents in the CLAUDE.md and AGENTS.md files. 
+
+If the CLAUDE.md and AGENTS.md files are getting beyond 300 lines each, then refactor the documentation into documents focused on certain aspects of the project or the development process in the docs/ folder such as DEVELOPMENT.md for development guidelines, SETUP.md for set up instructions, UX_DESIGN.md for front end design considerations, etc. and reference them in CLAUDE.md and AGENTS.md
+
+### 8. Commit Changes
 
 ```bash
 # Review changes
@@ -125,7 +131,7 @@ EOF
 )"
 ```
 
-### 8. Push and Create PR
+### 9. Push and Create PR
 
 ```bash
 # Push branch

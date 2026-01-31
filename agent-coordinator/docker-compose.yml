@@ -1,0 +1,78 @@
+# Local Supabase development environment
+# Run: docker-compose up -d
+
+version: "3.9"
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: supabase/postgres:15.1.1.78
+    container_name: agent-coordinator-db
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      JWT_SECRET: super-secret-jwt-token-for-local-dev
+      JWT_EXP: 3600
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Supabase PostgREST API
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: agent-coordinator-rest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: super-secret-jwt-token-for-local-dev
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  # Supabase Realtime (optional, for live updates)
+  realtime:
+    image: supabase/realtime:v2.30.23
+    container_name: agent-coordinator-realtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: postgres
+      DB_NAME: postgres
+      DB_SSL: "false"
+      API_JWT_SECRET: super-secret-jwt-token-for-local-dev
+      SECRET_KEY_BASE: your-secret-key-base-here
+
+volumes:
+  postgres-data:
+
+# Development notes:
+# - PostgreSQL is available at localhost:54322
+# - REST API is available at http://localhost:3000
+# - Realtime is available at http://localhost:4000
+#
+# For local development, set:
+#   SUPABASE_URL=http://localhost:3000
+#   SUPABASE_SERVICE_KEY=<generate a JWT with service_role claim>
+#
+# Or use Supabase CLI for a more complete local setup:
+#   supabase init
+#   supabase start

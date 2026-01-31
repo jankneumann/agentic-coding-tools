@@ -2,34 +2,64 @@
 
 Multi-agent coordination system for AI coding assistants. Enables Claude Code, Codex, Gemini, and other AI agents to collaborate safely on shared codebases.
 
-## Features
+## Features (Phase 1 MVP)
 
-- **🔒 File Locking** - Prevent merge conflicts with distributed locks
-- **🧠 Persistent Memory** - Three-layer cognitive architecture across sessions
-- **📋 Work Queue** - Task assignment with priorities and dependencies
-- **✅ Verification Gateway** - Automatic routing to appropriate test environments
+- **File Locking** - Prevent merge conflicts with distributed locks
+- **Work Queue** - Task assignment with priorities and dependencies
+- **MCP Server** - Native integration with Claude Code and other MCP clients
 
 ## Quick Start
 
+### 1. Set Up Supabase
+
+You have two options for the database:
+
+#### Option A: Supabase Cloud (Recommended for MVP)
+
+1. Create a free project at [supabase.com](https://supabase.com)
+2. Go to Project Settings → Database → Connection string
+3. Copy your project URL and service role key
+4. Run the migration via SQL Editor:
+   - Open SQL Editor in Supabase dashboard
+   - Paste contents of `supabase/migrations/001_core_schema.sql`
+   - Click "Run"
+
+#### Option B: Supabase CLI (Local Development)
+
 ```bash
-# Clone and install
-git clone https://github.com/yourorg/agent-coordinator
+# Install Supabase CLI
+brew install supabase/tap/supabase
+
+# Initialize and start local Supabase
+supabase init
+supabase start
+
+# Apply migrations
+supabase db push
+
+# Get local credentials (printed after start)
+# SUPABASE_URL=http://localhost:54321
+# SUPABASE_SERVICE_KEY=<printed service_role key>
+```
+
+### 2. Install Dependencies
+
+```bash
 cd agent-coordinator
 pip install -r requirements.txt
 
-# Set up environment
-cp .env.example .env
-# Edit .env with your Supabase credentials
-
-# Deploy database
-supabase db push
-
-# Run the services
-python src/coordination_api.py &   # HTTP API on :8081
-python src/gateway.py &            # Verification on :8080
+# Or with pyproject.toml
+pip install -e ".[dev]"
 ```
 
-## For Local Agents (Claude Code, Codex CLI)
+### 3. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your Supabase credentials
+```
+
+### 4. Configure Claude Code
 
 Add to `~/.claude/mcp.json`:
 
@@ -38,79 +68,156 @@ Add to `~/.claude/mcp.json`:
   "servers": {
     "coordination": {
       "command": "python",
-      "args": ["/path/to/agent-coordinator/src/coordination_mcp.py"],
+      "args": ["-m", "src.coordination_mcp"],
+      "cwd": "/path/to/agent-coordinator",
       "env": {
-        "SUPABASE_URL": "https://xxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "your-key"
+        "SUPABASE_URL": "https://your-project.supabase.co",
+        "SUPABASE_SERVICE_KEY": "your-service-role-key",
+        "AGENT_ID": "claude-code-1",
+        "AGENT_TYPE": "claude_code"
       }
     }
   }
 }
 ```
 
-Then use coordination tools naturally:
+### 5. Test the Integration
+
+Restart Claude Code, then try:
 
 ```
-# Acquire lock before editing
-acquire_lock(file_path="src/main.py", reason="refactoring")
+# Check available locks
+Use check_locks to see current file locks
 
-# Store what you learned
-remember(
-    event_type="pattern_found",
-    summary="Use Redis WATCH for atomic updates",
-    tags=["redis", "concurrency"]
-)
+# Acquire a lock
+Use acquire_lock on src/main.py with reason "testing coordination"
 
-# Release when done
-release_lock(file_path="src/main.py")
+# Release the lock
+Use release_lock on src/main.py
 ```
 
-## For Cloud Agents (Claude API)
+## MCP Tools
 
-Use the HTTP API:
+When the coordination server is configured, these tools are available:
+
+| Tool | Description |
+|------|-------------|
+| `acquire_lock` | Get exclusive access to a file before editing |
+| `release_lock` | Release a lock when done editing |
+| `check_locks` | See which files are currently locked |
+| `get_work` | Claim a task from the work queue |
+| `complete_work` | Mark a claimed task as completed/failed |
+| `submit_work` | Add a new task to the work queue |
+
+## MCP Resources
+
+| Resource | Description |
+|----------|-------------|
+| `locks://current` | All active file locks |
+| `work://pending` | Pending tasks in the queue |
+
+## Usage Example
 
 ```python
-from coordination_api import AgentCoordinationClient
+# In Claude Code conversation:
+# 1. Check if file is available
+result = check_locks(file_paths=["src/auth.py"])
+# Returns [] if not locked
 
-client = AgentCoordinationClient(
-    api_url="https://your-coordinator.com",
-    api_key="your-api-key",
-    agent_id="claude-api-1",
-    agent_type="claude_api",
-)
+# 2. Acquire lock before editing
+result = acquire_lock(file_path="src/auth.py", reason="fixing auth bug")
+# Returns {"success": true, "action": "acquired", "expires_at": "..."}
 
-# Same operations via HTTP
-await client.acquire_lock("src/main.py")
-await client.store_memory(event_type="task_completed", summary="...")
-await client.release_lock("src/main.py")
+# 3. Make your changes...
+
+# 4. Release lock when done
+result = release_lock(file_path="src/auth.py")
+# Returns {"success": true, "action": "released"}
+```
+
+## Development
+
+```bash
+# Run tests
+pytest
+
+# Run MCP server standalone (for testing)
+python -m src.coordination_mcp --transport=sse --port=8082
+
+# Lint and type check
+ruff check src tests
+mypy src
+```
+
+## File Structure
+
+```
+agent-coordinator/
+├── src/
+│   ├── __init__.py
+│   ├── config.py           # Environment configuration
+│   ├── db.py               # Supabase client
+│   ├── locks.py            # File locking service
+│   ├── work_queue.py       # Task queue service
+│   └── coordination_mcp.py # MCP server
+├── supabase/
+│   └── migrations/
+│       └── 001_core_schema.sql
+├── tests/
+│   ├── conftest.py
+│   ├── test_locks.py
+│   └── test_work_queue.py
+├── pyproject.toml
+├── requirements.txt
+├── docker-compose.yml      # Local Supabase (alternative)
+└── .env.example
 ```
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  GOVERNANCE       │ Dashboards, metrics, weekly review     │
-├─────────────────────────────────────────────────────────────┤
-│  TRUST            │ Verification Gateway, approval queue   │
-├─────────────────────────────────────────────────────────────┤
-│  COORDINATION     │ MCP Server + HTTP API → Supabase       │
-├─────────────────────────────────────────────────────────────┤
-│  EXECUTION        │ Local agents (MCP) + Cloud agents      │
+│  Claude Code CLI                                            │
+│  (or other MCP client)                                      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ MCP (stdio)
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  coordination_mcp.py                                        │
+│  - acquire_lock / release_lock / check_locks                │
+│  - get_work / complete_work / submit_work                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ HTTP (PostgREST)
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Supabase                                                   │
+│  - file_locks table                                         │
+│  - work_queue table                                         │
+│  - agent_sessions table                                     │
+│  - PL/pgSQL functions (atomic operations)                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Documentation
+## Syncing Local ↔ Cloud Supabase
 
-- [OPENSPEC.md](./OPENSPEC.md) - Full system specification
-- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) - Detailed design
-- [MCP_INTEGRATION.md](./docs/MCP_INTEGRATION.md) - MCP setup guide
-- [CLAUDE.md](./CLAUDE.md) - Context for AI agents working on this repo
+If you develop locally and want to sync to cloud:
 
-## Inspired By
+```bash
+# Link to your cloud project
+supabase link --project-ref your-project-ref
 
-- [Emanuel's Agentic Coding Flywheel](https://jeffreyemanuel.com/tldr)
-- [MCP Protocol](https://github.com/anthropics/mcp)
-- [FastMCP](https://github.com/jlowin/fastmcp)
+# Push local migrations to cloud
+supabase db push
+
+# Or pull cloud schema to local
+supabase db pull
+```
+
+## Future Phases
+
+- **Phase 2**: HTTP API for cloud agents, episodic memory, GitHub-mediated coordination
+- **Phase 3**: Guardrails engine, verification gateway, approval queues
+- **Phase 4**: Multi-agent swarms via Strands SDK
 
 ## License
 
