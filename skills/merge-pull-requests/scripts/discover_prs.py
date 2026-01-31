@@ -17,11 +17,12 @@ Usage:
 Output: JSON array of PR objects to stdout.
 """
 
+import argparse
 import json
 import re
 import sys
 
-from shared import check_gh, run_gh, safe_author
+from shared import check_clean_worktree, check_gh, run_gh, safe_author
 
 # Jules automation heuristics: title patterns only match when combined
 # with a label or author signal to avoid false positives on human PRs.
@@ -57,6 +58,10 @@ def get_default_branch() -> str:
             return ref["name"]
     except (RuntimeError, json.JSONDecodeError, KeyError):
         pass
+    print(
+        "Warning: Could not determine default branch, falling back to 'main'.",
+        file=sys.stderr,
+    )
     return "main"
 
 
@@ -73,7 +78,14 @@ def fetch_open_prs() -> list[dict]:
         sys.exit(1)
     if not raw:
         return []
-    return json.loads(raw)
+    prs = json.loads(raw)
+    if len(prs) >= 1000:
+        print(
+            "Warning: Fetched 1000 PRs (the maximum). "
+            "Additional PRs may exist but were not retrieved.",
+            file=sys.stderr,
+        )
+    return prs
 
 
 def is_jules_author(author: str) -> bool:
@@ -183,19 +195,25 @@ def discover() -> list[dict]:
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Discover and classify open pull requests by origin.",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Report only, no mutations")
+    args = parser.parse_args()
+
     check_gh()
-    dry_run = "--dry-run" in sys.argv
+    check_clean_worktree()
     results = discover()
 
     if not results:
         print(json.dumps([], indent=2))
-        if dry_run:
+        if args.dry_run:
             print("# Dry-run: No open PRs found.", file=sys.stderr)
         return
 
     print(json.dumps(results, indent=2))
 
-    if dry_run:
+    if args.dry_run:
         drafts = sum(1 for r in results if r["is_draft"])
         stacked = sum(1 for r in results if r["is_stacked"])
         forks = sum(1 for r in results if r["is_fork"])

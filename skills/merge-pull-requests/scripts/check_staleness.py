@@ -12,6 +12,7 @@ Usage:
 Output: JSON object with staleness assessment to stdout.
 """
 
+import argparse
 import json
 import re
 import subprocess
@@ -21,15 +22,26 @@ from shared import (
     GH_TIMEOUT,
     GIT_TIMEOUT,
     check_gh,
-    parse_pr_number,
     run_cmd,
     run_gh,
 )
 
 
-def fetch_origin_main(base_branch: str = "main"):
-    """Fetch latest remote state so staleness checks use up-to-date data."""
-    run_cmd(["git", "fetch", "origin", base_branch], check=False)
+def fetch_origin_main(base_branch: str = "main") -> str | None:
+    """Fetch latest remote state so staleness checks use up-to-date data.
+
+    Returns a warning string if the fetch failed, None on success.
+    """
+    try:
+        run_cmd(["git", "fetch", "origin", base_branch], check=True)
+    except RuntimeError as e:
+        warning = (
+            f"Could not fetch origin/{base_branch}: {e}. "
+            f"Staleness check may use stale local data."
+        )
+        print(f"Warning: {warning}", file=sys.stderr)
+        return warning
+    return None
 
 
 def get_pr_info(pr_number: int) -> dict:
@@ -58,11 +70,27 @@ def get_pr_changed_files(pr_number: int) -> list[str]:
 
 def get_main_changes_since(since_date: str, base_branch: str = "main") -> list[str]:
     """Get files changed on remote base branch since the given ISO date."""
+    if not re.match(r"^\d{4}-\d{2}-\d{2}T", since_date):
+        print(
+            f"Warning: PR creation date '{since_date}' is not in expected "
+            f"ISO 8601 format. File overlap detection may be inaccurate.",
+            file=sys.stderr,
+        )
+        return []
+
     result = subprocess.run(
         ["git", "log", f"--since={since_date}", "--name-only", "--pretty=format:",
          f"origin/{base_branch}"],
         capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
     )
+    if result.returncode != 0:
+        print(
+            f"Warning: git log failed (exit {result.returncode}): "
+            f"{result.stderr.strip()}. File overlap detection may be inaccurate.",
+            file=sys.stderr,
+        )
+        return []
+
     files = set()
     for line in result.stdout.strip().splitlines():
         line = line.strip()
@@ -188,8 +216,8 @@ def _check_pattern_in_file(
             "reason": "file_deleted",
         }
 
-    # Try exact match first
-    if sample["pattern"] in file_content:
+    # Try exact line match first (compare against each stripped line)
+    if any(sample["pattern"] == line.strip() for line in file_content.splitlines()):
         return {
             "file": sample["file"],
             "pattern": sample["pattern"][:80],
@@ -197,7 +225,16 @@ def _check_pattern_in_file(
             "match": "exact",
         }
 
-    # Try normalized line-by-line match
+    # Try normalized line-by-line match (skip for very large files)
+    max_size = 512 * 1024  # 512KB
+    if len(file_content) > max_size:
+        return {
+            "file": sample["file"],
+            "pattern": sample["pattern"][:80],
+            "found": False,
+            "reason": "file_too_large",
+        }
+
     if _normalized_line_search(normalize_pattern(sample["pattern"]), file_content):
         return {
             "file": sample["file"],
@@ -281,12 +318,16 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
     base_branch = pr_info.get("baseRefName", "main")
 
     # Ensure we have fresh remote state
-    fetch_origin_main(base_branch)
+    fetch_warning = fetch_origin_main(base_branch)
 
     pr_files = get_pr_changed_files(pr_number)
     main_files = get_main_changes_since(created_at, base_branch)
 
     overlapping = sorted(set(pr_files) & set(main_files))
+
+    warnings = []
+    if fetch_warning:
+        warnings.append(fetch_warning)
 
     result = {
         "pr_number": pr_number,
@@ -298,6 +339,8 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
         "overlapping_files": overlapping,
         "overlap_count": len(overlapping),
     }
+    if warnings:
+        result["warnings"] = warnings
 
     if not overlapping:
         result["staleness"] = "fresh"
@@ -330,28 +373,20 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Check whether a PR's changes are still relevant against current main.",
+    )
+    parser.add_argument("pr_number", type=int, help="PR number to check")
+    parser.add_argument("--origin", default="other", help="PR origin type (default: other)")
+    parser.add_argument("--dry-run", action="store_true", help="Report only, no mutations")
+    args = parser.parse_args()
+
     check_gh()
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    flags = sys.argv[1:]
+    result = check_staleness(args.pr_number, args.origin)
 
-    if not args:
-        print("Usage: check_staleness.py <pr_number> [--origin <type>] [--dry-run]",
-              file=sys.stderr)
-        sys.exit(1)
-
-    pr_number = parse_pr_number(args[0])
-    origin = "other"
-    if "--origin" in flags:
-        idx = flags.index("--origin")
-        if idx + 1 < len(flags):
-            origin = flags[idx + 1]
-
-    dry_run = "--dry-run" in flags
-    result = check_staleness(pr_number, origin)
-
-    if dry_run:
+    if args.dry_run:
         result["dry_run"] = True
-        print(f"# Dry-run: Staleness check for PR #{pr_number}: {result['staleness']}",
+        print(f"# Dry-run: Staleness check for PR #{args.pr_number}: {result['staleness']}",
               file=sys.stderr)
 
     print(json.dumps(result, indent=2))

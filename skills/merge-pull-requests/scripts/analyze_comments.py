@@ -10,10 +10,11 @@ Usage:
 Output: JSON object with comment threads to stdout.
 """
 
+import argparse
 import json
 import sys
 
-from shared import check_gh, parse_pr_number, run_gh, safe_author
+from shared import check_gh, run_gh, safe_author
 
 REVIEW_THREADS_QUERY = """
 query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
@@ -135,15 +136,19 @@ def get_review_threads(pr_number: int) -> list[dict]:
     return all_threads
 
 
-def get_reviews(pr_number: int) -> list[dict]:
-    """Fetch top-level reviews (APPROVED, CHANGES_REQUESTED, etc.)."""
+def get_reviews(pr_number: int) -> tuple[list[dict], str | None]:
+    """Fetch top-level reviews (APPROVED, CHANGES_REQUESTED, etc.).
+
+    Returns (reviews, warning). Warning is set if the fetch failed.
+    """
     try:
         raw = run_gh(["pr", "view", str(pr_number), "--json", "reviews"])
     except RuntimeError as e:
-        print(f"Error fetching reviews for PR #{pr_number}: {e}", file=sys.stderr)
-        return []
+        warning = f"Could not fetch reviews for PR #{pr_number}: {e}"
+        print(f"Warning: {warning}", file=sys.stderr)
+        return [], warning
     data = json.loads(raw)
-    return data.get("reviews", [])
+    return data.get("reviews", []), None
 
 
 def format_threads(raw_threads: list[dict]) -> list[dict]:
@@ -155,6 +160,10 @@ def format_threads(raw_threads: list[dict]) -> list[dict]:
             continue
         first = comments[0]
         last = comments[-1]
+        first_body = first.get("body", "")
+        last_body = last.get("body", "")
+        first_comment = first_body[:200] + ("…" if len(first_body) > 200 else "")
+        last_comment = last_body[:200] + ("…" if len(last_body) > 200 else "")
         result.append({
             "thread_id": thread["id"],
             "file": thread.get("path", "unknown"),
@@ -163,8 +172,8 @@ def format_threads(raw_threads: list[dict]) -> list[dict]:
             "is_outdated": thread.get("isOutdated", False),
             "reviewer": safe_author(first),
             "comment_count": len(comments),
-            "first_comment": first.get("body", "")[:200],
-            "last_comment": last.get("body", "")[:200],
+            "first_comment": first_comment,
+            "last_comment": last_comment,
             "created_at": first.get("createdAt", ""),
             "updated_at": last.get("updatedAt", ""),
         })
@@ -173,8 +182,12 @@ def format_threads(raw_threads: list[dict]) -> list[dict]:
 
 def analyze(pr_number: int) -> dict:
     raw_threads = get_review_threads(pr_number)
-    reviews = get_reviews(pr_number)
+    reviews, review_warning = get_reviews(pr_number)
     threads = format_threads(raw_threads)
+
+    warnings = []
+    if review_warning:
+        warnings.append(review_warning)
 
     unresolved = [t for t in threads if not t["is_resolved"]]
     resolved = [t for t in threads if t["is_resolved"]]
@@ -187,7 +200,7 @@ def analyze(pr_number: int) -> dict:
         state = r.get("state", "")
         review_states[reviewer] = state
 
-    return {
+    result = {
         "pr_number": pr_number,
         "total_threads": len(threads),
         "unresolved_count": len(unresolved),
@@ -201,27 +214,27 @@ def analyze(pr_number: int) -> dict:
         ],
         "has_unresolved": len(unresolved) > 0,
     }
+    if warnings:
+        result["warnings"] = warnings
+    return result
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Fetch and summarize review comments for a pull request.",
+    )
+    parser.add_argument("pr_number", type=int, help="PR number to analyze")
+    parser.add_argument("--dry-run", action="store_true", help="Report only, no mutations")
+    args = parser.parse_args()
+
     check_gh()
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    flags = sys.argv[1:]
 
-    if not args:
-        print("Usage: analyze_comments.py <pr_number> [--dry-run]",
-              file=sys.stderr)
-        sys.exit(1)
+    result = analyze(args.pr_number)
 
-    pr_number = parse_pr_number(args[0])
-    dry_run = "--dry-run" in flags
-
-    result = analyze(pr_number)
-
-    if dry_run:
+    if args.dry_run:
         result["dry_run"] = True
         print(
-            f"# Dry-run: PR #{pr_number} has {result['unresolved_count']} "
+            f"# Dry-run: PR #{args.pr_number} has {result['unresolved_count']} "
             f"unresolved / {result['resolved_count']} resolved thread(s).",
             file=sys.stderr,
         )

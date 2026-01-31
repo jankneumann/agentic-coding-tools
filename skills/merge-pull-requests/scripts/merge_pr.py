@@ -16,6 +16,7 @@ Usage:
 Output: JSON result to stdout.
 """
 
+import argparse
 import json
 import subprocess
 import sys
@@ -23,7 +24,6 @@ import sys
 from shared import (
     GH_TIMEOUT,
     check_gh,
-    parse_pr_number,
     parse_pr_numbers,
     run_gh,
     run_gh_unchecked,
@@ -58,8 +58,16 @@ def check_approval_freshness(pr_number: int) -> dict:
         raw = run_gh([
             "pr", "view", str(pr_number), "--json", "commits,reviews",
         ], timeout=GH_TIMEOUT)
-    except RuntimeError:
-        return {"approval_may_be_stale": False, "reason": "could_not_check"}
+    except RuntimeError as e:
+        print(
+            f"Warning: Could not verify approval freshness for PR #{pr_number}: {e}",
+            file=sys.stderr,
+        )
+        return {
+            "approval_may_be_stale": False,
+            "reason": "could_not_check",
+            "warning": "Could not verify approval freshness",
+        }
 
     data = json.loads(raw)
     commits = data.get("commits", [])
@@ -83,10 +91,25 @@ def check_approval_freshness(pr_number: int) -> dict:
 
     latest_approval = max(approved_dates)
 
+    # Check if any CHANGES_REQUESTED review was submitted after the latest approval
+    changes_requested_dates = [
+        r.get("submittedAt", "")
+        for r in reviews
+        if r.get("state") == "CHANGES_REQUESTED" and r.get("submittedAt")
+    ]
+    if changes_requested_dates and max(changes_requested_dates) > latest_approval:
+        return {
+            "approval_may_be_stale": True,
+            "reason": "changes_requested_after_approval",
+            "latest_approval": latest_approval,
+            "latest_changes_requested": max(changes_requested_dates),
+        }
+
     # ISO date strings are lexicographically comparable
     if commit_date and latest_approval and commit_date > latest_approval:
         return {
             "approval_may_be_stale": True,
+            "reason": "commits_after_approval",
             "latest_commit": commit_date,
             "latest_approval": latest_approval,
         }
@@ -210,17 +233,21 @@ def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
     try:
         result = run_gh_unchecked(merge_args, timeout=MERGE_TIMEOUT)
     except subprocess.TimeoutExpired:
-        return {
+        resp = {
             "action": "merge",
             "success": False,
             "pr_number": pr_number,
             "error": "Merge command timed out",
         }
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
 
     if result.returncode == 0:
         resp = {
             "action": "merge",
             "success": True,
+            "status": "merged",
             "pr_number": pr_number,
             "strategy": strategy,
         }
@@ -238,21 +265,28 @@ def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
     # Merge may have succeeded but branch deletion failed
     post_status = get_pr_status(pr_number)
     if post_status.get("state") == "MERGED":
-        return {
+        resp = {
             "action": "merge",
             "success": True,
+            "status": "merged",
             "pr_number": pr_number,
             "strategy": strategy,
             "warning": "PR merged but branch deletion may have failed",
             "stderr": stderr,
         }
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
 
-    return {
+    resp = {
         "action": "merge",
         "success": False,
         "pr_number": pr_number,
         "error": stderr or "Merge command failed",
     }
+    if is_fork:
+        resp["note"] = "Fork PR — remote branch not deleted"
+    return resp
 
 
 def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
@@ -273,14 +307,18 @@ def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
         }
 
     if result.returncode == 0:
-        return {
+        resp = {
             "action": "merge",
             "success": True,
+            "status": "enqueued",
             "pr_number": pr_number,
             "strategy": strategy,
             "merge_queue": True,
             "note": "PR added to merge queue — will merge automatically when ready",
         }
+        if is_fork:
+            resp["note"] += "; fork PR — remote branch not deleted"
+        return resp
 
     return {
         "action": "merge",
@@ -516,13 +554,19 @@ def close_pr(pr_number: int, reason: str,
 def batch_close(pr_numbers: list[int], reason: str,
                 dry_run: bool = False) -> dict:
     results = []
-    for num in pr_numbers:
-        results.append(close_pr(num, reason, dry_run))
+    remaining = []
+    for i, num in enumerate(pr_numbers):
+        result = close_pr(num, reason, dry_run)
+        results.append(result)
+        # Stop on first real failure (not dry-run)
+        if not dry_run and not result.get("success"):
+            remaining = pr_numbers[i + 1:]
+            break
 
     succeeded = sum(1 for r in results if r.get("success") or r.get("dry_run"))
     failed = sum(1 for r in results if not r.get("success") and not r.get("dry_run"))
 
-    return {
+    resp = {
         "action": "batch-close",
         "dry_run": dry_run,
         "count": len(pr_numbers),
@@ -530,59 +574,66 @@ def batch_close(pr_numbers: list[int], reason: str,
         "failed": failed,
         "results": results,
     }
+    if remaining:
+        resp["partial"] = True
+        resp["remaining"] = remaining
+    return resp
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Merge or close pull requests with pre-merge validation.",
+    )
+    subparsers = parser.add_subparsers(dest="action", required=True)
+
+    # merge subcommand
+    merge_parser = subparsers.add_parser("merge", help="Merge a single PR")
+    merge_parser.add_argument("pr_number", type=int, help="PR number to merge")
+    merge_parser.add_argument(
+        "--strategy", default="squash", choices=["squash", "merge", "rebase"],
+        help="Merge strategy (default: squash)",
+    )
+    merge_parser.add_argument("--dry-run", action="store_true")
+
+    # close subcommand
+    close_parser = subparsers.add_parser("close", help="Close a single PR")
+    close_parser.add_argument("pr_number", type=int, help="PR number to close")
+    close_parser.add_argument(
+        "--reason", default="Closed by merge-pull-requests skill.",
+        help="Reason for closing",
+    )
+    close_parser.add_argument("--dry-run", action="store_true")
+
+    # batch-close subcommand
+    batch_parser = subparsers.add_parser("batch-close", help="Close multiple PRs")
+    batch_parser.add_argument(
+        "pr_numbers", help="Comma-separated PR numbers (e.g. 1,2,3)",
+    )
+    batch_parser.add_argument(
+        "--reason", default="Closed as obsolete by merge-pull-requests skill.",
+        help="Reason for closing",
+    )
+    batch_parser.add_argument("--dry-run", action="store_true")
+
+    # rerun-checks subcommand
+    rerun_parser = subparsers.add_parser("rerun-checks", help="Re-run failed CI checks")
+    rerun_parser.add_argument("pr_number", type=int, help="PR number")
+    rerun_parser.add_argument("--dry-run", action="store_true")
+
+    args = parser.parse_args()
     check_gh()
 
-    if len(sys.argv) < 3:
-        print(
-            "Usage:\n"
-            "  merge_pr.py merge <pr> [--strategy squash|merge|rebase] [--dry-run]\n"
-            "  merge_pr.py close <pr> --reason <text> [--dry-run]\n"
-            "  merge_pr.py batch-close <pr,pr,...> --reason <text> [--dry-run]\n"
-            "  merge_pr.py rerun-checks <pr> [--dry-run]",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    action = sys.argv[1]
-    flags = sys.argv[2:]
-    dry_run = "--dry-run" in flags
-
-    if action == "merge":
-        pr_number = parse_pr_number(sys.argv[2])
-        strategy = "squash"
-        if "--strategy" in flags:
-            idx = flags.index("--strategy")
-            if idx + 1 < len(flags):
-                strategy = flags[idx + 1]
-        result = merge_pr(pr_number, strategy, dry_run)
-
-    elif action == "close":
-        pr_number = parse_pr_number(sys.argv[2])
-        reason = "Closed by merge-pull-requests skill."
-        if "--reason" in flags:
-            idx = flags.index("--reason")
-            if idx + 1 < len(flags):
-                reason = flags[idx + 1]
-        result = close_pr(pr_number, reason, dry_run)
-
-    elif action == "batch-close":
-        pr_numbers = parse_pr_numbers(sys.argv[2])
-        reason = "Closed as obsolete by merge-pull-requests skill."
-        if "--reason" in flags:
-            idx = flags.index("--reason")
-            if idx + 1 < len(flags):
-                reason = flags[idx + 1]
-        result = batch_close(pr_numbers, reason, dry_run)
-
-    elif action == "rerun-checks":
-        pr_number = parse_pr_number(sys.argv[2])
-        result = rerun_failed_checks(pr_number, dry_run)
-
+    if args.action == "merge":
+        result = merge_pr(args.pr_number, args.strategy, args.dry_run)
+    elif args.action == "close":
+        result = close_pr(args.pr_number, args.reason, args.dry_run)
+    elif args.action == "batch-close":
+        pr_numbers = parse_pr_numbers(args.pr_numbers)
+        result = batch_close(pr_numbers, args.reason, args.dry_run)
+    elif args.action == "rerun-checks":
+        result = rerun_failed_checks(args.pr_number, args.dry_run)
     else:
-        print(f"Unknown action: {action}", file=sys.stderr)
+        parser.print_help()
         sys.exit(1)
 
     print(json.dumps(result, indent=2))

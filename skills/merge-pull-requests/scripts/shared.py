@@ -11,6 +11,14 @@ GH_TIMEOUT = 30
 GIT_TIMEOUT = 60
 
 
+def _truncate_cmd(parts: list[str], max_len: int = 200) -> str:
+    """Format a command for error messages, truncating if too long."""
+    full = " ".join(parts)
+    if len(full) <= max_len:
+        return full
+    return full[:max_len] + "…"
+
+
 def check_gh():
     """Verify gh CLI is installed and authenticated."""
     try:
@@ -45,7 +53,7 @@ def run_gh(args: list[str], timeout: int = GH_TIMEOUT) -> str:
     )
     if result.returncode != 0:
         raise RuntimeError(
-            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
+            f"{_truncate_cmd(['gh'] + args)} failed (exit {result.returncode}): "
             f"{result.stderr.strip()}"
         )
     return result.stdout.strip()
@@ -73,7 +81,7 @@ def run_cmd(
     )
     if check and result.returncode != 0:
         raise RuntimeError(
-            f"{' '.join(cmd[:3])} failed (exit {result.returncode}): "
+            f"{_truncate_cmd(cmd)} failed (exit {result.returncode}): "
             f"{result.stderr.strip()}"
         )
     return result.stdout.strip()
@@ -123,8 +131,11 @@ def check_write_access():
     try:
         raw = run_gh(["api", "repos/{owner}/{repo}", "--jq", ".permissions.push"])
     except RuntimeError:
-        # Can't determine permissions — don't block, the merge will fail
-        # with a clear error if access is insufficient.
+        print(
+            "Warning: Could not verify write access — will proceed and "
+            "fail at merge/close if access is insufficient.",
+            file=sys.stderr,
+        )
         return
     if raw.strip() == "false":
         print(
@@ -134,3 +145,38 @@ def check_write_access():
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def check_clean_worktree() -> bool:
+    """Check if the git working directory is clean.
+
+    Non-fatal: prints a warning to stderr if dirty. Returns True if clean.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        print(
+            "Warning: Could not check working directory status.",
+            file=sys.stderr,
+        )
+        return False
+
+    if result.returncode != 0:
+        print(
+            "Warning: Could not check working directory status.",
+            file=sys.stderr,
+        )
+        return False
+
+    if result.stdout.strip():
+        print(
+            "Warning: Working directory has uncommitted changes. "
+            "Commit, stash, or discard changes before proceeding.",
+            file=sys.stderr,
+        )
+        return False
+
+    return True
