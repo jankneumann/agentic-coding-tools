@@ -103,6 +103,7 @@ def validate_pr(pr_number: int) -> dict:
             and checks_ok
             and not checks_pending
             and not is_draft
+            and approved
         ),
     }
 
@@ -136,6 +137,15 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             "success": False,
             "pr_number": pr_number,
             "reason": "CI checks still running — wait for completion",
+            "validation": validation,
+        }
+
+    if not validation["approved"]:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": "Review approval required before merging",
             "validation": validation,
         }
 
