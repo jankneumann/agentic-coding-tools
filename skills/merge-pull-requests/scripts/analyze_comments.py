@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Fetch and summarize unresolved review comments for a pull request.
+"""Fetch and summarize review comments for a pull request.
+
+Uses the GraphQL API to get thread resolution status, which the REST API
+does not expose.
 
 Usage:
   python analyze_comments.py <pr_number> [--dry-run]
@@ -11,23 +14,97 @@ import json
 import subprocess
 import sys
 
+GH_TIMEOUT = 30
+
+
+def check_gh():
+    try:
+        subprocess.run(
+            ["gh", "--version"], capture_output=True, text=True,
+            check=True, timeout=GH_TIMEOUT,
+        )
+    except FileNotFoundError:
+        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
+        sys.exit(1)
+
 
 def run_gh(args: list[str]) -> str:
     result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True, check=True
+        ["gh"] + args, capture_output=True, text=True,
+        check=True, timeout=GH_TIMEOUT,
     )
     return result.stdout.strip()
 
 
-def get_review_comments(pr_number: int) -> list[dict]:
-    """Fetch review comments via gh api (includes thread/resolution info)."""
+REVIEW_THREADS_QUERY = """
+query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          isResolved
+          isOutdated
+          path
+          line
+          comments(first: 50) {
+            nodes {
+              author { login }
+              body
+              createdAt
+              updatedAt
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def get_repo_owner_name() -> tuple[str, str]:
+    """Get owner and repo name from gh."""
     raw = run_gh([
-        "api", f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/comments",
-        "--paginate",
+        "repo", "view", "--json", "owner,name",
     ])
-    if not raw:
-        return []
-    return json.loads(raw)
+    data = json.loads(raw)
+    return data["owner"]["login"], data["name"]
+
+
+def get_review_threads(pr_number: int) -> list[dict]:
+    """Fetch review threads with resolution status via GraphQL."""
+    owner, repo = get_repo_owner_name()
+    all_threads = []
+    cursor = None
+
+    while True:
+        jq_args = [
+            "api", "graphql",
+            "-F", f"owner={owner}",
+            "-F", f"repo={repo}",
+            "-F", f"pr={pr_number}",
+            "-f", f"query={REVIEW_THREADS_QUERY}",
+        ]
+        if cursor:
+            jq_args.extend(["-F", f"cursor={cursor}"])
+        else:
+            jq_args.extend(["-F", "cursor=null"])
+
+        raw = run_gh(jq_args)
+        data = json.loads(raw)
+
+        threads_data = data["data"]["repository"]["pullRequest"]["reviewThreads"]
+        all_threads.extend(threads_data["nodes"])
+
+        page_info = threads_data["pageInfo"]
+        if page_info["hasNextPage"]:
+            cursor = page_info["endCursor"]
+        else:
+            break
+
+    return all_threads
 
 
 def get_reviews(pr_number: int) -> list[dict]:
@@ -39,72 +116,65 @@ def get_reviews(pr_number: int) -> list[dict]:
     return data.get("reviews", [])
 
 
-def group_into_threads(comments: list[dict]) -> list[dict]:
-    """Group comments into threads by in_reply_to_id."""
-    threads: dict[int, list[dict]] = {}
-    root_map: dict[int, int] = {}
-
-    for c in comments:
-        cid = c["id"]
-        reply_to = c.get("in_reply_to_id")
-
-        if reply_to and reply_to in root_map:
-            root = root_map[reply_to]
-            root_map[cid] = root
-            threads[root].append(c)
-        elif reply_to and reply_to in threads:
-            root_map[cid] = reply_to
-            threads[reply_to].append(c)
-        else:
-            root_map[cid] = cid
-            threads[cid] = [c]
-
+def format_threads(raw_threads: list[dict]) -> list[dict]:
+    """Convert GraphQL thread data into summary format."""
     result = []
-    for root_id, thread_comments in threads.items():
-        first = thread_comments[0]
+    for thread in raw_threads:
+        comments = thread.get("comments", {}).get("nodes", [])
+        if not comments:
+            continue
+        first = comments[0]
+        last = comments[-1]
         result.append({
-            "thread_id": root_id,
-            "file": first.get("path", "unknown"),
-            "line": first.get("original_line") or first.get("line"),
-            "reviewer": first.get("user", {}).get("login", "unknown"),
-            "comment_count": len(thread_comments),
+            "thread_id": thread["id"],
+            "file": thread.get("path", "unknown"),
+            "line": thread.get("line"),
+            "is_resolved": thread.get("isResolved", False),
+            "is_outdated": thread.get("isOutdated", False),
+            "reviewer": first.get("author", {}).get("login", "unknown"),
+            "comment_count": len(comments),
             "first_comment": first.get("body", "")[:200],
-            "last_comment": thread_comments[-1].get("body", "")[:200],
-            "created_at": first.get("created_at", ""),
-            "updated_at": thread_comments[-1].get("updated_at", ""),
+            "last_comment": last.get("body", "")[:200],
+            "created_at": first.get("createdAt", ""),
+            "updated_at": last.get("updatedAt", ""),
         })
-
     return result
 
 
 def analyze(pr_number: int) -> dict:
-    comments = get_review_comments(pr_number)
+    raw_threads = get_review_threads(pr_number)
     reviews = get_reviews(pr_number)
+    threads = format_threads(raw_threads)
 
-    threads = group_into_threads(comments)
+    unresolved = [t for t in threads if not t["is_resolved"]]
+    resolved = [t for t in threads if t["is_resolved"]]
+    outdated = [t for t in threads if t["is_outdated"]]
 
-    # Summarize review state
+    # Summarize review state — keep latest per reviewer
     review_states = {}
     for r in reviews:
         reviewer = r.get("author", {}).get("login", "unknown")
         state = r.get("state", "")
-        # Keep the latest review per reviewer
         review_states[reviewer] = state
 
     return {
         "pr_number": pr_number,
-        "total_comments": len(comments),
-        "thread_count": len(threads),
+        "total_threads": len(threads),
+        "unresolved_count": len(unresolved),
+        "resolved_count": len(resolved),
+        "outdated_count": len(outdated),
         "threads": threads,
+        "unresolved_threads": unresolved,
         "reviews": [
             {"reviewer": k, "state": v}
             for k, v in review_states.items()
         ],
-        "has_unresolved": len(threads) > 0,
+        "has_unresolved": len(unresolved) > 0,
     }
 
 
 def main():
+    check_gh()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = sys.argv[1:]
 
@@ -121,7 +191,8 @@ def main():
     if dry_run:
         result["dry_run"] = True
         print(
-            f"# Dry-run: PR #{pr_number} has {result['thread_count']} comment thread(s).",
+            f"# Dry-run: PR #{pr_number} has {result['unresolved_count']} "
+            f"unresolved / {result['resolved_count']} resolved thread(s).",
             file=sys.stderr,
         )
 

@@ -13,38 +13,59 @@ Output: JSON object with staleness assessment to stdout.
 """
 
 import json
+import re
 import subprocess
 import sys
-from datetime import datetime
+
+GH_TIMEOUT = 30
+GIT_TIMEOUT = 60
 
 
-def run(cmd: list[str], check: bool = True) -> str:
-    result = subprocess.run(cmd, capture_output=True, text=True, check=check)
+def check_gh():
+    try:
+        subprocess.run(
+            ["gh", "--version"], capture_output=True, text=True,
+            check=True, timeout=GH_TIMEOUT,
+        )
+    except FileNotFoundError:
+        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
+        sys.exit(1)
+
+
+def run(cmd: list[str], check: bool = True, timeout: int = GIT_TIMEOUT) -> str:
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, check=check, timeout=timeout,
+    )
     return result.stdout.strip()
+
+
+def fetch_origin_main(base_branch: str = "main"):
+    """Fetch latest remote state so staleness checks use up-to-date data."""
+    run(["git", "fetch", "origin", base_branch], check=False)
 
 
 def get_pr_info(pr_number: int) -> dict:
     raw = run([
         "gh", "pr", "view", str(pr_number), "--json",
         "headRefName,baseRefName,createdAt,files,body,title",
-    ])
+    ], timeout=GH_TIMEOUT)
     return json.loads(raw)
 
 
 def get_pr_changed_files(pr_number: int) -> list[str]:
     raw = run([
         "gh", "pr", "view", str(pr_number), "--json", "files",
-    ])
+    ], timeout=GH_TIMEOUT)
     data = json.loads(raw)
     return [f["path"] for f in data.get("files", [])]
 
 
 def get_main_changes_since(since_date: str, base_branch: str = "main") -> list[str]:
-    """Get files changed on base branch since the given ISO date."""
+    """Get files changed on remote base branch since the given ISO date."""
     result = subprocess.run(
         ["git", "log", f"--since={since_date}", "--name-only", "--pretty=format:",
-         base_branch],
-        capture_output=True, text=True, check=False,
+         f"origin/{base_branch}"],
+        capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
     )
     files = set()
     for line in result.stdout.strip().splitlines():
@@ -56,14 +77,26 @@ def get_main_changes_since(since_date: str, base_branch: str = "main") -> list[s
 
 def get_pr_diff_content(pr_number: int) -> str:
     """Get the actual diff of the PR to check if target code patterns still exist."""
-    return run(["gh", "pr", "diff", str(pr_number)], check=False)
+    return run(["gh", "pr", "diff", str(pr_number)],
+               check=False, timeout=GH_TIMEOUT)
 
 
-def check_pattern_exists_on_main(diff_text: str) -> dict:
+def normalize_pattern(s: str) -> str:
+    """Normalize a code pattern for fuzzy comparison.
+
+    Collapses whitespace so that reformatted code still matches.
+    """
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def check_pattern_exists_on_main(
+    diff_text: str, base_branch: str = "main",
+) -> dict:
     """Check if the 'before' state of the PR's changes still exists on main.
 
     Looks at removed lines (prefixed with -) to see if those code patterns
-    are still present in the current main branch files.
+    are still present in the current base branch. Uses normalized whitespace
+    comparison to handle reformatted code.
     """
     removed_lines = []
     current_file = None
@@ -75,8 +108,10 @@ def check_pattern_exists_on_main(diff_text: str) -> dict:
                 current_file = parts[1]
         elif line.startswith("-") and not line.startswith("---"):
             stripped = line[1:].strip()
-            # Skip empty or trivial lines
-            if stripped and len(stripped) > 10:
+            # Skip empty or trivial lines (imports, braces, blank)
+            if stripped and len(stripped) > 10 and not re.match(
+                r"^[\s{}()\[\];,]*$", stripped
+            ):
                 removed_lines.append({
                     "file": current_file,
                     "pattern": stripped,
@@ -85,8 +120,17 @@ def check_pattern_exists_on_main(diff_text: str) -> dict:
     if not removed_lines:
         return {"patterns_found": True, "details": "No removals to check"}
 
-    # Sample up to 5 significant removed patterns to check
-    samples = removed_lines[:5]
+    # Sample up to 8 significant removed patterns spread across files
+    seen_files: set[str] = set()
+    samples = []
+    for item in removed_lines:
+        if len(samples) >= 8:
+            break
+        # Prefer variety across files
+        if item["file"] not in seen_files or len(samples) < 4:
+            samples.append(item)
+            seen_files.add(item["file"])
+
     patterns_still_present = 0
     checked = []
 
@@ -94,11 +138,10 @@ def check_pattern_exists_on_main(diff_text: str) -> dict:
         if not sample["file"]:
             continue
         result = subprocess.run(
-            ["git", "show", f"main:{sample['file']}"],
-            capture_output=True, text=True, check=False,
+            ["git", "show", f"origin/{base_branch}:{sample['file']}"],
+            capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
         )
         if result.returncode != 0:
-            # File doesn't exist on main anymore
             checked.append({
                 "file": sample["file"],
                 "pattern": sample["pattern"][:80],
@@ -107,12 +150,26 @@ def check_pattern_exists_on_main(diff_text: str) -> dict:
             })
             continue
 
-        if sample["pattern"] in result.stdout:
+        file_content = result.stdout
+        normalized_pattern = normalize_pattern(sample["pattern"])
+
+        # Try exact match first
+        if sample["pattern"] in file_content:
             patterns_still_present += 1
             checked.append({
                 "file": sample["file"],
                 "pattern": sample["pattern"][:80],
                 "found": True,
+                "match": "exact",
+            })
+        # Try normalized (whitespace-insensitive) match
+        elif normalized_pattern in normalize_pattern(file_content):
+            patterns_still_present += 1
+            checked.append({
+                "file": sample["file"],
+                "pattern": sample["pattern"][:80],
+                "found": True,
+                "match": "normalized",
             })
         else:
             checked.append({
@@ -134,6 +191,10 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
     pr_info = get_pr_info(pr_number)
     created_at = pr_info.get("createdAt", "")
     base_branch = pr_info.get("baseRefName", "main")
+
+    # Ensure we have fresh remote state
+    fetch_origin_main(base_branch)
+
     pr_files = get_pr_changed_files(pr_number)
     main_files = get_main_changes_since(created_at, base_branch)
 
@@ -142,6 +203,7 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
     result = {
         "pr_number": pr_number,
         "created_at": created_at,
+        "base_branch": base_branch,
         "pr_files": pr_files,
         "pr_file_count": len(pr_files),
         "main_changes_since": len(main_files),
@@ -157,7 +219,7 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
     # For Jules automation PRs, check if the fix is still needed
     if origin in ("sentinel", "bolt", "palette"):
         diff_text = get_pr_diff_content(pr_number)
-        pattern_check = check_pattern_exists_on_main(diff_text)
+        pattern_check = check_pattern_exists_on_main(diff_text, base_branch)
         result["pattern_check"] = pattern_check
 
         if not pattern_check["patterns_found"]:
@@ -177,6 +239,7 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
 
 
 def main():
+    check_gh()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = sys.argv[1:]
 
