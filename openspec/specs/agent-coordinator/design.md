@@ -176,10 +176,11 @@ This system coordinates multiple AI coding agents working on shared codebases. T
 
 ## Component Details
 
-### File: `coordination_mcp.py`
+### File: `coordination_mcp.py` *(Implemented)*
 - **Technology**: FastMCP + Python
 - **Purpose**: MCP server for local agents
-- **Tools**: `acquire_lock`, `release_lock`, `check_locks`, `remember`, `recall`, `get_work`, `complete_work`, `submit_work`
+- **Tools (Phase 1)**: `acquire_lock`, `release_lock`, `check_locks`, `get_work`, `complete_work`, `submit_work`
+- **Tools (Phase 2)**: `remember`, `recall` (memory tools, not yet implemented)
 - **Resources**: `locks://current`, `work://pending`
 
 ### File: `coordination_api.py`
@@ -246,11 +247,21 @@ This system coordinates multiple AI coding agents working on shared codebases. T
 
 ### Atomic Lock Acquisition
 ```sql
--- Uses INSERT ... ON CONFLICT to prevent race conditions
-INSERT INTO file_locks (file_path, locked_by, ...)
-VALUES (...)
-ON CONFLICT (file_path) DO NOTHING
-RETURNING TRUE INTO v_acquired;
+-- Clean expired locks, then INSERT ON CONFLICT to prevent race conditions.
+-- If INSERT succeeds: lock acquired.
+-- If INSERT conflicts: check ownership for refresh vs conflict.
+DELETE FROM file_locks WHERE expires_at < NOW();
+
+INSERT INTO file_locks (file_path, locked_by, agent_type, session_id, expires_at, reason)
+VALUES (p_file_path, p_agent_id, p_agent_type, p_session_id, v_expires_at, p_reason)
+ON CONFLICT (file_path) DO NOTHING;
+
+IF FOUND THEN
+    -- Acquired
+ELSE
+    -- Lock exists: check if same agent (refresh) or different (conflict)
+    SELECT * INTO v_existing FROM file_locks WHERE file_path = p_file_path FOR UPDATE;
+END IF;
 ```
 
 ### Atomic Task Claiming
@@ -275,69 +286,69 @@ WHERE agent_id = p_agent_id
 
 ## File Structure
 
+### Implemented (Phase 1)
+
 ```
 agent-coordinator/
 ├── README.md
+├── pyproject.toml              # Python packaging + dev deps
 ├── requirements.txt
-├── docker-compose.yml          # Local development
+├── docker-compose.yml          # Local Supabase (PostgreSQL + PostgREST)
 ├── .env.example
 │
 ├── src/
 │   ├── __init__.py
-│   ├── coordination_mcp.py     # MCP server for local agents
-│   ├── coordination_api.py     # HTTP API for cloud agents
+│   ├── config.py               # Environment configuration (incl. rest_prefix)
+│   ├── db.py                   # Async Supabase/PostgREST client
+│   ├── locks.py                # File locking service
+│   ├── work_queue.py           # Task queue service
+│   └── coordination_mcp.py     # MCP server (6 tools, 2 resources)
+│
+├── supabase/
+│   ├── migrations/
+│   │   ├── 000_bootstrap.sql   # Auth schema, roles, publication (standalone PostgREST)
+│   │   └── 001_core_schema.sql # Tables + PL/pgSQL functions
+│   └── seed.sql
+│
+└── tests/
+    ├── conftest.py             # Unit test fixtures (respx mocks)
+    ├── test_locks.py           # 12 unit tests
+    ├── test_work_queue.py      # 19 unit tests
+    └── integration/
+        ├── conftest.py         # JWT generation, cleanup, skip logic
+        ├── test_locks_integration.py      # 11 integration tests
+        └── test_work_queue_integration.py # 18 integration tests
+```
+
+### Planned (Phase 2+)
+
+```
+agent-coordinator/
+├── src/
+│   ├── coordination_api.py     # HTTP API for cloud agents (FastAPI)
 │   ├── gateway.py              # Verification routing
 │   ├── guardrails.py           # Destructive operation detection
 │   ├── profiles.py             # Agent profile management
 │   ├── audit.py                # Audit logging
-│   ├── github_sync.py          # GitHub-mediated coordination
-│   ├── config.py               # Environment configuration
-│   └── db.py                   # Shared Supabase client
+│   └── github_sync.py          # GitHub-mediated coordination
 │
 ├── agents/                     # Preconfigured agent definitions
-│   ├── __init__.py
-│   ├── profiles.yaml           # Agent profile definitions
-│   ├── network_policies.yaml   # Network access policies
-│   ├── guardrail_patterns.yaml # Destructive operation patterns
+│   ├── profiles.yaml
+│   ├── network_policies.yaml
+│   ├── guardrail_patterns.yaml
 │   └── strands/                # Strands agent configurations
-│       ├── orchestrator.py
-│       ├── reviewer.py
-│       └── implementer.py
 │
-├── supabase/
-│   ├── migrations/
-│   │   ├── 001_core_schema.sql
-│   │   ├── 002_memory_schema.sql
-│   │   ├── 003_profiles_schema.sql
-│   │   ├── 004_guardrails_schema.sql
-│   │   └── 005_audit_schema.sql
-│   └── seed.sql                # Default policies and profiles
-│
-├── tests/
-│   ├── test_locks.py
-│   ├── test_memory.py
-│   ├── test_work_queue.py
-│   ├── test_gateway.py
-│   ├── test_guardrails.py
-│   ├── test_profiles.py
-│   └── test_cloud_agents.py
+├── supabase/migrations/
+│   ├── 002_memory_schema.sql
+│   ├── 003_profiles_schema.sql
+│   ├── 004_guardrails_schema.sql
+│   └── 005_audit_schema.sql
 │
 ├── clients/                    # Client SDKs for cloud agents
 │   ├── python/
-│   │   └── agent_coordinator/
-│   │       ├── __init__.py
-│   │       └── client.py       # AgentCoordinationClient
 │   └── typescript/
-│       └── src/
-│           └── client.ts
 │
 └── docs/
-    ├── ARCHITECTURE.md
-    ├── MCP_INTEGRATION.md
-    ├── API_REFERENCE.md
-    ├── CLOUD_AGENT_SETUP.md    # Claude Code Web, Codex Cloud
-    ├── STRANDS_INTEGRATION.md  # Strands + AgentCore setup
-    └── GUARDRAILS.md           # Guardrail configuration
 ```
 
 ## Configuration

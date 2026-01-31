@@ -6,6 +6,24 @@ A multi-agent coordination system that enables local agents (Claude Code CLI, Co
 
 **Problem Statement**: When multiple AI coding agents work on the same codebase they face conflicts (merge conflicts from concurrent edits), context loss (no memory across sessions), no orchestration (no task tracking), verification gaps (cloud agents can't verify against real environments), and safety risks (autonomous agents executing destructive operations).
 
+## Implementation Status
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **Phase 1 (MVP)** | File locking, work queue, MCP server, Supabase persistence | **Implemented** |
+| Phase 2 | HTTP API for cloud agents, episodic memory, GitHub-mediated coordination | Specified |
+| Phase 3 | Guardrails engine, verification gateway, agent profiles, approval queues | Specified |
+| Phase 4 | Multi-agent orchestration via Strands SDK, AgentCore integration | Specified |
+
+### Phase 1 Implementation Details
+
+- **Database**: 3 tables (`file_locks`, `work_queue`, `agent_sessions`) + 5 PL/pgSQL functions
+- **Bootstrap migration** (`000_bootstrap.sql`): Creates `auth` schema, database roles (`anon`, `authenticated`, `service_role`), `auth.role()` function, and `supabase_realtime` publication for standalone PostgREST deployments
+- **MCP server**: 6 tools (`acquire_lock`, `release_lock`, `check_locks`, `get_work`, `complete_work`, `submit_work`) + 2 resources (`locks://current`, `work://pending`)
+- **Config**: `rest_prefix` field on `SupabaseConfig` supports both Supabase-hosted (`/rest/v1`) and direct PostgREST (`""`) connections
+- **Tests**: 31 unit tests (respx mocks) + 29 integration tests against local Supabase via docker-compose
+- **Key pattern**: `acquire_lock` uses `INSERT ON CONFLICT DO NOTHING` then ownership check (prevents PK violation under concurrent access)
+
 ## Agent Types
 
 | Type | Platform | Connection | Network Access | Example |
@@ -117,7 +135,7 @@ The system SHALL provide task assignment, tracking, and dependency management th
 
 #### Scenario: No tasks available
 - **WHEN** agent calls `get_work()` with no pending tasks matching criteria
-- **THEN** system returns `{success: true, task_id: null}`
+- **THEN** system returns `{success: false, reason: "no_tasks_available"}`
 
 #### Scenario: Agent completes task
 - **WHEN** agent calls `complete_work(task_id, success, result?, error_message?)`
@@ -144,7 +162,8 @@ The system SHALL expose coordination capabilities as native MCP tools for local 
 
 #### Scenario: Local agent connects via MCP
 - **WHEN** local agent connects to coordination MCP server
-- **THEN** agent discovers available tools: `acquire_lock`, `release_lock`, `check_locks`, `remember`, `recall`, `get_work`, `complete_work`, `submit_work`
+- **THEN** agent discovers available tools: `acquire_lock`, `release_lock`, `check_locks`, `get_work`, `complete_work`, `submit_work`
+- **AND** (Phase 2) `remember`, `recall` tools when memory is implemented
 
 #### Scenario: MCP resource access
 - **WHEN** agent queries MCP resources
@@ -488,25 +507,25 @@ The system SHALL support coordination via GitHub for agents with restricted netw
 
 ## Database Tables
 
-### Core Tables
+### Phase 1 (Implemented)
+| Table | Purpose | Migration |
+|-------|---------|-----------|
+| `file_locks` | Active file locks with TTL | `001_core_schema.sql` |
+| `work_queue` | Task assignment queue | `001_core_schema.sql` |
+| `agent_sessions` | Agent work sessions | `001_core_schema.sql` |
+
+### Phase 2+ (Planned)
 | Table | Purpose |
 |-------|---------|
-| `file_locks` | Active file locks with TTL |
 | `changesets` | Records of agent-generated changes |
 | `verification_results` | Outcomes of verification runs |
 | `verification_policies` | Configurable routing rules |
 | `approval_queue` | Human review tracking |
-| `agent_sessions` | Agent work sessions |
-
-### Memory Tables
-| Table | Purpose |
-|-------|---------|
 | `memory_episodic` | Experiences and their outcomes |
 | `memory_working` | Active context for current tasks |
 | `memory_procedural` | Learned skills and patterns |
-| `work_queue` | Task assignment queue |
 
-### Agent Management Tables
+### Phase 3+ (Planned)
 | Table | Purpose |
 |-------|---------|
 | `agent_profiles` | Capability definitions with trust levels |
@@ -516,24 +535,6 @@ The system SHALL support coordination via GitHub for agents with restricted netw
 | `operation_guardrails` | Destructive operation patterns and rules |
 | `guardrail_violations` | Log of blocked/approved destructive attempts |
 | `audit_log` | Immutable log of all coordination operations |
-
-### Core Tables
-| Table | Purpose |
-|-------|---------|
-| `file_locks` | Active file locks with TTL |
-| `changesets` | Records of agent-generated changes |
-| `verification_results` | Outcomes of verification runs |
-| `verification_policies` | Configurable routing rules |
-| `approval_queue` | Human review tracking |
-| `agent_sessions` | Agent work sessions |
-
-### Memory Tables
-| Table | Purpose |
-|-------|---------|
-| `memory_episodic` | Experiences and their outcomes |
-| `memory_working` | Active context for current tasks |
-| `memory_procedural` | Learned skills and patterns |
-| `work_queue` | Task assignment queue |
 
 ---
 
