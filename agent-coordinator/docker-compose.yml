@@ -1,8 +1,6 @@
 # Local Supabase development environment
 # Run: docker-compose up -d
 
-version: "3.9"
-
 services:
   # PostgreSQL database
   postgres:
