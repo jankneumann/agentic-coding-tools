@@ -22,6 +22,7 @@ GH_TIMEOUT = 60
 
 
 def check_gh():
+    """Verify gh CLI is installed and authenticated."""
     try:
         subprocess.run(
             ["gh", "--version"], capture_output=True, text=True,
@@ -30,22 +31,51 @@ def check_gh():
     except FileNotFoundError:
         print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
         sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("Error: 'gh --version' timed out.", file=sys.stderr)
+        sys.exit(1)
+
+    result = subprocess.run(
+        ["gh", "auth", "status"], capture_output=True, text=True,
+        check=False, timeout=GH_TIMEOUT,
+    )
+    if result.returncode != 0:
+        print(
+            "Error: gh is not authenticated. Run 'gh auth login' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
-def run_gh(args: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def run_gh(args: list[str]) -> subprocess.CompletedProcess:
     result = subprocess.run(
         ["gh"] + args, capture_output=True, text=True,
-        check=check, timeout=GH_TIMEOUT,
+        check=False, timeout=GH_TIMEOUT,
     )
     return result
 
 
+def run_gh_checked(args: list[str]) -> str:
+    """Run gh and raise RuntimeError on failure."""
+    result = run_gh(args)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
+            f"{result.stderr.strip()}"
+        )
+    return result.stdout.strip()
+
+
 def get_pr_status(pr_number: int) -> dict:
-    result = run_gh([
-        "pr", "view", str(pr_number), "--json",
-        "state,mergeable,statusCheckRollup,reviewDecision,headRefName,title,isDraft",
-    ])
-    return json.loads(result.stdout.strip())
+    try:
+        raw = run_gh_checked([
+            "pr", "view", str(pr_number), "--json",
+            "state,mergeable,statusCheckRollup,reviewDecision,headRefName,title,isDraft",
+        ])
+    except RuntimeError as e:
+        print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(raw)
 
 
 def validate_pr(pr_number: int) -> dict:
@@ -72,11 +102,14 @@ def validate_pr(pr_number: int) -> dict:
         check_details.append({"name": name, "state": effective})
 
         passed_states = {"SUCCESS", "NEUTRAL", "SKIPPED"}
-        pending_states = {"PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED", ""}
+        pending_states = {"PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
         if effective in passed_states:
             continue
         elif effective in pending_states:
+            checks_pending = True
+        elif effective == "UNKNOWN":
+            # Treat truly unknown checks as pending rather than failed
             checks_pending = True
         else:
             checks_ok = False
@@ -86,12 +119,21 @@ def validate_pr(pr_number: int) -> dict:
 
     mergeable = status.get("mergeable", "UNKNOWN")
 
+    # Build a clear status summary
+    if not checks_ok:
+        check_summary = "failed"
+    elif checks_pending:
+        check_summary = "pending"
+    else:
+        check_summary = "passing"
+
     return {
         "pr_number": pr_number,
         "title": status.get("title", ""),
         "branch": status.get("headRefName", ""),
         "is_draft": is_draft,
         "mergeable": mergeable,
+        "check_summary": check_summary,
         "checks_passing": checks_ok and not checks_pending,
         "checks_pending": checks_pending,
         "checks_failed": not checks_ok,
@@ -162,7 +204,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
     try:
         result = run_gh([
             "pr", "merge", str(pr_number), strategy_flag, "--delete-branch",
-        ], check=False)
+        ])
 
         if result.returncode != 0:
             # Merge may have succeeded but branch deletion failed
@@ -209,26 +251,16 @@ def close_pr(pr_number: int, reason: str,
             "reason": reason,
         }
 
+    # Close first, then comment. If close fails we don't leave orphan comments.
     try:
-        run_gh([
-            "pr", "comment", str(pr_number), "--body", reason,
-        ])
-        run_gh([
-            "pr", "close", str(pr_number),
-        ])
-        return {
-            "action": "close",
-            "success": True,
-            "pr_number": pr_number,
-            "reason": reason,
-        }
-    except subprocess.CalledProcessError as e:
-        return {
-            "action": "close",
-            "success": False,
-            "pr_number": pr_number,
-            "error": e.stderr.strip() if e.stderr else str(e),
-        }
+        close_result = run_gh(["pr", "close", str(pr_number)])
+        if close_result.returncode != 0:
+            return {
+                "action": "close",
+                "success": False,
+                "pr_number": pr_number,
+                "error": close_result.stderr.strip() or "Close command failed",
+            }
     except subprocess.TimeoutExpired:
         return {
             "action": "close",
@@ -237,18 +269,74 @@ def close_pr(pr_number: int, reason: str,
             "error": "Close command timed out",
         }
 
+    # Post the comment after successful close — failure here is non-fatal
+    comment_warning = None
+    try:
+        comment_result = run_gh([
+            "pr", "comment", str(pr_number), "--body", reason,
+        ])
+        if comment_result.returncode != 0:
+            comment_warning = (
+                f"PR closed but comment failed: {comment_result.stderr.strip()}"
+            )
+    except subprocess.TimeoutExpired:
+        comment_warning = "PR closed but comment timed out"
+
+    result = {
+        "action": "close",
+        "success": True,
+        "pr_number": pr_number,
+        "reason": reason,
+    }
+    if comment_warning:
+        result["warning"] = comment_warning
+    return result
+
 
 def batch_close(pr_numbers: list[int], reason: str,
                 dry_run: bool = False) -> dict:
     results = []
     for num in pr_numbers:
         results.append(close_pr(num, reason, dry_run))
+
+    succeeded = sum(1 for r in results if r.get("success") or r.get("dry_run"))
+    failed = sum(1 for r in results if not r.get("success") and not r.get("dry_run"))
+
     return {
         "action": "batch-close",
         "dry_run": dry_run,
         "count": len(pr_numbers),
+        "succeeded": succeeded,
+        "failed": failed,
         "results": results,
     }
+
+
+def parse_pr_number(arg: str) -> int:
+    """Parse and validate PR number from argument."""
+    try:
+        num = int(arg)
+    except ValueError:
+        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
+        sys.exit(1)
+    if num <= 0:
+        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
+        sys.exit(1)
+    return num
+
+
+def parse_pr_numbers(arg: str) -> list[int]:
+    """Parse comma-separated PR numbers."""
+    numbers = []
+    for part in arg.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        numbers.append(parse_pr_number(part))
+    if not numbers:
+        print("Error: No valid PR numbers provided.", file=sys.stderr)
+        sys.exit(1)
+    return numbers
 
 
 def main():
@@ -269,7 +357,7 @@ def main():
     dry_run = "--dry-run" in flags
 
     if action == "merge":
-        pr_number = int(sys.argv[2])
+        pr_number = parse_pr_number(sys.argv[2])
         strategy = "squash"
         if "--strategy" in flags:
             idx = flags.index("--strategy")
@@ -278,7 +366,7 @@ def main():
         result = merge_pr(pr_number, strategy, dry_run)
 
     elif action == "close":
-        pr_number = int(sys.argv[2])
+        pr_number = parse_pr_number(sys.argv[2])
         reason = "Closed by merge-pull-requests skill."
         if "--reason" in flags:
             idx = flags.index("--reason")
@@ -287,7 +375,7 @@ def main():
         result = close_pr(pr_number, reason, dry_run)
 
     elif action == "batch-close":
-        pr_numbers = [int(n) for n in sys.argv[2].split(",")]
+        pr_numbers = parse_pr_numbers(sys.argv[2])
         reason = "Closed as obsolete by merge-pull-requests skill."
         if "--reason" in flags:
             idx = flags.index("--reason")

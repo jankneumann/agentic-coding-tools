@@ -22,6 +22,7 @@ GIT_TIMEOUT = 60
 
 
 def check_gh():
+    """Verify gh CLI is installed and authenticated."""
     try:
         subprocess.run(
             ["gh", "--version"], capture_output=True, text=True,
@@ -30,12 +31,31 @@ def check_gh():
     except FileNotFoundError:
         print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
         sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("Error: 'gh --version' timed out.", file=sys.stderr)
+        sys.exit(1)
+
+    result = subprocess.run(
+        ["gh", "auth", "status"], capture_output=True, text=True,
+        check=False, timeout=GH_TIMEOUT,
+    )
+    if result.returncode != 0:
+        print(
+            "Error: gh is not authenticated. Run 'gh auth login' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def run(cmd: list[str], check: bool = True, timeout: int = GIT_TIMEOUT) -> str:
     result = subprocess.run(
-        cmd, capture_output=True, text=True, check=check, timeout=timeout,
+        cmd, capture_output=True, text=True, check=False, timeout=timeout,
     )
+    if check and result.returncode != 0:
+        raise RuntimeError(
+            f"{' '.join(cmd[:3])} failed (exit {result.returncode}): "
+            f"{result.stderr.strip()}"
+        )
     return result.stdout.strip()
 
 
@@ -45,17 +65,25 @@ def fetch_origin_main(base_branch: str = "main"):
 
 
 def get_pr_info(pr_number: int) -> dict:
-    raw = run([
-        "gh", "pr", "view", str(pr_number), "--json",
-        "headRefName,baseRefName,createdAt,files,body,title",
-    ], timeout=GH_TIMEOUT)
+    try:
+        raw = run([
+            "gh", "pr", "view", str(pr_number), "--json",
+            "headRefName,baseRefName,createdAt,files,body,title",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
+        sys.exit(1)
     return json.loads(raw)
 
 
 def get_pr_changed_files(pr_number: int) -> list[str]:
-    raw = run([
-        "gh", "pr", "view", str(pr_number), "--json", "files",
-    ], timeout=GH_TIMEOUT)
+    try:
+        raw = run([
+            "gh", "pr", "view", str(pr_number), "--json", "files",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        print(f"Error: Could not fetch files for PR #{pr_number}: {e}", file=sys.stderr)
+        sys.exit(1)
     data = json.loads(raw)
     return [f["path"] for f in data.get("files", [])]
 
@@ -89,6 +117,24 @@ def normalize_pattern(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def parse_diff_file_path(diff_line: str) -> str | None:
+    """Parse file path from a 'diff --git a/X b/Y' line.
+
+    Uses the b/ prefix from the end to handle paths containing spaces or ' b/'.
+    """
+    # Format: diff --git a/<path> b/<path>
+    # The b/ path is always the last segment
+    prefix = "diff --git "
+    if not diff_line.startswith(prefix):
+        return None
+    rest = diff_line[len(prefix):]
+    # Find ' b/' scanning from right to handle paths containing ' b/'
+    idx = rest.rfind(" b/")
+    if idx == -1:
+        return None
+    return rest[idx + 3:]  # everything after ' b/'
+
+
 def check_pattern_exists_on_main(
     diff_text: str, base_branch: str = "main",
 ) -> dict:
@@ -97,18 +143,19 @@ def check_pattern_exists_on_main(
     Looks at removed lines (prefixed with -) to see if those code patterns
     are still present in the current base branch. Uses normalized whitespace
     comparison to handle reformatted code.
+
+    For add-only PRs (no removals), checks if the added content already
+    exists on main — if so, the PR is redundant.
     """
     removed_lines = []
+    added_lines = []
     current_file = None
 
     for line in diff_text.splitlines():
         if line.startswith("diff --git"):
-            parts = line.split(" b/")
-            if len(parts) == 2:
-                current_file = parts[1]
+            current_file = parse_diff_file_path(line)
         elif line.startswith("-") and not line.startswith("---"):
             stripped = line[1:].strip()
-            # Skip empty or trivial lines (imports, braces, blank)
             if stripped and len(stripped) > 10 and not re.match(
                 r"^[\s{}()\[\];,]*$", stripped
             ):
@@ -116,6 +163,19 @@ def check_pattern_exists_on_main(
                     "file": current_file,
                     "pattern": stripped,
                 })
+        elif line.startswith("+") and not line.startswith("+++"):
+            stripped = line[1:].strip()
+            if stripped and len(stripped) > 10 and not re.match(
+                r"^[\s{}()\[\];,]*$", stripped
+            ):
+                added_lines.append({
+                    "file": current_file,
+                    "pattern": stripped,
+                })
+
+    # For add-only PRs: check if the additions already exist on main
+    if not removed_lines and added_lines:
+        return _check_additions_already_present(added_lines, base_branch)
 
     if not removed_lines:
         return {"patterns_found": True, "details": "No removals to check"}
@@ -126,7 +186,6 @@ def check_pattern_exists_on_main(
     for item in removed_lines:
         if len(samples) >= 8:
             break
-        # Prefer variety across files
         if item["file"] not in seen_files or len(samples) < 4:
             samples.append(item)
             seen_files.add(item["file"])
@@ -137,11 +196,11 @@ def check_pattern_exists_on_main(
     for sample in samples:
         if not sample["file"]:
             continue
-        result = subprocess.run(
-            ["git", "show", f"origin/{base_branch}:{sample['file']}"],
-            capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
+
+        file_content = _read_file_from_ref(
+            f"origin/{base_branch}", sample["file"],
         )
-        if result.returncode != 0:
+        if file_content is None:
             checked.append({
                 "file": sample["file"],
                 "pattern": sample["pattern"][:80],
@@ -150,7 +209,6 @@ def check_pattern_exists_on_main(
             })
             continue
 
-        file_content = result.stdout
         normalized_pattern = normalize_pattern(sample["pattern"])
 
         # Try exact match first
@@ -162,8 +220,8 @@ def check_pattern_exists_on_main(
                 "found": True,
                 "match": "exact",
             })
-        # Try normalized (whitespace-insensitive) match
-        elif normalized_pattern in normalize_pattern(file_content):
+        # Try normalized line-by-line match (avoids normalizing the whole file)
+        elif _normalized_line_search(normalized_pattern, file_content):
             patterns_still_present += 1
             checked.append({
                 "file": sample["file"],
@@ -183,6 +241,93 @@ def check_pattern_exists_on_main(
         "patterns_found": patterns_still_present > 0,
         "checked": len(checked),
         "present": patterns_still_present,
+        "details": checked,
+    }
+
+
+def _read_file_from_ref(ref: str, path: str) -> str | None:
+    """Read a file from a git ref, returns None if file doesn't exist."""
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{path}"],
+        capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _normalized_line_search(normalized_pattern: str, file_content: str) -> bool:
+    """Search for a normalized pattern line-by-line to avoid normalizing entire file."""
+    for file_line in file_content.splitlines():
+        if normalized_pattern in normalize_pattern(file_line):
+            return True
+    return False
+
+
+def _check_additions_already_present(
+    added_lines: list[dict], base_branch: str,
+) -> dict:
+    """For add-only PRs, check if the added content already exists on main."""
+    seen_files: set[str] = set()
+    samples = []
+    for item in added_lines:
+        if len(samples) >= 8:
+            break
+        if item["file"] not in seen_files or len(samples) < 4:
+            samples.append(item)
+            seen_files.add(item["file"])
+
+    already_present = 0
+    checked = []
+
+    for sample in samples:
+        if not sample["file"]:
+            continue
+
+        file_content = _read_file_from_ref(
+            f"origin/{base_branch}", sample["file"],
+        )
+        if file_content is None:
+            checked.append({
+                "file": sample["file"],
+                "pattern": sample["pattern"][:80],
+                "found": False,
+                "reason": "file_not_on_main",
+            })
+            continue
+
+        if sample["pattern"] in file_content:
+            already_present += 1
+            checked.append({
+                "file": sample["file"],
+                "pattern": sample["pattern"][:80],
+                "found": True,
+                "match": "exact",
+            })
+        elif _normalized_line_search(
+            normalize_pattern(sample["pattern"]), file_content,
+        ):
+            already_present += 1
+            checked.append({
+                "file": sample["file"],
+                "pattern": sample["pattern"][:80],
+                "found": True,
+                "match": "normalized",
+            })
+        else:
+            checked.append({
+                "file": sample["file"],
+                "pattern": sample["pattern"][:80],
+                "found": False,
+                "reason": "not_yet_present",
+            })
+
+    all_present = already_present == len(checked) and len(checked) > 0
+    return {
+        "patterns_found": not all_present,
+        "add_only": True,
+        "checked": len(checked),
+        "already_present": already_present,
         "details": checked,
     }
 
@@ -224,9 +369,12 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
 
         if not pattern_check["patterns_found"]:
             result["staleness"] = "obsolete"
+            reason = "code patterns this PR fixes no longer exist"
+            if pattern_check.get("add_only"):
+                reason = "additions in this PR are already present"
             result["summary"] = (
-                f"Jules/{origin} fix is obsolete — the code patterns this PR "
-                f"fixes no longer exist on {base_branch}."
+                f"Jules/{origin} fix is obsolete — {reason} "
+                f"on {base_branch}."
             )
             return result
 
@@ -236,6 +384,19 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
         f"Review overlapping changes before merging."
     )
     return result
+
+
+def parse_pr_number(arg: str) -> int:
+    """Parse and validate PR number from argument."""
+    try:
+        num = int(arg)
+    except ValueError:
+        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
+        sys.exit(1)
+    if num <= 0:
+        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
+        sys.exit(1)
+    return num
 
 
 def main():
@@ -248,7 +409,7 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    pr_number = int(args[0])
+    pr_number = parse_pr_number(args[0])
     origin = "other"
     if "--origin" in flags:
         idx = flags.index("--origin")

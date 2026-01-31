@@ -49,6 +49,7 @@ JULES_AUTHORS = {"jules", "jules[bot]", "jules-bot"}
 
 
 def check_gh():
+    """Verify gh CLI is installed and authenticated."""
     try:
         subprocess.run(
             ["gh", "--version"], capture_output=True, text=True,
@@ -57,23 +58,67 @@ def check_gh():
     except FileNotFoundError:
         print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
         sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("Error: 'gh --version' timed out.", file=sys.stderr)
+        sys.exit(1)
+
+    result = subprocess.run(
+        ["gh", "auth", "status"], capture_output=True, text=True,
+        check=False, timeout=GH_TIMEOUT,
+    )
+    if result.returncode != 0:
+        print(
+            "Error: gh is not authenticated. Run 'gh auth login' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def run_gh(args: list[str]) -> str:
     result = subprocess.run(
         ["gh"] + args, capture_output=True, text=True,
-        check=True, timeout=GH_TIMEOUT,
+        check=False, timeout=GH_TIMEOUT,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
+            f"{result.stderr.strip()}"
+        )
     return result.stdout.strip()
 
 
+def safe_author(pr: dict) -> str:
+    """Extract author login, handling null/missing author."""
+    author = pr.get("author")
+    if author is None:
+        return "unknown"
+    return author.get("login", "unknown") or "unknown"
+
+
+def get_default_branch() -> str:
+    """Get the repository's default branch name."""
+    try:
+        raw = run_gh(["repo", "view", "--json", "defaultBranchRef"])
+        data = json.loads(raw)
+        ref = data.get("defaultBranchRef")
+        if ref and ref.get("name"):
+            return ref["name"]
+    except (RuntimeError, json.JSONDecodeError, KeyError):
+        pass
+    return "main"
+
+
 def fetch_open_prs() -> list[dict]:
-    """Fetch all open PRs using pagination (no hard limit)."""
-    raw = run_gh([
-        "pr", "list", "--state", "open", "--json",
-        "number,title,author,headRefName,baseRefName,createdAt,labels,body,url,isDraft",
-        "--limit", "1000",
-    ])
+    """Fetch all open PRs."""
+    try:
+        raw = run_gh([
+            "pr", "list", "--state", "open", "--json",
+            "number,title,author,headRefName,baseRefName,createdAt,labels,body,url,isDraft",
+            "--limit", "1000",
+        ])
+    except RuntimeError as e:
+        print(f"Error fetching PRs: {e}", file=sys.stderr)
+        sys.exit(1)
     if not raw:
         return []
     return json.loads(raw)
@@ -88,8 +133,7 @@ def classify_pr(pr: dict) -> dict:
     body = pr.get("body", "") or ""
     title = pr.get("title", "")
     labels = [label.get("name", "").lower() for label in pr.get("labels", [])]
-    author = pr.get("author", {}).get("login", "")
-    base_branch = pr.get("baseRefName", "main")
+    author = safe_author(pr)
 
     # OpenSpec detection
     if branch.startswith("openspec/"):
@@ -139,20 +183,22 @@ def classify_pr(pr: dict) -> dict:
 
 
 def discover() -> list[dict]:
+    default_branch = get_default_branch()
     prs = fetch_open_prs()
     results = []
     for pr in prs:
         classification = classify_pr(pr)
-        base_branch = pr.get("baseRefName", "main")
+        base_branch = pr.get("baseRefName", default_branch)
         is_draft = pr.get("isDraft", False)
-        is_stacked = base_branch != "main" and base_branch != "master"
+        is_stacked = base_branch != default_branch
 
         results.append({
             "number": pr["number"],
             "title": pr["title"],
-            "author": pr.get("author", {}).get("login", "unknown"),
+            "author": safe_author(pr),
             "branch": pr.get("headRefName", ""),
             "base_branch": base_branch,
+            "default_branch": default_branch,
             "created_at": pr.get("createdAt", ""),
             "labels": [label.get("name", "") for label in pr.get("labels", [])],
             "url": pr.get("url", ""),

@@ -18,6 +18,7 @@ GH_TIMEOUT = 30
 
 
 def check_gh():
+    """Verify gh CLI is installed and authenticated."""
     try:
         subprocess.run(
             ["gh", "--version"], capture_output=True, text=True,
@@ -26,13 +27,32 @@ def check_gh():
     except FileNotFoundError:
         print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
         sys.exit(1)
+    except subprocess.TimeoutExpired:
+        print("Error: 'gh --version' timed out.", file=sys.stderr)
+        sys.exit(1)
+
+    result = subprocess.run(
+        ["gh", "auth", "status"], capture_output=True, text=True,
+        check=False, timeout=GH_TIMEOUT,
+    )
+    if result.returncode != 0:
+        print(
+            "Error: gh is not authenticated. Run 'gh auth login' first.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def run_gh(args: list[str]) -> str:
     result = subprocess.run(
         ["gh"] + args, capture_output=True, text=True,
-        check=True, timeout=GH_TIMEOUT,
+        check=False, timeout=GH_TIMEOUT,
     )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
+            f"{result.stderr.strip()}"
+        )
     return result.stdout.strip()
 
 
@@ -66,11 +86,25 @@ query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
 
 def get_repo_owner_name() -> tuple[str, str]:
     """Get owner and repo name from gh."""
-    raw = run_gh([
-        "repo", "view", "--json", "owner,name",
-    ])
+    try:
+        raw = run_gh(["repo", "view", "--json", "owner,name"])
+    except RuntimeError as e:
+        print(
+            f"Error: Cannot determine repo owner/name. "
+            f"Are you inside a git repo with a GitHub remote? ({e})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     data = json.loads(raw)
     return data["owner"]["login"], data["name"]
+
+
+def safe_comment_author(comment: dict) -> str:
+    """Extract comment author login, handling null/missing author."""
+    author = comment.get("author")
+    if author is None:
+        return "unknown"
+    return author.get("login", "unknown") or "unknown"
 
 
 def get_review_threads(pr_number: int) -> list[dict]:
@@ -80,7 +114,7 @@ def get_review_threads(pr_number: int) -> list[dict]:
     cursor = None
 
     while True:
-        jq_args = [
+        gql_args = [
             "api", "graphql",
             "-F", f"owner={owner}",
             "-F", f"repo={repo}",
@@ -88,18 +122,61 @@ def get_review_threads(pr_number: int) -> list[dict]:
             "-f", f"query={REVIEW_THREADS_QUERY}",
         ]
         if cursor:
-            jq_args.extend(["-F", f"cursor={cursor}"])
+            gql_args.extend(["-F", f"cursor={cursor}"])
         else:
-            jq_args.extend(["-F", "cursor=null"])
+            gql_args.extend(["-F", "cursor=null"])
 
-        raw = run_gh(jq_args)
+        try:
+            raw = run_gh(gql_args)
+        except RuntimeError as e:
+            stderr_msg = str(e).lower()
+            if "scope" in stderr_msg or "permission" in stderr_msg:
+                print(
+                    "Error: GraphQL query failed — your gh token may lack "
+                    "required scopes. Ensure 'read:discussion' scope is "
+                    "granted. Run 'gh auth refresh -s read:discussion'.",
+                    file=sys.stderr,
+                )
+            else:
+                print(f"Error: GraphQL query failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
         data = json.loads(raw)
 
-        threads_data = data["data"]["repository"]["pullRequest"]["reviewThreads"]
-        all_threads.extend(threads_data["nodes"])
+        # Handle GraphQL-level errors
+        if "errors" in data:
+            error_msgs = [e.get("message", "") for e in data["errors"]]
+            print(
+                f"Error: GraphQL returned errors: {'; '.join(error_msgs)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-        page_info = threads_data["pageInfo"]
-        if page_info["hasNextPage"]:
+        # Handle nonexistent PR (pullRequest is null)
+        repo_data = data.get("data", {}).get("repository")
+        if repo_data is None:
+            print(
+                f"Error: Repository {owner}/{repo} not found or inaccessible.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        pr_data = repo_data.get("pullRequest")
+        if pr_data is None:
+            print(
+                f"Error: PR #{pr_number} not found in {owner}/{repo}.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        threads_data = pr_data.get("reviewThreads")
+        if threads_data is None:
+            break
+
+        all_threads.extend(threads_data.get("nodes", []))
+
+        page_info = threads_data.get("pageInfo", {})
+        if page_info.get("hasNextPage"):
             cursor = page_info["endCursor"]
         else:
             break
@@ -109,9 +186,11 @@ def get_review_threads(pr_number: int) -> list[dict]:
 
 def get_reviews(pr_number: int) -> list[dict]:
     """Fetch top-level reviews (APPROVED, CHANGES_REQUESTED, etc.)."""
-    raw = run_gh([
-        "pr", "view", str(pr_number), "--json", "reviews",
-    ])
+    try:
+        raw = run_gh(["pr", "view", str(pr_number), "--json", "reviews"])
+    except RuntimeError as e:
+        print(f"Error fetching reviews for PR #{pr_number}: {e}", file=sys.stderr)
+        return []
     data = json.loads(raw)
     return data.get("reviews", [])
 
@@ -131,7 +210,7 @@ def format_threads(raw_threads: list[dict]) -> list[dict]:
             "line": thread.get("line"),
             "is_resolved": thread.get("isResolved", False),
             "is_outdated": thread.get("isOutdated", False),
-            "reviewer": first.get("author", {}).get("login", "unknown"),
+            "reviewer": safe_comment_author(first),
             "comment_count": len(comments),
             "first_comment": first.get("body", "")[:200],
             "last_comment": last.get("body", "")[:200],
@@ -153,7 +232,10 @@ def analyze(pr_number: int) -> dict:
     # Summarize review state — keep latest per reviewer
     review_states = {}
     for r in reviews:
-        reviewer = r.get("author", {}).get("login", "unknown")
+        author = r.get("author")
+        reviewer = "unknown"
+        if author is not None:
+            reviewer = author.get("login", "unknown") or "unknown"
         state = r.get("state", "")
         review_states[reviewer] = state
 
@@ -173,6 +255,19 @@ def analyze(pr_number: int) -> dict:
     }
 
 
+def parse_pr_number(arg: str) -> int:
+    """Parse and validate PR number from argument."""
+    try:
+        num = int(arg)
+    except ValueError:
+        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
+        sys.exit(1)
+    if num <= 0:
+        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
+        sys.exit(1)
+    return num
+
+
 def main():
     check_gh()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -183,7 +278,7 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    pr_number = int(args[0])
+    pr_number = parse_pr_number(args[0])
     dry_run = "--dry-run" in flags
 
     result = analyze(pr_number)
