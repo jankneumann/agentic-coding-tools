@@ -11,50 +11,9 @@ Output: JSON object with comment threads to stdout.
 """
 
 import json
-import subprocess
 import sys
 
-GH_TIMEOUT = 30
-
-
-def check_gh():
-    """Verify gh CLI is installed and authenticated."""
-    try:
-        subprocess.run(
-            ["gh", "--version"], capture_output=True, text=True,
-            check=True, timeout=GH_TIMEOUT,
-        )
-    except FileNotFoundError:
-        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
-        sys.exit(1)
-    except subprocess.TimeoutExpired:
-        print("Error: 'gh --version' timed out.", file=sys.stderr)
-        sys.exit(1)
-
-    result = subprocess.run(
-        ["gh", "auth", "status"], capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        print(
-            "Error: gh is not authenticated. Run 'gh auth login' first.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-def run_gh(args: list[str]) -> str:
-    result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
-            f"{result.stderr.strip()}"
-        )
-    return result.stdout.strip()
-
+from shared import check_gh, parse_pr_number, run_gh, safe_author
 
 REVIEW_THREADS_QUERY = """
 query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
@@ -97,14 +56,6 @@ def get_repo_owner_name() -> tuple[str, str]:
         sys.exit(1)
     data = json.loads(raw)
     return data["owner"]["login"], data["name"]
-
-
-def safe_comment_author(comment: dict) -> str:
-    """Extract comment author login, handling null/missing author."""
-    author = comment.get("author")
-    if author is None:
-        return "unknown"
-    return author.get("login", "unknown") or "unknown"
 
 
 def get_review_threads(pr_number: int) -> list[dict]:
@@ -210,7 +161,7 @@ def format_threads(raw_threads: list[dict]) -> list[dict]:
             "line": thread.get("line"),
             "is_resolved": thread.get("isResolved", False),
             "is_outdated": thread.get("isOutdated", False),
-            "reviewer": safe_comment_author(first),
+            "reviewer": safe_author(first),
             "comment_count": len(comments),
             "first_comment": first.get("body", "")[:200],
             "last_comment": last.get("body", "")[:200],
@@ -232,10 +183,7 @@ def analyze(pr_number: int) -> dict:
     # Summarize review state — keep latest per reviewer
     review_states = {}
     for r in reviews:
-        author = r.get("author")
-        reviewer = "unknown"
-        if author is not None:
-            reviewer = author.get("login", "unknown") or "unknown"
+        reviewer = safe_author(r)
         state = r.get("state", "")
         review_states[reviewer] = state
 
@@ -253,19 +201,6 @@ def analyze(pr_number: int) -> dict:
         ],
         "has_unresolved": len(unresolved) > 0,
     }
-
-
-def parse_pr_number(arg: str) -> int:
-    """Parse and validate PR number from argument."""
-    try:
-        num = int(arg)
-    except ValueError:
-        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
-        sys.exit(1)
-    if num <= 0:
-        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
-        sys.exit(1)
-    return num
 
 
 def main():

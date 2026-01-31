@@ -17,57 +17,25 @@ import re
 import subprocess
 import sys
 
-GH_TIMEOUT = 30
-GIT_TIMEOUT = 60
-
-
-def check_gh():
-    """Verify gh CLI is installed and authenticated."""
-    try:
-        subprocess.run(
-            ["gh", "--version"], capture_output=True, text=True,
-            check=True, timeout=GH_TIMEOUT,
-        )
-    except FileNotFoundError:
-        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
-        sys.exit(1)
-    except subprocess.TimeoutExpired:
-        print("Error: 'gh --version' timed out.", file=sys.stderr)
-        sys.exit(1)
-
-    result = subprocess.run(
-        ["gh", "auth", "status"], capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        print(
-            "Error: gh is not authenticated. Run 'gh auth login' first.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-def run(cmd: list[str], check: bool = True, timeout: int = GIT_TIMEOUT) -> str:
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, check=False, timeout=timeout,
-    )
-    if check and result.returncode != 0:
-        raise RuntimeError(
-            f"{' '.join(cmd[:3])} failed (exit {result.returncode}): "
-            f"{result.stderr.strip()}"
-        )
-    return result.stdout.strip()
+from shared import (
+    GH_TIMEOUT,
+    GIT_TIMEOUT,
+    check_gh,
+    parse_pr_number,
+    run_cmd,
+    run_gh,
+)
 
 
 def fetch_origin_main(base_branch: str = "main"):
     """Fetch latest remote state so staleness checks use up-to-date data."""
-    run(["git", "fetch", "origin", base_branch], check=False)
+    run_cmd(["git", "fetch", "origin", base_branch], check=False)
 
 
 def get_pr_info(pr_number: int) -> dict:
     try:
-        raw = run([
-            "gh", "pr", "view", str(pr_number), "--json",
+        raw = run_gh([
+            "pr", "view", str(pr_number), "--json",
             "headRefName,baseRefName,createdAt,files,body,title",
         ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
@@ -78,8 +46,8 @@ def get_pr_info(pr_number: int) -> dict:
 
 def get_pr_changed_files(pr_number: int) -> list[str]:
     try:
-        raw = run([
-            "gh", "pr", "view", str(pr_number), "--json", "files",
+        raw = run_gh([
+            "pr", "view", str(pr_number), "--json", "files",
         ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
         print(f"Error: Could not fetch files for PR #{pr_number}: {e}", file=sys.stderr)
@@ -105,8 +73,8 @@ def get_main_changes_since(since_date: str, base_branch: str = "main") -> list[s
 
 def get_pr_diff_content(pr_number: int) -> str:
     """Get the actual diff of the PR to check if target code patterns still exist."""
-    return run(["gh", "pr", "diff", str(pr_number)],
-               check=False, timeout=GH_TIMEOUT)
+    return run_cmd(["gh", "pr", "diff", str(pr_number)],
+                   check=False, timeout=GH_TIMEOUT)
 
 
 def normalize_pattern(s: str) -> str:
@@ -135,18 +103,17 @@ def parse_diff_file_path(diff_line: str) -> str | None:
     return rest[idx + 3:]  # everything after ' b/'
 
 
-def check_pattern_exists_on_main(
-    diff_text: str, base_branch: str = "main",
-) -> dict:
-    """Check if the 'before' state of the PR's changes still exists on main.
+def _is_significant_line(stripped: str) -> bool:
+    """Check if a diff line is significant enough to use as a pattern."""
+    return (
+        bool(stripped)
+        and len(stripped) > 10
+        and not re.match(r"^[\s{}()\[\];,]*$", stripped)
+    )
 
-    Looks at removed lines (prefixed with -) to see if those code patterns
-    are still present in the current base branch. Uses normalized whitespace
-    comparison to handle reformatted code.
 
-    For add-only PRs (no removals), checks if the added content already
-    exists on main — if so, the PR is redundant.
-    """
+def _parse_diff_lines(diff_text: str) -> tuple[list[dict], list[dict]]:
+    """Parse a diff into lists of significant removed and added lines."""
     removed_lines = []
     added_lines = []
     current_file = None
@@ -156,93 +123,27 @@ def check_pattern_exists_on_main(
             current_file = parse_diff_file_path(line)
         elif line.startswith("-") and not line.startswith("---"):
             stripped = line[1:].strip()
-            if stripped and len(stripped) > 10 and not re.match(
-                r"^[\s{}()\[\];,]*$", stripped
-            ):
-                removed_lines.append({
-                    "file": current_file,
-                    "pattern": stripped,
-                })
+            if _is_significant_line(stripped):
+                removed_lines.append({"file": current_file, "pattern": stripped})
         elif line.startswith("+") and not line.startswith("+++"):
             stripped = line[1:].strip()
-            if stripped and len(stripped) > 10 and not re.match(
-                r"^[\s{}()\[\];,]*$", stripped
-            ):
-                added_lines.append({
-                    "file": current_file,
-                    "pattern": stripped,
-                })
+            if _is_significant_line(stripped):
+                added_lines.append({"file": current_file, "pattern": stripped})
 
-    # For add-only PRs: check if the additions already exist on main
-    if not removed_lines and added_lines:
-        return _check_additions_already_present(added_lines, base_branch)
+    return removed_lines, added_lines
 
-    if not removed_lines:
-        return {"patterns_found": True, "details": "No removals to check"}
 
-    # Sample up to 8 significant removed patterns spread across files
+def _sample_patterns(lines: list[dict], max_samples: int = 8) -> list[dict]:
+    """Sample up to max_samples significant patterns spread across files."""
     seen_files: set[str] = set()
     samples = []
-    for item in removed_lines:
-        if len(samples) >= 8:
+    for item in lines:
+        if len(samples) >= max_samples:
             break
         if item["file"] not in seen_files or len(samples) < 4:
             samples.append(item)
             seen_files.add(item["file"])
-
-    patterns_still_present = 0
-    checked = []
-
-    for sample in samples:
-        if not sample["file"]:
-            continue
-
-        file_content = _read_file_from_ref(
-            f"origin/{base_branch}", sample["file"],
-        )
-        if file_content is None:
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": False,
-                "reason": "file_deleted",
-            })
-            continue
-
-        normalized_pattern = normalize_pattern(sample["pattern"])
-
-        # Try exact match first
-        if sample["pattern"] in file_content:
-            patterns_still_present += 1
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": True,
-                "match": "exact",
-            })
-        # Try normalized line-by-line match (avoids normalizing the whole file)
-        elif _normalized_line_search(normalized_pattern, file_content):
-            patterns_still_present += 1
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": True,
-                "match": "normalized",
-            })
-        else:
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": False,
-                "reason": "pattern_gone",
-            })
-
-    return {
-        "patterns_found": patterns_still_present > 0,
-        "checked": len(checked),
-        "present": patterns_still_present,
-        "details": checked,
-    }
+    return samples
 
 
 def _read_file_from_ref(ref: str, path: str) -> str | None:
@@ -264,70 +165,112 @@ def _normalized_line_search(normalized_pattern: str, file_content: str) -> bool:
     return False
 
 
+def _check_pattern_in_file(
+    sample: dict, base_branch: str,
+) -> dict:
+    """Check if a single pattern still exists in its file on the base branch."""
+    if not sample["file"]:
+        return {
+            "file": sample["file"],
+            "pattern": sample["pattern"][:80],
+            "found": False,
+            "reason": "no_file",
+        }
+
+    file_content = _read_file_from_ref(
+        f"origin/{base_branch}", sample["file"],
+    )
+    if file_content is None:
+        return {
+            "file": sample["file"],
+            "pattern": sample["pattern"][:80],
+            "found": False,
+            "reason": "file_deleted",
+        }
+
+    # Try exact match first
+    if sample["pattern"] in file_content:
+        return {
+            "file": sample["file"],
+            "pattern": sample["pattern"][:80],
+            "found": True,
+            "match": "exact",
+        }
+
+    # Try normalized line-by-line match
+    if _normalized_line_search(normalize_pattern(sample["pattern"]), file_content):
+        return {
+            "file": sample["file"],
+            "pattern": sample["pattern"][:80],
+            "found": True,
+            "match": "normalized",
+        }
+
+    return {
+        "file": sample["file"],
+        "pattern": sample["pattern"][:80],
+        "found": False,
+        "reason": "pattern_gone",
+    }
+
+
+def check_pattern_exists_on_main(
+    diff_text: str, base_branch: str = "main",
+) -> dict:
+    """Check if the 'before' state of the PR's changes still exists on main.
+
+    Looks at removed lines (prefixed with -) to see if those code patterns
+    are still present in the current base branch. Uses normalized whitespace
+    comparison to handle reformatted code.
+
+    For add-only PRs (no removals), checks if the added content already
+    exists on main — if so, the PR is redundant.
+    """
+    removed_lines, added_lines = _parse_diff_lines(diff_text)
+
+    # For add-only PRs: check if the additions already exist on main
+    if not removed_lines and added_lines:
+        return _check_additions_already_present(added_lines, base_branch)
+
+    if not removed_lines:
+        return {"patterns_found": True, "details": "No removals to check"}
+
+    samples = _sample_patterns(removed_lines)
+    checked = [_check_pattern_in_file(s, base_branch) for s in samples]
+    patterns_still_present = sum(1 for c in checked if c["found"])
+
+    return {
+        "patterns_found": patterns_still_present > 0,
+        "checked": len(checked),
+        "present": patterns_still_present,
+        "details": checked,
+    }
+
+
 def _check_additions_already_present(
     added_lines: list[dict], base_branch: str,
 ) -> dict:
     """For add-only PRs, check if the added content already exists on main."""
-    seen_files: set[str] = set()
-    samples = []
-    for item in added_lines:
-        if len(samples) >= 8:
-            break
-        if item["file"] not in seen_files or len(samples) < 4:
-            samples.append(item)
-            seen_files.add(item["file"])
-
-    already_present = 0
+    samples = _sample_patterns(added_lines)
     checked = []
 
     for sample in samples:
-        if not sample["file"]:
-            continue
+        result = _check_pattern_in_file(sample, base_branch)
+        # Remap reasons for add-only context
+        if not result["found"] and result.get("reason") == "file_deleted":
+            result["reason"] = "file_not_on_main"
+        elif not result["found"] and result.get("reason") == "pattern_gone":
+            result["reason"] = "not_yet_present"
+        checked.append(result)
 
-        file_content = _read_file_from_ref(
-            f"origin/{base_branch}", sample["file"],
-        )
-        if file_content is None:
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": False,
-                "reason": "file_not_on_main",
-            })
-            continue
-
-        if sample["pattern"] in file_content:
-            already_present += 1
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": True,
-                "match": "exact",
-            })
-        elif _normalized_line_search(
-            normalize_pattern(sample["pattern"]), file_content,
-        ):
-            already_present += 1
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": True,
-                "match": "normalized",
-            })
-        else:
-            checked.append({
-                "file": sample["file"],
-                "pattern": sample["pattern"][:80],
-                "found": False,
-                "reason": "not_yet_present",
-            })
-
-    all_present = already_present == len(checked) and len(checked) > 0
+    all_present = (
+        all(c["found"] for c in checked) and len(checked) > 0
+    )
     return {
         "patterns_found": not all_present,
         "add_only": True,
         "checked": len(checked),
-        "already_present": already_present,
+        "already_present": sum(1 for c in checked if c["found"]),
         "details": checked,
     }
 
@@ -384,19 +327,6 @@ def check_staleness(pr_number: int, origin: str = "other") -> dict:
         f"Review overlapping changes before merging."
     )
     return result
-
-
-def parse_pr_number(arg: str) -> int:
-    """Parse and validate PR number from argument."""
-    try:
-        num = int(arg)
-    except ValueError:
-        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
-        sys.exit(1)
-    if num <= 0:
-        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
-        sys.exit(1)
-    return num
 
 
 def main():

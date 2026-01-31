@@ -18,60 +18,22 @@ import json
 import subprocess
 import sys
 
-GH_TIMEOUT = 60
-
-
-def check_gh():
-    """Verify gh CLI is installed and authenticated."""
-    try:
-        subprocess.run(
-            ["gh", "--version"], capture_output=True, text=True,
-            check=True, timeout=GH_TIMEOUT,
-        )
-    except FileNotFoundError:
-        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
-        sys.exit(1)
-    except subprocess.TimeoutExpired:
-        print("Error: 'gh --version' timed out.", file=sys.stderr)
-        sys.exit(1)
-
-    result = subprocess.run(
-        ["gh", "auth", "status"], capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        print(
-            "Error: gh is not authenticated. Run 'gh auth login' first.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-def run_gh(args: list[str]) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    return result
-
-
-def run_gh_checked(args: list[str]) -> str:
-    """Run gh and raise RuntimeError on failure."""
-    result = run_gh(args)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
-            f"{result.stderr.strip()}"
-        )
-    return result.stdout.strip()
+from shared import (
+    GH_TIMEOUT,
+    check_gh,
+    parse_pr_number,
+    parse_pr_numbers,
+    run_gh,
+    run_gh_unchecked,
+)
 
 
 def get_pr_status(pr_number: int) -> dict:
     try:
-        raw = run_gh_checked([
+        raw = run_gh([
             "pr", "view", str(pr_number), "--json",
             "state,mergeable,statusCheckRollup,reviewDecision,headRefName,title,isDraft",
-        ])
+        ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
         print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -202,9 +164,9 @@ def merge_pr(pr_number: int, strategy: str = "squash",
 
     strategy_flag = f"--{strategy}"
     try:
-        result = run_gh([
+        result = run_gh_unchecked([
             "pr", "merge", str(pr_number), strategy_flag, "--delete-branch",
-        ])
+        ], timeout=GH_TIMEOUT)
 
         if result.returncode != 0:
             # Merge may have succeeded but branch deletion failed
@@ -253,7 +215,8 @@ def close_pr(pr_number: int, reason: str,
 
     # Close first, then comment. If close fails we don't leave orphan comments.
     try:
-        close_result = run_gh(["pr", "close", str(pr_number)])
+        close_result = run_gh_unchecked(["pr", "close", str(pr_number)],
+                                        timeout=GH_TIMEOUT)
         if close_result.returncode != 0:
             return {
                 "action": "close",
@@ -272,9 +235,9 @@ def close_pr(pr_number: int, reason: str,
     # Post the comment after successful close — failure here is non-fatal
     comment_warning = None
     try:
-        comment_result = run_gh([
+        comment_result = run_gh_unchecked([
             "pr", "comment", str(pr_number), "--body", reason,
-        ])
+        ], timeout=GH_TIMEOUT)
         if comment_result.returncode != 0:
             comment_warning = (
                 f"PR closed but comment failed: {comment_result.stderr.strip()}"
@@ -310,33 +273,6 @@ def batch_close(pr_numbers: list[int], reason: str,
         "failed": failed,
         "results": results,
     }
-
-
-def parse_pr_number(arg: str) -> int:
-    """Parse and validate PR number from argument."""
-    try:
-        num = int(arg)
-    except ValueError:
-        print(f"Error: '{arg}' is not a valid PR number.", file=sys.stderr)
-        sys.exit(1)
-    if num <= 0:
-        print(f"Error: PR number must be positive, got {num}.", file=sys.stderr)
-        sys.exit(1)
-    return num
-
-
-def parse_pr_numbers(arg: str) -> list[int]:
-    """Parse comma-separated PR numbers."""
-    numbers = []
-    for part in arg.split(","):
-        part = part.strip()
-        if not part:
-            continue
-        numbers.append(parse_pr_number(part))
-    if not numbers:
-        print("Error: No valid PR numbers provided.", file=sys.stderr)
-        sys.exit(1)
-    return numbers
 
 
 def main():

@@ -19,10 +19,9 @@ Output: JSON array of PR objects to stdout.
 
 import json
 import re
-import subprocess
 import sys
 
-GH_TIMEOUT = 30
+from shared import check_gh, run_gh, safe_author
 
 # Jules automation heuristics: title patterns only match when combined
 # with a label or author signal to avoid false positives on human PRs.
@@ -46,53 +45,6 @@ JULES_PATTERNS = {
 
 # Known bot authors for Jules automations
 JULES_AUTHORS = {"jules", "jules[bot]", "jules-bot"}
-
-
-def check_gh():
-    """Verify gh CLI is installed and authenticated."""
-    try:
-        subprocess.run(
-            ["gh", "--version"], capture_output=True, text=True,
-            check=True, timeout=GH_TIMEOUT,
-        )
-    except FileNotFoundError:
-        print("Error: 'gh' CLI is not installed or not on PATH.", file=sys.stderr)
-        sys.exit(1)
-    except subprocess.TimeoutExpired:
-        print("Error: 'gh --version' timed out.", file=sys.stderr)
-        sys.exit(1)
-
-    result = subprocess.run(
-        ["gh", "auth", "status"], capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        print(
-            "Error: gh is not authenticated. Run 'gh auth login' first.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-def run_gh(args: list[str]) -> str:
-    result = subprocess.run(
-        ["gh"] + args, capture_output=True, text=True,
-        check=False, timeout=GH_TIMEOUT,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"gh {' '.join(args[:3])} failed (exit {result.returncode}): "
-            f"{result.stderr.strip()}"
-        )
-    return result.stdout.strip()
-
-
-def safe_author(pr: dict) -> str:
-    """Extract author login, handling null/missing author."""
-    author = pr.get("author")
-    if author is None:
-        return "unknown"
-    return author.get("login", "unknown") or "unknown"
 
 
 def get_default_branch() -> str:
