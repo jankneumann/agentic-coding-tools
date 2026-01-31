@@ -34,7 +34,18 @@ gh auth status
 git status
 ```
 
-Ensure `gh` is authenticated and working directory is clean.
+**Abort conditions:**
+- If `gh` is not authenticated, stop and ask the user to run `gh auth login`.
+- If the working directory has uncommitted changes, **stop and warn the user**. Do not run `git checkout main` with a dirty working directory — it could silently carry or lose uncommitted work. Ask the user to commit, stash, or discard changes first.
+- If not on `main`, check for uncommitted changes before switching.
+
+**Write access check:** Before proceeding, verify the token has write access:
+
+```bash
+gh api repos/{owner}/{repo} --jq '.permissions.push'
+```
+
+If this returns `false`, warn the user that merge and close operations will fail and suggest checking token scopes or requesting write access.
 
 ### 2. Pull Latest Main
 
@@ -63,21 +74,27 @@ This outputs a JSON array of PRs classified by origin:
 Each PR also includes:
 - `is_draft` - Whether the PR is a draft (cannot be merged)
 - `is_stacked` - Whether the PR targets a branch other than main/master (part of a PR chain)
+- `is_fork` - Whether the PR is from a forked repository
+- `auto_merge_enabled` - Whether auto-merge is already configured
+- `dep_ecosystem` - For Dependabot PRs, the ecosystem (e.g. `npm_and_yarn`, `pip`)
 
 **If no open PRs are found, stop here.**
 
 Present the PR list as a summary table:
 
 ```
-| #   | Title                          | Origin     | Branch           | Age    | Flags         |
-|-----|--------------------------------|------------|------------------|--------|---------------|
-| 42  | Fix XSS in login form          | sentinel   | sentinel/fix-xss | 3 days |               |
-| 40  | Bump lodash from 4.17.19       | dependabot | dependabot/npm/… | 1 day  |               |
-| 38  | feat: Add user export          | openspec   | openspec/add-…   | 5 days | stacked       |
-| 37  | WIP: Refactor auth module      | other      | refactor-auth    | 7 days | draft         |
+| #   | Title                          | Origin     | Branch           | Age    | Flags              |
+|-----|--------------------------------|------------|------------------|--------|--------------------|
+| 42  | Fix XSS in login form          | sentinel   | sentinel/fix-xss | 3 days |                    |
+| 40  | Bump lodash from 4.17.19       | dependabot | dependabot/npm/… | 1 day  | auto-merge         |
+| 39  | Fix typo in README             | other      | fix-typo         | 2 days | fork               |
+| 38  | feat: Add user export          | openspec   | openspec/add-…   | 5 days | stacked            |
+| 37  | WIP: Refactor auth module      | other      | refactor-auth    | 7 days | draft              |
 ```
 
-### 4. Handle Draft PRs
+### 4. Handle Special PR Types
+
+#### Draft PRs
 
 Draft PRs cannot be merged. Flag them in the summary and **skip** them during the merge workflow. If the operator wants to process a draft PR, they must first mark it as ready:
 
@@ -85,14 +102,25 @@ Draft PRs cannot be merged. Flag them in the summary and **skip** them during th
 gh pr ready <pr_number>
 ```
 
-### 5. Handle Stacked PRs
+#### Stacked PRs
 
 PRs that target a branch other than `main`/`master` are part of a PR chain. **Warn the operator** before taking action on stacked PRs:
 - Merging or closing the base PR may break the stacked PR
 - The base PR should be merged first
 - Show which branch the stacked PR targets
 
-### 6. Check Staleness for Each PR
+#### Fork PRs
+
+PRs from forked repositories have limited permissions:
+- The `--delete-branch` flag is skipped automatically (no push access to the fork remote)
+- The merge itself works normally
+- Flag these in the summary table as `fork`
+
+#### Auto-Merge PRs
+
+PRs with auto-merge already enabled will merge automatically once their conditions are met (CI passes, approvals received). **Recommend skipping** these during manual triage — they don't need intervention. If the operator wants to override, they can proceed normally.
+
+### 5. Check Staleness for Each PR
 
 For each non-draft PR, run staleness detection:
 
@@ -106,6 +134,17 @@ Staleness levels:
 - **Fresh**: No overlapping changes — safe to proceed
 - **Stale**: Overlapping file changes — review needed before merge
 - **Obsolete**: Fix no longer needed — recommend closing
+
+### 6. Identify Conflicting PR Pairs
+
+After running staleness checks for all PRs, compare their file lists to identify PR pairs that modify the same files. Warn the operator before the interactive review:
+
+```
+⚠ PRs #42 and #38 both modify src/auth.py — merging one may make the other stale.
+⚠ PRs #40, #41, and #43 all touch package.json — consider merge order carefully.
+```
+
+This helps the operator decide merge order proactively rather than discovering conflicts after each merge.
 
 ### 7. Batch Close Obsolete PRs
 
@@ -142,15 +181,20 @@ Before the interactive review, sort remaining PRs for optimal merge order:
 3. **Dependency updates** (dependabot/renovate) — low-risk, well-tested
 4. **Stale PRs last** — require manual review of overlapping changes
 
+Within the dependency updates group, consider grouping by ecosystem (e.g. all `npm_and_yarn` bumps together) — if one fails, it may indicate an ecosystem-wide issue.
+
 This ordering minimizes the chance that merging one PR invalidates another.
 
 ### 10. Interactive PR Review
 
-Process each remaining PR one at a time **in the order determined above**. For each PR, present:
+Process each remaining PR one at a time **in the order determined above**. Skip PRs with `auto_merge_enabled` unless the operator explicitly wants to review them. For each PR, present:
 - Classification and staleness status
 - Unresolved comments (if any) — distinguished from resolved threads
 - CI and approval status (noting pending vs failed checks)
 - Whether checks are still running (offer to wait)
+- Whether the PR is from a fork (note: branch won't be deleted)
+- Whether approval may be stale (commits pushed after last approval)
+- Pending reviewers (CODEOWNERS or manually requested) — even if `reviewDecision` is APPROVED, pending reviewers may indicate a missing required review
 
 Then offer actions:
 
@@ -159,6 +203,7 @@ Then offer actions:
 3. **Close** - Close the PR with a comment
 4. **Address comments** - Work through unresolved review feedback
 5. **Wait** - (if checks pending) Wait for CI to complete, then re-validate
+6. **Re-run CI** - (if checks failed) Re-run failed workflow runs
 
 #### Merge a PR
 
@@ -166,7 +211,13 @@ Then offer actions:
 python skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --strategy squash
 ```
 
-The script validates CI status (distinguishing failed from pending), draft status, and mergeability before merging. If the merge succeeds but branch deletion fails, the script detects this and reports a warning rather than a false failure.
+The script validates CI status (distinguishing failed from pending), draft status, merge conflicts, and mergeability before merging. It handles:
+- **Fork PRs**: Automatically skips `--delete-branch`
+- **Merge queue repos**: If direct merge fails because a merge queue is required, automatically retries with `--merge-queue`
+- **Branch deletion failure**: Detects when merge succeeded but branch deletion failed, reports as warning
+- **Merge conflicts**: Surfaces `CONFLICTING` status with specific guidance to rebase or merge the base branch
+- **Stale approvals**: Warns if commits were pushed after the last approval
+- **Pending reviewers**: Shows which reviewers (including CODEOWNERS teams) haven't reviewed yet
 
 **After every merge, update local state:**
 ```bash
@@ -179,6 +230,14 @@ For **OpenSpec PRs**: After merge, note the change-id and recommend:
 ```
 Run /cleanup-feature <change-id> to archive the OpenSpec proposal.
 ```
+
+#### Re-run Failed CI Checks
+
+```bash
+python skills/merge-pull-requests/scripts/merge_pr.py rerun-checks <pr_number>
+```
+
+This finds failed workflow runs on the PR's branch and re-runs only the failed jobs. After re-running, offer to **Wait** for the checks to complete.
 
 #### Re-check Staleness After Merge
 
@@ -213,9 +272,12 @@ After processing all PRs, present a summary:
 ```
 ## PR Triage Summary
 - Merged: #42, #38
+- Queued (merge queue): #45
 - Closed (obsolete): #35, #33
 - Skipped: #40
 - Skipped (draft): #37
+- Skipped (auto-merge): #41
+- CI re-run: #39
 - Comments addressed: #38
 - OpenSpec cleanup needed: /cleanup-feature add-user-export
 ```
@@ -234,32 +296,45 @@ Output a full report:
 
 ```
 ## Dry-Run Report
-| #   | Title              | Origin     | Staleness | Unresolved | CI      | Flags   |
-|-----|--------------------|------------|-----------|------------|---------|---------|
-| 42  | Fix XSS in login   | sentinel   | obsolete  | 0          | pass    |         |
-| 40  | Bump lodash        | dependabot | fresh     | 0          | pass    |         |
-| 38  | feat: Add export   | openspec   | fresh     | 2          | pass    |         |
-| 37  | WIP: Refactor auth | other      | —         | 1          | pending | draft   |
-| 35  | Fix slow query     | bolt       | stale     | 0          | pass    | stacked |
+| #   | Title              | Origin     | Staleness | Unresolved | CI      | Flags              |
+|-----|--------------------|------------|-----------|------------|---------|--------------------|
+| 42  | Fix XSS in login   | sentinel   | obsolete  | 0          | pass    |                    |
+| 41  | Bump axios         | dependabot | fresh     | 0          | pass    | auto-merge         |
+| 40  | Bump lodash        | dependabot | fresh     | 0          | pass    |                    |
+| 39  | Fix typo           | other      | fresh     | 0          | fail    | fork               |
+| 38  | feat: Add export   | openspec   | fresh     | 2          | pass    |                    |
+| 37  | WIP: Refactor auth | other      | —         | 1          | pending | draft              |
+| 35  | Fix slow query     | bolt       | stale     | 0          | pass    | stacked            |
 ```
 
 ## Output
 
 - PRs merged, closed, or skipped with reasons
+- PRs added to merge queue (for repos that use it)
 - Obsolete PRs batch-closed with explanatory comments
 - OpenSpec change-ids flagged for `/cleanup-feature`
 - Draft PRs flagged (not processed)
+- Fork PRs handled (no branch deletion)
+- Auto-merge PRs noted (recommended to skip)
 - Stacked PRs warned about dependency chain
+- Conflicting PR pairs warned about before merge
+- Failed CI re-runs triggered
 - Summary of all actions taken
 
 ## Error Handling
 
 - **gh not installed**: Scripts detect this and exit with a clear error message
 - **gh not authenticated**: Stop and ask user to run `gh auth login`
-- **Merge conflicts**: Flag as stale, recommend manual resolution
+- **No write access**: Detected early via `permissions.push` check — warn before attempting mutations
+- **Dirty working directory**: Abort before `git checkout main` to prevent losing uncommitted work
+- **Merge conflicts**: Surface `CONFLICTING` status with guidance to rebase or merge base branch
 - **CI checks pending**: Distinguish from failed — offer to wait
-- **CI checks failed**: Show failing checks, recommend fixing before merge
+- **CI checks failed**: Show failing checks, offer to re-run failed workflow runs
+- **Merge queue required**: Automatically retry with `--merge-queue` when direct merge is rejected
 - **Branch deletion failure**: Detect and report as warning (merge still succeeded)
+- **Fork PRs**: Automatically skip `--delete-branch` (no push access to fork remote)
+- **Stale approvals**: Warn when commits were pushed after the last review approval
+- **Pending reviewers (CODEOWNERS)**: Surface pending reviewer requests even when `reviewDecision` shows APPROVED
 - **Subprocess timeout**: All `gh`/`git` calls have timeouts (30-60s) to prevent hangs
 - **API rate limits**: Scripts use `gh` CLI which handles token refresh; if rate-limited, wait and retry
 - **Stacked PRs**: Warn about dependency chain before allowing close/merge

@@ -112,3 +112,25 @@ def safe_author(obj: dict, key: str = "author") -> str:
     if author is None:
         return "unknown"
     return author.get("login", "unknown") or "unknown"
+
+
+def check_write_access():
+    """Verify the gh token has write (push) access to the repository.
+
+    Non-fatal: if the check itself fails (e.g. no repo context), we skip
+    and let the actual merge/close fail with a clearer error later.
+    """
+    try:
+        raw = run_gh(["api", "repos/{owner}/{repo}", "--jq", ".permissions.push"])
+    except RuntimeError:
+        # Can't determine permissions — don't block, the merge will fail
+        # with a clear error if access is insufficient.
+        return
+    if raw.strip() == "false":
+        print(
+            "Error: Your gh token does not have write (push) access to this "
+            "repository. Merge and close operations will fail. Check your "
+            "token scopes or request write access.",
+            file=sys.stderr,
+        )
+        sys.exit(1)

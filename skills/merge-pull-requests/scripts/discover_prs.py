@@ -65,7 +65,7 @@ def fetch_open_prs() -> list[dict]:
     try:
         raw = run_gh([
             "pr", "list", "--state", "open", "--json",
-            "number,title,author,headRefName,baseRefName,createdAt,labels,body,url,isDraft",
+            "number,title,author,headRefName,baseRefName,createdAt,labels,body,url,isDraft,isCrossRepository,autoMergeRequest",
             "--limit", "1000",
         ])
     except RuntimeError as e:
@@ -134,21 +134,38 @@ def classify_pr(pr: dict) -> dict:
     return {"origin": "other", "change_id": None}
 
 
+def detect_dep_ecosystem(branch: str, origin: str) -> str | None:
+    """Detect dependency ecosystem from Dependabot branch name.
+
+    Dependabot branches follow the pattern: dependabot/<ecosystem>/<package>
+    e.g. dependabot/npm_and_yarn/lodash-4.17.21, dependabot/pip/requests-2.28.0
+    Renovate branches are less structured, so we don't attempt detection.
+    """
+    if origin != "dependabot":
+        return None
+    parts = branch.split("/")
+    if len(parts) >= 3:
+        return parts[1]  # e.g. "npm_and_yarn", "pip", "github_actions"
+    return None
+
+
 def discover() -> list[dict]:
     default_branch = get_default_branch()
     prs = fetch_open_prs()
     results = []
     for pr in prs:
         classification = classify_pr(pr)
+        branch = pr.get("headRefName", "")
         base_branch = pr.get("baseRefName", default_branch)
         is_draft = pr.get("isDraft", False)
         is_stacked = base_branch != default_branch
+        origin = classification["origin"]
 
         results.append({
             "number": pr["number"],
             "title": pr["title"],
             "author": safe_author(pr),
-            "branch": pr.get("headRefName", ""),
+            "branch": branch,
             "base_branch": base_branch,
             "default_branch": default_branch,
             "created_at": pr.get("createdAt", ""),
@@ -156,7 +173,10 @@ def discover() -> list[dict]:
             "url": pr.get("url", ""),
             "is_draft": is_draft,
             "is_stacked": is_stacked,
-            "origin": classification["origin"],
+            "is_fork": pr.get("isCrossRepository", False),
+            "auto_merge_enabled": pr.get("autoMergeRequest") is not None,
+            "dep_ecosystem": detect_dep_ecosystem(branch, origin),
+            "origin": origin,
             "change_id": classification.get("change_id"),
         })
     return results
@@ -178,15 +198,25 @@ def main():
     if dry_run:
         drafts = sum(1 for r in results if r["is_draft"])
         stacked = sum(1 for r in results if r["is_stacked"])
+        forks = sum(1 for r in results if r["is_fork"])
+        auto_merge = sum(1 for r in results if r["auto_merge_enabled"])
         origins = {}
         for r in results:
             origins[r["origin"]] = origins.get(r["origin"], 0) + 1
         summary_parts = [f"{v} {k}" for k, v in sorted(origins.items())]
+        flags = []
+        if drafts:
+            flags.append(f"{drafts} draft(s)")
+        if stacked:
+            flags.append(f"{stacked} stacked")
+        if forks:
+            flags.append(f"{forks} fork(s)")
+        if auto_merge:
+            flags.append(f"{auto_merge} auto-merge")
+        flag_str = f", {', '.join(flags)}" if flags else ""
         print(
             f"# Dry-run: Found {len(results)} open PR(s) "
-            f"({', '.join(summary_parts)})"
-            f"{f', {drafts} draft(s)' if drafts else ''}"
-            f"{f', {stacked} stacked' if stacked else ''}.",
+            f"({', '.join(summary_parts)}){flag_str}.",
             file=sys.stderr,
         )
 
