@@ -21,12 +21,13 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Workflow
 
-Use the 3-skill feature workflow with natural approval gates:
+Use the 4-skill feature workflow with natural approval gates:
 
 ```
-/plan-feature <description>      → Proposal approval gate
-/implement-feature <change-id>   → PR review gate
-/cleanup-feature <change-id>     → Done
+/plan-feature <description>                → Proposal approval gate
+/implement-feature <change-id>             → PR review gate
+/improve-and-iterate <change-id> (optional) → Refinement complete
+/cleanup-feature <change-id>               → Done
 ```
 
 ## Lessons Learned
