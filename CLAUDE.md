@@ -27,7 +27,7 @@ Use the 4-skill feature workflow with natural approval gates:
 /plan-feature <description>                    → Proposal approval gate
   /iterate-on-plan <change-id> (optional)      → Refines plan before approval
 /implement-feature <change-id>                 → PR review gate
-  /improve-and-iterate <change-id> (optional)  → Refinement complete
+  /iterate-on-implementation <change-id> (optional)  → Refinement complete
 /cleanup-feature <change-id>                   → Done
 ```
 
@@ -43,7 +43,7 @@ Use the 4-skill feature workflow with natural approval gates:
 
 - **Flat skill directory structure**: Claude Code skills don't support nested directories. Each skill must be `<skill-name>/SKILL.md`. For namespaced skills, use hyphens: `openspec-proposal/SKILL.md` not `openspec/proposal/SKILL.md`. Symlink to `~/.claude/skills/` for global availability.
 
-- **Iterate at both creative stages**: Plans and implementations both benefit from structured iteration loops with domain-specific finding types and quality checks. `/iterate-on-plan` refines proposals before approval; `/improve-and-iterate` refines code before PR review.
+- **Iterate at both creative stages**: Plans and implementations both benefit from structured iteration loops with domain-specific finding types and quality checks. `/iterate-on-plan` refines proposals before approval; `/iterate-on-implementation` refines code before PR review.
 
 - **Plan for parallel execution**: Task decomposition in proposals should explicitly identify dependencies and maximize independent work units. This enables `/parallel-implement` to spawn isolated agents without merge conflicts.
 

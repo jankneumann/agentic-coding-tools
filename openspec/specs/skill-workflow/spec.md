@@ -1,10 +1,10 @@
 # skill-workflow Specification
 
 ## Purpose
-TBD - created by archiving change add-improve-and-iterate-skill. Update Purpose after archive.
+TBD - created by archiving change add-iterate-on-implementation-skill. Update Purpose after archive.
 ## Requirements
 ### Requirement: Iterative Refinement Skill
-The system SHALL provide an `improve-and-iterate` skill that performs structured iterative refinement of a feature implementation after `/implement-feature` completes and before `/cleanup-feature` runs.
+The system SHALL provide an `iterate-on-implementation` skill that performs structured iterative refinement of a feature implementation after `/implement-feature` completes and before `/cleanup-feature` runs.
 
 The skill SHALL accept the following arguments:
 - Change-id (required; or detected from current branch name `openspec/<change-id>`)
@@ -12,7 +12,7 @@ The skill SHALL accept the following arguments:
 - Criticality threshold (optional; default: "medium"; values: "critical", "high", "medium", "low")
 
 #### Scenario: Basic iterative refinement
-- **WHEN** the user invokes `/improve-and-iterate <change-id>`
+- **WHEN** the user invokes `/iterate-on-implementation <change-id>`
 - **THEN** the skill SHALL review the proposal, design, tasks, and current implementation code
 - **AND** produce a structured improvement analysis for each iteration
 - **AND** implement all findings at or above the criticality threshold
@@ -57,7 +57,7 @@ Each iteration SHALL produce exactly one commit on the current feature branch wi
 ```
 refine(<scope>): iteration <N> - <summary>
 
-Improve-and-iterate: <change-id>, iteration <N>/<max>
+Iterate-on-implementation: <change-id>, iteration <N>/<max>
 
 Findings addressed:
 - [<criticality>] <type>: <description>
@@ -99,14 +99,14 @@ Each iteration SHALL review whether the current OpenSpec documents (proposal.md,
 - **THEN** the skill SHALL NOT make unnecessary changes to OpenSpec documents
 
 ### Requirement: Skill Workflow Position
-The `improve-and-iterate` skill SHALL fit into the feature development workflow as an optional step between `/implement-feature` and `/cleanup-feature`:
+The `iterate-on-implementation` skill SHALL fit into the feature development workflow as an optional step between `/implement-feature` and `/cleanup-feature`:
 
 ```
-/plan-feature → /implement-feature → /improve-and-iterate (optional) → /cleanup-feature
+/plan-feature → /implement-feature → /iterate-on-implementation (optional) → /cleanup-feature
 ```
 
 #### Scenario: Workflow integration
 - **WHEN** the user completes `/implement-feature` and has a PR ready for review
-- **THEN** they MAY invoke `/improve-and-iterate` to refine the implementation before requesting review
+- **THEN** they MAY invoke `/iterate-on-implementation` to refine the implementation before requesting review
 - **AND** the skill SHALL operate on the existing feature branch without creating new branches
 

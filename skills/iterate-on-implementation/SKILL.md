@@ -1,16 +1,16 @@
 ---
-name: improve-and-iterate
+name: iterate-on-implementation
 description: Iteratively refine a feature implementation by identifying and fixing bugs, edge cases, and improvements
 category: Git Workflow
 tags: [openspec, refinement, iteration, quality]
 triggers:
-  - "improve and iterate"
-  - "refine feature"
   - "iterate on implementation"
+  - "refine implementation"
   - "improve implementation"
+  - "improve and iterate"
 ---
 
-# Improve and Iterate
+# Iterate on Implementation
 
 Iteratively refine a feature implementation after `/implement-feature` completes. Each iteration reviews the code, identifies improvements, implements fixes, and commits — repeating until only low-criticality findings remain or max iterations are reached.
 
@@ -168,7 +168,7 @@ git add .
 git commit -m "$(cat <<'EOF'
 refine(<scope>): iteration <N> - <summary of key changes>
 
-Improve-and-iterate: <change-id>, iteration <N>/<max>
+Iterate-on-implementation: <change-id>, iteration <N>/<max>
 
 Findings addressed:
 - [<criticality>] <type>: <description>
