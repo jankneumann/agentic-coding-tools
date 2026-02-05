@@ -82,23 +82,34 @@ grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md
 # Should return nothing (all boxes checked)
 ```
 
-### 6. Quality Checks
+### 6. Quality Checks (Parallel Execution)
 
-```bash
-# Run tests
-pytest
+Run all quality checks concurrently using Task() with `run_in_background=true`:
 
-# Type checking (if applicable)
-mypy src/
-
-# Linting (if applicable)
-ruff check .
-
-# Validate OpenSpec
-openspec validate <change-id> --strict
+```
+# Launch all checks in parallel (single message, multiple Task calls)
+Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
 ```
 
-Fix any failures before proceeding.
+**Result Aggregation:**
+1. Wait for all TaskOutput results
+2. Collect pass/fail status from each check
+3. Report all results together (don't fail-fast on first error)
+4. If any check fails, show all failures before fixing
+
+**Example output format:**
+```
+Quality Check Results:
+✓ pytest: 42 tests passed
+✗ mypy: 3 type errors in src/auth.py
+✓ ruff: No issues
+✓ openspec validate: Valid
+```
+
+Fix all failures before proceeding. Address issues in order of severity (type errors before style).
 
 ### 7. Document Lessons Learned
 

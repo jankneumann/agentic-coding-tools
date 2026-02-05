@@ -112,20 +112,34 @@ Produce a **structured improvement analysis** with findings in this format:
   - Recommend creating a new OpenSpec proposal
   - Do NOT implement out-of-scope changes
 
-### 7. Run Quality Checks
+### 7. Run Quality Checks (Parallel Execution)
 
-```bash
-# Run tests (adapt to project)
-pytest
+Run all quality checks concurrently using Task() with `run_in_background=true`:
 
-# Type checking (if applicable)
-mypy src/
+```
+# Launch all checks in parallel (single message, multiple Task calls)
+Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run openspec validate $CHANGE_ID --strict", run_in_background=true)
+```
 
-# Linting (if applicable)
-ruff check .
+**Result Aggregation:**
+1. Wait for all TaskOutput results
+2. Collect pass/fail status from each check
+3. Report ALL results together (don't fail-fast on first error)
+4. Present failures with their check type for targeted fixes
 
-# Validate OpenSpec
-openspec validate $CHANGE_ID --strict
+**Example output format:**
+```
+Quality Check Results:
+✓ pytest: 42 tests passed
+✗ mypy: 3 type errors in src/auth.py
+✓ ruff: No issues
+✓ openspec validate: Valid
+
+Failures to address this iteration:
+- mypy: src/auth.py:15 - Missing return type annotation
 ```
 
 Fix any failures before proceeding. If fixes introduce new issues, address them within this iteration.

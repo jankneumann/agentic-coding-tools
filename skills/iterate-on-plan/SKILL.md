@@ -73,15 +73,30 @@ ITERATION=1
 
 ---
 
-### 5. Review and Analyze
+### 5. Review and Analyze (Parallel Analysis Option)
 
-Read all proposal documents to understand intent and current quality:
+Read all proposal documents to understand intent and current quality. For complex proposals, use parallel Task(Explore) agents to analyze different quality dimensions:
 
-- `openspec/changes/<change-id>/proposal.md`
-- `openspec/changes/<change-id>/tasks.md`
-- `openspec/changes/<change-id>/design.md` (if exists)
-- All spec deltas in `openspec/changes/<change-id>/specs/*/spec.md`
-- Existing specs in `openspec/specs/` for capabilities referenced in the proposal's Impact section
+**Sequential approach (default for simple proposals):**
+- Read `openspec/changes/<change-id>/proposal.md`
+- Read `openspec/changes/<change-id>/tasks.md`
+- Read `openspec/changes/<change-id>/design.md` (if exists)
+- Read all spec deltas in `openspec/changes/<change-id>/specs/*/spec.md`
+- Read existing specs in `openspec/specs/` for capabilities referenced in the proposal's Impact section
+
+**Parallel approach (for complex proposals with 5+ tasks or 3+ spec deltas):**
+```
+# Launch parallel analysis agents (single message, multiple Task calls)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for COMPLETENESS issues: missing requirements, unaddressed edge cases, gaps in impact analysis, requirements without scenarios", run_in_background=true)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for CLARITY and CONSISTENCY issues: ambiguous wording, vague scenarios, contradictions between documents", run_in_background=true)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/tasks.md for FEASIBILITY and PARALLELIZABILITY: task size, dependencies, file overlap that would cause merge conflicts", run_in_background=true)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for TESTABILITY: scenarios that can't be verified, subjective language like 'properly' or 'correctly'", run_in_background=true)
+```
+
+**Analysis Synthesis:**
+1. Wait for all TaskOutput results (if parallel)
+2. Merge findings, deduplicate, and assign criticality levels
+3. Produce the structured plan analysis below
 
 Produce a **structured plan analysis** with findings in this format:
 

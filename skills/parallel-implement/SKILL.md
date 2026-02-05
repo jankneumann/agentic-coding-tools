@@ -1,6 +1,6 @@
 ---
 name: parallel-implement
-description: Implement OpenSpec proposals using parallel Claude agents for independent tasks. Use when implementing features with multiple independent tasks that can be parallelized, when you want to spawn multiple Claude CLI instances, or when using Beads (bd) for task coordination. Extends implement-feature with multi-agent orchestration.
+description: Implement OpenSpec proposals using parallel Task() subagents for independent tasks. Use when implementing features with multiple independent tasks that can be parallelized. Extends implement-feature with native multi-agent orchestration.
 category: Git Workflow
 tags: [openspec, implementation, parallel, multi-agent, beads, orchestration]
 triggers:
@@ -13,7 +13,7 @@ triggers:
 
 # Parallel Implement Feature
 
-Implement OpenSpec proposals using parallel Claude agents. The orchestrator identifies independent tasks via Beads, spawns worker agents, and coordinates completion.
+Implement OpenSpec proposals using parallel Task() subagents. The orchestrator identifies independent tasks, spawns worker agents using the native Task() tool, and coordinates completion without requiring git worktrees.
 
 ## Arguments
 
@@ -22,8 +22,7 @@ Implement OpenSpec proposals using parallel Claude agents. The orchestrator iden
 ## Prerequisites
 
 - Approved OpenSpec proposal at `openspec/changes/<change-id>/`
-- Beads CLI installed (`bd --version`)
-- Claude CLI installed (`claude --version`)
+- Beads CLI installed (optional, for task tracking): `bd --version`
 - Run `/plan-feature` first if no proposal exists
 
 ## Workflow Overview
@@ -33,29 +32,27 @@ Implement OpenSpec proposals using parallel Claude agents. The orchestrator iden
 │  Orchestrator   │ ← You (main Claude session)
 └────────┬────────┘
          │ 1. Load tasks from OpenSpec
-         │ 2. Create beads for independent tasks
-         │ 3. Create git worktrees per bead
-         │ 4. Spawn parallel agents
+         │ 2. Identify independent vs sequential tasks
+         │ 3. Create beads for tracking (optional)
+         │ 4. Spawn parallel Task() agents
          ▼
-┌────────┴────────┐
-│   Beads (bd)    │ ← Task coordination layer
-└────────┬────────┘
-         │
     ┌────┼────┬────┐
     ▼    ▼    ▼    ▼
 ┌──────┐┌──────┐┌──────┐┌──────┐
-│ WT-1 ││ WT-2 ││ WT-3 ││ WT-4 │  ← Isolated git worktrees
-│Agent ││Agent ││Agent ││Agent │  ← Parallel Claude CLI instances
+│Task()││Task()││Task()││Task()│  ← Native subagents (no worktrees)
+│Agent ││Agent ││Agent ││Agent │  ← run_in_background=true
 └──┬───┘└──┬───┘└──┬───┘└──┬───┘
    │       │       │       │
    └───────┴───────┴───────┘
-         │ 5. Agents commit & close beads
-         │ 6. Merge branches
+         │ 5. Collect results via TaskOutput
+         │ 6. Verify and commit
          ▼
 ┌─────────────────┐
-│  Orchestrator   │ ← Resume: verify, cleanup, PR
+│  Orchestrator   │ ← Integrate, test, PR
 └─────────────────┘
 ```
+
+**Key difference from old pattern**: No git worktrees needed. Task() agents are coordinated by the orchestrator and scoped to non-overlapping files via prompts.
 
 ## Steps
 
@@ -66,12 +63,11 @@ openspec show <change-id>
 cat openspec/changes/<change-id>/tasks.md
 ```
 
-Identify tasks that are **independent** (no shared state, can run in parallel):
-- Separate modules/files
-- Independent test suites
-- Non-overlapping functionality
+Classify each task:
+- **Independent**: No shared files/state with other tasks → can parallelize
+- **Sequential**: Shares files or depends on another task → must run in order
 
-Tasks with dependencies must be **sequential** (same agent or ordered execution).
+**File overlap check**: If two tasks modify the same file, they MUST be sequential. Review the `**Files**` annotation in tasks.md.
 
 ### 2. Setup Feature Branch
 
@@ -80,148 +76,108 @@ git checkout main && git pull origin main
 git checkout -b openspec/<change-id>
 ```
 
-### 3. Create Beads for Parallel Tasks
+### 3. Create Beads for Task Tracking (Optional)
 
-Initialize beads for each independent task:
+If using Beads for tracking:
 
 ```bash
 # Create beads from independent tasks
-bd add "Implement auth module - OpenSpec <change-id> task 1"
-bd add "Implement API endpoints - OpenSpec <change-id> task 2"
-bd add "Add unit tests for auth - OpenSpec <change-id> task 3"
+bd add "Implement task 1 - OpenSpec <change-id>"
+bd add "Implement task 2 - OpenSpec <change-id>"
 
-# Verify beads created
+# For sequential tasks, use blocking
+A_ID=$(bd add "Task A - foundation")
+B_ID=$(bd add "Task B - depends on A" --blocked-by $A_ID)
+
+# Verify
 bd list
 ```
 
-**Bead naming convention**: `<brief description> - OpenSpec <change-id> task <n>`
+**Note**: Beads is optional. You can track progress directly in tasks.md instead.
 
-### 4. Create Worktrees for Agent Isolation
+### 4. Spawn Parallel Task() Agents
 
-Each agent gets its own git worktree to prevent conflicts:
+For each independent task, spawn a Task(general-purpose) agent with `run_in_background=true`. **Send all parallel tasks in a single message:**
 
-```bash
-CHANGE_ID="<change-id>"
-WORKTREE_BASE="../worktrees-$CHANGE_ID"
-mkdir -p "$WORKTREE_BASE"
+```
+# Example: 3 independent tasks spawned in parallel
+Task(
+  subagent_type="general-purpose",
+  description="Implement task 1: <brief>",
+  prompt="You are implementing OpenSpec <change-id>, Task 1.
 
-# Create a worktree per bead
-bd ready --json | jq -r '.[] | .id' | while read bead_id; do
-  BRANCH="agent-$bead_id"
-  git worktree add "$WORKTREE_BASE/$bead_id" -b "$BRANCH"
-  echo "Created worktree: $WORKTREE_BASE/$bead_id (branch: $BRANCH)"
-done
+## Your Task
+<TASK_DESCRIPTION from tasks.md>
+
+## Scope
+Files you may modify: <list specific files>
+Files you must NOT modify: <everything else>
+
+## Context
+- Read openspec/changes/<change-id>/proposal.md for full context
+- Read openspec/changes/<change-id>/design.md for architectural decisions
+
+## Process
+1. Read the proposal and design docs
+2. Write failing tests first (TDD)
+3. Implement minimal code to pass tests
+4. Run tests: pytest <relevant_test_file>
+5. Report completion with summary of changes made
+
+Do NOT commit - the orchestrator will handle commits.",
+  run_in_background=true
+)
+
+Task(
+  subagent_type="general-purpose",
+  description="Implement task 2: <brief>",
+  prompt="...",
+  run_in_background=true
+)
+
+Task(
+  subagent_type="general-purpose",
+  description="Implement task 3: <brief>",
+  prompt="...",
+  run_in_background=true
+)
 ```
 
-### 5. Spawn Parallel Agents
+**Critical**: Each agent's prompt MUST explicitly list which files are in scope. This prevents conflicts.
 
-**Recommended approach with worktrees and logging:**
+### 5. Monitor and Collect Results
 
-```bash
-CHANGE_ID="<change-id>"
-WORKTREE_BASE="../worktrees-$CHANGE_ID"
-LOGDIR="logs/openspec-$CHANGE_ID"
-mkdir -p "$LOGDIR"
+Background agents will complete and return results. For each agent:
 
-bd ready --json | jq -r '.[] | .id' | while read bead_id; do
-  TASK=$(bd show $bead_id --json | jq -r '.title')
-  AGENT_DIR="$WORKTREE_BASE/$bead_id"
-  
-  (cd "$AGENT_DIR" && claude -p "You are implementing OpenSpec $CHANGE_ID.
+1. Check TaskOutput for completion status
+2. Review the agent's reported changes
+3. Verify no out-of-scope modifications: `git status`
 
-Your task: $TASK
+If an agent fails:
+- Check the error in TaskOutput
+- Use `Task(resume=<agent_id>)` to retry with context
+- Or fix manually and continue
 
-You are in an isolated git worktree at: $AGENT_DIR
-Your branch: agent-$bead_id
+### 6. Handle Sequential Tasks
 
-Instructions:
-1. Read openspec/changes/$CHANGE_ID/proposal.md for context
-2. Implement ONLY your assigned task
-3. Write tests first (TDD)
-4. Run tests to verify
-5. Commit your changes: git add . && git commit -m 'feat: $TASK'
-6. When complete, run: bd close $bead_id") \
-    > "$LOGDIR/$bead_id.log" 2>&1 &
-  
-  echo "Spawned agent for bead $bead_id in $AGENT_DIR"
-done
+After parallel tasks complete, run any sequential tasks:
 
-echo "Waiting for all agents to complete..."
-wait
-echo "All agents finished."
+```
+Task(
+  subagent_type="general-purpose",
+  description="Implement sequential task: <brief>",
+  prompt="...",
+  run_in_background=false  # Wait for completion
+)
 ```
 
-**Or use the helper script:**
+Sequential tasks run one at a time, waiting for each to complete.
+
+### 7. Verify Integration
+
+After all tasks complete:
 
 ```bash
-./scripts/spawn_agents.sh <change-id> [max-parallel]
-```
-
-### 6. Merge Agent Branches
-
-After all agents complete, merge their work:
-
-```bash
-CHANGE_ID="<change-id>"
-WORKTREE_BASE="../worktrees-$CHANGE_ID"
-
-# Return to main feature branch
-git checkout openspec/$CHANGE_ID
-
-# Merge each agent's branch
-bd list --closed --json | jq -r '.[] | .id' | while read bead_id; do
-  BRANCH="agent-$bead_id"
-  echo "Merging $BRANCH..."
-  git merge "$BRANCH" --no-edit || {
-    echo "Conflict merging $BRANCH - resolve manually"
-    exit 1
-  }
-done
-
-echo "All branches merged successfully"
-```
-
-### 7. Cleanup Worktrees
-
-```bash
-CHANGE_ID="<change-id>"
-WORKTREE_BASE="../worktrees-$CHANGE_ID"
-
-# Remove worktrees
-bd list --closed --json | jq -r '.[] | .id' | while read bead_id; do
-  git worktree remove "$WORKTREE_BASE/$bead_id" --force
-  git branch -d "agent-$bead_id"
-done
-
-rmdir "$WORKTREE_BASE" 2>/dev/null || true
-echo "Worktrees cleaned up"
-```
-
-### 8. Monitor Progress
-
-```bash
-# Check remaining tasks
-bd ready
-
-# Check completed
-bd list --closed
-
-# Watch for completion (poll)
-while [ "$(bd ready --json | jq length)" -gt 0 ]; do
-  echo "$(date): $(bd ready --json | jq length) tasks remaining"
-  sleep 30
-done
-echo "All tasks complete!"
-```
-
-### 9. Verify Integration
-
-After merging all branches:
-
-```bash
-# Verify all beads closed
-bd ready  # Should be empty
-
 # Run full test suite
 pytest
 
@@ -232,42 +188,62 @@ mypy src/ && ruff check .
 openspec validate <change-id> --strict
 ```
 
-**If tests fail after merge:** Check logs in `logs/openspec-<change-id>/` to identify which agent's changes caused issues.
+**If tests fail**: Review which agent's changes caused the issue. The orchestrator can see all changes and fix integration problems.
 
-### 10. Update Task Tracking
+### 8. Update Task Tracking
 
 ```bash
 # Mark all tasks complete in tasks.md
-sed -i 's/- \[ \]/- [x]/g' openspec/changes/<change-id>/tasks.md
+# Edit tasks.md: change "- [ ]" to "- [x]" for completed tasks
+
+# If using Beads
+bd close <bead_id>  # for each completed bead
 ```
 
-### 11. Commit and PR
+### 9. Commit and PR
 
 ```bash
 git add .
-git commit -m "feat(<scope>): <description>
+git commit -m "$(cat <<'EOF'
+feat(<scope>): <description>
 
 Implements OpenSpec: <change-id>
-Parallel execution: $(bd list --closed | wc -l) tasks
+Parallel execution: <N> tasks
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+- <task 1 summary>
+- <task 2 summary>
+- <task 3 summary>
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
 
 git push -u origin openspec/<change-id>
 
-gh pr create --title "feat(<scope>): <title>" --body "## Summary
-Implements OpenSpec: \`<change-id>\` using parallel agents.
+gh pr create --title "feat(<scope>): <title>" --body "$(cat <<'EOF'
+## Summary
+Implements OpenSpec: `<change-id>` using parallel Task() agents.
+
+**Proposal**: `openspec/changes/<change-id>/proposal.md`
 
 ### Parallel Execution
-- Tasks parallelized: $(bd list --closed | wc -l)
-- Execution logs: \`logs/openspec-<change-id>/\`
+- Independent tasks: <N>
+- Sequential tasks: <M>
+
+### Changes
+- <bullet points summarizing changes>
 
 ## Test Plan
-- [ ] All tests pass
-- [ ] No merge conflicts
+- [ ] All tests pass (`pytest`)
+- [ ] Type checks pass (`mypy src/`)
+- [ ] Linting passes (`ruff check .`)
 - [ ] OpenSpec validates
+- [ ] All tasks complete in `tasks.md`
 
 ---
-🤖 Generated with Claude Code (parallel agents)"
+🤖 Generated with Claude Code (parallel agents)
+EOF
+)"
 ```
 
 ## Agent Prompt Templates
@@ -275,9 +251,10 @@ Implements OpenSpec: \`<change-id>\` using parallel agents.
 ### Minimal Agent Prompt
 
 ```
-Implement OpenSpec <change-id>, task: <TASK>
-Read proposal: openspec/changes/<change-id>/proposal.md
-Write tests first. Run: bd close <bead_id> when done.
+Implement OpenSpec <change-id>, Task <N>: <TASK_TITLE>
+Scope: Only modify <file1>, <file2>
+Read: openspec/changes/<change-id>/proposal.md
+Write tests first. Report changes when done.
 ```
 
 ### Detailed Agent Prompt
@@ -288,58 +265,95 @@ You are a worker agent implementing part of OpenSpec <change-id>.
 ## Your Task
 <TASK_DESCRIPTION>
 
+## File Scope (CRITICAL)
+You MAY modify:
+- src/module/file1.py
+- tests/test_file1.py
+
+You must NOT modify any other files. If you need changes outside your scope, report this to the orchestrator instead of making the change.
+
 ## Context
 - Proposal: openspec/changes/<change-id>/proposal.md
 - Design: openspec/changes/<change-id>/design.md
-- Your scope: Only implement YOUR assigned task
 
 ## Process
 1. Read the proposal for context
 2. Write failing tests first (TDD)
 3. Implement minimal code to pass tests
-4. Run tests: pytest <relevant_test_file>
-5. Do NOT modify files outside your scope
+4. Run tests: pytest tests/test_file1.py
+5. Report: files changed, tests added, any issues encountered
 
-## Completion
-When done and tests pass, run:
-bd close <bead_id>
+## Important
+- Do NOT commit changes (orchestrator handles this)
+- Do NOT modify files outside your scope
+- Do NOT install new dependencies without reporting
 ```
 
 ## Coordination Patterns
 
-### Sequential Dependencies
+### Independent Tasks (Parallel)
 
-For tasks with dependencies, use bead blocking:
+Tasks with no file overlap run simultaneously:
 
-```bash
-# Task B depends on Task A
-A_ID=$(bd add "Task A - foundation")
-B_ID=$(bd add "Task B - depends on A" --blocked-by $A_ID)
+```
+Task 1: src/auth/login.py, tests/test_login.py
+Task 2: src/api/endpoints.py, tests/test_endpoints.py
+Task 3: src/utils/helpers.py, tests/test_helpers.py
 
-# Only Task A spawns initially
-# Task B becomes ready when A closes
+→ All 3 spawn in parallel
 ```
 
-### Shared State Warning
+### Sequential Dependencies
 
-If tasks share state (same file, database, etc.):
-- Do NOT parallelize—run sequentially
-- Or use file locking/separate branches per agent
+Tasks that share files or have logical dependencies:
+
+```
+Task A: src/models/user.py (foundation)
+Task B: src/auth/login.py (imports user model)
+
+→ Task A completes first, then Task B
+```
+
+### Mixed Pattern
+
+```
+Independent: Tasks 1, 2, 3 (parallel)
+Sequential: Task 4 depends on Task 1
+Sequential: Task 5 depends on Tasks 2, 3
+
+Execution:
+1. Spawn Tasks 1, 2, 3 in parallel
+2. When Task 1 completes → spawn Task 4
+3. When Tasks 2 AND 3 complete → spawn Task 5
+```
+
+## Why No Worktrees?
+
+The old pattern used git worktrees because external `claude -p` processes had no coordination—two agents editing the same file would corrupt it.
+
+Task() agents don't need worktrees because:
+1. **Prompt scoping**: Each agent's prompt explicitly lists allowed files
+2. **Orchestrator control**: Parent coordinates what runs when
+3. **No file overlap**: Independent tasks target different files (enforced by task design)
+4. **Result review**: Orchestrator verifies changes before committing
+
+**When worktrees would still be needed**: Only if you wanted concurrent edits to the same file, which the workflow prohibits.
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Agent hangs | Check logs; add timeout: `timeout 600 claude -p "..."` |
-| Merge conflicts | Reduce parallelism; separate concerns better |
-| Bead not closing | Agent may have failed; check logs, manually close |
-| Tests fail after merge | Run integration tests; resolve conflicts |
+| Agent modifies wrong file | Clearer file scope in prompt; review before commit |
+| Agent hangs | Use TaskOutput to check status; resume or restart |
+| Integration test fails | Run tests after each agent completes; fix before next |
+| Two agents need same file | Make tasks sequential, not parallel |
+| Agent reports blocker | Resume agent with guidance, or fix manually |
 
 ## Output
 
 - Feature branch: `openspec/<change-id>`
-- Beads: All closed
-- Logs: `logs/openspec-<change-id>/`
+- All tests passing
+- Beads closed (if using)
 - PR created and awaiting review
 
 ## Next Step
