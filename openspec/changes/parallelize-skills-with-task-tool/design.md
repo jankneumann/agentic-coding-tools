@@ -49,22 +49,23 @@ Orchestrator
 
 Exploration is read-only, safe to parallelize unconditionally.
 
-#### Pattern 3: Parallel Task Implementation (parallel-implement)
+#### Pattern 3: Parallel Task Implementation (implement-feature, iterate-on-implementation)
 
 ```
-Orchestrator
+Orchestrator (implement-feature Step 3, or iterate-on-implementation Step 6)
     │
-    ├── Identify independent tasks from tasks.md
-    ├── Create Beads (optional, for tracking)
+    ├── Identify independent tasks/fixes from tasks.md or findings
     │
     ├── Task(general-purpose): "Implement task 1" ─┐
     ├── Task(general-purpose): "Implement task 2" ─┼── run_in_background=true
-    └── Task(general-purpose): "Implement task 3" ─┘
+    └── Task(general-purpose): "Fix finding 3"     ─┘
     │
     └── TaskOutput × N → verify, commit
 ```
 
-Each agent is scoped to specific files/modules. No worktrees needed.
+Each agent is scoped to specific files/modules via prompt. No worktrees needed.
+
+**Note**: This pattern is embedded in implement-feature and iterate-on-implementation rather than being a separate skill. The old parallel-implement skill was removed because the Task() tool makes this pattern simple enough to not need dedicated orchestration.
 
 ## File Isolation Strategy
 

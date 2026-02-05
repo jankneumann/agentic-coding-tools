@@ -24,15 +24,15 @@ Claude Code now provides a native `Task()` tool that enables in-process subagent
 
 ## What Changes
 
-Update five skills to leverage Task() for parallelization:
+Update four skills and remove one:
 
-| Skill | Current Pattern | New Pattern |
-|-------|-----------------|-------------|
-| plan-feature | Sequential context review | Parallel Explore agents for context gathering |
-| implement-feature | Sequential quality checks | Parallel background quality checks |
-| parallel-implement | External CLI + worktrees | Native Task() subagents |
-| iterate-on-plan | Sequential analysis | Parallel analysis agents by finding type |
-| iterate-on-implementation | Sequential quality checks | Parallel background quality checks |
+| Skill | Change |
+|-------|--------|
+| plan-feature | Add parallel Explore agents for context gathering |
+| implement-feature | Add parallel quality checks + parallel task implementation pattern |
+| iterate-on-plan | Add optional parallel analysis agents |
+| iterate-on-implementation | Add parallel quality checks + parallel fix implementation |
+| parallel-implement | **REMOVED** - pattern merged into implement-feature |
 
 ### Key Architectural Change: Worktrees No Longer Needed
 
@@ -46,17 +46,22 @@ The new pattern doesn't need worktrees because:
 - Tasks with file overlap must run sequentially (already a workflow rule)
 - The orchestrator integrates results, not git merge
 
+### Why Remove parallel-implement?
+
+The parallel-implement skill was valuable because the worktree + external CLI pattern was complex. Now that Task() makes parallelization simple:
+- The orchestration pattern fits naturally in implement-feature's "Implement Tasks" step
+- Having a separate skill adds unnecessary complexity
+- Users can parallelize ad-hoc when tasks.md has independent tasks
+
 ## Impact
 
 ### Affected Specs
 - `skill-workflow` - Add requirements for parallel execution patterns
 
-### New Capabilities
-None - this is an enhancement to existing skills.
+### Removed Skills
+- `parallel-implement` - Pattern merged into implement-feature and iterate-on-implementation
 
 ## Non-Goals
 
 - **Not changing the workflow structure**: The 4-skill workflow remains the same
-- **Not adding new skills**: Only updating existing skills
 - **Not supporting concurrent edits to same file**: Tasks with shared scope must remain sequential
-- **Not removing Beads integration**: parallel-implement can still use Beads for task tracking (optional)

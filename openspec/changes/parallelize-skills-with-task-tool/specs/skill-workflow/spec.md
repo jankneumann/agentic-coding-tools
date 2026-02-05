@@ -53,11 +53,11 @@ The skill SHALL accept the following arguments:
 ## ADDED Requirements
 
 ### Requirement: Parallel Task Implementation Pattern
-The `parallel-implement` skill SHALL use native Task() subagents instead of external CLI spawning for parallel task execution.
+The `implement-feature` and `iterate-on-implementation` skills SHALL support parallel Task() subagents for implementing independent tasks or fixes concurrently.
 
 #### Scenario: Spawn parallel implementation agents
-- **WHEN** the skill identifies independent tasks that can be parallelized
-- **THEN** it SHALL spawn Task(general-purpose) agents with run_in_background=true
+- **WHEN** the skill identifies independent tasks (no shared files) that can be parallelized
+- **THEN** it MAY spawn Task(general-purpose) agents with run_in_background=true
 - **AND** scope each agent's prompt to specific files/modules
 - **AND** NOT create git worktrees for agent isolation
 

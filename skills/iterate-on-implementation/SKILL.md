@@ -112,6 +112,43 @@ Produce a **structured improvement analysis** with findings in this format:
   - Recommend creating a new OpenSpec proposal
   - Do NOT implement out-of-scope changes
 
+#### Parallel Fixes (for independent findings)
+
+When multiple findings target **different files**, fix them concurrently:
+
+```
+# Spawn parallel agents for independent fixes
+Task(
+  subagent_type="general-purpose",
+  description="Fix finding 1: <type> in <file>",
+  prompt="Fix this issue in OpenSpec <change-id> implementation:
+
+## Finding
+Type: <type>
+Criticality: <criticality>
+Description: <description>
+Proposed Fix: <fix>
+
+## File Scope
+You MAY modify: <specific file(s)>
+You must NOT modify any other files.
+
+## Process
+1. Read the file and understand the issue
+2. Implement the fix
+3. Run relevant tests
+4. Report changes made
+
+Do NOT commit - the orchestrator handles commits.",
+  run_in_background=true
+)
+```
+
+**Rules:**
+- Only parallelize fixes targeting different files
+- Fixes to the same file must be sequential
+- Collect all results before running quality checks
+
 ### 7. Run Quality Checks (Parallel Execution)
 
 Run all quality checks concurrently using Task() with `run_in_background=true`:

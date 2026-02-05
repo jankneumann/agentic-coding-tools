@@ -66,6 +66,56 @@ This will:
 - Implement code to make tests pass
 - Don't proceed until tests pass
 
+#### Parallel Implementation (for independent tasks)
+
+When tasks.md contains multiple **independent tasks** (no shared files), implement them concurrently:
+
+```
+# Spawn parallel agents (single message, multiple Task calls)
+Task(
+  subagent_type="general-purpose",
+  description="Implement task 1: <brief>",
+  prompt="You are implementing OpenSpec <change-id>, Task 1.
+
+## Your Task
+<TASK_DESCRIPTION from tasks.md>
+
+## File Scope (CRITICAL)
+You MAY modify: <list specific files>
+You must NOT modify any other files.
+
+## Context
+- Read openspec/changes/<change-id>/proposal.md for full context
+- Read openspec/changes/<change-id>/design.md for architectural decisions
+
+## Process
+1. Read the proposal and design docs
+2. Write failing tests first (TDD)
+3. Implement minimal code to pass tests
+4. Run tests to verify
+5. Report completion with summary of changes
+
+Do NOT commit - the orchestrator will handle commits.",
+  run_in_background=true
+)
+```
+
+**Rules for parallel implementation:**
+- Each agent's prompt MUST list specific files it may modify
+- Tasks with overlapping files MUST run sequentially
+- Collect all results via TaskOutput before committing
+- If an agent fails, use `Task(resume=<agent_id>)` to retry
+
+**When to parallelize:**
+- 3+ independent tasks with no file overlap
+- Tasks targeting separate modules/packages
+- Independent test suites
+
+**When NOT to parallelize:**
+- Tasks that share files or state
+- Tasks with logical dependencies (B needs A's output)
+- Small proposals where sequential is simpler
+
 ### 4. Track Progress
 
 Use TodoWrite to track implementation:
