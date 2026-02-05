@@ -33,18 +33,26 @@ git status
 
 Resolve any uncommitted changes before proceeding.
 
-### 2. Review Existing Context
+### 2. Review Existing Context (Parallel Exploration)
 
-```bash
-# Review project context
-cat openspec/project.md
+Gather context from multiple sources concurrently using Task(Explore) agents:
 
-# List existing specs
-openspec list --specs
-
-# List any in-progress changes
-openspec list
 ```
+# Launch parallel exploration agents (single message, multiple Task calls)
+Task(subagent_type="Explore", prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
+Task(subagent_type="Explore", prompt="Run 'openspec list --specs' and summarize existing specifications and their requirement counts", run_in_background=true)
+Task(subagent_type="Explore", prompt="Run 'openspec list' and identify any in-progress changes that might conflict or relate to: $ARGUMENTS", run_in_background=true)
+Task(subagent_type="Explore", prompt="Search the codebase for existing implementations related to: $ARGUMENTS. Identify relevant files, patterns, and potential integration points", run_in_background=true)
+```
+
+**Context Synthesis:**
+1. Wait for all TaskOutput results
+2. Synthesize findings into a unified context summary:
+   - Project constraints that apply
+   - Related existing specs
+   - Potential conflicts with in-progress work
+   - Existing code patterns to follow
+3. Use this context to inform the proposal
 
 Understand the current state before proposing changes.
 

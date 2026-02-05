@@ -112,20 +112,71 @@ Produce a **structured improvement analysis** with findings in this format:
   - Recommend creating a new OpenSpec proposal
   - Do NOT implement out-of-scope changes
 
-### 7. Run Quality Checks
+#### Parallel Fixes (for independent findings)
 
-```bash
-# Run tests (adapt to project)
-pytest
+When multiple findings target **different files**, fix them concurrently:
 
-# Type checking (if applicable)
-mypy src/
+```
+# Spawn parallel agents for independent fixes
+Task(
+  subagent_type="general-purpose",
+  description="Fix finding 1: <type> in <file>",
+  prompt="Fix this issue in OpenSpec <change-id> implementation:
 
-# Linting (if applicable)
-ruff check .
+## Finding
+Type: <type>
+Criticality: <criticality>
+Description: <description>
+Proposed Fix: <fix>
 
-# Validate OpenSpec
-openspec validate $CHANGE_ID --strict
+## File Scope
+You MAY modify: <specific file(s)>
+You must NOT modify any other files.
+
+## Process
+1. Read the file and understand the issue
+2. Implement the fix
+3. Run relevant tests
+4. Report changes made
+
+Do NOT commit - the orchestrator handles commits.",
+  run_in_background=true
+)
+```
+
+**Rules:**
+- Only parallelize fixes targeting different files
+- Fixes to the same file must be sequential
+- Collect all results before running quality checks
+
+### 7. Run Quality Checks (Parallel Execution)
+
+Run all quality checks concurrently using Task() with `run_in_background=true`:
+
+```
+# Launch all checks in parallel (single message, multiple Task calls)
+Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run openspec validate $CHANGE_ID --strict", run_in_background=true)
+```
+
+**Result Aggregation:**
+1. Wait for all TaskOutput results
+2. Collect pass/fail status from each check
+3. Report ALL results together (don't fail-fast on first error)
+4. Present failures with their check type for targeted fixes
+
+**Example output format:**
+```
+Quality Check Results:
+✓ pytest: 42 tests passed
+✗ mypy: 3 type errors in src/auth.py
+✓ ruff: No issues
+✓ openspec validate: Valid
+
+Failures to address this iteration:
+- mypy: src/auth.py:15 - Missing return type annotation
 ```
 
 Fix any failures before proceeding. If fixes introduce new issues, address them within this iteration.

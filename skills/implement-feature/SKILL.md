@@ -66,6 +66,56 @@ This will:
 - Implement code to make tests pass
 - Don't proceed until tests pass
 
+#### Parallel Implementation (for independent tasks)
+
+When tasks.md contains multiple **independent tasks** (no shared files), implement them concurrently:
+
+```
+# Spawn parallel agents (single message, multiple Task calls)
+Task(
+  subagent_type="general-purpose",
+  description="Implement task 1: <brief>",
+  prompt="You are implementing OpenSpec <change-id>, Task 1.
+
+## Your Task
+<TASK_DESCRIPTION from tasks.md>
+
+## File Scope (CRITICAL)
+You MAY modify: <list specific files>
+You must NOT modify any other files.
+
+## Context
+- Read openspec/changes/<change-id>/proposal.md for full context
+- Read openspec/changes/<change-id>/design.md for architectural decisions
+
+## Process
+1. Read the proposal and design docs
+2. Write failing tests first (TDD)
+3. Implement minimal code to pass tests
+4. Run tests to verify
+5. Report completion with summary of changes
+
+Do NOT commit - the orchestrator will handle commits.",
+  run_in_background=true
+)
+```
+
+**Rules for parallel implementation:**
+- Each agent's prompt MUST list specific files it may modify
+- Tasks with overlapping files MUST run sequentially
+- Collect all results via TaskOutput before committing
+- If an agent fails, use `Task(resume=<agent_id>)` to retry
+
+**When to parallelize:**
+- 3+ independent tasks with no file overlap
+- Tasks targeting separate modules/packages
+- Independent test suites
+
+**When NOT to parallelize:**
+- Tasks that share files or state
+- Tasks with logical dependencies (B needs A's output)
+- Small proposals where sequential is simpler
+
 ### 4. Track Progress
 
 Use TodoWrite to track implementation:
@@ -82,23 +132,34 @@ grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md
 # Should return nothing (all boxes checked)
 ```
 
-### 6. Quality Checks
+### 6. Quality Checks (Parallel Execution)
 
-```bash
-# Run tests
-pytest
+Run all quality checks concurrently using Task() with `run_in_background=true`:
 
-# Type checking (if applicable)
-mypy src/
-
-# Linting (if applicable)
-ruff check .
-
-# Validate OpenSpec
-openspec validate <change-id> --strict
+```
+# Launch all checks in parallel (single message, multiple Task calls)
+Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
 ```
 
-Fix any failures before proceeding.
+**Result Aggregation:**
+1. Wait for all TaskOutput results
+2. Collect pass/fail status from each check
+3. Report all results together (don't fail-fast on first error)
+4. If any check fails, show all failures before fixing
+
+**Example output format:**
+```
+Quality Check Results:
+✓ pytest: 42 tests passed
+✗ mypy: 3 type errors in src/auth.py
+✓ ruff: No issues
+✓ openspec validate: Valid
+```
+
+Fix all failures before proceeding. Address issues in order of severity (type errors before style).
 
 ### 7. Document Lessons Learned
 

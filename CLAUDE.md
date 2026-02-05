@@ -47,6 +47,20 @@ Use the 4-skill feature workflow with natural approval gates:
 
 - **Plan for parallel execution**: Task decomposition in proposals should explicitly identify dependencies and maximize independent work units. This enables `/parallel-implement` to spawn isolated agents without merge conflicts.
 
+### Task() Parallelization Patterns
+
+- **Use Task() for parallel work**: The native Task() tool with `run_in_background=true` replaces external CLI spawning (`claude -p`) and git worktrees. Send multiple Task() calls in a single message to run them concurrently.
+
+- **Parallel quality checks**: Run pytest, mypy, ruff, and openspec validate concurrently. Collect all results before reporting—don't fail-fast on first error. This gives users a complete picture of issues.
+
+- **Parallel exploration**: Use Task(Explore) agents to gather context from multiple sources concurrently. This is read-only and safe to parallelize unconditionally.
+
+- **File scope isolation**: For parallel implementation tasks, each agent's prompt must explicitly list which files it may modify. Tasks with overlapping file scope must run sequentially, not in parallel.
+
+- **No worktrees needed**: Task() agents are orchestrator-coordinated. The old worktree pattern was needed because external `claude -p` processes had no coordination. With Task(), logical file scoping via prompts replaces physical isolation via worktrees.
+
+- **Result aggregation**: After parallel tasks complete, the orchestrator collects results via TaskOutput, verifies work, and commits. Don't let agents commit directly—the orchestrator should control the commit.
+
 ### OpenSpec Integration
 
 - **All planning through OpenSpec**: Use `/openspec-proposal` for any non-trivial feature. This creates a traceable record of decisions and enables spec-driven development.
