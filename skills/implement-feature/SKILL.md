@@ -43,15 +43,23 @@ Confirm the proposal is approved before proceeding.
 Create an isolated worktree for this feature to avoid conflicts with other CLI sessions:
 
 ```bash
-# Determine paths
+# Determine paths — use git-common-dir to find the main repo even from a worktree
 CHANGE_ID="<change-id>"
-MAIN_REPO=$(git rev-parse --show-toplevel)
+GIT_COMMON=$(git rev-parse --git-common-dir)
+if [[ "$GIT_COMMON" == ".git" ]]; then
+  # In main repo
+  MAIN_REPO=$(git rev-parse --show-toplevel)
+else
+  # In worktree — git-common-dir returns /path/to/main/.git or /path/to/main/.git/worktrees/<name>
+  MAIN_REPO="${GIT_COMMON%%/.git*}"
+fi
 REPO_NAME=$(basename "$MAIN_REPO")
 WORKTREE_PARENT="$(dirname "$MAIN_REPO")/${REPO_NAME}.worktrees"
 WORKTREE_PATH="${WORKTREE_PARENT}/${CHANGE_ID}"
 
 # Check if already in the correct worktree
-if [[ "$(git rev-parse --show-toplevel)" == "$WORKTREE_PATH" ]]; then
+CURRENT_TOPLEVEL=$(git rev-parse --show-toplevel)
+if [[ "$CURRENT_TOPLEVEL" == "$WORKTREE_PATH" ]]; then
   echo "Already in worktree for ${CHANGE_ID}"
 else
   # Create worktree parent directory

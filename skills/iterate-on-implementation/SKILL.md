@@ -40,14 +40,14 @@ THRESHOLD="medium"  # critical > high > medium > low
 
 # Detect if running in a worktree and resolve OpenSpec path
 GIT_COMMON=$(git rev-parse --git-common-dir)
-if [[ "$GIT_COMMON" != ".git" ]]; then
-  # In worktree - OpenSpec files are in main repo
-  MAIN_REPO="${GIT_COMMON%/.git}"
-  OPENSPEC_PATH="$MAIN_REPO/openspec"
-  echo "Running in worktree. OpenSpec path: $OPENSPEC_PATH"
-else
+if [[ "$GIT_COMMON" == ".git" ]]; then
   # In main repo
   OPENSPEC_PATH="openspec"
+else
+  # In worktree — git-common-dir returns /path/to/main/.git or /path/to/main/.git/worktrees/<name>
+  MAIN_REPO="${GIT_COMMON%%/.git*}"
+  OPENSPEC_PATH="$MAIN_REPO/openspec"
+  echo "Running in worktree. OpenSpec path: $OPENSPEC_PATH"
 fi
 ```
 

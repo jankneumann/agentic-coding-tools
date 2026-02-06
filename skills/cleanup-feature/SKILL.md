@@ -114,8 +114,13 @@ git fetch --prune
 If a worktree was created for this feature, remove it:
 
 ```bash
-# Determine worktree path
-MAIN_REPO=$(git rev-parse --git-common-dir | sed 's|/.git.*||')
+# Determine worktree path — handle both main repo and worktree contexts
+GIT_COMMON=$(git rev-parse --git-common-dir)
+if [[ "$GIT_COMMON" == ".git" ]]; then
+  MAIN_REPO=$(git rev-parse --show-toplevel)
+else
+  MAIN_REPO="${GIT_COMMON%%/.git*}"
+fi
 REPO_NAME=$(basename "$MAIN_REPO")
 WORKTREE_PATH="$(dirname "$MAIN_REPO")/${REPO_NAME}.worktrees/${CHANGE_ID}"
 
