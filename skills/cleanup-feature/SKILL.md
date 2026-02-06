@@ -1,6 +1,6 @@
 ---
 name: cleanup-feature
-description: Merge approved PR, archive OpenSpec proposal, and cleanup branches
+description: Merge approved PR, migrate open tasks, archive OpenSpec proposal, and cleanup branches
 category: Git Workflow
 tags: [openspec, archive, cleanup, merge]
 triggers:
@@ -13,7 +13,7 @@ triggers:
 
 # Cleanup Feature
 
-Merge an approved PR, archive the OpenSpec proposal, and cleanup branches.
+Merge an approved PR, migrate any open tasks to beads or a follow-up proposal, archive the OpenSpec proposal, and cleanup branches.
 
 ## Arguments
 
@@ -73,7 +73,66 @@ git checkout main
 git pull origin main
 ```
 
-### 5. Archive OpenSpec Proposal
+### 5. Migrate Open Tasks
+
+Before archiving, check for incomplete tasks in the proposal. Open tasks must not be silently dropped.
+
+#### 5a. Detect open tasks
+
+Read `openspec/changes/<change-id>/tasks.md` and scan for unchecked items (`- [ ]`).
+
+If **all tasks are checked** (`- [x]`), skip to Step 6.
+
+If there are **open tasks**, collect them with their context:
+- Task number and description (e.g., `3.2 Add retry logic for failed requests`)
+- Parent task group heading (e.g., `### 3. Error Handling`)
+- Dependencies from the group's `**Dependencies**:` line
+- File scope from the group's `**Files**:` line
+
+#### 5b. Choose migration target
+
+Ask the user which migration strategy to use:
+
+**Option A — Beads issues** (if `.beads/` directory exists):
+
+For each open task group that has unchecked items:
+```bash
+# Create a beads issue per open task
+bd create "<task description>" \
+  --label "followup,openspec:<change-id>" \
+  --priority medium
+
+# If tasks have dependencies on each other, link them
+bd dep add <child-id> <parent-id>
+```
+
+Include in each issue description:
+- Original OpenSpec change-id for traceability
+- The file scope from the task group
+- Any relevant context from `proposal.md` or `design.md`
+
+**Option B — Follow-up OpenSpec proposal** (default if beads is not initialized):
+
+Create a new proposal using `/openspec-proposal` with:
+- **Change-id**: `followup-<original-change-id>` (e.g., `followup-add-retry-logic`)
+- **proposal.md**: Reference the original change-id, explain these are remaining tasks
+- **tasks.md**: Copy only the open (unchecked) tasks, preserving their numbering, dependencies, and file scope
+- **specs/**: Copy any spec deltas that correspond to the open tasks (if the original proposal's spec changes included requirements that depend on unfinished work)
+
+Let the user review and confirm the follow-up proposal before proceeding.
+
+#### 5c. Mark original tasks.md
+
+After migration, annotate the original `tasks.md` to record where open tasks went:
+
+```markdown
+## Migration Notes
+Open tasks migrated to [beads issues labeled `openspec:<change-id>`] | [follow-up proposal `followup-<change-id>`] on YYYY-MM-DD.
+```
+
+This annotation is preserved in the archive for traceability.
+
+### 6. Archive OpenSpec Proposal
 
 ```
 /openspec-archive <change-id>
@@ -86,7 +145,7 @@ This will:
 - Apply spec deltas to `openspec/specs/`
 - Validate with `openspec validate --strict`
 
-### 6. Verify Archive
+### 7. Verify Archive
 
 ```bash
 # Confirm specs updated
@@ -99,7 +158,7 @@ ls openspec/changes/archive/<change-id>/
 openspec validate --strict
 ```
 
-### 7. Cleanup Local Branches
+### 8. Cleanup Local Branches
 
 ```bash
 # Delete local feature branch (if not already deleted)
@@ -109,7 +168,7 @@ git branch -d openspec/<change-id> 2>/dev/null || true
 git fetch --prune
 ```
 
-### 7.5. Remove Worktree
+### 8.5. Remove Worktree
 
 If a worktree was created for this feature, remove it:
 
@@ -140,7 +199,7 @@ else
 fi
 ```
 
-### 8. Final Verification
+### 9. Final Verification
 
 ```bash
 # Confirm clean state
@@ -150,7 +209,7 @@ git status
 pytest
 ```
 
-### 9. Clear Session State
+### 10. Clear Session State
 
 - Clear todo list
 - Document any lessons learned in `CLAUDE.md` if applicable
@@ -158,6 +217,7 @@ pytest
 ## Output
 
 - PR merged to main
+- Open tasks migrated to beads issues or follow-up OpenSpec proposal (if any)
 - OpenSpec proposal archived
 - Specs updated in `openspec/specs/`
 - Branches cleaned up
