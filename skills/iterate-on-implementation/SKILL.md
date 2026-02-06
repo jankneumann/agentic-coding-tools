@@ -37,6 +37,18 @@ CHANGE_ID=${CHANGE_ID:-$(echo $BRANCH | sed 's/^openspec\///')}
 # Defaults
 MAX_ITERATIONS=5
 THRESHOLD="medium"  # critical > high > medium > low
+
+# Detect if running in a worktree and resolve OpenSpec path
+GIT_COMMON=$(git rev-parse --git-common-dir)
+if [[ "$GIT_COMMON" != ".git" ]]; then
+  # In worktree - OpenSpec files are in main repo
+  MAIN_REPO="${GIT_COMMON%/.git}"
+  OPENSPEC_PATH="$MAIN_REPO/openspec"
+  echo "Running in worktree. OpenSpec path: $OPENSPEC_PATH"
+else
+  # In main repo
+  OPENSPEC_PATH="openspec"
+fi
 ```
 
 Parse optional flags from `$ARGUMENTS`:
@@ -70,10 +82,12 @@ ITERATION=1
 
 Read the following files to understand intent and current state:
 
-- `openspec/changes/<change-id>/proposal.md`
-- `openspec/changes/<change-id>/design.md`
-- `openspec/changes/<change-id>/tasks.md`
+- `$OPENSPEC_PATH/changes/<change-id>/proposal.md`
+- `$OPENSPEC_PATH/changes/<change-id>/design.md`
+- `$OPENSPEC_PATH/changes/<change-id>/tasks.md`
 - All implementation source files changed on this branch (`git diff --name-only main..HEAD`)
+
+Note: In worktree mode, OpenSpec files are in the main repository, not the worktree.
 
 Produce a **structured improvement analysis** with findings in this format:
 
