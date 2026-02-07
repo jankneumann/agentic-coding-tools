@@ -45,7 +45,7 @@ Agent Relay uses a bidirectional PING/PONG protocol via its daemon. Since we don
 
 ## Risks / Trade-offs
 
-- **Heartbeat reliability**: If an agent is busy with a long-running task (e.g., 10-minute test suite), it won't call heartbeat. Mitigation: 5-minute stale threshold is generous enough for most operations; heartbeat can be called from within Task() orchestration.
+- **Heartbeat reliability**: If an agent is busy with a long-running task (e.g., 10-minute test suite), it won't call heartbeat. Mitigation: 15-minute stale threshold accommodates most long-running operations; agents should call heartbeat before and after long tasks; orchestrators should heartbeat on behalf of busy subagents.
 - **Handoff document size**: If sessions produce very large handoffs, database storage costs increase. Mitigation: enforce a size limit (e.g., 10KB) and use summarization.
 - **Lifecycle hook compatibility**: Claude Code's hook system may change between versions. Mitigation: hooks are a thin wrapper; fallback to manual registration if hooks aren't available.
 
@@ -57,6 +57,7 @@ Agent Relay uses a bidirectional PING/PONG protocol via its daemon. Since we don
 |------|-----------|---------|
 | `write_handoff` | `summary`, `completed_work`, `in_progress`, `decisions`, `next_steps`, `relevant_files` | `{success, handoff_id}` |
 | `read_handoff` | `agent_name` (optional), `limit` (default 1) | `{handoffs: [...]}` |
+| `register_session` | `capabilities` (optional), `current_task` (optional) | `{success, session_id}` |
 | `discover_agents` | `capability` (optional), `status` (optional) | `{agents: [...]}` |
 | `heartbeat` | (none, uses agent identity) | `{success, session_id}` |
 
@@ -87,7 +88,7 @@ ALTER TABLE agent_sessions
   ADD COLUMN last_heartbeat TIMESTAMPTZ DEFAULT NOW(),
   ADD COLUMN current_task TEXT;
 
-CREATE OR REPLACE FUNCTION cleanup_dead_agents(stale_threshold INTERVAL DEFAULT '5 minutes')
+CREATE OR REPLACE FUNCTION cleanup_dead_agents(stale_threshold INTERVAL DEFAULT '15 minutes')
 RETURNS INTEGER AS $$
 DECLARE
   cleaned INTEGER;

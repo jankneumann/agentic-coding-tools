@@ -15,7 +15,11 @@ Our Agent Coordinator (Phase 1 MVP) provides file locking and work queue primiti
 ## Impact
 
 - Affected specs: `agent-coordinator`
-- Affected code: `agent-coordinator/src/coordination_mcp.py`, `agent-coordinator/supabase/migrations/`, `agent-coordinator/src/config.py`
+- Modified code: `agent-coordinator/src/coordination_mcp.py`
+- New code: `agent-coordinator/src/handoffs.py`, `agent-coordinator/src/discovery.py`, `agent-coordinator/src/teams.py`
+- New migrations: `agent-coordinator/supabase/migrations/002_handoff_documents.sql`, `agent-coordinator/supabase/migrations/003_agent_discovery.sql`
+- New scripts: `agent-coordinator/scripts/register_agent.py`, `agent-coordinator/scripts/deregister_agent.py`
+- New config: `agent-coordinator/teams.yaml`, `.claude/hooks.json`
 
 ## Analysis: Agent Relay vs Our System
 
@@ -55,7 +59,7 @@ Our Agent Coordinator (Phase 1 MVP) provides file locking and work queue primiti
 
 **Agent Relay's approach**: Two-tier persistence: "ledger" (ephemeral session state) and "handoff" (permanent records). Auto-triggers on task completion, context limits, or session end.
 
-**Our adaptation**: Add `write_handoff` and `read_handoff` MCP tools backed by a `handoff_documents` table. Store: task context, completed work, in-progress items, key decisions, relevant files. Auto-load most recent handoff on session start.
+**Our adaptation**: Add `write_handoff` and `read_handoff` MCP tools backed by a `handoff_documents` table. Store: summary (required), plus optional completed work, in-progress items, decisions, next steps, and relevant files. Auto-load most recent handoff on session start via lifecycle hooks.
 
 #### Pattern 2: Agent Discovery (MEDIUM value, MEDIUM cost)
 
@@ -87,4 +91,4 @@ Our Agent Coordinator (Phase 1 MVP) provides file locking and work queue primiti
 
 **Agent Relay's approach**: PING/PONG every 5 seconds with exponential backoff reconnection.
 
-**Our adaptation**: Add `last_heartbeat` column to `agent_sessions`. Add a `heartbeat` MCP tool that agents call periodically. Add a PostgreSQL function `cleanup_dead_agents()` that releases locks held by agents whose heartbeat is stale (>5 minutes). Run as a cron or on-demand.
+**Our adaptation**: Add `last_heartbeat` column to `agent_sessions`. Add a `heartbeat` MCP tool that agents call periodically. Add a PostgreSQL function `cleanup_dead_agents()` that releases locks held by agents whose heartbeat is stale (>15 minutes, accommodating long-running operations like test suites). Run on-demand via MCP tool or automatically when `discover_agents` is called.
