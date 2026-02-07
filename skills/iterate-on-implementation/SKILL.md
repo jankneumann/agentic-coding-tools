@@ -285,6 +285,12 @@ Present a summary of all iterations:
 
 ## Next Step
 
+Validate the deployed feature (recommended):
+```
+/validate-feature <change-id>
+```
+
+Or skip validation and proceed to cleanup:
 ```
 /cleanup-feature <change-id>
 ```

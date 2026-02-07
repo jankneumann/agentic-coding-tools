@@ -24,6 +24,7 @@ Merge an approved PR, migrate any open tasks to beads or a follow-up proposal, a
 - PR has been approved
 - All CI checks passing
 - Run `/implement-feature` first if PR doesn't exist
+- Recommended: Run `/validate-feature` first to verify live deployment
 
 ## Steps
 
@@ -228,5 +229,6 @@ pytest
 ```
 /plan-feature <description>     # Create proposal → approval gate
 /implement-feature <change-id>  # Build + PR → review gate
+/validate-feature <change-id>   # Deploy + test → validation gate (optional)
 /cleanup-feature <change-id>    # Merge + archive → done
 ```
