@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python3 agent-coordinator/scripts/register_agent.py"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "python3 agent-coordinator/scripts/deregister_agent.py"
+      }
+    ]
+  }
+}

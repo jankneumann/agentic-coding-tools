@@ -1,0 +1,17 @@
+# teams.yaml - Declarative team composition
+team: agentic-coding-tools
+agents:
+  - name: lead
+    role: coordinator
+    capabilities: [planning, review, orchestration]
+    description: Decomposes tasks and coordinates workers
+
+  - name: implementer
+    role: worker
+    capabilities: [coding, testing]
+    description: Implements features from OpenSpec proposals
+
+  - name: reviewer
+    role: worker
+    capabilities: [review, security-analysis]
+    description: Reviews PRs and checks for security issues
