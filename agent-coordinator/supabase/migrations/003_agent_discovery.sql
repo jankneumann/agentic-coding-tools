@@ -73,7 +73,8 @@ BEGIN
     INTO v_agents
     FROM agent_sessions s
     WHERE (p_capability IS NULL OR p_capability = ANY(s.capabilities))
-      AND (p_status IS NULL OR s.status = p_status);
+      AND (p_status IS NOT NULL AND s.status = p_status
+           OR p_status IS NULL AND s.status != 'disconnected');
 
     RETURN jsonb_build_object(
         'agents', v_agents
@@ -118,20 +119,34 @@ CREATE OR REPLACE FUNCTION cleanup_dead_agents(
 DECLARE
     v_cleaned INTEGER;
     v_locks_released INTEGER;
+    v_stale_agent_ids TEXT[];
 BEGIN
-    -- Mark stale agents as disconnected
-    UPDATE agent_sessions
-    SET status = 'disconnected'
+    -- Identify stale agents first
+    SELECT ARRAY_AGG(agent_id)
+    INTO v_stale_agent_ids
+    FROM agent_sessions
     WHERE status IN ('active', 'idle')
       AND last_heartbeat < NOW() - p_stale_threshold;
 
+    -- Nothing to clean up
+    IF v_stale_agent_ids IS NULL THEN
+        RETURN jsonb_build_object(
+            'success', true,
+            'agents_cleaned', 0,
+            'locks_released', 0
+        );
+    END IF;
+
+    -- Mark stale agents as disconnected
+    UPDATE agent_sessions
+    SET status = 'disconnected'
+    WHERE agent_id = ANY(v_stale_agent_ids);
+
     GET DIAGNOSTICS v_cleaned = ROW_COUNT;
 
-    -- Release locks held by disconnected agents
+    -- Release locks held only by the newly-disconnected agents
     DELETE FROM file_locks
-    WHERE locked_by IN (
-        SELECT agent_id FROM agent_sessions WHERE status = 'disconnected'
-    );
+    WHERE locked_by = ANY(v_stale_agent_ids);
 
     GET DIAGNOSTICS v_locks_released = ROW_COUNT;
 

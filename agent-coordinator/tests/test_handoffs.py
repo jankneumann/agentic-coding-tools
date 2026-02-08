@@ -34,6 +34,19 @@ class TestHandoffService:
         assert str(result.handoff_id) == handoff_id
 
     @pytest.mark.asyncio
+    async def test_write_handoff_db_error(self, mock_supabase, db_client):
+        """Test writing a handoff when database is unavailable."""
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/write_handoff"
+        ).mock(side_effect=Exception("connection refused"))
+
+        service = HandoffService(db_client)
+        result = await service.write(summary="Test summary")
+
+        assert result.success is False
+        assert result.error == "database_unavailable"
+
+    @pytest.mark.asyncio
     async def test_write_handoff_missing_summary(self, mock_supabase, db_client):
         """Test writing a handoff without summary fails."""
         mock_supabase.post(

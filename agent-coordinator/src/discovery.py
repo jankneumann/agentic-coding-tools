@@ -192,12 +192,15 @@ class DiscoveryService:
         """
         config = get_config()
 
-        result = await self.db.rpc(
-            "agent_heartbeat",
-            {
-                "p_session_id": session_id or config.agent.session_id,
-            },
-        )
+        try:
+            result = await self.db.rpc(
+                "agent_heartbeat",
+                {
+                    "p_session_id": session_id or config.agent.session_id,
+                },
+            )
+        except Exception:
+            return HeartbeatResult(success=False, error="database_unavailable")
 
         return HeartbeatResult.from_dict(result)
 

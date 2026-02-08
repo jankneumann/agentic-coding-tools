@@ -129,6 +129,19 @@ class TestDiscoveryService:
         assert result.session_id == "test-session-1"
 
     @pytest.mark.asyncio
+    async def test_heartbeat_db_error(self, mock_supabase, db_client):
+        """Test heartbeat when database is unavailable."""
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/agent_heartbeat"
+        ).mock(side_effect=Exception("connection refused"))
+
+        service = DiscoveryService(db_client)
+        result = await service.heartbeat()
+
+        assert result.success is False
+        assert result.error == "database_unavailable"
+
+    @pytest.mark.asyncio
     async def test_heartbeat_session_not_found(self, mock_supabase, db_client):
         """Test heartbeat for nonexistent session."""
         mock_supabase.post(
