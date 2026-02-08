@@ -73,8 +73,8 @@ BEGIN
     INTO v_agents
     FROM agent_sessions s
     WHERE (p_capability IS NULL OR p_capability = ANY(s.capabilities))
-      AND (p_status IS NOT NULL AND s.status = p_status
-           OR p_status IS NULL AND s.status != 'disconnected');
+      AND ((p_status IS NOT NULL AND s.status = p_status)
+           OR (p_status IS NULL AND s.status != 'disconnected'));
 
     RETURN jsonb_build_object(
         'agents', v_agents
