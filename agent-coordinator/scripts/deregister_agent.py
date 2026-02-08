@@ -25,9 +25,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 async def main() -> None:
     try:
-        from src.locks import get_lock_service
-        from src.handoffs import get_handoff_service
         from src.config import get_config
+        from src.handoffs import get_handoff_service
+        from src.locks import get_lock_service
     except ImportError as e:
         print(f"[deregister_agent] Import error (coordination not installed): {e}", file=sys.stderr)
         return
@@ -40,16 +40,15 @@ async def main() -> None:
 
     agent_id = config.agent.agent_id
 
-    # Release all locks held by this agent
+    # Release all locks held by this agent (filtered server-side)
     lock_service = get_lock_service()
-    locks = await lock_service.check()
+    locks = await lock_service.check(locked_by=agent_id)
     released_count = 0
     for lock in locks:
-        if lock.locked_by == agent_id:
-            result = await lock_service.release(lock.file_path)
-            if result.success:
-                released_count += 1
-                print(f"[deregister_agent] Released lock: {lock.file_path}")
+        result = await lock_service.release(lock.file_path)
+        if result.success:
+            released_count += 1
+            print(f"[deregister_agent] Released lock: {lock.file_path}")
 
     if released_count > 0:
         print(f"[deregister_agent] Released {released_count} lock(s)")

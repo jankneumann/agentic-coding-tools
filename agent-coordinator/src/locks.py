@@ -6,10 +6,9 @@ Locks are stored in Supabase with automatic TTL expiration.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from .config import get_config
-from .db import get_db, SupabaseClient
+from .db import SupabaseClient, get_db
 
 
 @dataclass
@@ -21,8 +20,8 @@ class Lock:
     agent_type: str
     locked_at: datetime
     expires_at: datetime
-    reason: Optional[str] = None
-    session_id: Optional[str] = None
+    reason: str | None = None
+    session_id: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Lock":
@@ -42,12 +41,12 @@ class LockResult:
     """Result of a lock acquisition attempt."""
 
     success: bool
-    action: Optional[str] = None  # 'acquired', 'refreshed', or None
-    file_path: Optional[str] = None
-    expires_at: Optional[datetime] = None
-    reason: Optional[str] = None  # Error reason if failed
-    locked_by: Optional[str] = None  # Who holds the lock if failed
-    lock_reason: Optional[str] = None  # Why they have the lock
+    action: str | None = None  # 'acquired', 'refreshed', or None
+    file_path: str | None = None
+    expires_at: datetime | None = None
+    reason: str | None = None  # Error reason if failed
+    locked_by: str | None = None  # Who holds the lock if failed
+    lock_reason: str | None = None  # Why they have the lock
 
     @classmethod
     def from_dict(cls, data: dict) -> "LockResult":
@@ -71,7 +70,7 @@ class LockResult:
 class LockService:
     """Service for managing file locks."""
 
-    def __init__(self, db: Optional[SupabaseClient] = None):
+    def __init__(self, db: SupabaseClient | None = None):
         self._db = db
 
     @property
@@ -83,11 +82,11 @@ class LockService:
     async def acquire(
         self,
         file_path: str,
-        agent_id: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        session_id: Optional[str] = None,
-        reason: Optional[str] = None,
-        ttl_minutes: Optional[int] = None,
+        agent_id: str | None = None,
+        agent_type: str | None = None,
+        session_id: str | None = None,
+        reason: str | None = None,
+        ttl_minutes: int | None = None,
     ) -> LockResult:
         """Acquire a lock on a file.
 
@@ -121,7 +120,7 @@ class LockService:
     async def release(
         self,
         file_path: str,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
     ) -> LockResult:
         """Release a lock on a file.
 
@@ -146,12 +145,14 @@ class LockService:
 
     async def check(
         self,
-        file_paths: Optional[list[str]] = None,
+        file_paths: list[str] | None = None,
+        locked_by: str | None = None,
     ) -> list[Lock]:
         """Check which files are currently locked.
 
         Args:
             file_paths: Specific files to check (None for all active locks)
+            locked_by: Filter by agent ID (None for all agents)
 
         Returns:
             List of active locks
@@ -163,14 +164,17 @@ class LockService:
             paths_str = ",".join(f'"{p}"' for p in file_paths)
             query += f"&file_path=in.({paths_str})"
 
+        if locked_by:
+            query += f"&locked_by=eq.{locked_by}"
+
         locks = await self.db.query("file_locks", query)
         return [Lock.from_dict(lock) for lock in locks]
 
     async def extend(
         self,
         file_path: str,
-        agent_id: Optional[str] = None,
-        ttl_minutes: Optional[int] = None,
+        agent_id: str | None = None,
+        ttl_minutes: int | None = None,
     ) -> LockResult:
         """Extend an existing lock's TTL.
 
@@ -190,7 +194,7 @@ class LockService:
             ttl_minutes=ttl_minutes,
         )
 
-    async def is_locked(self, file_path: str) -> Optional[Lock]:
+    async def is_locked(self, file_path: str) -> Lock | None:
         """Check if a specific file is locked.
 
         Args:
@@ -204,7 +208,7 @@ class LockService:
 
 
 # Global service instance
-_lock_service: Optional[LockService] = None
+_lock_service: LockService | None = None
 
 
 def get_lock_service() -> LockService:
