@@ -27,9 +27,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 async def main() -> None:
     try:
+        from src.config import get_config
         from src.discovery import get_discovery_service
         from src.handoffs import get_handoff_service
-        from src.config import get_config
     except ImportError as e:
         print(f"[register_agent] Import error (coordination not installed): {e}", file=sys.stderr)
         return
