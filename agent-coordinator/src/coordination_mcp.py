@@ -3,6 +3,8 @@
 This MCP server provides tools for:
 - File locking to prevent concurrent edits
 - Work queue for task assignment and tracking
+- Session continuity via handoff documents
+- Agent discovery and heartbeat monitoring
 
 Usage (Claude Code):
     Add to ~/.claude/mcp.json:
@@ -25,20 +27,20 @@ Usage (standalone for testing):
 """
 
 import sys
-from typing import Optional
 
-from fastmcp import FastMCP, Context
+from fastmcp import FastMCP
 
 from .config import get_config
-from .locks import get_lock_service, LockResult
-from .work_queue import get_work_queue_service, ClaimResult, SubmitResult, CompleteResult
-
+from .discovery import get_discovery_service
+from .handoffs import get_handoff_service
+from .locks import get_lock_service
+from .work_queue import get_work_queue_service
 
 # Create the MCP server
 mcp = FastMCP(
     name="coordination",
-    version="0.1.0",
-    description="Multi-agent coordination: file locks and work queue",
+    version="0.2.0",
+    description="Multi-agent coordination: file locks, work queue, handoffs, and discovery",
 )
 
 
@@ -65,8 +67,8 @@ def get_agent_type() -> str:
 @mcp.tool()
 async def acquire_lock(
     file_path: str,
-    reason: Optional[str] = None,
-    ttl_minutes: Optional[int] = None,
+    reason: str | None = None,
+    ttl_minutes: int | None = None,
 ) -> dict:
     """
     Acquire an exclusive lock on a file before modifying it.
@@ -137,7 +139,7 @@ async def release_lock(file_path: str) -> dict:
 
 
 @mcp.tool()
-async def check_locks(file_paths: Optional[list[str]] = None) -> list[dict]:
+async def check_locks(file_paths: list[str] | None = None) -> list[dict]:
     """
     Check which files are currently locked.
 
@@ -171,7 +173,7 @@ async def check_locks(file_paths: Optional[list[str]] = None) -> list[dict]:
 
 
 @mcp.tool()
-async def get_work(task_types: Optional[list[str]] = None) -> dict:
+async def get_work(task_types: list[str] | None = None) -> dict:
     """
     Claim a task from the work queue.
 
@@ -215,8 +217,8 @@ async def get_work(task_types: Optional[list[str]] = None) -> dict:
 async def complete_work(
     task_id: str,
     success: bool,
-    result: Optional[dict] = None,
-    error_message: Optional[str] = None,
+    result: dict | None = None,
+    error_message: str | None = None,
 ) -> dict:
     """
     Mark a claimed task as completed.
@@ -256,9 +258,9 @@ async def complete_work(
 async def submit_work(
     task_type: str,
     description: str,
-    input_data: Optional[dict] = None,
+    input_data: dict | None = None,
     priority: int = 5,
-    depends_on: Optional[list[str]] = None,
+    depends_on: list[str] | None = None,
 ) -> dict:
     """
     Submit a new task to the work queue.
@@ -308,6 +310,261 @@ async def submit_work(
 
 
 # =============================================================================
+# MCP TOOLS: Handoff Documents (Session Continuity)
+# =============================================================================
+
+
+@mcp.tool()
+async def write_handoff(
+    summary: str,
+    completed_work: list[str] | None = None,
+    in_progress: list[str] | None = None,
+    decisions: list[str] | None = None,
+    next_steps: list[str] | None = None,
+    relevant_files: list[str] | None = None,
+) -> dict:
+    """
+    Write a handoff document to preserve session context.
+
+    Call this before ending a session or when hitting context limits.
+    The next session can read this to resume where you left off.
+
+    Args:
+        summary: What was accomplished and current state (required)
+        completed_work: List of completed work items
+        in_progress: List of items still being worked on
+        decisions: Key decisions made during the session
+        next_steps: What should be done next
+        relevant_files: File paths relevant to the work
+
+    Returns:
+        success: Whether the handoff was written
+        handoff_id: UUID of the created handoff document
+
+    Example:
+        write_handoff(
+            summary="Implemented file locking with TTL expiration",
+            completed_work=["Lock acquisition", "Lock release", "TTL cleanup"],
+            in_progress=["Integration tests"],
+            decisions=["Used PostgreSQL advisory locks for atomicity"],
+            next_steps=["Write integration tests", "Add lock contention metrics"],
+            relevant_files=["src/locks.py", "supabase/migrations/001_core_schema.sql"]
+        )
+    """
+    service = get_handoff_service()
+    result = await service.write(
+        summary=summary,
+        completed_work=completed_work,
+        in_progress=in_progress,
+        decisions=decisions,
+        next_steps=next_steps,
+        relevant_files=relevant_files,
+    )
+
+    return {
+        "success": result.success,
+        "handoff_id": str(result.handoff_id) if result.handoff_id else None,
+        "error": result.error,
+    }
+
+
+@mcp.tool()
+async def read_handoff(
+    agent_name: str | None = None,
+    limit: int = 1,
+) -> dict:
+    """
+    Read previous handoff documents for session continuity.
+
+    Call this at the start of a new session to resume prior context.
+    Returns the most recent handoff(s) for the specified agent.
+
+    Args:
+        agent_name: Filter by agent name (None for current agent's handoffs)
+        limit: Number of handoffs to retrieve (default: 1, most recent)
+
+    Returns:
+        handoffs: List of handoff documents with summary, completed work, etc.
+
+    Example:
+        result = read_handoff()
+        if result["handoffs"]:
+            # Resume from previous session context
+            previous = result["handoffs"][0]
+            print(f"Previous session: {previous['summary']}")
+    """
+    service = get_handoff_service()
+
+    # Default to current agent if no name specified
+    if agent_name is None:
+        agent_name = get_agent_id()
+
+    result = await service.read(
+        agent_name=agent_name,
+        limit=limit,
+    )
+
+    return {
+        "handoffs": [
+            {
+                "id": str(h.id),
+                "agent_name": h.agent_name,
+                "session_id": h.session_id,
+                "summary": h.summary,
+                "completed_work": h.completed_work,
+                "in_progress": h.in_progress,
+                "decisions": h.decisions,
+                "next_steps": h.next_steps,
+                "relevant_files": h.relevant_files,
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in result.handoffs
+        ],
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Agent Discovery and Heartbeat
+# =============================================================================
+
+
+@mcp.tool()
+async def register_session(
+    capabilities: list[str] | None = None,
+    current_task: str | None = None,
+) -> dict:
+    """
+    Register this agent session for discovery by other agents.
+
+    Call this at the start of a work session to make yourself discoverable.
+    Other agents can then find you via discover_agents().
+
+    Args:
+        capabilities: What this agent can do (e.g., ['coding', 'testing', 'review'])
+        current_task: Description of what you're currently working on
+
+    Returns:
+        success: Whether registration succeeded
+        session_id: The registered session ID
+
+    Example:
+        register_session(
+            capabilities=["coding", "testing"],
+            current_task="Implementing file locking feature"
+        )
+    """
+    service = get_discovery_service()
+    result = await service.register(
+        capabilities=capabilities,
+        current_task=current_task,
+    )
+
+    return {
+        "success": result.success,
+        "session_id": result.session_id,
+    }
+
+
+@mcp.tool()
+async def discover_agents(
+    capability: str | None = None,
+    status: str | None = None,
+) -> dict:
+    """
+    Discover other agents working in this coordination system.
+
+    Use this to find agents with specific capabilities or check who's active.
+
+    Args:
+        capability: Filter by capability (e.g., 'coding', 'review', 'testing')
+        status: Filter by status ('active', 'idle', 'disconnected')
+
+    Returns:
+        agents: List of matching agents with their capabilities and status
+
+    Example:
+        # Find all active agents
+        result = discover_agents(status="active")
+
+        # Find agents that can review code
+        result = discover_agents(capability="review")
+    """
+    service = get_discovery_service()
+    result = await service.discover(
+        capability=capability,
+        status=status,
+    )
+
+    return {
+        "agents": [
+            {
+                "agent_id": a.agent_id,
+                "agent_type": a.agent_type,
+                "session_id": a.session_id,
+                "capabilities": a.capabilities,
+                "status": a.status,
+                "current_task": a.current_task,
+                "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
+                "started_at": a.started_at.isoformat() if a.started_at else None,
+            }
+            for a in result.agents
+        ],
+    }
+
+
+@mcp.tool()
+async def heartbeat() -> dict:
+    """
+    Send a heartbeat to indicate this agent is still alive.
+
+    Call this periodically (every few minutes) during long-running work.
+    Agents that don't heartbeat for 15+ minutes may have their locks released.
+
+    Returns:
+        success: Whether the heartbeat was recorded
+        session_id: The session that was updated
+    """
+    service = get_discovery_service()
+    result = await service.heartbeat()
+
+    return {
+        "success": result.success,
+        "session_id": result.session_id,
+        "error": result.error,
+    }
+
+
+@mcp.tool()
+async def cleanup_dead_agents(
+    stale_threshold_minutes: int = 15,
+) -> dict:
+    """
+    Clean up agents that have stopped responding.
+
+    Marks stale agents as disconnected and releases their file locks.
+    Use this if you suspect an agent has crashed and is holding locks.
+
+    Args:
+        stale_threshold_minutes: Minutes without heartbeat before cleanup (default: 15)
+
+    Returns:
+        success: Whether cleanup ran
+        agents_cleaned: Number of agents marked as disconnected
+        locks_released: Number of locks released
+    """
+    service = get_discovery_service()
+    result = await service.cleanup_dead_agents(
+        stale_threshold_minutes=stale_threshold_minutes,
+    )
+
+    return {
+        "success": result.success,
+        "agents_cleaned": result.agents_cleaned,
+        "locks_released": result.locks_released,
+    }
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 
@@ -332,6 +589,45 @@ async def get_current_locks() -> str:
         lines.append(f"  - Reason: {lock.reason or 'Not specified'}")
         lines.append(f"  - Expires: {lock.expires_at.isoformat()}")
         lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("handoffs://recent")
+async def get_recent_handoffs() -> str:
+    """
+    Recent handoff documents from agent sessions.
+
+    Shows the latest session continuity documents across all agents.
+    """
+    service = get_handoff_service()
+    handoffs = await service.get_recent(limit=5)
+
+    if not handoffs:
+        return "No handoff documents found."
+
+    lines = ["# Recent Handoff Documents\n"]
+    for h in handoffs:
+        lines.append(f"## {h.agent_name}")
+        if h.created_at:
+            lines.append(f"*{h.created_at.isoformat()}*\n")
+        lines.append(f"**Summary**: {h.summary}\n")
+        if h.completed_work:
+            lines.append("**Completed:**")
+            for item in h.completed_work:
+                lines.append(f"- {item}")
+            lines.append("")
+        if h.in_progress:
+            lines.append("**In Progress:**")
+            for item in h.in_progress:
+                lines.append(f"- {item}")
+            lines.append("")
+        if h.next_steps:
+            lines.append("**Next Steps:**")
+            for item in h.next_steps:
+                lines.append(f"- {item}")
+            lines.append("")
+        lines.append("---\n")
 
     return "\n".join(lines)
 
