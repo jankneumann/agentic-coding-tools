@@ -1,0 +1,27 @@
+id: tier1-fix-off-by-one
+tier: 1
+source: curated
+description: |
+  Fix an off-by-one error in a pagination function.
+  The function `paginate(items, page, per_page)` should return
+  items for the given page (1-indexed). Currently it skips the
+  first item on each page after page 1.
+difficulty: easy
+affected_files:
+  - src/utils/pagination.py
+golden_patch: |
+  --- a/src/utils/pagination.py
+  +++ b/src/utils/pagination.py
+  @@ -5,7 +5,7 @@
+   def paginate(items, page, per_page):
+       if page < 1:
+           page = 1
+  -    start = (page - 1) * per_page + 1
+  +    start = (page - 1) * per_page
+       end = start + per_page
+       return items[start:end]
+test_command: pytest tests/test_pagination.py -v
+tags:
+  - bug-fix
+  - single-file
+estimated_tokens: 500

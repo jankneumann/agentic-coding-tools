@@ -1,0 +1,17 @@
+id: tier1-refactor-extract-method
+tier: 1
+source: curated
+description: |
+  Refactor a long function by extracting a helper method.
+  The function `process_order(order)` is 80+ lines. Extract the
+  validation logic (lines checking required fields, amount ranges,
+  and date formats) into a separate `validate_order(order)` function
+  that returns a list of error strings.
+difficulty: easy
+affected_files:
+  - src/orders/processor.py
+test_command: pytest tests/test_processor.py -v
+tags:
+  - refactor
+  - single-file
+estimated_tokens: 800

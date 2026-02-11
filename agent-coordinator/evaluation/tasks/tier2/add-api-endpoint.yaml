@@ -1,0 +1,34 @@
+id: tier2-add-api-endpoint
+tier: 2
+source: curated
+description: |
+  Add a new REST API endpoint for user preferences.
+  Three independent subtasks:
+  1. Add data model (src/models/preferences.py)
+  2. Add API route handler (src/routes/preferences.py)
+  3. Add integration tests (tests/test_preferences_api.py)
+difficulty: medium
+affected_files:
+  - src/models/preferences.py
+  - src/routes/preferences.py
+  - tests/test_preferences_api.py
+test_command: pytest tests/test_preferences_api.py -v
+subtasks:
+  - id: add-model
+    description: Define Preferences Pydantic model with validation
+    affected_files:
+      - src/models/preferences.py
+  - id: add-route
+    description: Implement GET/PUT /api/preferences endpoint
+    affected_files:
+      - src/routes/preferences.py
+  - id: add-tests
+    description: Write integration tests for preferences API
+    affected_files:
+      - tests/test_preferences_api.py
+tags:
+  - feature
+  - api
+  - multi-file
+  - parallelizable
+estimated_tokens: 2500

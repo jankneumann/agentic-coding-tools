@@ -1,0 +1,34 @@
+id: tier2-add-cli-commands
+tier: 2
+source: curated
+description: |
+  Add three new CLI subcommands to the management tool.
+  Each command is independent and handles a different domain:
+  1. `status` command showing system health
+  2. `export` command for data export to CSV/JSON
+  3. `config` command for viewing/updating configuration
+difficulty: medium
+affected_files:
+  - src/cli/status.py
+  - src/cli/export.py
+  - src/cli/config.py
+test_command: pytest tests/test_cli/ -v
+subtasks:
+  - id: add-status
+    description: Implement `status` CLI command with health checks
+    affected_files:
+      - src/cli/status.py
+  - id: add-export
+    description: Implement `export` CLI command for data export
+    affected_files:
+      - src/cli/export.py
+  - id: add-config
+    description: Implement `config` CLI command for settings management
+    affected_files:
+      - src/cli/config.py
+tags:
+  - feature
+  - cli
+  - multi-file
+  - parallelizable
+estimated_tokens: 2200

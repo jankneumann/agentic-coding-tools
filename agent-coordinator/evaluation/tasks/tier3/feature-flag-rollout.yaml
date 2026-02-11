@@ -1,0 +1,40 @@
+id: tier3-feature-flag-rollout
+tier: 3
+source: curated
+description: |
+  Implement a feature flag system with progressive rollout.
+  Requires coordination between config, backend, and frontend:
+  1. Add feature flag configuration store (src/flags/store.py)
+  2. Add backend flag checking middleware (src/flags/middleware.py) - depends on store
+  3. Add frontend flag provider (frontend/src/flags/provider.ts) - depends on store API
+  The middleware and frontend provider both depend on the store
+  being implemented first, and they need coordinated rollout
+  to avoid inconsistent feature states.
+difficulty: hard
+affected_files:
+  - src/flags/store.py
+  - src/flags/middleware.py
+  - frontend/src/flags/provider.ts
+test_command: pytest tests/test_flags.py -v && npm test -- --grep flags
+subtasks:
+  - id: implement-store
+    description: Implement feature flag configuration store with CRUD operations
+    affected_files:
+      - src/flags/store.py
+  - id: implement-middleware
+    description: Add backend middleware for flag checking in request pipeline
+    affected_files:
+      - src/flags/middleware.py
+    depends_on:
+      - implement-store
+  - id: implement-frontend
+    description: Add React context provider for feature flags
+    affected_files:
+      - frontend/src/flags/provider.ts
+    depends_on:
+      - implement-store
+tags:
+  - feature
+  - coordinated
+  - full-stack
+estimated_tokens: 4000

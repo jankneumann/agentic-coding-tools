@@ -1,0 +1,38 @@
+id: tier3-schema-migration-cascade
+tier: 3
+source: curated
+description: |
+  Perform a database schema migration that cascades through the stack.
+  Must be done in order due to dependencies:
+  1. Update database schema (migrations/add_preferences.sql)
+  2. Update data access layer to use new schema (src/db/preferences.py)
+  3. Update API endpoints that depend on the data layer (src/api/user_settings.py)
+  Each step depends on the previous one completing first.
+difficulty: hard
+affected_files:
+  - migrations/add_preferences.sql
+  - src/db/preferences.py
+  - src/api/user_settings.py
+test_command: pytest tests/test_user_settings.py -v
+subtasks:
+  - id: update-schema
+    description: Add preferences table and columns to database schema
+    affected_files:
+      - migrations/add_preferences.sql
+  - id: update-dal
+    description: Update data access layer for new preferences schema
+    affected_files:
+      - src/db/preferences.py
+    depends_on:
+      - update-schema
+  - id: update-api
+    description: Update API endpoints to use new data access layer
+    affected_files:
+      - src/api/user_settings.py
+    depends_on:
+      - update-dal
+tags:
+  - migration
+  - coordinated
+  - sequential
+estimated_tokens: 3000

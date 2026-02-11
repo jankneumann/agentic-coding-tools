@@ -1,0 +1,17 @@
+id: tier1-add-logging
+tier: 1
+source: curated
+description: |
+  Add structured logging to an authentication module.
+  Replace all print() statements with proper logging calls
+  using the standard library `logging` module. Use appropriate
+  log levels (DEBUG for verbose, INFO for normal flow,
+  WARNING for retries, ERROR for failures).
+difficulty: easy
+affected_files:
+  - src/auth/handler.py
+test_command: pytest tests/test_auth.py -v
+tags:
+  - enhancement
+  - single-file
+estimated_tokens: 700

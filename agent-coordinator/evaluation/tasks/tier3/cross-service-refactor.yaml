@@ -1,0 +1,39 @@
+id: tier3-cross-service-refactor
+tier: 3
+source: curated
+description: |
+  Refactor authentication to use a shared token validation library.
+  Requires coordinated changes across services with shared state:
+  1. Create shared token validation library (lib/auth/validator.py)
+  2. Update API gateway to use shared library (gateway/auth.py) - depends on step 1
+  3. Update worker service to use shared library (worker/auth.py) - depends on step 1
+  Steps 2 and 3 can happen in parallel after step 1, but both read
+  the same interface definition, requiring lock coordination.
+difficulty: hard
+affected_files:
+  - lib/auth/validator.py
+  - gateway/auth.py
+  - worker/auth.py
+test_command: pytest tests/ -k auth -v
+subtasks:
+  - id: create-lib
+    description: Create shared token validation library with interface
+    affected_files:
+      - lib/auth/validator.py
+  - id: update-gateway
+    description: Update API gateway to use shared auth library
+    affected_files:
+      - gateway/auth.py
+    depends_on:
+      - create-lib
+  - id: update-worker
+    description: Update worker service to use shared auth library
+    affected_files:
+      - worker/auth.py
+    depends_on:
+      - create-lib
+tags:
+  - refactor
+  - coordinated
+  - cross-service
+estimated_tokens: 3500
