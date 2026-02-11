@@ -1,0 +1,16 @@
+id: tier1-add-retry-logic
+tier: 1
+source: curated
+description: |
+  Add retry logic to an HTTP client function.
+  The function `fetch_data(url)` currently makes a single request.
+  Add exponential backoff retry with max 3 attempts for transient
+  errors (5xx status codes and connection errors).
+difficulty: medium
+affected_files:
+  - src/http_client.py
+test_command: pytest tests/test_http_client.py -v
+tags:
+  - enhancement
+  - single-file
+estimated_tokens: 1000

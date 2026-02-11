@@ -1,0 +1,17 @@
+id: tier1-fix-type-error
+tier: 1
+source: curated
+description: |
+  Fix a type error where a function returns Optional[str] but callers
+  assume it always returns str. The function `get_user_name(user_id)`
+  returns None when user is not found, but callers use string methods
+  on the result without checking. Fix by adding proper None checks.
+difficulty: easy
+affected_files:
+  - src/users/service.py
+test_command: pytest tests/test_users.py -v
+tags:
+  - bug-fix
+  - type-safety
+  - single-file
+estimated_tokens: 600

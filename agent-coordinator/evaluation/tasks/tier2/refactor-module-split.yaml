@@ -1,0 +1,34 @@
+id: tier2-refactor-module-split
+tier: 2
+source: curated
+description: |
+  Refactor a monolithic utils module into focused sub-modules.
+  Split src/utils.py into three independent modules:
+  1. src/utils/strings.py - String manipulation functions
+  2. src/utils/dates.py - Date parsing and formatting functions
+  3. src/utils/validation.py - Input validation helpers
+  Each can be extracted independently. Update imports in existing code.
+difficulty: medium
+affected_files:
+  - src/utils/strings.py
+  - src/utils/dates.py
+  - src/utils/validation.py
+test_command: pytest tests/test_utils/ -v
+subtasks:
+  - id: extract-strings
+    description: Extract string manipulation functions to utils/strings.py
+    affected_files:
+      - src/utils/strings.py
+  - id: extract-dates
+    description: Extract date functions to utils/dates.py
+    affected_files:
+      - src/utils/dates.py
+  - id: extract-validation
+    description: Extract validation helpers to utils/validation.py
+    affected_files:
+      - src/utils/validation.py
+tags:
+  - refactor
+  - multi-file
+  - parallelizable
+estimated_tokens: 1800

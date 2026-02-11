@@ -1,0 +1,33 @@
+id: tier2-add-feature-with-tests
+tier: 2
+source: curated
+description: |
+  Add a caching layer to the data service with tests and documentation.
+  Three independent subtasks that can be done in parallel:
+  1. Implement the cache module (src/cache.py)
+  2. Write unit tests (tests/test_cache.py)
+  3. Add usage docs (docs/caching.md)
+difficulty: medium
+affected_files:
+  - src/cache.py
+  - tests/test_cache.py
+  - docs/caching.md
+test_command: pytest tests/test_cache.py -v
+subtasks:
+  - id: implement-cache
+    description: Implement TTL-based in-memory cache with get/set/invalidate
+    affected_files:
+      - src/cache.py
+  - id: write-tests
+    description: Write unit tests for cache module covering TTL expiry and invalidation
+    affected_files:
+      - tests/test_cache.py
+  - id: write-docs
+    description: Write documentation for cache usage including configuration options
+    affected_files:
+      - docs/caching.md
+tags:
+  - feature
+  - multi-file
+  - parallelizable
+estimated_tokens: 2000
