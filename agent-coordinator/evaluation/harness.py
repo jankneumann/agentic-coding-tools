@@ -103,7 +103,7 @@ class EvalHarness:
                     cr = await self._consensus.evaluate(
                         task_id=task.id,
                         task_description=task.description,
-                        task_output=metrics.error or "",
+                        task_output=metrics.output,
                         golden_patch=task.golden_patch,
                     )
                     consensus_results.append(cr)
@@ -163,6 +163,7 @@ class EvalHarness:
 
             metrics.wall_clock_seconds = time.time() - start
             metrics.success = result.success
+            metrics.output = result.output
             metrics.token_usage = result.token_usage
             metrics.error = result.error
 
@@ -192,14 +193,9 @@ class EvalHarness:
                     tasks.append(task)
             return tasks
 
-        from .config import TaskSource
         return self._registry.list_tasks(
             tiers=self._config.tiers,
-            source=(
-                self._config.task_source
-                if self._config.task_source != TaskSource.CURATED
-                else None
-            ),
+            source=self._config.task_source,
             max_tasks=self._config.max_tasks,
         )
 

@@ -109,7 +109,7 @@ def compare_ablations(
             continue
 
         # Identify which mechanism was toggled off
-        mechanism = _infer_mechanism(label)
+        mechanism = infer_mechanism(label)
 
         # Compute deltas
         baseline_wall_clocks = [tm.wall_clock.mean for tm in baseline_metrics]
@@ -147,13 +147,13 @@ def compare_ablations(
             success_rate_delta=baseline_success - ablated_success,
             test_pass_rate_delta=baseline_pass_rate - ablated_pass_rate,
             effect_size=effect,
-            interpretation=_interpret_effect_size(effect),
+            interpretation=interpret_effect_size(effect),
         ))
 
     return comparisons
 
 
-def _infer_mechanism(label: str) -> str:
+def infer_mechanism(label: str) -> str:
     """Infer which mechanism was ablated from the config label."""
     if label == "all-off":
         return "all"
@@ -166,7 +166,7 @@ def _infer_mechanism(label: str) -> str:
     return label
 
 
-def _interpret_effect_size(d: float) -> str:
+def interpret_effect_size(d: float) -> str:
     """Interpret Cohen's d effect size."""
     abs_d = abs(d)
     if abs_d < 0.2:

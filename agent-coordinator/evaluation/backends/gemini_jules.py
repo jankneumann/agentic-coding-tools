@@ -6,6 +6,7 @@ Executes tasks via the Gemini/Jules CLI and captures results.
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import time
 
@@ -42,7 +43,7 @@ class GeminiJulesBackend:
         timeout_seconds: int = 300,
     ) -> BackendResult:
         """Execute a task via jules CLI."""
-        timeout = timeout_seconds or self._timeout
+        timeout = timeout_seconds if timeout_seconds is not None else self._timeout
         start_time = time.time()
 
         files_context = "\n".join(f"- {f}" for f in affected_files)
@@ -51,7 +52,6 @@ class GeminiJulesBackend:
         cmd = [self._command, *self._args, prompt]
 
         try:
-            import os
             env = {**os.environ, **self._env}
             process = await asyncio.create_subprocess_exec(
                 *cmd,

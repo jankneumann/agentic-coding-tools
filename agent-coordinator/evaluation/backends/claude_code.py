@@ -7,6 +7,7 @@ and captures output, timing, and token usage.
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 import time
 
@@ -43,7 +44,7 @@ class ClaudeCodeBackend:
         timeout_seconds: int = 300,
     ) -> BackendResult:
         """Execute a task via claude CLI with --print flag."""
-        timeout = timeout_seconds or self._timeout
+        timeout = timeout_seconds if timeout_seconds is not None else self._timeout
         start_time = time.time()
 
         # Build the prompt with file context
@@ -62,7 +63,6 @@ Coordination config:
         cmd = [self._command, "--print", *self._args, prompt]
 
         try:
-            import os
             env = {**os.environ, **self._env}
             process = await asyncio.create_subprocess_exec(
                 *cmd,

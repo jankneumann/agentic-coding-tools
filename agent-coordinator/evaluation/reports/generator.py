@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ..ablation import interpret_effect_size
 from ..metrics import (
     TaskMetrics,
     TrialMetrics,
@@ -163,7 +164,7 @@ class ReportGenerator:
                 d = compute_effect_size(
                     [baseline.wall_clock.mean], [other.wall_clock.mean]
                 )
-                interp = _interpret_effect_size(d)
+                interp = interpret_effect_size(d)
                 lines.append(
                     f"| {task_id} | {baseline_label} | {other.ablation_label} "
                     f"| wall_clock | {d:.2f} | {interp} |"
@@ -192,14 +193,3 @@ class ReportGenerator:
         }
 
 
-def _interpret_effect_size(d: float) -> str:
-    """Interpret Cohen's d effect size."""
-    abs_d = abs(d)
-    if abs_d < 0.2:
-        return "negligible"
-    elif abs_d < 0.5:
-        return "small"
-    elif abs_d < 0.8:
-        return "medium"
-    else:
-        return "large"

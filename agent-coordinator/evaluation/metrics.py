@@ -109,6 +109,7 @@ class TaskMetrics:
     coordination_overhead_pct: float = 0.0  # Time in coordination vs productive work
     timings: list[TimingMetric] = field(default_factory=list)
     success: bool = False
+    output: str = ""  # Agent's produced output (patch, code, etc.)
     error: str | None = None
 
     def compute_coordination_overhead(self) -> None:
