@@ -191,5 +191,3 @@ class ReportGenerator:
             "trial_summaries": [tm.to_dict() for tm in trial_metrics],
             "consensus_results": consensus_results or [],
         }
-
-
