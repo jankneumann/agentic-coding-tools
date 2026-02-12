@@ -81,3 +81,8 @@ Use the 5-skill feature workflow with natural approval gates:
 - **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
 - **Commit format**: Reference the OpenSpec change-id in commit messages
 - **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
+
+## Documentation
+
+- [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
+- [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
