@@ -3,6 +3,12 @@
 #
 # Usage: ./start-worktree-api.sh <worktree-path> [--admin-key KEY] [--port PORT]
 #
+# Environment variables:
+#   MAIN_REPO_PATH  - Main repository root (default: derived from worktree git config)
+#   VENV_PATH       - Python venv activate script (default: $MAIN_REPO/.venv/bin/activate)
+#   ADMIN_API_KEY   - Admin key for the API (default: test-validate-key)
+#   API_PORT        - Port to start API on (default: 8000)
+#
 # Handles:
 # 1. Stopping any existing API on the target port
 # 2. Verifying .env symlink exists in the worktree
@@ -16,8 +22,20 @@ set -euo pipefail
 WORKTREE_PATH="${1:?Usage: start-worktree-api.sh <worktree-path>}"
 ADMIN_KEY="${ADMIN_API_KEY:-test-validate-key}"
 PORT="${API_PORT:-8000}"
-MAIN_REPO="/Users/jankneumann/Coding/agentic-newsletter-aggregator"
-VENV_PATH="${MAIN_REPO}/.venv/bin/activate"
+
+# Resolve main repo: use env var, or derive from worktree's git common dir
+if [[ -n "${MAIN_REPO_PATH:-}" ]]; then
+  MAIN_REPO="$MAIN_REPO_PATH"
+else
+  GIT_COMMON=$(git -C "$WORKTREE_PATH" rev-parse --git-common-dir 2>/dev/null || true)
+  if [[ -n "$GIT_COMMON" && "$GIT_COMMON" != ".git" ]]; then
+    MAIN_REPO="${GIT_COMMON%%/.git*}"
+  else
+    MAIN_REPO=$(git -C "$WORKTREE_PATH" rev-parse --show-toplevel 2>/dev/null || echo "$WORKTREE_PATH")
+  fi
+fi
+
+VENV_ACTIVATE="${VENV_PATH:-${MAIN_REPO}/.venv/bin/activate}"
 LOG_FILE="/tmp/validate-feature-api-$(date +%s).log"
 
 # Parse extra args
@@ -39,7 +57,12 @@ fi
 # 2. Check .env
 if [[ ! -f "$WORKTREE_PATH/.env" ]]; then
   echo "WARNING: No .env in worktree. Creating symlink..."
-  ln -s "$MAIN_REPO/.env" "$WORKTREE_PATH/.env"
+  if [[ -f "$MAIN_REPO/.env" ]]; then
+    ln -s "$MAIN_REPO/.env" "$WORKTREE_PATH/.env"
+  else
+    echo "ERROR: No .env found at $MAIN_REPO/.env — set MAIN_REPO_PATH to the repo containing .env"
+    exit 1
+  fi
 fi
 
 # 3. Stop existing API on port
@@ -58,7 +81,7 @@ echo "  Log: $LOG_FILE"
 echo "  Admin key: ${ADMIN_KEY:0:8}..."
 
 cd "$WORKTREE_PATH"
-source "$VENV_PATH"
+source "$VENV_ACTIVATE"
 ADMIN_API_KEY="$ADMIN_KEY" LOG_LEVEL=DEBUG nohup uvicorn src.api.app:app --host 0.0.0.0 --port "$PORT" > "$LOG_FILE" 2>&1 &
 API_PID=$!
 echo "  PID: $API_PID"
