@@ -6,6 +6,7 @@ and provides query methods for agent lookup by name or capability.
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import yaml
 from jsonschema import validate
@@ -89,7 +90,7 @@ class TeamsConfig:
         return cls.from_dict(data)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "TeamsConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "TeamsConfig":
         """Create from a dictionary (after validation).
 
         Args:

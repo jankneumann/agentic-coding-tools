@@ -27,6 +27,7 @@ Usage (standalone for testing):
 """
 
 import sys
+from typing import Any
 
 from fastmcp import FastMCP
 
@@ -40,7 +41,7 @@ from .work_queue import get_work_queue_service
 mcp = FastMCP(
     name="coordination",
     version="0.2.0",
-    description="Multi-agent coordination: file locks, work queue, handoffs, and discovery",
+    description="Multi-agent coordination: file locks, work queue, handoffs, and discovery",  # type: ignore[call-arg]
 )
 
 
@@ -69,7 +70,7 @@ async def acquire_lock(
     file_path: str,
     reason: str | None = None,
     ttl_minutes: int | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Acquire an exclusive lock on a file before modifying it.
 
@@ -113,7 +114,7 @@ async def acquire_lock(
 
 
 @mcp.tool()
-async def release_lock(file_path: str) -> dict:
+async def release_lock(file_path: str) -> dict[str, Any]:
     """
     Release a lock you previously acquired.
 
@@ -139,7 +140,7 @@ async def release_lock(file_path: str) -> dict:
 
 
 @mcp.tool()
-async def check_locks(file_paths: list[str] | None = None) -> list[dict]:
+async def check_locks(file_paths: list[str] | None = None) -> list[dict[str, Any]]:
     """
     Check which files are currently locked.
 
@@ -173,7 +174,7 @@ async def check_locks(file_paths: list[str] | None = None) -> list[dict]:
 
 
 @mcp.tool()
-async def get_work(task_types: list[str] | None = None) -> dict:
+async def get_work(task_types: list[str] | None = None) -> dict[str, Any]:
     """
     Claim a task from the work queue.
 
@@ -217,9 +218,9 @@ async def get_work(task_types: list[str] | None = None) -> dict:
 async def complete_work(
     task_id: str,
     success: bool,
-    result: dict | None = None,
+    result: dict[str, Any] | None = None,
     error_message: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Mark a claimed task as completed.
 
@@ -258,10 +259,10 @@ async def complete_work(
 async def submit_work(
     task_type: str,
     description: str,
-    input_data: dict | None = None,
+    input_data: dict[str, Any] | None = None,
     priority: int = 5,
     depends_on: list[str] | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Submit a new task to the work queue.
 
@@ -322,7 +323,7 @@ async def write_handoff(
     decisions: list[str] | None = None,
     next_steps: list[str] | None = None,
     relevant_files: list[str] | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Write a handoff document to preserve session context.
 
@@ -372,7 +373,7 @@ async def write_handoff(
 async def read_handoff(
     agent_name: str | None = None,
     limit: int = 1,
-) -> dict:
+) -> dict[str, Any]:
     """
     Read previous handoff documents for session continuity.
 
@@ -432,7 +433,7 @@ async def read_handoff(
 async def register_session(
     capabilities: list[str] | None = None,
     current_task: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Register this agent session for discovery by other agents.
 
@@ -469,7 +470,7 @@ async def register_session(
 async def discover_agents(
     capability: str | None = None,
     status: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     Discover other agents working in this coordination system.
 
@@ -513,7 +514,7 @@ async def discover_agents(
 
 
 @mcp.tool()
-async def heartbeat() -> dict:
+async def heartbeat() -> dict[str, Any]:
     """
     Send a heartbeat to indicate this agent is still alive.
 
@@ -537,7 +538,7 @@ async def heartbeat() -> dict:
 @mcp.tool()
 async def cleanup_dead_agents(
     stale_threshold_minutes: int = 15,
-) -> dict:
+) -> dict[str, Any]:
     """
     Clean up agents that have stopped responding.
 
@@ -712,7 +713,7 @@ After completing work, I'll release locks and mark tasks as done.
 # =============================================================================
 
 
-def main():
+def main() -> None:
     """Entry point for the MCP server."""
     # Default to stdio transport (for Claude Code integration)
     transport = "stdio"

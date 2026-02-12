@@ -6,6 +6,7 @@ that agents can write at session end and read at session start.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from .config import get_config
@@ -28,7 +29,7 @@ class HandoffDocument:
     created_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "HandoffDocument":
+    def from_dict(cls, data: dict[str, Any]) -> "HandoffDocument":
         created_at = None
         if data.get("created_at"):
             created_at = datetime.fromisoformat(
@@ -58,7 +59,7 @@ class WriteHandoffResult:
     error: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "WriteHandoffResult":
+    def from_dict(cls, data: dict[str, Any]) -> "WriteHandoffResult":
         handoff_id = None
         if data.get("handoff_id"):
             handoff_id = UUID(str(data["handoff_id"]))
@@ -77,7 +78,7 @@ class ReadHandoffResult:
     handoffs: list[HandoffDocument]
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ReadHandoffResult":
+    def from_dict(cls, data: dict[str, Any]) -> "ReadHandoffResult":
         handoffs = []
         for h in data.get("handoffs", []):
             handoffs.append(HandoffDocument.from_dict(h))

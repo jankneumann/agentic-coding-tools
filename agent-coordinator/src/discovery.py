@@ -26,7 +26,7 @@ class AgentInfo:
     started_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "AgentInfo":
+    def from_dict(cls, data: dict[str, Any]) -> "AgentInfo":
         def parse_dt(val: Any) -> datetime | None:
             if val is None:
                 return None
@@ -54,7 +54,7 @@ class RegisterResult:
     session_id: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "RegisterResult":
+    def from_dict(cls, data: dict[str, Any]) -> "RegisterResult":
         return cls(
             success=data["success"],
             session_id=data.get("session_id"),
@@ -68,7 +68,7 @@ class DiscoverResult:
     agents: list[AgentInfo]
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DiscoverResult":
+    def from_dict(cls, data: dict[str, Any]) -> "DiscoverResult":
         agents = [AgentInfo.from_dict(a) for a in data.get("agents", [])]
         return cls(agents=agents)
 
@@ -82,7 +82,7 @@ class HeartbeatResult:
     error: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "HeartbeatResult":
+    def from_dict(cls, data: dict[str, Any]) -> "HeartbeatResult":
         return cls(
             success=data["success"],
             session_id=data.get("session_id"),
@@ -99,7 +99,7 @@ class CleanupResult:
     locks_released: int = 0
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CleanupResult":
+    def from_dict(cls, data: dict[str, Any]) -> "CleanupResult":
         return cls(
             success=data["success"],
             agents_cleaned=data.get("agents_cleaned", 0),

@@ -80,7 +80,7 @@ class SupabaseClient:
 
         response = await self.client.get(url, headers=self._headers())
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def insert(
         self,
@@ -143,7 +143,7 @@ class SupabaseClient:
             json=data,
         )
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def delete(
         self,

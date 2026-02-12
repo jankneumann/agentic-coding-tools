@@ -33,7 +33,7 @@ class Task:
     completed_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Task":
+    def from_dict(cls, data: dict[str, Any]) -> "Task":
         def parse_dt(val: Any) -> datetime | None:
             if val is None:
                 return None
@@ -77,7 +77,7 @@ class ClaimResult:
     reason: str | None = None  # Error reason if no task available
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ClaimResult":
+    def from_dict(cls, data: dict[str, Any]) -> "ClaimResult":
         deadline = None
         if data.get("deadline"):
             deadline = datetime.fromisoformat(
@@ -110,7 +110,7 @@ class CompleteResult:
     reason: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CompleteResult":
+    def from_dict(cls, data: dict[str, Any]) -> "CompleteResult":
         task_id = None
         if data.get("task_id"):
             task_id = UUID(str(data["task_id"]))
@@ -131,7 +131,7 @@ class SubmitResult:
     task_id: UUID | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SubmitResult":
+    def from_dict(cls, data: dict[str, Any]) -> "SubmitResult":
         task_id = None
         if data.get("task_id"):
             task_id = UUID(str(data["task_id"]))

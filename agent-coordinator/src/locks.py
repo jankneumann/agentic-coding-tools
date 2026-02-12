@@ -6,6 +6,7 @@ Locks are stored in Supabase with automatic TTL expiration.
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from .config import get_config
 from .db import SupabaseClient, get_db
@@ -24,7 +25,7 @@ class Lock:
     session_id: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Lock":
+    def from_dict(cls, data: dict[str, Any]) -> "Lock":
         return cls(
             file_path=data["file_path"],
             locked_by=data["locked_by"],
@@ -49,7 +50,7 @@ class LockResult:
     lock_reason: str | None = None  # Why they have the lock
 
     @classmethod
-    def from_dict(cls, data: dict) -> "LockResult":
+    def from_dict(cls, data: dict[str, Any]) -> "LockResult":
         expires_at = None
         if data.get("expires_at"):
             expires_at = datetime.fromisoformat(
