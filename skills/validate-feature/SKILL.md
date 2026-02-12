@@ -151,39 +151,43 @@ If Deploy fails, report the failure with Docker logs and skip to Teardown.
 **Phase name:** `smoke`
 **Criticality:** Critical (stops validation on failure)
 
-Run CLI-based health checks against the live services:
+Run the reusable pytest smoke test suite against the live services. The suite is configurable via environment variables so it works with any deployed HTTP API.
 
 ```bash
-SMOKE_RESULTS=()
+# Configure for the target API (adjust per project)
+export API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
+export API_HEALTH_ENDPOINT="${API_HEALTH_ENDPOINT:-/health}"
+export API_READY_ENDPOINT="${API_READY_ENDPOINT:-/ready}"
+export API_AUTH_HEADER="${API_AUTH_HEADER:-X-Admin-Key}"
+export API_AUTH_VALUE="${API_AUTH_VALUE:-$ADMIN_API_KEY}"
+export API_PROTECTED_ENDPOINT="${API_PROTECTED_ENDPOINT:-/api/v1/settings/prompts}"
+export API_CORS_ORIGIN="${API_CORS_ORIGIN:-http://localhost:5173}"
 
-# Check 1: REST API reachable
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -qE "^[23]"; then
-  SMOKE_RESULTS+=("✓ REST API: Reachable")
+# Run smoke tests
+SKILL_DIR="$(git rev-parse --show-toplevel)/skills/validate-feature"
+pytest "$SKILL_DIR/scripts/smoke_tests/" -v --tb=short 2>&1
+SMOKE_EXIT=$?
+
+if [ $SMOKE_EXIT -eq 0 ]; then
+  SMOKE_RESULT="pass"
+elif [ $SMOKE_EXIT -eq 5 ]; then
+  # Exit code 5 = no tests collected (services not running, all skipped)
+  SMOKE_RESULT="skip"
+  echo "SKIP: Services not running — smoke tests auto-skipped"
 else
-  SMOKE_RESULTS+=("✗ REST API: Unreachable")
+  SMOKE_RESULT="fail"
   SMOKE_FAILED=true
 fi
-
-# Check 2: Database migrations applied
-if docker-compose -f "$COMPOSE_FILE" exec -T postgres psql -U postgres -c "SELECT tablename FROM pg_tables WHERE schemaname='public'" 2>/dev/null | grep -q "file_locks"; then
-  SMOKE_RESULTS+=("✓ Database: Migrations applied (file_locks table exists)")
-else
-  SMOKE_RESULTS+=("✗ Database: Core tables missing")
-  SMOKE_FAILED=true
-fi
-
-# Check 3: MCP server responds (if applicable — test by importing the module)
-if python -c "from src.coordination_mcp import mcp" 2>/dev/null; then
-  SMOKE_RESULTS+=("✓ MCP Server: Module importable")
-else
-  SMOKE_RESULTS+=("⚠ MCP Server: Module not importable (may need virtualenv)")
-fi
-
-# Report
-for result in "${SMOKE_RESULTS[@]}"; do echo "  $result"; done
 ```
 
-If Smoke fails on critical checks (API unreachable, DB missing), stop validation and skip to Teardown.
+The smoke tests cover:
+- **Health**: Health and readiness endpoints respond with 2xx
+- **Auth enforcement**: No credentials → 401/403, valid credentials → 2xx, garbage credentials rejected
+- **CORS**: Preflight returns correct Access-Control-* headers (skipped if CORS not configured)
+- **Error sanitization**: Error responses don't leak filesystem paths, stack traces, internal IPs, or credentials
+- **Security headers**: Content-Type set correctly, Server header not overly detailed, no X-Powered-By
+
+If Smoke fails (SMOKE_EXIT != 0 and != 5), stop validation and skip to Teardown.
 
 ### 5. E2E Phase
 
