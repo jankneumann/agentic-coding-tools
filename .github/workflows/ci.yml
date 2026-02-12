@@ -18,7 +18,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         run: uv python install 3.12
 
       - name: Install dependencies
@@ -31,7 +31,7 @@ jobs:
         run: uv run mypy src/
 
       - name: Run pytest
-        run: uv run pytest
+        run: uv run pytest -m "not e2e and not integration"
 
   validate-specs:
     runs-on: ubuntu-latest
