@@ -48,7 +48,7 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+uv sync --all-extras
 
 # Run MCP server (for testing)
 python src/coordination_mcp.py --transport=sse --port=8082

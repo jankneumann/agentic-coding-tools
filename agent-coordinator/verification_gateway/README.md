@@ -15,7 +15,7 @@ Multi-agent coordination system for AI coding assistants. Enables Claude Code, C
 # Clone and install
 git clone https://github.com/yourorg/agent-coordinator
 cd agent-coordinator
-pip install -r requirements.txt
+uv sync --all-extras
 
 # Set up environment
 cp .env.example .env

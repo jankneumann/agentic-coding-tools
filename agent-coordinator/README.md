@@ -46,10 +46,7 @@ supabase db push
 
 ```bash
 cd agent-coordinator
-pip install -r requirements.txt
-
-# Or with pyproject.toml
-pip install -e ".[dev]"
+uv sync --all-extras
 ```
 
 ### 3. Configure Environment
@@ -168,7 +165,6 @@ agent-coordinator/
 │   ├── test_locks.py
 │   └── test_work_queue.py
 ├── pyproject.toml
-├── requirements.txt
 ├── docker-compose.yml      # Local Supabase (alternative)
 └── .env.example
 ```
