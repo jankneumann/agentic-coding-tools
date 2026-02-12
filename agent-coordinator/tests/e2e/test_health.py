@@ -5,8 +5,8 @@ Requires: docker-compose up -d
 Run with: pytest tests/e2e/ -m e2e
 """
 
-import pytest
 import httpx
+import pytest
 
 
 @pytest.mark.e2e

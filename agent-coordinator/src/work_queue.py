@@ -6,11 +6,11 @@ Tasks are claimed atomically to prevent double-assignment.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from .config import get_config
-from .db import get_db, SupabaseClient
+from .db import SupabaseClient, get_db
 
 
 @dataclass
@@ -22,19 +22,19 @@ class Task:
     description: str
     status: str
     priority: int
-    input_data: Optional[dict[str, Any]] = None
-    claimed_by: Optional[str] = None
-    claimed_at: Optional[datetime] = None
-    result: Optional[dict[str, Any]] = None
-    error_message: Optional[str] = None
+    input_data: dict[str, Any] | None = None
+    claimed_by: str | None = None
+    claimed_at: datetime | None = None
+    result: dict[str, Any] | None = None
+    error_message: str | None = None
     depends_on: list[UUID] = field(default_factory=list)
-    deadline: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    deadline: datetime | None = None
+    created_at: datetime | None = None
+    completed_at: datetime | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Task":
-        def parse_dt(val: Any) -> Optional[datetime]:
+        def parse_dt(val: Any) -> datetime | None:
             if val is None:
                 return None
             if isinstance(val, datetime):
@@ -68,13 +68,13 @@ class ClaimResult:
     """Result of attempting to claim a task."""
 
     success: bool
-    task_id: Optional[UUID] = None
-    task_type: Optional[str] = None
-    description: Optional[str] = None
-    input_data: Optional[dict[str, Any]] = None
-    priority: Optional[int] = None
-    deadline: Optional[datetime] = None
-    reason: Optional[str] = None  # Error reason if no task available
+    task_id: UUID | None = None
+    task_type: str | None = None
+    description: str | None = None
+    input_data: dict[str, Any] | None = None
+    priority: int | None = None
+    deadline: datetime | None = None
+    reason: str | None = None  # Error reason if no task available
 
     @classmethod
     def from_dict(cls, data: dict) -> "ClaimResult":
@@ -105,9 +105,9 @@ class CompleteResult:
     """Result of completing a task."""
 
     success: bool
-    status: Optional[str] = None
-    task_id: Optional[UUID] = None
-    reason: Optional[str] = None
+    status: str | None = None
+    task_id: UUID | None = None
+    reason: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "CompleteResult":
@@ -128,7 +128,7 @@ class SubmitResult:
     """Result of submitting a new task."""
 
     success: bool
-    task_id: Optional[UUID] = None
+    task_id: UUID | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "SubmitResult":
@@ -145,7 +145,7 @@ class SubmitResult:
 class WorkQueueService:
     """Service for managing the work queue."""
 
-    def __init__(self, db: Optional[SupabaseClient] = None):
+    def __init__(self, db: SupabaseClient | None = None):
         self._db = db
 
     @property
@@ -156,9 +156,9 @@ class WorkQueueService:
 
     async def claim(
         self,
-        agent_id: Optional[str] = None,
-        agent_type: Optional[str] = None,
-        task_types: Optional[list[str]] = None,
+        agent_id: str | None = None,
+        agent_type: str | None = None,
+        task_types: list[str] | None = None,
     ) -> ClaimResult:
         """Claim a task from the work queue.
 
@@ -190,9 +190,9 @@ class WorkQueueService:
         self,
         task_id: UUID,
         success: bool,
-        result: Optional[dict[str, Any]] = None,
-        error_message: Optional[str] = None,
-        agent_id: Optional[str] = None,
+        result: dict[str, Any] | None = None,
+        error_message: str | None = None,
+        agent_id: str | None = None,
     ) -> CompleteResult:
         """Mark a task as completed.
 
@@ -225,10 +225,10 @@ class WorkQueueService:
         self,
         task_type: str,
         description: str,
-        input_data: Optional[dict[str, Any]] = None,
+        input_data: dict[str, Any] | None = None,
         priority: int = 5,
-        depends_on: Optional[list[UUID]] = None,
-        deadline: Optional[datetime] = None,
+        depends_on: list[UUID] | None = None,
+        deadline: datetime | None = None,
     ) -> SubmitResult:
         """Submit a new task to the work queue.
 
@@ -267,7 +267,7 @@ class WorkQueueService:
 
     async def get_pending(
         self,
-        task_types: Optional[list[str]] = None,
+        task_types: list[str] | None = None,
         limit: int = 20,
     ) -> list[Task]:
         """Get pending tasks from the queue.
@@ -288,7 +288,7 @@ class WorkQueueService:
         tasks = await self.db.query("work_queue", query)
         return [Task.from_dict(t) for t in tasks]
 
-    async def get_task(self, task_id: UUID) -> Optional[Task]:
+    async def get_task(self, task_id: UUID) -> Task | None:
         """Get a specific task by ID.
 
         Args:
@@ -302,7 +302,7 @@ class WorkQueueService:
 
     async def get_my_tasks(
         self,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         include_completed: bool = False,
     ) -> list[Task]:
         """Get tasks claimed by this agent.
@@ -326,7 +326,7 @@ class WorkQueueService:
 
 
 # Global service instance
-_work_queue_service: Optional[WorkQueueService] = None
+_work_queue_service: WorkQueueService | None = None
 
 
 def get_work_queue_service() -> WorkQueueService:

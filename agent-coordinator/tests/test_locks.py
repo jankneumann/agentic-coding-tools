@@ -1,10 +1,9 @@
 """Tests for the file locking service."""
 
 import pytest
-import respx
 from httpx import Response
 
-from src.locks import LockService, Lock, LockResult
+from src.locks import Lock, LockResult, LockService
 
 
 class TestLockService:

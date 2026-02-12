@@ -3,18 +3,19 @@
 Provides a thin wrapper around httpx for Supabase REST API and RPC calls.
 """
 
-from typing import Any, Optional
+from typing import Any
+
 import httpx
 
-from .config import get_config, SupabaseConfig
+from .config import SupabaseConfig, get_config
 
 
 class SupabaseClient:
     """Async Supabase client for coordination operations."""
 
-    def __init__(self, config: Optional[SupabaseConfig] = None):
+    def __init__(self, config: SupabaseConfig | None = None):
         self._config = config
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def config(self) -> SupabaseConfig:
@@ -60,7 +61,7 @@ class SupabaseClient:
     async def query(
         self,
         table: str,
-        query_params: Optional[str] = None,
+        query_params: str | None = None,
         select: str = "*",
     ) -> list[dict[str, Any]]:
         """Query a table with optional filters.
@@ -172,7 +173,7 @@ class SupabaseClient:
 
 
 # Global client instance (lazy-loaded)
-_db: Optional[SupabaseClient] = None
+_db: SupabaseClient | None = None
 
 
 def get_db() -> SupabaseClient:

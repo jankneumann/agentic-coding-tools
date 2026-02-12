@@ -3,10 +3,9 @@
 from uuid import UUID
 
 import pytest
-import respx
 from httpx import Response
 
-from src.work_queue import WorkQueueService, Task, ClaimResult, CompleteResult, SubmitResult
+from src.work_queue import ClaimResult, CompleteResult, SubmitResult, Task, WorkQueueService
 
 
 class TestWorkQueueService:

@@ -11,7 +11,6 @@ Environment variables:
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -45,7 +44,7 @@ class AgentConfig:
 
     agent_id: str
     agent_type: str = "claude_code"
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
     @classmethod
     def from_env(cls) -> "AgentConfig":
@@ -96,7 +95,7 @@ class Config:
 
 
 # Global config instance (lazy-loaded)
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

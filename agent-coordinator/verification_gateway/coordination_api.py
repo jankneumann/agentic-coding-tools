@@ -11,13 +11,12 @@ This ensures:
 4. Race conditions are managed via database transactions
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header
-from pydantic import BaseModel
-from typing import Optional
-import httpx
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
+import httpx
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel
 
 # =============================================================================
 # CONFIGURATION
@@ -36,8 +35,8 @@ class LockRequest(BaseModel):
     file_path: str
     agent_id: str
     agent_type: str
-    session_id: Optional[str] = None
-    reason: Optional[str] = None
+    session_id: str | None = None
+    reason: str | None = None
     ttl_minutes: int = 30
 
 
@@ -48,34 +47,34 @@ class LockReleaseRequest(BaseModel):
 
 class MemoryStoreRequest(BaseModel):
     agent_id: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
     event_type: str
     summary: str
-    details: Optional[dict] = None
-    outcome: Optional[str] = None
-    lessons: Optional[list[str]] = None
-    tags: Optional[list[str]] = None
+    details: dict | None = None
+    outcome: str | None = None
+    lessons: list[str] | None = None
+    tags: list[str] | None = None
 
 
 class MemoryQueryRequest(BaseModel):
     agent_id: str
     task_description: str
-    tags: Optional[list[str]] = None
+    tags: list[str] | None = None
     limit: int = 10
 
 
 class WorkClaimRequest(BaseModel):
     agent_id: str
     agent_type: str
-    task_types: Optional[list[str]] = None
+    task_types: list[str] | None = None
 
 
 class WorkCompleteRequest(BaseModel):
     task_id: str
     agent_id: str
     success: bool
-    result: Optional[dict] = None
-    error_message: Optional[str] = None
+    result: dict | None = None
+    error_message: str | None = None
 
 
 class WorkingMemoryUpdate(BaseModel):
@@ -101,12 +100,12 @@ async def verify_api_key(x_api_key: str = Header(...)):
 
 class SupabaseClient:
     """Thin wrapper for Supabase RPC calls"""
-    
+
     def __init__(self):
         self.url = SUPABASE_URL
         self.key = SUPABASE_SERVICE_KEY
         self._client = httpx.AsyncClient()
-    
+
     async def rpc(self, function_name: str, params: dict) -> dict:
         """Call a Supabase RPC function"""
         response = await self._client.post(
@@ -118,15 +117,15 @@ class SupabaseClient:
             },
             json=params,
         )
-        
+
         if response.status_code >= 400:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Supabase error: {response.text}"
             )
-        
+
         return response.json()
-    
+
     async def insert(self, table: str, data: dict) -> dict:
         """Insert a row into a table"""
         response = await self._client.post(
@@ -139,21 +138,21 @@ class SupabaseClient:
             },
             json=data,
         )
-        
+
         if response.status_code >= 400:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Supabase error: {response.text}"
             )
-        
+
         return response.json()
-    
+
     async def update(self, table: str, match: dict, data: dict) -> dict:
         """Update rows matching criteria"""
         # Build query string from match criteria
         query_parts = [f"{k}=eq.{v}" for k, v in match.items()]
         query_string = "&".join(query_parts)
-        
+
         response = await self._client.patch(
             f"{self.url}/rest/v1/{table}?{query_string}",
             headers={
@@ -164,13 +163,13 @@ class SupabaseClient:
             },
             json=data,
         )
-        
+
         if response.status_code >= 400:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Supabase error: {response.text}"
             )
-        
+
         return response.json()
 
 
@@ -183,16 +182,16 @@ db = SupabaseClient()
 
 def create_coordination_api() -> FastAPI:
     """Create the coordination API application"""
-    
+
     app = FastAPI(
         title="Agent Coordination API",
         description="Write operations for multi-agent coordination",
     )
-    
+
     # -------------------------------------------------------------------------
     # FILE LOCKS
     # -------------------------------------------------------------------------
-    
+
     @app.post("/locks/acquire")
     async def acquire_lock(
         request: LockRequest,
@@ -200,7 +199,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Acquire a file lock.
-        
+
         Cloud agents call this before modifying files.
         Returns success/failure and lock details.
         """
@@ -212,9 +211,9 @@ def create_coordination_api() -> FastAPI:
             "p_reason": request.reason,
             "p_ttl_minutes": request.ttl_minutes,
         })
-        
+
         return result
-    
+
     @app.post("/locks/release")
     async def release_lock(
         request: LockReleaseRequest,
@@ -222,7 +221,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Release a file lock.
-        
+
         Called when agent completes work or encounters an error.
         """
         await db.update(
@@ -230,25 +229,25 @@ def create_coordination_api() -> FastAPI:
             {"file_path": request.file_path, "locked_by": request.agent_id},
             {"expires_at": datetime.utcnow().isoformat()},  # Immediate expiry
         )
-        
+
         return {"success": True, "released": request.file_path}
-    
+
     @app.get("/locks/status/{file_path:path}")
     async def check_lock_status(file_path: str):
         """
         Check lock status for a file.
-        
+
         This is READ-ONLY and doesn't require API key.
         Cloud agents can also query Supabase directly.
         """
         # This would typically go direct to Supabase from the agent
         # Included here for completeness
         pass
-    
+
     # -------------------------------------------------------------------------
     # MEMORY OPERATIONS
     # -------------------------------------------------------------------------
-    
+
     @app.post("/memory/episodic/store")
     async def store_episodic_memory(
         request: MemoryStoreRequest,
@@ -256,7 +255,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Store an episodic memory (experience/event).
-        
+
         Includes deduplication - similar recent memories are merged.
         """
         result = await db.rpc("store_episodic_memory", {
@@ -269,9 +268,9 @@ def create_coordination_api() -> FastAPI:
             "p_lessons": request.lessons,
             "p_tags": request.tags,
         })
-        
+
         return {"success": True, "memory_id": result}
-    
+
     @app.post("/memory/query")
     async def query_memories(
         request: MemoryQueryRequest,
@@ -279,7 +278,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Query relevant memories for a task.
-        
+
         Returns both episodic (experiences) and procedural (skills) memories.
         """
         result = await db.rpc("get_relevant_memories", {
@@ -288,9 +287,9 @@ def create_coordination_api() -> FastAPI:
             "p_tags": request.tags,
             "p_limit": request.limit,
         })
-        
+
         return {"memories": result}
-    
+
     @app.post("/memory/working/update")
     async def update_working_memory(
         request: WorkingMemoryUpdate,
@@ -298,7 +297,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Add item to working memory.
-        
+
         Working memory is compressed when it exceeds token budget.
         """
         # Get current working memory
@@ -308,9 +307,9 @@ def create_coordination_api() -> FastAPI:
             "p_session_id": request.session_id,
             "p_context_item": request.context_item,
         })
-        
+
         return {"success": True}
-    
+
     @app.post("/memory/procedural/record-use")
     async def record_skill_use(
         skill_id: str,
@@ -319,20 +318,20 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Record that a skill was used (for Thompson sampling).
-        
+
         Updates success rate which influences future suggestions.
         """
         if success:
             await db.rpc("increment_skill_success", {"p_skill_id": skill_id})
         else:
             await db.rpc("increment_skill_attempt", {"p_skill_id": skill_id})
-        
+
         return {"success": True}
-    
+
     # -------------------------------------------------------------------------
     # WORK QUEUE
     # -------------------------------------------------------------------------
-    
+
     @app.post("/work/claim")
     async def claim_work(
         request: WorkClaimRequest,
@@ -340,7 +339,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Claim a task from the work queue.
-        
+
         Returns the highest priority task this agent can handle.
         Atomic - prevents multiple agents claiming same task.
         """
@@ -349,9 +348,9 @@ def create_coordination_api() -> FastAPI:
             "p_agent_type": request.agent_type,
             "p_task_types": request.task_types,
         })
-        
+
         return result
-    
+
     @app.post("/work/complete")
     async def complete_work(
         request: WorkCompleteRequest,
@@ -359,11 +358,11 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Mark a task as completed.
-        
+
         Triggers downstream verification if configured.
         """
         status = "completed" if request.success else "failed"
-        
+
         await db.update(
             "work_queue",
             {"id": request.task_id, "assigned_to": request.agent_id},
@@ -374,12 +373,12 @@ def create_coordination_api() -> FastAPI:
                 "completed_at": datetime.utcnow().isoformat(),
             },
         )
-        
+
         # Trigger verification gateway if this was a code change
         # (This would integrate with the verification gateway from gateway.py)
-        
+
         return {"success": True, "status": status}
-    
+
     @app.post("/work/submit")
     async def submit_work(
         task_type: str,
@@ -392,7 +391,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Submit new work to the queue.
-        
+
         Used by orchestrators or agents spawning subtasks.
         """
         result = await db.insert("work_queue", {
@@ -403,13 +402,13 @@ def create_coordination_api() -> FastAPI:
             "preferred_agent_type": preferred_agent_type,
             "depends_on": depends_on,
         })
-        
+
         return {"success": True, "task_id": result[0]["id"]}
-    
+
     # -------------------------------------------------------------------------
     # NEWSLETTER-SPECIFIC
     # -------------------------------------------------------------------------
-    
+
     @app.post("/newsletter/record-summary")
     async def record_newsletter_summary(
         newsletter_id: str,
@@ -420,7 +419,7 @@ def create_coordination_api() -> FastAPI:
     ):
         """
         Record a completed newsletter summary.
-        
+
         Called by Haiku summarization agents.
         """
         await db.update(
@@ -434,9 +433,9 @@ def create_coordination_api() -> FastAPI:
                 "summarized_at": datetime.utcnow().isoformat(),
             },
         )
-        
+
         return {"success": True}
-    
+
     return app
 
 
@@ -447,7 +446,7 @@ def create_coordination_api() -> FastAPI:
 class AgentCoordinationClient:
     """
     SDK for agents to interact with the coordination API.
-    
+
     Usage:
         client = AgentCoordinationClient(
             api_url="https://coordination.yourdomain.com",
@@ -455,16 +454,16 @@ class AgentCoordinationClient:
             agent_id="claude-haiku-1",
             agent_type="claude_api",
         )
-        
+
         # Check if file is locked (direct Supabase read)
         is_locked = await client.is_file_locked("src/main.py")
-        
+
         # Acquire lock (via coordination API)
         lock = await client.acquire_lock("src/main.py", reason="refactoring")
-        
+
         # Get relevant memories
         memories = await client.get_memories("implement caching for API calls")
-        
+
         # Store what we learned
         await client.store_memory(
             event_type="task_completed",
@@ -473,7 +472,7 @@ class AgentCoordinationClient:
             lessons=["Use TTL of 5 minutes for user data"],
         )
     """
-    
+
     def __init__(
         self,
         api_url: str,
@@ -489,13 +488,13 @@ class AgentCoordinationClient:
         self.agent_id = agent_id
         self.agent_type = agent_type
         self.session_id = session_id
-        
+
         # For direct reads
         self.supabase_url = supabase_url
         self.supabase_anon_key = supabase_anon_key
-        
+
         self._http = httpx.AsyncClient()
-    
+
     async def _api_call(self, method: str, endpoint: str, data: dict = None) -> dict:
         """Make an API call to the coordination service"""
         response = await self._http.request(
@@ -506,12 +505,12 @@ class AgentCoordinationClient:
         )
         response.raise_for_status()
         return response.json()
-    
+
     async def _supabase_read(self, table: str, query: str = "") -> list:
         """Direct read from Supabase"""
         if not self.supabase_url:
             raise ValueError("Supabase URL not configured for direct reads")
-        
+
         response = await self._http.get(
             f"{self.supabase_url}/rest/v1/{table}?{query}",
             headers={
@@ -521,17 +520,17 @@ class AgentCoordinationClient:
         )
         response.raise_for_status()
         return response.json()
-    
+
     # --- File Locks ---
-    
-    async def is_file_locked(self, file_path: str) -> Optional[dict]:
+
+    async def is_file_locked(self, file_path: str) -> dict | None:
         """Check if a file is locked (direct Supabase read)"""
         locks = await self._supabase_read(
             "file_locks",
             f"file_path=eq.{file_path}&expires_at=gt.now()"
         )
         return locks[0] if locks else None
-    
+
     async def acquire_lock(
         self,
         file_path: str,
@@ -547,16 +546,16 @@ class AgentCoordinationClient:
             "reason": reason,
             "ttl_minutes": ttl_minutes,
         })
-    
+
     async def release_lock(self, file_path: str) -> dict:
         """Release a file lock"""
         return await self._api_call("POST", "/locks/release", {
             "file_path": file_path,
             "agent_id": self.agent_id,
         })
-    
+
     # --- Memory ---
-    
+
     async def get_memories(
         self,
         task_description: str,
@@ -571,7 +570,7 @@ class AgentCoordinationClient:
             "limit": limit,
         })
         return result.get("memories", [])
-    
+
     async def store_memory(
         self,
         event_type: str,
@@ -593,10 +592,10 @@ class AgentCoordinationClient:
             "tags": tags,
         })
         return result.get("memory_id")
-    
+
     # --- Work Queue ---
-    
-    async def claim_work(self, task_types: list[str] = None) -> Optional[dict]:
+
+    async def claim_work(self, task_types: list[str] = None) -> dict | None:
         """Claim a task from the work queue"""
         result = await self._api_call("POST", "/work/claim", {
             "agent_id": self.agent_id,
@@ -604,7 +603,7 @@ class AgentCoordinationClient:
             "task_types": task_types,
         })
         return result if result.get("success") else None
-    
+
     async def complete_work(
         self,
         task_id: str,

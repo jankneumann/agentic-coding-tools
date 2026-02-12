@@ -13,7 +13,7 @@ import httpx
 import jwt
 import pytest
 
-from src.config import Config, AgentConfig, LockConfig, SupabaseConfig, reset_config
+from src.config import SupabaseConfig, reset_config
 from src.db import SupabaseClient
 from src.locks import LockService
 from src.work_queue import WorkQueueService

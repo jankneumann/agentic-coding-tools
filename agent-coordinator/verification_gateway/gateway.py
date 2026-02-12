@@ -11,14 +11,12 @@ Designed for: Python/TypeScript/Supabase newsletter processing system
 """
 
 import asyncio
-import json
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Optional
-import subprocess
+
 import httpx
 
 
@@ -61,7 +59,7 @@ class ChangeSet:
     agent_id: str
     agent_type: str  # "claude_code", "codex", "gemini_jules"
     changed_files: list[str]
-    commit_sha: Optional[str] = None
+    commit_sha: str | None = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
     metadata: dict = field(default_factory=dict)
 
@@ -99,7 +97,7 @@ NEWSLETTER_POLICIES = [
         patterns=["**/*.ts", "**/*.tsx"],
         timeout_seconds=60,
     ),
-    
+
     # Tier 1: Unit tests - isolated, fast
     VerificationPolicy(
         name="python-unit",
@@ -117,7 +115,7 @@ NEWSLETTER_POLICIES = [
         exclude_patterns=["**/*.integration.test.ts"],
         timeout_seconds=180,
     ),
-    
+
     # Tier 2: Integration - needs Supabase, external APIs
     VerificationPolicy(
         name="supabase-integration",
@@ -156,7 +154,7 @@ NEWSLETTER_POLICIES = [
         required_env=["ANTHROPIC_API_KEY"],
         timeout_seconds=300,
     ),
-    
+
     # Tier 3: System tests - full pipeline
     VerificationPolicy(
         name="full-pipeline",
@@ -171,7 +169,7 @@ NEWSLETTER_POLICIES = [
         timeout_seconds=600,
         requires_approval=True,  # Expensive - needs human OK
     ),
-    
+
     # Tier 4: Manual review triggers
     VerificationPolicy(
         name="security-review",
@@ -191,26 +189,26 @@ NEWSLETTER_POLICIES = [
 class VerificationGateway:
     """
     Routes changes to appropriate verification tier and executor.
-    
+
     The gateway is the bridge between the fast inner loop (agent execution)
     and the trust-building outer loop (human oversight).
     """
-    
+
     def __init__(
         self,
         policies: list[VerificationPolicy],
-        supabase_url: Optional[str] = None,
-        supabase_key: Optional[str] = None,
+        supabase_url: str | None = None,
+        supabase_key: str | None = None,
     ):
         self.policies = sorted(policies, key=lambda p: p.tier.value, reverse=True)
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         self._http_client = httpx.AsyncClient()
-    
+
     def match_policies(self, changeset: ChangeSet) -> list[VerificationPolicy]:
         """Find all policies that match the changed files"""
         from fnmatch import fnmatch
-        
+
         matched = []
         for policy in self.policies:
             for changed_file in changeset.changed_files:
@@ -220,17 +218,17 @@ class VerificationGateway:
                     if not any(fnmatch(changed_file, pat) for pat in policy.exclude_patterns):
                         matched.append(policy)
                         break  # Don't double-count same policy
-        
+
         return matched
-    
+
     def determine_verification_plan(self, changeset: ChangeSet) -> dict:
         """
         Analyze changeset and determine verification plan.
-        
+
         Returns a plan with the highest required tier and all executors needed.
         """
         matched = self.match_policies(changeset)
-        
+
         if not matched:
             # Default: at least run static analysis
             return {
@@ -239,21 +237,21 @@ class VerificationGateway:
                 "policies": [],
                 "requires_approval": False,
             }
-        
+
         # Get highest tier needed
         max_tier = max(p.tier for p in matched)
         requires_approval = any(p.requires_approval for p in matched)
-        
+
         # Collect all executors needed (may run multiple in parallel)
         executors = list(set(p.executor for p in matched))
-        
+
         return {
             "tier": max_tier,
             "executors": executors,
             "policies": matched,
             "requires_approval": requires_approval,
         }
-    
+
     async def execute_verification(
         self,
         changeset: ChangeSet,
@@ -261,14 +259,14 @@ class VerificationGateway:
     ) -> list[VerificationResult]:
         """
         Execute verification according to plan.
-        
+
         Runs appropriate checks based on tier and executor.
         """
         results = []
-        
+
         for policy in plan["policies"]:
             start_time = asyncio.get_event_loop().time()
-            
+
             try:
                 if policy.executor == Executor.INLINE:
                     result = await self._run_inline(changeset, policy)
@@ -282,11 +280,11 @@ class VerificationGateway:
                     result = await self._queue_for_human(changeset, policy)
                 else:
                     raise ValueError(f"Unknown executor: {policy.executor}")
-                
+
                 duration = asyncio.get_event_loop().time() - start_time
                 result.duration_seconds = duration
                 results.append(result)
-                
+
             except Exception as e:
                 results.append(VerificationResult(
                     changeset_id=changeset.id,
@@ -297,13 +295,13 @@ class VerificationGateway:
                     output="",
                     errors=[str(e)],
                 ))
-        
+
         # Store results in Supabase if configured
         if self.supabase_url:
             await self._store_results(changeset, results)
-        
+
         return results
-    
+
     async def _run_inline(
         self,
         changeset: ChangeSet,
@@ -312,7 +310,7 @@ class VerificationGateway:
         """Run static analysis inline"""
         errors = []
         output_lines = []
-        
+
         for file in changeset.changed_files:
             if file.endswith(".py"):
                 # Run ruff (fast Python linter)
@@ -325,7 +323,7 @@ class VerificationGateway:
                 if proc.returncode != 0:
                     errors.append(f"ruff {file}: {stderr.decode()}")
                 output_lines.append(stdout.decode())
-                
+
                 # Run mypy for type checking
                 proc = await asyncio.create_subprocess_exec(
                     "mypy", "--ignore-missing-imports", file,
@@ -336,7 +334,7 @@ class VerificationGateway:
                 if proc.returncode != 0:
                     errors.append(f"mypy {file}: {stdout.decode()}")
                 output_lines.append(stdout.decode())
-                
+
             elif file.endswith((".ts", ".tsx")):
                 # Run tsc for TypeScript
                 proc = await asyncio.create_subprocess_exec(
@@ -348,7 +346,7 @@ class VerificationGateway:
                 if proc.returncode != 0:
                     errors.append(f"tsc {file}: {stdout.decode()}")
                 output_lines.append(stdout.decode())
-        
+
         return VerificationResult(
             changeset_id=changeset.id,
             tier=policy.tier,
@@ -358,7 +356,7 @@ class VerificationGateway:
             output="\n".join(output_lines),
             errors=errors,
         )
-    
+
     async def _trigger_github_actions(
         self,
         changeset: ChangeSet,
@@ -367,12 +365,12 @@ class VerificationGateway:
         """Trigger GitHub Actions workflow and wait for result"""
         # This would use GitHub API to trigger workflow_dispatch
         # For now, return a placeholder
-        
+
         # In production:
         # 1. POST to /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
         # 2. Poll for workflow run completion
         # 3. Fetch workflow run logs
-        
+
         return VerificationResult(
             changeset_id=changeset.id,
             tier=policy.tier,
@@ -382,14 +380,14 @@ class VerificationGateway:
             output="GitHub Actions workflow triggered",
             errors=[],
         )
-    
+
     async def _dispatch_to_ntm(
         self,
         changeset: ChangeSet,
         policy: VerificationPolicy,
     ) -> VerificationResult:
         """Dispatch verification to NTM-managed local agent"""
-        
+
         # Use NTM's robot mode to dispatch
         cmd = [
             "ntm", "--robot-send",
@@ -403,14 +401,14 @@ class VerificationGateway:
                 "files": changeset.changed_files,
             }),
         ]
-        
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
-        
+
         if proc.returncode != 0:
             return VerificationResult(
                 changeset_id=changeset.id,
@@ -421,7 +419,7 @@ class VerificationGateway:
                 output=stdout.decode(),
                 errors=[stderr.decode()],
             )
-        
+
         # In production, would poll for completion via Mail or CASS
         return VerificationResult(
             changeset_id=changeset.id,
@@ -432,17 +430,17 @@ class VerificationGateway:
             output=stdout.decode(),
             errors=[],
         )
-    
+
     async def _run_in_e2b(
         self,
         changeset: ChangeSet,
         policy: VerificationPolicy,
     ) -> VerificationResult:
         """Run verification in E2B sandbox"""
-        
+
         # E2B integration example
         # Requires: pip install e2b
-        
+
         try:
             from e2b import Sandbox
         except ImportError:
@@ -455,24 +453,24 @@ class VerificationGateway:
                 output="",
                 errors=["E2B not installed: pip install e2b"],
             )
-        
+
         async with Sandbox.create(template="python-dev") as sandbox:
             # Clone the repo at the specific commit
             await sandbox.process.start(
                 f"git clone --depth 1 --branch {changeset.branch} "
                 f"https://github.com/yourorg/newsletter-system.git /app"
             )
-            
+
             # Install dependencies
             await sandbox.process.start("cd /app && pip install -r requirements.txt")
-            
+
             # Run tests for changed files
             test_output = []
             for file in changeset.changed_files:
                 if "test_" in file or "_test.py" in file:
                     result = await sandbox.process.start(f"cd /app && pytest {file} -v")
                     test_output.append(result.stdout)
-            
+
             return VerificationResult(
                 changeset_id=changeset.id,
                 tier=policy.tier,
@@ -482,19 +480,19 @@ class VerificationGateway:
                 output="\n".join(test_output),
                 errors=[],
             )
-    
+
     async def _queue_for_human(
         self,
         changeset: ChangeSet,
         policy: VerificationPolicy,
     ) -> VerificationResult:
         """Queue changeset for human review"""
-        
+
         # In production, this would:
         # 1. Create a Supabase record in a "pending_reviews" table
         # 2. Send notification (Slack, email, etc.)
         # 3. Return pending status
-        
+
         return VerificationResult(
             changeset_id=changeset.id,
             tier=policy.tier,
@@ -504,7 +502,7 @@ class VerificationGateway:
             output="Queued for human review",
             errors=[],
         )
-    
+
     async def _store_results(
         self,
         changeset: ChangeSet,
@@ -513,7 +511,7 @@ class VerificationGateway:
         """Store verification results in Supabase"""
         if not self.supabase_url or not self.supabase_key:
             return
-        
+
         for result in results:
             await self._http_client.post(
                 f"{self.supabase_url}/rest/v1/verification_results",
@@ -541,16 +539,16 @@ class VerificationGateway:
 
 def create_app():
     """Create FastAPI app for webhook handling"""
-    from fastapi import FastAPI, Request, BackgroundTasks
-    
+    from fastapi import BackgroundTasks, FastAPI, Request
+
     app = FastAPI(title="Verification Gateway")
     gateway = VerificationGateway(NEWSLETTER_POLICIES)
-    
+
     @app.post("/webhook/github")
     async def github_webhook(request: Request, background_tasks: BackgroundTasks):
         """Handle GitHub push webhooks"""
         payload = await request.json()
-        
+
         # Parse GitHub webhook payload
         changeset = ChangeSet(
             id=hashlib.sha256(
@@ -566,10 +564,10 @@ def create_app():
             ],
             commit_sha=payload["after"],
         )
-        
+
         # Determine verification plan
         plan = gateway.determine_verification_plan(changeset)
-        
+
         # If requires approval, don't auto-execute
         if plan["requires_approval"]:
             return {
@@ -578,21 +576,21 @@ def create_app():
                 "tier": plan["tier"].name,
                 "executors": [e.value for e in plan["executors"]],
             }
-        
+
         # Execute verification in background
         background_tasks.add_task(
             gateway.execute_verification,
             changeset,
             plan,
         )
-        
+
         return {
             "status": "verification_started",
             "changeset_id": changeset.id,
             "tier": plan["tier"].name,
             "executors": [e.value for e in plan["executors"]],
         }
-    
+
     @app.post("/webhook/agent")
     async def agent_completion_webhook(
         request: Request,
@@ -600,7 +598,7 @@ def create_app():
     ):
         """Handle direct agent completion notifications"""
         payload = await request.json()
-        
+
         changeset = ChangeSet(
             id=payload.get("task_id", hashlib.sha256(
                 datetime.utcnow().isoformat().encode()
@@ -611,15 +609,15 @@ def create_app():
             changed_files=payload["changed_files"],
             metadata=payload.get("metadata", {}),
         )
-        
+
         plan = gateway.determine_verification_plan(changeset)
-        
+
         background_tasks.add_task(
             gateway.execute_verification,
             changeset,
             plan,
         )
-        
+
         return {
             "status": "verification_started",
             "changeset_id": changeset.id,
@@ -629,13 +627,13 @@ def create_app():
                 "requires_approval": plan["requires_approval"],
             },
         }
-    
+
     @app.get("/status/{changeset_id}")
     async def get_status(changeset_id: str):
         """Get verification status for a changeset"""
         # Would query Supabase for results
         return {"changeset_id": changeset_id, "status": "not_implemented"}
-    
+
     return app
 
 

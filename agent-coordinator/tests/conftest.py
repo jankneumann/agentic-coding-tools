@@ -1,17 +1,13 @@
 """Pytest fixtures for Agent Coordinator tests."""
 
-import os
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 import respx
-from httpx import Response
 
-from src.config import Config, SupabaseConfig, AgentConfig, LockConfig, reset_config
+from src.config import AgentConfig, Config, LockConfig, SupabaseConfig, reset_config
 from src.db import SupabaseClient
-
 
 # =============================================================================
 # Environment Setup
@@ -73,7 +69,7 @@ def mock_supabase():
 @pytest.fixture
 def lock_acquired_response():
     """Response for successful lock acquisition."""
-    expires = datetime.now(timezone.utc) + timedelta(minutes=30)
+    expires = datetime.now(UTC) + timedelta(minutes=30)
     return {
         "success": True,
         "action": "acquired",
@@ -85,7 +81,7 @@ def lock_acquired_response():
 @pytest.fixture
 def lock_conflict_response():
     """Response when lock is held by another agent."""
-    locked_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    locked_at = datetime.now(UTC) - timedelta(minutes=5)
     expires = locked_at + timedelta(minutes=30)
     return {
         "success": False,
@@ -111,7 +107,7 @@ def lock_released_response():
 @pytest.fixture
 def active_locks_response():
     """Response for checking active locks."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         {
             "file_path": "src/main.py",
@@ -181,7 +177,7 @@ def task_submitted_response():
 @pytest.fixture
 def pending_tasks_response():
     """Response for listing pending tasks."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         {
             "id": str(uuid4()),
