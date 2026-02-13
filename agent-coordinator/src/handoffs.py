@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -142,7 +143,23 @@ class HandoffService:
         except Exception:
             return WriteHandoffResult(success=False, error="database_unavailable")
 
-        return WriteHandoffResult.from_dict(result)
+        write_result = WriteHandoffResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_name or config.agent.agent_id,
+                operation="write_handoff",
+                parameters={"summary_length": len(summary)},
+                result={
+                    "handoff_id": str(write_result.handoff_id)
+                    if write_result.handoff_id else None
+                },
+                success=write_result.success,
+            )
+        except Exception:
+            pass
+
+        return write_result
 
     async def read(
         self,
@@ -166,7 +183,22 @@ class HandoffService:
             },
         )
 
-        return ReadHandoffResult.from_dict(result)
+        read_result = ReadHandoffResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                operation="read_handoff",
+                parameters={
+                    "agent_name": agent_name,
+                    "limit": limit,
+                },
+                result={"count": len(read_result.handoffs)},
+                success=True,
+            )
+        except Exception:
+            pass
+
+        return read_result
 
     async def get_recent(
         self,

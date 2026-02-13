@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -116,7 +117,21 @@ class LockService:
             },
         )
 
-        return LockResult.from_dict(result)
+        lock_result = LockResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                agent_type=agent_type or config.agent.agent_type,
+                operation="acquire_lock",
+                parameters={"file_path": file_path, "reason": reason},
+                result={"action": lock_result.action},
+                success=lock_result.success,
+            )
+        except Exception:
+            pass
+
+        return lock_result
 
     async def release(
         self,
@@ -142,7 +157,19 @@ class LockService:
             },
         )
 
-        return LockResult.from_dict(result)
+        lock_result = LockResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                operation="release_lock",
+                parameters={"file_path": file_path},
+                success=lock_result.success,
+            )
+        except Exception:
+            pass
+
+        return lock_result
 
     async def check(
         self,

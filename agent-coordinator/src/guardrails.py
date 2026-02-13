@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -241,7 +242,28 @@ class GuardrailsService:
                     )
                 )
 
-        return GuardrailResult(safe=safe, violations=violations)
+        result = GuardrailResult(safe=safe, violations=violations)
+
+        # Audit: log all violations
+        if violations:
+            try:
+                config = get_config()
+                await get_audit_service().log_operation(
+                    agent_id=agent_id or config.agent.agent_id,
+                    operation="guardrail_violation",
+                    parameters={"operation_text": operation_text[:200]},
+                    result={
+                        "safe": safe,
+                        "violation_count": len(violations),
+                        "blocked": not safe,
+                        "patterns": [v.pattern_name for v in violations],
+                    },
+                    success=True,
+                )
+            except Exception:
+                pass
+
+        return result
 
 
 # Global service instance

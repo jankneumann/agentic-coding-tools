@@ -1,0 +1,113 @@
+// Cedar schema for Agent Coordinator authorization.
+//
+// Entity types map to the coordination model:
+//   Principal → Agent identity
+//   Action    → Coordination operation
+//   Resource  → Target of operation (file, domain, task)
+
+entity AgentType;
+
+entity Agent in [AgentType] {
+    trust_level: Long,
+    agent_type: String,
+    session_id: String,
+    max_file_modifications: Long,
+    max_execution_time_seconds: Long,
+};
+
+entity File {
+    path: String,
+};
+
+entity Domain {
+    name: String,
+};
+
+entity Task {
+    task_type: String,
+    priority: Long,
+};
+
+// Read actions — safe, no side effects
+action "check_locks" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "get_work" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "recall" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "discover_agents" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "read_handoff" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "query_audit" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+// Write actions — mutate state
+action "acquire_lock" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "release_lock" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "complete_work" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "submit_work" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "remember" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "write_handoff" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+// Admin actions — elevated privileges
+action "force_push" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "delete_branch" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "cleanup_agents" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+// Network action
+action "network_access" appliesTo {
+    principal: Agent,
+    resource: Domain,
+};

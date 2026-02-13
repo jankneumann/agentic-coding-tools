@@ -803,6 +803,89 @@ async def query_audit(
 
 
 # =============================================================================
+# MCP TOOLS: Policy Engine (Phase 3 / Cedar)
+# =============================================================================
+
+
+@mcp.tool()
+async def check_policy(
+    operation: str,
+    resource: str = "",
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Check if an operation is authorized by the policy engine.
+
+    Uses either native (profiles + network) or Cedar engine based on config.
+
+    Args:
+        operation: Operation name (e.g., 'acquire_lock', 'network_access')
+        resource: Target resource (file path, domain, etc.)
+        context: Additional context (trust_level, files_modified, etc.)
+
+    Returns:
+        allowed: Whether the operation is authorized
+        reason: Explanation of the decision
+        engine: Which policy engine made the decision
+    """
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    result = await engine.check_operation(
+        agent_id=get_agent_id(),
+        agent_type=get_agent_type(),
+        operation=operation,
+        resource=resource,
+        context=context,
+    )
+
+    engine_name = type(engine).__name__
+    return {
+        "allowed": result.allowed,
+        "reason": result.reason,
+        "engine": engine_name,
+        "diagnostics": result.diagnostics,
+    }
+
+
+@mcp.tool()
+async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
+    """
+    Validate Cedar policy text against the schema.
+
+    Only available when POLICY_ENGINE=cedar.
+
+    Args:
+        policy_text: Cedar policy text to validate
+
+    Returns:
+        valid: Whether the policy is valid
+        errors: List of validation errors (if any)
+    """
+    config = get_config()
+    if config.policy_engine.engine != "cedar":
+        return {
+            "valid": False,
+            "errors": ["Cedar engine not active. Set POLICY_ENGINE=cedar"],
+        }
+
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    if not hasattr(engine, "validate_policy"):
+        return {
+            "valid": False,
+            "errors": ["Current engine does not support policy validation"],
+        }
+
+    result = engine.validate_policy(policy_text)
+    return {
+        "valid": result.valid,
+        "errors": result.errors,
+    }
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 

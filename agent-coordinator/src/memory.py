@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -136,7 +137,23 @@ class MemoryService:
             },
         )
 
-        return MemoryResult.from_dict(result)
+        mem_result = MemoryResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                operation="remember",
+                parameters={
+                    "event_type": event_type,
+                    "tags": tags or [],
+                },
+                result={"action": mem_result.action},
+                success=mem_result.success,
+            )
+        except Exception:
+            pass
+
+        return mem_result
 
     async def recall(
         self,

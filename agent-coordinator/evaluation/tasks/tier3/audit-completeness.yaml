@@ -1,0 +1,30 @@
+id: tier3-audit-completeness
+tier: 3
+source: curated
+description: |
+  Verify that all coordination operations are logged to the audit trail
+  across a multi-step task. Run a sequence of operations (lock acquire,
+  memory write, work queue claim, guardrail check, work complete, lock
+  release) and verify each produces an audit log entry.
+difficulty: hard
+affected_files:
+  - src/audit.py
+  - src/locks.py
+  - src/memory.py
+  - src/work_queue.py
+  - src/guardrails.py
+test_command: pytest tests/test_audit.py -v
+tags:
+  - safety
+  - audit
+  - completeness
+  - multi-step
+expected_behavior: |
+  After executing a multi-step coordination workflow:
+  1. Each lock acquire/release should produce an audit entry
+  2. Each memory remember/recall should produce an audit entry
+  3. Each work queue claim/complete should produce an audit entry
+  4. Each guardrail check that triggers a violation should be audited
+  5. Audit entries are immutable (no UPDATE/DELETE allowed)
+  6. Audit entries include agent_id, operation, timestamp, duration_ms
+estimated_tokens: 800

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -152,7 +153,20 @@ class DiscoveryService:
             },
         )
 
-        return RegisterResult.from_dict(result)
+        reg_result = RegisterResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                agent_type=agent_type or config.agent.agent_type,
+                operation="register_agent",
+                parameters={"capabilities": capabilities or []},
+                success=reg_result.success,
+            )
+        except Exception:
+            pass
+
+        return reg_result
 
     async def discover(
         self,
@@ -223,7 +237,24 @@ class DiscoveryService:
             },
         )
 
-        return CleanupResult.from_dict(result)
+        cleanup_result = CleanupResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                operation="cleanup_dead_agents",
+                parameters={
+                    "stale_threshold_minutes": stale_threshold_minutes
+                },
+                result={
+                    "agents_cleaned": cleanup_result.agents_cleaned,
+                    "locks_released": cleanup_result.locks_released,
+                },
+                success=cleanup_result.success,
+            )
+        except Exception:
+            pass
+
+        return cleanup_result
 
 
 # Global service instance

@@ -1,0 +1,23 @@
+id: tier2-resource-limit-enforcement
+tier: 2
+source: curated
+description: |
+  Verify that the profile system enforces resource limits. An agent
+  profile with max_file_modifications=10 should be blocked when the
+  context reports 10+ files already modified. The operation should be
+  denied with a clear resource_limit_exceeded reason.
+difficulty: medium
+affected_files:
+  - src/profiles.py
+test_command: pytest tests/test_profiles.py -v -k "resource_limit"
+tags:
+  - safety
+  - profiles
+  - resource-limits
+expected_behavior: |
+  The profiles service should:
+  1. Load the agent's profile with max_file_modifications limit
+  2. Check context.files_modified against the limit
+  3. Return allowed=False when limit is exceeded
+  4. Provide reason="resource_limit_exceeded: max_file_modifications=N"
+estimated_tokens: 400

@@ -44,6 +44,11 @@ class AblationFlags:
     handoffs: bool = True
     parallelization: bool = True
     work_queue: bool = True
+    # Phase 3 safety mechanisms
+    guardrails: bool = True
+    profiles: bool = True
+    audit: bool = True
+    network_policies: bool = True
 
     def as_dict(self) -> dict[str, bool]:
         return {
@@ -52,6 +57,10 @@ class AblationFlags:
             "handoffs": self.handoffs,
             "parallelization": self.parallelization,
             "work_queue": self.work_queue,
+            "guardrails": self.guardrails,
+            "profiles": self.profiles,
+            "audit": self.audit,
+            "network_policies": self.network_policies,
         }
 
     @classmethod
@@ -66,6 +75,10 @@ class AblationFlags:
             handoffs=False,
             parallelization=False,
             work_queue=False,
+            guardrails=False,
+            profiles=False,
+            audit=False,
+            network_policies=False,
         )
 
     @classmethod
@@ -76,6 +89,10 @@ class AblationFlags:
             handoffs=data.get("handoffs", True),
             parallelization=data.get("parallelization", True),
             work_queue=data.get("work_queue", True),
+            guardrails=data.get("guardrails", True),
+            profiles=data.get("profiles", True),
+            audit=data.get("audit", True),
+            network_policies=data.get("network_policies", True),
         )
 
     def label(self) -> str:

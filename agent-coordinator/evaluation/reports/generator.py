@@ -116,6 +116,29 @@ class ReportGenerator:
             lines.append(f"- **Test pass rate**: {tm.test_pass_rate.mean:.0%}")
             lines.append(f"- **Coordination overhead**: {tm.coordination_overhead.mean:.1f}%")
             lines.append(f"- **Speedup factor**: {tm.speedup_factor.mean:.2f}")
+            # Safety metrics from raw data
+            matching_raw = [
+                m for m in task_metrics
+                if m.task_id == tm.task_id
+                and m.backend_name == tm.backend_name
+                and m.ablation_label == tm.ablation_label
+            ]
+            if matching_raw:
+                total_guardrail = sum(
+                    m.safety.guardrail_checks for m in matching_raw
+                )
+                total_blocks = sum(
+                    m.safety.guardrail_blocks for m in matching_raw
+                )
+                total_audit = sum(
+                    m.safety.audit_entries_written for m in matching_raw
+                )
+                if total_guardrail > 0 or total_audit > 0:
+                    lines.append(
+                        f"- **Guardrail checks**: {total_guardrail} "
+                        f"({total_blocks} blocked)"
+                    )
+                    lines.append(f"- **Audit entries**: {total_audit}")
             lines.append("")
 
         # Consensus evaluation results

@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -191,6 +192,24 @@ class ProfilesService:
                 )
 
         return OperationCheck(allowed=True)
+
+    async def _log_denial(
+        self,
+        agent_id: str,
+        operation: str,
+        reason: str,
+    ) -> None:
+        """Log an operation denial to audit trail."""
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                operation="profile_denial",
+                parameters={"denied_operation": operation},
+                result={"reason": reason},
+                success=True,
+            )
+        except Exception:
+            pass
 
 
 # Global service instance

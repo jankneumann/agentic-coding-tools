@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 
@@ -184,7 +185,23 @@ class WorkQueueService:
             },
         )
 
-        return ClaimResult.from_dict(result)
+        claim_result = ClaimResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                operation="claim_task",
+                parameters={"task_types": task_types},
+                result={
+                    "task_id": str(claim_result.task_id)
+                    if claim_result.task_id else None
+                },
+                success=claim_result.success,
+            )
+        except Exception:
+            pass
+
+        return claim_result
 
     async def complete(
         self,
@@ -219,7 +236,22 @@ class WorkQueueService:
             },
         )
 
-        return CompleteResult.from_dict(result_data)
+        complete_result = CompleteResult.from_dict(result_data)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                operation="complete_task",
+                parameters={
+                    "task_id": str(task_id),
+                    "success": success,
+                },
+                success=complete_result.success,
+            )
+        except Exception:
+            pass
+
+        return complete_result
 
     async def submit(
         self,
@@ -263,7 +295,25 @@ class WorkQueueService:
             },
         )
 
-        return SubmitResult.from_dict(result)
+        submit_result = SubmitResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                operation="submit_task",
+                parameters={
+                    "task_type": task_type,
+                    "priority": priority,
+                },
+                result={
+                    "task_id": str(submit_result.task_id)
+                    if submit_result.task_id else None
+                },
+                success=submit_result.success,
+            )
+        except Exception:
+            pass
+
+        return submit_result
 
     async def get_pending(
         self,
