@@ -169,27 +169,28 @@ class ProfilesService:
 
         # Check blocked operations
         if operation in profile.blocked_operations:
-            return OperationCheck(
-                allowed=False,
-                reason=f"operation_blocked: {operation}",
-            )
+            reason = f"operation_blocked: {operation}"
+            await self._log_denial(agent_id or config.agent.agent_id, operation, reason)
+            return OperationCheck(allowed=False, reason=reason)
 
         # Check allowed operations (if specified, must be in list)
         if profile.allowed_operations and operation not in profile.allowed_operations:
-            return OperationCheck(
-                allowed=False,
-                reason=f"operation_not_in_allowlist: {operation}",
-            )
+            reason = f"operation_not_in_allowlist: {operation}"
+            await self._log_denial(agent_id or config.agent.agent_id, operation, reason)
+            return OperationCheck(allowed=False, reason=reason)
 
         # Check resource limits
         if context:
             files_modified = context.get("files_modified", 0)
             if files_modified >= profile.max_file_modifications:
-                return OperationCheck(
-                    allowed=False,
-                    reason="resource_limit_exceeded: "
-                    f"max_file_modifications={profile.max_file_modifications}",
+                reason = (
+                    f"resource_limit_exceeded: "
+                    f"max_file_modifications={profile.max_file_modifications}"
                 )
+                await self._log_denial(
+                    agent_id or config.agent.agent_id, operation, reason
+                )
+                return OperationCheck(allowed=False, reason=reason)
 
         return OperationCheck(allowed=True)
 

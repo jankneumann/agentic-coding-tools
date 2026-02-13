@@ -196,6 +196,7 @@ class PolicyEngineConfig:
     engine: str = "native"  # "native" or "cedar"
     policy_cache_ttl_seconds: int = 300
     enable_code_fallback: bool = True
+    schema_path: str | None = None
 
     @classmethod
     def from_env(cls) -> "PolicyEngineConfig":
@@ -208,6 +209,7 @@ class PolicyEngineConfig:
                 "POLICY_CODE_FALLBACK", "true"
             ).lower()
             == "true",
+            schema_path=os.environ.get("CEDAR_SCHEMA_PATH"),
         )
 
 

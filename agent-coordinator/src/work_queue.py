@@ -213,6 +213,9 @@ class WorkQueueService:
     ) -> CompleteResult:
         """Mark a task as completed.
 
+        Runs guardrail pre-execution check on the task result before marking
+        complete. If destructive patterns are found, completion is blocked.
+
         Args:
             task_id: ID of the task to complete
             success: Whether the task completed successfully
@@ -224,6 +227,28 @@ class WorkQueueService:
             CompleteResult indicating success/failure
         """
         config = get_config()
+
+        # Guardrails pre-execution check on task result
+        if success and result:
+            try:
+                from .guardrails import get_guardrails_service
+
+                guardrails = get_guardrails_service()
+                result_text = str(result)
+                check = await guardrails.check_operation(
+                    operation_text=result_text[:2000],
+                    agent_id=agent_id or config.agent.agent_id,
+                )
+                if not check.safe:
+                    patterns = [v.pattern_name for v in check.violations if v.blocked]
+                    return CompleteResult(
+                        success=False,
+                        status="blocked",
+                        task_id=task_id,
+                        reason=f"destructive_operation_blocked: {', '.join(patterns)}",
+                    )
+            except Exception:
+                pass  # Guardrails failure should not block completion
 
         result_data = await self.db.rpc(
             "complete_task",

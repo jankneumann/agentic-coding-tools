@@ -15,6 +15,13 @@ When multiple AI agents work on the same codebase simultaneously, they face merg
 | **Session Handoffs** | Structured handoff documents preserve context across agent sessions |
 | **Agent Discovery** | Agents register capabilities and status, enabling peers to find collaborators |
 | **Heartbeat Monitoring** | Periodic heartbeats detect unresponsive agents; stale agents' locks are auto-released |
+| **Episodic Memory** | Cross-session learning with relevance scoring and time-decay |
+| **Guardrails Engine** | Deterministic pattern matching to detect and block destructive operations |
+| **Agent Profiles** | Trust levels (0-4), operation restrictions, resource limits |
+| **Audit Trail** | Immutable append-only logging for all coordination operations |
+| **Network Policies** | Domain-level allow/block lists for outbound access control |
+| **Cedar Policy Engine** | Optional AWS Cedar-based authorization (alternative to native profiles) |
+| **GitHub Coordination** | Branch tracking, label locks, webhook-driven sync for restricted-network agents |
 | **MCP Integration** | Native tool integration with Claude Code and other MCP clients via stdio transport |
 
 ## Architecture
@@ -32,8 +39,11 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
                           | HTTP (PostgREST)
                           v
 +-------------------------------------------------+
-|  Supabase                                       |
+|  Supabase (PostgREST) / Direct PostgreSQL        |
 |  - file_locks, work_queue, agent_sessions       |
+|  - episodic_memories, operation_guardrails      |
+|  - agent_profiles, audit_log, network_domains   |
+|  - cedar_policies, verification_results         |
 |  - PL/pgSQL functions (atomic operations)       |
 +-------------------------------------------------+
 ```
@@ -45,17 +55,18 @@ Local agents connect via MCP (stdio transport). Cloud agents with restricted net
 | Phase | Scope | Status |
 |-------|-------|--------|
 | **Phase 1 (MVP)** | File locking, work queue, MCP server, Supabase persistence | **Implemented** |
-| Phase 2 | HTTP API for cloud agents, episodic memory, GitHub-mediated coordination | Specified |
-| Phase 3 | Guardrails engine, verification gateway, agent profiles, approval queues | Specified |
+| **Phase 2** | Episodic memory, session handoffs, agent discovery, GitHub coordination, DB factory | **Implemented** |
+| **Phase 3** | Guardrails engine, verification gateway, agent profiles, audit trail, network policies, Cedar policy engine | **Implemented** |
 | Phase 4 | Multi-agent orchestration via Strands SDK, AgentCore integration | Specified |
 
-### Phase 1 Details
+### Implementation Details
 
-- **Database**: 3 tables (`file_locks`, `work_queue`, `agent_sessions`) + 5 PL/pgSQL functions
-- **MCP Server**: 6 tools + 2 resources
-- **Tests**: 31 unit tests (respx mocks) + 29 integration tests (local Supabase via docker-compose)
+- **Database**: 10 migrations, 10+ tables, 15+ PL/pgSQL functions, DatabaseClient protocol with Supabase and asyncpg backends
+- **MCP Server**: 18 tools + 7 resources
+- **Services**: Locks, Work Queue, Handoffs, Discovery, Memory, Guardrails, Profiles, Audit, Network Policies, Policy Engine (Cedar + Native), GitHub Coordination
+- **Tests**: 250+ unit tests (respx mocks)
 
-## MCP Tools (Phase 1)
+## MCP Tools
 
 | Tool | Description |
 |------|-------------|
@@ -63,14 +74,22 @@ Local agents connect via MCP (stdio transport). Cloud agents with restricted net
 | `release_lock` | Release a lock when done editing |
 | `check_locks` | See which files are currently locked |
 | `get_work` | Claim a task from the work queue |
-| `complete_work` | Mark a claimed task as completed or failed |
+| `complete_work` | Mark a claimed task as completed/failed (with guardrails pre-check) |
 | `submit_work` | Add a new task to the work queue |
+| `write_handoff` | Create a structured session handoff |
+| `read_handoff` | Read the latest handoff document |
+| `discover_agents` | Find other active agents |
+| `register_session` | Register this agent for discovery |
+| `heartbeat` | Send a heartbeat signal |
+| `remember` | Store an episodic memory |
+| `recall` | Retrieve relevant memories |
+| `check_guardrails` | Scan text for destructive patterns |
+| `get_my_profile` | Get this agent's profile and trust level |
+| `query_audit` | Query the audit trail |
+| `check_policy` | Check operation authorization (Cedar/native) |
+| `validate_cedar_policy` | Validate Cedar policy syntax |
 
 ## Future Capabilities
-
-**Phase 2** adds an HTTP API for cloud-hosted agents (Claude Code Web, Codex Cloud), episodic memory for cross-session learning, and GitHub-mediated coordination as a fallback for agents with restricted network access.
-
-**Phase 3** introduces a guardrails engine with deterministic pattern matching to prevent destructive operations, a verification gateway that routes changes to appropriate testing tiers, and configurable agent profiles with trust levels.
 
 **Phase 4** enables multi-agent orchestration via the Strands SDK with agents-as-tools, swarm, and graph patterns, backed by AgentCore for runtime isolation and policy enforcement.
 

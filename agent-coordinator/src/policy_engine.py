@@ -418,12 +418,12 @@ class CedarPolicyEngine:
                 diagnostics=[str(e)],
             )
 
-        allowed = str(response.decision).lower() in ("allow", "decision.allow")
+        allowed = response.decision == self._cedarpy.Decision.Allow
         reason_parts = []
         if hasattr(response, "diagnostics"):
             diag = response.diagnostics
-            if hasattr(diag, "reason"):
-                reason_parts.append(str(diag.reason))
+            if hasattr(diag, "reasons") and diag.reasons:
+                reason_parts.extend(str(r) for r in diag.reasons)
             if hasattr(diag, "errors") and diag.errors:
                 reason_parts.extend(str(e) for e in diag.errors)
 
@@ -437,6 +437,8 @@ class CedarPolicyEngine:
         self,
         agent_id: str,
         domain: str,
+        agent_type: str = "unknown",
+        trust_level: int = 1,
     ) -> PolicyDecision:
         """Check network access using Cedar policies.
 
@@ -444,10 +446,10 @@ class CedarPolicyEngine:
         """
         return await self.check_operation(
             agent_id=agent_id,
-            agent_type="",
+            agent_type=agent_type,
             operation="network_access",
             resource=domain,
-            context={"trust_level": 1},
+            context={"trust_level": trust_level},
         )
 
     def validate_policy(self, policy_text: str) -> ValidationResult:
@@ -459,37 +461,15 @@ class CedarPolicyEngine:
         Returns:
             ValidationResult with validity and any errors
         """
-        # cedarpy doesn't have a standalone validate function in all versions
-        # Try to parse by running a dummy authorization
         try:
-            self._cedarpy.is_authorized(
-                {
-                    "principal": 'Agent::"__validate__"',
-                    "action": 'Action::"check_locks"',
-                    "resource": 'File::"__validate__"',
-                    "context": {},
-                },
-                policy_text,
-                [
-                    {
-                        "uid": {"type": "Agent", "id": "__validate__"},
-                        "attrs": {
-                            "trust_level": 0,
-                            "agent_type": "test",
-                            "session_id": "",
-                            "max_file_modifications": 0,
-                            "max_execution_time_seconds": 0,
-                        },
-                        "parents": [],
-                    },
-                    {
-                        "uid": {"type": "File", "id": "__validate__"},
-                        "attrs": {"path": ""},
-                        "parents": [],
-                    },
-                ],
+            schema = self._load_schema()
+            result = self._cedarpy.validate_policies(policy_text, schema)
+            if result.validation_passed:
+                return ValidationResult(valid=True)
+            return ValidationResult(
+                valid=False,
+                errors=[f"validation failed with {result.num_errors} error(s)"],
             )
-            return ValidationResult(valid=True)
         except Exception as e:
             return ValidationResult(valid=False, errors=[str(e)])
 

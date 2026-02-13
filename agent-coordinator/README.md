@@ -2,27 +2,31 @@
 
 Multi-agent coordination system for AI coding assistants. Enables Claude Code, Codex, Gemini, and other AI agents to collaborate safely on shared codebases.
 
-## Features (Phase 1 MVP)
+## Features
 
-- **File Locking** - Prevent merge conflicts with distributed locks
-- **Work Queue** - Task assignment with priorities and dependencies
+- **File Locking** - Prevent merge conflicts with distributed locks (TTL, auto-expiration)
+- **Work Queue** - Task assignment with priorities, dependencies, and atomic claiming
+- **Session Handoffs** - Structured handoff documents for cross-session context
+- **Agent Discovery** - Registration, heartbeat monitoring, dead agent cleanup
+- **Episodic Memory** - Cross-session learning with relevance scoring and time-decay
+- **Guardrails Engine** - Deterministic pattern matching to block destructive operations
+- **Agent Profiles** - Trust levels (0-4), operation restrictions, resource limits
+- **Audit Trail** - Immutable append-only logging for all operations
+- **Network Policies** - Domain allow/block lists for outbound access control
+- **Cedar Policy Engine** - Optional AWS Cedar-based authorization (alternative to native profiles)
+- **GitHub Coordination** - Branch tracking, label locks, webhook-driven sync
 - **MCP Server** - Native integration with Claude Code and other MCP clients
 
 ## Quick Start
 
 ### 1. Set Up Supabase
 
-You have two options for the database:
-
-#### Option A: Supabase Cloud (Recommended for MVP)
+#### Option A: Supabase Cloud (Recommended)
 
 1. Create a free project at [supabase.com](https://supabase.com)
-2. Go to Project Settings → Database → Connection string
+2. Go to Project Settings > Database > Connection string
 3. Copy your project URL and service role key
-4. Run the migration via SQL Editor:
-   - Open SQL Editor in Supabase dashboard
-   - Paste contents of `supabase/migrations/001_core_schema.sql`
-   - Click "Run"
+4. Run the migrations via SQL Editor (paste each file in `supabase/migrations/` in order)
 
 #### Option B: Supabase CLI (Local Development)
 
@@ -95,8 +99,6 @@ Use release_lock on src/main.py
 
 ## MCP Tools
 
-When the coordination server is configured, these tools are available:
-
 | Tool | Description |
 |------|-------------|
 | `acquire_lock` | Get exclusive access to a file before editing |
@@ -105,6 +107,18 @@ When the coordination server is configured, these tools are available:
 | `get_work` | Claim a task from the work queue |
 | `complete_work` | Mark a claimed task as completed/failed |
 | `submit_work` | Add a new task to the work queue |
+| `write_handoff` | Create a structured session handoff |
+| `read_handoff` | Read the latest handoff document |
+| `discover_agents` | Find other active agents |
+| `register_session` | Register this agent for discovery |
+| `heartbeat` | Send a heartbeat signal |
+| `remember` | Store an episodic memory |
+| `recall` | Retrieve relevant memories |
+| `check_guardrails` | Scan text for destructive patterns |
+| `get_my_profile` | Get this agent's profile and trust level |
+| `query_audit` | Query the audit trail |
+| `check_policy` | Check operation authorization (Cedar/native) |
+| `validate_cedar_policy` | Validate Cedar policy syntax |
 
 ## MCP Resources
 
@@ -112,25 +126,25 @@ When the coordination server is configured, these tools are available:
 |----------|-------------|
 | `locks://current` | All active file locks |
 | `work://pending` | Pending tasks in the queue |
+| `handoffs://recent` | Recent session handoffs |
+| `memories://recent` | Recent episodic memories |
+| `guardrails://patterns` | Active guardrail patterns |
+| `profiles://current` | Current agent's profile |
+| `audit://recent` | Recent audit log entries |
 
-## Usage Example
+## Cedar Policy Engine
 
-```python
-# In Claude Code conversation:
-# 1. Check if file is available
-result = check_locks(file_paths=["src/auth.py"])
-# Returns [] if not locked
+An optional alternative to native profile-based authorization using [AWS Cedar](https://www.cedarpolicy.com/).
 
-# 2. Acquire lock before editing
-result = acquire_lock(file_path="src/auth.py", reason="fixing auth bug")
-# Returns {"success": true, "action": "acquired", "expires_at": "..."}
+```bash
+# Enable Cedar (requires cedarpy)
+export POLICY_ENGINE=cedar
 
-# 3. Make your changes...
-
-# 4. Release lock when done
-result = release_lock(file_path="src/auth.py")
-# Returns {"success": true, "action": "released"}
+# Default is native profile-based authorization
+export POLICY_ENGINE=native
 ```
+
+Cedar provides declarative policies using the PARC model (Principal/Action/Resource/Context). Default policies are equivalent to native engine behavior.
 
 ## Development
 
@@ -152,20 +166,57 @@ mypy src
 agent-coordinator/
 ├── src/
 │   ├── __init__.py
-│   ├── config.py           # Environment configuration
-│   ├── db.py               # Supabase client
-│   ├── locks.py            # File locking service
-│   ├── work_queue.py       # Task queue service
-│   └── coordination_mcp.py # MCP server
+│   ├── config.py              # Environment configuration
+│   ├── db.py                  # Database client (Supabase + Postgres)
+│   ├── locks.py               # File locking service
+│   ├── work_queue.py          # Task queue service
+│   ├── handoffs.py            # Session handoff service
+│   ├── discovery.py           # Agent discovery + heartbeat
+│   ├── memory.py              # Episodic memory service
+│   ├── guardrails.py          # Destructive operation detection
+│   ├── profiles.py            # Agent profiles + trust levels
+│   ├── audit.py               # Immutable audit trail
+│   ├── network_policies.py    # Domain-level network controls
+│   ├── policy_engine.py       # Cedar + Native policy engines
+│   ├── github_coordination.py # GitHub webhook coordination
+│   └── coordination_mcp.py    # MCP server
+├── cedar/
+│   ├── schema.cedarschema     # Cedar entity type definitions
+│   └── default_policies.cedar # Default authorization policies
 ├── supabase/
 │   └── migrations/
-│       └── 001_core_schema.sql
+│       ├── 001_core_schema.sql          # Locks, work queue, sessions
+│       ├── 002_handoff_tables.sql       # Session handoffs
+│       ├── 003_discovery_functions.sql  # Agent discovery
+│       ├── 004_memory_tables.sql        # Episodic memory
+│       ├── 005_guardrail_tables.sql     # Operation guardrails
+│       ├── 006_profile_tables.sql       # Agent profiles
+│       ├── 007_audit_tables.sql         # Audit trail
+│       ├── 008_network_policy_tables.sql # Network policies
+│       ├── 009_verification_tables.sql  # Verification gateway
+│       └── 010_cedar_policy_store.sql   # Cedar policy storage
+├── verification_gateway/
+│   └── gateway.py             # Verification routing + executors
+├── evaluation/
+│   ├── config.py              # Evaluation harness config
+│   ├── metrics.py             # Safety + coordination metrics
+│   └── tasks/                 # Evaluation task definitions
 ├── tests/
 │   ├── conftest.py
 │   ├── test_locks.py
-│   └── test_work_queue.py
+│   ├── test_work_queue.py
+│   ├── test_handoffs.py
+│   ├── test_discovery.py
+│   ├── test_memory.py
+│   ├── test_guardrails.py
+│   ├── test_profiles.py
+│   ├── test_audit.py
+│   ├── test_network_policies.py
+│   ├── test_policy_engine.py
+│   ├── test_cedar_policy_engine.py
+│   └── test_github_coordination.py
 ├── pyproject.toml
-├── docker-compose.yml      # Local Supabase (alternative)
+├── docker-compose.yml
 └── .env.example
 ```
 
@@ -173,30 +224,28 @@ agent-coordinator/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Claude Code CLI                                            │
-│  (or other MCP client)                                      │
+│  Claude Code CLI / MCP Client                               │
 └─────────────────────┬───────────────────────────────────────┘
                       │ MCP (stdio)
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  coordination_mcp.py                                        │
-│  - acquire_lock / release_lock / check_locks                │
-│  - get_work / complete_work / submit_work                   │
+│  - Locks, Work Queue, Handoffs, Discovery, Memory           │
+│  - Guardrails, Profiles, Audit, Network Policies            │
+│  - Cedar Policy Engine (optional)                           │
 └─────────────────────┬───────────────────────────────────────┘
-                      │ HTTP (PostgREST)
+                      │ DatabaseClient Protocol
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Supabase                                                   │
-│  - file_locks table                                         │
-│  - work_queue table                                         │
-│  - agent_sessions table                                     │
+│  Supabase (PostgREST) / Direct PostgreSQL (asyncpg)         │
+│  - file_locks, work_queue, agent_sessions                   │
+│  - episodic_memories, operation_guardrails, agent_profiles  │
+│  - audit_log, network_domains, cedar_policies               │
 │  - PL/pgSQL functions (atomic operations)                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Syncing Local ↔ Cloud Supabase
-
-If you develop locally and want to sync to cloud:
+## Syncing Local <-> Cloud Supabase
 
 ```bash
 # Link to your cloud project
@@ -208,12 +257,6 @@ supabase db push
 # Or pull cloud schema to local
 supabase db pull
 ```
-
-## Future Phases
-
-- **Phase 2**: HTTP API for cloud agents, episodic memory, GitHub-mediated coordination
-- **Phase 3**: Guardrails engine, verification gateway, approval queues
-- **Phase 4**: Multi-agent swarms via Strands SDK
 
 ## License
 
