@@ -247,6 +247,7 @@ The system SHALL support an optional Cedar-based policy engine as an alternative
 - **THEN** Cedar authorization decisions match native engine decisions for all preconfigured agent profiles
 - **AND** no behavioral difference exists for agents
 
+
 ### Requirement: HTTP API Interface
 
 The system SHALL provide HTTP API for cloud agents that cannot use MCP protocol.

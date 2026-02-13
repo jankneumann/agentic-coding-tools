@@ -539,6 +539,7 @@ Adopting Cedar provides a direct migration path to Phase 4:
 3. AgentCore's natural language → Cedar authoring works with our policy schema
 4. AgentCore's gateway interception pattern matches our coordination layer enforcement
 
+
 ## Open Questions
 
 1. Should the verification_gateway Python code be refactored into `src/` or kept as a separate subpackage?

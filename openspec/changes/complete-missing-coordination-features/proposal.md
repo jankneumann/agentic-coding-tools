@@ -106,6 +106,7 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
 - Strategic alignment: Amazon Bedrock AgentCore uses Cedar for agent-to-tool authorization — adopting Cedar now provides a direct migration path for Phase 4 AgentCore integration
 - Default is `native` (current profiles.py + network_policies.py code), Cedar is opt-in
 
+
 ### Phase 4 (Deferred — Design Only)
 - Strands SDK orchestration and AgentCore integration are deferred to a future proposal
 - Current evaluation framework is sufficient for Phase 4's measurement goals
