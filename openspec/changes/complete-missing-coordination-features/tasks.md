@@ -258,11 +258,70 @@
   - Add configuration reference for new environment variables
 - [ ] 11.4 Update `agent-coordinator/.env.example` with new environment variables
 
-## 12. Integration & Validation
+## 12. Cedar Policy Engine (Optional Enhancement — `POLICY_ENGINE=cedar`)
 
-- [ ] 12.1 Run full test suite: `pytest` — zero failures
-- [ ] 12.2 Run type checking: `mypy --strict src/` — zero errors
-- [ ] 12.3 Run linting: `ruff check src/ tests/` — zero errors
-- [ ] 12.4 Verify all existing Phase 1 tests still pass unchanged
-- [ ] 12.5 Verify backward compatibility: Phase 1 MCP tool calls succeed after Phase 3 deployment
-- [ ] 12.6 Verify new module code coverage >90%
+- [ ] 12.1 Add `cedarpy` as optional dependency to `pyproject.toml` under `[cedar]` extra
+- [ ] 12.2 Add `PolicyEngineConfig` dataclass to `src/config.py`:
+  - `engine: str = "native"` — `"native"` (profiles.py + network_policies.py) or `"cedar"` (cedarpy)
+  - `policy_cache_ttl_seconds: int = 300` — cache TTL for loaded policies
+  - `enable_code_fallback: bool = True` — fallback to hardcoded policies if DB unavailable
+  - `schema_path: str = ""` — optional path to `.cedarschema` file
+  - Env: `POLICY_ENGINE`, `POLICY_CACHE_TTL`, `POLICY_CODE_FALLBACK`
+- [ ] 12.3 Define Cedar schema (`cedar/schema.cedarschema`):
+  - Entity types: `Agent` (attrs: trust_level, max_file_modifications, allowed_operations), `AgentType`, `Action`, `File`, `Domain`, `Task`
+  - Action groups: `read_actions` (check_locks, get_work, recall, discover_agents), `write_actions` (acquire_lock, complete_work, submit_work, remember), `admin_actions` (force_push, delete_branch)
+- [ ] 12.4 Create default Cedar policies (`cedar/default_policies.cedar`):
+  - Permit read operations for all agents
+  - Permit write operations for trust_level >= 2
+  - Forbid admin operations unless trust_level >= 3
+  - Forbid all actions for trust_level 0 (suspended agents)
+  - Permit network access for `github.com`, `registry.npmjs.org`, `pypi.org`
+  - Deny all other network access (implicit Cedar default-deny)
+- [ ] 12.5 Create migration `010_cedar_policies.sql`:
+  - Table: `cedar_policies` (id, name, policy_text, priority, enabled, created_at, updated_at)
+  - Table: `cedar_entities` (id, entity_type, entity_id, attributes JSONB, parents JSONB)
+  - Seed default policies from `cedar/default_policies.cedar`
+  - RLS: service_role read/write, anon read-only for policies
+- [ ] 12.6 Create `src/policy_engine.py` following the service layer pattern:
+  - `PolicyDecision` dataclass (allowed, reason, policy_id) with `from_cedar()` classmethod
+  - `CedarPolicyEngine` class with DI constructor, `@property db`, lazy init
+  - `get_policy_engine()` singleton getter (returns `CedarPolicyEngine` or `NativePolicyEngine` based on config)
+  - `NativePolicyEngine` wrapper that delegates to `ProfilesService` + `NetworkPolicyService` for backward compatibility
+- [ ] 12.7 Implement `CedarPolicyEngine.check_operation(agent_id, agent_type, operation, resource, context?)`:
+  - Load policies from database (cached with TTL) + code fallback
+  - Build Cedar entities from agent profiles table
+  - Call `cedarpy.is_authorized()` with PARC request
+  - Return `PolicyDecision.from_cedar(result)`
+  - Log decision to audit trail
+- [ ] 12.8 Implement `CedarPolicyEngine.check_network_access(agent_id, domain)`:
+  - Maps to `is_authorized(principal=Agent, action=Action::"network_access", resource=Domain::domain)`
+  - Replaces `NetworkPolicyService.check_domain()` when Cedar is active
+- [ ] 12.9 Integrate `get_policy_engine()` into enforcement points:
+  - `coordination_mcp.py`: replace direct ProfilesService calls with policy engine dispatch
+  - `coordination_api.py`: replace direct ProfilesService calls with policy engine dispatch
+  - Network check sites: replace NetworkPolicyService calls with policy engine dispatch
+- [ ] 12.10 Add Cedar policy validation on write:
+  - Call `cedarpy.validate_policies(policy_text, schema)` before storing to database
+  - Reject policies that fail schema validation
+- [ ] 12.11 Add `cedar-admin` MCP tools (only when `POLICY_ENGINE=cedar`):
+  - `list_policies` — list all active Cedar policies
+  - `validate_policy` — validate Cedar policy text against schema
+- [ ] 12.12 Create `tests/test_policy_engine.py`:
+  - Test `CedarPolicyEngine` with sample policies and entities
+  - Test trust level enforcement (forbid for trust < 2)
+  - Test network domain allow/deny via Cedar
+  - Test policy caching and TTL expiry
+  - Test fallback to code policies when DB unavailable
+  - Test `NativePolicyEngine` delegates correctly to profiles + network services
+  - Test config dispatch: `POLICY_ENGINE=native` vs `POLICY_ENGINE=cedar`
+- [ ] 12.13 Update `.env.example` with `POLICY_ENGINE=native` and Cedar-related env vars
+
+## 13. Integration & Validation
+
+- [ ] 13.1 Run full test suite: `pytest` — zero failures
+- [ ] 13.2 Run type checking: `mypy --strict src/` — zero errors
+- [ ] 13.3 Run linting: `ruff check src/ tests/` — zero errors
+- [ ] 13.4 Verify all existing Phase 1 tests still pass unchanged
+- [ ] 13.5 Verify backward compatibility: Phase 1 MCP tool calls succeed after Phase 3 deployment
+- [ ] 13.6 Verify new module code coverage >90%
+- [ ] 13.7 Verify Cedar engine produces identical decisions to native engine for all default profile scenarios

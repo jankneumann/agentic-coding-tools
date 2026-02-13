@@ -205,6 +205,48 @@ The system SHALL route agent-generated changes to appropriate verification tiers
 - **THEN** system identifies affected files and routes to appropriate verification tier
 - **AND** runs guardrail pre-check before dispatching to executors
 
+### Requirement: Cedar Policy Engine (Optional Enhancement)
+
+The system SHALL support an optional Cedar-based policy engine as an alternative to the native profile and network policy enforcement modules.
+
+- Cedar SHALL be selectable via `POLICY_ENGINE=cedar` environment variable (default: `native`)
+- When active, Cedar SHALL replace `ProfilesService` and `NetworkPolicyService` for authorization decisions
+- Cedar SHALL NOT replace the regex-based guardrails engine (content inspection is separate from authorization)
+- Cedar SHALL NOT replace the audit trail (logging is separate from authorization)
+- Cedar policies SHALL be stored in the database and cached with configurable TTL
+- Cedar schema SHALL define entity types mapping to the coordination model: `Agent`, `AgentType`, `Action`, `File`, `Domain`, `Task`
+- All Cedar authorization decisions SHALL be logged to the audit trail
+- The system SHALL validate Cedar policies against the schema before storing
+- Default Cedar policies SHALL produce identical authorization decisions to the native engine for all preconfigured profiles
+- `cedarpy` SHALL be an optional dependency (only required when `POLICY_ENGINE=cedar`)
+- The `CedarPolicyEngine` SHALL follow the established service layer pattern (DI constructor, dataclass results, singleton getter)
+
+#### Scenario: Agent operation authorized via Cedar
+- **WHEN** `POLICY_ENGINE=cedar` and agent calls any coordination operation
+- **THEN** system evaluates Cedar policies with `is_authorized(principal=Agent, action=Operation, resource=Target, context={trust_level, ...})`
+- **AND** permits or denies based on Cedar's default-deny + forbid-overrides-permit semantics
+- **AND** logs the decision to audit trail
+
+#### Scenario: Network access checked via Cedar
+- **WHEN** `POLICY_ENGINE=cedar` and agent makes network request to a domain
+- **THEN** system evaluates `is_authorized(principal=Agent, action=Action::"network_access", resource=Domain::domain)`
+- **AND** permits only if an explicit `permit` policy exists for the domain (Cedar is default-deny)
+
+#### Scenario: Cedar policy validation on write
+- **WHEN** administrator adds or updates a Cedar policy
+- **THEN** system validates policy text against the Cedar schema using `validate_policies()`
+- **AND** rejects policies that contain schema errors
+
+#### Scenario: Native engine fallback
+- **WHEN** `POLICY_ENGINE=native` (default)
+- **THEN** system uses `ProfilesService` and `NetworkPolicyService` for authorization
+- **AND** Cedar module is not loaded and `cedarpy` dependency is not required
+
+#### Scenario: Cedar produces identical results to native engine
+- **WHEN** default Cedar policies are loaded
+- **THEN** Cedar authorization decisions match native engine decisions for all preconfigured agent profiles
+- **AND** no behavioral difference exists for agents
+
 ### Requirement: HTTP API Interface
 
 The system SHALL provide HTTP API for cloud agents that cannot use MCP protocol.

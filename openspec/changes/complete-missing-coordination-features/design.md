@@ -361,6 +361,184 @@ All new modules SHALL follow the testing patterns established in `tests/test_loc
 - **RLS/immutability tests**: Separate integration test file verifying audit table UPDATE/DELETE rejection
 - **Backward compatibility tests**: Verify Phase 1 tool calls succeed unchanged after Phase 3 deployment
 
+### 11. Cedar Policy Engine (Configurable Enhancement)
+
+- **Decision:** Introduce Cedar (AWS's open-source policy-as-code language) as an optional, configurable authorization engine that can replace the custom profile enforcement and network policy enforcement code. Controlled by `POLICY_ENGINE=cedar` (default: `native`). The regex-based guardrails engine and audit trail remain separate — Cedar handles authorization ("can this agent do this?"), not content inspection ("does this output contain destructive patterns?") or logging.
+- **Alternatives:** (a) Use Cedar for everything including guardrails — rejected because Cedar has no regex operator and cannot do content inspection against operation output text. (b) Skip Cedar entirely — rejected because Amazon Bedrock AgentCore uses Cedar for exactly the same purpose (agent-to-tool authorization at gateway level), making Cedar adoption a strategic alignment for Phase 4 AgentCore integration. (c) Build a custom policy DSL — rejected as reinventing what Cedar already provides with formal verification.
+- **Rationale:** Cedar's Principal/Action/Resource/Context (PARC) model maps directly to our Agent/Operation/Resource model. Adopting Cedar now means Phase 4 AgentCore policies are already in the right format. The `cedarpy` Python library (Rust engine via PyO3) evaluates policies in microseconds. This mirrors AgentCore's own architecture where "Guardrails manage expression; Policy manages action."
+
+#### Entity model mapping
+
+| Cedar Concept | Agent-Coordinator Mapping | Examples |
+|---------------|--------------------------|----------|
+| **Principal** | Agent identity | `Agent::"claude-code-agent-1"`, `AgentType::"cloud"` |
+| **Action** | Coordination operation | `Action::"acquire_lock"`, `Action::"complete_work"`, `Action::"network_access"` |
+| **Resource** | Target of operation | `File::"src/config.py"`, `Domain::"github.com"`, `Task::"task-uuid"` |
+| **Context** | Request parameters | `{trust_level: 3, files_modified: 5, department: "eng"}` |
+
+#### What Cedar replaces vs. what it doesn't
+
+| Current Module | Cedar Replaces? | Rationale |
+|----------------|----------------|-----------|
+| `profiles.py` (agent profiles) | **Yes** | Cedar's PARC model is purpose-built for "can agent X do operation Y on resource Z?" — this is RBAC/ABAC |
+| `network_policies.py` (domain access) | **Yes** | Domain allowlists/denylists map directly to Cedar permit/forbid on `Domain::` resources |
+| `guardrails.py` (content inspection) | **No** | Guardrails do regex content inspection on output text. Cedar has no regex operator — it does authorization, not content scanning |
+| `audit.py` (operation logging) | **No** | Audit is logging, not authorization. Cedar makes decisions; audit records them |
+
+#### Example Cedar policies for agent-coordinator
+
+```cedar
+// Profile: restrict reviewers to read-only operations
+forbid(
+    principal is AgentType::"reviewer",
+    action in [Action::"acquire_lock", Action::"complete_work", Action::"submit_work"],
+    resource
+);
+
+// Trust level: block elevated operations for low-trust agents
+forbid(
+    principal,
+    action == Action::"acquire_lock",
+    resource
+)
+when { principal.trust_level < 2 };
+
+// Resource limits: block after max file modifications exceeded
+forbid(
+    principal,
+    action == Action::"acquire_lock",
+    resource
+)
+when { context.files_modified >= principal.max_file_modifications };
+
+// Network: allow GitHub access for all agents
+permit(
+    principal,
+    action == Action::"network_access",
+    resource == Domain::"github.com"
+);
+
+// Network: allow npm registry for all agents
+permit(
+    principal,
+    action == Action::"network_access",
+    resource == Domain::"registry.npmjs.org"
+);
+
+// All other domains denied by Cedar's default-deny semantics
+
+// Elevated: allow force-push only for trust_level >= 3
+permit(
+    principal,
+    action == Action::"force_push",
+    resource
+)
+when { principal.trust_level >= 3 };
+```
+
+#### Architecture: hybrid enforcement
+
+```
+Agent Request
+    │
+    ├── [1] Cedar Policy Engine (authorization) ─── POLICY_ENGINE=cedar
+    │       "Is this agent allowed to call complete_work() on this resource?"
+    │       Replaces: profiles.py + network_policies.py
+    │       Engine: cedarpy (Rust via PyO3, microsecond eval)
+    │
+    ├── [2] Regex Guardrails Engine (content inspection) ─── Always active
+    │       "Does the task result contain destructive patterns?"
+    │       Remains: guardrails.py (regex + AST analysis)
+    │       Database patterns + code fallback
+    │
+    └── [3] Audit Trail (logging) ─── Always active
+            Logs both Cedar decisions and guardrail checks
+            Remains: audit.py (async, immutable)
+```
+
+#### Implementation approach
+
+```python
+# src/policy_engine.py
+from cedarpy import is_authorized, AuthzResult, Decision
+
+@dataclass
+class PolicyDecision:
+    allowed: bool
+    reason: str | None = None
+    policy_id: str | None = None
+
+    @classmethod
+    def from_cedar(cls, result: AuthzResult) -> "PolicyDecision":
+        return cls(
+            allowed=result.allowed,
+            reason=str(result.diagnostics) if not result.allowed else None,
+        )
+
+class CedarPolicyEngine:
+    """Cedar-based authorization engine. Replaces ProfilesService + NetworkPolicyService
+    when POLICY_ENGINE=cedar."""
+
+    def __init__(self, db: DatabaseClient | None = None):
+        self._db = db
+        self._policies_cache: str | None = None
+        self._entities_cache: list | None = None
+        self._cache_expiry: float = 0
+
+    @property
+    def db(self) -> DatabaseClient:
+        if self._db is None:
+            self._db = get_db()
+        return self._db
+
+    async def check_operation(
+        self, agent_id: str, agent_type: str, operation: str,
+        resource: str, context: dict[str, Any] | None = None,
+    ) -> PolicyDecision:
+        policies = await self._load_policies()
+        entities = await self._load_entities()
+        result = is_authorized(
+            request={
+                "principal": f'Agent::"{agent_id}"',
+                "action": f'Action::"{operation}"',
+                "resource": f'{self._resource_type(resource)}::"{resource}"',
+                "context": context or {},
+            },
+            policies=policies,
+            entities=entities,
+        )
+        return PolicyDecision.from_cedar(result)
+```
+
+#### Configuration
+
+```python
+# src/config.py
+@dataclass
+class PolicyEngineConfig:
+    engine: str = "native"           # "native" or "cedar"
+    policy_cache_ttl_seconds: int = 300
+    enable_code_fallback: bool = True
+    schema_path: str = ""            # Path to .cedarschema file (optional)
+    # Env: POLICY_ENGINE, POLICY_CACHE_TTL, POLICY_CODE_FALLBACK
+```
+
+#### Python SDK
+
+- **Package**: `cedarpy` on PyPI (v4.8.0+, Rust core via PyO3)
+- **API**: `is_authorized(request, policies, entities)` → `AuthzResult` (microsecond eval)
+- **Batch**: `is_authorized_batch()` for bulk authorization checks
+- **Validation**: `validate_policies(policies, schema)` catches policy errors at write time
+- **Dependency**: Added as optional extra `[cedar]` in `pyproject.toml` — only required when `POLICY_ENGINE=cedar`
+
+#### AgentCore alignment
+
+Adopting Cedar provides a direct migration path to Phase 4:
+1. Local Cedar policies can later be managed via AgentCore Policy service
+2. AgentCore's Principal=Agent, Action=ToolCall, Resource=Target maps 1:1 to our model
+3. AgentCore's natural language → Cedar authoring works with our policy schema
+4. AgentCore's gateway interception pattern matches our coordination layer enforcement
+
 ## Open Questions
 
 1. Should the verification_gateway Python code be refactored into `src/` or kept as a separate subpackage?
