@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from .config import get_config
-from .db import SupabaseClient, get_db
+from .db import DatabaseClient, get_db
 
 
 @dataclass
@@ -71,11 +71,11 @@ class LockResult:
 class LockService:
     """Service for managing file locks."""
 
-    def __init__(self, db: SupabaseClient | None = None):
+    def __init__(self, db: DatabaseClient | None = None):
         self._db = db
 
     @property
-    def db(self) -> SupabaseClient:
+    def db(self) -> DatabaseClient:
         if self._db is None:
             self._db = get_db()
         return self._db
