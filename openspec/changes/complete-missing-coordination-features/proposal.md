@@ -43,21 +43,56 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
 - No migration ordering or dependency management with Phase 1 tables
 - Verification and memory features cannot be enabled without manual SQL execution
 
+### Architecture Alignment Gaps (identified during proposal review)
+
+1. **Service layer pattern not specified**: New modules (guardrails, profiles, audit, memory, network_policies) must follow the established pattern in `locks.py` — dataclass results with `from_dict()`, service class with DI constructor, `@property db` lazy init, module-level singleton getter. The original proposal did not mandate this.
+
+2. **Configuration management missing**: No config dataclasses were specified for new features. Each module needs env-based config following the `SupabaseConfig`/`LockConfig` pattern in `src/config.py`.
+
+3. **MCP tools/resources incomplete for Phase 3**: Original proposal only specified `remember`/`recall` MCP tools. Phase 3 features (guardrails, profiles, audit) also need MCP tools and resources for agent access.
+
+4. **Cross-feature integration points undefined**: Guardrails must hook into `complete_work()`, profiles must hook into `acquire_lock()` and HTTP API, audit must hook into all existing services. These integration points were not specified.
+
+5. **Evaluation framework not extended**: The evaluation framework has no ablation flags, metrics, or tasks for Phase 3 safety features. Without them, the spec's success metrics (guardrail block rate >99%, audit completeness 100%) cannot be validated.
+
+6. **Backward compatibility not addressed**: No analysis of how Phase 1 agents behave after Phase 3 deployment.
+
+7. **README.md outdated**: Still says "Phase 1 MVP" and lists only 6 MCP tools. Architecture diagram shows only Phase 1 components. No setup instructions for Phase 2-3 features.
+
 ## What Changes
+
+### Database Abstraction (Foundational)
+- Introduce `DatabaseClient` protocol in `src/db.py` abstracting the database interface (`rpc`, `query`, `insert`, `update`, `delete`, `close`)
+- Implement `create_db_client()` factory function selecting backend based on `DB_BACKEND` env var
+- Existing `SupabaseClient` (PostgREST HTTP) becomes one implementation; new `DirectPostgresClient` (asyncpg) enables direct PostgreSQL connections for self-hosted, RDS, Neon, or any Postgres-compatible database
+- All service classes updated to depend on the `DatabaseClient` protocol instead of `SupabaseClient`
 
 ### Phase 2 Completion
 - Integrate memory database schema into main migrations (`004_memory_tables.sql`)
-- Add `remember` and `recall` MCP tools to `coordination_mcp.py`
+- Create `src/memory.py` service following established service layer pattern
+- Add `remember` and `recall` MCP tools + `memories://recent` resource to `coordination_mcp.py`
 - Implement GitHub-mediated coordination fallback (issue labels, branch naming)
 - Integrate verification_gateway coordination_api.py with main project structure
 
 ### Phase 3 Completion
-- Implement guardrails engine (`src/guardrails.py`) with destructive operation pattern registry
-- Implement agent profiles (`src/profiles.py`) with trust levels 0-4
-- Implement network access policies with domain allowlists/denylists
-- Implement audit trail (`src/audit.py`) with append-only logging
+- Implement guardrails engine (`src/guardrails.py`) with destructive operation pattern registry and code fallback
+- Implement agent profiles (`src/profiles.py`) with trust levels 0-4 and resource limits
+- Implement network access policies (`src/network_policies.py`) with domain allowlists/denylists
+- Implement audit trail (`src/audit.py`) with immutable append-only logging and async inserts
+- Add Phase 3 MCP tools (`check_guardrails`, `get_my_profile`, `query_audit`) and resources
 - Integrate verification schema into main migrations (`005_verification_tables.sql`)
+- Create guardrails, profiles, audit, and network policy migrations (006-009)
 - Complete verification executor implementations (GitHub Actions, NTM, E2B — currently skeleton)
+- Integrate profile checks into existing MCP tools and HTTP API
+- Integrate guardrail pre-execution hooks into `complete_work()`
+- Add audit logging hooks to all existing coordination operations
+- Add config dataclasses (`GuardrailsConfig`, `ProfilesConfig`, `AuditConfig`, `NetworkPolicyConfig`) to `src/config.py`
+
+### Evaluation Framework Extension
+- Add Phase 3 ablation flags: `guardrails`, `profiles`, `audit`, `network_policies`
+- Add `SafetyMetrics` dataclass for guardrail block rate, profile enforcement, audit completeness
+- Create 5 new evaluation tasks testing destructive operations, trust enforcement, and audit completeness
+- Update report generator to include safety metrics
 
 ### Phase 4 (Deferred — Design Only)
 - Strands SDK orchestration and AgentCore integration are deferred to a future proposal
@@ -65,17 +100,23 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
 - Design document captures integration architecture for when Strands/AgentCore are adopted
 
 ### Documentation Updates
-- Update `docs/agent-coordinator.md` implementation status table
+- Update `docs/agent-coordinator.md` implementation status table and architecture diagram
 - Update `openspec/specs/agent-coordinator/spec.md` implementation status and database tables sections
+- **Update `agent-coordinator/README.md`**: Expand from "Phase 1 MVP" to full system documentation — all MCP tools/resources, updated architecture diagram, Phase 2-3 setup instructions, new environment variables, updated file structure, and revised future phases section
 
 ## Impact
 
-- Affected specs: `agent-coordinator`
+- Affected specs: `agent-coordinator`, `evaluation-framework`
 - Affected code:
-  - `agent-coordinator/src/` (new modules: guardrails.py, profiles.py, audit.py, github_coordination.py)
-  - `agent-coordinator/src/coordination_mcp.py` (add memory tools)
-  - `agent-coordinator/supabase/migrations/` (new migrations 004, 005)
-  - `agent-coordinator/verification_gateway/` (integrate into main structure)
+  - `agent-coordinator/src/` (new modules: guardrails.py, profiles.py, audit.py, memory.py, network_policies.py, github_coordination.py)
+  - `agent-coordinator/src/config.py` (new config dataclasses)
+  - `agent-coordinator/src/coordination_mcp.py` (add Phase 2-3 tools and resources)
+  - `agent-coordinator/src/locks.py`, `work_queue.py`, `handoffs.py`, `discovery.py` (audit logging hooks, profile checks)
+  - `agent-coordinator/supabase/migrations/` (new migrations 004-009)
+  - `agent-coordinator/verification_gateway/` (integrate schemas into main pipeline)
+  - `agent-coordinator/evaluation/` (ablation flags, metrics, tasks for Phase 3)
+  - `agent-coordinator/README.md` (comprehensive update with Phase 2-3 documentation)
+  - `agent-coordinator/.env.example` (new environment variables)
   - `docs/agent-coordinator.md` (update status)
   - `openspec/specs/agent-coordinator/spec.md` (update status metadata)
-- **BREAKING**: None. All changes are additive.
+- **BREAKING**: None. All changes are additive. Phase 1 agents operate unchanged after deployment.
