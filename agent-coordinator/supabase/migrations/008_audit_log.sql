@@ -60,10 +60,16 @@ BEGIN
     -- Temporarily disable the immutability trigger for cleanup
     ALTER TABLE audit_log DISABLE TRIGGER prevent_audit_modification;
 
-    DELETE FROM audit_log
-    WHERE created_at < now() - (p_retention_days || ' days')::interval;
+    BEGIN
+        DELETE FROM audit_log
+        WHERE created_at < now() - (p_retention_days || ' days')::interval;
 
-    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+        GET DIAGNOSTICS v_deleted = ROW_COUNT;
+    EXCEPTION WHEN OTHERS THEN
+        -- Re-enable the trigger even on failure
+        ALTER TABLE audit_log ENABLE TRIGGER prevent_audit_modification;
+        RAISE;
+    END;
 
     -- Re-enable the trigger
     ALTER TABLE audit_log ENABLE TRIGGER prevent_audit_modification;

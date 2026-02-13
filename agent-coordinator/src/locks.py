@@ -4,6 +4,7 @@ Provides distributed file locking to prevent concurrent edits by multiple agents
 Locks are stored in Supabase with automatic TTL expiration.
 """
 
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -128,8 +129,8 @@ class LockService:
                 result={"action": lock_result.action},
                 success=lock_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for acquire_lock: {exc}", file=sys.stderr)
 
         return lock_result
 
@@ -166,8 +167,8 @@ class LockService:
                 parameters={"file_path": file_path},
                 success=lock_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for release_lock: {exc}", file=sys.stderr)
 
         return lock_result
 

@@ -7,11 +7,38 @@ This client translates the DatabaseClient protocol methods into standard SQL
 executed via asyncpg's connection pool.
 """
 
+import re
 from typing import Any
+from uuid import UUID
 
-import asyncpg
+import asyncpg  # noqa: I001
 
 from .config import PostgresConfig
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
+)
+
+
+def _coerce_filter_value(val: str) -> Any:
+    """Coerce a PostgREST filter string value to the appropriate Python type.
+
+    asyncpg requires typed parameters — passing a string for a UUID or int
+    column causes a type mismatch error.
+    """
+    if val.lower() in ("true", "false"):
+        return val.lower() == "true"
+    if _UUID_RE.match(val):
+        return UUID(val)
+    try:
+        return int(val)
+    except ValueError:
+        pass
+    try:
+        return float(val)
+    except ValueError:
+        pass
+    return val
 
 
 class DirectPostgresClient:
@@ -88,7 +115,7 @@ class DirectPostgresClient:
                 elif "=eq." in part:
                     col, val = part.split("=eq.", 1)
                     where_clauses.append(f"{col} = ${param_idx}")
-                    values.append(val)
+                    values.append(_coerce_filter_value(val))
                     param_idx += 1
                 elif "=gt." in part:
                     col, val = part.split("=gt.", 1)
@@ -96,7 +123,7 @@ class DirectPostgresClient:
                         where_clauses.append(f"{col} > NOW()")
                     else:
                         where_clauses.append(f"{col} > ${param_idx}")
-                        values.append(val)
+                        values.append(_coerce_filter_value(val))
                         param_idx += 1
                 elif "=in." in part:
                     col, val = part.split("=in.", 1)
@@ -106,7 +133,7 @@ class DirectPostgresClient:
                         f"${param_idx + i}" for i in range(len(in_values))
                     )
                     where_clauses.append(f"{col} IN ({placeholders})")
-                    values.extend(in_values)
+                    values.extend(_coerce_filter_value(v) for v in in_values)
                     param_idx += len(in_values)
 
         where = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""

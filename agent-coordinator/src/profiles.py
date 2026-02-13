@@ -4,6 +4,7 @@ Provides configurable agent profiles with trust levels, operation restrictions,
 and resource limits. Profiles are stored in the database with code-level defaults.
 """
 
+import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -114,7 +115,7 @@ class ProfilesService:
         cache_key = f"{agent_id}:{agent_type}"
         if cache_key in self._cache:
             profile, cached_at = self._cache[cache_key]
-            if time.monotonic() - cached_at < config.profiles.default_trust_level * 60:
+            if time.monotonic() - cached_at < config.profiles.cache_ttl_seconds:
                 return ProfileResult(success=True, profile=profile, source="cache")
 
         result = await self.db.rpc(
@@ -209,8 +210,8 @@ class ProfilesService:
                 result={"reason": reason},
                 success=True,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for profile_denial: {exc}", file=sys.stderr)
 
 
 # Global service instance

@@ -149,10 +149,13 @@ ALTER TABLE memory_episodic ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_working ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_procedural ENABLE ROW LEVEL SECURITY;
 
--- Read access for all roles
-CREATE POLICY memory_episodic_read ON memory_episodic FOR SELECT USING (true);
-CREATE POLICY memory_working_read ON memory_working FOR SELECT USING (true);
-CREATE POLICY memory_procedural_read ON memory_procedural FOR SELECT USING (true);
+-- Read access restricted to service_role
+CREATE POLICY memory_episodic_read ON memory_episodic FOR SELECT
+    USING (current_setting('role') = 'service_role');
+CREATE POLICY memory_working_read ON memory_working FOR SELECT
+    USING (current_setting('role') = 'service_role');
+CREATE POLICY memory_procedural_read ON memory_procedural FOR SELECT
+    USING (current_setting('role') = 'service_role');
 
 -- Write access for service_role only
 CREATE POLICY memory_episodic_write ON memory_episodic FOR INSERT

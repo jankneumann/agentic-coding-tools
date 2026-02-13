@@ -4,6 +4,7 @@ Provides task assignment and tracking for multi-agent coordination.
 Tasks are claimed atomically to prevent double-assignment.
 """
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -12,6 +13,8 @@ from uuid import UUID
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+
+MAX_PAGE_SIZE = 100
 
 
 @dataclass
@@ -207,11 +210,15 @@ class WorkQueueService:
                         patterns = [
                             v.pattern_name for v in check.violations if v.blocked
                         ]
-                        claim_result.reason = (
-                            f"destructive_operation_blocked: {', '.join(patterns)}"
+                        return ClaimResult(
+                            success=False,
+                            reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                         )
-            except Exception:
-                pass  # Guardrails failure should not block claim
+            except Exception as exc:
+                print(
+                    f"agent-coordinator: guardrails check failed during claim: {exc}",
+                    file=sys.stderr,
+                )
 
         try:
             await get_audit_service().log_operation(
@@ -224,8 +231,8 @@ class WorkQueueService:
                 },
                 success=claim_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for claim_task: {exc}", file=sys.stderr)
 
         return claim_result
 
@@ -275,8 +282,11 @@ class WorkQueueService:
                         task_id=task_id,
                         reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                     )
-            except Exception:
-                pass  # Guardrails failure should not block completion
+            except Exception as exc:
+                print(
+                    f"agent-coordinator: guardrails check failed during complete: {exc}",
+                    file=sys.stderr,
+                )
 
         result_data = await self.db.rpc(
             "complete_task",
@@ -301,8 +311,8 @@ class WorkQueueService:
                 },
                 success=complete_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for complete_task: {exc}", file=sys.stderr)
 
         return complete_result
 
@@ -347,8 +357,11 @@ class WorkQueueService:
                     success=False,
                     task_id=None,
                 )
-        except Exception:
-            pass  # Guardrails failure should not block submission
+        except Exception as exc:
+            print(
+                f"agent-coordinator: guardrails check failed during submit: {exc}",
+                file=sys.stderr,
+            )
 
         depends_on_str = None
         if depends_on:
@@ -385,8 +398,8 @@ class WorkQueueService:
                 },
                 success=submit_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for submit_task: {exc}", file=sys.stderr)
 
         return submit_result
 
@@ -399,11 +412,12 @@ class WorkQueueService:
 
         Args:
             task_types: Filter by task types (None for all)
-            limit: Maximum number of tasks to return
+            limit: Maximum number of tasks to return (capped at MAX_PAGE_SIZE)
 
         Returns:
             List of pending tasks ordered by priority
         """
+        limit = min(limit, MAX_PAGE_SIZE)
         query = f"status=eq.pending&order=priority.asc,created_at.asc&limit={limit}"
 
         if task_types:
@@ -442,7 +456,7 @@ class WorkQueueService:
         config = get_config()
         agent = agent_id or config.agent.agent_id
 
-        query = f"claimed_by=eq.{agent}&order=claimed_at.desc"
+        query = f"claimed_by=eq.{agent}&order=claimed_at.desc&limit={MAX_PAGE_SIZE}"
         if not include_completed:
             query += "&status=in.(claimed,running)"
 

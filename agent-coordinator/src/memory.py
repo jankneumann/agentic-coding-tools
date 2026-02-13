@@ -4,6 +4,7 @@ Provides episodic and procedural memory for cross-session learning.
 Memories are stored with relevance scoring and time-decay.
 """
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -150,8 +151,8 @@ class MemoryService:
                 result={"action": mem_result.action},
                 success=mem_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for remember: {exc}", file=sys.stderr)
 
         return mem_result
 

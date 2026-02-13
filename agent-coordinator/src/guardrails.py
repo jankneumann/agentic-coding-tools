@@ -5,6 +5,7 @@ Patterns are stored in the database with a hardcoded fallback registry.
 """
 
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -260,8 +261,11 @@ class GuardrailsService:
                     },
                     success=True,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                print(
+                    f"agent-coordinator: audit failed for guardrail_violation: {exc}",
+                    file=sys.stderr,
+                )
 
         return result
 

@@ -4,6 +4,7 @@ Provides agent registration, discovery, heartbeat monitoring,
 and dead agent cleanup for multi-agent coordination.
 """
 
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -163,8 +164,8 @@ class DiscoveryService:
                 parameters={"capabilities": capabilities or []},
                 success=reg_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"agent-coordinator: audit log failed for register_agent: {exc}", file=sys.stderr)
 
         return reg_result
 
@@ -251,8 +252,11 @@ class DiscoveryService:
                 },
                 success=cleanup_result.success,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(
+                f"agent-coordinator: audit failed for cleanup_dead_agents: {exc}",
+                file=sys.stderr,
+            )
 
         return cleanup_result
 

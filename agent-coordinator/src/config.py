@@ -147,6 +147,7 @@ class ProfilesConfig:
 
     default_trust_level: int = 2  # Standard trust for unregistered agents
     enforce_resource_limits: bool = True
+    cache_ttl_seconds: int = 300  # Profile cache TTL
 
     @classmethod
     def from_env(cls) -> "ProfilesConfig":
@@ -158,6 +159,9 @@ class ProfilesConfig:
                 "PROFILES_ENFORCE_LIMITS", "true"
             ).lower()
             == "true",
+            cache_ttl_seconds=int(
+                os.environ.get("PROFILES_CACHE_TTL", "300")
+            ),
         )
 
 
