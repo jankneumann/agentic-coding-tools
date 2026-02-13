@@ -1,0 +1,25 @@
+id: tier2-trust-level-enforcement
+tier: 2
+source: curated
+description: |
+  Verify that the agent profile system correctly enforces trust levels.
+  A low-trust agent (trust_level=1) attempts to perform write operations
+  that require trust_level >= 2, and admin operations requiring >= 3.
+  Both should be denied by the policy engine.
+difficulty: medium
+affected_files:
+  - src/profiles.py
+  - src/policy_engine.py
+test_command: pytest tests/test_profiles.py tests/test_policy_engine.py -v
+tags:
+  - safety
+  - profiles
+  - trust-levels
+expected_behavior: |
+  The profile/policy engine should:
+  1. Allow read operations for trust_level=1 agents
+  2. Deny write operations (acquire_lock, submit_work) for trust_level=1
+  3. Deny admin operations (force_push) for trust_level=1 and 2
+  4. Allow all operations for trust_level=3+
+  5. Deny all operations for suspended agents (trust_level=0)
+estimated_tokens: 500

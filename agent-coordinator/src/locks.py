@@ -4,12 +4,16 @@ Provides distributed file locking to prevent concurrent edits by multiple agents
 Locks are stored in Supabase with automatic TTL expiration.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
-from .db import SupabaseClient, get_db
+from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -71,11 +75,11 @@ class LockResult:
 class LockService:
     """Service for managing file locks."""
 
-    def __init__(self, db: SupabaseClient | None = None):
+    def __init__(self, db: DatabaseClient | None = None):
         self._db = db
 
     @property
-    def db(self) -> SupabaseClient:
+    def db(self) -> DatabaseClient:
         if self._db is None:
             self._db = get_db()
         return self._db
@@ -116,7 +120,21 @@ class LockService:
             },
         )
 
-        return LockResult.from_dict(result)
+        lock_result = LockResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                agent_type=agent_type or config.agent.agent_type,
+                operation="acquire_lock",
+                parameters={"file_path": file_path, "reason": reason},
+                result={"action": lock_result.action},
+                success=lock_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for acquire_lock", exc_info=True)
+
+        return lock_result
 
     async def release(
         self,
@@ -142,7 +160,19 @@ class LockService:
             },
         )
 
-        return LockResult.from_dict(result)
+        lock_result = LockResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                operation="release_lock",
+                parameters={"file_path": file_path},
+                success=lock_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for release_lock", exc_info=True)
+
+        return lock_result
 
     async def check(
         self,

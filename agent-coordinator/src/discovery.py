@@ -4,12 +4,16 @@ Provides agent registration, discovery, heartbeat monitoring,
 and dead agent cleanup for multi-agent coordination.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .audit import get_audit_service
 from .config import get_config
-from .db import SupabaseClient, get_db
+from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,11 +114,11 @@ class CleanupResult:
 class DiscoveryService:
     """Service for agent discovery and lifecycle management."""
 
-    def __init__(self, db: SupabaseClient | None = None):
+    def __init__(self, db: DatabaseClient | None = None):
         self._db = db
 
     @property
-    def db(self) -> SupabaseClient:
+    def db(self) -> DatabaseClient:
         if self._db is None:
             self._db = get_db()
         return self._db
@@ -152,7 +156,20 @@ class DiscoveryService:
             },
         )
 
-        return RegisterResult.from_dict(result)
+        reg_result = RegisterResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id or config.agent.agent_id,
+                agent_type=agent_type or config.agent.agent_type,
+                operation="register_agent",
+                parameters={"capabilities": capabilities or []},
+                success=reg_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for register_agent", exc_info=True)
+
+        return reg_result
 
     async def discover(
         self,
@@ -223,7 +240,24 @@ class DiscoveryService:
             },
         )
 
-        return CleanupResult.from_dict(result)
+        cleanup_result = CleanupResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                operation="cleanup_dead_agents",
+                parameters={
+                    "stale_threshold_minutes": stale_threshold_minutes
+                },
+                result={
+                    "agents_cleaned": cleanup_result.agents_cleaned,
+                    "locks_released": cleanup_result.locks_released,
+                },
+                success=cleanup_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for cleanup_dead_agents", exc_info=True)
+
+        return cleanup_result
 
 
 # Global service instance

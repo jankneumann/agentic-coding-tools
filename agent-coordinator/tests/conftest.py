@@ -7,7 +7,7 @@ import pytest
 import respx
 
 from src.config import AgentConfig, Config, LockConfig, SupabaseConfig, reset_config
-from src.db import SupabaseClient
+from src.db import SupabaseClient, reset_db
 
 # =============================================================================
 # Environment Setup
@@ -24,9 +24,10 @@ def setup_env(monkeypatch):
     monkeypatch.setenv("SESSION_ID", "test-session-1")
     monkeypatch.setenv("LOCK_TTL_MINUTES", "30")
 
-    # Reset global config after each test
+    # Reset global singletons after each test
     yield
     reset_config()
+    reset_db()
 
 
 @pytest.fixture

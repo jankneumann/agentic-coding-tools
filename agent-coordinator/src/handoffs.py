@@ -4,13 +4,17 @@ Provides session continuity by persisting structured handoff documents
 that agents can write at session end and read at session start.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from .audit import get_audit_service
 from .config import get_config
-from .db import SupabaseClient, get_db
+from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -88,11 +92,11 @@ class ReadHandoffResult:
 class HandoffService:
     """Service for managing handoff documents."""
 
-    def __init__(self, db: SupabaseClient | None = None):
+    def __init__(self, db: DatabaseClient | None = None):
         self._db = db
 
     @property
-    def db(self) -> SupabaseClient:
+    def db(self) -> DatabaseClient:
         if self._db is None:
             self._db = get_db()
         return self._db
@@ -142,7 +146,23 @@ class HandoffService:
         except Exception:
             return WriteHandoffResult(success=False, error="database_unavailable")
 
-        return WriteHandoffResult.from_dict(result)
+        write_result = WriteHandoffResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_name or config.agent.agent_id,
+                operation="write_handoff",
+                parameters={"summary_length": len(summary)},
+                result={
+                    "handoff_id": str(write_result.handoff_id)
+                    if write_result.handoff_id else None
+                },
+                success=write_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for write_handoff", exc_info=True)
+
+        return write_result
 
     async def read(
         self,
@@ -166,7 +186,22 @@ class HandoffService:
             },
         )
 
-        return ReadHandoffResult.from_dict(result)
+        read_result = ReadHandoffResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                operation="read_handoff",
+                parameters={
+                    "agent_name": agent_name,
+                    "limit": limit,
+                },
+                result={"count": len(read_result.handoffs)},
+                success=True,
+            )
+        except Exception:
+            logger.warning("Audit log failed for read_handoff", exc_info=True)
+
+        return read_result
 
     async def get_recent(
         self,

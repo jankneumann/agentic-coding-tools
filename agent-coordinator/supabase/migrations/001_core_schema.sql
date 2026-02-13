@@ -66,6 +66,10 @@ CREATE INDEX idx_work_queue_claimed ON work_queue(claimed_by);
 CREATE INDEX idx_work_queue_priority ON work_queue(priority, created_at);
 CREATE INDEX idx_work_queue_pending ON work_queue(status, priority, created_at)
     WHERE status = 'pending';
+CREATE INDEX idx_work_queue_deadline ON work_queue(deadline) WHERE deadline IS NOT NULL;
+CREATE INDEX idx_work_queue_claimed_status ON work_queue(claimed_by, status);
+CREATE INDEX idx_work_queue_depends_on ON work_queue USING GIN (depends_on)
+    WHERE depends_on IS NOT NULL;
 
 
 -- =============================================================================
@@ -111,6 +115,17 @@ DECLARE
     v_existing RECORD;
     v_expires_at TIMESTAMPTZ;
 BEGIN
+    -- Input validation
+    IF p_file_path IS NULL OR length(trim(p_file_path)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'reason', 'invalid_file_path');
+    END IF;
+    IF p_agent_id IS NULL OR length(trim(p_agent_id)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'reason', 'invalid_agent_id');
+    END IF;
+    IF p_ttl_minutes < 1 OR p_ttl_minutes > 480 THEN
+        RETURN jsonb_build_object('success', false, 'reason', 'ttl_out_of_range');
+    END IF;
+
     -- Clean up expired locks first
     DELETE FROM file_locks WHERE expires_at < NOW();
 
@@ -326,11 +341,11 @@ CREATE POLICY "Allow read access" ON agent_sessions FOR SELECT USING (true);
 
 -- Service role has full access (for MCP server and API)
 CREATE POLICY "Service role full access" ON file_locks
-    FOR ALL USING (auth.role() = 'service_role');
+    FOR ALL USING (current_setting('role') = 'service_role');
 CREATE POLICY "Service role full access" ON work_queue
-    FOR ALL USING (auth.role() = 'service_role');
+    FOR ALL USING (current_setting('role') = 'service_role');
 CREATE POLICY "Service role full access" ON agent_sessions
-    FOR ALL USING (auth.role() = 'service_role');
+    FOR ALL USING (current_setting('role') = 'service_role');
 
 
 -- =============================================================================

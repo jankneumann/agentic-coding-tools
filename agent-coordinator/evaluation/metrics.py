@@ -79,6 +79,28 @@ class CoordinationMetrics:
 
 
 @dataclass
+class SafetyMetrics:
+    """Metrics about Phase 3 safety mechanism usage."""
+
+    guardrail_checks: int = 0
+    guardrail_blocks: int = 0
+    guardrail_block_rate: float = 0.0
+    profile_enforcement_checks: int = 0
+    profile_violations_blocked: int = 0
+    audit_entries_written: int = 0
+    audit_write_latency_ms: float = 0.0
+    network_requests_checked: int = 0
+    network_requests_blocked: int = 0
+
+    def compute_rates(self) -> None:
+        """Compute derived rates from raw counts."""
+        if self.guardrail_checks > 0:
+            self.guardrail_block_rate = (
+                self.guardrail_blocks / self.guardrail_checks
+            )
+
+
+@dataclass
 class ParallelizationMetrics:
     """Metrics about parallelization performance."""
 
@@ -103,6 +125,7 @@ class TaskMetrics:
     token_usage: TokenUsage = field(default_factory=TokenUsage)
     correctness: CorrectnessMetrics = field(default_factory=CorrectnessMetrics)
     coordination: CoordinationMetrics = field(default_factory=CoordinationMetrics)
+    safety: SafetyMetrics = field(default_factory=SafetyMetrics)
     parallelization: ParallelizationMetrics = field(
         default_factory=ParallelizationMetrics
     )
@@ -114,8 +137,11 @@ class TaskMetrics:
 
     def compute_coordination_overhead(self) -> None:
         """Compute coordination overhead from timing measurements."""
-        coord_ops = {"lock_acquire", "lock_release", "memory_read", "memory_write",
-                     "handoff_write", "handoff_read", "queue_claim", "queue_complete"}
+        coord_ops = {
+            "lock_acquire", "lock_release", "memory_read", "memory_write",
+            "handoff_write", "handoff_read", "queue_claim", "queue_complete",
+            "guardrail_check", "profile_check", "audit_write", "network_check",
+        }
         coord_time = sum(
             t.duration_seconds for t in self.timings if t.operation in coord_ops
         )
@@ -146,6 +172,17 @@ class TaskMetrics:
                 "lock_contention_rate": self.coordination.lock_contention_rate,
                 "memory_hit_rate": self.coordination.memory_hit_rate,
                 "handoff_continuity_score": self.coordination.handoff_continuity_score,
+            },
+            "safety": {
+                "guardrail_checks": self.safety.guardrail_checks,
+                "guardrail_blocks": self.safety.guardrail_blocks,
+                "guardrail_block_rate": self.safety.guardrail_block_rate,
+                "profile_enforcement_checks": self.safety.profile_enforcement_checks,
+                "profile_violations_blocked": self.safety.profile_violations_blocked,
+                "audit_entries_written": self.safety.audit_entries_written,
+                "audit_write_latency_ms": self.safety.audit_write_latency_ms,
+                "network_requests_checked": self.safety.network_requests_checked,
+                "network_requests_blocked": self.safety.network_requests_blocked,
             },
             "parallelization": {
                 "speedup_factor": self.parallelization.speedup_factor,
@@ -335,6 +372,7 @@ class MetricsCollector:
             return None
         self._current_metrics.compute_coordination_overhead()
         self._current_metrics.coordination.compute_rates()
+        self._current_metrics.safety.compute_rates()
         self._all_metrics.append(self._current_metrics)
         result = self._current_metrics
         self._current_metrics = None
@@ -402,6 +440,33 @@ class MetricsCollector:
             self._current_metrics.coordination.memory_reads += 1
             if hit:
                 self._current_metrics.coordination.memory_hits += 1
+
+    def record_guardrail_event(self, blocked: bool = False) -> None:
+        """Record a guardrail check event."""
+        if self._current_metrics is not None:
+            self._current_metrics.safety.guardrail_checks += 1
+            if blocked:
+                self._current_metrics.safety.guardrail_blocks += 1
+
+    def record_profile_check(self, violation: bool = False) -> None:
+        """Record a profile enforcement check."""
+        if self._current_metrics is not None:
+            self._current_metrics.safety.profile_enforcement_checks += 1
+            if violation:
+                self._current_metrics.safety.profile_violations_blocked += 1
+
+    def record_audit_write(self, latency_ms: float = 0.0) -> None:
+        """Record an audit log write event."""
+        if self._current_metrics is not None:
+            self._current_metrics.safety.audit_entries_written += 1
+            self._current_metrics.safety.audit_write_latency_ms = latency_ms
+
+    def record_network_check(self, blocked: bool = False) -> None:
+        """Record a network access check."""
+        if self._current_metrics is not None:
+            self._current_metrics.safety.network_requests_checked += 1
+            if blocked:
+                self._current_metrics.safety.network_requests_blocked += 1
 
     def record_parallelization(
         self,

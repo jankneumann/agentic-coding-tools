@@ -94,6 +94,19 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
 - Create 5 new evaluation tasks testing destructive operations, trust enforcement, and audit completeness
 - Update report generator to include safety metrics
 
+### Cedar Policy Engine (Configurable Enhancement)
+- Introduce Cedar (AWS open-source policy-as-code language) as an optional authorization engine (`POLICY_ENGINE=cedar`)
+- When enabled, Cedar replaces custom profile enforcement (`profiles.py`) and network policy code (`network_policies.py`) with a unified policy-as-code engine
+- Cedar's PARC model (Principal/Action/Resource/Context) maps directly to Agent/Operation/Resource
+- Regex guardrails remain separate — Cedar handles authorization, not content inspection
+- Audit trail remains separate — Cedar makes decisions, audit logs them
+- `cedarpy` dependency (Rust engine via PyO3, microsecond evaluation) added as optional `[cedar]` extra
+- Database table `cedar_policies` stores policy text, loaded and cached with configurable TTL
+- Cedar schema defines entity types: `Agent`, `AgentType`, `Action`, `File`, `Domain`, `Task`
+- Strategic alignment: Amazon Bedrock AgentCore uses Cedar for agent-to-tool authorization — adopting Cedar now provides a direct migration path for Phase 4 AgentCore integration
+- Default is `native` (current profiles.py + network_policies.py code), Cedar is opt-in
+
+
 ### Phase 4 (Deferred — Design Only)
 - Strands SDK orchestration and AgentCore integration are deferred to a future proposal
 - Current evaluation framework is sufficient for Phase 4's measurement goals
@@ -108,7 +121,7 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
 
 - Affected specs: `agent-coordinator`, `evaluation-framework`
 - Affected code:
-  - `agent-coordinator/src/` (new modules: guardrails.py, profiles.py, audit.py, memory.py, network_policies.py, github_coordination.py)
+  - `agent-coordinator/src/` (new modules: guardrails.py, profiles.py, audit.py, memory.py, network_policies.py, github_coordination.py, policy_engine.py)
   - `agent-coordinator/src/config.py` (new config dataclasses)
   - `agent-coordinator/src/coordination_mcp.py` (add Phase 2-3 tools and resources)
   - `agent-coordinator/src/locks.py`, `work_queue.py`, `handoffs.py`, `discovery.py` (audit logging hooks, profile checks)
@@ -119,4 +132,6 @@ The `verification_gateway/` directory contains standalone SQL schemas (`supabase
   - `agent-coordinator/.env.example` (new environment variables)
   - `docs/agent-coordinator.md` (update status)
   - `openspec/specs/agent-coordinator/spec.md` (update status metadata)
-- **BREAKING**: None. All changes are additive. Phase 1 agents operate unchanged after deployment.
+  - `agent-coordinator/cedar/` (Cedar schema and default policies, only when `POLICY_ENGINE=cedar`)
+  - `agent-coordinator/pyproject.toml` (`cedarpy` as optional `[cedar]` dependency)
+- **BREAKING**: None. All changes are additive. Phase 1 agents operate unchanged after deployment. Cedar is opt-in via `POLICY_ENGINE=cedar` and does not affect the default `native` engine.

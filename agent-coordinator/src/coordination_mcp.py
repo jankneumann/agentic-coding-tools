@@ -31,10 +31,14 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from .audit import get_audit_service
 from .config import get_config
 from .discovery import get_discovery_service
+from .guardrails import get_guardrails_service
 from .handoffs import get_handoff_service
 from .locks import get_lock_service
+from .memory import get_memory_service
+from .profiles import get_profiles_service
 from .work_queue import get_work_queue_service
 
 # Create the MCP server
@@ -566,6 +570,322 @@ async def cleanup_dead_agents(
 
 
 # =============================================================================
+# MCP TOOLS: Memory (Phase 2)
+# =============================================================================
+
+
+@mcp.tool()
+async def remember(
+    event_type: str = "discovery",
+    summary: str = "",
+    details: dict[str, Any] | None = None,
+    outcome: str | None = None,
+    lessons: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Store an episodic memory for cross-session learning.
+
+    Use this to record important events, decisions, errors, and learnings
+    so future sessions can benefit from past experience.
+
+    Args:
+        event_type: Type of event ('error', 'success', 'decision', 'discovery', 'optimization')
+        summary: Short description of what happened
+        details: Additional structured data (optional)
+        outcome: 'positive', 'negative', or 'neutral' (optional)
+        lessons: Lessons learned from this event (optional)
+        tags: Tags for filtering during recall (optional)
+
+    Returns:
+        success: Whether the memory was stored
+        memory_id: UUID of the stored memory
+        action: 'created' or 'deduplicated' (if similar memory exists within 1 hour)
+    """
+    service = get_memory_service()
+    result = await service.remember(
+        event_type=event_type,
+        summary=summary,
+        details=details,
+        outcome=outcome,
+        lessons=lessons,
+        tags=tags,
+    )
+
+    return {
+        "success": result.success,
+        "memory_id": result.memory_id,
+        "action": result.action,
+        "error": result.error,
+    }
+
+
+@mcp.tool()
+async def recall(
+    tags: list[str] | None = None,
+    event_type: str | None = None,
+    limit: int = 10,
+    min_relevance: float = 0.0,
+) -> dict[str, Any]:
+    """
+    Recall relevant memories from past sessions.
+
+    Use this at the start of a session or when facing a problem
+    to benefit from past experience.
+
+    Args:
+        tags: Filter by tags (memories matching ANY tag are returned)
+        event_type: Filter by event type (optional)
+        limit: Maximum number of memories to return (default: 10)
+        min_relevance: Minimum relevance score (0.0-1.0, default: 0.0)
+
+    Returns:
+        memories: List of relevant memories sorted by relevance
+    """
+    service = get_memory_service()
+    result = await service.recall(
+        tags=tags,
+        event_type=event_type,
+        limit=limit,
+        min_relevance=min_relevance,
+    )
+
+    return {
+        "memories": [
+            {
+                "id": m.id,
+                "event_type": m.event_type,
+                "summary": m.summary,
+                "details": m.details,
+                "outcome": m.outcome,
+                "lessons": m.lessons,
+                "tags": m.tags,
+                "relevance_score": m.relevance_score,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in result.memories
+        ],
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Guardrails (Phase 3)
+# =============================================================================
+
+
+@mcp.tool()
+async def check_guardrails(
+    operation_text: str,
+    file_paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Check an operation for destructive patterns.
+
+    Use this proactively before running potentially dangerous commands.
+    The system also runs guardrail checks automatically on work completion.
+
+    Args:
+        operation_text: The command or operation text to check
+        file_paths: File paths involved in the operation (optional)
+
+    Returns:
+        safe: True if no destructive patterns matched
+        violations: List of matched patterns with category and severity
+    """
+    service = get_guardrails_service()
+    result = await service.check_operation(
+        operation_text=operation_text,
+        file_paths=file_paths,
+    )
+
+    return {
+        "safe": result.safe,
+        "violations": [
+            {
+                "pattern_name": v.pattern_name,
+                "category": v.category,
+                "severity": v.severity,
+                "matched_text": v.matched_text,
+                "blocked": v.blocked,
+            }
+            for v in result.violations
+        ],
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Profiles (Phase 3)
+# =============================================================================
+
+
+@mcp.tool()
+async def get_my_profile() -> dict[str, Any]:
+    """
+    Get the current agent's profile including trust level and permissions.
+
+    Returns the agent's profile with allowed operations, trust level,
+    and resource limits.
+
+    Returns:
+        success: Whether the profile was found
+        profile: Profile details including trust_level, allowed_operations, etc.
+        source: How the profile was determined ('assignment', 'default', 'cache')
+    """
+    service = get_profiles_service()
+    result = await service.get_profile()
+
+    profile_data = None
+    if result.profile:
+        profile_data = {
+            "name": result.profile.name,
+            "agent_type": result.profile.agent_type,
+            "trust_level": result.profile.trust_level,
+            "allowed_operations": result.profile.allowed_operations,
+            "blocked_operations": result.profile.blocked_operations,
+            "max_file_modifications": result.profile.max_file_modifications,
+        }
+
+    return {
+        "success": result.success,
+        "profile": profile_data,
+        "source": result.source,
+        "reason": result.reason,
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Audit (Phase 3)
+# =============================================================================
+
+
+@mcp.tool()
+async def query_audit(
+    agent_id: str | None = None,
+    operation: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """
+    Query the audit trail for recent operations.
+
+    Use this for debugging, compliance, or understanding what happened.
+
+    Args:
+        agent_id: Filter by agent ID (optional)
+        operation: Filter by operation type (optional)
+        limit: Maximum number of entries to return (default: 20)
+
+    Returns:
+        entries: List of audit log entries
+    """
+    service = get_audit_service()
+    entries = await service.query(
+        agent_id=agent_id,
+        operation=operation,
+        limit=limit,
+    )
+
+    return {
+        "entries": [
+            {
+                "id": e.id,
+                "agent_id": e.agent_id,
+                "agent_type": e.agent_type,
+                "operation": e.operation,
+                "parameters": e.parameters,
+                "result": e.result,
+                "duration_ms": e.duration_ms,
+                "success": e.success,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in entries
+        ],
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Policy Engine (Phase 3 / Cedar)
+# =============================================================================
+
+
+@mcp.tool()
+async def check_policy(
+    operation: str,
+    resource: str = "",
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Check if an operation is authorized by the policy engine.
+
+    Uses either native (profiles + network) or Cedar engine based on config.
+
+    Args:
+        operation: Operation name (e.g., 'acquire_lock', 'network_access')
+        resource: Target resource (file path, domain, etc.)
+        context: Additional context (trust_level, files_modified, etc.)
+
+    Returns:
+        allowed: Whether the operation is authorized
+        reason: Explanation of the decision
+        engine: Which policy engine made the decision
+    """
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    result = await engine.check_operation(
+        agent_id=get_agent_id(),
+        agent_type=get_agent_type(),
+        operation=operation,
+        resource=resource,
+        context=context,
+    )
+
+    engine_name = type(engine).__name__
+    return {
+        "allowed": result.allowed,
+        "reason": result.reason,
+        "engine": engine_name,
+        "diagnostics": result.diagnostics,
+    }
+
+
+@mcp.tool()
+async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
+    """
+    Validate Cedar policy text against the schema.
+
+    Only available when POLICY_ENGINE=cedar.
+
+    Args:
+        policy_text: Cedar policy text to validate
+
+    Returns:
+        valid: Whether the policy is valid
+        errors: List of validation errors (if any)
+    """
+    config = get_config()
+    if config.policy_engine.engine != "cedar":
+        return {
+            "valid": False,
+            "errors": ["Cedar engine not active. Set POLICY_ENGINE=cedar"],
+        }
+
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    if not hasattr(engine, "validate_policy"):
+        return {
+            "valid": False,
+            "errors": ["Current engine does not support policy validation"],
+        }
+
+    result = engine.validate_policy(policy_text)
+    return {
+        "valid": result.valid,
+        "errors": result.errors,
+    }
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 
@@ -658,6 +978,122 @@ async def get_pending_work() -> str:
         lines.append(f"  - ID: `{task.id}`")
         if task.deadline:
             lines.append(f"  - Deadline: {task.deadline.isoformat()}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("memories://recent")
+async def get_recent_memories() -> str:
+    """
+    Recent episodic memories across all agents.
+
+    Shows the latest memories with relevance scores and tags.
+    """
+    service = get_memory_service()
+    result = await service.recall(limit=10)
+
+    if not result.memories:
+        return "No memories stored yet."
+
+    lines = ["# Recent Memories\n"]
+    for m in result.memories:
+        lines.append(f"- **{m.event_type}**: {m.summary}")
+        if m.tags:
+            lines.append(f"  - Tags: {', '.join(m.tags)}")
+        if m.outcome:
+            lines.append(f"  - Outcome: {m.outcome}")
+        if m.lessons:
+            lines.append(f"  - Lessons: {'; '.join(m.lessons)}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("guardrails://patterns")
+async def get_guardrail_patterns() -> str:
+    """
+    Active guardrail patterns for destructive operation detection.
+
+    Shows all patterns that are currently being enforced.
+    """
+    service = get_guardrails_service()
+    patterns = await service._load_patterns()
+
+    if not patterns:
+        return "No guardrail patterns configured."
+
+    lines = ["# Active Guardrail Patterns\n"]
+    current_category = None
+
+    for p in sorted(patterns, key=lambda x: x.category):
+        if p.category != current_category:
+            current_category = p.category
+            lines.append(f"\n## {current_category.title()}\n")
+
+        lines.append(f"- **{p.name}** [{p.severity}] (trust >= {p.min_trust_level} to bypass)")
+        lines.append(f"  - Pattern: `{p.pattern}`")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("profiles://current")
+async def get_current_profile() -> str:
+    """
+    Current agent's profile and permissions.
+
+    Shows trust level, allowed operations, and resource limits.
+    """
+    service = get_profiles_service()
+    result = await service.get_profile()
+
+    if not result.success or not result.profile:
+        return "No profile assigned. Using default permissions."
+
+    p = result.profile
+    lines = [
+        f"# Agent Profile: {p.name}\n",
+        f"- **Trust Level**: {p.trust_level}",
+        f"- **Agent Type**: {p.agent_type}",
+        f"- **Max File Modifications**: {p.max_file_modifications}",
+        f"- **Source**: {result.source}",
+        "",
+        "## Allowed Operations",
+    ]
+    for op in p.allowed_operations:
+        lines.append(f"- {op}")
+
+    if p.blocked_operations:
+        lines.append("\n## Blocked Operations")
+        for op in p.blocked_operations:
+            lines.append(f"- {op}")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("audit://recent")
+async def get_recent_audit() -> str:
+    """
+    Recent audit log entries.
+
+    Shows the latest coordination operations across all agents.
+    """
+    service = get_audit_service()
+    entries = await service.query(limit=20)
+
+    if not entries:
+        return "No audit log entries."
+
+    lines = ["# Recent Audit Log\n"]
+    for e in entries:
+        status = "OK" if e.success else "FAIL"
+        duration = f" ({e.duration_ms}ms)" if e.duration_ms else ""
+        lines.append(f"- [{status}] **{e.operation}** by {e.agent_id}{duration}")
+        if e.created_at:
+            lines.append(f"  - {e.created_at.isoformat()}")
+        if e.error_message:
+            lines.append(f"  - Error: {e.error_message}")
         lines.append("")
 
     return "\n".join(lines)

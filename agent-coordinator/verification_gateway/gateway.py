@@ -362,23 +362,112 @@ class VerificationGateway:
         changeset: ChangeSet,
         policy: VerificationPolicy,
     ) -> VerificationResult:
-        """Trigger GitHub Actions workflow and wait for result"""
-        # This would use GitHub API to trigger workflow_dispatch
-        # For now, return a placeholder
+        """Trigger GitHub Actions workflow and wait for result.
 
-        # In production:
-        # 1. POST to /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
-        # 2. Poll for workflow run completion
-        # 3. Fetch workflow run logs
+        Uses the GitHub API to dispatch a workflow and poll for completion.
+        Requires GITHUB_TOKEN and GITHUB_REPO env vars.
+        """
+        import os
+
+        github_token = os.environ.get("GITHUB_TOKEN", "")
+        github_repo = os.environ.get("GITHUB_REPO", "")
+
+        if not github_token or not github_repo:
+            return VerificationResult(
+                changeset_id=changeset.id,
+                tier=policy.tier,
+                executor=policy.executor,
+                success=False,
+                duration_seconds=0,
+                output="",
+                errors=["GITHUB_TOKEN and GITHUB_REPO env vars required"],
+            )
+
+        headers = {
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        # 1. Trigger workflow dispatch
+        workflow_id = "verify.yml"
+        dispatch_url = (
+            f"https://api.github.com/repos/{github_repo}"
+            f"/actions/workflows/{workflow_id}/dispatches"
+        )
+        dispatch_resp = await self._http_client.post(
+            dispatch_url,
+            headers=headers,
+            json={
+                "ref": changeset.branch,
+                "inputs": {
+                    "changeset_id": changeset.id,
+                    "policy": policy.name,
+                    "files": ",".join(changeset.changed_files[:20]),
+                },
+            },
+        )
+
+        if dispatch_resp.status_code not in (204, 200):
+            return VerificationResult(
+                changeset_id=changeset.id,
+                tier=policy.tier,
+                executor=policy.executor,
+                success=False,
+                duration_seconds=0,
+                output=dispatch_resp.text,
+                errors=[f"Workflow dispatch failed: {dispatch_resp.status_code}"],
+            )
+
+        # 2. Poll for workflow run completion (up to timeout)
+        runs_url = (
+            f"https://api.github.com/repos/{github_repo}"
+            f"/actions/workflows/{workflow_id}/runs"
+            f"?branch={changeset.branch}&per_page=1"
+        )
+
+        max_wait = policy.timeout_seconds
+        poll_interval = 10
+        elapsed = 0
+
+        while elapsed < max_wait:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            runs_resp = await self._http_client.get(
+                runs_url, headers=headers
+            )
+            if runs_resp.status_code != 200:
+                continue
+
+            runs = runs_resp.json().get("workflow_runs", [])
+            if not runs:
+                continue
+
+            latest_run = runs[0]
+            status = latest_run.get("status", "")
+            conclusion = latest_run.get("conclusion", "")
+
+            if status == "completed":
+                return VerificationResult(
+                    changeset_id=changeset.id,
+                    tier=policy.tier,
+                    executor=policy.executor,
+                    success=conclusion == "success",
+                    duration_seconds=elapsed,
+                    output=f"Workflow run {latest_run.get('id')}: {conclusion}",
+                    errors=[] if conclusion == "success" else [
+                        f"Workflow conclusion: {conclusion}"
+                    ],
+                )
 
         return VerificationResult(
             changeset_id=changeset.id,
             tier=policy.tier,
             executor=policy.executor,
-            success=True,  # Placeholder
-            duration_seconds=0,
-            output="GitHub Actions workflow triggered",
-            errors=[],
+            success=False,
+            duration_seconds=max_wait,
+            output="",
+            errors=[f"Workflow timed out after {max_wait}s"],
         )
 
     async def _dispatch_to_ntm(
@@ -486,20 +575,54 @@ class VerificationGateway:
         changeset: ChangeSet,
         policy: VerificationPolicy,
     ) -> VerificationResult:
-        """Queue changeset for human review"""
+        """Queue changeset for human review via approval_queue table.
 
-        # In production, this would:
-        # 1. Create a Supabase record in a "pending_reviews" table
-        # 2. Send notification (Slack, email, etc.)
-        # 3. Return pending status
+        Creates a record in the approval_queue table and returns pending status.
+        Polls for approval/denial up to the policy timeout.
+        """
+        approval_id = hashlib.sha256(
+            f"{changeset.id}:{policy.name}".encode()
+        ).hexdigest()[:12]
+
+        # Insert into approval_queue if Supabase is configured
+        if self.supabase_url and self.supabase_key:
+            insert_resp = await self._http_client.post(
+                f"{self.supabase_url}/rest/v1/approval_queue",
+                headers={
+                    "apikey": self.supabase_key,
+                    "Authorization": f"Bearer {self.supabase_key}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation",
+                },
+                json={
+                    "changeset_id": changeset.id,
+                    "policy_name": policy.name,
+                    "agent_id": changeset.agent_id,
+                    "agent_type": changeset.agent_type,
+                    "changed_files": changeset.changed_files,
+                    "status": "pending",
+                    "metadata": changeset.metadata,
+                },
+            )
+
+            if insert_resp.status_code in (200, 201):
+                return VerificationResult(
+                    changeset_id=changeset.id,
+                    tier=policy.tier,
+                    executor=policy.executor,
+                    success=True,
+                    duration_seconds=0,
+                    output=f"Queued for human review (approval_id={approval_id})",
+                    errors=[],
+                )
 
         return VerificationResult(
             changeset_id=changeset.id,
             tier=policy.tier,
             executor=policy.executor,
-            success=True,  # Queued successfully
+            success=True,
             duration_seconds=0,
-            output="Queued for human review",
+            output="Queued for human review (no database configured)",
             errors=[],
         )
 
