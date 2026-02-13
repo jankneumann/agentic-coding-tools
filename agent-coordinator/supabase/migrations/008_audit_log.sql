@@ -82,8 +82,9 @@ $$;
 
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
--- Read access for all roles
-CREATE POLICY audit_log_read ON audit_log FOR SELECT USING (true);
+-- Read access restricted to service_role (audit data may contain sensitive parameters)
+CREATE POLICY audit_log_read ON audit_log FOR SELECT
+    USING (current_setting('role') = 'service_role');
 
 -- Insert only for service_role (no UPDATE or DELETE via RLS either)
 CREATE POLICY audit_log_insert ON audit_log FOR INSERT

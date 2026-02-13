@@ -165,6 +165,8 @@ class WorkQueueService:
 
         Atomically claims the highest-priority available task.
         Only returns tasks whose dependencies are satisfied.
+        Runs guardrail checks on the task description and input_data
+        before returning; blocks claim if destructive patterns are found.
 
         Args:
             agent_id: Agent claiming the task (default: from config)
@@ -186,6 +188,30 @@ class WorkQueueService:
         )
 
         claim_result = ClaimResult.from_dict(result)
+
+        # Guardrails pre-execution check on claimed task description/input
+        if claim_result.success:
+            try:
+                from .guardrails import get_guardrails_service
+
+                guardrails = get_guardrails_service()
+                scan_text = claim_result.description or ""
+                if claim_result.input_data:
+                    scan_text += "\n" + str(claim_result.input_data)
+                if scan_text.strip():
+                    check = await guardrails.check_operation(
+                        operation_text=scan_text[:2000],
+                        agent_id=agent_id or config.agent.agent_id,
+                    )
+                    if not check.safe:
+                        patterns = [
+                            v.pattern_name for v in check.violations if v.blocked
+                        ]
+                        claim_result.reason = (
+                            f"destructive_operation_blocked: {', '.join(patterns)}"
+                        )
+            except Exception:
+                pass  # Guardrails failure should not block claim
 
         try:
             await get_audit_service().log_operation(
@@ -213,8 +239,10 @@ class WorkQueueService:
     ) -> CompleteResult:
         """Mark a task as completed.
 
-        Runs guardrail pre-execution check on the task result before marking
-        complete. If destructive patterns are found, completion is blocked.
+        Defense-in-depth: scans the result payload for destructive patterns.
+        This supplements the pre-execution checks in claim() and submit(),
+        catching cases where an agent produces destructive output not
+        present in the original task description.
 
         Args:
             task_id: ID of the task to complete
@@ -289,6 +317,9 @@ class WorkQueueService:
     ) -> SubmitResult:
         """Submit a new task to the work queue.
 
+        Runs guardrail checks on the task description and input_data before
+        persisting. Rejects submissions containing destructive patterns.
+
         Args:
             task_type: Category of task (e.g., 'summarize', 'refactor', 'test')
             description: What needs to be done
@@ -300,6 +331,25 @@ class WorkQueueService:
         Returns:
             SubmitResult with the new task ID
         """
+        # Guardrails check on submitted task content
+        try:
+            from .guardrails import get_guardrails_service
+
+            guardrails = get_guardrails_service()
+            scan_text = description
+            if input_data:
+                scan_text += "\n" + str(input_data)
+            check = await guardrails.check_operation(
+                operation_text=scan_text[:2000],
+            )
+            if not check.safe:
+                return SubmitResult(
+                    success=False,
+                    task_id=None,
+                )
+        except Exception:
+            pass  # Guardrails failure should not block submission
+
         depends_on_str = None
         if depends_on:
             depends_on_str = [str(d) for d in depends_on]
