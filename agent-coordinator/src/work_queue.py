@@ -217,7 +217,7 @@ class WorkQueueService:
                             reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                         )
             except Exception:
-                logger.warning("Guardrails check failed during claim", exc_info=True)
+                logger.error("Guardrails check failed during claim", exc_info=True)
 
         try:
             await get_audit_service().log_operation(
@@ -282,7 +282,7 @@ class WorkQueueService:
                         reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                     )
             except Exception:
-                logger.warning("Guardrails check failed during complete", exc_info=True)
+                logger.error("Guardrails check failed during complete", exc_info=True)
 
         result_data = await self.db.rpc(
             "complete_task",
@@ -354,7 +354,7 @@ class WorkQueueService:
                     task_id=None,
                 )
         except Exception:
-            logger.warning("Guardrails check failed during submit", exc_info=True)
+            logger.error("Guardrails check failed during submit", exc_info=True)
 
         depends_on_str = None
         if depends_on:

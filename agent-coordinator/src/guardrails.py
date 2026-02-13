@@ -264,7 +264,7 @@ class GuardrailsService:
                     success=True,
                 )
             except Exception:
-                logger.warning("Audit log failed for guardrail_violation", exc_info=True)
+                logger.error("Audit log failed for guardrail_violation", exc_info=True)
 
         return result
 
