@@ -212,6 +212,28 @@ class WorkQueueService:
                         patterns = [
                             v.pattern_name for v in check.violations if v.blocked
                         ]
+                        # Release the DB claim so the task doesn't stay
+                        # stuck in "claimed" with no agent to work it.
+                        if claim_result.task_id:
+                            try:
+                                msg = f"Blocked by guardrails: {', '.join(patterns)}"
+                                await self.db.rpc(
+                                    "complete_task",
+                                    {
+                                        "p_task_id": str(claim_result.task_id),
+                                        "p_agent_id": agent_id
+                                        or config.agent.agent_id,
+                                        "p_success": False,
+                                        "p_result": None,
+                                        "p_error_message": msg,
+                                    },
+                                )
+                            except Exception:
+                                logger.error(
+                                    "Failed to release guardrail-blocked task %s",
+                                    claim_result.task_id,
+                                    exc_info=True,
+                                )
                         return ClaimResult(
                             success=False,
                             reason=f"destructive_operation_blocked: {', '.join(patterns)}",

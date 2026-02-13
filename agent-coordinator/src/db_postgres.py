@@ -125,6 +125,16 @@ class DirectPostgresClient:
                         where_clauses.append(f"{col} > ${param_idx}")
                         values.append(_coerce_filter_value(val))
                         param_idx += 1
+                elif "=gte." in part:
+                    col, val = part.split("=gte.", 1)
+                    where_clauses.append(f"{col} >= ${param_idx}")
+                    values.append(_coerce_filter_value(val))
+                    param_idx += 1
+                elif "=lte." in part:
+                    col, val = part.split("=lte.", 1)
+                    where_clauses.append(f"{col} <= ${param_idx}")
+                    values.append(_coerce_filter_value(val))
+                    param_idx += 1
                 elif "=in." in part:
                     col, val = part.split("=in.", 1)
                     # Parse PostgREST IN syntax: (val1,val2,val3)

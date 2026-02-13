@@ -300,7 +300,7 @@ class CedarPolicyEngine:
     ) -> list[dict[str, Any]]:
         """Build Cedar entity list for authorization request."""
         ctx = context or {}
-        entities = [
+        entities: list[dict[str, Any]] = [
             {
                 "uid": {"type": "Agent", "id": agent_id},
                 "attrs": {
@@ -419,7 +419,7 @@ class CedarPolicyEngine:
             )
 
         allowed = response.decision == self._cedarpy.Decision.Allow
-        reason_parts = []
+        reason_parts: list[str] = []
         if hasattr(response, "diagnostics"):
             diag = response.diagnostics
             if hasattr(diag, "reasons") and diag.reasons:

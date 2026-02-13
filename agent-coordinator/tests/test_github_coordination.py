@@ -78,6 +78,11 @@ class TestGitHubCoordinationService:
     @pytest.mark.asyncio
     async def test_sync_label_locks(self, mock_supabase, db_client):
         """Test syncing label locks to coordination DB."""
+        # Mock the query for existing locks (none yet)
+        mock_supabase.get(
+            url__startswith="https://test.supabase.co/rest/v1/file_locks"
+        ).mock(return_value=Response(200, json=[]))
+
         mock_supabase.post(
             "https://test.supabase.co/rest/v1/rpc/acquire_lock"
         ).mock(
@@ -99,6 +104,46 @@ class TestGitHubCoordinationService:
 
         assert result.success is True
         assert result.locks_created == 1
+
+    @pytest.mark.asyncio
+    async def test_sync_label_locks_releases_stale(self, mock_supabase, db_client):
+        """Test that removed labels release their locks."""
+        # Mock existing locks — src/old.py was previously locked
+        mock_supabase.get(
+            url__startswith="https://test.supabase.co/rest/v1/file_locks"
+        ).mock(
+            return_value=Response(
+                200,
+                json=[
+                    {
+                        "file_path": "src/old.py",
+                        "locked_by": "test-agent-1",
+                        "session_id": "issue-42",
+                    },
+                ],
+            )
+        )
+
+        # Mock release_lock RPC
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/release_lock"
+        ).mock(
+            return_value=Response(
+                200,
+                json={"success": True, "action": "released", "file_path": "src/old.py"},
+            )
+        )
+
+        service = GitHubCoordinationService(db_client)
+        # No lock labels remain — all old locks should be released
+        result = await service.sync_label_locks(
+            labels=["bug"],
+            issue_number=42,
+        )
+
+        assert result.success is True
+        assert result.locks_released == 1
+        assert result.locks_created == 0
 
     @pytest.mark.asyncio
     async def test_sync_branch_tracking(self, mock_supabase, db_client):
@@ -175,6 +220,11 @@ class TestGitHubCoordinationService:
         self, mock_supabase, db_client
     ):
         """Test handling an issues webhook with lock labels."""
+        # Mock query for existing locks (none yet)
+        mock_supabase.get(
+            url__startswith="https://test.supabase.co/rest/v1/file_locks"
+        ).mock(return_value=Response(200, json=[]))
+
         mock_supabase.post(
             "https://test.supabase.co/rest/v1/rpc/acquire_lock"
         ).mock(

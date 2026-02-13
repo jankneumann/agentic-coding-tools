@@ -152,32 +152,61 @@ class GitHubCoordinationService:
         agent_id = agent_id or config.agent.agent_id
 
         label_locks = self.parse_lock_labels(labels)
+        current_paths = {lock.file_path for lock in label_locks}
         locks_created = 0
+        locks_released = 0
 
         try:
-            for lock in label_locks:
+            # Find existing label-derived locks for this issue
+            session_id = f"issue-{issue_number}"
+            existing_locks = await self.db.query(
+                "file_locks",
+                f"locked_by=eq.{agent_id}&session_id=eq.{session_id}",
+            )
+            existing_paths = {
+                row["file_path"] for row in existing_locks
+            }
+
+            # Release locks whose labels were removed
+            stale_paths = existing_paths - current_paths
+            for file_path in stale_paths:
                 await self.db.rpc(
-                    "acquire_lock",
+                    "release_lock",
                     {
-                        "p_file_path": lock.file_path,
+                        "p_file_path": file_path,
                         "p_agent_id": agent_id,
-                        "p_agent_type": "github_label",
-                        "p_session_id": f"issue-{issue_number}",
-                        "p_reason": f"GitHub issue #{issue_number} label lock",
-                        "p_ttl_minutes": 480,  # 8 hours for label locks
                     },
                 )
-                locks_created += 1
+                locks_released += 1
+
+            # Acquire locks for new labels
+            new_paths = current_paths - existing_paths
+            for lock in label_locks:
+                if lock.file_path in new_paths:
+                    await self.db.rpc(
+                        "acquire_lock",
+                        {
+                            "p_file_path": lock.file_path,
+                            "p_agent_id": agent_id,
+                            "p_agent_type": "github_label",
+                            "p_session_id": session_id,
+                            "p_reason": f"GitHub issue #{issue_number} label lock",
+                            "p_ttl_minutes": 480,  # 8 hours for label locks
+                        },
+                    )
+                    locks_created += 1
         except Exception as e:
             return WebhookSyncResult(
                 success=False,
                 locks_created=locks_created,
+                locks_released=locks_released,
                 error=str(e),
             )
 
         return WebhookSyncResult(
             success=True,
             locks_created=locks_created,
+            locks_released=locks_released,
         )
 
     async def sync_branch_tracking(

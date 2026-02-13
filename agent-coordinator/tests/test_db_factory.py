@@ -5,6 +5,13 @@ import pytest
 from src.config import reset_config
 from src.db import DatabaseClient, SupabaseClient, create_db_client, reset_db
 
+try:
+    from src.db_postgres import _coerce_filter_value
+
+    HAS_ASYNCPG = True
+except ImportError:
+    HAS_ASYNCPG = False
+
 
 class TestDatabaseClientProtocol:
     """Tests for the DatabaseClient protocol."""
@@ -60,3 +67,46 @@ class TestCreateDbClient:
             assert isinstance(client, DatabaseClient)
         except ImportError as e:
             assert "asyncpg" in str(e)
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestPostgresFilterParsing:
+    """Tests for PostgREST filter parsing in DirectPostgresClient."""
+
+    def test_coerce_filter_value_uuid(self):
+        """Test that UUID strings are coerced properly."""
+        from uuid import UUID
+
+        val = _coerce_filter_value("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+        assert isinstance(val, UUID)
+
+    def test_coerce_filter_value_int(self):
+        """Test that integer strings are coerced to int."""
+        assert _coerce_filter_value("42") == 42
+        assert isinstance(_coerce_filter_value("42"), int)
+
+    def test_coerce_filter_value_bool(self):
+        """Test that boolean strings are coerced to bool."""
+        assert _coerce_filter_value("true") is True
+        assert _coerce_filter_value("false") is False
+
+    def test_coerce_filter_value_string(self):
+        """Test that regular strings pass through."""
+        assert _coerce_filter_value("hello") == "hello"
+
+    def test_gte_lte_filter_parsing(self):
+        """Test that gte/lte filters are recognized in query params.
+
+        Verifies the fix for the Codex review comment about
+        AuditService.query() emitting gte/lte operators that were
+        silently ignored on DB_BACKEND=postgres.
+        """
+        import inspect
+
+        from src.db_postgres import DirectPostgresClient
+
+        source = inspect.getsource(DirectPostgresClient.query)
+        assert "=gte." in source, "query() should handle gte filters"
+        assert "=lte." in source, "query() should handle lte filters"
+        assert ">=" in source, "gte should translate to >= operator"
+        assert "<=" in source, "lte should translate to <= operator"
