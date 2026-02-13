@@ -4,8 +4,8 @@ Provides deterministic pattern-matching to detect and block destructive operatio
 Patterns are stored in the database with a hardcoded fallback registry.
 """
 
+import logging
 import re
-import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,6 +13,8 @@ from typing import Any
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Hardcoded fallback patterns (used when database is unavailable)
@@ -261,11 +263,8 @@ class GuardrailsService:
                     },
                     success=True,
                 )
-            except Exception as exc:
-                print(
-                    f"agent-coordinator: audit failed for guardrail_violation: {exc}",
-                    file=sys.stderr,
-                )
+            except Exception:
+                logger.warning("Audit log failed for guardrail_violation", exc_info=True)
 
         return result
 

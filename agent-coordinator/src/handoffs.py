@@ -4,7 +4,7 @@ Provides session continuity by persisting structured handoff documents
 that agents can write at session end and read at session start.
 """
 
-import sys
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -13,6 +13,8 @@ from uuid import UUID
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -157,8 +159,8 @@ class HandoffService:
                 },
                 success=write_result.success,
             )
-        except Exception as exc:
-            print(f"agent-coordinator: audit log failed for write_handoff: {exc}", file=sys.stderr)
+        except Exception:
+            logger.warning("Audit log failed for write_handoff", exc_info=True)
 
         return write_result
 
@@ -196,8 +198,8 @@ class HandoffService:
                 result={"count": len(read_result.handoffs)},
                 success=True,
             )
-        except Exception as exc:
-            print(f"agent-coordinator: audit log failed for read_handoff: {exc}", file=sys.stderr)
+        except Exception:
+            logger.warning("Audit log failed for read_handoff", exc_info=True)
 
         return read_result
 

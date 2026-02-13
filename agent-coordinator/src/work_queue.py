@@ -4,7 +4,7 @@ Provides task assignment and tracking for multi-agent coordination.
 Tasks are claimed atomically to prevent double-assignment.
 """
 
-import sys
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -13,6 +13,8 @@ from uuid import UUID
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+
+logger = logging.getLogger(__name__)
 
 MAX_PAGE_SIZE = 100
 
@@ -214,11 +216,8 @@ class WorkQueueService:
                             success=False,
                             reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                         )
-            except Exception as exc:
-                print(
-                    f"agent-coordinator: guardrails check failed during claim: {exc}",
-                    file=sys.stderr,
-                )
+            except Exception:
+                logger.warning("Guardrails check failed during claim", exc_info=True)
 
         try:
             await get_audit_service().log_operation(
@@ -231,8 +230,8 @@ class WorkQueueService:
                 },
                 success=claim_result.success,
             )
-        except Exception as exc:
-            print(f"agent-coordinator: audit log failed for claim_task: {exc}", file=sys.stderr)
+        except Exception:
+            logger.warning("Audit log failed for claim_task", exc_info=True)
 
         return claim_result
 
@@ -282,11 +281,8 @@ class WorkQueueService:
                         task_id=task_id,
                         reason=f"destructive_operation_blocked: {', '.join(patterns)}",
                     )
-            except Exception as exc:
-                print(
-                    f"agent-coordinator: guardrails check failed during complete: {exc}",
-                    file=sys.stderr,
-                )
+            except Exception:
+                logger.warning("Guardrails check failed during complete", exc_info=True)
 
         result_data = await self.db.rpc(
             "complete_task",
@@ -311,8 +307,8 @@ class WorkQueueService:
                 },
                 success=complete_result.success,
             )
-        except Exception as exc:
-            print(f"agent-coordinator: audit log failed for complete_task: {exc}", file=sys.stderr)
+        except Exception:
+            logger.warning("Audit log failed for complete_task", exc_info=True)
 
         return complete_result
 
@@ -357,11 +353,8 @@ class WorkQueueService:
                     success=False,
                     task_id=None,
                 )
-        except Exception as exc:
-            print(
-                f"agent-coordinator: guardrails check failed during submit: {exc}",
-                file=sys.stderr,
-            )
+        except Exception:
+            logger.warning("Guardrails check failed during submit", exc_info=True)
 
         depends_on_str = None
         if depends_on:
@@ -398,8 +391,8 @@ class WorkQueueService:
                 },
                 success=submit_result.success,
             )
-        except Exception as exc:
-            print(f"agent-coordinator: audit log failed for submit_task: {exc}", file=sys.stderr)
+        except Exception:
+            logger.warning("Audit log failed for submit_task", exc_info=True)
 
         return submit_result
 
