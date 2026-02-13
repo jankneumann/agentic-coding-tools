@@ -468,7 +468,7 @@ class CedarPolicyEngine:
                 return ValidationResult(valid=True)
             return ValidationResult(
                 valid=False,
-                errors=[f"validation failed with {result.num_errors} error(s)"],
+                errors=[str(e) for e in result.errors],
             )
         except Exception as e:
             return ValidationResult(valid=False, errors=[str(e)])
