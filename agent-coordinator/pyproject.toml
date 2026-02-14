@@ -25,7 +25,6 @@ cedar = [
     "cedarpy>=4.0.0",
 ]
 analysis = [
-    "networkx>=3.0",
     "psycopg2-binary>=2.9.0",
 ]
 dev = [

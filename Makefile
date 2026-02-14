@@ -45,7 +45,7 @@ PYTHON         ?= python3
 # Phony targets
 # ---------------------------------------------------------------------------
 
-.PHONY: architecture architecture-diff architecture-feature \
+.PHONY: architecture architecture-setup architecture-diff architecture-feature \
         architecture-validate architecture-views architecture-clean \
         help _analyze-python _analyze-postgres _analyze-typescript \
         _compile _validate _views _parallel-zones
@@ -72,6 +72,22 @@ help: ## Show available make targets with descriptions
 	@echo "  make architecture-diff BASE_SHA=abc123"
 	@echo '  make architecture-feature FEATURE="agent-coordinator/src/locks.py,agent-coordinator/src/db.py"'
 	@echo ""
+
+# ---------------------------------------------------------------------------
+# architecture-setup — install dependencies for the analysis pipeline
+# ---------------------------------------------------------------------------
+
+architecture-setup: ## Install Python (and optionally Node.js) deps for the analysis pipeline
+	@echo "=== Installing architecture analysis dependencies ==="
+	@$(PYTHON) -m pip install -e "agent-coordinator/[analysis]" --quiet
+	@if command -v npm >/dev/null 2>&1; then \
+		echo "Installing TypeScript analyzer deps..."; \
+		npm install --no-save ts-morph typescript ts-node 2>/dev/null || \
+			echo "[WARN] npm install failed — TypeScript analyzer will be skipped"; \
+	else \
+		echo "[INFO] npm not found — TypeScript analyzer will be skipped"; \
+	fi
+	@echo "Setup complete."
 
 # ---------------------------------------------------------------------------
 # architecture — full generation pipeline
