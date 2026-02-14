@@ -43,6 +43,7 @@ Task(subagent_type="Explore", prompt="Read openspec/project.md and summarize the
 Task(subagent_type="Explore", prompt="Run 'openspec list --specs' and summarize existing specifications and their requirement counts", run_in_background=true)
 Task(subagent_type="Explore", prompt="Run 'openspec list' and identify any in-progress changes that might conflict or relate to: $ARGUMENTS", run_in_background=true)
 Task(subagent_type="Explore", prompt="Search the codebase for existing implementations related to: $ARGUMENTS. Identify relevant files, patterns, and potential integration points", run_in_background=true)
+Task(subagent_type="Explore", prompt="Read .architecture/architecture.summary.json and identify cross-layer flows, components, services, and tables related to: $ARGUMENTS. Report which existing flows would be affected and what parallel modification zones are available from .architecture/parallel_zones.json", run_in_background=true)
 ```
 
 **Context Synthesis:**
@@ -52,6 +53,7 @@ Task(subagent_type="Explore", prompt="Search the codebase for existing implement
    - Related existing specs
    - Potential conflicts with in-progress work
    - Existing code patterns to follow
+   - Architecture context: affected flows, components, and safe parallel zones from `.architecture/` artifacts
 3. Use this context to inform the proposal
 
 Understand the current state before proposing changes.

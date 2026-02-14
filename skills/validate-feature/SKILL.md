@@ -229,6 +229,46 @@ else
 fi
 ```
 
+### 5b. Architecture Diagnostics Phase
+
+**Phase name:** `architecture`
+**Criticality:** Non-critical (continues on failure)
+
+Run architecture flow validation against the changed files:
+
+```bash
+# Get changed files relative to main
+CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
+
+if [ -f "scripts/validate_flows.py" ] && [ -f ".architecture/architecture.graph.json" ]; then
+  echo "Running architecture validation on changed files..."
+  python scripts/validate_flows.py \
+    --graph .architecture/architecture.graph.json \
+    --output .architecture/architecture.diagnostics.json \
+    --files "$CHANGED_FILES" 2>&1
+  ARCH_EXIT=$?
+
+  if [ $ARCH_EXIT -eq 0 ]; then
+    ARCH_RESULT="pass"
+    ARCH_ERRORS=$(python -c "import json; d=json.load(open('.architecture/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python -c "import json; d=json.load(open('.architecture/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    if [ "$ARCH_ERRORS" -gt 0 ]; then
+      ARCH_RESULT="fail"
+    elif [ "$ARCH_WARNINGS" -gt 0 ]; then
+      ARCH_RESULT="warn"
+    fi
+  else
+    ARCH_RESULT="fail"
+  fi
+else
+  echo "SKIP: Architecture validation not available (missing scripts or artifacts)"
+  echo "  Run 'make architecture' to generate architecture artifacts"
+  ARCH_RESULT="skip"
+fi
+```
+
+Report architecture diagnostics including broken flows, missing test coverage, orphaned code, and disconnected endpoints.
+
 ### 6. Spec Compliance Phase
 
 **Phase name:** `spec`
@@ -401,6 +441,7 @@ Produce a structured summary of all phases:
 ✗ E2E: 3/5 tests passed, 2 failures
   - test_login_flow: TimeoutError on /api/auth
   - test_dashboard_load: Element not found: #stats-panel
+✓ Architecture: No broken flows (2 warnings: orphaned functions)
 ✓ Spec Compliance: 8/8 scenarios verified
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)
