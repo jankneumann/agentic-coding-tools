@@ -20,12 +20,15 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 
-ARCH_DIR=".architecture"
+# All paths are relative to CWD and configurable via environment variables.
+# When called from the Makefile, these are passed in; when called directly,
+# the defaults assume you're running from the project being analyzed.
+ARCH_DIR="${ARCH_DIR:-.architecture}"
 VIEWS_DIR="${ARCH_DIR}/views"
-SCRIPTS_DIR="scripts"
-PYTHON_SRC="agent-coordinator/src"
-TS_SRC="${TS_SRC:-web/}"
-MIGRATIONS_DIR="agent-coordinator/supabase/migrations"
+SCRIPTS_DIR="${SCRIPTS_DIR:-scripts}"
+PYTHON_SRC_DIR="${PYTHON_SRC_DIR:-src}"
+TS_SRC_DIR="${TS_SRC_DIR:-web}"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-supabase/migrations}"
 
 GRAPH_FILE="${ARCH_DIR}/architecture.graph.json"
 SUMMARY_FILE="${ARCH_DIR}/architecture.summary.json"
@@ -61,15 +64,17 @@ done
 # State tracking
 # ---------------------------------------------------------------------------
 
-declare -A RESULTS
-STEPS=("python_analyzer" "postgres_analyzer" "typescript_analyzer" "compiler" "validator" "parallel_zones" "views" "report")
+# Use simple variables instead of associative arrays (bash 3 compat)
+STEPS="python_analyzer postgres_analyzer typescript_analyzer compiler validator parallel_zones views report"
 ERRORS=0
 WARNINGS=0
 START_TIME=$(date +%s)
 
-pass()  { RESULTS["$1"]="PASS"; }
-fail()  { RESULTS["$1"]="FAIL"; ERRORS=$((ERRORS + 1)); }
-skip()  { RESULTS["$1"]="SKIP"; WARNINGS=$((WARNINGS + 1)); }
+_set_result() { eval "RESULT_$1=$2"; }
+_get_result() { eval "echo \${RESULT_$1:-N/A}"; }
+pass()  { _set_result "$1" "PASS"; }
+fail()  { _set_result "$1" "FAIL"; ERRORS=$((ERRORS + 1)); }
+skip()  { _set_result "$1" "SKIP"; WARNINGS=$((WARNINGS + 1)); }
 info()  { echo "[INFO]  $*"; }
 warn()  { echo "[WARN]  $*"; WARNINGS=$((WARNINGS + 1)); }
 error() { echo "[ERROR] $*"; }
@@ -102,17 +107,17 @@ echo ""
 # ---------------------------------------------------------------------------
 
 info "--- [1.1] Python Analyzer ---"
-info "Source: ${PYTHON_SRC}"
+info "Source: ${PYTHON_SRC_DIR}"
 
-if [ ! -d "${PYTHON_SRC}" ]; then
-    error "Python source directory not found: ${PYTHON_SRC}"
+if [ ! -d "${PYTHON_SRC_DIR}" ]; then
+    error "Python source directory not found: ${PYTHON_SRC_DIR}"
     fail "python_analyzer"
 elif [ ! -f "${SCRIPTS_DIR}/analyze_python.py" ]; then
     warn "Python analyzer script not found: ${SCRIPTS_DIR}/analyze_python.py"
     fail "python_analyzer"
 else
     if ${PYTHON} "${SCRIPTS_DIR}/analyze_python.py" \
-        "${PYTHON_SRC}" \
+        "${PYTHON_SRC_DIR}" \
         --output "${PY_ANALYSIS}" 2>&1; then
         info "Python analysis written to ${PY_ANALYSIS}"
         pass "python_analyzer"
@@ -168,7 +173,7 @@ else
         skip "typescript_analyzer"
     else
         if npx ts-node "${SCRIPTS_DIR}/analyze_typescript.ts" \
-            "${TS_SRC}" \
+            "${TS_SRC_DIR}" \
             --output "${TS_ANALYSIS}" 2>&1; then
             info "TypeScript analysis written to ${TS_ANALYSIS}"
             pass "typescript_analyzer"
@@ -371,8 +376,8 @@ echo "  Architecture Refresh Summary"
 echo "==========================================="
 echo ""
 
-for step in "${STEPS[@]}"; do
-    result="${RESULTS[$step]:-N/A}"
+for step in $STEPS; do
+    result=$(_get_result "$step")
     case "$result" in
         PASS) symbol="\033[32mPASS\033[0m" ;;
         FAIL) symbol="\033[31mFAIL\033[0m" ;;
