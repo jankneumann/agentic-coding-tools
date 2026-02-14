@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -24,6 +25,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from arch_utils.constants import SIDE_EFFECT_EDGE_TYPES, EdgeType  # noqa: E402
@@ -96,7 +99,7 @@ def _resolve_changed_files(
                 if line.strip()
             )
         except subprocess.CalledProcessError as exc:
-            print(f"Warning: diff command failed: {exc.stderr.strip()}", file=sys.stderr)
+            logger.warning("diff command failed: %s", exc.stderr.strip())
 
     if glob_arg:
         # Expand the glob against the working tree
@@ -744,15 +747,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = build_parser()
     args = parser.parse_args()
 
     if not args.graph.exists():
-        print(f"Error: graph file not found: {args.graph}", file=sys.stderr)
-        print(
-            "Generate the architecture graph first, then run this validator.",
-            file=sys.stderr,
-        )
+        logger.error("graph file not found: %s", args.graph)
+        logger.error("Generate the architecture graph first, then run this validator.")
         return 1
 
     changed_files = _resolve_changed_files(args.files, args.diff, args.glob)
@@ -761,13 +762,13 @@ def main() -> int:
 
     summary = report["summary"]
     scope_label = f" (scope: {len(report['changed_files'])} files)" if report["scope"] == "changed" else ""
-    print(f"Flow validation complete{scope_label}.")
-    print(f"  Entrypoints checked: {summary['entrypoints_checked']}")
-    print(f"  Flows with test coverage: {summary['flows_with_coverage']}")
-    print(f"  Flows without test coverage: {summary['flows_without_coverage']}")
-    print(f"  Findings: {summary['total_findings']} total "
-          f"({summary['errors']} errors, {summary['warnings']} warnings, {summary['info']} info)")
-    print(f"  Output: {args.output}")
+    logger.info("Flow validation complete%s.", scope_label)
+    logger.info("  Entrypoints checked: %d", summary['entrypoints_checked'])
+    logger.info("  Flows with test coverage: %d", summary['flows_with_coverage'])
+    logger.info("  Flows without test coverage: %d", summary['flows_without_coverage'])
+    logger.info("  Findings: %d total (%d errors, %d warnings, %d info)",
+                summary['total_findings'], summary['errors'], summary['warnings'], summary['info'])
+    logger.info("  Output: %s", args.output)
 
     if summary["errors"] > 0:
         return 1

@@ -24,10 +24,13 @@ import argparse
 import ast
 import fnmatch
 import json
+import logging
 import os
 import re
 import sys
 import warnings
+
+logger = logging.getLogger(__name__)
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1022,22 +1025,23 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the CLI."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = build_parser()
     args = parser.parse_args(argv)
 
     root = Path(args.directory)
     if not root.is_dir():
-        print(f"Error: '{root}' is not a directory.", file=sys.stderr)
+        logger.error("'%s' is not a directory.", root)
         return 1
 
     include = args.include or []
     exclude = args.exclude or []
 
-    print(f"Analyzing Python files in: {root.resolve()}")
+    logger.info("Analyzing Python files in: %s", root.resolve())
     if include:
-        print(f"  Include patterns: {include}")
+        logger.info("  Include patterns: %s", include)
     if exclude:
-        print(f"  Exclude patterns: {exclude}")
+        logger.info("  Exclude patterns: %s", exclude)
 
     result = analyze_directory(root, include, exclude)
 
@@ -1049,14 +1053,14 @@ def main(argv: list[str] | None = None) -> int:
         f.write("\n")
 
     summary = result["summary"]
-    print(f"\nAnalysis complete. Results written to: {output_path}")
-    print(f"  Modules:    {summary['total_modules']}")
-    print(f"  Functions:  {summary['total_functions']}")
-    print(f"  Classes:    {summary['total_classes']}")
-    print(f"  Async:      {summary['async_functions']}")
-    print(f"  Entry pts:  {summary['entry_points']}")
-    print(f"  Dead code:  {len(summary['dead_code_candidates'])} candidates")
-    print(f"  Hot funcs:  {len(summary['hot_functions'])}")
+    logger.info("\nAnalysis complete. Results written to: %s", output_path)
+    logger.info("  Modules:    %d", summary['total_modules'])
+    logger.info("  Functions:  %d", summary['total_functions'])
+    logger.info("  Classes:    %d", summary['total_classes'])
+    logger.info("  Async:      %d", summary['async_functions'])
+    logger.info("  Entry pts:  %d", summary['entry_points'])
+    logger.info("  Dead code:  %d candidates", len(summary['dead_code_candidates']))
+    logger.info("  Hot funcs:  %d", len(summary['hot_functions']))
 
     return 0
 

@@ -20,10 +20,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from arch_utils.graph_io import load_graph, save_json  # noqa: E402
@@ -137,6 +140,7 @@ def diff_graphs(
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="Compare two architecture graphs")
     parser.add_argument("--baseline", required=True, help="Path to baseline graph JSON")
     parser.add_argument("--current", required=True, help="Path to current graph JSON")
@@ -150,10 +154,10 @@ def main() -> int:
     current_path = Path(args.current)
 
     if not baseline_path.exists():
-        print(f"Baseline not found: {baseline_path}", file=sys.stderr)
+        logger.error("Baseline not found: %s", baseline_path)
         return 1
     if not current_path.exists():
-        print(f"Current graph not found: {current_path}", file=sys.stderr)
+        logger.error("Current graph not found: %s", current_path)
         return 1
 
     baseline = load_graph(baseline_path)
@@ -163,19 +167,18 @@ def main() -> int:
     output_path = save_json(Path(args.output), report)
 
     s = report["summary"]
-    print(f"Architecture diff: "
-          f"+{s['nodes_added']}/-{s['nodes_removed']} nodes, "
-          f"+{s['edges_added']}/-{s['edges_removed']} edges")
+    logger.info("Architecture diff: +%d/-%d nodes, +%d/-%d edges",
+                s['nodes_added'], s['nodes_removed'], s['edges_added'], s['edges_removed'])
     if s["new_cycles"]:
-        print(f"  WARNING: {s['new_cycles']} new dependency cycle(s)")
+        logger.warning("%d new dependency cycle(s)", s['new_cycles'])
     if s["new_high_impact_modules"]:
-        print(f"  WARNING: {s['new_high_impact_modules']} new high-impact module(s)")
+        logger.warning("%d new high-impact module(s)", s['new_high_impact_modules'])
     if s["untested_new_routes"]:
-        print(f"  WARNING: {s['untested_new_routes']} new route(s) without tests")
+        logger.warning("%d new route(s) without tests", s['untested_new_routes'])
     if s["new_db_tables"]:
-        print(f"  INFO: {s['new_db_tables']} new database table(s)")
+        logger.info("%d new database table(s)", s['new_db_tables'])
 
-    print(f"Report written to {output_path}")
+    logger.info("Report written to %s", output_path)
     return 0
 
 

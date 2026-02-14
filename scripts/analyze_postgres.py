@@ -1158,16 +1158,12 @@ def main(argv: list[str] | None = None) -> None:
         logger.info("Wrote analysis to %s", output_path)
         # Also print summary to stderr
         s = result["summary"]
-        print(
-            f"Schema analysis complete: "
-            f"{s['total_tables']} tables, "
-            f"{s['total_columns']} columns, "
-            f"{s['total_foreign_keys']} FKs, "
-            f"{s['total_indexes']} indexes",
-            file=sys.stderr,
+        logger.info(
+            "Schema analysis complete: %d tables, %d columns, %d FKs, %d indexes",
+            s['total_tables'], s['total_columns'], s['total_foreign_keys'], s['total_indexes'],
         )
     else:
-        print(json_str)
+        sys.stdout.write(json_str + "\n")
 
 
 if __name__ == "__main__":

@@ -47,9 +47,9 @@ PYTHON         ?= python3
 # ---------------------------------------------------------------------------
 
 .PHONY: architecture architecture-setup architecture-diff architecture-feature \
-        architecture-validate architecture-views architecture-clean \
+        architecture-validate architecture-views architecture-report architecture-clean \
         help _analyze-python _analyze-postgres _analyze-typescript \
-        _compile _validate _views _parallel-zones
+        _compile _validate _views _parallel-zones _report
 
 # ---------------------------------------------------------------------------
 # help — display available targets
@@ -155,6 +155,12 @@ _parallel-zones:
 		--graph $(GRAPH_FILE) \
 		--output $(ZONES_FILE)
 
+_report:
+	@echo "--- Architecture report ---"
+	@$(PYTHON) $(SCRIPTS_DIR)/reports/architecture_report.py \
+		--input-dir $(ARCH_DIR) \
+		--output $(ARCH_DIR)/architecture.report.md
+
 # ---------------------------------------------------------------------------
 # architecture-diff — baseline comparison
 # ---------------------------------------------------------------------------
@@ -242,6 +248,19 @@ architecture-views: ## Regenerate views from the existing graph
 	@echo "Views regenerated in $(VIEWS_DIR)/"
 
 # ---------------------------------------------------------------------------
+# architecture-report — generate Markdown report from Layer 2 artifacts
+# ---------------------------------------------------------------------------
+
+architecture-report: ## Generate architecture.report.md from Layer 2 artifacts
+	@echo "=== Generating Architecture Report ==="
+	@if [ ! -f $(GRAPH_FILE) ]; then \
+		echo "ERROR: $(GRAPH_FILE) not found. Run 'make architecture' first."; \
+		exit 1; \
+	fi
+	@$(MAKE) _report
+	@echo "Report written to $(ARCH_DIR)/architecture.report.md"
+
+# ---------------------------------------------------------------------------
 # architecture-clean — remove generated artifacts
 # ---------------------------------------------------------------------------
 
@@ -254,6 +273,9 @@ architecture-clean: ## Remove all generated architecture artifacts
 		$(ARCH_DIR)/architecture.summary.json \
 		$(ARCH_DIR)/architecture.diagnostics.json \
 		$(ARCH_DIR)/architecture.diff.json \
+		$(ARCH_DIR)/architecture.report.md \
+		$(ARCH_DIR)/cross_layer_flows.json \
+		$(ARCH_DIR)/high_impact_nodes.json \
 		$(ARCH_DIR)/parallel_zones.json \
 		$(ARCH_DIR)/views \
 		$(ARCH_DIR)/tmp
