@@ -5,7 +5,7 @@
 The system SHALL define a single normalized JSON schema for architecture artifacts that all per-language analyzers feed into. The canonical graph SHALL be the single source of truth for architectural relationships across all languages and layers.
 
 - The schema SHALL include four top-level objects: `nodes[]`, `edges[]`, `entrypoints[]`, and `snapshots[]`
-- Each node SHALL have: `id` (stable, format `{language}:{qualified_name}`), `kind` (function, class, component, hook, table, module), `language` (python, typescript, sql), `name`, `file`, `span` (start/end line numbers), `tags[]`, and `signatures` (language-specific metadata)
+- Each node SHALL have: `id` (stable, format `{prefix}:{qualified_name}` where prefix is `py` for Python, `ts` for TypeScript, `pg` for Postgres), `kind` (function, class, component, hook, table, module), `language` (python, typescript, sql), `name`, `file`, `span` (start/end line numbers), `tags[]`, and `signatures` (language-specific metadata)
 - Each edge SHALL have: `from` (node ID), `to` (node ID), `type` (call, import, api_call, db_access, fk_reference, component_child, hook_usage), `confidence` (high, medium, low), and `evidence` (string describing how the edge was detected)
 - Each entrypoint SHALL have: `node_id`, `kind` (route, cli, job, event_handler, migration), `method` (HTTP method if applicable), and `path` (URL path if applicable)
 - Each snapshot SHALL have: `generated_at` (ISO 8601), `git_sha`, and `tool_versions` (map of tool name to version string)
@@ -127,7 +127,7 @@ The system SHALL extract Postgres schema information from SQL migration files as
 The system SHALL compile per-language intermediate outputs into a single canonical `architecture.graph.json` by normalizing nodes/edges and performing cross-language linking.
 
 - The compiler SHALL read `python_analysis.json`, `ts_analysis.json`, and `postgres_analysis.json` intermediate outputs
-- The compiler SHALL normalize all symbols into stable node IDs using the `{language}:{qualified_name}` convention
+- The compiler SHALL normalize all symbols into stable node IDs using the `{prefix}:{qualified_name}` convention (where prefix is `py`, `ts`, or `pg`)
 - The compiler SHALL perform Frontend→Backend linking: match TypeScript API call URLs to Python route decorator paths
 - The compiler SHALL perform Backend→Database linking: match Python database access patterns to Postgres table names
 - The compiler SHALL infer Frontend→Database indirect flows by chaining endpoint→service→query→table paths
@@ -292,7 +292,7 @@ The system SHALL commit architecture artifacts to the repository to track struct
 
 The system SHALL integrate architecture artifacts into the `plan-feature`, `implement-feature`, and `validate-feature` skill workflows.
 
-- The `plan-feature` skill SHALL consult `architecture.summary.json` and cross-layer flows as planning context before generating a proposal
+- The `plan-feature` skill SHALL consult `.architecture/architecture.summary.json` and cross-layer flows as planning context before generating a proposal
 - The `implement-feature` skill SHALL run the flow validator after implementation and before PR creation, including diagnostics in the PR description
 - The `validate-feature` skill SHALL include architecture diagnostics in its validation report alongside existing checks
 - Skill documentation SHALL recommend running `make architecture` as a pre-step when artifacts are stale

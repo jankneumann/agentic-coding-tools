@@ -1,7 +1,7 @@
 ## 1. Canonical Graph Schema
 
 - [ ] 1.1 Define JSON schema for `architecture.graph.json` with `nodes[]`, `edges[]`, `entrypoints[]`, `snapshots[]`
-- [ ] 1.2 Define stable node ID convention: `{language}:{qualified_name}` (e.g., `py:backend.api.routes.get_user`, `ts:UserProfile`, `pg:public.users`)
+- [ ] 1.2 Define stable node ID convention: `{prefix}:{qualified_name}` where prefix is `py` (Python), `ts` (TypeScript), `pg` (Postgres) — e.g., `py:backend.api.routes.get_user`, `ts:UserProfile`, `pg:public.users`
 - [ ] 1.3 Define edge types: `call`, `import`, `api_call`, `db_access`, `fk_reference`, `component_child`, `hook_usage`
 - [ ] 1.4 Define confidence levels (`high`, `medium`, `low`) and evidence string format
 - [ ] 1.5 Write schema validation script or JSON Schema definition
@@ -53,7 +53,7 @@
 ## 6. Graph Compiler (Normalize + Link)
 
 - [ ] 6.1 Create `scripts/compile_architecture_graph.py` that reads per-language intermediate outputs
-- [ ] 6.2 Implement node normalization: map every function/class/component/table to a stable `{language}:{qualified_name}` node ID
+- [ ] 6.2 Implement node normalization: map every function/class/component/table to a stable `{prefix}:{qualified_name}` node ID (using `py`, `ts`, `pg` prefixes)
 - [ ] 6.3 Implement edge normalization: convert per-language call/import/FK edges into canonical edge format with type, confidence, evidence
 - [ ] 6.4 Implement Frontend→Backend cross-language linking: match TS API call URLs to Python route decorator paths (exact match = high, parameterized = medium, heuristic = low)
 - [ ] 6.5 Implement Backend→Database cross-language linking: match Python ORM model usage and SQL patterns to DB table names
