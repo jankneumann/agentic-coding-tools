@@ -30,6 +30,10 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.graph_io import load_graph as _load_graph  # noqa: E402
+from arch_utils.node_id import mermaid_id as _mermaid_id  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Graph loading
@@ -40,11 +44,11 @@ Graph = dict[str, Any]
 
 def load_graph(path: Path) -> Graph:
     """Load and return the canonical architecture graph JSON."""
-    if not path.exists():
-        print(f"Error: graph file not found: {path}", file=sys.stderr)
+    graph = _load_graph(path)
+    if not graph:
+        print(f"Error: graph file not found or empty: {path}", file=sys.stderr)
         sys.exit(1)
-    with open(path) as f:
-        return json.load(f)
+    return graph
 
 
 # ---------------------------------------------------------------------------
@@ -56,11 +60,6 @@ LANGUAGE_CONTAINER: dict[str, str] = {
     "typescript": "Frontend",
     "sql": "Database",
 }
-
-# Mermaid-safe identifier: replace non-alphanumeric chars with underscores.
-def _mermaid_id(raw: str) -> str:
-    """Convert an arbitrary string into a safe Mermaid node identifier."""
-    return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in raw)
 
 
 def _quote(label: str) -> str:

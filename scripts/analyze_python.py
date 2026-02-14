@@ -230,6 +230,19 @@ _EVENT_HANDLER_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^receiver\("),
 ]
 
+# MCP (Model Context Protocol) decorator patterns
+_MCP_TOOL_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^(?:\w+)\.tool\("),      # @mcp.tool() or @server.tool()
+]
+
+_MCP_RESOURCE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^(?:\w+)\.resource\("),   # @mcp.resource('uri')
+]
+
+_MCP_PROMPT_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"^(?:\w+)\.prompt\("),     # @mcp.prompt()
+]
+
 
 def _detect_entry_point(
     qualified_name: str, decorators: list[str],
@@ -265,7 +278,52 @@ def _detect_entry_point(
                     kind="event_handler",
                 )
 
+        # MCP tool decorators: @mcp.tool(), @server.tool()
+        for pattern in _MCP_TOOL_PATTERNS:
+            if pattern.match(dec_str):
+                return EntryPoint(
+                    function=qualified_name,
+                    kind="route",
+                    method="MCP",
+                    path=_extract_mcp_name(dec_str, qualified_name),
+                )
+
+        # MCP resource decorators: @mcp.resource('uri')
+        for pattern in _MCP_RESOURCE_PATTERNS:
+            if pattern.match(dec_str):
+                return EntryPoint(
+                    function=qualified_name,
+                    kind="route",
+                    method="MCP",
+                    path=_extract_mcp_name(dec_str, qualified_name),
+                )
+
+        # MCP prompt decorators: @mcp.prompt()
+        for pattern in _MCP_PROMPT_PATTERNS:
+            if pattern.match(dec_str):
+                return EntryPoint(
+                    function=qualified_name,
+                    kind="route",
+                    method="MCP",
+                    path=_extract_mcp_name(dec_str, qualified_name),
+                )
+
     return None
+
+
+def _extract_mcp_name(dec_str: str, qualified_name: str) -> str:
+    """Extract the MCP tool/resource/prompt name from a decorator string.
+
+    Examples:
+        mcp.tool()                   -> function name from qualified_name
+        mcp.resource('locks://current') -> 'locks://current'
+    """
+    # Look for a string argument: mcp.resource('uri') or mcp.tool('name')
+    m = re.search(r"""['"](.*?)['"]""", dec_str)
+    if m:
+        return m.group(1)
+    # No explicit name — use the function name
+    return qualified_name.rsplit(".", 1)[-1] if "." in qualified_name else qualified_name
 
 
 def _extract_http_method(dec_str: str, match: re.Match[str]) -> str | None:

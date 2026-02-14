@@ -25,24 +25,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.traversal import (  # noqa: E402
+    build_adjacency,
+    reachable_from,
+)
+
 
 # ---------------------------------------------------------------------------
 # Data helpers
 # ---------------------------------------------------------------------------
 
 def _build_adjacency(graph: dict) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    """Build forward and reverse adjacency lists from edges.
-
-    Returns (forward, reverse) where each maps node_id -> [node_id, ...].
-    """
-    forward: dict[str, list[str]] = defaultdict(list)
-    reverse: dict[str, list[str]] = defaultdict(list)
-    for edge in graph.get("edges", []):
-        src = edge["from"]
-        dst = edge["to"]
-        forward[src].append(dst)
-        reverse[dst].append(src)
-    return dict(forward), dict(reverse)
+    """Build forward and reverse adjacency lists from edges."""
+    edges = graph.get("edges", [])
+    forward = build_adjacency(edges)
+    reverse = build_adjacency(edges, reverse=True)
+    return forward, reverse
 
 
 def _build_node_index(graph: dict) -> dict[str, dict]:
@@ -51,18 +50,8 @@ def _build_node_index(graph: dict) -> dict[str, dict]:
 
 
 def _reachable_from(start: str, adjacency: dict[str, list[str]]) -> set[str]:
-    """BFS/DFS forward reachability from *start*."""
-    visited: set[str] = set()
-    stack = [start]
-    while stack:
-        current = stack.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        for neighbor in adjacency.get(current, []):
-            if neighbor not in visited:
-                stack.append(neighbor)
-    return visited
+    """BFS forward reachability from *start*."""
+    return reachable_from(start, adjacency)
 
 
 def _edge_types_for(node_id: str, graph: dict) -> set[str]:
@@ -364,12 +353,21 @@ def _is_test_file(file_path: str) -> bool:
 
 
 def _corresponding_test_names(name: str) -> list[str]:
-    """Generate plausible test function/file name fragments for *name*."""
-    return [
+    """Generate plausible test function/file name fragments for *name*.
+
+    Only returns patterns that are specific enough to avoid false positives.
+    Short names (<=3 chars) are prefixed to avoid matching common words.
+    """
+    if not name:
+        return []
+    results = [
         f"test_{name}",
-        f"Test{name[0].upper()}{name[1:]}" if name else "",
-        name,
+        f"Test{name[0].upper()}{name[1:]}",
     ]
+    # Only include the bare name if it's long enough to be specific
+    if len(name) > 6:
+        results.append(name)
+    return results
 
 
 def check_test_coverage(

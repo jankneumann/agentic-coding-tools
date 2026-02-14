@@ -17,15 +17,10 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-# ---------------------------------------------------------------------------
-# Graph loading
-# ---------------------------------------------------------------------------
-
-def load_graph(path: Path) -> dict:
-    """Load and return the architecture graph JSON."""
-    with open(path) as f:
-        return json.load(f)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.constants import DEPENDENCY_EDGE_TYPES  # noqa: E402
+from arch_utils.graph_io import load_graph  # noqa: E402
+from arch_utils.traversal import reachable_from  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -71,21 +66,9 @@ class UnionFind:
 # Dependency-edge filtering
 # ---------------------------------------------------------------------------
 
-# Edge types that represent import / dependency relationships.
-_DEPENDENCY_EDGE_TYPES = frozenset({
-    "import",
-    "call",
-    "api_call",
-    "db_access",
-    "hook_usage",
-    "component_child",
-    "fk_reference",
-})
-
-
 def _is_dependency_edge(edge: dict) -> bool:
     """Return True if this edge should be considered a dependency link."""
-    return edge.get("type") in _DEPENDENCY_EDGE_TYPES
+    return edge.get("type") in DEPENDENCY_EDGE_TYPES
 
 
 # ---------------------------------------------------------------------------
@@ -157,14 +140,7 @@ def compute_impact_radius(
     Returns sorted list of module IDs that would be impacted if *module_id*
     is modified (i.e., everything that transitively depends on it).
     """
-    visited: set[str] = set()
-    queue: deque[str] = deque([module_id])
-    while queue:
-        current = queue.popleft()
-        for dep in dependents_graph.get(current, ()):
-            if dep not in visited:
-                visited.add(dep)
-                queue.append(dep)
+    visited = reachable_from(module_id, dependents_graph, include_start=False)
     return sorted(visited)
 
 

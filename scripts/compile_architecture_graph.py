@@ -26,6 +26,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.constants import DEPENDENCY_EDGE_TYPES, EdgeType  # noqa: E402
+from arch_utils.node_id import make_node_id  # noqa: E402
+from arch_utils.traversal import build_adjacency, reachable_from  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -77,21 +82,6 @@ def load_intermediate(path: Path) -> dict[str, Any] | None:
     except (json.JSONDecodeError, OSError) as exc:
         print(f"  [warn] {path.name}: {exc}", file=sys.stderr)
         return None
-
-
-# ---------------------------------------------------------------------------
-# Node ID normalization
-# ---------------------------------------------------------------------------
-
-
-def _sanitize_qualified_name(name: str) -> str:
-    """Ensure a qualified name contains no whitespace and is lowercased for stability."""
-    return re.sub(r"\s+", "_", name.strip())
-
-
-def make_node_id(prefix: str, qualified_name: str) -> str:
-    """Build a stable node ID: ``{prefix}:{qualified_name}``."""
-    return f"{prefix}:{_sanitize_qualified_name(qualified_name)}"
 
 
 # ---------------------------------------------------------------------------
@@ -171,42 +161,76 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
                 tags.append("entrypoint")
 
     # --- intra-language edges: calls ---
-    for edge in data.get("call_edges", []):
-        from_id = make_node_id("py", edge.get("from", ""))
-        to_id = make_node_id("py", edge.get("to", ""))
-        edges.append({
-            "from": from_id,
-            "to": to_id,
-            "type": "call",
-            "confidence": edge.get("confidence", "high"),
-            "evidence": edge.get("evidence", "ast:call"),
-        })
+    # The Python analyzer stores calls as a list of names on each function.
+    # Build a lookup from short/qualified names to node IDs so we can resolve them.
+    name_to_nid: dict[str, str] = {}
+    for func in data.get("functions", []):
+        qn = func.get("qualified_name", func.get("name", ""))
+        nid = make_node_id("py", qn)
+        name_to_nid[qn] = nid
+        # Also register by short name for unqualified calls
+        short = func.get("name", "")
+        if short and short not in name_to_nid:
+            name_to_nid[short] = nid
+
+    for func in data.get("functions", []):
+        from_qn = func.get("qualified_name", func.get("name", ""))
+        from_id = make_node_id("py", from_qn)
+        for call_name in func.get("calls", []):
+            to_id = name_to_nid.get(call_name)
+            if to_id and to_id != from_id:
+                edges.append({
+                    "from": from_id,
+                    "to": to_id,
+                    "type": "call",
+                    "confidence": "high",
+                    "evidence": f"ast:call:{call_name}",
+                })
 
     # --- intra-language edges: imports ---
-    for edge in data.get("import_edges", []):
+    # The Python analyzer stores these in "import_graph" (not "import_edges").
+    for edge in data.get("import_graph", data.get("import_edges", [])):
         from_id = make_node_id("py", edge.get("from", ""))
         to_id = make_node_id("py", edge.get("to", ""))
-        edges.append({
-            "from": from_id,
-            "to": to_id,
-            "type": "import",
-            "confidence": edge.get("confidence", "high"),
-            "evidence": edge.get("evidence", "ast:import"),
-        })
+        if from_id != to_id:
+            edges.append({
+                "from": from_id,
+                "to": to_id,
+                "type": "import",
+                "confidence": "high",
+                "evidence": "ast:import",
+            })
 
-    # --- intra-language edges: db_access (within Python) ---
-    for edge in data.get("db_access_edges", []):
-        from_id = make_node_id("py", edge.get("from", ""))
-        # For db_access, the "to" references a table name which uses pg prefix
-        table_name = edge.get("table", edge.get("to", ""))
-        to_id = make_node_id("pg", f"public.{table_name}" if "." not in table_name else table_name)
-        edges.append({
-            "from": from_id,
-            "to": to_id,
-            "type": "db_access",
-            "confidence": edge.get("confidence", "medium"),
-            "evidence": edge.get("evidence", "orm:model_usage"),
-        })
+    # --- intra-language edges: db_access ---
+    # The Python analyzer stores these in "db_access" (not "db_access_edges").
+    for da in data.get("db_access", data.get("db_access_edges", [])):
+        func_qn = da.get("function", da.get("from", ""))
+        from_id = make_node_id("py", func_qn)
+        for table_name in da.get("tables", []):
+            if not table_name:
+                continue
+            to_id = make_node_id(
+                "pg", f"public.{table_name}" if "." not in table_name else table_name
+            )
+            edges.append({
+                "from": from_id,
+                "to": to_id,
+                "type": "db_access",
+                "confidence": da.get("confidence", "medium"),
+                "evidence": f"orm:{da.get('pattern', 'model_usage')}",
+            })
+
+    # --- entrypoints from entry_points array ---
+    for ep in data.get("entry_points", []):
+        func_qn = ep.get("function", "")
+        func_nid = make_node_id("py", func_qn)
+        if func_nid in node_ids:
+            ep_entry: Entrypoint = {"node_id": func_nid, "kind": ep.get("kind", "route")}
+            if ep.get("method"):
+                ep_entry["method"] = ep["method"]
+            if ep.get("path"):
+                ep_entry["path"] = ep["path"]
+            entrypoints.append(ep_entry)
 
     return nodes, edges, entrypoints
 
@@ -729,12 +753,12 @@ def link_backend_to_database(
         table_names.add(name.lower())
         table_qualified[name.lower()] = qualified
 
-    # Check Python functions for db_tables metadata not already captured in db_access_edges
+    # Check Python functions for db_tables metadata not already captured in db_access
     existing_db_edges: set[tuple[str, str]] = set()
-    for edge in py_data.get("db_access_edges", []):
-        from_qn = edge.get("from", "")
-        table = edge.get("table", edge.get("to", ""))
-        existing_db_edges.add((from_qn, table.lower()))
+    for da in py_data.get("db_access", py_data.get("db_access_edges", [])):
+        from_qn = da.get("function", da.get("from", ""))
+        for table in da.get("tables", []):
+            existing_db_edges.add((from_qn, table.lower()))
 
     for func in py_data.get("functions", []):
         func_qn = func.get("qualified_name", func.get("name", ""))
@@ -776,14 +800,6 @@ def link_backend_to_database(
 # ---------------------------------------------------------------------------
 # Cross-layer flow inference
 # ---------------------------------------------------------------------------
-
-
-def build_adjacency(edges: list[Edge]) -> dict[str, list[str]]:
-    """Build a forward adjacency list from edges."""
-    adj: dict[str, list[str]] = defaultdict(list)
-    for edge in edges:
-        adj[edge["from"]].append(edge["to"])
-    return adj
 
 
 def infer_cross_layer_flows(
@@ -880,7 +896,7 @@ def compute_high_impact_nodes(
     # Build reverse adjacency (who depends on this node?)
     reverse_adj: dict[str, set[str]] = defaultdict(set)
     for edge in all_edges:
-        if edge["type"] in ("call", "import", "api_call", "db_access", "component_child", "hook_usage"):
+        if edge["type"] in DEPENDENCY_EDGE_TYPES:
             reverse_adj[edge["to"]].add(edge["from"])
 
     # Compute transitive dependents for each node
