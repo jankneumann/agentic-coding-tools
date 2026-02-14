@@ -21,7 +21,7 @@ import re
 import sqlite3
 import subprocess
 import sys
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -829,12 +829,12 @@ def infer_cross_layer_flows(
 
         # BFS from backend handler to find all reachable db tables
         visited: set[str] = set()
-        queue: list[str] = [backend_handler_id]
+        queue: deque[str] = deque([backend_handler_id])
         service_functions: list[str] = []
         db_tables: list[str] = []
 
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             if current in visited:
                 continue
             visited.add(current)
@@ -909,9 +909,9 @@ def compute_high_impact_nodes(
 
         # BFS to count transitive dependents
         visited: set[str] = set()
-        queue = list(reverse_adj[nid])
+        queue: deque[str] = deque(reverse_adj[nid])
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             if current in visited:
                 continue
             visited.add(current)
@@ -1119,16 +1119,20 @@ def deduplicate_nodes(nodes: list[Node]) -> list[Node]:
     return unique
 
 
+_CONFIDENCE_RANK = {"high": 2, "medium": 1, "low": 0}
+
+
 def deduplicate_edges(edges: list[Edge]) -> list[Edge]:
-    """Remove duplicate edges (same from, to, type)."""
-    seen: set[tuple[str, str, str]] = set()
-    unique: list[Edge] = []
+    """Remove duplicate edges (same from, to, type), keeping highest confidence."""
+    best: dict[tuple[str, str, str], Edge] = {}
     for edge in edges:
         key = (edge["from"], edge["to"], edge["type"])
-        if key not in seen:
-            seen.add(key)
-            unique.append(edge)
-    return unique
+        existing = best.get(key)
+        if existing is None or _CONFIDENCE_RANK.get(
+            edge.get("confidence", "low"), 0
+        ) > _CONFIDENCE_RANK.get(existing.get("confidence", "low"), 0):
+            best[key] = edge
+    return list(best.values())
 
 
 # ---------------------------------------------------------------------------

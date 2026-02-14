@@ -24,6 +24,8 @@ class EdgeType(str, Enum):
     FK_REFERENCE = "fk_reference"
     HOOK_USAGE = "hook_usage"
     COMPONENT_CHILD = "component_child"
+    CIRCULAR_DEPENDENCY = "circular_dependency"
+    LAYER_VIOLATION = "layer_violation"
 
     def __str__(self) -> str:  # pragma: no cover
         return self.value
@@ -31,7 +33,13 @@ class EdgeType(str, Enum):
 
 # Edges that represent structural dependency (used for cycle detection,
 # parallel-zone computation, and impact analysis).
-DEPENDENCY_EDGE_TYPES: frozenset[str] = frozenset(e.value for e in EdgeType)
+DEPENDENCY_EDGE_TYPES: frozenset[str] = frozenset({
+    EdgeType.CALL.value,
+    EdgeType.IMPORT.value,
+    EdgeType.FK_REFERENCE.value,
+    EdgeType.HOOK_USAGE.value,
+    EdgeType.COMPONENT_CHILD.value,
+})
 
 # Edges that represent side-effect relationships (DB writes, API calls).
 SIDE_EFFECT_EDGE_TYPES: frozenset[str] = frozenset({
@@ -53,10 +61,12 @@ class NodeKind(str, Enum):
     MODULE = "module"
     TABLE = "table"
     COLUMN = "column"
-    VIEW = "view"
     INDEX = "index"
     COMPONENT = "component"
     HOOK = "hook"
+    STORED_FUNCTION = "stored_function"
+    TRIGGER = "trigger"
+    MIGRATION = "migration"
 
     def __str__(self) -> str:  # pragma: no cover
         return self.value

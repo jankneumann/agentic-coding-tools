@@ -8,7 +8,7 @@ Usage:
     python scripts/validate_flows.py
     python scripts/validate_flows.py --graph .architecture/architecture.graph.json
     python scripts/validate_flows.py --files file1.py,file2.py
-    python scripts/validate_flows.py --diff "git diff main...HEAD"
+    python scripts/validate_flows.py --diff "main...HEAD"
     python scripts/validate_flows.py --glob "src/**/*.py"
 """
 
@@ -80,15 +80,12 @@ def _resolve_changed_files(
         changed.extend(f.strip() for f in files_arg.split(",") if f.strip())
 
     if diff_arg:
-        # diff_arg is either a literal git command or a diff-spec like "main...HEAD"
-        if diff_arg.startswith("git "):
-            cmd = diff_arg
-        else:
-            cmd = f"git diff --name-only {diff_arg}"
+        # diff_arg is a diff-spec like "main...HEAD" — never a raw shell command.
+        # We always construct the argv list ourselves to avoid shell injection.
+        cmd = ["git", "diff", "--name-only", diff_arg]
         try:
             result = subprocess.run(
                 cmd,
-                shell=True,
                 capture_output=True,
                 text=True,
                 check=True,

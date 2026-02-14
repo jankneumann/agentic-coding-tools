@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any, Iterable
 
-from arch_utils.constants import DEPENDENCY_EDGE_TYPES, EdgeType
+from arch_utils.constants import DEPENDENCY_EDGE_TYPES
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ def find_cycles(
         Restrict to these edge types (default: dependency edges).
     """
     if edge_types is None:
-        edge_types = frozenset({EdgeType.CALL, EdgeType.IMPORT})
+        edge_types = DEPENDENCY_EDGE_TYPES
 
     adj: dict[str, list[str]] = defaultdict(list)
     for edge in edges:
