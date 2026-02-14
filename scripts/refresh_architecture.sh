@@ -22,6 +22,7 @@ ARCH_DIR=".architecture"
 VIEWS_DIR="${ARCH_DIR}/views"
 SCRIPTS_DIR="scripts"
 PYTHON_SRC="agent-coordinator/src"
+TS_SRC="${TS_SRC:-web/}"
 MIGRATIONS_DIR="agent-coordinator/supabase/migrations"
 
 GRAPH_FILE="${ARCH_DIR}/architecture.graph.json"
@@ -156,6 +157,7 @@ else
         skip "typescript_analyzer"
     else
         if npx ts-node "${SCRIPTS_DIR}/analyze_typescript.ts" \
+            "${TS_SRC}" \
             --output "${TS_ANALYSIS}" 2>&1; then
             info "TypeScript analysis written to ${TS_ANALYSIS}"
             pass "typescript_analyzer"

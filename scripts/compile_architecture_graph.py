@@ -444,7 +444,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
         })
 
     # --- stored functions ---
-    for func in data.get("functions", []):
+    for func in data.get("stored_functions", []):
         schema = func.get("schema", "public")
         func_name = func.get("name", "")
         qualified = f"{schema}.{func_name}"
@@ -504,10 +504,10 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
     for fk in data.get("foreign_keys", []):
         from_table = fk.get("from_table", "")
         to_table = fk.get("to_table", "")
-        from_schema = fk.get("from_schema", "public")
-        to_schema = fk.get("to_schema", "public")
-        from_id = make_node_id("pg", f"{from_schema}.{from_table}")
-        to_id = make_node_id("pg", f"{to_schema}.{to_table}")
+        # from_table / to_table are already schema-qualified (e.g. "public.users")
+        # from analyze_postgres.py's _qualify() helper — do NOT prepend schema again
+        from_id = make_node_id("pg", from_table)
+        to_id = make_node_id("pg", to_table)
         edges.append({
             "from": from_id,
             "to": to_id,
@@ -589,7 +589,7 @@ def link_frontend_to_backend(
             route_lookup[normalized].append(ep)
 
     # Collect all API call sites from TS analysis
-    api_calls: list[dict[str, Any]] = ts_data.get("api_calls", [])
+    api_calls: list[dict[str, Any]] = ts_data.get("api_call_sites", [])
 
     # Track which routes and frontend calls have been matched
     matched_routes: set[str] = set()

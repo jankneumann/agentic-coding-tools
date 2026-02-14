@@ -23,6 +23,7 @@ ARCH_DIR       := .architecture
 VIEWS_DIR      := $(ARCH_DIR)/views
 SCRIPTS_DIR    := scripts
 PYTHON_SRC     := agent-coordinator/src
+TS_SRC         := web/
 MIGRATIONS_DIR := agent-coordinator/supabase/migrations
 
 GRAPH_FILE     := $(ARCH_DIR)/architecture.graph.json
@@ -121,6 +122,7 @@ _analyze-typescript:
 	@mkdir -p $(ARCH_DIR)
 	@if command -v npx >/dev/null 2>&1; then \
 		npx ts-node $(SCRIPTS_DIR)/analyze_typescript.ts \
+			$(TS_SRC) \
 			--output $(TS_ANALYSIS) \
 		|| { echo "[WARN] TypeScript analyzer failed (ts-morph may not be installed)"; exit 1; }; \
 	else \
