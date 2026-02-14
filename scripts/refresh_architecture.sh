@@ -88,7 +88,7 @@ mkdir -p "${ARCH_DIR}" "${VIEWS_DIR}"
 # Step 1: Python Analyzer
 # ---------------------------------------------------------------------------
 
-info "--- [1/7] Python Analyzer ---"
+info "--- [1/6] Python Analyzer ---"
 info "Source: ${PYTHON_SRC}"
 
 if [ ! -d "${PYTHON_SRC}" ]; then
@@ -114,7 +114,7 @@ echo ""
 # Step 2: Postgres Analyzer
 # ---------------------------------------------------------------------------
 
-info "--- [2/7] Postgres Analyzer ---"
+info "--- [2/6] Postgres Analyzer ---"
 info "Migrations: ${MIGRATIONS_DIR}"
 
 if [ ! -d "${MIGRATIONS_DIR}" ]; then
@@ -140,7 +140,7 @@ echo ""
 # Step 3: TypeScript Analyzer (optional — skip with warning if unavailable)
 # ---------------------------------------------------------------------------
 
-info "--- [3/7] TypeScript Analyzer ---"
+info "--- [3/6] TypeScript Analyzer ---"
 
 if [ ! -f "${SCRIPTS_DIR}/analyze_typescript.ts" ]; then
     warn "TypeScript analyzer script not found: ${SCRIPTS_DIR}/analyze_typescript.ts — skipping"
@@ -198,7 +198,7 @@ else
 # Step 4: Graph Compiler
 # ---------------------------------------------------------------------------
 
-info "--- [4/7] Graph Compiler ---"
+info "--- [4/6] Graph Compiler ---"
 
 if [ ! -f "${SCRIPTS_DIR}/compile_architecture_graph.py" ]; then
     warn "Compiler script not found: ${SCRIPTS_DIR}/compile_architecture_graph.py"
@@ -220,7 +220,7 @@ echo ""
 # Step 5: Flow Validator
 # ---------------------------------------------------------------------------
 
-info "--- [5/7] Flow Validator ---"
+info "--- [5/6] Flow Validator ---"
 
 if [ ! -f "${GRAPH_FILE}" ]; then
     warn "Graph file not found — skipping validation"
@@ -256,11 +256,11 @@ echo ""
 # ---------------------------------------------------------------------------
 
 if [ "$QUICK" = true ]; then
-    info "--- [6/7] Views & Parallel Zones (skipped: --quick mode) ---"
+    info "--- [6/6] Views & Parallel Zones (skipped: --quick mode) ---"
     skip "views"
     skip "parallel_zones"
 else
-    info "--- [6/7] View Generator & Parallel Zones ---"
+    info "--- [6/6] View Generator & Parallel Zones ---"
 
     # View generator
     if [ ! -f "${GRAPH_FILE}" ]; then
