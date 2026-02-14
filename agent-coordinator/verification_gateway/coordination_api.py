@@ -24,7 +24,10 @@ from pydantic import BaseModel
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")  # Full access
-COORDINATION_API_KEYS = os.environ.get("COORDINATION_API_KEYS", "").split(",")
+COORDINATION_API_KEYS = [
+    key.strip() for key in os.environ.get("COORDINATION_API_KEYS", "").split(",")
+    if key.strip()
+]
 
 
 # =============================================================================
@@ -75,6 +78,14 @@ class WorkCompleteRequest(BaseModel):
     success: bool
     result: dict | None = None
     error_message: str | None = None
+
+
+class WorkSubmitRequest(BaseModel):
+    task_type: str
+    task_description: str
+    input_data: dict | None = None
+    priority: int = 5
+    depends_on: list[str] | None = None
 
 
 class WorkingMemoryUpdate(BaseModel):
@@ -172,6 +183,28 @@ class SupabaseClient:
 
         return response.json()
 
+    async def query(self, table: str, query: str = "") -> list[dict]:
+        """Query rows from a table using PostgREST filters."""
+        url = f"{self.url}/rest/v1/{table}"
+        if query:
+            url = f"{url}?{query}"
+
+        response = await self._client.get(
+            url,
+            headers={
+                "apikey": self.key,
+                "Authorization": f"Bearer {self.key}",
+            },
+        )
+
+        if response.status_code >= 400:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Supabase error: {response.text}"
+            )
+
+        return response.json()
+
 
 db = SupabaseClient()
 
@@ -203,7 +236,7 @@ def create_coordination_api() -> FastAPI:
         Cloud agents call this before modifying files.
         Returns success/failure and lock details.
         """
-        result = await db.rpc("acquire_file_lock", {
+        result = await db.rpc("acquire_lock", {
             "p_file_path": request.file_path,
             "p_agent_id": request.agent_id,
             "p_agent_type": request.agent_type,
@@ -240,9 +273,15 @@ def create_coordination_api() -> FastAPI:
         This is READ-ONLY and doesn't require API key.
         Cloud agents can also query Supabase directly.
         """
-        # This would typically go direct to Supabase from the agent
-        # Included here for completeness
-        pass
+        rows = await db.query(
+            "file_locks",
+            f"file_path=eq.{file_path}&expires_at=gt.now()&limit=1",
+        )
+
+        if not rows:
+            return {"locked": False, "file_path": file_path}
+
+        return {"locked": True, "file_path": file_path, "lock": rows[0]}
 
     # -------------------------------------------------------------------------
     # MEMORY OPERATIONS
@@ -343,7 +382,7 @@ def create_coordination_api() -> FastAPI:
         Returns the highest priority task this agent can handle.
         Atomic - prevents multiple agents claiming same task.
         """
-        result = await db.rpc("claim_work", {
+        result = await db.rpc("claim_task", {
             "p_agent_id": request.agent_id,
             "p_agent_type": request.agent_type,
             "p_task_types": request.task_types,
@@ -361,32 +400,22 @@ def create_coordination_api() -> FastAPI:
 
         Triggers downstream verification if configured.
         """
-        status = "completed" if request.success else "failed"
-
-        await db.update(
-            "work_queue",
-            {"id": request.task_id, "assigned_to": request.agent_id},
-            {
-                "status": status,
-                "result": request.result,
-                "error_message": request.error_message,
-                "completed_at": datetime.utcnow().isoformat(),
-            },
-        )
+        result = await db.rpc("complete_task", {
+            "p_task_id": request.task_id,
+            "p_agent_id": request.agent_id,
+            "p_success": request.success,
+            "p_result": request.result,
+            "p_error_message": request.error_message,
+        })
 
         # Trigger verification gateway if this was a code change
         # (This would integrate with the verification gateway from gateway.py)
 
-        return {"success": True, "status": status}
+        return result
 
     @app.post("/work/submit")
     async def submit_work(
-        task_type: str,
-        task_description: str,
-        input_data: dict = None,
-        priority: int = 5,
-        preferred_agent_type: str = None,
-        depends_on: list[str] = None,
+        request: WorkSubmitRequest,
         _: str = Depends(verify_api_key),
     ):
         """
@@ -394,16 +423,16 @@ def create_coordination_api() -> FastAPI:
 
         Used by orchestrators or agents spawning subtasks.
         """
-        result = await db.insert("work_queue", {
-            "task_type": task_type,
-            "task_description": task_description,
-            "input_data": input_data,
-            "priority": priority,
-            "preferred_agent_type": preferred_agent_type,
-            "depends_on": depends_on,
+        result = await db.rpc("submit_task", {
+            "p_task_type": request.task_type,
+            "p_description": request.task_description,
+            "p_input_data": request.input_data,
+            "p_priority": request.priority,
+            "p_depends_on": request.depends_on,
+            "p_deadline": None,
         })
 
-        return {"success": True, "task_id": result[0]["id"]}
+        return result
 
     # -------------------------------------------------------------------------
     # NEWSLETTER-SPECIFIC
