@@ -107,13 +107,32 @@ class LockService:
             LockResult indicating success/failure and lock details
         """
         config = get_config()
+        resolved_agent_id = agent_id or config.agent.agent_id
+        resolved_agent_type = agent_type or config.agent.agent_type
+
+        # Authorization boundary for write operations.
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="acquire_lock",
+            resource=file_path,
+            context={"reason": reason},
+        )
+        if not decision.allowed:
+            return LockResult(
+                success=False,
+                file_path=file_path,
+                reason=decision.reason or "operation_not_permitted",
+            )
 
         result = await self.db.rpc(
             "acquire_lock",
             {
                 "p_file_path": file_path,
-                "p_agent_id": agent_id or config.agent.agent_id,
-                "p_agent_type": agent_type or config.agent.agent_type,
+                "p_agent_id": resolved_agent_id,
+                "p_agent_type": resolved_agent_type,
                 "p_session_id": session_id or config.agent.session_id,
                 "p_reason": reason,
                 "p_ttl_minutes": ttl_minutes or config.lock.default_ttl_minutes,
@@ -124,8 +143,8 @@ class LockService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_id or config.agent.agent_id,
-                agent_type=agent_type or config.agent.agent_type,
+                agent_id=resolved_agent_id,
+                agent_type=resolved_agent_type,
                 operation="acquire_lock",
                 parameters={"file_path": file_path, "reason": reason},
                 result={"action": lock_result.action},
@@ -151,12 +170,29 @@ class LockService:
             LockResult indicating success/failure
         """
         config = get_config()
+        resolved_agent_id = agent_id or config.agent.agent_id
+        resolved_agent_type = config.agent.agent_type
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="release_lock",
+            resource=file_path,
+        )
+        if not decision.allowed:
+            return LockResult(
+                success=False,
+                file_path=file_path,
+                reason=decision.reason or "operation_not_permitted",
+            )
 
         result = await self.db.rpc(
             "release_lock",
             {
                 "p_file_path": file_path,
-                "p_agent_id": agent_id or config.agent.agent_id,
+                "p_agent_id": resolved_agent_id,
             },
         )
 
@@ -164,7 +200,7 @@ class LockService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_id or config.agent.agent_id,
+                agent_id=resolved_agent_id,
                 operation="release_lock",
                 parameters={"file_path": file_path},
                 success=lock_result.success,

@@ -5,6 +5,7 @@ from uuid import UUID
 import pytest
 from httpx import Response
 
+from src.policy_engine import PolicyDecision
 from src.work_queue import ClaimResult, CompleteResult, SubmitResult, Task, WorkQueueService
 
 
@@ -208,6 +209,79 @@ class TestWorkQueueService:
         task = await service.get_task(UUID(int=999))
 
         assert task is None
+
+    @pytest.mark.asyncio
+    async def test_claim_denied_by_policy(self, monkeypatch):
+        """Claim is blocked when policy engine denies get_work."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("operation_not_permitted")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = WorkQueueService(FailDB())
+        result = await service.claim()
+
+        assert result.success is False
+        assert result.reason == "operation_not_permitted"
+
+    @pytest.mark.asyncio
+    async def test_complete_denied_by_policy(self, monkeypatch):
+        """Complete is blocked when policy engine denies complete_work."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("insufficient_trust_level")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = WorkQueueService(FailDB())
+        result = await service.complete(task_id=UUID(int=1), success=True)
+
+        assert result.success is False
+        assert result.status == "blocked"
+        assert result.reason == "insufficient_trust_level"
+
+    @pytest.mark.asyncio
+    async def test_submit_denied_by_policy(self, monkeypatch):
+        """Submit is blocked when policy engine denies submit_work."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("operation_not_permitted")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = WorkQueueService(FailDB())
+        result = await service.submit(
+            task_type="test",
+            description="Run unit tests",
+        )
+
+        assert result.success is False
+        assert result.task_id is None
 
 
 class TestTaskDataClasses:

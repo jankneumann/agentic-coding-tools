@@ -182,12 +182,28 @@ class WorkQueueService:
             ClaimResult with task details or failure reason
         """
         config = get_config()
+        resolved_agent_id = agent_id or config.agent.agent_id
+        resolved_agent_type = agent_type or config.agent.agent_type
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="get_work",
+            context={"task_types": task_types or []},
+        )
+        if not decision.allowed:
+            return ClaimResult(
+                success=False,
+                reason=decision.reason or "operation_not_permitted",
+            )
 
         result = await self.db.rpc(
             "claim_task",
             {
-                "p_agent_id": agent_id or config.agent.agent_id,
-                "p_agent_type": agent_type or config.agent.agent_type,
+                "p_agent_id": resolved_agent_id,
+                "p_agent_type": resolved_agent_type,
                 "p_task_types": task_types,
             },
         )
@@ -206,7 +222,7 @@ class WorkQueueService:
                 if scan_text.strip():
                     check = await guardrails.check_operation(
                         operation_text=scan_text[:2000],
-                        agent_id=agent_id or config.agent.agent_id,
+                        agent_id=resolved_agent_id,
                     )
                     if not check.safe:
                         patterns = [
@@ -221,8 +237,7 @@ class WorkQueueService:
                                     "complete_task",
                                     {
                                         "p_task_id": str(claim_result.task_id),
-                                        "p_agent_id": agent_id
-                                        or config.agent.agent_id,
+                                        "p_agent_id": resolved_agent_id,
                                         "p_success": False,
                                         "p_result": None,
                                         "p_error_message": msg,
@@ -243,7 +258,7 @@ class WorkQueueService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_id or config.agent.agent_id,
+                agent_id=resolved_agent_id,
                 operation="claim_task",
                 parameters={"task_types": task_types},
                 result={
@@ -283,6 +298,25 @@ class WorkQueueService:
             CompleteResult indicating success/failure
         """
         config = get_config()
+        resolved_agent_id = agent_id or config.agent.agent_id
+        resolved_agent_type = config.agent.agent_type
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="complete_work",
+            resource=str(task_id),
+            context={"success": success},
+        )
+        if not decision.allowed:
+            return CompleteResult(
+                success=False,
+                status="blocked",
+                task_id=task_id,
+                reason=decision.reason or "operation_not_permitted",
+            )
 
         # Guardrails pre-execution check on task result
         if success and result:
@@ -293,7 +327,7 @@ class WorkQueueService:
                 result_text = str(result)
                 check = await guardrails.check_operation(
                     operation_text=result_text[:2000],
-                    agent_id=agent_id or config.agent.agent_id,
+                    agent_id=resolved_agent_id,
                 )
                 if not check.safe:
                     patterns = [v.pattern_name for v in check.violations if v.blocked]
@@ -310,7 +344,7 @@ class WorkQueueService:
             "complete_task",
             {
                 "p_task_id": str(task_id),
-                "p_agent_id": agent_id or config.agent.agent_id,
+                "p_agent_id": resolved_agent_id,
                 "p_success": success,
                 "p_result": result,
                 "p_error_message": error_message,
@@ -321,7 +355,7 @@ class WorkQueueService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_id or config.agent.agent_id,
+                agent_id=resolved_agent_id,
                 operation="complete_task",
                 parameters={
                     "task_id": str(task_id),
@@ -359,6 +393,25 @@ class WorkQueueService:
         Returns:
             SubmitResult with the new task ID
         """
+        config = get_config()
+        resolved_agent_id = config.agent.agent_id
+        resolved_agent_type = config.agent.agent_type
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="submit_work",
+            context={
+                "task_type": task_type,
+                "priority": priority,
+                "has_dependencies": bool(depends_on),
+            },
+        )
+        if not decision.allowed:
+            return SubmitResult(success=False, task_id=None)
+
         # Guardrails check on submitted task content
         try:
             from .guardrails import get_guardrails_service

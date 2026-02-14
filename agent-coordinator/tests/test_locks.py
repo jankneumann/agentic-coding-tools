@@ -4,6 +4,7 @@ import pytest
 from httpx import Response
 
 from src.locks import Lock, LockResult, LockService
+from src.policy_engine import PolicyDecision
 
 
 class TestLockService:
@@ -138,6 +139,29 @@ class TestLockService:
 
         assert result.success is True
         assert result.action == "refreshed"
+
+    @pytest.mark.asyncio
+    async def test_acquire_lock_denied_by_policy(self, monkeypatch):
+        """Acquire is blocked when policy engine denies the operation."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("insufficient_trust_level")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = LockService(FailDB())
+        result = await service.acquire("src/main.py")
+
+        assert result.success is False
+        assert result.reason == "insufficient_trust_level"
 
 
 class TestLockDataClasses:
