@@ -70,6 +70,14 @@ Use the 5-skill feature workflow with natural approval gates:
 
 - **Archive after merge**: Always run `/openspec-archive` after PR merge to consolidate spec deltas into `openspec/specs/`.
 
+### Local Validation Patterns
+
+- **Parameterize docker-compose host ports**: Coordination stacks frequently run alongside other local services. Use env-driven host port mappings (for example `AGENT_COORDINATOR_REST_PORT`) instead of hardcoded ports so validation can run without stopping unrelated containers.
+
+- **Keep E2E base URL configurable**: End-to-end tests should read `BASE_URL` and never hardcode `localhost:3000`. This allows validation against remapped ports (for example `BASE_URL=http://localhost:13000`).
+
+- **Validate with remapped ports as a first-class path**: When defaults are occupied, run `docker compose` with `AGENT_COORDINATOR_DB_PORT`, `AGENT_COORDINATOR_REST_PORT`, and `AGENT_COORDINATOR_REALTIME_PORT`, then execute e2e with matching `BASE_URL`.
+
 ### Language & Architecture Choices
 
 - **Python for I/O-bound coordination services**: Despite Go/Rust being faster, Python is the right choice for services that spend most time waiting on databases and HTTP calls. FastMCP and Supabase SDKs are mature.

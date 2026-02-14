@@ -104,3 +104,26 @@ The agent coordinator is formally specified across three OpenSpec specs:
 ## Getting Started
 
 See [`agent-coordinator/README.md`](../agent-coordinator/README.md) for setup instructions, including Supabase configuration, dependency installation, Claude Code MCP integration, and development commands.
+
+## Local Validation Ports
+
+The local `docker-compose` stack supports host-port remapping so the coordinator can run alongside other services:
+
+- `AGENT_COORDINATOR_DB_PORT` (default `54322`)
+- `AGENT_COORDINATOR_REST_PORT` (default `3000`)
+- `AGENT_COORDINATOR_REALTIME_PORT` (default `4000`)
+
+Example:
+
+```bash
+AGENT_COORDINATOR_DB_PORT=55432 \
+AGENT_COORDINATOR_REST_PORT=13000 \
+AGENT_COORDINATOR_REALTIME_PORT=14000 \
+docker compose -f agent-coordinator/docker-compose.yml up -d
+```
+
+When using remapped REST ports, run e2e tests with:
+
+```bash
+BASE_URL=http://localhost:13000 uv run pytest -q tests/e2e
+```
