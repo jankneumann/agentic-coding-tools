@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Architecture Graph",
+  "description": "Canonical architecture graph schema for multi-layer codebase analysis",
+  "type": "object",
+  "required": ["snapshots", "nodes", "edges", "entrypoints"],
+  "additionalProperties": false,
+  "properties": {
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["generated_at", "git_sha", "tool_versions"],
+        "additionalProperties": false,
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp of generation"
+          },
+          "git_sha": {
+            "type": "string",
+            "description": "Git commit SHA at generation time"
+          },
+          "tool_versions": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Map of tool name to version string"
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional notes about partial failures or warnings"
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "language", "name", "file"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(py|ts|pg):.+$",
+            "description": "Stable node ID: {prefix}:{qualified_name}"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["function", "class", "module", "component", "hook", "table", "column", "index", "stored_function", "trigger", "migration"],
+            "description": "Node kind"
+          },
+          "language": {
+            "type": "string",
+            "enum": ["python", "typescript", "sql"],
+            "description": "Source language"
+          },
+          "name": {
+            "type": "string",
+            "description": "Short name of the symbol"
+          },
+          "file": {
+            "type": "string",
+            "description": "Relative file path"
+          },
+          "span": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "integer", "minimum": 1 },
+              "end": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["start", "end"],
+            "description": "Line number span"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tags like async, entrypoint, dead_code, etc."
+          },
+          "signatures": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Language-specific metadata (decorators, parameters, etc.)"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "type", "confidence", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Source node ID"
+          },
+          "to": {
+            "type": "string",
+            "description": "Target node ID"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["call", "import", "api_call", "db_access", "fk_reference", "component_child", "hook_usage", "circular_dependency", "layer_violation"],
+            "description": "Edge type"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Confidence level of this edge"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "How this edge was detected"
+          }
+        }
+      }
+    },
+    "entrypoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node_id", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "description": "Reference to a node ID"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["route", "cli", "job", "event_handler", "migration", "test"],
+            "description": "Entrypoint kind"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method if applicable"
+          },
+          "path": {
+            "type": "string",
+            "description": "URL path if applicable"
+          }
+        }
+      }
+    }
+  }
+}

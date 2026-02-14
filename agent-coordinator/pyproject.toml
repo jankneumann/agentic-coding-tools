@@ -24,6 +24,9 @@ postgres = [
 cedar = [
     "cedarpy>=4.0.0",
 ]
+analysis = [
+    "psycopg2-binary>=2.9.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",

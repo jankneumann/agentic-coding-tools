@@ -90,6 +90,32 @@ Use the 5-skill feature workflow with natural approval gates:
 - **Commit format**: Reference the OpenSpec change-id in commit messages
 - **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
 
+## Architecture Artifacts
+
+The `.architecture/` directory contains auto-generated structural analysis of the codebase. These artifacts are committed and should be consulted by agents during planning and validation.
+
+### Key Files
+- `.architecture/architecture.summary.json` — Compact summary with cross-layer flows, stats, disconnected endpoints
+- `.architecture/architecture.graph.json` — Full canonical graph (nodes, edges, entrypoints)
+- `.architecture/architecture.diagnostics.json` — Validation findings (errors, warnings, info)
+- `.architecture/parallel_zones.json` — Independent module groups for safe parallel modification
+- `.architecture/views/` — Auto-generated Mermaid diagrams
+
+### Usage
+- **Before planning**: Read `architecture.summary.json` to understand component relationships and existing flows
+- **Before implementing**: Check `parallel_zones.json` for safe parallel modification zones
+- **After implementing**: Run `make architecture-validate` to catch broken flows
+- **Refresh**: Run `make architecture` to regenerate all artifacts
+
+### Refresh Commands
+```bash
+make architecture              # Full refresh
+make architecture-validate     # Validate only
+make architecture-views        # Regenerate views only
+make architecture-diff BASE_SHA=<sha>  # Compare to baseline
+make architecture-feature FEATURE="file1,file2"  # Feature slice
+```
+
 ## Documentation
 
 - [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
