@@ -18,8 +18,8 @@ import logging
 import os
 import re
 import sys
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass, field
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
