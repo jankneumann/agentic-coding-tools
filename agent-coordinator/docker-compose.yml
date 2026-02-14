@@ -7,7 +7,7 @@ services:
     image: supabase/postgres:15.1.1.78
     container_name: agent-coordinator-db
     ports:
-      - "54322:5432"
+      - "${AGENT_COORDINATOR_DB_PORT:-54322}:5432"
     environment:
       POSTGRES_HOST: /var/run/postgresql
       POSTGRES_PASSWORD: postgres
@@ -31,7 +31,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${AGENT_COORDINATOR_REST_PORT:-3000}:3000"
     environment:
       PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/postgres
       PGRST_DB_SCHEMAS: public
@@ -47,7 +47,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "4000:4000"
+      - "${AGENT_COORDINATOR_REALTIME_PORT:-4000}:4000"
     environment:
       PORT: 4000
       DB_HOST: postgres
@@ -63,9 +63,13 @@ volumes:
   postgres-data:
 
 # Development notes:
-# - PostgreSQL is available at localhost:54322
-# - REST API is available at http://localhost:3000
-# - Realtime is available at http://localhost:4000
+# - Host ports are configurable to avoid collisions:
+#   - AGENT_COORDINATOR_DB_PORT (default: 54322)
+#   - AGENT_COORDINATOR_REST_PORT (default: 3000)
+#   - AGENT_COORDINATOR_REALTIME_PORT (default: 4000)
+# - PostgreSQL is available at localhost:${AGENT_COORDINATOR_DB_PORT:-54322}
+# - REST API is available at http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}
+# - Realtime is available at http://localhost:${AGENT_COORDINATOR_REALTIME_PORT:-4000}
 #
 # For local development, set:
 #   SUPABASE_URL=http://localhost:3000

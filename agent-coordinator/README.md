@@ -46,6 +46,25 @@ supabase db push
 # SUPABASE_SERVICE_KEY=<printed service_role key>
 ```
 
+#### Option C: Docker Compose (Port-Configurable)
+
+```bash
+# Defaults: DB=54322, REST=3000, REALTIME=4000
+docker compose -f docker-compose.yml up -d
+
+# If those ports are already in use, remap host ports:
+AGENT_COORDINATOR_DB_PORT=55432 \
+AGENT_COORDINATOR_REST_PORT=13000 \
+AGENT_COORDINATOR_REALTIME_PORT=14000 \
+docker compose -f docker-compose.yml up -d
+```
+
+For e2e tests on remapped REST port:
+
+```bash
+BASE_URL=http://localhost:13000 uv run pytest -q tests/e2e
+```
+
 ### 2. Install Dependencies
 
 ```bash
