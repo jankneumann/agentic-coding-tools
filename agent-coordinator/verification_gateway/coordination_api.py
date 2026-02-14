@@ -11,8 +11,10 @@ This ensures:
 4. Race conditions are managed via database transactions
 """
 
+import json
 import os
 from datetime import datetime
+from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -28,6 +30,12 @@ COORDINATION_API_KEYS = [
     key.strip() for key in os.environ.get("COORDINATION_API_KEYS", "").split(",")
     if key.strip()
 ]
+try:
+    API_KEY_IDENTITIES = json.loads(
+        os.environ.get("COORDINATION_API_KEY_IDENTITIES", "{}")
+    )
+except json.JSONDecodeError:
+    API_KEY_IDENTITIES = {}
 
 
 # =============================================================================
@@ -98,11 +106,63 @@ class WorkingMemoryUpdate(BaseModel):
 # AUTH
 # =============================================================================
 
-async def verify_api_key(x_api_key: str = Header(...)):
+async def verify_api_key(x_api_key: str | None = Header(None)):
     """Verify the API key for write operations"""
-    if x_api_key not in COORDINATION_API_KEYS:
+    if not x_api_key or x_api_key not in COORDINATION_API_KEYS:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    return x_api_key
+    identity = API_KEY_IDENTITIES.get(x_api_key, {})
+    return {
+        "api_key": x_api_key,
+        "agent_id": identity.get("agent_id"),
+        "agent_type": identity.get("agent_type"),
+    }
+
+
+def resolve_identity(
+    principal: dict[str, Any],
+    request_agent_id: str | None,
+    request_agent_type: str | None,
+) -> tuple[str, str]:
+    """Resolve effective identity and block spoofed request identity."""
+    bound_agent_id = principal.get("agent_id")
+    bound_agent_type = principal.get("agent_type")
+
+    if bound_agent_id and request_agent_id and request_agent_id != bound_agent_id:
+        raise HTTPException(
+            status_code=403,
+            detail="API key is not permitted to act as requested agent_id",
+        )
+    if bound_agent_type and request_agent_type and request_agent_type != bound_agent_type:
+        raise HTTPException(
+            status_code=403,
+            detail="API key is not permitted to act as requested agent_type",
+        )
+
+    return (
+        bound_agent_id or request_agent_id or "cloud-agent",
+        bound_agent_type or request_agent_type or "cloud_agent",
+    )
+
+
+async def authorize_operation(
+    agent_id: str,
+    agent_type: str,
+    operation: str,
+    resource: str = "",
+    context: dict[str, Any] | None = None,
+) -> None:
+    """Authorize operation using configured policy engine."""
+    from src.policy_engine import get_policy_engine
+
+    decision = await get_policy_engine().check_operation(
+        agent_id=agent_id,
+        agent_type=agent_type,
+        operation=operation,
+        resource=resource,
+        context=context,
+    )
+    if not decision.allowed:
+        raise HTTPException(status_code=403, detail=decision.reason or "Forbidden")
 
 
 # =============================================================================
@@ -228,7 +288,7 @@ def create_coordination_api() -> FastAPI:
     @app.post("/locks/acquire")
     async def acquire_lock(
         request: LockRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Acquire a file lock.
@@ -236,10 +296,21 @@ def create_coordination_api() -> FastAPI:
         Cloud agents call this before modifying files.
         Returns success/failure and lock details.
         """
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="acquire_lock",
+            resource=request.file_path,
+            context={"ttl_minutes": request.ttl_minutes},
+        )
+
         result = await db.rpc("acquire_lock", {
             "p_file_path": request.file_path,
-            "p_agent_id": request.agent_id,
-            "p_agent_type": request.agent_type,
+            "p_agent_id": agent_id,
+            "p_agent_type": agent_type,
             "p_session_id": request.session_id,
             "p_reason": request.reason,
             "p_ttl_minutes": request.ttl_minutes,
@@ -250,20 +321,29 @@ def create_coordination_api() -> FastAPI:
     @app.post("/locks/release")
     async def release_lock(
         request: LockReleaseRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Release a file lock.
 
         Called when agent completes work or encounters an error.
         """
-        await db.update(
-            "file_locks",
-            {"file_path": request.file_path, "locked_by": request.agent_id},
-            {"expires_at": datetime.utcnow().isoformat()},  # Immediate expiry
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, None
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="release_lock",
+            resource=request.file_path,
         )
 
-        return {"success": True, "released": request.file_path}
+        result = await db.rpc("release_lock", {
+            "p_file_path": request.file_path,
+            "p_agent_id": agent_id,
+        })
+
+        return result
 
     @app.get("/locks/status/{file_path:path}")
     async def check_lock_status(file_path: str):
@@ -290,15 +370,23 @@ def create_coordination_api() -> FastAPI:
     @app.post("/memory/episodic/store")
     async def store_episodic_memory(
         request: MemoryStoreRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Store an episodic memory (experience/event).
 
         Includes deduplication - similar recent memories are merged.
         """
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="remember",
+            context={"event_type": request.event_type},
+        )
+
         result = await db.rpc("store_episodic_memory", {
-            "p_agent_id": request.agent_id,
+            "p_agent_id": agent_id,
             "p_session_id": request.session_id,
             "p_event_type": request.event_type,
             "p_summary": request.summary,
@@ -313,15 +401,23 @@ def create_coordination_api() -> FastAPI:
     @app.post("/memory/query")
     async def query_memories(
         request: MemoryQueryRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Query relevant memories for a task.
 
         Returns both episodic (experiences) and procedural (skills) memories.
         """
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="recall",
+            context={"limit": request.limit},
+        )
+
         result = await db.rpc("get_relevant_memories", {
-            "p_agent_id": request.agent_id,
+            "p_agent_id": agent_id,
             "p_task_description": request.task_description,
             "p_tags": request.tags,
             "p_limit": request.limit,
@@ -332,17 +428,25 @@ def create_coordination_api() -> FastAPI:
     @app.post("/memory/working/update")
     async def update_working_memory(
         request: WorkingMemoryUpdate,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Add item to working memory.
 
         Working memory is compressed when it exceeds token budget.
         """
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="remember",
+            context={"working_memory": True},
+        )
+
         # Get current working memory
         # This is simplified - production would handle compression
         await db.rpc("append_working_memory", {
-            "p_agent_id": request.agent_id,
+            "p_agent_id": agent_id,
             "p_session_id": request.session_id,
             "p_context_item": request.context_item,
         })
@@ -353,13 +457,22 @@ def create_coordination_api() -> FastAPI:
     async def record_skill_use(
         skill_id: str,
         success: bool,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Record that a skill was used (for Thompson sampling).
 
         Updates success rate which influences future suggestions.
         """
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="remember",
+            resource=skill_id,
+            context={"success": success},
+        )
+
         if success:
             await db.rpc("increment_skill_success", {"p_skill_id": skill_id})
         else:
@@ -374,7 +487,7 @@ def create_coordination_api() -> FastAPI:
     @app.post("/work/claim")
     async def claim_work(
         request: WorkClaimRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Claim a task from the work queue.
@@ -382,9 +495,19 @@ def create_coordination_api() -> FastAPI:
         Returns the highest priority task this agent can handle.
         Atomic - prevents multiple agents claiming same task.
         """
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="get_work",
+            context={"task_types": request.task_types or []},
+        )
+
         result = await db.rpc("claim_task", {
-            "p_agent_id": request.agent_id,
-            "p_agent_type": request.agent_type,
+            "p_agent_id": agent_id,
+            "p_agent_type": agent_type,
             "p_task_types": request.task_types,
         })
 
@@ -393,16 +516,25 @@ def create_coordination_api() -> FastAPI:
     @app.post("/work/complete")
     async def complete_work(
         request: WorkCompleteRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Mark a task as completed.
 
         Triggers downstream verification if configured.
         """
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="complete_work",
+            resource=request.task_id,
+            context={"success": request.success},
+        )
+
         result = await db.rpc("complete_task", {
             "p_task_id": request.task_id,
-            "p_agent_id": request.agent_id,
+            "p_agent_id": agent_id,
             "p_success": request.success,
             "p_result": request.result,
             "p_error_message": request.error_message,
@@ -416,13 +548,21 @@ def create_coordination_api() -> FastAPI:
     @app.post("/work/submit")
     async def submit_work(
         request: WorkSubmitRequest,
-        _: str = Depends(verify_api_key),
+        principal: dict[str, Any] = Depends(verify_api_key),
     ):
         """
         Submit new work to the queue.
 
         Used by orchestrators or agents spawning subtasks.
         """
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="submit_work",
+            context={"task_type": request.task_type, "priority": request.priority},
+        )
+
         result = await db.rpc("submit_task", {
             "p_task_type": request.task_type,
             "p_description": request.task_description,

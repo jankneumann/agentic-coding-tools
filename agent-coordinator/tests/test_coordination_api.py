@@ -2,6 +2,7 @@
 
 import importlib
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 
@@ -28,6 +29,7 @@ def _make_client():
     dummy_db = DummyDB()
     module.db = dummy_db
     module.COORDINATION_API_KEYS = ["test-key"]
+    module.API_KEY_IDENTITIES = {}
     app = module.create_coordination_api()
     return TestClient(app), dummy_db
 
@@ -65,7 +67,7 @@ def test_locks_acquire_requires_api_key():
         },
     )
 
-    assert response.status_code == 422 or response.status_code == 401
+    assert response.status_code == 401
 
 
 def test_work_endpoints_use_core_rpcs():
@@ -131,3 +133,45 @@ def test_locks_status_returns_lock_payload():
     payload = response.json()
     assert payload["locked"] is True
     assert payload["lock"]["locked_by"] == "agent-1"
+
+
+def test_acquire_lock_rejects_identity_spoofing():
+    client, db = _make_client()
+    db.rpc_response = {"success": True}
+
+    module = importlib.import_module("verification_gateway.coordination_api")
+    module.API_KEY_IDENTITIES = {
+        "test-key": {"agent_id": "bound-agent", "agent_type": "codex"}
+    }
+
+    response = client.post(
+        "/locks/acquire",
+        headers={"X-API-Key": "test-key"},
+        json={
+            "file_path": "src/main.py",
+            "agent_id": "different-agent",
+            "agent_type": "codex",
+        },
+    )
+
+    assert response.status_code == 403
+    assert "agent_id" in response.json()["detail"]
+
+
+def test_work_claim_returns_403_when_policy_denies(monkeypatch):
+    client, _ = _make_client()
+    module = importlib.import_module("verification_gateway.coordination_api")
+
+    async def deny(*_args, **_kwargs):
+        raise HTTPException(status_code=403, detail="denied-by-policy")
+
+    monkeypatch.setattr(module, "authorize_operation", deny)
+
+    response = client.post(
+        "/work/claim",
+        headers={"X-API-Key": "test-key"},
+        json={"agent_id": "agent-1", "agent_type": "codex", "task_types": ["test"]},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "denied-by-policy"
