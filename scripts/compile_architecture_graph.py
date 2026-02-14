@@ -182,7 +182,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
                 edges.append({
                     "from": from_id,
                     "to": to_id,
-                    "type": "call",
+                    "type": EdgeType.CALL,
                     "confidence": "high",
                     "evidence": f"ast:call:{call_name}",
                 })
@@ -196,7 +196,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
             edges.append({
                 "from": from_id,
                 "to": to_id,
-                "type": "import",
+                "type": EdgeType.IMPORT,
                 "confidence": "high",
                 "evidence": "ast:import",
             })
@@ -215,7 +215,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
             edges.append({
                 "from": from_id,
                 "to": to_id,
-                "type": "db_access",
+                "type": EdgeType.DB_ACCESS,
                 "confidence": da.get("confidence", "medium"),
                 "evidence": f"orm:{da.get('pattern', 'model_usage')}",
             })
@@ -322,7 +322,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
         edges.append({
             "from": from_id,
             "to": to_id,
-            "type": "import",
+            "type": EdgeType.IMPORT,
             "confidence": edge.get("confidence", "high"),
             "evidence": edge.get("evidence", "ast:import"),
         })
@@ -334,7 +334,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
         edges.append({
             "from": from_id,
             "to": to_id,
-            "type": "component_child",
+            "type": EdgeType.COMPONENT_CHILD,
             "confidence": edge.get("confidence", "high"),
             "evidence": edge.get("evidence", "jsx:child_component"),
         })
@@ -346,7 +346,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
         edges.append({
             "from": from_id,
             "to": to_id,
-            "type": "hook_usage",
+            "type": EdgeType.HOOK_USAGE,
             "confidence": edge.get("confidence", "high"),
             "evidence": edge.get("evidence", "ast:hook_call"),
         })
@@ -358,7 +358,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
         edges.append({
             "from": from_id,
             "to": to_id,
-            "type": "call",
+            "type": EdgeType.CALL,
             "confidence": edge.get("confidence", "high"),
             "evidence": edge.get("evidence", "ast:call"),
         })
@@ -511,7 +511,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
         edges.append({
             "from": from_id,
             "to": to_id,
-            "type": "fk_reference",
+            "type": EdgeType.FK_REFERENCE,
             "confidence": "high",
             "evidence": fk.get("evidence", f"fk:{fk.get('constraint_name', 'unnamed')}"),
         })
@@ -607,7 +607,7 @@ def link_frontend_to_backend(
                 cross_edges.append({
                     "from": caller_id,
                     "to": ep["node_id"],
-                    "type": "api_call",
+                    "type": EdgeType.API_CALL,
                     "confidence": "high",
                     "evidence": f"string_match:{url}",
                 })
@@ -633,7 +633,7 @@ def link_frontend_to_backend(
                     cross_edges.append({
                         "from": caller_id,
                         "to": ep["node_id"],
-                        "type": "api_call",
+                        "type": EdgeType.API_CALL,
                         "confidence": "medium",
                         "evidence": f"param_match:{url}~{ep.get('path', '')}",
                     })
@@ -648,7 +648,7 @@ def link_frontend_to_backend(
                         cross_edges.append({
                             "from": caller_id,
                             "to": ep["node_id"],
-                            "type": "api_call",
+                            "type": EdgeType.API_CALL,
                             "confidence": "medium",
                             "evidence": f"param_match:{url}~{ep.get('path', '')}",
                         })
@@ -696,7 +696,7 @@ def link_frontend_to_backend(
             cross_edges.append({
                 "from": caller_id,
                 "to": best_match_ep["node_id"],
-                "type": "api_call",
+                "type": EdgeType.API_CALL,
                 "confidence": "low",
                 "evidence": f"heuristic_match:{url}~{best_route_path}",
             })
@@ -774,7 +774,7 @@ def link_backend_to_database(
                 edges.append({
                     "from": func_nid,
                     "to": table_nid,
-                    "type": "db_access",
+                    "type": EdgeType.DB_ACCESS,
                     "confidence": "medium",
                     "evidence": f"table_ref:{table_ref}",
                 })
@@ -788,7 +788,7 @@ def link_backend_to_database(
                     edges.append({
                         "from": func_nid,
                         "to": table_nid,
-                        "type": "db_access",
+                        "type": EdgeType.DB_ACCESS,
                         "confidence": "low",
                         "evidence": f"sql_pattern:{sql_pattern[:80]}",
                     })

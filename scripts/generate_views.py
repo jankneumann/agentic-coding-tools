@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.constants import EdgeType  # noqa: E402
 from arch_utils.graph_io import load_graph as _load_graph  # noqa: E402
 from arch_utils.node_id import mermaid_id as _mermaid_id  # noqa: E402
 
@@ -184,7 +185,7 @@ def generate_backend_component_view(graph: Graph) -> str:
 
     # Collect inter-package edges (import and call types).
     pkg_edges: dict[tuple[str, str], set[str]] = defaultdict(set)
-    relevant_types = {"import", "call", "db_access"}
+    relevant_types = {EdgeType.IMPORT, EdgeType.CALL, EdgeType.DB_ACCESS}
     for edge in edges:
         src_pkg = node_package.get(edge["from"])
         dst_pkg = node_package.get(edge["to"])
@@ -241,7 +242,7 @@ def generate_frontend_component_view(graph: Graph) -> str:
 
     # Collect inter-directory edges.
     dir_edges: dict[tuple[str, str], set[str]] = defaultdict(set)
-    relevant_types = {"import", "component_child", "hook_usage", "call"}
+    relevant_types = {EdgeType.IMPORT, EdgeType.COMPONENT_CHILD, EdgeType.HOOK_USAGE, EdgeType.CALL}
     for edge in edges:
         src_dir = node_dir.get(edge["from"])
         dst_dir = node_dir.get(edge["to"])
@@ -327,7 +328,7 @@ def generate_db_erd(graph: Graph) -> str:
 
     # Collect FK relationships.
     fk_edges: list[dict] = [
-        e for e in edges if e["type"] == "fk_reference"
+        e for e in edges if e["type"] == EdgeType.FK_REFERENCE
     ]
 
     # Derive table relationships from FK edges.

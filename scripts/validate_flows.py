@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from arch_utils.constants import SIDE_EFFECT_EDGE_TYPES, EdgeType  # noqa: E402
 from arch_utils.traversal import (  # noqa: E402
     build_adjacency,
     reachable_from,
@@ -169,7 +170,6 @@ def _in_scope(file_path: str | None, changed_files: list[str] | None) -> bool:
 # ---------------------------------------------------------------------------
 
 DB_KINDS = {"table", "column", "index", "stored_function", "trigger", "migration"}
-SIDE_EFFECT_EDGE_TYPES = {"db_access", "api_call"}
 
 
 def check_reachability(
@@ -273,7 +273,7 @@ def check_disconnected_flows(
     api_call_targets: set[str] = set()
     api_call_sources: dict[str, list[str]] = defaultdict(list)
     for edge in graph.get("edges", []):
-        if edge["type"] == "api_call":
+        if edge["type"] == EdgeType.API_CALL:
             api_call_targets.add(edge["to"])
             api_call_sources[edge["to"]].append(edge["from"])
 
@@ -290,7 +290,7 @@ def check_disconnected_flows(
         # Also check if anything in the reverse graph connects via api_call
         if not has_caller:
             for edge in graph.get("edges", []):
-                if edge["to"] == node_id and edge["type"] == "api_call":
+                if edge["to"] == node_id and edge["type"] == EdgeType.API_CALL:
                     has_caller = True
                     break
 
@@ -307,7 +307,7 @@ def check_disconnected_flows(
 
     # Frontend API calls with no backend handlers
     for edge in graph.get("edges", []):
-        if edge["type"] != "api_call":
+        if edge["type"] != EdgeType.API_CALL:
             continue
         target_id = edge["to"]
         source_id = edge["from"]
