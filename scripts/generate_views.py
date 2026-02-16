@@ -13,9 +13,9 @@ Usage:
 
 Options:
     --graph PATH          Path to architecture.graph.json
-                          (default: .architecture/architecture.graph.json)
+                          (default: docs/architecture-analysis/architecture.graph.json)
     --output-dir PATH     Output directory for generated views
-                          (default: .architecture/views)
+                          (default: docs/architecture-analysis/views)
     --feature-files LIST  Comma-separated file paths or glob patterns for
                           feature slice extraction
 """
@@ -554,14 +554,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--graph",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Path to architecture.graph.json (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Path to architecture.graph.json (default: docs/architecture-analysis/architecture.graph.json)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".architecture/views"),
-        help="Output directory for generated views (default: .architecture/views)",
+        default=Path("docs/architecture-analysis/views"),
+        help="Output directory for generated views (default: docs/architecture-analysis/views)",
     )
     parser.add_argument(
         "--feature-files",

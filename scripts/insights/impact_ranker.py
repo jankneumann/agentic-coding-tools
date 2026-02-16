@@ -7,8 +7,8 @@ number of other nodes).
 
 Usage:
     python scripts/insights/impact_ranker.py \
-        --input-dir .architecture \
-        --output .architecture/high_impact_nodes.json
+        --input-dir docs/architecture-analysis \
+        --output docs/architecture-analysis/high_impact_nodes.json
 """
 
 from __future__ import annotations
@@ -99,14 +99,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing architecture.graph.json (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing architecture.graph.json (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/high_impact_nodes.json"),
-        help="Output path for high_impact_nodes.json (default: .architecture/high_impact_nodes.json)",
+        default=Path("docs/architecture-analysis/high_impact_nodes.json"),
+        help="Output path for high_impact_nodes.json (default: docs/architecture-analysis/high_impact_nodes.json)",
     )
     parser.add_argument(
         "--threshold",

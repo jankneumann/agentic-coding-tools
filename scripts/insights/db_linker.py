@@ -6,7 +6,7 @@ postgres_analysis.json, discovers backend-to-database relationships via ORM
 model usage and SQL pattern matching, and writes the updated graph back.
 
 Usage:
-    python scripts/insights/db_linker.py --input-dir .architecture --output .architecture/architecture.graph.json
+    python scripts/insights/db_linker.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/architecture.graph.json
 """
 
 from __future__ import annotations
@@ -217,14 +217,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing the graph and analysis JSON files (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing the graph and analysis JSON files (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Output path for the updated graph (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Output path for the updated graph (default: docs/architecture-analysis/architecture.graph.json)",
     )
     return parser.parse_args(argv)
 

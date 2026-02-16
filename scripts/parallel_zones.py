@@ -251,14 +251,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--graph",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Path to the canonical architecture graph JSON (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Path to the canonical architecture graph JSON (default: docs/architecture-analysis/architecture.graph.json)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/parallel_zones.json"),
-        help="Output path for parallel_zones.json (default: .architecture/parallel_zones.json)",
+        default=Path("docs/architecture-analysis/parallel_zones.json"),
+        help="Output path for parallel_zones.json (default: docs/architecture-analysis/parallel_zones.json)",
     )
     parser.add_argument(
         "--impact-threshold",

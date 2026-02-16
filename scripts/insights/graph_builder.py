@@ -6,7 +6,7 @@ produces architecture.graph.json containing nodes, edges, entrypoints, and
 snapshot metadata.
 
 Usage:
-    python scripts/insights/graph_builder.py --input-dir .architecture --output .architecture/architecture.graph.json
+    python scripts/insights/graph_builder.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/architecture.graph.json
 """
 
 from __future__ import annotations
@@ -685,14 +685,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing intermediate analysis JSON files (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing intermediate analysis JSON files (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Output path for the canonical graph (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Output path for the canonical graph (default: docs/architecture-analysis/architecture.graph.json)",
     )
     return parser.parse_args(argv)
 

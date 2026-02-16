@@ -101,6 +101,11 @@ def test_report_generation(input_dir: Path) -> None:
 
     content = report_path.read_text()
     assert "# Architecture Report" in content
-    assert "## Overview" in content
-    assert "## Cross-Layer Flows" in content
+    assert "## System Overview" in content
+    assert "## Module Responsibility Map" in content
+    assert "## Dependency Layers" in content
+    assert "## Entry Points" in content
+    assert "## Architecture Health" in content
     assert "## High-Impact Nodes" in content
+    assert "## Code Health Indicators" in content
+    assert "## Parallel Modification Zones" in content

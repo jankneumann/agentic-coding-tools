@@ -1,0 +1,181 @@
+{
+  "generated_at": "2026-02-16T02:40:10.776809+00:00",
+  "git_sha": "4b5a51070fae59a06021e118a88f4ce644274ee5",
+  "stats": {
+    "total_nodes": 568,
+    "total_edges": 141,
+    "by_language": {
+      "python": 277,
+      "sql": 291
+    },
+    "by_kind": {
+      "module": 17,
+      "class": 60,
+      "function": 200,
+      "table": 20,
+      "column": 197,
+      "index": 49,
+      "stored_function": 22,
+      "trigger": 3
+    },
+    "entrypoint_count": 28
+  },
+  "cross_layer_flows": [],
+  "disconnected_endpoints": [
+    {
+      "node_id": "py:coordination_mcp.acquire_lock",
+      "path": "acquire_lock"
+    },
+    {
+      "node_id": "py:coordination_mcp.release_lock",
+      "path": "release_lock"
+    },
+    {
+      "node_id": "py:coordination_mcp.check_locks",
+      "path": "check_locks"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_work",
+      "path": "get_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.complete_work",
+      "path": "complete_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.submit_work",
+      "path": "submit_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.write_handoff",
+      "path": "write_handoff"
+    },
+    {
+      "node_id": "py:coordination_mcp.read_handoff",
+      "path": "read_handoff"
+    },
+    {
+      "node_id": "py:coordination_mcp.register_session",
+      "path": "register_session"
+    },
+    {
+      "node_id": "py:coordination_mcp.discover_agents",
+      "path": "discover_agents"
+    },
+    {
+      "node_id": "py:coordination_mcp.heartbeat",
+      "path": "heartbeat"
+    },
+    {
+      "node_id": "py:coordination_mcp.cleanup_dead_agents",
+      "path": "cleanup_dead_agents"
+    },
+    {
+      "node_id": "py:coordination_mcp.remember",
+      "path": "remember"
+    },
+    {
+      "node_id": "py:coordination_mcp.recall",
+      "path": "recall"
+    },
+    {
+      "node_id": "py:coordination_mcp.check_guardrails",
+      "path": "check_guardrails"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_my_profile",
+      "path": "get_my_profile"
+    },
+    {
+      "node_id": "py:coordination_mcp.query_audit",
+      "path": "query_audit"
+    },
+    {
+      "node_id": "py:coordination_mcp.check_policy",
+      "path": "check_policy"
+    },
+    {
+      "node_id": "py:coordination_mcp.validate_cedar_policy",
+      "path": "validate_cedar_policy"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_current_locks",
+      "path": "locks://current"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_recent_handoffs",
+      "path": "handoffs://recent"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_pending_work",
+      "path": "work://pending"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_recent_memories",
+      "path": "memories://recent"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_guardrail_patterns",
+      "path": "guardrails://patterns"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_current_profile",
+      "path": "profiles://current"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_recent_audit",
+      "path": "audit://recent"
+    },
+    {
+      "node_id": "py:coordination_mcp.coordinate_file_edit",
+      "path": "coordinate_file_edit"
+    },
+    {
+      "node_id": "py:coordination_mcp.start_work_session",
+      "path": "start_work_session"
+    }
+  ],
+  "disconnected_frontend_calls": [],
+  "high_impact_nodes": [
+    {
+      "id": "py:config.get_config",
+      "dependent_count": 41
+    },
+    {
+      "id": "py:config",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:audit.get_audit_service",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:db_postgres",
+      "dependent_count": 13
+    },
+    {
+      "id": "py:db.create_db_client",
+      "dependent_count": 13
+    },
+    {
+      "id": "py:db",
+      "dependent_count": 12
+    },
+    {
+      "id": "py:db.get_db",
+      "dependent_count": 12
+    },
+    {
+      "id": "py:audit",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:guardrails.get_guardrails_service",
+      "dependent_count": 5
+    }
+  ]
+}

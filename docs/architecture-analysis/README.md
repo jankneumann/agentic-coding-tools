@@ -9,6 +9,7 @@ This directory contains auto-generated architecture analysis artifacts for the c
 | `architecture.graph.json` | Full canonical graph with all nodes, edges, entrypoints, and snapshots |
 | `architecture.summary.json` | Compact summary with cross-layer flows, stats, and disconnected endpoints |
 | `architecture.diagnostics.json` | Validation findings (errors, warnings, info) from flow analysis |
+| `architecture.report.md` | Narrative architecture report with explanations and health indicators |
 | `parallel_zones.json` | Independent module groups, leaf modules, and high-impact modules |
 | `python_analysis.json` | Intermediate Python AST analysis output |
 | `postgres_analysis.json` | Intermediate Postgres schema analysis output |

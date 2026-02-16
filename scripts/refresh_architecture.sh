@@ -23,7 +23,7 @@ set -euo pipefail
 # All paths are relative to CWD and configurable via environment variables.
 # When called from the Makefile, these are passed in; when called directly,
 # the defaults assume you're running from the project being analyzed.
-ARCH_DIR="${ARCH_DIR:-.architecture}"
+ARCH_DIR="${ARCH_DIR:-docs/architecture-analysis}"
 VIEWS_DIR="${ARCH_DIR}/views"
 SCRIPTS_DIR="${SCRIPTS_DIR:-scripts}"
 PYTHON_SRC_DIR="${PYTHON_SRC_DIR:-src}"

@@ -6,7 +6,7 @@ node data, then builds a compact summary with adaptive confidence threshold
 for flow selection.
 
 Usage:
-    python scripts/insights/summary_builder.py --input-dir .architecture --output .architecture/architecture.summary.json
+    python scripts/insights/summary_builder.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/architecture.summary.json
 """
 
 from __future__ import annotations
@@ -206,14 +206,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing architecture artifacts (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing architecture artifacts (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/architecture.summary.json"),
-        help="Output path for the summary (default: .architecture/architecture.summary.json)",
+        default=Path("docs/architecture-analysis/architecture.summary.json"),
+        help="Output path for the summary (default: docs/architecture-analysis/architecture.summary.json)",
     )
     parser.add_argument(
         "--summary-limit",

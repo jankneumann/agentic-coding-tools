@@ -1,6 +1,6 @@
 # Architecture Analysis Tooling
 #
-# Generates, validates, and manages architecture artifacts in .architecture/
+# Generates, validates, and manages architecture artifacts in docs/architecture-analysis/
 # from the agent-coordinator codebase (Python, TypeScript, Postgres).
 #
 # Usage:
@@ -21,7 +21,7 @@ SHELL := /bin/bash
 
 # All source directories are env-configurable. Defaults assume the Makefile
 # lives at the repo root and agent-coordinator is a subdirectory.
-ARCH_DIR         ?= .architecture
+ARCH_DIR         ?= docs/architecture-analysis
 VIEWS_DIR        := $(ARCH_DIR)/views
 SCRIPTS_DIR      ?= scripts
 PYTHON_SRC_DIR   ?= agent-coordinator/src
@@ -69,7 +69,7 @@ help: ## Show available make targets with descriptions
 	@echo "  PYTHON_SRC_DIR=<path>  Python source directory (default: agent-coordinator/src)"
 	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: web)"
 	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/supabase/migrations)"
-	@echo "  ARCH_DIR=<path>        Output directory (default: .architecture)"
+	@echo "  ARCH_DIR=<path>        Output directory (default: docs/architecture-analysis)"
 	@echo "  BASE_SHA=<sha>         Git SHA for baseline diff comparison"
 	@echo "  FEATURE=<glob>         File list or glob for feature slice extraction"
 	@echo "  PYTHON=<path>          Python interpreter (default: python3)"

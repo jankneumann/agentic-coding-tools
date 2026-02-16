@@ -1,0 +1,2149 @@
+{
+  "tables": [
+    {
+      "name": "public.file_locks",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "file_path",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "locked_by",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "locked_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "expires_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        }
+      ],
+      "primary_key": [
+        "file_path"
+      ],
+      "file": "001_core_schema.sql",
+      "line": 1
+    },
+    {
+      "name": "public.work_queue",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "task_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "input_data",
+          "type": "JSONB",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "claimed_by",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "claimed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "priority",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "5"
+        },
+        {
+          "name": "depends_on",
+          "type": "UUID[]",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "'pending'"
+        },
+        {
+          "name": "result",
+          "type": "JSONB",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "started_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "deadline",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "attempt_count",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "max_attempts",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "3"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "001_core_schema.sql",
+      "line": 21
+    },
+    {
+      "name": "public.agent_sessions",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "task_description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "ended_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tasks_completed",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "files_modified",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "capabilities",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "'active'"
+        },
+        {
+          "name": "last_heartbeat",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "current_task",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "001_core_schema.sql",
+      "line": 72
+    },
+    {
+      "name": "public.handoff_documents",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "summary",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "completed_work",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'"
+        },
+        {
+          "name": "in_progress",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'"
+        },
+        {
+          "name": "decisions",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'"
+        },
+        {
+          "name": "next_steps",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'"
+        },
+        {
+          "name": "relevant_files",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "002_handoff_documents.sql",
+      "line": 1
+    },
+    {
+      "name": "public.memory_episodic",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "event_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "summary",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "details",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "outcome",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "lessons",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "tags",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "relevance_score",
+          "type": "FLOAT",
+          "nullable": true,
+          "default": "1.0"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "004_memory_tables.sql",
+      "line": 1
+    },
+    {
+      "name": "public.memory_working",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "key",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "value",
+          "type": "JSONB",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "004_memory_tables.sql",
+      "line": 21
+    },
+    {
+      "name": "public.memory_procedural",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "skill_name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "steps",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'"
+        },
+        {
+          "name": "prerequisites",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "success_count",
+          "type": "INT",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "failure_count",
+          "type": "INT",
+          "nullable": true,
+          "default": "0"
+        },
+        {
+          "name": "last_used",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "004_memory_tables.sql",
+      "line": 33
+    },
+    {
+      "name": "public.changesets",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "session_id",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "branch_name",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "changed_files",
+          "type": "JSONB",
+          "nullable": false,
+          "default": "'[]'"
+        },
+        {
+          "name": "commit_sha",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'pending'"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "005_verification_tables.sql",
+      "line": 22
+    },
+    {
+      "name": "public.verification_results",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "changeset_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "tier",
+          "type": "verification_tier",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "executor",
+          "type": "verification_executor",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "verification_status",
+          "nullable": false,
+          "default": "'pending'"
+        },
+        {
+          "name": "started_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "duration_ms",
+          "type": "INT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "result",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "005_verification_tables.sql",
+      "line": 39
+    },
+    {
+      "name": "public.verification_policies",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "file_pattern",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "tier",
+          "type": "verification_tier",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "executor",
+          "type": "verification_executor",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "config",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "true"
+        },
+        {
+          "name": "priority",
+          "type": "INT",
+          "nullable": false,
+          "default": "5"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "005_verification_tables.sql",
+      "line": 53
+    },
+    {
+      "name": "public.approval_queue",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "changeset_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "requested_by",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'pending'"
+        },
+        {
+          "name": "reviewed_by",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reviewed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "review_notes",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "005_verification_tables.sql",
+      "line": 66
+    },
+    {
+      "name": "public.operation_guardrails",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "category",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "pattern",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "severity",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'block'"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "min_trust_level",
+          "type": "INT",
+          "nullable": false,
+          "default": "3"
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "006_guardrails_tables.sql",
+      "line": 1
+    },
+    {
+      "name": "public.guardrail_violations",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "pattern_name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "category",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "operation_text",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "matched_text",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "blocked",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "true"
+        },
+        {
+          "name": "trust_level",
+          "type": "INT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "context",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "006_guardrails_tables.sql",
+      "line": 19
+    },
+    {
+      "name": "public.agent_profiles",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "trust_level",
+          "type": "INT",
+          "nullable": false,
+          "default": "2"
+        },
+        {
+          "name": "allowed_operations",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "blocked_operations",
+          "type": "TEXT[]",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "max_file_modifications",
+          "type": "INT",
+          "nullable": true,
+          "default": "50"
+        },
+        {
+          "name": "max_execution_time_seconds",
+          "type": "INT",
+          "nullable": true,
+          "default": "300"
+        },
+        {
+          "name": "max_api_calls_per_hour",
+          "type": "INT",
+          "nullable": true,
+          "default": "1000"
+        },
+        {
+          "name": "network_policy",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "metadata",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "007_agent_profiles.sql",
+      "line": 1
+    },
+    {
+      "name": "public.agent_profile_assignments",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "profile_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "assigned_by",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "assigned_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "007_agent_profiles.sql",
+      "line": 25
+    },
+    {
+      "name": "public.audit_log",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "agent_type",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "operation",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "parameters",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "result",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'"
+        },
+        {
+          "name": "duration_ms",
+          "type": "INT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "success",
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "error_message",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "008_audit_log.sql",
+      "line": 1
+    },
+    {
+      "name": "public.network_policies",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "profile_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "domain_pattern",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "action",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'allow'"
+        },
+        {
+          "name": "priority",
+          "type": "INT",
+          "nullable": false,
+          "default": "5"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": "true"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "009_network_policies.sql",
+      "line": 1
+    },
+    {
+      "name": "public.network_access_log",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "agent_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "domain",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "allowed",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "policy_id",
+          "type": "UUID",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "009_network_policies.sql",
+      "line": 18
+    },
+    {
+      "name": "public.cedar_policies",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "policy_text",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "''"
+        },
+        {
+          "name": "priority",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "100"
+        },
+        {
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": "TRUE"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "010_cedar_policy_store.sql",
+      "line": 1
+    },
+    {
+      "name": "public.cedar_entities",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "nullable": false,
+          "default": "gen_random_uuid()"
+        },
+        {
+          "name": "entity_type",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "entity_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attributes",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'{}'::JSONB"
+        },
+        {
+          "name": "parents",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "'[]'::JSONB"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "now()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "now()"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "file": "010_cedar_policy_store.sql",
+      "line": 33
+    }
+  ],
+  "foreign_keys": [
+    {
+      "from_table": "public.handoff_documents",
+      "from_columns": [
+        "session_id"
+      ],
+      "to_table": "public.agent_sessions",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.verification_results",
+      "from_columns": [
+        "changeset_id"
+      ],
+      "to_table": "public.changesets",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.approval_queue",
+      "from_columns": [
+        "changeset_id"
+      ],
+      "to_table": "public.changesets",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.agent_profile_assignments",
+      "from_columns": [
+        "profile_id"
+      ],
+      "to_table": "public.agent_profiles",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.network_policies",
+      "from_columns": [
+        "profile_id"
+      ],
+      "to_table": "public.agent_profiles",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    },
+    {
+      "from_table": "public.network_access_log",
+      "from_columns": [
+        "policy_id"
+      ],
+      "to_table": "public.network_policies",
+      "to_columns": [
+        "id"
+      ],
+      "constraint_name": "",
+      "on_delete": "NO ACTION"
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_file_locks_agent",
+      "table": "public.file_locks",
+      "columns": [
+        "locked_by"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_file_locks_expires",
+      "table": "public.file_locks",
+      "columns": [
+        "expires_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_file_locks_session",
+      "table": "public.file_locks",
+      "columns": [
+        "session_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_status",
+      "table": "public.work_queue",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_claimed",
+      "table": "public.work_queue",
+      "columns": [
+        "claimed_by"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_priority",
+      "table": "public.work_queue",
+      "columns": [
+        "priority",
+        "created_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_pending",
+      "table": "public.work_queue",
+      "columns": [
+        "status",
+        "priority",
+        "created_at"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_deadline",
+      "table": "public.work_queue",
+      "columns": [
+        "deadline"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_claimed_status",
+      "table": "public.work_queue",
+      "columns": [
+        "claimed_by",
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_work_queue_depends_on",
+      "table": "public.work_queue",
+      "columns": [
+        "depends_on"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_agent",
+      "table": "public.agent_sessions",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_type",
+      "table": "public.agent_sessions",
+      "columns": [
+        "agent_type"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_started",
+      "table": "public.agent_sessions",
+      "columns": [
+        "started_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_handoff_agent",
+      "table": "public.handoff_documents",
+      "columns": [
+        "agent_name",
+        "created_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_handoff_session",
+      "table": "public.handoff_documents",
+      "columns": [
+        "session_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_status",
+      "table": "public.agent_sessions",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_heartbeat",
+      "table": "public.agent_sessions",
+      "columns": [
+        "last_heartbeat"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_agent_sessions_capabilities",
+      "table": "public.agent_sessions",
+      "columns": [
+        "capabilities"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_episodic_agent",
+      "table": "public.memory_episodic",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_episodic_event_type",
+      "table": "public.memory_episodic",
+      "columns": [
+        "event_type"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_episodic_tags",
+      "table": "public.memory_episodic",
+      "columns": [
+        "tags"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_episodic_created",
+      "table": "public.memory_episodic",
+      "columns": [
+        "created_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_working_agent_session",
+      "table": "public.memory_working",
+      "columns": [
+        "agent_id",
+        "session_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_memory_procedural_skill",
+      "table": "public.memory_procedural",
+      "columns": [
+        "skill_name"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_changesets_agent",
+      "table": "public.changesets",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_changesets_status",
+      "table": "public.changesets",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_verification_results_changeset",
+      "table": "public.verification_results",
+      "columns": [
+        "changeset_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_verification_results_status",
+      "table": "public.verification_results",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_approval_queue_status",
+      "table": "public.approval_queue",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_verification_policies_pattern",
+      "table": "public.verification_policies",
+      "columns": [
+        "file_pattern"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_guardrails_category",
+      "table": "public.operation_guardrails",
+      "columns": [
+        "category"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_guardrails_enabled",
+      "table": "public.operation_guardrails",
+      "columns": [
+        "enabled"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_violations_agent",
+      "table": "public.guardrail_violations",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_violations_pattern",
+      "table": "public.guardrail_violations",
+      "columns": [
+        "pattern_name"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_violations_created",
+      "table": "public.guardrail_violations",
+      "columns": [
+        "created_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_profiles_agent_type",
+      "table": "public.agent_profiles",
+      "columns": [
+        "agent_type"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_profiles_trust_level",
+      "table": "public.agent_profiles",
+      "columns": [
+        "trust_level"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_profile_assignments_agent",
+      "table": "public.agent_profile_assignments",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_profile_assignments_profile",
+      "table": "public.agent_profile_assignments",
+      "columns": [
+        "profile_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_audit_log_timestamp",
+      "table": "public.audit_log",
+      "columns": [
+        "created_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_audit_log_agent",
+      "table": "public.audit_log",
+      "columns": [
+        "agent_id",
+        "operation"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_audit_log_operation",
+      "table": "public.audit_log",
+      "columns": [
+        "operation"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_network_policies_profile",
+      "table": "public.network_policies",
+      "columns": [
+        "profile_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_network_policies_domain",
+      "table": "public.network_policies",
+      "columns": [
+        "domain_pattern"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_network_access_log_agent",
+      "table": "public.network_access_log",
+      "columns": [
+        "agent_id"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_network_access_log_domain",
+      "table": "public.network_access_log",
+      "columns": [
+        "domain"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_network_access_log_created",
+      "table": "public.network_access_log",
+      "columns": [
+        "created_at DESC"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_cedar_policies_enabled",
+      "table": "public.cedar_policies",
+      "columns": [
+        "enabled",
+        "priority"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_cedar_entities_type",
+      "table": "public.cedar_entities",
+      "columns": [
+        "entity_type"
+      ],
+      "unique": false
+    }
+  ],
+  "stored_functions": [
+    {
+      "name": "auth.role",
+      "file": "000_bootstrap.sql",
+      "line": 31,
+      "language": "sql"
+    },
+    {
+      "name": "public.acquire_lock",
+      "file": "001_core_schema.sql",
+      "line": 98,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.release_lock",
+      "file": "001_core_schema.sql",
+      "line": 179,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.claim_task",
+      "file": "001_core_schema.sql",
+      "line": 208,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.complete_task",
+      "file": "001_core_schema.sql",
+      "line": 262,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.submit_task",
+      "file": "001_core_schema.sql",
+      "line": 302,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.write_handoff",
+      "file": "002_handoff_documents.sql",
+      "line": 22,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.read_handoff",
+      "file": "002_handoff_documents.sql",
+      "line": 65,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.register_agent_session",
+      "file": "003_agent_discovery.sql",
+      "line": 16,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.discover_agents",
+      "file": "003_agent_discovery.sql",
+      "line": 49,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.agent_heartbeat",
+      "file": "003_agent_discovery.sql",
+      "line": 83,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.cleanup_dead_agents",
+      "file": "003_agent_discovery.sql",
+      "line": 112,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.store_episodic_memory",
+      "file": "004_memory_tables.sql",
+      "line": 57,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.get_relevant_memories",
+      "file": "004_memory_tables.sql",
+      "line": 107,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.get_pending_approvals",
+      "file": "005_verification_tables.sql",
+      "line": 134,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.approve_changeset",
+      "file": "005_verification_tables.sql",
+      "line": 157,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.check_guardrails",
+      "file": "006_guardrails_tables.sql",
+      "line": 66,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.get_agent_profile",
+      "file": "007_agent_profiles.sql",
+      "line": 73,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.raise_immutable_error",
+      "file": "008_audit_log.sql",
+      "line": 28,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.cleanup_old_audit_entries",
+      "file": "008_audit_log.sql",
+      "line": 45,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.is_domain_allowed",
+      "file": "009_network_policies.sql",
+      "line": 53,
+      "language": "plpgsql"
+    },
+    {
+      "name": "public.update_cedar_policies_timestamp",
+      "file": "010_cedar_policy_store.sql",
+      "line": 19,
+      "language": "plpgsql"
+    }
+  ],
+  "triggers": [
+    {
+      "name": "prevent_audit_modification",
+      "table": "public.audit_log",
+      "event": "UPDATE|DELETE",
+      "timing": "BEFORE",
+      "function": "raise_immutable_error"
+    },
+    {
+      "name": "cedar_policies_updated_at",
+      "table": "public.cedar_policies",
+      "event": "UPDATE",
+      "timing": "BEFORE",
+      "function": "update_cedar_policies_timestamp"
+    },
+    {
+      "name": "cedar_entities_updated_at",
+      "table": "public.cedar_entities",
+      "event": "UPDATE",
+      "timing": "BEFORE",
+      "function": "update_cedar_policies_timestamp"
+    }
+  ],
+  "fk_graph": [
+    {
+      "from": "public.handoff_documents",
+      "to": "public.agent_sessions",
+      "columns": [
+        "session_id"
+      ]
+    },
+    {
+      "from": "public.verification_results",
+      "to": "public.changesets",
+      "columns": [
+        "changeset_id"
+      ]
+    },
+    {
+      "from": "public.approval_queue",
+      "to": "public.changesets",
+      "columns": [
+        "changeset_id"
+      ]
+    },
+    {
+      "from": "public.agent_profile_assignments",
+      "to": "public.agent_profiles",
+      "columns": [
+        "profile_id"
+      ]
+    },
+    {
+      "from": "public.network_policies",
+      "to": "public.agent_profiles",
+      "columns": [
+        "profile_id"
+      ]
+    },
+    {
+      "from": "public.network_access_log",
+      "to": "public.network_policies",
+      "columns": [
+        "policy_id"
+      ]
+    }
+  ],
+  "summary": {
+    "total_tables": 20,
+    "total_columns": 197,
+    "total_foreign_keys": 6,
+    "total_indexes": 49,
+    "most_referenced_tables": [
+      {
+        "table": "public.changesets",
+        "references": 2
+      },
+      {
+        "table": "public.agent_profiles",
+        "references": 2
+      },
+      {
+        "table": "public.agent_sessions",
+        "references": 1
+      },
+      {
+        "table": "public.network_policies",
+        "references": 1
+      }
+    ],
+    "widest_tables": [
+      {
+        "table": "public.work_queue",
+        "column_count": 17
+      },
+      {
+        "table": "public.agent_profiles",
+        "column_count": 15
+      },
+      {
+        "table": "public.agent_sessions",
+        "column_count": 13
+      },
+      {
+        "table": "public.memory_episodic",
+        "column_count": 11
+      },
+      {
+        "table": "public.verification_results",
+        "column_count": 11
+      },
+      {
+        "table": "public.guardrail_violations",
+        "column_count": 11
+      },
+      {
+        "table": "public.handoff_documents",
+        "column_count": 10
+      },
+      {
+        "table": "public.memory_procedural",
+        "column_count": 10
+      },
+      {
+        "table": "public.changesets",
+        "column_count": 10
+      },
+      {
+        "table": "public.verification_policies",
+        "column_count": 10
+      }
+    ]
+  }
+}

@@ -8,7 +8,7 @@ This module delegates to the existing validate_flows logic but conforms to the
 Layer 2 insight module interface (--input-dir / --output).
 
 Usage:
-    python scripts/insights/flow_validator.py --input-dir .architecture --output .architecture/architecture.diagnostics.json
+    python scripts/insights/flow_validator.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/architecture.diagnostics.json
 """
 
 from __future__ import annotations
@@ -32,14 +32,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing architecture.graph.json (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing architecture.graph.json (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/architecture.diagnostics.json"),
-        help="Output path for diagnostics JSON (default: .architecture/architecture.diagnostics.json)",
+        default=Path("docs/architecture-analysis/architecture.diagnostics.json"),
+        help="Output path for diagnostics JSON (default: docs/architecture-analysis/architecture.diagnostics.json)",
     )
     parser.add_argument(
         "--files",

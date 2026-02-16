@@ -8,7 +8,7 @@ This module delegates to the existing parallel_zones logic but conforms to the
 Layer 2 insight module interface (--input-dir / --output).
 
 Usage:
-    python scripts/insights/parallel_zones.py --input-dir .architecture --output .architecture/parallel_zones.json
+    python scripts/insights/parallel_zones.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/parallel_zones.json
 """
 
 from __future__ import annotations
@@ -29,14 +29,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing architecture.graph.json (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing architecture.graph.json (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/parallel_zones.json"),
-        help="Output path for parallel_zones.json (default: .architecture/parallel_zones.json)",
+        default=Path("docs/architecture-analysis/parallel_zones.json"),
+        help="Output path for parallel_zones.json (default: docs/architecture-analysis/parallel_zones.json)",
     )
     parser.add_argument(
         "--impact-threshold",

@@ -6,7 +6,7 @@ flows that span language boundaries (e.g. a React component that ultimately
 touches a Postgres table through an API call, service function, and query).
 
 Usage:
-    python scripts/insights/flow_tracer.py --input-dir .architecture --output .architecture/cross_layer_flows.json
+    python scripts/insights/flow_tracer.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/cross_layer_flows.json
 """
 
 from __future__ import annotations
@@ -136,14 +136,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing architecture.graph.json (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing architecture.graph.json (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/cross_layer_flows.json"),
-        help="Output path for cross-layer flows JSON (default: .architecture/cross_layer_flows.json)",
+        default=Path("docs/architecture-analysis/cross_layer_flows.json"),
+        help="Output path for cross-layer flows JSON (default: docs/architecture-analysis/cross_layer_flows.json)",
     )
     return parser.parse_args(argv)
 

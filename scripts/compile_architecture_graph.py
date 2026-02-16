@@ -18,8 +18,8 @@ canonical architecture graph by running the insight modules in sequence
 Optionally emits architecture.sqlite for queryable storage.
 
 Usage:
-    python scripts/compile_architecture_graph.py [--input-dir .architecture] \\
-        [--output-dir .architecture] [--summary-limit 50] [--sqlite]
+    python scripts/compile_architecture_graph.py [--input-dir docs/architecture-analysis] \\
+        [--output-dir docs/architecture-analysis] [--summary-limit 50] [--sqlite]
 """
 
 from __future__ import annotations
@@ -335,14 +335,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory containing intermediate analysis JSON files (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory containing intermediate analysis JSON files (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".architecture"),
-        help="Directory for output files (default: .architecture)",
+        default=Path("docs/architecture-analysis"),
+        help="Directory for output files (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--summary-limit",

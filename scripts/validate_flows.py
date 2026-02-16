@@ -6,7 +6,7 @@ and pattern consistency by consuming architecture.graph.json.
 
 Usage:
     python scripts/validate_flows.py
-    python scripts/validate_flows.py --graph .architecture/architecture.graph.json
+    python scripts/validate_flows.py --graph docs/architecture-analysis/architecture.graph.json
     python scripts/validate_flows.py --files file1.py,file2.py
     python scripts/validate_flows.py --diff "main...HEAD"
     python scripts/validate_flows.py --glob "src/**/*.py"
@@ -716,14 +716,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--graph",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Path to architecture.graph.json (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Path to architecture.graph.json (default: docs/architecture-analysis/architecture.graph.json)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/architecture.diagnostics.json"),
-        help="Path to write the diagnostics JSON (default: .architecture/architecture.diagnostics.json)",
+        default=Path("docs/architecture-analysis/architecture.diagnostics.json"),
+        help="Path to write the diagnostics JSON (default: docs/architecture-analysis/architecture.diagnostics.json)",
     )
     parser.add_argument(
         "--files",

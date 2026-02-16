@@ -15,7 +15,7 @@ Usage:
 Examples:
     python scripts/analyze_python.py src/
     python scripts/analyze_python.py . --include "*.py" --exclude "test_*"
-    python scripts/analyze_python.py . --output .architecture/python_analysis.json
+    python scripts/analyze_python.py . --output docs/architecture-analysis/python_analysis.json
 """
 
 from __future__ import annotations
@@ -990,7 +990,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Examples:\n"
             "  python scripts/analyze_python.py src/\n"
             "  python scripts/analyze_python.py . --include '*.py' --exclude 'test_*'\n"
-            "  python scripts/analyze_python.py . --output .architecture/python_analysis.json\n"
+            "  python scripts/analyze_python.py . --output docs/architecture-analysis/python_analysis.json\n"
         ),
     )
     parser.add_argument(
@@ -1017,8 +1017,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=str,
-        default=".architecture/python_analysis.json",
-        help="Output file path (default: .architecture/python_analysis.json).",
+        default="docs/architecture-analysis/python_analysis.json",
+        help="Output file path (default: docs/architecture-analysis/python_analysis.json).",
     )
     return parser
 

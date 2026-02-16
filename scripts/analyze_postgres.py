@@ -7,7 +7,7 @@ parsing numbered migration files in order.
 
 Usage:
     python scripts/analyze_postgres.py <migrations_directory> \
-        [--live] [--output .architecture/postgres_analysis.json]
+        [--live] [--output docs/architecture-analysis/postgres_analysis.json]
 """
 
 from __future__ import annotations

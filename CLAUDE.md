@@ -92,14 +92,15 @@ Use the 5-skill feature workflow with natural approval gates:
 
 ## Architecture Artifacts
 
-The `.architecture/` directory contains auto-generated structural analysis of the codebase. These artifacts are committed and should be consulted by agents during planning and validation.
+The `docs/architecture-analysis/` directory contains auto-generated structural analysis of the codebase. These artifacts are committed and should be consulted by agents during planning and validation.
 
 ### Key Files
-- `.architecture/architecture.summary.json` — Compact summary with cross-layer flows, stats, disconnected endpoints
-- `.architecture/architecture.graph.json` — Full canonical graph (nodes, edges, entrypoints)
-- `.architecture/architecture.diagnostics.json` — Validation findings (errors, warnings, info)
-- `.architecture/parallel_zones.json` — Independent module groups for safe parallel modification
-- `.architecture/views/` — Auto-generated Mermaid diagrams
+- `docs/architecture-analysis/architecture.summary.json` — Compact summary with cross-layer flows, stats, disconnected endpoints
+- `docs/architecture-analysis/architecture.graph.json` — Full canonical graph (nodes, edges, entrypoints)
+- `docs/architecture-analysis/architecture.diagnostics.json` — Validation findings (errors, warnings, info)
+- `docs/architecture-analysis/parallel_zones.json` — Independent module groups for safe parallel modification
+- `docs/architecture-analysis/architecture.report.md` — Narrative architecture report
+- `docs/architecture-analysis/views/` — Auto-generated Mermaid diagrams
 
 ### Usage
 - **Before planning**: Read `architecture.summary.json` to understand component relationships and existing flows

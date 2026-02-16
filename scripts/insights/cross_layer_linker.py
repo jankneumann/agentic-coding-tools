@@ -8,8 +8,8 @@ graph back.
 
 Usage:
     python scripts/insights/cross_layer_linker.py \
-        --input-dir .architecture \
-        --output .architecture/architecture.graph.json
+        --input-dir docs/architecture-analysis \
+        --output docs/architecture-analysis/architecture.graph.json
 """
 
 from __future__ import annotations
@@ -379,10 +379,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(".architecture"),
+        default=Path("docs/architecture-analysis"),
         help=(
             "Directory containing architecture.graph.json and optionally "
-            "ts_analysis.json (default: .architecture)"
+            "ts_analysis.json (default: docs/architecture-analysis)"
         ),
     )
     parser.add_argument(

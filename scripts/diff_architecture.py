@@ -11,9 +11,9 @@ Compares a baseline architecture.graph.json to the current version and reports:
 
 Usage:
     python scripts/diff_architecture.py \
-        --baseline .architecture/tmp/baseline_graph.json \
-        --current .architecture/architecture.graph.json \
-        --output .architecture/architecture.diff.json
+        --baseline docs/architecture-analysis/tmp/baseline_graph.json \
+        --current docs/architecture-analysis/architecture.graph.json \
+        --output docs/architecture-analysis/architecture.diff.json
 """
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def main() -> int:
     parser.add_argument("--baseline", required=True, help="Path to baseline graph JSON")
     parser.add_argument("--current", required=True, help="Path to current graph JSON")
     parser.add_argument(
-        "--output", default=".architecture/architecture.diff.json",
+        "--output", default="docs/architecture-analysis/architecture.diff.json",
         help="Output path for diff report",
     )
     args = parser.parse_args()
