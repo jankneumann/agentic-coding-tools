@@ -206,6 +206,9 @@ def _section_system_overview(
             else:
                 tools_count += 1
 
+    # Derive endpoint label from protocol
+    endpoint_label = "MCP endpoints" if "MCP" in protocol else "endpoints"
+
     lines.append("## System Overview")
     lines.append("")
     lines.append(
@@ -221,7 +224,7 @@ def _section_system_overview(
     parts.append(
         f"This is a **{primary_lang.title()} {protocol}** with "
         f"{total_modules} modules exposing "
-        f"**{entrypoint_count} MCP endpoints**"
+        f"**{entrypoint_count} {endpoint_label}**"
     )
     endpoint_parts = []
     if tools_count:
@@ -253,7 +256,7 @@ def _section_system_overview(
     lines.append(f"| Python modules | {total_modules} |")
     lines.append(f"| Functions | {total_functions} ({async_count} async) |")
     lines.append(f"| Classes | {total_classes} |")
-    lines.append(f"| MCP endpoints | {entrypoint_count} |")
+    lines.append(f"| {endpoint_label.title()} | {entrypoint_count} |")
     if total_tables:
         lines.append(f"| DB tables | {total_tables} |")
     for lang, count in sorted(by_language.items()):

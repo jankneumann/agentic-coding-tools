@@ -164,8 +164,13 @@ def test_report_generation_with_config(input_dir: Path) -> None:
     assert "**test-project**" in content
     assert "A test project" in content
 
-    # Protocol override
+    # Protocol override — system overview endpoint label should say "endpoints" not "MCP endpoints"
     assert "HTTP service" in content
+    # Extract system overview section to verify endpoint label
+    overview_end = content.index("## Module Responsibility Map")
+    overview_section = content[:overview_end]
+    assert "MCP endpoints" not in overview_section
+    assert "endpoints" in overview_section.lower()
 
     # Language override
     assert "Rust" in content
