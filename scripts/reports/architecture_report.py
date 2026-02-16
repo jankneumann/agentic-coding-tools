@@ -5,10 +5,17 @@ Reads Layer 2 JSON artifacts and python_analysis.json to produce a narrative
 Markdown report that tells the story of the architecture.  All narrative is
 derived algorithmically from the graph data — no LLM calls.
 
+Supports an optional ``architecture.config.yaml`` configuration file that
+controls section selection, health diagnostics, project identity overrides,
+and best-practices references.  See ``config_schema.py`` for the schema.
+
 Usage:
     python scripts/reports/architecture_report.py \
         --input-dir docs/architecture-analysis \
         --output docs/architecture-analysis/architecture.report.md
+
+    # With explicit config file
+    python scripts/reports/architecture_report.py --config architecture.config.yaml
 """
 
 from __future__ import annotations
@@ -16,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -32,6 +40,11 @@ from generate_views import (  # noqa: E402
     generate_container_view,
     generate_db_erd,
     generate_frontend_component_view,
+)
+from reports.config_schema import (  # noqa: E402
+    KNOWN_SECTIONS,
+    ReportConfig,
+    load_config,
 )
 
 # ---------------------------------------------------------------------------
@@ -111,9 +124,21 @@ def _section_system_overview(
     graph: Graph,
     summary: dict[str, Any] | None,
     py: PyAnalysis | None,
+    config: ReportConfig | None = None,
 ) -> str:
     """Narrative overview: what the system is, at a glance."""
+    cfg = config or ReportConfig()
     lines: list[str] = ["# Architecture Report", ""]
+
+    # Project identity from config
+    if cfg.project.name or cfg.project.description:
+        if cfg.project.name and cfg.project.description:
+            lines.append(f"**{cfg.project.name}** — {cfg.project.description}")
+        elif cfg.project.name:
+            lines.append(f"**{cfg.project.name}**")
+        else:
+            lines.append(cfg.project.description)
+        lines.append("")
 
     # Metadata
     git_sha = "unknown"
@@ -135,18 +160,30 @@ def _section_system_overview(
     total_classes = by_kind.get("class", 0)
     total_tables = by_kind.get("table", 0)
 
-    # Detect protocol from entrypoints
-    methods = Counter(
-        ep.get("method", "unknown") for ep in graph.get("entrypoints", [])
-    )
-    protocol = "MCP server" if methods.get("MCP", 0) > 0 else "service"
+    # Detect protocol — config override or auto-detect from entrypoints
+    if cfg.project.protocol and cfg.project.protocol != "auto":
+        protocol_map = {
+            "mcp": "MCP server",
+            "http": "HTTP service",
+            "grpc": "gRPC service",
+            "cli": "CLI application",
+        }
+        protocol = protocol_map.get(cfg.project.protocol.lower(), cfg.project.protocol)
+    else:
+        methods = Counter(
+            ep.get("method", "unknown") for ep in graph.get("entrypoints", [])
+        )
+        protocol = "MCP server" if methods.get("MCP", 0) > 0 else "service"
 
-    # Detect primary language (exclude SQL/schema nodes — they're data, not code)
-    code_languages = {k: v for k, v in by_language.items() if k.lower() != "sql"}
-    primary_lang = (
-        max(code_languages, key=code_languages.get) if code_languages
-        else "Python"
-    )
+    # Detect primary language — config override or auto-detect
+    if cfg.project.primary_language:
+        primary_lang = cfg.project.primary_language
+    else:
+        code_languages = {k: v for k, v in by_language.items() if k.lower() != "sql"}
+        primary_lang = (
+            max(code_languages, key=code_languages.get) if code_languages
+            else "Python"
+        )
 
     # Count async from python_analysis if available
     py_summary = py.get("summary", {}) if py else {}
@@ -169,6 +206,9 @@ def _section_system_overview(
             else:
                 tools_count += 1
 
+    # Derive endpoint label from protocol
+    endpoint_label = "MCP endpoints" if "MCP" in protocol else "endpoints"
+
     lines.append("## System Overview")
     lines.append("")
     lines.append(
@@ -184,7 +224,7 @@ def _section_system_overview(
     parts.append(
         f"This is a **{primary_lang.title()} {protocol}** with "
         f"{total_modules} modules exposing "
-        f"**{entrypoint_count} MCP endpoints**"
+        f"**{entrypoint_count} {endpoint_label}**"
     )
     endpoint_parts = []
     if tools_count:
@@ -216,7 +256,7 @@ def _section_system_overview(
     lines.append(f"| Python modules | {total_modules} |")
     lines.append(f"| Functions | {total_functions} ({async_count} async) |")
     lines.append(f"| Classes | {total_classes} |")
-    lines.append(f"| MCP endpoints | {entrypoint_count} |")
+    lines.append(f"| {endpoint_label.title()} | {entrypoint_count} |")
     if total_tables:
         lines.append(f"| DB tables | {total_tables} |")
     for lang, count in sorted(by_language.items()):
@@ -250,8 +290,6 @@ def _section_module_map(
         return "\n".join(lines)
 
     modules = py.get("modules", [])
-    func_index = _build_function_index(py)
-    entry_points = {ep["function"] for ep in py.get("entry_points", [])}
 
     # Compute edge counts per module from the graph
     in_degree: Counter[str] = Counter()
@@ -489,23 +527,19 @@ def _section_entry_points(
 # Section: Architecture Health
 # ---------------------------------------------------------------------------
 
-# Explanations for each diagnostic category
-_CATEGORY_EXPLANATIONS: dict[str, str] = {
-    "test_coverage": "functions lack test references — consider adding tests for critical paths",
-    "orphan": "symbols are unreachable from any entrypoint — may be dead code or missing wiring",
-    "disconnected_flow": (
-        "MCP routes have no frontend callers — "
-        "expected for an MCP server (clients are AI agents, not browsers)"
-    ),
-    "reachability": "entrypoints have downstream dependencies but no DB writes or side effects",
-}
-
-# Categories that are expected/benign for this architecture
-_EXPECTED_CATEGORIES: set[str] = {"disconnected_flow"}
+_SEVERITY_ORDER = {"error": 3, "warning": 2, "info": 1}
 
 
-def _section_health(diagnostics: dict[str, Any] | None) -> str:
+def _section_health(
+    diagnostics: dict[str, Any] | None,
+    config: ReportConfig | None = None,
+) -> str:
     """Group findings by category with narrative explanations."""
+    cfg = config or ReportConfig()
+    expected_categories = set(cfg.health.expected_categories)
+    category_explanations = cfg.health.category_explanations
+    severity_thresholds = cfg.health.severity_thresholds
+
     lines: list[str] = ["## Architecture Health", ""]
     lines.append(
         "*Data source: "
@@ -524,6 +558,25 @@ def _section_health(diagnostics: dict[str, Any] | None) -> str:
         lines.append("")
         return "\n".join(lines)
 
+    # Apply severity threshold filtering
+    if severity_thresholds:
+        filtered: list[dict[str, Any]] = []
+        for f in findings:
+            cat = f.get("category", "unknown")
+            sev = f.get("severity", "info")
+            threshold = severity_thresholds.get(cat)
+            if threshold:
+                min_level = _SEVERITY_ORDER.get(threshold, 0)
+                if _SEVERITY_ORDER.get(sev, 0) < min_level:
+                    continue
+            filtered.append(f)
+        findings = filtered
+
+    if not findings:
+        lines.append("No issues found above configured severity thresholds.")
+        lines.append("")
+        return "\n".join(lines)
+
     # Group by category
     by_cat: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for f in findings:
@@ -535,13 +588,13 @@ def _section_health(diagnostics: dict[str, Any] | None) -> str:
 
     # Sort: concerning first, expected last
     def sort_key(cat: str) -> tuple[int, str]:
-        return (1 if cat in _EXPECTED_CATEGORIES else 0, cat)
+        return (1 if cat in expected_categories else 0, cat)
 
     for cat in sorted(by_cat, key=sort_key):
         cat_findings = by_cat[cat]
         count = len(cat_findings)
-        explanation = _CATEGORY_EXPLANATIONS.get(cat, "unclassified findings")
-        expected = cat in _EXPECTED_CATEGORIES
+        explanation = category_explanations.get(cat, "unclassified findings")
+        expected = cat in expected_categories
         marker = " (expected)" if expected else ""
 
         lines.append(f"### {cat.replace('_', ' ').title()}{marker} — {count}")
@@ -674,13 +727,12 @@ def _section_code_health(py: PyAnalysis | None) -> str:
     # Docstring coverage
     functions = py.get("functions", [])
     with_doc = sum(1 for f in functions if f.get("docstring"))
-    without_doc = total_funcs - with_doc
     doc_pct = round(100 * with_doc / total_funcs) if total_funcs else 0
 
     lines.append("### Quick Stats")
     lines.append("")
-    lines.append(f"| Indicator | Value |")
-    lines.append(f"|-----------|-------|")
+    lines.append("| Indicator | Value |")
+    lines.append("|-----------|-------|")
     lines.append(f"| Async ratio | {async_funcs}/{total_funcs} ({round(100 * async_funcs / total_funcs) if total_funcs else 0}%) |")
     lines.append(f"| Docstring coverage | {with_doc}/{total_funcs} ({doc_pct}%) |")
     lines.append(f"| Dead code candidates | {len(py_summary.get('dead_code_candidates', []))} |")
@@ -908,6 +960,76 @@ def _section_mermaid_diagrams(graph: Graph) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Section: Best Practices Context
+# ---------------------------------------------------------------------------
+
+
+def _extract_markdown_sections(text: str, headings: list[str]) -> str:
+    """Extract specific markdown sections by heading from *text*.
+
+    Returns the concatenated content of all matching sections.
+    """
+    if not headings:
+        return text
+
+    pattern = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+    matches = list(pattern.finditer(text))
+    if not matches:
+        return ""
+
+    heading_set = {h.lower().strip() for h in headings}
+    parts: list[str] = []
+    for i, m in enumerate(matches):
+        heading_text = m.group(2).strip().lower()
+        if heading_text in heading_set:
+            start = m.start()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+            parts.append(text[start:end].rstrip())
+
+    return "\n\n".join(parts)
+
+
+def _section_best_practices(config: ReportConfig | None = None) -> str:
+    """Render best-practices references as a collapsible section."""
+    cfg = config or ReportConfig()
+    if not cfg.best_practices:
+        return ""
+
+    parts: list[str] = []
+    for ref in cfg.best_practices:
+        ref_path = Path(ref.path)
+        if not ref_path.exists():
+            continue
+        try:
+            content = ref_path.read_text()
+        except OSError:
+            continue
+
+        if ref.sections:
+            content = _extract_markdown_sections(content, ref.sections)
+        if not content.strip():
+            continue
+
+        parts.append(f"### {ref_path.name}")
+        parts.append("")
+        parts.append(content.strip())
+        parts.append("")
+
+    if not parts:
+        return ""
+
+    lines: list[str] = ["## Best Practices Context", ""]
+    lines.append("<details>")
+    lines.append("<summary>Referenced project standards and guidelines</summary>")
+    lines.append("")
+    lines.extend(parts)
+    lines.append("</details>")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Report assembly
 # ---------------------------------------------------------------------------
 
@@ -920,21 +1042,40 @@ def generate_report(
     impact_data: dict[str, Any] | None,
     zones_data: dict[str, Any] | None,
     python_analysis: PyAnalysis | None = None,
+    config: ReportConfig | None = None,
 ) -> str:
     """Assemble the full Markdown report from all analysis outputs."""
-    sections = [
-        _section_system_overview(graph, summary, python_analysis),
-        _section_module_map(python_analysis, graph),
-        _section_dependency_layers(python_analysis),
-        _section_entry_points(graph, python_analysis),
-        _section_health(diagnostics),
-        _section_impact_analysis(impact_data, zones_data),
-        _section_code_health(python_analysis),
-        _section_parallel_zones(zones_data),
-        _section_cross_layer_flows(summary, flows_data),
-        _section_mermaid_diagrams(graph),
-    ]
-    return "\n".join(s for s in sections if s)
+    cfg = config or ReportConfig()
+    enabled = cfg.report.sections
+
+    # Map section names to builder callables (lazy — only invoked when enabled)
+    builders: dict[str, Any] = {
+        "system_overview": lambda: _section_system_overview(graph, summary, python_analysis, config=cfg),
+        "module_map": lambda: _section_module_map(python_analysis, graph),
+        "dependency_layers": lambda: _section_dependency_layers(python_analysis),
+        "entry_points": lambda: _section_entry_points(graph, python_analysis),
+        "health": lambda: _section_health(diagnostics, config=cfg),
+        "impact_analysis": lambda: _section_impact_analysis(impact_data, zones_data),
+        "code_health": lambda: _section_code_health(python_analysis),
+        "parallel_zones": lambda: _section_parallel_zones(zones_data),
+        "cross_layer_flows": lambda: _section_cross_layer_flows(summary, flows_data),
+        "diagrams": lambda: _section_mermaid_diagrams(graph),
+    }
+
+    # Only invoke builders for enabled sections
+    sections: list[str] = []
+    for name in enabled:
+        if name in KNOWN_SECTIONS and name in builders:
+            content = builders[name]()
+            if content:
+                sections.append(content)
+
+    # Best practices context (not a toggleable section — present if configured)
+    bp = _section_best_practices(config=cfg)
+    if bp:
+        sections.append(bp)
+
+    return "\n".join(sections)
 
 
 # ---------------------------------------------------------------------------
@@ -950,14 +1091,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path("docs/architecture-analysis"),
+        default=None,
         help="Directory containing JSON artifacts (default: docs/architecture-analysis)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/architecture-analysis/architecture.report.md"),
+        default=None,
         help="Output path for the Markdown report (default: docs/architecture-analysis/architecture.report.md)",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to architecture.config.yaml (default: auto-detect in current dir)",
     )
     return parser.parse_args(argv)
 
@@ -966,7 +1113,13 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point."""
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args(argv)
-    input_dir: Path = args.input_dir
+
+    # Load config (falls back to defaults if file missing)
+    config = load_config(args.config)
+
+    # CLI flags override config paths; config paths override hardcoded defaults
+    input_dir: Path = args.input_dir or Path(config.paths.input_dir)
+    output_path: Path = args.output or Path(config.paths.output_report)
 
     # Load the canonical graph (required)
     graph = load_graph(input_dir / "architecture.graph.json")
@@ -985,12 +1138,13 @@ def main(argv: list[str] | None = None) -> int:
     report = generate_report(
         graph, summary, diagnostics, flows_data, impact_data, zones_data,
         python_analysis=python_analysis,
+        config=config,
     )
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.output, "w") as f:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
         f.write(report)
-    logger.info(f"Wrote {args.output}")
+    logger.info(f"Wrote {output_path}")
 
     return 0
 

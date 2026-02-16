@@ -84,6 +84,13 @@ Use the 5-skill feature workflow with natural approval gates:
 
 - **MCP for local agents, HTTP for cloud**: Local agents (Claude Code CLI) use MCP via stdio. Cloud agents can't use MCP and need HTTP API endpoints.
 
+### Python Environment
+
+- **uv for all Python environments**: Use `uv` (not pip, pipenv, or poetry) for dependency management and virtual environments across all Python projects. CI uses `astral-sh/setup-uv@v5`.
+- **agent-coordinator**: `cd agent-coordinator && uv sync --all-extras` to install. Venv at `agent-coordinator/.venv`.
+- **scripts**: `cd scripts && uv sync` to install. Venv at `scripts/.venv`.
+- **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `scripts/.venv/bin/python -m pytest`).
+
 ### Git Conventions
 
 - **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
