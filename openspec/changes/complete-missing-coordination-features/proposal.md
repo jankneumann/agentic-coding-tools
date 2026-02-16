@@ -22,26 +22,30 @@ The agent-coordinator documentation (`docs/agent-coordinator.md`) and spec (`ope
 | Agent discovery & heartbeat | 1+ | `src/discovery.py`, migration `003_agent_discovery.sql` |
 | Declarative team composition | 1+ | `src/teams.py`, `teams.yaml` |
 
-### Genuinely Missing
+### Genuinely Missing (at time of proposal — now implemented)
 
-| Feature | Phase | Spec Requirements |
-|---------|-------|-------------------|
-| Guardrails engine | 3 | Req: Destructive Operation Guardrails |
-| Agent profiles with trust levels | 3 | Req: Agent Profiles |
-| Network access policies | 3 | Req: Network Access Policies |
-| Audit trail | 3 | Req: Audit Trail |
-| GitHub-mediated coordination | 2 | Req: GitHub-Mediated Coordination |
-| Strands SDK orchestration | 4 | Req: Agent Orchestration |
-| AgentCore integration | 4 | Req: Agent Orchestration |
-| Memory MCP tools (remember/recall) | 2 | Req: MCP Server Interface (Phase 2 note) |
-| Schema integration into main migrations | 2-3 | Req: Database Persistence |
+> **Status**: All Phase 2-3 features below have been implemented as part of this proposal (see tasks.md). Only Phase 4 items (Strands SDK, AgentCore) remain deferred.
 
-### Integration Gaps
+| Feature | Phase | Spec Requirements | Status |
+|---------|-------|-------------------|--------|
+| Guardrails engine | 3 | Req: Destructive Operation Guardrails | Implemented |
+| Agent profiles with trust levels | 3 | Req: Agent Profiles | Implemented |
+| Network access policies | 3 | Req: Network Access Policies | Implemented |
+| Audit trail | 3 | Req: Audit Trail | Implemented |
+| GitHub-mediated coordination | 2 | Req: GitHub-Mediated Coordination | Implemented |
+| Strands SDK orchestration | 4 | Req: Agent Orchestration | Deferred |
+| AgentCore integration | 4 | Req: Agent Orchestration | Deferred |
+| Memory MCP tools (remember/recall) | 2 | Req: MCP Server Interface (Phase 2 note) | Implemented |
+| Schema integration into main migrations | 2-3 | Req: Database Persistence | Implemented |
 
-The `verification_gateway/` directory contains standalone SQL schemas (`supabase_schema.sql`, `supabase_memory_schema.sql`) that are **not** part of the main migration pipeline (`supabase/migrations/`). This means:
-- Schemas are defined but not deployable via standard migration workflow
+### Integration Gaps (at time of proposal — now resolved)
+
+> **Status**: Schemas have been extracted into numbered migrations 004-009 in the main pipeline. All gaps below are resolved.
+
+The `verification_gateway/` directory contained standalone SQL schemas (`supabase_schema.sql`, `supabase_memory_schema.sql`) that were **not** part of the main migration pipeline (`supabase/migrations/`). This meant:
+- Schemas were defined but not deployable via standard migration workflow
 - No migration ordering or dependency management with Phase 1 tables
-- Verification and memory features cannot be enabled without manual SQL execution
+- Verification and memory features could not be enabled without manual SQL execution
 
 ### Architecture Alignment Gaps (identified during proposal review)
 

@@ -217,7 +217,7 @@ The system SHALL route agent-generated changes to matching verification tiers ba
 
 #### Scenario: GitHub webhook processing
 - **WHEN** GitHub push event received at `/webhook/github`
-- **THEN** system identifies affected files and routes to appropriate verification tier
+- **THEN** system identifies affected files and routes to matching verification tier
 - **AND** runs guardrail pre-check before dispatching to executors
 
 ### Requirement: Cedar Policy Engine (Optional Enhancement)
