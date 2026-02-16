@@ -42,6 +42,7 @@ dev = [
 
 [project.scripts]
 coordination-mcp = "src.coordination_mcp:main"
+coordination-api = "src.coordination_api:main"
 
 [build-system]
 requires = ["hatchling"]
