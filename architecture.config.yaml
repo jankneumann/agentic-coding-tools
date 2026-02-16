@@ -1,0 +1,41 @@
+# Architecture Report Configuration
+#
+# Controls the behavior of scripts/reports/architecture_report.py.
+# All fields are optional — missing keys fall back to sensible defaults.
+# See scripts/reports/config_schema.py for the full schema.
+
+project:
+  name: "agent-coordinator"
+  description: "Multi-agent coordination MCP server"
+  primary_language: "python"          # Override auto-detection
+  protocol: "mcp"                     # "mcp", "http", "grpc", "cli", or "auto"
+
+paths:
+  input_dir: "docs/architecture-analysis"
+  output_report: "docs/architecture-analysis/architecture.report.md"
+
+report:
+  sections:                           # List of sections to include (order matters)
+    - system_overview
+    - module_map
+    - dependency_layers
+    - entry_points
+    - health
+    - impact_analysis
+    - code_health
+    - parallel_zones
+    - cross_layer_flows               # Omitted if no flows exist regardless
+    - diagrams
+
+health:
+  expected_categories:                # Diagnostic categories to mark "(expected)"
+    - disconnected_flow
+  category_explanations:              # Override/extend explanations per category
+    disconnected_flow: "MCP routes have no frontend callers — expected (clients are AI agents)"
+  severity_thresholds: {}             # e.g. orphan: "warning" to skip info-level orphan findings
+
+best_practices:                       # Files whose content contextualizes findings
+  - path: "CLAUDE.md"
+    sections: ["Architecture Artifacts"]
+  - path: "docs/agent-coordinator.md"
+    sections: ["Design Principles"]

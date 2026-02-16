@@ -72,6 +72,42 @@ make architecture-feature FEATURE="path/to/file1.py,path/to/file2.py"
 - Include `architecture.diagnostics.json` findings alongside test and lint results
 - Check for disconnected endpoints, missing test coverage, and orphaned code
 
+## Configuration
+
+The report generator supports an optional `architecture.config.yaml` file at the project root. This file controls report behavior without code changes, making the tooling portable across projects.
+
+```bash
+# Generate report using config file
+python scripts/reports/architecture_report.py --config architecture.config.yaml
+
+# Config is auto-detected if present in the current directory
+python scripts/reports/architecture_report.py
+```
+
+### Config Fields
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `project.name` | Project name shown in report header | *(empty)* |
+| `project.description` | Project description shown in report header | *(empty)* |
+| `project.primary_language` | Override language auto-detection | *(auto-detect)* |
+| `project.protocol` | Override protocol detection (`mcp`, `http`, `grpc`, `cli`, `auto`) | *(auto-detect)* |
+| `paths.input_dir` | Default input directory for JSON artifacts | `docs/architecture-analysis` |
+| `paths.output_report` | Default output path for the report | `docs/architecture-analysis/architecture.report.md` |
+| `report.sections` | Ordered list of sections to include | *(all sections)* |
+| `health.expected_categories` | Diagnostic categories to mark "(expected)" | `[disconnected_flow]` |
+| `health.category_explanations` | Override/extend explanations per category | *(built-in defaults)* |
+| `health.severity_thresholds` | Minimum severity to display per category | *(none)* |
+| `best_practices` | List of files to reference as project standards | *(none)* |
+
+### Available Sections
+
+`system_overview`, `module_map`, `dependency_layers`, `entry_points`, `health`, `impact_analysis`, `code_health`, `parallel_zones`, `cross_layer_flows`, `diagrams`
+
+### Example
+
+See `architecture.config.yaml` at the project root for a complete example with comments.
+
 ## Schema
 
 The canonical graph follows the JSON schema defined in `scripts/architecture_schema.json`. Key concepts:
