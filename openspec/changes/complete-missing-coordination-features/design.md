@@ -122,7 +122,7 @@ class PostgresConfig:
 
 Impact on existing code:
 - `get_db()` calls `create_db_client()` instead of directly instantiating `SupabaseClient`
-- Service classes already accept `db: SupabaseClient | None` — change type to `DatabaseClient | None`
+- Service classes already accept `db: DatabaseClient | None` — change type to `DatabaseClient | None`
 - No changes to service method signatures or business logic
 - `DirectPostgresClient` translates `rpc()` calls to `SELECT function_name(params)` via asyncpg
 - `DirectPostgresClient` translates `query()` PostgREST filter syntax to SQL WHERE clauses
@@ -147,7 +147,7 @@ The factory pattern lets teams choose based on their infrastructure. Default is 
 
 - **Decision:** All new services SHALL follow the established pattern in `locks.py`, `work_queue.py`, `discovery.py`, and `handoffs.py`:
   - `@dataclass` result/entity types with `from_dict()` factory methods
-  - Service class with `__init__(self, db: SupabaseClient | None = None)` for testable DI
+  - Service class with `__init__(self, db: DatabaseClient | None = None)` for testable DI
   - `@property def db` with lazy initialization via `get_db()`
   - Async methods calling Supabase RPCs with config-based parameter injection
   - Module-level singleton getter function (e.g., `get_guardrails_service()`)
@@ -167,10 +167,10 @@ class GuardrailViolation:
     def from_dict(cls, data: dict[str, Any]) -> "GuardrailViolation": ...
 
 class GuardrailsService:
-    def __init__(self, db: SupabaseClient | None = None):
+    def __init__(self, db: DatabaseClient | None = None):
         self._db = db
     @property
-    def db(self) -> SupabaseClient: ...
+    def db(self) -> DatabaseClient: ...
     async def check_operation(self, operation: str, context: dict) -> GuardrailResult: ...
 
 _service: GuardrailsService | None = None
@@ -221,7 +221,7 @@ class NetworkPolicyConfig:
 
 ### 6. Agent Profiles Implementation
 
-- **Decision:** Use Pydantic models for profile validation with preconfigured profiles loaded from the spec's YAML definitions. Profiles are stored in database with code-level defaults.
+- **Decision:** Use dataclass models (matching the established service layer pattern) for profile definitions with preconfigured profiles seeded via database migration. Profiles are stored in database with code-level defaults.
 - **Alternatives:** (a) YAML files only — rejected because cloud agents need database access. (b) Database only — rejected because defaults must work without database setup.
 - **Rationale:** Hybrid approach matches the existing pattern of env-based config with database storage.
 
@@ -540,9 +540,16 @@ Adopting Cedar provides a direct migration path to Phase 4:
 4. AgentCore's gateway interception pattern matches our coordination layer enforcement
 
 
-## Open Questions
+## Resolved Questions
 
-1. Should the verification_gateway Python code be refactored into `src/` or kept as a separate subpackage?
-2. Should guardrail patterns be seeded via migration (SQL INSERT) or loaded at application startup from a patterns file?
-3. Should `check_guardrails` be an explicit MCP tool agents call proactively, or should guardrail checks be transparently woven into existing tools (e.g., `complete_work` auto-checks)?
-4. Network policy enforcement location: coordinator-level proxy (intercepts agent requests) or agent SDK integration (requires per-agent changes)?
+1. **Should the verification_gateway Python code be refactored into `src/` or kept as a separate subpackage?**
+   - **Decision**: Kept as a separate subpackage (`verification_gateway/`). The verification gateway has distinct deployment concerns (webhook endpoints, executor backends) and its own entry point (`gateway.py`). Refactoring into `src/` would conflate coordination services with verification routing. SQL schemas were extracted into the main migration pipeline (004-005) while Python code remained in its directory.
+
+2. **Should guardrail patterns be seeded via migration (SQL INSERT) or loaded at application startup from a patterns file?**
+   - **Decision**: Both — migration seeds default patterns via SQL INSERT (migration `006_guardrails_tables.sql`), and a hardcoded fallback registry in `guardrails.py` ensures patterns are enforced even when the database is unavailable. The code fallback is the authoritative baseline; database patterns allow runtime additions without redeployment.
+
+3. **Should `check_guardrails` be an explicit MCP tool agents call proactively, or should guardrail checks be transparently woven into existing tools?**
+   - **Decision**: Both — `check_guardrails` is exposed as an explicit MCP tool for proactive agent use, AND guardrail checks are transparently integrated as a pre-execution hook in `complete_work()`. Agents can proactively check before attempting operations, while the system enforces checks as a safety net regardless.
+
+4. **Network policy enforcement location: coordinator-level proxy or agent SDK integration?**
+   - **Decision**: Coordinator-level enforcement. The `NetworkPolicyService.check_domain()` is called within the coordination layer, not at the agent level. This ensures enforcement without requiring per-agent changes and provides a single point of audit logging.

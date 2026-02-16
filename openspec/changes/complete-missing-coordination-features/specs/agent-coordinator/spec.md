@@ -12,7 +12,7 @@ The system SHALL use PostgreSQL-compatible databases for persistence, with Supab
 - Migrations SHALL be additive and backward-compatible with prior phases
 - New migrations (004-009) SHALL NOT modify or ALTER tables from migrations 000-003
 - The system SHALL define a `DatabaseClient` protocol with methods: `rpc`, `query`, `insert`, `update`, `delete`, `close`
-- A factory function SHALL create the appropriate backend based on configuration (`DB_BACKEND` env var)
+- A factory function SHALL create the configured backend based on the `DB_BACKEND` environment variable
 - The default backend SHALL be Supabase (PostgREST HTTP), with direct PostgreSQL (asyncpg) as an alternative
 - All service classes SHALL depend on the `DatabaseClient` protocol, not on a specific implementation
 
@@ -75,6 +75,11 @@ The system SHALL expose coordination capabilities as native MCP tools for local 
 - **THEN** system returns `{safe: true}` if no destructive patterns match
 - **OR** returns `{safe: false, violations: [{pattern_name, category, matched_text}]}` if patterns match
 
+#### Scenario: Memory recall returns empty results
+- **WHEN** agent calls `recall(task_description)` and no relevant memories exist
+- **THEN** system returns `{memories: [], relevance_scores: []}` with an empty list
+- **AND** the operation does not raise an error
+
 ### Requirement: Destructive Operation Guardrails
 
 The system SHALL prevent autonomous agents from executing destructive operations without explicit approval.
@@ -102,6 +107,16 @@ The system SHALL prevent autonomous agents from executing destructive operations
 - **WHEN** agent calls `complete_work(task_id, success, result)`
 - **THEN** system runs guardrail pattern matching against the task result before marking complete
 - **AND** blocks completion if destructive patterns are found
+
+#### Scenario: Credential file modification blocked
+- **WHEN** any agent (regardless of trust level) attempts to modify files matching `*.env`, `*credentials*`, or `*secrets*`
+- **THEN** system blocks the operation
+- **AND** logs violation to `guardrail_violations` and audit trail
+
+#### Scenario: Multiple guardrail patterns match
+- **WHEN** an operation matches multiple destructive patterns simultaneously
+- **THEN** system returns all violations in the response list
+- **AND** the operation is blocked if any violation has `blocked: true`
 
 #### Scenario: Database unavailable for pattern loading
 - **WHEN** guardrails service cannot reach the database to load patterns
@@ -172,10 +187,10 @@ The system SHALL support configurable agent profiles that define capabilities, t
 
 ### Requirement: Verification Gateway
 
-The system SHALL route agent-generated changes to appropriate verification tiers based on configurable policies.
+The system SHALL route agent-generated changes to matching verification tiers based on configurable file glob policies.
 
 - Policies SHALL match files by glob patterns
-- Each tier SHALL have appropriate executor (inline, GitHub Actions, local NTM, E2B, manual)
+- Each tier SHALL have a configured executor: inline (Tier 0), GitHub Actions (Tier 1), Local NTM or E2B sandbox (Tier 2), manual review (Tier 4)
 - Verification results SHALL be stored in the `verification_results` database table (via main migration pipeline)
 - Tier 4 (manual review) SHALL route changesets to the `approval_queue` table
 - The verification gateway SHALL integrate with guardrails for pre-dispatch safety checks
@@ -270,3 +285,65 @@ The system SHALL provide HTTP API for cloud agents that cannot use MCP protocol.
 - **WHEN** cloud agent sends request and API key maps to a restricted profile
 - **THEN** system validates operation against profile's allowed_operations and trust_level
 - **AND** rejects disallowed operations with 403 Forbidden
+
+### Requirement: Network Access Policies
+
+The system SHALL enforce per-profile network access policies controlling which domains agents may access.
+
+- Policies SHALL support domain allowlists and denylists per agent profile
+- Policies SHALL support wildcard patterns (e.g., `*.example.com` matches `api.example.com`)
+- Default policy SHALL be deny for cloud agents and allow for local agents
+- All network access decisions SHALL be logged to `network_access_log` and the audit trail
+- The `NetworkPolicyService` SHALL follow the established service layer pattern (DI constructor, dataclass results, singleton getter)
+
+#### Scenario: Agent accesses allowed domain
+- **WHEN** agent requests access to a domain in the profile's allowlist
+- **THEN** system returns `{allowed: true, domain, reason: "allowlist_match"}`
+- **AND** logs the decision to `network_access_log`
+
+#### Scenario: Agent accesses denied domain
+- **WHEN** agent requests access to a domain in the profile's denylist
+- **THEN** system returns `{allowed: false, domain, reason: "denylist_match"}`
+- **AND** logs the blocked attempt to `network_access_log` and audit trail
+
+#### Scenario: Wildcard domain matching
+- **WHEN** agent requests access to `api.example.com` and profile allowlist contains `*.example.com`
+- **THEN** system matches the wildcard pattern and returns `{allowed: true}`
+- **WHEN** agent requests access to `example.com` and profile allowlist contains only `*.example.com`
+- **THEN** system does NOT match (wildcard requires subdomain) and applies default policy
+
+#### Scenario: Default policy for unspecified domains
+- **WHEN** cloud agent requests access to a domain not in any allowlist or denylist
+- **THEN** system applies default deny and returns `{allowed: false, reason: "default_deny"}`
+- **WHEN** local agent requests access to a domain not in any allowlist or denylist
+- **THEN** system applies default allow and returns `{allowed: true, reason: "default_allow"}`
+
+### Requirement: GitHub-Mediated Coordination
+
+The system SHALL support coordination via GitHub issue labels, branch naming conventions, and webhooks as a fallback for agents that cannot use MCP or HTTP API directly.
+
+- Issue labels following the pattern `locked:<file_path>` SHALL create corresponding file locks
+- Branch names following the pattern `agent/{agent_id}/{task_id}` SHALL associate branches with agent sessions
+- Files modified on an agent branch SHALL have implicit file locks
+- Push webhooks SHALL sync GitHub state to the coordination database
+- Webhook-submitted tasks SHALL be subject to guardrail checks before processing
+- The `GitHubCoordinationService` SHALL follow the established service layer pattern (DI constructor, singleton getter)
+
+#### Scenario: Lock via GitHub issue label
+- **WHEN** GitHub issue receives a label `locked:src/config.py`
+- **THEN** system creates a `file_locks` entry for `src/config.py` with the issue author as the lock holder
+
+#### Scenario: Branch-based agent tracking
+- **WHEN** a branch named `agent/claude-1/task-42` is pushed
+- **THEN** system associates the branch with agent `claude-1` and task `task-42`
+- **AND** files modified on the branch have implicit file locks
+
+#### Scenario: Push webhook triggers verification
+- **WHEN** GitHub push event is received at the webhook endpoint
+- **THEN** system identifies affected files from the push diff
+- **AND** runs guardrail pre-check on the changeset before routing to verification
+
+#### Scenario: Webhook-submitted destructive operation blocked
+- **WHEN** a push webhook contains a changeset with destructive patterns (e.g., force-push, credential file modifications)
+- **THEN** system blocks verification routing and logs the guardrail violation
+- **AND** returns error status to the webhook caller
