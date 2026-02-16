@@ -171,6 +171,13 @@ def _section_system_overview(
 
     lines.append("## System Overview")
     lines.append("")
+    lines.append(
+        "*Data sources: "
+        "[architecture.graph.json](architecture.graph.json), "
+        "[architecture.summary.json](architecture.summary.json), "
+        "[python_analysis.json](python_analysis.json)*"
+    )
+    lines.append("")
 
     # Build narrative paragraph
     parts = []
@@ -230,6 +237,12 @@ def _section_module_map(
 ) -> str:
     """For each module, show its role, layer classification, and dependency counts."""
     lines: list[str] = ["## Module Responsibility Map", ""]
+    lines.append(
+        "*Data sources: "
+        "[python_analysis.json](python_analysis.json), "
+        "[architecture.graph.json](architecture.graph.json)*"
+    )
+    lines.append("")
 
     if not py:
         lines.append("No Python analysis data available.")
@@ -338,6 +351,11 @@ def _section_dependency_layers(
 ) -> str:
     """Show dependency flow as a layered text diagram."""
     lines: list[str] = ["## Dependency Layers", ""]
+    lines.append(
+        "*Data source: "
+        "[python_analysis.json](python_analysis.json)*"
+    )
+    lines.append("")
 
     if not py:
         lines.append("No Python analysis data available.")
@@ -410,6 +428,12 @@ def _section_entry_points(
 ) -> str:
     """Group entrypoints by type (tool/resource/prompt) with docstring excerpts."""
     lines: list[str] = ["## Entry Points", ""]
+    lines.append(
+        "*Data sources: "
+        "[architecture.graph.json](architecture.graph.json), "
+        "[python_analysis.json](python_analysis.json)*"
+    )
+    lines.append("")
 
     entrypoints = graph.get("entrypoints", [])
     if not entrypoints:
@@ -483,6 +507,11 @@ _EXPECTED_CATEGORIES: set[str] = {"disconnected_flow"}
 def _section_health(diagnostics: dict[str, Any] | None) -> str:
     """Group findings by category with narrative explanations."""
     lines: list[str] = ["## Architecture Health", ""]
+    lines.append(
+        "*Data source: "
+        "[architecture.diagnostics.json](architecture.diagnostics.json)*"
+    )
+    lines.append("")
 
     if not diagnostics:
         lines.append("No diagnostics data available.")
@@ -553,6 +582,12 @@ def _section_impact_analysis(
 ) -> str:
     """High-impact nodes with risk context from parallel zones dependents."""
     lines: list[str] = ["## High-Impact Nodes", ""]
+    lines.append(
+        "*Data sources: "
+        "[high_impact_nodes.json](high_impact_nodes.json), "
+        "[parallel_zones.json](parallel_zones.json)*"
+    )
+    lines.append("")
 
     if not impact_data:
         lines.append("No impact analysis data available.")
@@ -621,6 +656,11 @@ def _section_impact_analysis(
 def _section_code_health(py: PyAnalysis | None) -> str:
     """Surface dead code, hot functions, docstring coverage, async ratio."""
     lines: list[str] = ["## Code Health Indicators", ""]
+    lines.append(
+        "*Data source: "
+        "[python_analysis.json](python_analysis.json)*"
+    )
+    lines.append("")
 
     if not py:
         lines.append("No Python analysis data available.")
@@ -695,6 +735,11 @@ def _section_code_health(py: PyAnalysis | None) -> str:
 def _section_parallel_zones(zones_data: dict[str, Any] | None) -> str:
     """Show independent groups for safe parallel modification."""
     lines: list[str] = ["## Parallel Modification Zones", ""]
+    lines.append(
+        "*Data source: "
+        "[parallel_zones.json](parallel_zones.json)*"
+    )
+    lines.append("")
 
     if not zones_data:
         lines.append("No parallel zones data available.")
@@ -783,6 +828,12 @@ def _section_cross_layer_flows(
         return ""
 
     lines: list[str] = ["## Cross-Layer Flows", ""]
+    lines.append(
+        "*Data sources: "
+        "[cross_layer_flows.json](cross_layer_flows.json), "
+        "[architecture.summary.json](architecture.summary.json)*"
+    )
+    lines.append("")
     lines.append(f"{_fmt_count(len(flows), 'flow')} detected spanning frontend → backend → database.")
     lines.append("")
 
@@ -819,6 +870,11 @@ def _section_cross_layer_flows(
 def _section_mermaid_diagrams(graph: Graph) -> str:
     """Build the Mermaid diagrams section."""
     lines: list[str] = ["## Architecture Diagrams", ""]
+    lines.append(
+        "*Data source: "
+        "[architecture.graph.json](architecture.graph.json)*"
+    )
+    lines.append("")
 
     lines.append("### Container View")
     lines.append("")
