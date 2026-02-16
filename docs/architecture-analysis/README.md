@@ -50,6 +50,22 @@ make architecture-diff BASE_SHA=<commit-sha>
 make architecture-feature FEATURE="path/to/file1.py,path/to/file2.py"
 ```
 
+From any location, targeting another project directory:
+
+```bash
+# Analyze another repository/project using this repo's tooling
+python /path/to/agentic-coding-tools/scripts/run_architecture.py --target-dir /path/to/project
+
+# Override source/output locations in the target project
+python /path/to/agentic-coding-tools/scripts/run_architecture.py \
+  --target-dir /path/to/project \
+  --python-src-dir app \
+  --ts-src-dir frontend \
+  --migrations-dir db/migrations \
+  --arch-dir docs/architecture-analysis \
+  --quick
+```
+
 ## When to Refresh
 
 - **Before major feature work**: Ensure artifacts reflect the current state

@@ -101,10 +101,13 @@ architecture-setup: ## Install Python (and optionally Node.js) deps for the anal
 # ---------------------------------------------------------------------------
 
 architecture: ## Full generation: analyzers -> compiler -> validator -> views
-	@ARCH_DIR=$(ARCH_DIR) SCRIPTS_DIR=$(SCRIPTS_DIR) \
-	 PYTHON_SRC_DIR=$(PYTHON_SRC_DIR) TS_SRC_DIR=$(TS_SRC_DIR) \
-	 MIGRATIONS_DIR=$(MIGRATIONS_DIR) PYTHON=$(PYTHON) \
-	 $(SCRIPTS_DIR)/refresh_architecture.sh
+	@$(PYTHON) $(SCRIPTS_DIR)/run_architecture.py \
+		--target-dir . \
+		--python-src-dir $(PYTHON_SRC_DIR) \
+		--ts-src-dir $(TS_SRC_DIR) \
+		--migrations-dir $(MIGRATIONS_DIR) \
+		--arch-dir $(ARCH_DIR) \
+		--python $(PYTHON)
 
 # ---------------------------------------------------------------------------
 # Individual pipeline stages (used internally and for partial runs)

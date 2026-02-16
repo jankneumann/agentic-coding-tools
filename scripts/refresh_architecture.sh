@@ -41,6 +41,9 @@ TS_ANALYSIS="${ARCH_DIR}/ts_analysis.json"
 PG_ANALYSIS="${ARCH_DIR}/postgres_analysis.json"
 
 PYTHON="${PYTHON:-python3}"
+AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-true}"
+SCRIPTS_ABS_DIR="$(cd "${SCRIPTS_DIR}" 2>/dev/null && pwd || true)"
+TOOLS_ROOT_DIR="${SCRIPTS_ABS_DIR%/scripts}"
 
 # ---------------------------------------------------------------------------
 # Parse flags
@@ -78,6 +81,46 @@ skip()  { _set_result "$1" "SKIP"; WARNINGS=$((WARNINGS + 1)); }
 info()  { echo "[INFO]  $*"; }
 warn()  { echo "[WARN]  $*"; WARNINGS=$((WARNINGS + 1)); }
 error() { echo "[ERROR] $*"; }
+
+try_install_typescript_deps() {
+    if [ "${AUTO_INSTALL_DEPS}" != "true" ]; then
+        return 1
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        return 1
+    fi
+    if [ -z "${TOOLS_ROOT_DIR}" ] || [ ! -d "${TOOLS_ROOT_DIR}" ]; then
+        return 1
+    fi
+
+    info "Attempting to install missing TypeScript analyzer deps (ts-morph, typescript, ts-node)..."
+    if (
+        cd "${TOOLS_ROOT_DIR}" &&
+        npm install --no-save ts-morph typescript ts-node
+    ); then
+        info "TypeScript analyzer deps installed"
+        return 0
+    fi
+    return 1
+}
+
+try_install_jsonschema() {
+    if [ "${AUTO_INSTALL_DEPS}" != "true" ]; then
+        return 1
+    fi
+    info "Attempting to install missing Python dependency: jsonschema"
+    if command -v uv >/dev/null 2>&1; then
+        if uv pip install --python "${PYTHON}" jsonschema; then
+            info "jsonschema installed via uv"
+            return 0
+        fi
+    fi
+    if ${PYTHON} -m pip install jsonschema; then
+        info "jsonschema installed via pip"
+        return 0
+    fi
+    return 1
+}
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -168,10 +211,15 @@ elif ! command -v npx >/dev/null 2>&1; then
     skip "typescript_analyzer"
 else
     if ! npx ts-morph --version >/dev/null 2>&1 && ! node -e "require('ts-morph')" >/dev/null 2>&1; then
-        warn "ts-morph not installed — skipping TypeScript analyzer"
-        warn "Install with: npm install ts-morph typescript"
-        skip "typescript_analyzer"
-    else
+        if ! try_install_typescript_deps || \
+           ! npx ts-morph --version >/dev/null 2>&1 && ! node -e "require('ts-morph')" >/dev/null 2>&1; then
+            warn "ts-morph not installed — skipping TypeScript analyzer"
+            warn "Install with: npm install ts-morph typescript ts-node"
+            skip "typescript_analyzer"
+        fi
+    fi
+
+    if [ "$(_get_result typescript_analyzer)" != "SKIP" ]; then
         if npx ts-node "${SCRIPTS_DIR}/analyze_typescript.ts" \
             "${TS_SRC_DIR}" \
             --output "${TS_ANALYSIS}" 2>&1; then
@@ -262,6 +310,11 @@ fi
 # Also run the schema validator if available
 if [ -f "${GRAPH_FILE}" ] && [ -f "${SCRIPTS_DIR}/validate_schema.py" ]; then
     info "Running schema validation..."
+    if ! ${PYTHON} -c "import jsonschema" >/dev/null 2>&1; then
+        if ! try_install_jsonschema; then
+            warn "jsonschema unavailable; schema validation may fail"
+        fi
+    fi
     if ${PYTHON} "${SCRIPTS_DIR}/validate_schema.py" "${GRAPH_FILE}" 2>&1; then
         info "Schema validation passed"
     else
