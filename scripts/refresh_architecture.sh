@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# refresh_architecture.sh — Orchestrate the full architecture analysis pipeline.
+# refresh_architecture.sh — Orchestrate the full 3-layer architecture pipeline.
 #
-# Runs per-language analyzers, the graph compiler, the flow validator, and
-# the view generator.  Handles partial failures gracefully: if one analyzer
-# fails, the pipeline continues with whatever intermediate outputs are
-# available, and a summary is printed at the end.
+# Layer 1: Code Analysis    — Per-language analyzers (parallel)
+# Layer 2: Insight Synthesis — Graph compiler + validator + parallel zones
+# Layer 3: Report Aggregation — Views + Markdown report
+#
+# Handles partial failures gracefully: if one analyzer fails, the pipeline
+# continues with whatever intermediate outputs are available.
 #
 # Usage:
 #   ./scripts/refresh_architecture.sh            # Full refresh
-#   ./scripts/refresh_architecture.sh --quick    # Skip views and parallel zones
+#   ./scripts/refresh_architecture.sh --quick    # Skip Layer 3 (views/report)
 #
 # This script is designed to run from the project root directory.
 
@@ -18,17 +20,21 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 
-ARCH_DIR=".architecture"
+# All paths are relative to CWD and configurable via environment variables.
+# When called from the Makefile, these are passed in; when called directly,
+# the defaults assume you're running from the project being analyzed.
+ARCH_DIR="${ARCH_DIR:-docs/architecture-analysis}"
 VIEWS_DIR="${ARCH_DIR}/views"
-SCRIPTS_DIR="scripts"
-PYTHON_SRC="agent-coordinator/src"
-TS_SRC="${TS_SRC:-web/}"
-MIGRATIONS_DIR="agent-coordinator/supabase/migrations"
+SCRIPTS_DIR="${SCRIPTS_DIR:-scripts}"
+PYTHON_SRC_DIR="${PYTHON_SRC_DIR:-src}"
+TS_SRC_DIR="${TS_SRC_DIR:-web}"
+MIGRATIONS_DIR="${MIGRATIONS_DIR:-supabase/migrations}"
 
 GRAPH_FILE="${ARCH_DIR}/architecture.graph.json"
 SUMMARY_FILE="${ARCH_DIR}/architecture.summary.json"
 DIAG_FILE="${ARCH_DIR}/architecture.diagnostics.json"
 ZONES_FILE="${ARCH_DIR}/parallel_zones.json"
+REPORT_FILE="${ARCH_DIR}/architecture.report.md"
 
 PY_ANALYSIS="${ARCH_DIR}/python_analysis.json"
 TS_ANALYSIS="${ARCH_DIR}/ts_analysis.json"
@@ -58,15 +64,17 @@ done
 # State tracking
 # ---------------------------------------------------------------------------
 
-declare -A RESULTS
-STEPS=("python_analyzer" "postgres_analyzer" "typescript_analyzer" "compiler" "validator" "views" "parallel_zones")
+# Use simple variables instead of associative arrays (bash 3 compat)
+STEPS="python_analyzer postgres_analyzer typescript_analyzer compiler validator parallel_zones views report"
 ERRORS=0
 WARNINGS=0
 START_TIME=$(date +%s)
 
-pass()  { RESULTS["$1"]="PASS"; }
-fail()  { RESULTS["$1"]="FAIL"; ERRORS=$((ERRORS + 1)); }
-skip()  { RESULTS["$1"]="SKIP"; WARNINGS=$((WARNINGS + 1)); }
+_set_result() { eval "RESULT_$1=$2"; }
+_get_result() { eval "echo \${RESULT_$1:-N/A}"; }
+pass()  { _set_result "$1" "PASS"; }
+fail()  { _set_result "$1" "FAIL"; ERRORS=$((ERRORS + 1)); }
+skip()  { _set_result "$1" "SKIP"; WARNINGS=$((WARNINGS + 1)); }
 info()  { echo "[INFO]  $*"; }
 warn()  { echo "[WARN]  $*"; WARNINGS=$((WARNINGS + 1)); }
 error() { echo "[ERROR] $*"; }
@@ -75,32 +83,41 @@ error() { echo "[ERROR] $*"; }
 # Setup
 # ---------------------------------------------------------------------------
 
-info "=== Architecture Refresh Pipeline ==="
+info "=== Architecture Refresh Pipeline (3-Layer) ==="
 info "Project root: $(pwd)"
 info "Output dir:   ${ARCH_DIR}"
 if [ "$QUICK" = true ]; then
-    info "Mode:         --quick (skipping views and parallel zones)"
+    info "Mode:         --quick (skipping Layer 3: views + report)"
 fi
 echo ""
 
 mkdir -p "${ARCH_DIR}" "${VIEWS_DIR}"
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Layer 1: Code Analysis (per-language analyzers)
+# ═══════════════════════════════════════════════════════════════════════════
+
+info "══════════════════════════════════════════════"
+info "  Layer 1: Code Analysis"
+info "══════════════════════════════════════════════"
+echo ""
+
 # ---------------------------------------------------------------------------
-# Step 1: Python Analyzer
+# Step 1.1: Python Analyzer
 # ---------------------------------------------------------------------------
 
-info "--- [1/6] Python Analyzer ---"
-info "Source: ${PYTHON_SRC}"
+info "--- [1.1] Python Analyzer ---"
+info "Source: ${PYTHON_SRC_DIR}"
 
-if [ ! -d "${PYTHON_SRC}" ]; then
-    error "Python source directory not found: ${PYTHON_SRC}"
+if [ ! -d "${PYTHON_SRC_DIR}" ]; then
+    error "Python source directory not found: ${PYTHON_SRC_DIR}"
     fail "python_analyzer"
 elif [ ! -f "${SCRIPTS_DIR}/analyze_python.py" ]; then
     warn "Python analyzer script not found: ${SCRIPTS_DIR}/analyze_python.py"
     fail "python_analyzer"
 else
     if ${PYTHON} "${SCRIPTS_DIR}/analyze_python.py" \
-        "${PYTHON_SRC}" \
+        "${PYTHON_SRC_DIR}" \
         --output "${PY_ANALYSIS}" 2>&1; then
         info "Python analysis written to ${PY_ANALYSIS}"
         pass "python_analyzer"
@@ -112,10 +129,10 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 2: Postgres Analyzer
+# Step 1.2: Postgres Analyzer
 # ---------------------------------------------------------------------------
 
-info "--- [2/6] Postgres Analyzer ---"
+info "--- [1.2] Postgres Analyzer ---"
 info "Migrations: ${MIGRATIONS_DIR}"
 
 if [ ! -d "${MIGRATIONS_DIR}" ]; then
@@ -138,10 +155,10 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 3: TypeScript Analyzer (optional — skip with warning if unavailable)
+# Step 1.3: TypeScript Analyzer (optional)
 # ---------------------------------------------------------------------------
 
-info "--- [3/6] TypeScript Analyzer ---"
+info "--- [1.3] TypeScript Analyzer ---"
 
 if [ ! -f "${SCRIPTS_DIR}/analyze_typescript.ts" ]; then
     warn "TypeScript analyzer script not found: ${SCRIPTS_DIR}/analyze_typescript.ts — skipping"
@@ -150,14 +167,13 @@ elif ! command -v npx >/dev/null 2>&1; then
     warn "npx not found — skipping TypeScript analyzer (install Node.js to enable)"
     skip "typescript_analyzer"
 else
-    # Check if ts-morph is available
     if ! npx ts-morph --version >/dev/null 2>&1 && ! node -e "require('ts-morph')" >/dev/null 2>&1; then
         warn "ts-morph not installed — skipping TypeScript analyzer"
         warn "Install with: npm install ts-morph typescript"
         skip "typescript_analyzer"
     else
         if npx ts-node "${SCRIPTS_DIR}/analyze_typescript.ts" \
-            "${TS_SRC}" \
+            "${TS_SRC_DIR}" \
             --output "${TS_ANALYSIS}" 2>&1; then
             info "TypeScript analysis written to ${TS_ANALYSIS}"
             pass "typescript_analyzer"
@@ -170,37 +186,37 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Determine whether any intermediate outputs are available for the compiler
+# Check for any intermediate outputs
 # ---------------------------------------------------------------------------
 
 HAS_INPUT=false
-
-if [ -f "${PY_ANALYSIS}" ]; then
-    HAS_INPUT=true
-fi
-
-if [ -f "${PG_ANALYSIS}" ]; then
-    HAS_INPUT=true
-fi
-
-if [ -f "${TS_ANALYSIS}" ]; then
-    HAS_INPUT=true
-fi
+[ -f "${PY_ANALYSIS}" ] && HAS_INPUT=true
+[ -f "${PG_ANALYSIS}" ] && HAS_INPUT=true
+[ -f "${TS_ANALYSIS}" ] && HAS_INPUT=true
 
 if [ "$HAS_INPUT" = false ]; then
-    error "No analyzer outputs available — cannot proceed with compilation"
+    error "No analyzer outputs available — cannot proceed with Layer 2"
     fail "compiler"
     fail "validator"
-    skip "views"
     skip "parallel_zones"
-    # Jump to summary
+    skip "views"
+    skip "report"
 else
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Layer 2: Insight Synthesis
+# ═══════════════════════════════════════════════════════════════════════════
+
+info "══════════════════════════════════════════════"
+info "  Layer 2: Insight Synthesis"
+info "══════════════════════════════════════════════"
+echo ""
+
 # ---------------------------------------------------------------------------
-# Step 4: Graph Compiler
+# Step 2.1: Graph Compiler (builds graph + links + flow/impact/summary)
 # ---------------------------------------------------------------------------
 
-info "--- [4/6] Graph Compiler ---"
+info "--- [2.1] Graph Compiler (6-stage pipeline) ---"
 
 if [ ! -f "${SCRIPTS_DIR}/compile_architecture_graph.py" ]; then
     warn "Compiler script not found: ${SCRIPTS_DIR}/compile_architecture_graph.py"
@@ -210,6 +226,7 @@ else
         --input-dir "${ARCH_DIR}" \
         --output-dir "${ARCH_DIR}" 2>&1; then
         info "Graph compiled to ${GRAPH_FILE}"
+        info "Summary written to ${SUMMARY_FILE}"
         pass "compiler"
     else
         error "Graph compiler failed (exit code $?)"
@@ -219,10 +236,10 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 5: Flow Validator
+# Step 2.2: Flow Validator
 # ---------------------------------------------------------------------------
 
-info "--- [5/6] Flow Validator ---"
+info "--- [2.2] Flow Validator ---"
 
 if [ ! -f "${GRAPH_FILE}" ]; then
     warn "Graph file not found — skipping validation"
@@ -254,17 +271,52 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 6: View Generator and Parallel Zones (skipped in --quick mode)
+# Step 2.3: Parallel Zones
 # ---------------------------------------------------------------------------
 
-if [ "$QUICK" = true ]; then
-    info "--- [6/6] Views & Parallel Zones (skipped: --quick mode) ---"
-    skip "views"
-    skip "parallel_zones"
-else
-    info "--- [6/6] View Generator & Parallel Zones ---"
+info "--- [2.3] Parallel Zone Analyzer ---"
 
-    # View generator
+if [ ! -f "${GRAPH_FILE}" ]; then
+    warn "Graph file not found — skipping parallel zone analysis"
+    skip "parallel_zones"
+elif [ ! -f "${SCRIPTS_DIR}/parallel_zones.py" ]; then
+    warn "Parallel zones script not found: ${SCRIPTS_DIR}/parallel_zones.py"
+    fail "parallel_zones"
+else
+    if ${PYTHON} "${SCRIPTS_DIR}/parallel_zones.py" \
+        --graph "${GRAPH_FILE}" \
+        --output "${ZONES_FILE}" 2>&1; then
+        info "Parallel zones written to ${ZONES_FILE}"
+        pass "parallel_zones"
+    else
+        error "Parallel zone analyzer failed (exit code $?)"
+        fail "parallel_zones"
+    fi
+fi
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Layer 3: Report Aggregation (skipped in --quick mode)
+# ═══════════════════════════════════════════════════════════════════════════
+
+if [ "$QUICK" = true ]; then
+    info "══════════════════════════════════════════════"
+    info "  Layer 3: Report Aggregation (skipped: --quick)"
+    info "══════════════════════════════════════════════"
+    skip "views"
+    skip "report"
+else
+    info "══════════════════════════════════════════════"
+    info "  Layer 3: Report Aggregation"
+    info "══════════════════════════════════════════════"
+    echo ""
+
+    # -----------------------------------------------------------------------
+    # Step 3.1: View Generator (Mermaid diagrams)
+    # -----------------------------------------------------------------------
+
+    info "--- [3.1] View Generator ---"
+
     if [ ! -f "${GRAPH_FILE}" ]; then
         warn "Graph file not found — skipping view generation"
         skip "views"
@@ -282,27 +334,33 @@ else
             fail "views"
         fi
     fi
+    echo ""
 
-    # Parallel zone analyzer
+    # -----------------------------------------------------------------------
+    # Step 3.2: Architecture Report
+    # -----------------------------------------------------------------------
+
+    info "--- [3.2] Architecture Report ---"
+
     if [ ! -f "${GRAPH_FILE}" ]; then
-        warn "Graph file not found — skipping parallel zone analysis"
-        skip "parallel_zones"
-    elif [ ! -f "${SCRIPTS_DIR}/parallel_zones.py" ]; then
-        warn "Parallel zones script not found: ${SCRIPTS_DIR}/parallel_zones.py"
-        fail "parallel_zones"
+        warn "Graph file not found — skipping report generation"
+        skip "report"
+    elif [ ! -f "${SCRIPTS_DIR}/reports/architecture_report.py" ]; then
+        warn "Report generator not found: ${SCRIPTS_DIR}/reports/architecture_report.py"
+        skip "report"
     else
-        if ${PYTHON} "${SCRIPTS_DIR}/parallel_zones.py" \
-            --graph "${GRAPH_FILE}" \
-            --output "${ZONES_FILE}" 2>&1; then
-            info "Parallel zones written to ${ZONES_FILE}"
-            pass "parallel_zones"
+        if ${PYTHON} "${SCRIPTS_DIR}/reports/architecture_report.py" \
+            --input-dir "${ARCH_DIR}" \
+            --output "${REPORT_FILE}" 2>&1; then
+            info "Report written to ${REPORT_FILE}"
+            pass "report"
         else
-            error "Parallel zone analyzer failed (exit code $?)"
-            fail "parallel_zones"
+            error "Report generator failed (exit code $?)"
+            fail "report"
         fi
     fi
+    echo ""
 fi
-echo ""
 
 fi  # end of HAS_INPUT block
 
@@ -318,8 +376,8 @@ echo "  Architecture Refresh Summary"
 echo "==========================================="
 echo ""
 
-for step in "${STEPS[@]}"; do
-    result="${RESULTS[$step]:-N/A}"
+for step in $STEPS; do
+    result=$(_get_result "$step")
     case "$result" in
         PASS) symbol="\033[32mPASS\033[0m" ;;
         FAIL) symbol="\033[31mFAIL\033[0m" ;;
@@ -338,7 +396,7 @@ echo ""
 # List generated artifacts
 if [ -d "${ARCH_DIR}" ]; then
     echo "Generated artifacts:"
-    for f in "${GRAPH_FILE}" "${SUMMARY_FILE}" "${DIAG_FILE}" "${ZONES_FILE}" \
+    for f in "${GRAPH_FILE}" "${SUMMARY_FILE}" "${DIAG_FILE}" "${ZONES_FILE}" "${REPORT_FILE}" \
              "${PY_ANALYSIS}" "${TS_ANALYSIS}" "${PG_ANALYSIS}"; do
         if [ -f "$f" ]; then
             size=$(wc -c < "$f" 2>/dev/null || echo "?")

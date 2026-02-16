@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-02-16T02:40:10.776473+00:00",
+  "threshold": 5,
+  "total_high_impact": 10,
+  "high_impact_nodes": [
+    {
+      "id": "py:config.get_config",
+      "dependent_count": 41
+    },
+    {
+      "id": "py:config",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:audit.get_audit_service",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:db_postgres",
+      "dependent_count": 13
+    },
+    {
+      "id": "py:db.create_db_client",
+      "dependent_count": 13
+    },
+    {
+      "id": "py:db",
+      "dependent_count": 12
+    },
+    {
+      "id": "py:db.get_db",
+      "dependent_count": 12
+    },
+    {
+      "id": "py:audit",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:guardrails.get_guardrails_service",
+      "dependent_count": 5
+    }
+  ]
+}

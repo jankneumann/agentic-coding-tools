@@ -6,9 +6,12 @@ and can report them consistently to stderr or serialise them to JSON.
 
 from __future__ import annotations
 
+import logging
 import sys
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -93,10 +96,9 @@ class DiagnosticCollector:
     # -- output --
 
     def print_summary(self, *, file: Any = None) -> None:
-        """Print a one-line summary of diagnostic counts."""
-        out = file or sys.stderr
+        """Log a one-line summary of diagnostic counts."""
         c = self.count_by_severity()
-        print(
-            f"Diagnostics: {c['error']} error(s), {c['warning']} warning(s), {c['info']} info(s)",
-            file=out,
+        logger.info(
+            "Diagnostics: %d error(s), %d warning(s), %d info(s)",
+            c['error'], c['warning'], c['info'],
         )

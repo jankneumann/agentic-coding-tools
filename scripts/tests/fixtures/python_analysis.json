@@ -1,0 +1,94 @@
+{
+  "tool_version": "1.0.0",
+  "modules": [
+    {
+      "qualified_name": "agent_coordinator.main",
+      "file": "agent_coordinator/main.py",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "qualified_name": "agent_coordinator.db",
+      "file": "agent_coordinator/db.py",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "tags": [],
+      "signatures": {}
+    }
+  ],
+  "functions": [
+    {
+      "qualified_name": "agent_coordinator.main.create_app",
+      "name": "create_app",
+      "file": "agent_coordinator/main.py",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "tags": [],
+      "signatures": {},
+      "entrypoints": [
+        {
+          "kind": "route",
+          "method": "POST",
+          "path": "/api/agents"
+        }
+      ],
+      "calls": ["agent_coordinator.db.get_connection"]
+    },
+    {
+      "qualified_name": "agent_coordinator.db.get_connection",
+      "name": "get_connection",
+      "file": "agent_coordinator/db.py",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "tags": [],
+      "signatures": {},
+      "calls": []
+    }
+  ],
+  "classes": [
+    {
+      "qualified_name": "agent_coordinator.models.Agent",
+      "file": "agent_coordinator/models.py",
+      "span": {
+        "start": 1,
+        "end": 10
+      },
+      "tags": [],
+      "signatures": {}
+    }
+  ],
+  "import_graph": [
+    {
+      "from": "agent_coordinator.main",
+      "to": "agent_coordinator.db"
+    }
+  ],
+  "db_access": [
+    {
+      "function": "agent_coordinator.db.get_connection",
+      "tables": [
+        "agents"
+      ],
+      "confidence": "high",
+      "pattern": "model_usage"
+    }
+  ],
+  "entry_points": [
+    {
+      "function": "agent_coordinator.main.create_app",
+      "kind": "route",
+      "method": "POST",
+      "path": "/api/agents"
+    }
+  ]
+}

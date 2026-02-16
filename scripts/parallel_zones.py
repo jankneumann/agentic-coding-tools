@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from arch_utils.constants import DEPENDENCY_EDGE_TYPES  # noqa: E402
@@ -248,14 +251,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--graph",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Path to the canonical architecture graph JSON (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Path to the canonical architecture graph JSON (default: docs/architecture-analysis/architecture.graph.json)",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(".architecture/parallel_zones.json"),
-        help="Output path for parallel_zones.json (default: .architecture/parallel_zones.json)",
+        default=Path("docs/architecture-analysis/parallel_zones.json"),
+        help="Output path for parallel_zones.json (default: docs/architecture-analysis/parallel_zones.json)",
     )
     parser.add_argument(
         "--impact-threshold",
@@ -273,11 +276,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args(argv)
 
     # --- Load graph ---
     if not args.graph.exists():
-        print(f"Error: graph file not found: {args.graph}", file=sys.stderr)
+        logger.error("graph file not found: %s", args.graph)
         return 1
 
     graph = load_graph(args.graph)
@@ -290,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     node_id_set = set(node_ids)
 
     if not node_ids:
-        print("Warning: graph contains no nodes.", file=sys.stderr)
+        logger.warning("graph contains no nodes.")
 
     # --- Analysis ---
     components = compute_connected_components(node_ids, edges)
@@ -304,18 +308,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.impact_for is not None:
         module_id = args.impact_for
         if module_id not in node_id_set:
-            print(
-                f"Error: module '{module_id}' not found in graph.",
-                file=sys.stderr,
-            )
+            logger.error("module '%s' not found in graph.", module_id)
             return 1
         radius = compute_impact_radius(module_id, dependents_graph)
-        print(f"Impact radius for '{module_id}': {len(radius)} transitive dependent(s)")
+        logger.info("Impact radius for '%s': %d transitive dependent(s)", module_id, len(radius))
         if radius:
             for dep in radius:
-                print(f"  - {dep}")
+                logger.info("  - %s", dep)
         else:
-            print("  (no dependents)")
+            logger.info("  (no dependents)")
 
     # --- Build & write output ---
     output = build_output(graph, components, leaf_ids, high_impact, node_map)
@@ -327,12 +328,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- Summary to stdout ---
     s = output["summary"]
-    print(f"Wrote {args.output}")
-    print(f"  Total modules:      {s['total_modules']}")
-    print(f"  Independent groups: {s['total_groups']}")
-    print(f"  Largest group:      {s['largest_group_size']}")
-    print(f"  Leaf modules:       {s['leaf_count']}")
-    print(f"  High-impact (>{args.impact_threshold}): {s['high_impact_count']}")
+    logger.info("Wrote %s", args.output)
+    logger.info("  Total modules:      %d", s['total_modules'])
+    logger.info("  Independent groups: %d", s['total_groups'])
+    logger.info("  Largest group:      %d", s['largest_group_size'])
+    logger.info("  Leaf modules:       %d", s['leaf_count'])
+    logger.info("  High-impact (>%d): %d", args.impact_threshold, s['high_impact_count'])
 
     return 0
 

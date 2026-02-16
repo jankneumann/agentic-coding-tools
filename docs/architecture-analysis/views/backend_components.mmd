@@ -1,0 +1,66 @@
+flowchart TB
+    __init__["__init__ (1 symbols)"]
+    audit["audit (17 symbols)"]
+    config["config (25 symbols)"]
+    coordination_mcp["coordination_mcp (32 symbols)"]
+    db["db (23 symbols)"]
+    db_postgres["db_postgres (11 symbols)"]
+    discovery["discovery (20 symbols)"]
+    github_coordination["github_coordination (16 symbols)"]
+    guardrails["guardrails (13 symbols)"]
+    handoffs["handoffs (14 symbols)"]
+    locks["locks (14 symbols)"]
+    memory["memory (13 symbols)"]
+    network_policies["network_policies (8 symbols)"]
+    policy_engine["policy_engine (26 symbols)"]
+    profiles["profiles (14 symbols)"]
+    teams["teams (10 symbols)"]
+    work_queue["work_queue (20 symbols)"]
+    audit -->|"call, import"| config
+    audit -->|"call, import"| db
+    coordination_mcp -->|"call, import"| audit
+    coordination_mcp -->|"call, import"| config
+    coordination_mcp -->|"call, import"| discovery
+    coordination_mcp -->|"call, import"| guardrails
+    coordination_mcp -->|"call, import"| handoffs
+    coordination_mcp -->|"call, import"| locks
+    coordination_mcp -->|"call, import"| memory
+    coordination_mcp -->|"call, import"| policy_engine
+    coordination_mcp -->|"call, import"| profiles
+    coordination_mcp -->|"call, import"| work_queue
+    db -->|"call, import"| config
+    db -->|"import"| db_postgres
+    db_postgres -->|"import"| config
+    discovery -->|"call, import"| audit
+    discovery -->|"call, import"| config
+    discovery -->|"call, import"| db
+    github_coordination -->|"call, import"| config
+    github_coordination -->|"call, import"| db
+    guardrails -->|"call, import"| audit
+    guardrails -->|"call, import"| config
+    guardrails -->|"call, import"| db
+    handoffs -->|"call, import"| audit
+    handoffs -->|"call, import"| config
+    handoffs -->|"call, import"| db
+    locks -->|"call, import"| audit
+    locks -->|"call, import"| config
+    locks -->|"call, import"| db
+    locks -->|"call, import"| policy_engine
+    memory -->|"call, import"| audit
+    memory -->|"call, import"| config
+    memory -->|"call, import"| db
+    network_policies -->|"call, import"| config
+    network_policies -->|"call, import"| db
+    policy_engine -->|"call, import"| config
+    policy_engine -->|"call, import"| db
+    policy_engine -->|"call, import"| network_policies
+    policy_engine -->|"call, import"| profiles
+    profiles -->|"call, import"| audit
+    profiles -->|"call, import"| config
+    profiles -->|"call, import"| db
+    work_queue -->|"call, import"| audit
+    work_queue -->|"call, import"| config
+    work_queue -->|"call, import"| db
+    work_queue -->|"call"| discovery
+    work_queue -->|"call, import"| guardrails
+    work_queue -->|"call, import"| policy_engine

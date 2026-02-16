@@ -1,0 +1,6606 @@
+{
+  "modules": [
+    {
+      "name": "__init__",
+      "file": "__init__.py",
+      "imports": []
+    },
+    {
+      "name": "audit",
+      "file": "audit.py",
+      "imports": [
+        "asyncio",
+        "time",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "config",
+      "file": "config.py",
+      "imports": [
+        "os",
+        "dataclasses",
+        "uuid"
+      ]
+    },
+    {
+      "name": "coordination_mcp",
+      "file": "coordination_mcp.py",
+      "imports": [
+        "sys",
+        "typing",
+        "fastmcp",
+        "audit",
+        "config",
+        "discovery",
+        "guardrails",
+        "handoffs",
+        "locks",
+        "memory",
+        "profiles",
+        "work_queue",
+        "uuid",
+        "uuid",
+        "policy_engine",
+        "policy_engine"
+      ]
+    },
+    {
+      "name": "db",
+      "file": "db.py",
+      "imports": [
+        "typing",
+        "httpx",
+        "config",
+        "db_postgres"
+      ]
+    },
+    {
+      "name": "db_postgres",
+      "file": "db_postgres.py",
+      "imports": [
+        "re",
+        "typing",
+        "uuid",
+        "asyncpg",
+        "config"
+      ]
+    },
+    {
+      "name": "discovery",
+      "file": "discovery.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "github_coordination",
+      "file": "github_coordination.py",
+      "imports": [
+        "re",
+        "dataclasses",
+        "typing",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "guardrails",
+      "file": "guardrails.py",
+      "imports": [
+        "logging",
+        "re",
+        "time",
+        "dataclasses",
+        "typing",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "handoffs",
+      "file": "handoffs.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "uuid",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "locks",
+      "file": "locks.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "audit",
+        "config",
+        "db",
+        "policy_engine",
+        "policy_engine"
+      ]
+    },
+    {
+      "name": "memory",
+      "file": "memory.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "network_policies",
+      "file": "network_policies.py",
+      "imports": [
+        "dataclasses",
+        "typing",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "policy_engine",
+      "file": "policy_engine.py",
+      "imports": [
+        "time",
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "config",
+        "db",
+        "profiles",
+        "network_policies",
+        "cedarpy"
+      ]
+    },
+    {
+      "name": "profiles",
+      "file": "profiles.py",
+      "imports": [
+        "logging",
+        "time",
+        "dataclasses",
+        "typing",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "teams",
+      "file": "teams.py",
+      "imports": [
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "yaml",
+        "jsonschema"
+      ]
+    },
+    {
+      "name": "work_queue",
+      "file": "work_queue.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "typing",
+        "uuid",
+        "audit",
+        "config",
+        "db",
+        "policy_engine",
+        "guardrails",
+        "policy_engine",
+        "guardrails",
+        "policy_engine",
+        "guardrails"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "from_dict",
+      "qualified_name": "audit.AuditEntry.from_dict",
+      "file": "audit.py",
+      "line_start": 33,
+      "line_end": 50,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls"
+      ],
+      "called_by": [
+        "audit.AuditService.query"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "audit.AuditResult.from_dict",
+      "file": "audit.py",
+      "line_start": 62,
+      "line_end": 67,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "audit.AuditService.__init__",
+      "file": "audit.py",
+      "line_start": 73,
+      "line_end": 74,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "audit.AuditService.db",
+      "file": "audit.py",
+      "line_start": 77,
+      "line_end": 80,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "log_operation",
+      "qualified_name": "audit.AuditService.log_operation",
+      "file": "audit.py",
+      "line_start": 82,
+      "line_end": 118,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "asyncio.create_task",
+        "self._insert_audit_entry",
+        "AuditResult"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Log a coordination operation to the audit trail.\n\nWhen async_logging is enabled (default), this fires-and-forgets\nthe insert to avoid blocking the caller."
+    },
+    {
+      "name": "_insert_audit_entry",
+      "qualified_name": "audit.AuditService._insert_audit_entry",
+      "file": "audit.py",
+      "line_start": 120,
+      "line_end": 126,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.insert",
+        "AuditResult",
+        "str",
+        "row.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "docstring": "Insert an audit entry into the database."
+    },
+    {
+      "name": "query",
+      "qualified_name": "audit.AuditService.query",
+      "file": "audit.py",
+      "line_start": 128,
+      "line_end": 150,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "query_parts.append",
+        "since.isoformat",
+        "until.isoformat",
+        "join",
+        "self.db.query",
+        "AuditEntry.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Query audit log entries with optional filters."
+    },
+    {
+      "name": "timed",
+      "qualified_name": "audit.AuditService.timed",
+      "file": "audit.py",
+      "line_start": 152,
+      "line_end": 154,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "AuditTimer"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Create a context manager for timing and logging an operation."
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "audit.AuditTimer.__init__",
+      "file": "audit.py",
+      "line_start": 160,
+      "line_end": 163,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__aenter__",
+      "qualified_name": "audit.AuditTimer.__aenter__",
+      "file": "audit.py",
+      "line_start": 165,
+      "line_end": 167,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "time.monotonic"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__aexit__",
+      "qualified_name": "audit.AuditTimer.__aexit__",
+      "file": "audit.py",
+      "line_start": 169,
+      "line_end": 181,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "int",
+        "time.monotonic",
+        "self.service.log_operation",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "get_audit_service",
+      "qualified_name": "audit.get_audit_service",
+      "file": "audit.py",
+      "line_start": 188,
+      "line_end": 193,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "AuditService"
+      ],
+      "called_by": [
+        "coordination_mcp.query_audit",
+        "coordination_mcp.get_recent_audit",
+        "discovery.DiscoveryService.register",
+        "discovery.DiscoveryService.cleanup_dead_agents",
+        "guardrails.GuardrailsService.check_operation",
+        "handoffs.HandoffService.write",
+        "handoffs.HandoffService.read",
+        "locks.LockService.acquire",
+        "locks.LockService.release",
+        "memory.MemoryService.remember",
+        "profiles.ProfilesService._log_denial",
+        "work_queue.WorkQueueService.claim",
+        "work_queue.WorkQueueService.complete",
+        "work_queue.WorkQueueService.submit"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global audit service instance."
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.SupabaseConfig.from_env",
+      "file": "config.py",
+      "line_start": 38,
+      "line_end": 51,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "os.environ.get",
+        "ValueError",
+        "cls"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.AgentConfig.from_env",
+      "file": "config.py",
+      "line_start": 63,
+      "line_end": 75,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "os.environ.get",
+        "uuid.uuid4",
+        "cls"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.LockConfig.from_env",
+      "file": "config.py",
+      "line_start": 86,
+      "line_end": 89,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "int",
+        "os.environ.get"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.PostgresConfig.from_env",
+      "file": "config.py",
+      "line_start": 101,
+      "line_end": 106,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "os.environ.get",
+        "int"
+      ],
+      "called_by": [
+        "config.DatabaseConfig.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.DatabaseConfig.from_env",
+      "file": "config.py",
+      "line_start": 117,
+      "line_end": 121,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "os.environ.get",
+        "PostgresConfig.from_env"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.GuardrailsConfig.from_env",
+      "file": "config.py",
+      "line_start": 132,
+      "line_end": 141,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "int",
+        "os.environ.get",
+        "os.environ.get.lower"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.ProfilesConfig.from_env",
+      "file": "config.py",
+      "line_start": 153,
+      "line_end": 165,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "int",
+        "os.environ.get",
+        "os.environ.get.lower"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.AuditConfig.from_env",
+      "file": "config.py",
+      "line_start": 176,
+      "line_end": 180,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "int",
+        "os.environ.get",
+        "os.environ.get.lower"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.NetworkPolicyConfig.from_env",
+      "file": "config.py",
+      "line_start": 190,
+      "line_end": 193,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "os.environ.get"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.PolicyEngineConfig.from_env",
+      "file": "config.py",
+      "line_start": 206,
+      "line_end": 217,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "os.environ.get",
+        "int",
+        "os.environ.get.lower"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.Config.from_env",
+      "file": "config.py",
+      "line_start": 239,
+      "line_end": 251,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "SupabaseConfig.from_env",
+        "AgentConfig.from_env",
+        "LockConfig.from_env",
+        "DatabaseConfig.from_env",
+        "GuardrailsConfig.from_env",
+        "ProfilesConfig.from_env",
+        "AuditConfig.from_env",
+        "NetworkPolicyConfig.from_env",
+        "PolicyEngineConfig.from_env"
+      ],
+      "called_by": [
+        "config.get_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": "Load complete configuration from environment variables."
+    },
+    {
+      "name": "get_config",
+      "qualified_name": "config.get_config",
+      "file": "config.py",
+      "line_start": 258,
+      "line_end": 263,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Config.from_env"
+      ],
+      "called_by": [
+        "audit.AuditService.log_operation",
+        "coordination_mcp.get_agent_id",
+        "coordination_mcp.get_agent_type",
+        "coordination_mcp.validate_cedar_policy",
+        "db.SupabaseClient.config",
+        "db.create_db_client",
+        "discovery.DiscoveryService.register",
+        "discovery.DiscoveryService.heartbeat",
+        "github_coordination.GitHubCoordinationService.sync_label_locks",
+        "guardrails.GuardrailsService._load_patterns",
+        "guardrails.GuardrailsService.check_operation",
+        "handoffs.HandoffService.write",
+        "locks.LockService.acquire",
+        "locks.LockService.release",
+        "memory.MemoryService.remember",
+        "network_policies.NetworkPolicyService.check_domain",
+        "policy_engine.NativePolicyEngine.check_operation",
+        "policy_engine.CedarPolicyEngine._load_schema",
+        "policy_engine.CedarPolicyEngine._load_policies",
+        "policy_engine.get_policy_engine",
+        "profiles.ProfilesService.get_profile",
+        "profiles.ProfilesService.check_operation",
+        "work_queue.WorkQueueService.claim",
+        "work_queue.WorkQueueService.complete",
+        "work_queue.WorkQueueService.submit",
+        "work_queue.WorkQueueService.get_my_tasks"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global configuration instance."
+    },
+    {
+      "name": "reset_config",
+      "qualified_name": "config.reset_config",
+      "file": "config.py",
+      "line_start": 266,
+      "line_end": 269,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the global configuration (for testing)."
+    },
+    {
+      "name": "get_agent_id",
+      "qualified_name": "coordination_mcp.get_agent_id",
+      "file": "coordination_mcp.py",
+      "line_start": 57,
+      "line_end": 59,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config"
+      ],
+      "called_by": [
+        "coordination_mcp.read_handoff",
+        "coordination_mcp.check_policy"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the current agent ID from config."
+    },
+    {
+      "name": "get_agent_type",
+      "qualified_name": "coordination_mcp.get_agent_type",
+      "file": "coordination_mcp.py",
+      "line_start": 62,
+      "line_end": 64,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config"
+      ],
+      "called_by": [
+        "coordination_mcp.check_policy"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the current agent type from config."
+    },
+    {
+      "name": "acquire_lock",
+      "qualified_name": "coordination_mcp.acquire_lock",
+      "file": "coordination_mcp.py",
+      "line_start": 73,
+      "line_end": 117,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_lock_service",
+        "service.acquire",
+        "result.expires_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Acquire an exclusive lock on a file before modifying it.\n\nUse this before editing any file that other agents might also be working on.\nThe lock automatically expires after ttl_minutes (default 2 hours).\n\nArgs:\n    file_path: Path to the file to lock (relative to repo root)\n    reason: Why you need the lock (helps with debugging)\n    ttl_minutes: How long to hold the lock (default from config, usually 120)\n\nReturns:\n    success: Whether the lock was acquired\n    action: 'acquired', 'refreshed', or reason for failure\n    expires_at: When the lock will expire (if successful)\n    locked_by: Which agent holds the lock (if failed)\n\nExample:\n    result = acquire_lock(\"src/main.py\", reason=\"refactoring error handling\")\n    if result[\"success\"]:\n        # Safe to edit the file\n        ...\n        release_lock(\"src/main.py\")"
+    },
+    {
+      "name": "release_lock",
+      "qualified_name": "coordination_mcp.release_lock",
+      "file": "coordination_mcp.py",
+      "line_start": 121,
+      "line_end": 143,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_lock_service",
+        "service.release"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Release a lock you previously acquired.\n\nAlways release locks when you're done editing a file, even if you\nencountered an error. This lets other agents proceed.\n\nArgs:\n    file_path: Path to the file to unlock\n\nReturns:\n    success: Whether the lock was released\n    file_path: The file that was unlocked"
+    },
+    {
+      "name": "check_locks",
+      "qualified_name": "coordination_mcp.check_locks",
+      "file": "coordination_mcp.py",
+      "line_start": 147,
+      "line_end": 172,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_lock_service",
+        "service.check",
+        "lock.locked_at.isoformat",
+        "lock.expires_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Check which files are currently locked.\n\nUse this before starting work to see if files you need are available.\n\nArgs:\n    file_paths: Specific files to check (or None for all active locks)\n\nReturns:\n    List of active locks with file_path, locked_by, reason, expires_at"
+    },
+    {
+      "name": "get_work",
+      "qualified_name": "coordination_mcp.get_work",
+      "file": "coordination_mcp.py",
+      "line_start": 181,
+      "line_end": 218,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_work_queue_service",
+        "service.claim",
+        "str",
+        "result.deadline.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Claim a task from the work queue.\n\nTasks are assigned atomically - if you get a task, no other agent will.\nYou should complete the task when done using complete_work().\n\nArgs:\n    task_types: Only claim these types of tasks (optional)\n               Examples: 'summarize', 'refactor', 'test', 'verify'\n\nReturns:\n    success: Whether a task was claimed\n    task_id: ID for completing the task\n    task_type: Type of task\n    description: What to do\n    input_data: Task-specific input\n    deadline: When it needs to be done (if set)\n\nExample:\n    work = get_work(task_types=[\"summarize\", \"refactor\"])\n    if work[\"success\"]:\n        # Do the work...\n        complete_work(work[\"task_id\"], success=True, result={...})"
+    },
+    {
+      "name": "complete_work",
+      "qualified_name": "coordination_mcp.complete_work",
+      "file": "coordination_mcp.py",
+      "line_start": 222,
+      "line_end": 259,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_work_queue_service",
+        "service.complete",
+        "UUID",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Mark a claimed task as completed.\n\nAlways call this after finishing a task from get_work(),\nwhether it succeeded or failed.\n\nArgs:\n    task_id: ID from get_work()\n    success: Whether the task completed successfully\n    result: Output data from the task (optional)\n    error_message: What went wrong if success=False (optional)\n\nReturns:\n    success: Whether the completion was recorded\n    status: 'completed' or 'failed'"
+    },
+    {
+      "name": "submit_work",
+      "qualified_name": "coordination_mcp.submit_work",
+      "file": "coordination_mcp.py",
+      "line_start": 263,
+      "line_end": 314,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_work_queue_service",
+        "UUID",
+        "service.submit",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Submit a new task to the work queue.\n\nUse this to create subtasks or delegate work to other agents.\n\nArgs:\n    task_type: Category of task ('summarize', 'refactor', 'test', etc.)\n    description: What needs to be done\n    input_data: Data needed to complete the task (optional)\n    priority: 1 (highest) to 10 (lowest), default 5\n    depends_on: List of task_ids that must complete first (optional)\n\nReturns:\n    success: Whether the task was created\n    task_id: ID of the new task\n\nExample:\n    # Create a subtask for testing\n    result = submit_work(\n        task_type=\"test\",\n        description=\"Write unit tests for cache module\",\n        input_data={\"files\": [\"src/cache.py\"]},\n        priority=3\n    )"
+    },
+    {
+      "name": "write_handoff",
+      "qualified_name": "coordination_mcp.write_handoff",
+      "file": "coordination_mcp.py",
+      "line_start": 323,
+      "line_end": 373,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_handoff_service",
+        "service.write",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Write a handoff document to preserve session context.\n\nCall this before ending a session or when hitting context limits.\nThe next session can read this to resume where you left off.\n\nArgs:\n    summary: What was accomplished and current state (required)\n    completed_work: List of completed work items\n    in_progress: List of items still being worked on\n    decisions: Key decisions made during the session\n    next_steps: What should be done next\n    relevant_files: File paths relevant to the work\n\nReturns:\n    success: Whether the handoff was written\n    handoff_id: UUID of the created handoff document\n\nExample:\n    write_handoff(\n        summary=\"Implemented file locking with TTL expiration\",\n        completed_work=[\"Lock acquisition\", \"Lock release\", \"TTL cleanup\"],\n        in_progress=[\"Integration tests\"],\n        decisions=[\"Used PostgreSQL advisory locks for atomicity\"],\n        next_steps=[\"Write integration tests\", \"Add lock contention metrics\"],\n        relevant_files=[\"src/locks.py\", \"supabase/migrations/001_core_schema.sql\"]\n    )"
+    },
+    {
+      "name": "read_handoff",
+      "qualified_name": "coordination_mcp.read_handoff",
+      "file": "coordination_mcp.py",
+      "line_start": 377,
+      "line_end": 428,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_handoff_service",
+        "get_agent_id",
+        "service.read",
+        "str",
+        "h.created_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Read previous handoff documents for session continuity.\n\nCall this at the start of a new session to resume prior context.\nReturns the most recent handoff(s) for the specified agent.\n\nArgs:\n    agent_name: Filter by agent name (None for current agent's handoffs)\n    limit: Number of handoffs to retrieve (default: 1, most recent)\n\nReturns:\n    handoffs: List of handoff documents with summary, completed work, etc.\n\nExample:\n    result = read_handoff()\n    if result[\"handoffs\"]:\n        # Resume from previous session context\n        previous = result[\"handoffs\"][0]\n        print(f\"Previous session: {previous['summary']}\")"
+    },
+    {
+      "name": "register_session",
+      "qualified_name": "coordination_mcp.register_session",
+      "file": "coordination_mcp.py",
+      "line_start": 437,
+      "line_end": 470,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_discovery_service",
+        "service.register"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Register this agent session for discovery by other agents.\n\nCall this at the start of a work session to make yourself discoverable.\nOther agents can then find you via discover_agents().\n\nArgs:\n    capabilities: What this agent can do (e.g., ['coding', 'testing', 'review'])\n    current_task: Description of what you're currently working on\n\nReturns:\n    success: Whether registration succeeded\n    session_id: The registered session ID\n\nExample:\n    register_session(\n        capabilities=[\"coding\", \"testing\"],\n        current_task=\"Implementing file locking feature\"\n    )"
+    },
+    {
+      "name": "discover_agents",
+      "qualified_name": "coordination_mcp.discover_agents",
+      "file": "coordination_mcp.py",
+      "line_start": 474,
+      "line_end": 517,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_discovery_service",
+        "service.discover",
+        "a.last_heartbeat.isoformat",
+        "a.started_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Discover other agents working in this coordination system.\n\nUse this to find agents with specific capabilities or check who's active.\n\nArgs:\n    capability: Filter by capability (e.g., 'coding', 'review', 'testing')\n    status: Filter by status ('active', 'idle', 'disconnected')\n\nReturns:\n    agents: List of matching agents with their capabilities and status\n\nExample:\n    # Find all active agents\n    result = discover_agents(status=\"active\")\n\n    # Find agents that can review code\n    result = discover_agents(capability=\"review\")"
+    },
+    {
+      "name": "heartbeat",
+      "qualified_name": "coordination_mcp.heartbeat",
+      "file": "coordination_mcp.py",
+      "line_start": 521,
+      "line_end": 539,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_discovery_service",
+        "service.heartbeat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Send a heartbeat to indicate this agent is still alive.\n\nCall this periodically (every few minutes) during long-running work.\nAgents that don't heartbeat for 15+ minutes may have their locks released.\n\nReturns:\n    success: Whether the heartbeat was recorded\n    session_id: The session that was updated"
+    },
+    {
+      "name": "cleanup_dead_agents",
+      "qualified_name": "coordination_mcp.cleanup_dead_agents",
+      "file": "coordination_mcp.py",
+      "line_start": 543,
+      "line_end": 569,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_discovery_service",
+        "service.cleanup_dead_agents"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Clean up agents that have stopped responding.\n\nMarks stale agents as disconnected and releases their file locks.\nUse this if you suspect an agent has crashed and is holding locks.\n\nArgs:\n    stale_threshold_minutes: Minutes without heartbeat before cleanup (default: 15)\n\nReturns:\n    success: Whether cleanup ran\n    agents_cleaned: Number of agents marked as disconnected\n    locks_released: Number of locks released"
+    },
+    {
+      "name": "remember",
+      "qualified_name": "coordination_mcp.remember",
+      "file": "coordination_mcp.py",
+      "line_start": 578,
+      "line_end": 620,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_memory_service",
+        "service.remember"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Store an episodic memory for cross-session learning.\n\nUse this to record important events, decisions, errors, and learnings\nso future sessions can benefit from past experience.\n\nArgs:\n    event_type: Type of event ('error', 'success', 'decision', 'discovery', 'optimization')\n    summary: Short description of what happened\n    details: Additional structured data (optional)\n    outcome: 'positive', 'negative', or 'neutral' (optional)\n    lessons: Lessons learned from this event (optional)\n    tags: Tags for filtering during recall (optional)\n\nReturns:\n    success: Whether the memory was stored\n    memory_id: UUID of the stored memory\n    action: 'created' or 'deduplicated' (if similar memory exists within 1 hour)"
+    },
+    {
+      "name": "recall",
+      "qualified_name": "coordination_mcp.recall",
+      "file": "coordination_mcp.py",
+      "line_start": 624,
+      "line_end": 668,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_memory_service",
+        "service.recall",
+        "m.created_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Recall relevant memories from past sessions.\n\nUse this at the start of a session or when facing a problem\nto benefit from past experience.\n\nArgs:\n    tags: Filter by tags (memories matching ANY tag are returned)\n    event_type: Filter by event type (optional)\n    limit: Maximum number of memories to return (default: 10)\n    min_relevance: Minimum relevance score (0.0-1.0, default: 0.0)\n\nReturns:\n    memories: List of relevant memories sorted by relevance"
+    },
+    {
+      "name": "check_guardrails",
+      "qualified_name": "coordination_mcp.check_guardrails",
+      "file": "coordination_mcp.py",
+      "line_start": 677,
+      "line_end": 713,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_guardrails_service",
+        "service.check_operation"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Check an operation for destructive patterns.\n\nUse this proactively before running potentially dangerous commands.\nThe system also runs guardrail checks automatically on work completion.\n\nArgs:\n    operation_text: The command or operation text to check\n    file_paths: File paths involved in the operation (optional)\n\nReturns:\n    safe: True if no destructive patterns matched\n    violations: List of matched patterns with category and severity"
+    },
+    {
+      "name": "get_my_profile",
+      "qualified_name": "coordination_mcp.get_my_profile",
+      "file": "coordination_mcp.py",
+      "line_start": 722,
+      "line_end": 753,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_profiles_service",
+        "service.get_profile"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Get the current agent's profile including trust level and permissions.\n\nReturns the agent's profile with allowed operations, trust level,\nand resource limits.\n\nReturns:\n    success: Whether the profile was found\n    profile: Profile details including trust_level, allowed_operations, etc.\n    source: How the profile was determined ('assignment', 'default', 'cache')"
+    },
+    {
+      "name": "query_audit",
+      "qualified_name": "coordination_mcp.query_audit",
+      "file": "coordination_mcp.py",
+      "line_start": 762,
+      "line_end": 802,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_audit_service",
+        "service.query",
+        "e.created_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "docstring": "Query the audit trail for recent operations.\n\nUse this for debugging, compliance, or understanding what happened.\n\nArgs:\n    agent_id: Filter by agent ID (optional)\n    operation: Filter by operation type (optional)\n    limit: Maximum number of entries to return (default: 20)\n\nReturns:\n    entries: List of audit log entries"
+    },
+    {
+      "name": "check_policy",
+      "qualified_name": "coordination_mcp.check_policy",
+      "file": "coordination_mcp.py",
+      "line_start": 811,
+      "line_end": 848,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_policy_engine",
+        "engine.check_operation",
+        "get_agent_id",
+        "get_agent_type",
+        "type"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Check if an operation is authorized by the policy engine.\n\nUses either native (profiles + network) or Cedar engine based on config.\n\nArgs:\n    operation: Operation name (e.g., 'acquire_lock', 'network_access')\n    resource: Target resource (file path, domain, etc.)\n    context: Additional context (trust_level, files_modified, etc.)\n\nReturns:\n    allowed: Whether the operation is authorized\n    reason: Explanation of the decision\n    engine: Which policy engine made the decision"
+    },
+    {
+      "name": "validate_cedar_policy",
+      "qualified_name": "coordination_mcp.validate_cedar_policy",
+      "file": "coordination_mcp.py",
+      "line_start": 852,
+      "line_end": 885,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_config",
+        "get_policy_engine",
+        "hasattr",
+        "engine.validate_policy"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Validate Cedar policy text against the schema.\n\nOnly available when POLICY_ENGINE=cedar.\n\nArgs:\n    policy_text: Cedar policy text to validate\n\nReturns:\n    valid: Whether the policy is valid\n    errors: List of validation errors (if any)"
+    },
+    {
+      "name": "get_current_locks",
+      "qualified_name": "coordination_mcp.get_current_locks",
+      "file": "coordination_mcp.py",
+      "line_start": 894,
+      "line_end": 914,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('locks://current')"
+      ],
+      "calls": [
+        "get_lock_service",
+        "service.check",
+        "lines.append",
+        "lock.expires_at.isoformat",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "All currently active file locks.\n\nShows which files are locked, by whom, and when they expire."
+    },
+    {
+      "name": "get_recent_handoffs",
+      "qualified_name": "coordination_mcp.get_recent_handoffs",
+      "file": "coordination_mcp.py",
+      "line_start": 918,
+      "line_end": 953,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('handoffs://recent')"
+      ],
+      "calls": [
+        "get_handoff_service",
+        "service.get_recent",
+        "lines.append",
+        "h.created_at.isoformat",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Recent handoff documents from agent sessions.\n\nShows the latest session continuity documents across all agents."
+    },
+    {
+      "name": "get_pending_work",
+      "qualified_name": "coordination_mcp.get_pending_work",
+      "file": "coordination_mcp.py",
+      "line_start": 957,
+      "line_end": 983,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('work://pending')"
+      ],
+      "calls": [
+        "get_work_queue_service",
+        "service.get_pending",
+        "lines.append",
+        "task.deadline.isoformat",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Tasks waiting to be claimed from the work queue.\n\nShows available work organized by priority."
+    },
+    {
+      "name": "get_recent_memories",
+      "qualified_name": "coordination_mcp.get_recent_memories",
+      "file": "coordination_mcp.py",
+      "line_start": 987,
+      "line_end": 1010,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('memories://recent')"
+      ],
+      "calls": [
+        "get_memory_service",
+        "service.recall",
+        "lines.append",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Recent episodic memories across all agents.\n\nShows the latest memories with relevance scores and tags."
+    },
+    {
+      "name": "get_guardrail_patterns",
+      "qualified_name": "coordination_mcp.get_guardrail_patterns",
+      "file": "coordination_mcp.py",
+      "line_start": 1014,
+      "line_end": 1038,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('guardrails://patterns')"
+      ],
+      "calls": [
+        "get_guardrails_service",
+        "service._load_patterns",
+        "sorted",
+        "lines.append",
+        "current_category.title",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Active guardrail patterns for destructive operation detection.\n\nShows all patterns that are currently being enforced."
+    },
+    {
+      "name": "get_current_profile",
+      "qualified_name": "coordination_mcp.get_current_profile",
+      "file": "coordination_mcp.py",
+      "line_start": 1042,
+      "line_end": 1072,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('profiles://current')"
+      ],
+      "calls": [
+        "get_profiles_service",
+        "service.get_profile",
+        "lines.append",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Current agent's profile and permissions.\n\nShows trust level, allowed operations, and resource limits."
+    },
+    {
+      "name": "get_recent_audit",
+      "qualified_name": "coordination_mcp.get_recent_audit",
+      "file": "coordination_mcp.py",
+      "line_start": 1076,
+      "line_end": 1099,
+      "is_async": true,
+      "decorators": [
+        "mcp.resource('audit://recent')"
+      ],
+      "calls": [
+        "get_audit_service",
+        "service.query",
+        "lines.append",
+        "e.created_at.isoformat",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "docstring": "Recent audit log entries.\n\nShows the latest coordination operations across all agents."
+    },
+    {
+      "name": "coordinate_file_edit",
+      "qualified_name": "coordination_mcp.coordinate_file_edit",
+      "file": "coordination_mcp.py",
+      "line_start": 1108,
+      "line_end": 1126,
+      "is_async": false,
+      "decorators": [
+        "mcp.prompt()"
+      ],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "entry_point"
+      ],
+      "docstring": "Template for safely editing a file with coordination.\n\nIncludes lock acquisition, edit, and release pattern."
+    },
+    {
+      "name": "start_work_session",
+      "qualified_name": "coordination_mcp.start_work_session",
+      "file": "coordination_mcp.py",
+      "line_start": 1130,
+      "line_end": 1144,
+      "is_async": false,
+      "decorators": [
+        "mcp.prompt()"
+      ],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "entry_point"
+      ],
+      "docstring": "Template for starting a coordinated work session.\n\nChecks available work and current locks."
+    },
+    {
+      "name": "main",
+      "qualified_name": "coordination_mcp.main",
+      "file": "coordination_mcp.py",
+      "line_start": 1152,
+      "line_end": 1169,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "arg.startswith",
+        "arg.split",
+        "int",
+        "mcp.run"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Entry point for the MCP server."
+    },
+    {
+      "name": "rpc",
+      "qualified_name": "db.DatabaseClient.rpc",
+      "file": "db.py",
+      "line_start": 32,
+      "line_end": 34,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Call a stored PostgreSQL function."
+    },
+    {
+      "name": "query",
+      "qualified_name": "db.DatabaseClient.query",
+      "file": "db.py",
+      "line_start": 36,
+      "line_end": 43,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Query a table with optional filters."
+    },
+    {
+      "name": "insert",
+      "qualified_name": "db.DatabaseClient.insert",
+      "file": "db.py",
+      "line_start": 45,
+      "line_end": 52,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Insert a row."
+    },
+    {
+      "name": "update",
+      "qualified_name": "db.DatabaseClient.update",
+      "file": "db.py",
+      "line_start": 54,
+      "line_end": 62,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Update matching rows."
+    },
+    {
+      "name": "delete",
+      "qualified_name": "db.DatabaseClient.delete",
+      "file": "db.py",
+      "line_start": 64,
+      "line_end": 66,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Delete matching rows."
+    },
+    {
+      "name": "close",
+      "qualified_name": "db.DatabaseClient.close",
+      "file": "db.py",
+      "line_start": 68,
+      "line_end": 70,
+      "is_async": true,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Close the connection."
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "db.SupabaseClient.__init__",
+      "file": "db.py",
+      "line_start": 80,
+      "line_end": 82,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "config",
+      "qualified_name": "db.SupabaseClient.config",
+      "file": "db.py",
+      "line_start": 85,
+      "line_end": 88,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_config"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "client",
+      "qualified_name": "db.SupabaseClient.client",
+      "file": "db.py",
+      "line_start": 91,
+      "line_end": 94,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "httpx.AsyncClient"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_headers",
+      "qualified_name": "db.SupabaseClient._headers",
+      "file": "db.py",
+      "line_start": 96,
+      "line_end": 102,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Get auth headers for Supabase requests."
+    },
+    {
+      "name": "rpc",
+      "qualified_name": "db.SupabaseClient.rpc",
+      "file": "db.py",
+      "line_start": 104,
+      "line_end": 123,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.client.post",
+        "self._headers",
+        "response.raise_for_status",
+        "response.json"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Call a Supabase RPC function.\n\nArgs:\n    function_name: Name of the PostgreSQL function\n    params: Parameters to pass to the function\n\nReturns:\n    The function result (usually JSONB -> dict)\n\nRaises:\n    httpx.HTTPStatusError: On API errors"
+    },
+    {
+      "name": "query",
+      "qualified_name": "db.SupabaseClient.query",
+      "file": "db.py",
+      "line_start": 125,
+      "line_end": 147,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.client.get",
+        "self._headers",
+        "response.raise_for_status",
+        "response.json"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Query a table with optional filters.\n\nArgs:\n    table: Table name\n    query_params: PostgREST query string (e.g., \"status=eq.pending&order=created_at.desc\")\n    select: Columns to select (default: \"*\")\n\nReturns:\n    List of matching rows"
+    },
+    {
+      "name": "insert",
+      "qualified_name": "db.SupabaseClient.insert",
+      "file": "db.py",
+      "line_start": 149,
+      "line_end": 177,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._headers",
+        "self.client.post",
+        "response.raise_for_status",
+        "response.json"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Insert a row into a table.\n\nArgs:\n    table: Table name\n    data: Row data\n    return_data: Whether to return the inserted row\n\nReturns:\n    The inserted row (if return_data=True) or empty dict"
+    },
+    {
+      "name": "update",
+      "qualified_name": "db.SupabaseClient.update",
+      "file": "db.py",
+      "line_start": 179,
+      "line_end": 210,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "match.items",
+        "join",
+        "self._headers",
+        "self.client.patch",
+        "response.raise_for_status",
+        "response.json"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Update matching rows in a table.\n\nArgs:\n    table: Table name\n    match: Conditions for matching rows (column=value)\n    data: New values for matched rows\n    return_data: Whether to return updated rows\n\nReturns:\n    List of updated rows (if return_data=True)"
+    },
+    {
+      "name": "delete",
+      "qualified_name": "db.SupabaseClient.delete",
+      "file": "db.py",
+      "line_start": 212,
+      "line_end": 230,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "match.items",
+        "join",
+        "self.client.delete",
+        "self._headers",
+        "response.raise_for_status"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Delete matching rows from a table.\n\nArgs:\n    table: Table name\n    match: Conditions for matching rows (column=value)"
+    },
+    {
+      "name": "close",
+      "qualified_name": "db.SupabaseClient.close",
+      "file": "db.py",
+      "line_start": 232,
+      "line_end": 236,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._client.aclose"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Close the HTTP client."
+    },
+    {
+      "name": "create_db_client",
+      "qualified_name": "db.create_db_client",
+      "file": "db.py",
+      "line_start": 239,
+      "line_end": 259,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "SupabaseClient",
+        "ImportError",
+        "DirectPostgresClient",
+        "ValueError"
+      ],
+      "called_by": [
+        "db.get_db"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Factory: returns the appropriate DatabaseClient based on config.\n\nUses DB_BACKEND env var (default: \"supabase\")."
+    },
+    {
+      "name": "get_db",
+      "qualified_name": "db.get_db",
+      "file": "db.py",
+      "line_start": 266,
+      "line_end": 271,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "create_db_client"
+      ],
+      "called_by": [
+        "audit.AuditService.db",
+        "discovery.DiscoveryService.db",
+        "github_coordination.GitHubCoordinationService.db",
+        "guardrails.GuardrailsService.db",
+        "handoffs.HandoffService.db",
+        "locks.LockService.db",
+        "memory.MemoryService.db",
+        "network_policies.NetworkPolicyService.db",
+        "policy_engine.NativePolicyEngine.db",
+        "policy_engine.CedarPolicyEngine.db",
+        "profiles.ProfilesService.db",
+        "work_queue.WorkQueueService.db"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global database client instance."
+    },
+    {
+      "name": "close_db",
+      "qualified_name": "db.close_db",
+      "file": "db.py",
+      "line_start": 274,
+      "line_end": 279,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "_db.close"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Close the global database client."
+    },
+    {
+      "name": "reset_db",
+      "qualified_name": "db.reset_db",
+      "file": "db.py",
+      "line_start": 282,
+      "line_end": 285,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the global database client (for testing)."
+    },
+    {
+      "name": "_coerce_filter_value",
+      "qualified_name": "db_postgres._coerce_filter_value",
+      "file": "db_postgres.py",
+      "line_start": 23,
+      "line_end": 41,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "val.lower",
+        "_UUID_RE.match",
+        "UUID",
+        "int",
+        "float"
+      ],
+      "called_by": [
+        "db_postgres.DirectPostgresClient.query"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID or int\ncolumn causes a type mismatch error."
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "db_postgres.DirectPostgresClient.__init__",
+      "file": "db_postgres.py",
+      "line_start": 51,
+      "line_end": 53,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "PostgresConfig"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_get_pool",
+      "qualified_name": "db_postgres.DirectPostgresClient._get_pool",
+      "file": "db_postgres.py",
+      "line_start": 55,
+      "line_end": 62,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "asyncpg.create_pool"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "rpc",
+      "qualified_name": "db_postgres.DirectPostgresClient.rpc",
+      "file": "db_postgres.py",
+      "line_start": 64,
+      "line_end": 85,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._get_pool",
+        "list",
+        "params.keys",
+        "params.values",
+        "join",
+        "enumerate",
+        "pool.acquire",
+        "conn.fetchrow"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Call a PostgreSQL function.\n\nTranslates to: SELECT function_name(p1 := $1, p2 := $2, ...)"
+    },
+    {
+      "name": "query",
+      "qualified_name": "db_postgres.DirectPostgresClient.query",
+      "file": "db_postgres.py",
+      "line_start": 87,
+      "line_end": 154,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._get_pool",
+        "query_params.split",
+        "part.startswith",
+        "part.split",
+        "len",
+        "int",
+        "where_clauses.append",
+        "values.append",
+        "_coerce_filter_value",
+        "val.strip.replace.split",
+        "val.strip.replace",
+        "val.strip",
+        "join",
+        "range",
+        "values.extend",
+        "pool.acquire",
+        "conn.fetch",
+        "dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Query a table with optional PostgREST-style filters.\n\nTranslates PostgREST filter syntax to SQL WHERE clauses."
+    },
+    {
+      "name": "insert",
+      "qualified_name": "db_postgres.DirectPostgresClient.insert",
+      "file": "db_postgres.py",
+      "line_start": 156,
+      "line_end": 179,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._get_pool",
+        "list",
+        "data.keys",
+        "data.values",
+        "join",
+        "range",
+        "len",
+        "pool.acquire",
+        "conn.fetchrow",
+        "dict",
+        "conn.execute"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Insert a row into a table."
+    },
+    {
+      "name": "update",
+      "qualified_name": "db_postgres.DirectPostgresClient.update",
+      "file": "db_postgres.py",
+      "line_start": 181,
+      "line_end": 218,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._get_pool",
+        "data.items",
+        "set_parts.append",
+        "values.append",
+        "match.items",
+        "where_parts.append",
+        "join",
+        "pool.acquire",
+        "conn.fetch",
+        "dict",
+        "conn.execute"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Update matching rows in a table."
+    },
+    {
+      "name": "delete",
+      "qualified_name": "db_postgres.DirectPostgresClient.delete",
+      "file": "db_postgres.py",
+      "line_start": 220,
+      "line_end": 238,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._get_pool",
+        "enumerate",
+        "match.items",
+        "where_parts.append",
+        "values.append",
+        "join",
+        "pool.acquire",
+        "conn.execute"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Delete matching rows from a table."
+    },
+    {
+      "name": "close",
+      "qualified_name": "db_postgres.DirectPostgresClient.close",
+      "file": "db_postgres.py",
+      "line_start": 240,
+      "line_end": 244,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._pool.close"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Close the connection pool."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "discovery.AgentInfo.from_dict",
+      "file": "discovery.py",
+      "line_start": 33,
+      "line_end": 50,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls",
+        "data.get",
+        "parse_dt"
+      ],
+      "called_by": [
+        "discovery.DiscoverResult.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "parse_dt",
+      "qualified_name": "discovery.AgentInfo.from_dict.parse_dt",
+      "file": "discovery.py",
+      "line_start": 34,
+      "line_end": 39,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str"
+      ],
+      "called_by": [
+        "discovery.AgentInfo.from_dict",
+        "work_queue.Task.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "discovery.RegisterResult.from_dict",
+      "file": "discovery.py",
+      "line_start": 61,
+      "line_end": 65,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "discovery.DiscoveryService.register"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "discovery.DiscoverResult.from_dict",
+      "file": "discovery.py",
+      "line_start": 75,
+      "line_end": 77,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "AgentInfo.from_dict",
+        "data.get",
+        "cls"
+      ],
+      "called_by": [
+        "discovery.DiscoveryService.discover"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "discovery.HeartbeatResult.from_dict",
+      "file": "discovery.py",
+      "line_start": 89,
+      "line_end": 94,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "discovery.DiscoveryService.heartbeat"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "discovery.CleanupResult.from_dict",
+      "file": "discovery.py",
+      "line_start": 106,
+      "line_end": 111,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "discovery.DiscoveryService.cleanup_dead_agents"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "discovery.DiscoveryService.__init__",
+      "file": "discovery.py",
+      "line_start": 117,
+      "line_end": 118,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "discovery.DiscoveryService.db",
+      "file": "discovery.py",
+      "line_start": 121,
+      "line_end": 124,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "register",
+      "qualified_name": "discovery.DiscoveryService.register",
+      "file": "discovery.py",
+      "line_start": 126,
+      "line_end": 172,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "RegisterResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Register an agent session for discovery.\n\nArgs:\n    agent_id: Agent identifier (default: from config)\n    agent_type: Type of agent (default: from config)\n    session_id: Session identifier (default: from config)\n    capabilities: List of agent capabilities\n    current_task: Description of current task\n\nReturns:\n    RegisterResult with session_id"
+    },
+    {
+      "name": "discover",
+      "qualified_name": "discovery.DiscoveryService.discover",
+      "file": "discovery.py",
+      "line_start": 174,
+      "line_end": 196,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.rpc",
+        "DiscoverResult.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Discover active agents with optional filtering.\n\nArgs:\n    capability: Filter by capability (e.g., 'coding', 'review')\n    status: Filter by status ('active', 'idle', 'disconnected')\n\nReturns:\n    DiscoverResult with list of matching agents"
+    },
+    {
+      "name": "heartbeat",
+      "qualified_name": "discovery.DiscoveryService.heartbeat",
+      "file": "discovery.py",
+      "line_start": 198,
+      "line_end": 222,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "HeartbeatResult",
+        "HeartbeatResult.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Send a heartbeat to indicate the agent is still alive.\n\nArgs:\n    session_id: Session to heartbeat (default: from config)\n\nReturns:\n    HeartbeatResult indicating success"
+    },
+    {
+      "name": "cleanup_dead_agents",
+      "qualified_name": "discovery.DiscoveryService.cleanup_dead_agents",
+      "file": "discovery.py",
+      "line_start": 224,
+      "line_end": 260,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.rpc",
+        "CleanupResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Clean up dead agents and release their locks.\n\nArgs:\n    stale_threshold_minutes: Minutes before an agent is considered dead\n\nReturns:\n    CleanupResult with counts of cleaned agents and released locks"
+    },
+    {
+      "name": "get_discovery_service",
+      "qualified_name": "discovery.get_discovery_service",
+      "file": "discovery.py",
+      "line_start": 267,
+      "line_end": 272,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "DiscoveryService"
+      ],
+      "called_by": [
+        "coordination_mcp.register_session",
+        "coordination_mcp.discover_agents",
+        "coordination_mcp.heartbeat",
+        "coordination_mcp.cleanup_dead_agents"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global discovery service instance."
+    },
+    {
+      "name": "parse",
+      "qualified_name": "github_coordination.BranchInfo.parse",
+      "file": "github_coordination.py",
+      "line_start": 39,
+      "line_end": 57,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "branch_ref.removeprefix",
+        "BRANCH_PATTERN.match",
+        "cls",
+        "match.group"
+      ],
+      "called_by": [
+        "github_coordination.GitHubCoordinationService.parse_branch",
+        "github_coordination.GitHubCoordinationService.sync_branch_tracking"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": "Parse a branch name into agent/task components.\n\nArgs:\n    branch_ref: Branch name (e.g., 'agent/claude-1/task-42')\n\nReturns:\n    BranchInfo if pattern matches, None otherwise"
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "github_coordination.WebhookSyncResult.from_dict",
+      "file": "github_coordination.py",
+      "line_start": 79,
+      "line_end": 86,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "github_coordination.GitHubCoordinationService.__init__",
+      "file": "github_coordination.py",
+      "line_start": 92,
+      "line_end": 93,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "github_coordination.GitHubCoordinationService.db",
+      "file": "github_coordination.py",
+      "line_start": 96,
+      "line_end": 99,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "parse_lock_labels",
+      "qualified_name": "github_coordination.GitHubCoordinationService.parse_lock_labels",
+      "file": "github_coordination.py",
+      "line_start": 101,
+      "line_end": 119,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "LOCK_LABEL_PATTERN.match",
+        "locks.append",
+        "LabelLock",
+        "match.group"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Parse GitHub issue labels into file lock requests.\n\nArgs:\n    labels: List of label strings from a GitHub issue\n\nReturns:\n    List of LabelLock for labels matching 'locked:path'"
+    },
+    {
+      "name": "parse_branch",
+      "qualified_name": "github_coordination.GitHubCoordinationService.parse_branch",
+      "file": "github_coordination.py",
+      "line_start": 121,
+      "line_end": 130,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "BranchInfo.parse"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Parse a branch name into agent coordination info.\n\nArgs:\n    branch_ref: Branch reference (e.g., 'refs/heads/agent/a1/t1')\n\nReturns:\n    BranchInfo if pattern matches, None otherwise"
+    },
+    {
+      "name": "sync_label_locks",
+      "qualified_name": "github_coordination.GitHubCoordinationService.sync_label_locks",
+      "file": "github_coordination.py",
+      "line_start": 132,
+      "line_end": 210,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.parse_lock_labels",
+        "self.db.query",
+        "self.db.rpc",
+        "WebhookSyncResult",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Sync issue label locks to the coordination database.\n\nCreates file locks for labels matching 'locked:path/to/file'\nand releases locks for labels that were removed.\n\nArgs:\n    labels: Current label strings on the issue\n    issue_number: GitHub issue number\n    agent_id: Agent ID to associate locks with\n\nReturns:\n    WebhookSyncResult with counts"
+    },
+    {
+      "name": "sync_branch_tracking",
+      "qualified_name": "github_coordination.GitHubCoordinationService.sync_branch_tracking",
+      "file": "github_coordination.py",
+      "line_start": 212,
+      "line_end": 263,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "BranchInfo.parse",
+        "WebhookSyncResult",
+        "self.db.rpc",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Track an agent branch and create implicit file locks.\n\nWhen an agent pushes to a branch matching the naming convention,\ncreate implicit locks for files modified on that branch.\n\nArgs:\n    branch_ref: Branch reference from push event\n    changed_files: Files modified in the push\n\nReturns:\n    WebhookSyncResult with tracking counts"
+    },
+    {
+      "name": "handle_push_webhook",
+      "qualified_name": "github_coordination.GitHubCoordinationService.handle_push_webhook",
+      "file": "github_coordination.py",
+      "line_start": 265,
+      "line_end": 292,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "payload.get",
+        "changed_files.extend",
+        "commit.get",
+        "list",
+        "set",
+        "self.sync_branch_tracking"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Handle a GitHub push webhook event.\n\nParses the push payload, tracks the branch if it matches\nthe agent naming convention, and creates implicit file locks.\n\nArgs:\n    payload: GitHub push webhook payload\n\nReturns:\n    WebhookSyncResult with sync details"
+    },
+    {
+      "name": "handle_issues_webhook",
+      "qualified_name": "github_coordination.GitHubCoordinationService.handle_issues_webhook",
+      "file": "github_coordination.py",
+      "line_start": 294,
+      "line_end": 321,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "payload.get",
+        "WebhookSyncResult",
+        "issue.get",
+        "label.get",
+        "self.sync_label_locks"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Handle a GitHub issues webhook event.\n\nSyncs issue label locks when labels are added/removed.\n\nArgs:\n    payload: GitHub issues webhook payload\n\nReturns:\n    WebhookSyncResult with sync details"
+    },
+    {
+      "name": "get_github_coordination_service",
+      "qualified_name": "github_coordination.get_github_coordination_service",
+      "file": "github_coordination.py",
+      "line_start": 328,
+      "line_end": 333,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "GitHubCoordinationService"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global GitHub coordination service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "guardrails.GuardrailPattern.from_dict",
+      "file": "guardrails.py",
+      "line_start": 115,
+      "line_end": 122,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get",
+        "int"
+      ],
+      "called_by": [
+        "guardrails.GuardrailsService._load_patterns"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "guardrails.GuardrailViolation.from_dict",
+      "file": "guardrails.py",
+      "line_start": 136,
+      "line_end": 143,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "guardrails.GuardrailResult.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "guardrails.GuardrailResult.from_dict",
+      "file": "guardrails.py",
+      "line_start": 154,
+      "line_end": 161,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "violations.append",
+        "GuardrailViolation.from_dict",
+        "cls"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "guardrails.GuardrailsService.__init__",
+      "file": "guardrails.py",
+      "line_start": 167,
+      "line_end": 170,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "guardrails.GuardrailsService.db",
+      "file": "guardrails.py",
+      "line_start": 173,
+      "line_end": 176,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_load_patterns",
+      "qualified_name": "guardrails.GuardrailsService._load_patterns",
+      "file": "guardrails.py",
+      "line_start": 178,
+      "line_end": 202,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "time.monotonic",
+        "self.db.query",
+        "GuardrailPattern.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "docstring": "Load patterns from database with cache, falling back to code registry."
+    },
+    {
+      "name": "check_operation",
+      "qualified_name": "guardrails.GuardrailsService.check_operation",
+      "file": "guardrails.py",
+      "line_start": 204,
+      "line_end": 269,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self._load_patterns",
+        "join",
+        "re.search",
+        "violations.append",
+        "GuardrailViolation",
+        "match.group",
+        "GuardrailResult",
+        "get_config",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "len",
+        "logger.error"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Check an operation for destructive patterns.\n\nArgs:\n    operation_text: The operation text to scan (command, result, etc.)\n    file_paths: File paths involved in the operation\n    trust_level: Agent's trust level (higher = more permissive)\n    agent_id: Agent performing the operation (for logging)\n\nReturns:\n    GuardrailResult indicating whether the operation is safe"
+    },
+    {
+      "name": "get_guardrails_service",
+      "qualified_name": "guardrails.get_guardrails_service",
+      "file": "guardrails.py",
+      "line_start": 276,
+      "line_end": 281,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "GuardrailsService"
+      ],
+      "called_by": [
+        "coordination_mcp.check_guardrails",
+        "coordination_mcp.get_guardrail_patterns",
+        "work_queue.WorkQueueService.claim",
+        "work_queue.WorkQueueService.complete",
+        "work_queue.WorkQueueService.submit"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global guardrails service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "handoffs.HandoffDocument.from_dict",
+      "file": "handoffs.py",
+      "line_start": 36,
+      "line_end": 54,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls",
+        "UUID"
+      ],
+      "called_by": [
+        "handoffs.ReadHandoffResult.from_dict",
+        "handoffs.HandoffService.get_recent"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "handoffs.WriteHandoffResult.from_dict",
+      "file": "handoffs.py",
+      "line_start": 66,
+      "line_end": 75,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "UUID",
+        "str",
+        "cls"
+      ],
+      "called_by": [
+        "handoffs.HandoffService.write"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "handoffs.ReadHandoffResult.from_dict",
+      "file": "handoffs.py",
+      "line_start": 85,
+      "line_end": 89,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "handoffs.append",
+        "HandoffDocument.from_dict",
+        "cls"
+      ],
+      "called_by": [
+        "handoffs.HandoffService.read"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "handoffs.HandoffService.__init__",
+      "file": "handoffs.py",
+      "line_start": 95,
+      "line_end": 96,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "handoffs.HandoffService.db",
+      "file": "handoffs.py",
+      "line_start": 99,
+      "line_end": 102,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "write",
+      "qualified_name": "handoffs.HandoffService.write",
+      "file": "handoffs.py",
+      "line_start": 104,
+      "line_end": 165,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "WriteHandoffResult",
+        "WriteHandoffResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "len",
+        "str",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Write a handoff document for session continuity.\n\nArgs:\n    summary: Required summary of the session/work done\n    agent_name: Agent writing the handoff (default: from config)\n    session_id: Session identifier (default: from config)\n    completed_work: List of completed work items\n    in_progress: List of in-progress items\n    decisions: List of decisions made\n    next_steps: List of next steps\n    relevant_files: List of relevant file paths\n\nReturns:\n    WriteHandoffResult with handoff_id on success"
+    },
+    {
+      "name": "read",
+      "qualified_name": "handoffs.HandoffService.read",
+      "file": "handoffs.py",
+      "line_start": 167,
+      "line_end": 204,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.rpc",
+        "ReadHandoffResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "len",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Read recent handoff documents.\n\nArgs:\n    agent_name: Filter by agent name (None for all agents)\n    limit: Maximum number of handoffs to return (default: 1)\n\nReturns:\n    ReadHandoffResult with list of handoff documents"
+    },
+    {
+      "name": "get_recent",
+      "qualified_name": "handoffs.HandoffService.get_recent",
+      "file": "handoffs.py",
+      "line_start": 206,
+      "line_end": 222,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.query",
+        "HandoffDocument.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get recent handoff documents across all agents.\n\nArgs:\n    limit: Maximum number of handoffs to return\n\nReturns:\n    List of recent handoff documents"
+    },
+    {
+      "name": "get_handoff_service",
+      "qualified_name": "handoffs.get_handoff_service",
+      "file": "handoffs.py",
+      "line_start": 229,
+      "line_end": 234,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "HandoffService"
+      ],
+      "called_by": [
+        "coordination_mcp.write_handoff",
+        "coordination_mcp.read_handoff",
+        "coordination_mcp.get_recent_handoffs"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global handoff service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "locks.Lock.from_dict",
+      "file": "locks.py",
+      "line_start": 32,
+      "line_end": 41,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "datetime.fromisoformat",
+        "data.replace",
+        "data.get"
+      ],
+      "called_by": [
+        "locks.LockService.check"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "locks.LockResult.from_dict",
+      "file": "locks.py",
+      "line_start": 57,
+      "line_end": 72,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls"
+      ],
+      "called_by": [
+        "locks.LockService.acquire",
+        "locks.LockService.release"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "locks.LockService.__init__",
+      "file": "locks.py",
+      "line_start": 78,
+      "line_end": 79,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "locks.LockService.db",
+      "file": "locks.py",
+      "line_start": 82,
+      "line_end": 85,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "acquire",
+      "qualified_name": "locks.LockService.acquire",
+      "file": "locks.py",
+      "line_start": 87,
+      "line_end": 156,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "LockResult",
+        "self.db.rpc",
+        "LockResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Acquire a lock on a file.\n\nArgs:\n    file_path: Path to the file to lock (relative to repo root)\n    agent_id: Agent requesting the lock (default: from config)\n    agent_type: Type of agent (default: from config)\n    session_id: Optional session identifier\n    reason: Why the lock is needed (for debugging)\n    ttl_minutes: Lock TTL in minutes (default: from config)\n\nReturns:\n    LockResult indicating success/failure and lock details"
+    },
+    {
+      "name": "release",
+      "qualified_name": "locks.LockService.release",
+      "file": "locks.py",
+      "line_start": 158,
+      "line_end": 211,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "LockResult",
+        "self.db.rpc",
+        "LockResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Release a lock on a file.\n\nArgs:\n    file_path: Path to the file to unlock\n    agent_id: Agent releasing the lock (default: from config)\n\nReturns:\n    LockResult indicating success/failure"
+    },
+    {
+      "name": "check",
+      "qualified_name": "locks.LockService.check",
+      "file": "locks.py",
+      "line_start": 213,
+      "line_end": 238,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "join",
+        "self.db.query",
+        "Lock.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Check which files are currently locked.\n\nArgs:\n    file_paths: Specific files to check (None for all active locks)\n    locked_by: Filter by agent ID (None for all agents)\n\nReturns:\n    List of active locks"
+    },
+    {
+      "name": "extend",
+      "qualified_name": "locks.LockService.extend",
+      "file": "locks.py",
+      "line_start": 240,
+      "line_end": 262,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.acquire"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Extend an existing lock's TTL.\n\nThis is equivalent to re-acquiring a lock you already hold.\n\nArgs:\n    file_path: Path to the file\n    agent_id: Agent extending the lock (default: from config)\n    ttl_minutes: New TTL in minutes from now\n\nReturns:\n    LockResult indicating success/failure"
+    },
+    {
+      "name": "is_locked",
+      "qualified_name": "locks.LockService.is_locked",
+      "file": "locks.py",
+      "line_start": 264,
+      "line_end": 274,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.check"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Check if a specific file is locked.\n\nArgs:\n    file_path: Path to check\n\nReturns:\n    Lock object if locked, None if not"
+    },
+    {
+      "name": "get_lock_service",
+      "qualified_name": "locks.get_lock_service",
+      "file": "locks.py",
+      "line_start": 281,
+      "line_end": 286,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "LockService"
+      ],
+      "called_by": [
+        "coordination_mcp.acquire_lock",
+        "coordination_mcp.release_lock",
+        "coordination_mcp.check_locks",
+        "coordination_mcp.get_current_locks"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global lock service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "memory.EpisodicMemory.from_dict",
+      "file": "memory.py",
+      "line_start": 35,
+      "line_end": 52,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls",
+        "float"
+      ],
+      "called_by": [
+        "memory.RecallResult.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "memory.MemoryResult.from_dict",
+      "file": "memory.py",
+      "line_start": 65,
+      "line_end": 71,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get",
+        "str"
+      ],
+      "called_by": [
+        "memory.MemoryService.remember"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "memory.RecallResult.from_dict",
+      "file": "memory.py",
+      "line_start": 81,
+      "line_end": 86,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "isinstance",
+        "EpisodicMemory.from_dict"
+      ],
+      "called_by": [
+        "memory.MemoryService.recall"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "memory.MemoryService.__init__",
+      "file": "memory.py",
+      "line_start": 92,
+      "line_end": 93,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "memory.MemoryService.db",
+      "file": "memory.py",
+      "line_start": 96,
+      "line_end": 99,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "remember",
+      "qualified_name": "memory.MemoryService.remember",
+      "file": "memory.py",
+      "line_start": 101,
+      "line_end": 159,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "MemoryResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Store an episodic memory.\n\nArgs:\n    event_type: Type of event ('error', 'success', 'decision', 'discovery', 'optimization')\n    summary: Short description of what happened\n    details: Additional structured data\n    outcome: 'positive', 'negative', or 'neutral'\n    lessons: Lessons learned from this event\n    tags: Tags for filtering during recall\n    agent_id: Agent storing the memory (default: from config)\n    session_id: Session ID (default: from config)\n\nReturns:\n    MemoryResult with memory_id and action ('created' or 'deduplicated')"
+    },
+    {
+      "name": "recall",
+      "qualified_name": "memory.MemoryService.recall",
+      "file": "memory.py",
+      "line_start": 161,
+      "line_end": 192,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.rpc",
+        "RecallResult.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Recall relevant memories.\n\nArgs:\n    tags: Filter by tags (memories matching ANY tag are returned)\n    event_type: Filter by event type\n    limit: Maximum number of memories to return\n    min_relevance: Minimum relevance score threshold\n    agent_id: Filter by agent (None for all agents)\n\nReturns:\n    RecallResult with sorted memories (highest relevance first)"
+    },
+    {
+      "name": "get_memory_service",
+      "qualified_name": "memory.get_memory_service",
+      "file": "memory.py",
+      "line_start": 199,
+      "line_end": 204,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "MemoryService"
+      ],
+      "called_by": [
+        "coordination_mcp.remember",
+        "coordination_mcp.recall",
+        "coordination_mcp.get_recent_memories"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global memory service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "network_policies.AccessDecision.from_dict",
+      "file": "network_policies.py",
+      "line_start": 24,
+      "line_end": 30,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get",
+        "str"
+      ],
+      "called_by": [
+        "network_policies.NetworkPolicyService.check_domain"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "network_policies.NetworkPolicyService.__init__",
+      "file": "network_policies.py",
+      "line_start": 36,
+      "line_end": 37,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "network_policies.NetworkPolicyService.db",
+      "file": "network_policies.py",
+      "line_start": 40,
+      "line_end": 43,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "check_domain",
+      "qualified_name": "network_policies.NetworkPolicyService.check_domain",
+      "file": "network_policies.py",
+      "line_start": 45,
+      "line_end": 78,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "AccessDecision.from_dict",
+        "AccessDecision"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Check if an agent is allowed to access a domain.\n\nArgs:\n    domain: The domain to check (e.g., 'github.com')\n    agent_id: Agent making the request (default: from config)\n\nReturns:\n    AccessDecision with allowed status and reason"
+    },
+    {
+      "name": "get_network_policy_service",
+      "qualified_name": "network_policies.get_network_policy_service",
+      "file": "network_policies.py",
+      "line_start": 85,
+      "line_end": 90,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "NetworkPolicyService"
+      ],
+      "called_by": [
+        "policy_engine.NativePolicyEngine.check_network_access"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global network policy service instance."
+    },
+    {
+      "name": "allow",
+      "qualified_name": "policy_engine.PolicyDecision.allow",
+      "file": "policy_engine.py",
+      "line_start": 52,
+      "line_end": 53,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls"
+      ],
+      "called_by": [
+        "policy_engine.NativePolicyEngine.check_operation",
+        "policy_engine.NativePolicyEngine.check_network_access"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "deny",
+      "qualified_name": "policy_engine.PolicyDecision.deny",
+      "file": "policy_engine.py",
+      "line_start": 56,
+      "line_end": 57,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls"
+      ],
+      "called_by": [
+        "policy_engine.NativePolicyEngine.check_operation",
+        "policy_engine.NativePolicyEngine.check_network_access",
+        "policy_engine.CedarPolicyEngine.check_operation"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "policy_engine.NativePolicyEngine.__init__",
+      "file": "policy_engine.py",
+      "line_start": 75,
+      "line_end": 76,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "policy_engine.NativePolicyEngine.db",
+      "file": "policy_engine.py",
+      "line_start": 79,
+      "line_end": 82,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "check_operation",
+      "qualified_name": "policy_engine.NativePolicyEngine.check_operation",
+      "file": "policy_engine.py",
+      "line_start": 84,
+      "line_end": 165,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_profiles_service",
+        "ctx.get",
+        "profiles.get_profile",
+        "get_config",
+        "PolicyDecision.deny",
+        "PolicyDecision.allow",
+        "profiles.check_operation"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Check if an operation is authorized using native profiles.\n\nArgs:\n    agent_id: Agent requesting authorization\n    agent_type: Type of agent\n    operation: Operation name (e.g., 'acquire_lock')\n    resource: Target resource (file path, domain, etc.)\n    context: Additional context (trust_level, files_modified, etc.)\n\nReturns:\n    PolicyDecision indicating allowed/denied"
+    },
+    {
+      "name": "check_network_access",
+      "qualified_name": "policy_engine.NativePolicyEngine.check_network_access",
+      "file": "policy_engine.py",
+      "line_start": 167,
+      "line_end": 188,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_network_policy_service",
+        "service.check_domain",
+        "PolicyDecision.allow",
+        "PolicyDecision.deny"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Check network access using native NetworkPolicyService."
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "policy_engine.CedarPolicyEngine.__init__",
+      "file": "policy_engine.py",
+      "line_start": 201,
+      "line_end": 214,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "ImportError"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "policy_engine.CedarPolicyEngine.db",
+      "file": "policy_engine.py",
+      "line_start": 217,
+      "line_end": 220,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_load_default_policies",
+      "qualified_name": "policy_engine.CedarPolicyEngine._load_default_policies",
+      "file": "policy_engine.py",
+      "line_start": 222,
+      "line_end": 234,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path",
+        "path.exists",
+        "path.read_text",
+        "FileNotFoundError"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Load default policies from cedar/default_policies.cedar."
+    },
+    {
+      "name": "_load_schema",
+      "qualified_name": "policy_engine.CedarPolicyEngine._load_schema",
+      "file": "policy_engine.py",
+      "line_start": 236,
+      "line_end": 252,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "Path",
+        "path.exists",
+        "path.read_text"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Load Cedar schema from file."
+    },
+    {
+      "name": "_load_policies",
+      "qualified_name": "policy_engine.CedarPolicyEngine._load_policies",
+      "file": "policy_engine.py",
+      "line_start": 254,
+      "line_end": 292,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "time.monotonic",
+        "self.db.query",
+        "join",
+        "self._load_default_policies",
+        "RuntimeError"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "docstring": "Load Cedar policies with caching.\n\nTries database first, falls back to default file policies."
+    },
+    {
+      "name": "_build_entity",
+      "qualified_name": "policy_engine.CedarPolicyEngine._build_entity",
+      "file": "policy_engine.py",
+      "line_start": 294,
+      "line_end": 325,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "ctx.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Build Cedar entity list for authorization request."
+    },
+    {
+      "name": "_build_resource_entity",
+      "qualified_name": "policy_engine.CedarPolicyEngine._build_resource_entity",
+      "file": "policy_engine.py",
+      "line_start": 327,
+      "line_end": 352,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Build a resource entity."
+    },
+    {
+      "name": "_determine_resource_type",
+      "qualified_name": "policy_engine.CedarPolicyEngine._determine_resource_type",
+      "file": "policy_engine.py",
+      "line_start": 354,
+      "line_end": 364,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Determine Cedar resource type based on operation."
+    },
+    {
+      "name": "check_operation",
+      "qualified_name": "policy_engine.CedarPolicyEngine.check_operation",
+      "file": "policy_engine.py",
+      "line_start": 366,
+      "line_end": 434,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "ctx.get",
+        "self._load_policies",
+        "PolicyDecision.deny",
+        "self._determine_resource_type",
+        "self._build_resource_entity",
+        "self._build_entity",
+        "entities.append",
+        "self._cedarpy.is_authorized",
+        "PolicyDecision",
+        "str",
+        "hasattr",
+        "reason_parts.extend"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Check if an operation is authorized using Cedar.\n\nArgs:\n    agent_id: Agent requesting authorization\n    agent_type: Type of agent\n    operation: Operation name (Cedar action)\n    resource: Target resource identifier\n    context: Additional context (trust_level, etc.)\n\nReturns:\n    PolicyDecision from Cedar evaluation"
+    },
+    {
+      "name": "check_network_access",
+      "qualified_name": "policy_engine.CedarPolicyEngine.check_network_access",
+      "file": "policy_engine.py",
+      "line_start": 436,
+      "line_end": 453,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.check_operation"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Check network access using Cedar policies.\n\nMaps to: is_authorized(Agent, Action::\"network_access\", Domain::domain)"
+    },
+    {
+      "name": "validate_policy",
+      "qualified_name": "policy_engine.CedarPolicyEngine.validate_policy",
+      "file": "policy_engine.py",
+      "line_start": 455,
+      "line_end": 474,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "self._load_schema",
+        "self._cedarpy.validate_policies",
+        "ValidationResult",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Validate Cedar policy text against schema.\n\nArgs:\n    policy_text: Cedar policy text to validate\n\nReturns:\n    ValidationResult with validity and any errors"
+    },
+    {
+      "name": "list_policies",
+      "qualified_name": "policy_engine.CedarPolicyEngine.list_policies",
+      "file": "policy_engine.py",
+      "line_start": 476,
+      "line_end": 493,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.query",
+        "row.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "List all active Cedar policies from the database."
+    },
+    {
+      "name": "invalidate_cache",
+      "qualified_name": "policy_engine.CedarPolicyEngine.invalidate_cache",
+      "file": "policy_engine.py",
+      "line_start": 495,
+      "line_end": 498,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Invalidate the policy cache, forcing reload on next check."
+    },
+    {
+      "name": "get_policy_engine",
+      "qualified_name": "policy_engine.get_policy_engine",
+      "file": "policy_engine.py",
+      "line_start": 505,
+      "line_end": 519,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "CedarPolicyEngine",
+        "NativePolicyEngine"
+      ],
+      "called_by": [
+        "coordination_mcp.check_policy",
+        "coordination_mcp.validate_cedar_policy",
+        "locks.LockService.acquire",
+        "locks.LockService.release",
+        "work_queue.WorkQueueService.claim",
+        "work_queue.WorkQueueService.complete",
+        "work_queue.WorkQueueService.submit"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global policy engine based on configuration.\n\nReturns NativePolicyEngine for POLICY_ENGINE=native (default),\nor CedarPolicyEngine for POLICY_ENGINE=cedar."
+    },
+    {
+      "name": "reset_policy_engine",
+      "qualified_name": "policy_engine.reset_policy_engine",
+      "file": "policy_engine.py",
+      "line_start": 522,
+      "line_end": 525,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the global policy engine (for testing)."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "profiles.AgentProfile.from_dict",
+      "file": "profiles.py",
+      "line_start": 36,
+      "line_end": 49,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "str",
+        "data.get",
+        "int"
+      ],
+      "called_by": [
+        "profiles.ProfileResult.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "profiles.ProfileResult.from_dict",
+      "file": "profiles.py",
+      "line_start": 62,
+      "line_end": 71,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "AgentProfile.from_dict",
+        "cls"
+      ],
+      "called_by": [
+        "profiles.ProfilesService.get_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "profiles.OperationCheck.from_dict",
+      "file": "profiles.py",
+      "line_start": 82,
+      "line_end": 86,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "profiles.ProfilesService.__init__",
+      "file": "profiles.py",
+      "line_start": 92,
+      "line_end": 94,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "profiles.ProfilesService.db",
+      "file": "profiles.py",
+      "line_start": 97,
+      "line_end": 100,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "get_profile",
+      "qualified_name": "profiles.ProfilesService.get_profile",
+      "file": "profiles.py",
+      "line_start": 102,
+      "line_end": 137,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "time.monotonic",
+        "ProfileResult",
+        "self.db.rpc",
+        "ProfileResult.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Get the profile for an agent.\n\nChecks explicit assignment first, then falls back to default by agent_type.\nResults are cached with configurable TTL."
+    },
+    {
+      "name": "check_operation",
+      "qualified_name": "profiles.ProfilesService.check_operation",
+      "file": "profiles.py",
+      "line_start": 139,
+      "line_end": 198,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "OperationCheck",
+        "self.get_profile",
+        "self._log_denial",
+        "context.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Check if an agent is allowed to perform an operation.\n\nArgs:\n    operation: The operation to check (e.g., 'acquire_lock', 'complete_work')\n    agent_id: Agent ID (default: from config)\n    agent_type: Agent type (default: from config)\n    context: Additional context for the check (e.g., file count)\n\nReturns:\n    OperationCheck indicating whether the operation is allowed"
+    },
+    {
+      "name": "_log_denial",
+      "qualified_name": "profiles.ProfilesService._log_denial",
+      "file": "profiles.py",
+      "line_start": 200,
+      "line_end": 216,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private"
+      ],
+      "docstring": "Log an operation denial to audit trail."
+    },
+    {
+      "name": "get_profiles_service",
+      "qualified_name": "profiles.get_profiles_service",
+      "file": "profiles.py",
+      "line_start": 223,
+      "line_end": 228,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "ProfilesService"
+      ],
+      "called_by": [
+        "coordination_mcp.get_my_profile",
+        "coordination_mcp.get_current_profile",
+        "policy_engine.NativePolicyEngine.check_operation"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global profiles service instance."
+    },
+    {
+      "name": "from_file",
+      "qualified_name": "teams.TeamsConfig.from_file",
+      "file": "teams.py",
+      "line_start": 69,
+      "line_end": 90,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "open",
+        "yaml.safe_load",
+        "ValueError",
+        "cls.from_dict"
+      ],
+      "called_by": [
+        "teams.get_teams_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": "Load and validate from a YAML file.\n\nArgs:\n    path: Path to the YAML team definition file.\n\nReturns:\n    A validated TeamsConfig instance.\n\nRaises:\n    FileNotFoundError: If the file does not exist.\n    yaml.YAMLError: If the file is not valid YAML.\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails (e.g. duplicate agent names)."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "teams.TeamsConfig.from_dict",
+      "file": "teams.py",
+      "line_start": 93,
+      "line_end": 127,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "validate",
+        "AgentDefinition",
+        "cls",
+        "config.validate",
+        "ValueError",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": "Create from a dictionary (after validation).\n\nArgs:\n    data: Dictionary matching the TEAMS_SCHEMA structure.\n\nReturns:\n    A validated TeamsConfig instance.\n\nRaises:\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: If semantic validation fails (e.g. duplicate agent names)."
+    },
+    {
+      "name": "get_agent",
+      "qualified_name": "teams.TeamsConfig.get_agent",
+      "file": "teams.py",
+      "line_start": 129,
+      "line_end": 141,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get agent definition by name.\n\nArgs:\n    name: The agent name to look up.\n\nReturns:\n    The AgentDefinition if found, None otherwise."
+    },
+    {
+      "name": "get_agents_with_capability",
+      "qualified_name": "teams.TeamsConfig.get_agents_with_capability",
+      "file": "teams.py",
+      "line_start": 143,
+      "line_end": 152,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get agents that have a specific capability.\n\nArgs:\n    capability: The capability to filter by.\n\nReturns:\n    List of agents that have the specified capability."
+    },
+    {
+      "name": "validate",
+      "qualified_name": "teams.TeamsConfig.validate",
+      "file": "teams.py",
+      "line_start": 154,
+      "line_end": 173,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "set",
+        "errors.append",
+        "seen.add"
+      ],
+      "called_by": [
+        "teams.TeamsConfig.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Validate the config, returning list of error messages.\n\nChecks semantic constraints that JSON Schema cannot express,\nsuch as agent name uniqueness within the team.\n\nReturns:\n    List of error message strings. Empty if valid."
+    },
+    {
+      "name": "get_teams_config",
+      "qualified_name": "teams.get_teams_config",
+      "file": "teams.py",
+      "line_start": 180,
+      "line_end": 197,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path",
+        "TeamsConfig.from_file"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global teams configuration.\n\nLoads from the specified path on first call, or from `teams.yaml`\nin the agent-coordinator directory if no path is given.\n\nArgs:\n    path: Optional path to the teams YAML file.\n\nReturns:\n    The global TeamsConfig instance."
+    },
+    {
+      "name": "reset_teams_config",
+      "qualified_name": "teams.reset_teams_config",
+      "file": "teams.py",
+      "line_start": 200,
+      "line_end": 203,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the global teams config. Useful for testing."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "work_queue.Task.from_dict",
+      "file": "work_queue.py",
+      "line_start": 42,
+      "line_end": 69,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "data.get",
+        "UUID",
+        "cls",
+        "parse_dt"
+      ],
+      "called_by": [
+        "work_queue.WorkQueueService.get_pending",
+        "work_queue.WorkQueueService.get_task",
+        "work_queue.WorkQueueService.get_my_tasks"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "parse_dt",
+      "qualified_name": "work_queue.Task.from_dict.parse_dt",
+      "file": "work_queue.py",
+      "line_start": 43,
+      "line_end": 48,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str"
+      ],
+      "called_by": [
+        "discovery.AgentInfo.from_dict",
+        "work_queue.Task.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "work_queue.ClaimResult.from_dict",
+      "file": "work_queue.py",
+      "line_start": 86,
+      "line_end": 106,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "UUID",
+        "cls"
+      ],
+      "called_by": [
+        "work_queue.WorkQueueService.claim"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "work_queue.CompleteResult.from_dict",
+      "file": "work_queue.py",
+      "line_start": 119,
+      "line_end": 129,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "UUID",
+        "str",
+        "cls"
+      ],
+      "called_by": [
+        "work_queue.WorkQueueService.complete"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "work_queue.SubmitResult.from_dict",
+      "file": "work_queue.py",
+      "line_start": 140,
+      "line_end": 148,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "data.get",
+        "UUID",
+        "str",
+        "cls"
+      ],
+      "called_by": [
+        "work_queue.WorkQueueService.submit"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "work_queue.WorkQueueService.__init__",
+      "file": "work_queue.py",
+      "line_start": 154,
+      "line_end": 155,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "work_queue.WorkQueueService.db",
+      "file": "work_queue.py",
+      "line_start": 158,
+      "line_end": 161,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "claim",
+      "qualified_name": "work_queue.WorkQueueService.claim",
+      "file": "work_queue.py",
+      "line_start": 163,
+      "line_end": 273,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "ClaimResult",
+        "self.db.rpc",
+        "ClaimResult.from_dict",
+        "get_guardrails_service",
+        "str",
+        "scan_text.strip",
+        "guardrails.check_operation",
+        "join",
+        "logger.error",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Claim a task from the work queue.\n\nAtomically claims the highest-priority available task.\nOnly returns tasks whose dependencies are satisfied.\nRuns guardrail checks on the task description and input_data\nbefore returning; blocks claim if destructive patterns are found.\n\nArgs:\n    agent_id: Agent claiming the task (default: from config)\n    agent_type: Type of agent (default: from config)\n    task_types: Only claim these types of tasks (None for any)\n\nReturns:\n    ClaimResult with task details or failure reason"
+    },
+    {
+      "name": "complete",
+      "qualified_name": "work_queue.WorkQueueService.complete",
+      "file": "work_queue.py",
+      "line_start": 275,
+      "line_end": 369,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "str",
+        "CompleteResult",
+        "get_guardrails_service",
+        "guardrails.check_operation",
+        "join",
+        "logger.error",
+        "self.db.rpc",
+        "CompleteResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Mark a task as completed.\n\nDefense-in-depth: scans the result payload for destructive patterns.\nThis supplements the pre-execution checks in claim() and submit(),\ncatching cases where an agent produces destructive output not\npresent in the original task description.\n\nArgs:\n    task_id: ID of the task to complete\n    success: Whether the task completed successfully\n    result: Output data from the task (for success)\n    error_message: What went wrong (for failure)\n    agent_id: Agent completing the task (default: from config)\n\nReturns:\n    CompleteResult indicating success/failure"
+    },
+    {
+      "name": "submit",
+      "qualified_name": "work_queue.WorkQueueService.submit",
+      "file": "work_queue.py",
+      "line_start": 371,
+      "line_end": 472,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "bool",
+        "SubmitResult",
+        "get_guardrails_service",
+        "str",
+        "guardrails.check_operation",
+        "logger.error",
+        "deadline.isoformat",
+        "self.db.rpc",
+        "SubmitResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Submit a new task to the work queue.\n\nRuns guardrail checks on the task description and input_data before\npersisting. Rejects submissions containing destructive patterns.\n\nArgs:\n    task_type: Category of task (e.g., 'summarize', 'refactor', 'test')\n    description: What needs to be done\n    input_data: Data needed to complete the task\n    priority: 1 (highest) to 10 (lowest), default 5\n    depends_on: Task IDs that must complete first\n    deadline: When the task needs to be done by\n\nReturns:\n    SubmitResult with the new task ID"
+    },
+    {
+      "name": "get_pending",
+      "qualified_name": "work_queue.WorkQueueService.get_pending",
+      "file": "work_queue.py",
+      "line_start": 474,
+      "line_end": 496,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "min",
+        "join",
+        "self.db.query",
+        "Task.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get pending tasks from the queue.\n\nArgs:\n    task_types: Filter by task types (None for all)\n    limit: Maximum number of tasks to return (capped at MAX_PAGE_SIZE)\n\nReturns:\n    List of pending tasks ordered by priority"
+    },
+    {
+      "name": "get_task",
+      "qualified_name": "work_queue.WorkQueueService.get_task",
+      "file": "work_queue.py",
+      "line_start": 498,
+      "line_end": 508,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.query",
+        "Task.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get a specific task by ID.\n\nArgs:\n    task_id: Task ID to retrieve\n\nReturns:\n    Task if found, None otherwise"
+    },
+    {
+      "name": "get_my_tasks",
+      "qualified_name": "work_queue.WorkQueueService.get_my_tasks",
+      "file": "work_queue.py",
+      "line_start": 510,
+      "line_end": 532,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.query",
+        "Task.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get tasks claimed by this agent.\n\nArgs:\n    agent_id: Agent ID (default: from config)\n    include_completed: Whether to include completed tasks\n\nReturns:\n    List of tasks claimed by the agent"
+    },
+    {
+      "name": "get_work_queue_service",
+      "qualified_name": "work_queue.get_work_queue_service",
+      "file": "work_queue.py",
+      "line_start": 539,
+      "line_end": 544,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "WorkQueueService"
+      ],
+      "called_by": [
+        "coordination_mcp.get_work",
+        "coordination_mcp.complete_work",
+        "coordination_mcp.submit_work",
+        "coordination_mcp.get_pending_work"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global work queue service instance."
+    }
+  ],
+  "classes": [
+    {
+      "name": "AuditEntry",
+      "qualified_name": "audit.AuditEntry",
+      "file": "audit.py",
+      "line_start": 18,
+      "line_end": 50,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "AuditResult",
+      "qualified_name": "audit.AuditResult",
+      "file": "audit.py",
+      "line_start": 54,
+      "line_end": 67,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "AuditService",
+      "qualified_name": "audit.AuditService",
+      "file": "audit.py",
+      "line_start": 70,
+      "line_end": 154,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "log_operation",
+        "_insert_audit_entry",
+        "query",
+        "timed"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "AuditTimer",
+      "qualified_name": "audit.AuditTimer",
+      "file": "audit.py",
+      "line_start": 157,
+      "line_end": 181,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "__aenter__",
+        "__aexit__"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "SupabaseConfig",
+      "qualified_name": "config.SupabaseConfig",
+      "file": "config.py",
+      "line_start": 30,
+      "line_end": 51,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "AgentConfig",
+      "qualified_name": "config.AgentConfig",
+      "file": "config.py",
+      "line_start": 55,
+      "line_end": 75,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "LockConfig",
+      "qualified_name": "config.LockConfig",
+      "file": "config.py",
+      "line_start": 79,
+      "line_end": 89,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "PostgresConfig",
+      "qualified_name": "config.PostgresConfig",
+      "file": "config.py",
+      "line_start": 93,
+      "line_end": 106,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "DatabaseConfig",
+      "qualified_name": "config.DatabaseConfig",
+      "file": "config.py",
+      "line_start": 110,
+      "line_end": 121,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "GuardrailsConfig",
+      "qualified_name": "config.GuardrailsConfig",
+      "file": "config.py",
+      "line_start": 125,
+      "line_end": 141,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ProfilesConfig",
+      "qualified_name": "config.ProfilesConfig",
+      "file": "config.py",
+      "line_start": 145,
+      "line_end": 165,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "AuditConfig",
+      "qualified_name": "config.AuditConfig",
+      "file": "config.py",
+      "line_start": 169,
+      "line_end": 180,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "NetworkPolicyConfig",
+      "qualified_name": "config.NetworkPolicyConfig",
+      "file": "config.py",
+      "line_start": 184,
+      "line_end": 193,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "PolicyEngineConfig",
+      "qualified_name": "config.PolicyEngineConfig",
+      "file": "config.py",
+      "line_start": 197,
+      "line_end": 217,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "Config",
+      "qualified_name": "config.Config",
+      "file": "config.py",
+      "line_start": 221,
+      "line_end": 251,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "DatabaseClient",
+      "qualified_name": "db.DatabaseClient",
+      "file": "db.py",
+      "line_start": 25,
+      "line_end": 70,
+      "bases": [
+        "Protocol"
+      ],
+      "methods": [
+        "rpc",
+        "query",
+        "insert",
+        "update",
+        "delete",
+        "close"
+      ],
+      "decorators": [
+        "runtime_checkable"
+      ]
+    },
+    {
+      "name": "SupabaseClient",
+      "qualified_name": "db.SupabaseClient",
+      "file": "db.py",
+      "line_start": 73,
+      "line_end": 236,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "config",
+        "client",
+        "_headers",
+        "rpc",
+        "query",
+        "insert",
+        "update",
+        "delete",
+        "close"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "DirectPostgresClient",
+      "qualified_name": "db_postgres.DirectPostgresClient",
+      "file": "db_postgres.py",
+      "line_start": 44,
+      "line_end": 244,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "_get_pool",
+        "rpc",
+        "query",
+        "insert",
+        "update",
+        "delete",
+        "close"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "AgentInfo",
+      "qualified_name": "discovery.AgentInfo",
+      "file": "discovery.py",
+      "line_start": 20,
+      "line_end": 50,
+      "bases": [],
+      "methods": [
+        "from_dict",
+        "parse_dt"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "RegisterResult",
+      "qualified_name": "discovery.RegisterResult",
+      "file": "discovery.py",
+      "line_start": 54,
+      "line_end": 65,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "DiscoverResult",
+      "qualified_name": "discovery.DiscoverResult",
+      "file": "discovery.py",
+      "line_start": 69,
+      "line_end": 77,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "HeartbeatResult",
+      "qualified_name": "discovery.HeartbeatResult",
+      "file": "discovery.py",
+      "line_start": 81,
+      "line_end": 94,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "CleanupResult",
+      "qualified_name": "discovery.CleanupResult",
+      "file": "discovery.py",
+      "line_start": 98,
+      "line_end": 111,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "DiscoveryService",
+      "qualified_name": "discovery.DiscoveryService",
+      "file": "discovery.py",
+      "line_start": 114,
+      "line_end": 260,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "register",
+        "discover",
+        "heartbeat",
+        "cleanup_dead_agents"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "BranchInfo",
+      "qualified_name": "github_coordination.BranchInfo",
+      "file": "github_coordination.py",
+      "line_start": 30,
+      "line_end": 57,
+      "bases": [],
+      "methods": [
+        "parse"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "LabelLock",
+      "qualified_name": "github_coordination.LabelLock",
+      "file": "github_coordination.py",
+      "line_start": 61,
+      "line_end": 65,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "WebhookSyncResult",
+      "qualified_name": "github_coordination.WebhookSyncResult",
+      "file": "github_coordination.py",
+      "line_start": 69,
+      "line_end": 86,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "GitHubCoordinationService",
+      "qualified_name": "github_coordination.GitHubCoordinationService",
+      "file": "github_coordination.py",
+      "line_start": 89,
+      "line_end": 321,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "parse_lock_labels",
+        "parse_branch",
+        "sync_label_locks",
+        "sync_branch_tracking",
+        "handle_push_webhook",
+        "handle_issues_webhook"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "GuardrailPattern",
+      "qualified_name": "guardrails.GuardrailPattern",
+      "file": "guardrails.py",
+      "line_start": 105,
+      "line_end": 122,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "GuardrailViolation",
+      "qualified_name": "guardrails.GuardrailViolation",
+      "file": "guardrails.py",
+      "line_start": 126,
+      "line_end": 143,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "GuardrailResult",
+      "qualified_name": "guardrails.GuardrailResult",
+      "file": "guardrails.py",
+      "line_start": 147,
+      "line_end": 161,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "GuardrailsService",
+      "qualified_name": "guardrails.GuardrailsService",
+      "file": "guardrails.py",
+      "line_start": 164,
+      "line_end": 269,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "_load_patterns",
+        "check_operation"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "HandoffDocument",
+      "qualified_name": "handoffs.HandoffDocument",
+      "file": "handoffs.py",
+      "line_start": 21,
+      "line_end": 54,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "WriteHandoffResult",
+      "qualified_name": "handoffs.WriteHandoffResult",
+      "file": "handoffs.py",
+      "line_start": 58,
+      "line_end": 75,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ReadHandoffResult",
+      "qualified_name": "handoffs.ReadHandoffResult",
+      "file": "handoffs.py",
+      "line_start": 79,
+      "line_end": 89,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "HandoffService",
+      "qualified_name": "handoffs.HandoffService",
+      "file": "handoffs.py",
+      "line_start": 92,
+      "line_end": 222,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "write",
+        "read",
+        "get_recent"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "Lock",
+      "qualified_name": "locks.Lock",
+      "file": "locks.py",
+      "line_start": 20,
+      "line_end": 41,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "LockResult",
+      "qualified_name": "locks.LockResult",
+      "file": "locks.py",
+      "line_start": 45,
+      "line_end": 72,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "LockService",
+      "qualified_name": "locks.LockService",
+      "file": "locks.py",
+      "line_start": 75,
+      "line_end": 274,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "acquire",
+        "release",
+        "check",
+        "extend",
+        "is_locked"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "EpisodicMemory",
+      "qualified_name": "memory.EpisodicMemory",
+      "file": "memory.py",
+      "line_start": 20,
+      "line_end": 52,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "MemoryResult",
+      "qualified_name": "memory.MemoryResult",
+      "file": "memory.py",
+      "line_start": 56,
+      "line_end": 71,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "RecallResult",
+      "qualified_name": "memory.RecallResult",
+      "file": "memory.py",
+      "line_start": 75,
+      "line_end": 86,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "MemoryService",
+      "qualified_name": "memory.MemoryService",
+      "file": "memory.py",
+      "line_start": 89,
+      "line_end": 192,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "remember",
+        "recall"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "AccessDecision",
+      "qualified_name": "network_policies.AccessDecision",
+      "file": "network_policies.py",
+      "line_start": 15,
+      "line_end": 30,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "NetworkPolicyService",
+      "qualified_name": "network_policies.NetworkPolicyService",
+      "file": "network_policies.py",
+      "line_start": 33,
+      "line_end": 78,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "check_domain"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "PolicyDecision",
+      "qualified_name": "policy_engine.PolicyDecision",
+      "file": "policy_engine.py",
+      "line_start": 43,
+      "line_end": 57,
+      "bases": [],
+      "methods": [
+        "allow",
+        "deny"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ValidationResult",
+      "qualified_name": "policy_engine.ValidationResult",
+      "file": "policy_engine.py",
+      "line_start": 61,
+      "line_end": 65,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "NativePolicyEngine",
+      "qualified_name": "policy_engine.NativePolicyEngine",
+      "file": "policy_engine.py",
+      "line_start": 68,
+      "line_end": 188,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "check_operation",
+        "check_network_access"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "CedarPolicyEngine",
+      "qualified_name": "policy_engine.CedarPolicyEngine",
+      "file": "policy_engine.py",
+      "line_start": 191,
+      "line_end": 498,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "_load_default_policies",
+        "_load_schema",
+        "_load_policies",
+        "_build_entity",
+        "_build_resource_entity",
+        "_determine_resource_type",
+        "check_operation",
+        "check_network_access",
+        "validate_policy",
+        "list_policies",
+        "invalidate_cache"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "AgentProfile",
+      "qualified_name": "profiles.AgentProfile",
+      "file": "profiles.py",
+      "line_start": 20,
+      "line_end": 49,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ProfileResult",
+      "qualified_name": "profiles.ProfileResult",
+      "file": "profiles.py",
+      "line_start": 53,
+      "line_end": 71,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "OperationCheck",
+      "qualified_name": "profiles.OperationCheck",
+      "file": "profiles.py",
+      "line_start": 75,
+      "line_end": 86,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ProfilesService",
+      "qualified_name": "profiles.ProfilesService",
+      "file": "profiles.py",
+      "line_start": 89,
+      "line_end": 216,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "get_profile",
+        "check_operation",
+        "_log_denial"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "AgentDefinition",
+      "qualified_name": "teams.AgentDefinition",
+      "file": "teams.py",
+      "line_start": 48,
+      "line_end": 54,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "TeamsConfig",
+      "qualified_name": "teams.TeamsConfig",
+      "file": "teams.py",
+      "line_start": 58,
+      "line_end": 173,
+      "bases": [],
+      "methods": [
+        "from_file",
+        "from_dict",
+        "get_agent",
+        "get_agents_with_capability",
+        "validate"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "Task",
+      "qualified_name": "work_queue.Task",
+      "file": "work_queue.py",
+      "line_start": 23,
+      "line_end": 69,
+      "bases": [],
+      "methods": [
+        "from_dict",
+        "parse_dt"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ClaimResult",
+      "qualified_name": "work_queue.ClaimResult",
+      "file": "work_queue.py",
+      "line_start": 73,
+      "line_end": 106,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "CompleteResult",
+      "qualified_name": "work_queue.CompleteResult",
+      "file": "work_queue.py",
+      "line_start": 110,
+      "line_end": 129,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "SubmitResult",
+      "qualified_name": "work_queue.SubmitResult",
+      "file": "work_queue.py",
+      "line_start": 133,
+      "line_end": 148,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "WorkQueueService",
+      "qualified_name": "work_queue.WorkQueueService",
+      "file": "work_queue.py",
+      "line_start": 151,
+      "line_end": 532,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "claim",
+        "complete",
+        "submit",
+        "get_pending",
+        "get_task",
+        "get_my_tasks"
+      ],
+      "decorators": []
+    }
+  ],
+  "import_graph": [
+    {
+      "from": "audit",
+      "to": "asyncio"
+    },
+    {
+      "from": "audit",
+      "to": "time"
+    },
+    {
+      "from": "audit",
+      "to": "dataclasses"
+    },
+    {
+      "from": "audit",
+      "to": "datetime"
+    },
+    {
+      "from": "audit",
+      "to": "typing"
+    },
+    {
+      "from": "audit",
+      "to": "config"
+    },
+    {
+      "from": "audit",
+      "to": "db"
+    },
+    {
+      "from": "config",
+      "to": "os"
+    },
+    {
+      "from": "config",
+      "to": "dataclasses"
+    },
+    {
+      "from": "config",
+      "to": "uuid"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "sys"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "typing"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "fastmcp"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "audit"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "config"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "discovery"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "guardrails"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "handoffs"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "locks"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "memory"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "profiles"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "work_queue"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "uuid"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "policy_engine"
+    },
+    {
+      "from": "db",
+      "to": "typing"
+    },
+    {
+      "from": "db",
+      "to": "httpx"
+    },
+    {
+      "from": "db",
+      "to": "config"
+    },
+    {
+      "from": "db",
+      "to": "db_postgres"
+    },
+    {
+      "from": "db_postgres",
+      "to": "re"
+    },
+    {
+      "from": "db_postgres",
+      "to": "typing"
+    },
+    {
+      "from": "db_postgres",
+      "to": "uuid"
+    },
+    {
+      "from": "db_postgres",
+      "to": "asyncpg"
+    },
+    {
+      "from": "db_postgres",
+      "to": "config"
+    },
+    {
+      "from": "discovery",
+      "to": "logging"
+    },
+    {
+      "from": "discovery",
+      "to": "dataclasses"
+    },
+    {
+      "from": "discovery",
+      "to": "datetime"
+    },
+    {
+      "from": "discovery",
+      "to": "typing"
+    },
+    {
+      "from": "discovery",
+      "to": "audit"
+    },
+    {
+      "from": "discovery",
+      "to": "config"
+    },
+    {
+      "from": "discovery",
+      "to": "db"
+    },
+    {
+      "from": "github_coordination",
+      "to": "re"
+    },
+    {
+      "from": "github_coordination",
+      "to": "dataclasses"
+    },
+    {
+      "from": "github_coordination",
+      "to": "typing"
+    },
+    {
+      "from": "github_coordination",
+      "to": "config"
+    },
+    {
+      "from": "github_coordination",
+      "to": "db"
+    },
+    {
+      "from": "guardrails",
+      "to": "logging"
+    },
+    {
+      "from": "guardrails",
+      "to": "re"
+    },
+    {
+      "from": "guardrails",
+      "to": "time"
+    },
+    {
+      "from": "guardrails",
+      "to": "dataclasses"
+    },
+    {
+      "from": "guardrails",
+      "to": "typing"
+    },
+    {
+      "from": "guardrails",
+      "to": "audit"
+    },
+    {
+      "from": "guardrails",
+      "to": "config"
+    },
+    {
+      "from": "guardrails",
+      "to": "db"
+    },
+    {
+      "from": "handoffs",
+      "to": "logging"
+    },
+    {
+      "from": "handoffs",
+      "to": "dataclasses"
+    },
+    {
+      "from": "handoffs",
+      "to": "datetime"
+    },
+    {
+      "from": "handoffs",
+      "to": "typing"
+    },
+    {
+      "from": "handoffs",
+      "to": "uuid"
+    },
+    {
+      "from": "handoffs",
+      "to": "audit"
+    },
+    {
+      "from": "handoffs",
+      "to": "config"
+    },
+    {
+      "from": "handoffs",
+      "to": "db"
+    },
+    {
+      "from": "locks",
+      "to": "logging"
+    },
+    {
+      "from": "locks",
+      "to": "dataclasses"
+    },
+    {
+      "from": "locks",
+      "to": "datetime"
+    },
+    {
+      "from": "locks",
+      "to": "typing"
+    },
+    {
+      "from": "locks",
+      "to": "audit"
+    },
+    {
+      "from": "locks",
+      "to": "config"
+    },
+    {
+      "from": "locks",
+      "to": "db"
+    },
+    {
+      "from": "locks",
+      "to": "policy_engine"
+    },
+    {
+      "from": "memory",
+      "to": "logging"
+    },
+    {
+      "from": "memory",
+      "to": "dataclasses"
+    },
+    {
+      "from": "memory",
+      "to": "datetime"
+    },
+    {
+      "from": "memory",
+      "to": "typing"
+    },
+    {
+      "from": "memory",
+      "to": "audit"
+    },
+    {
+      "from": "memory",
+      "to": "config"
+    },
+    {
+      "from": "memory",
+      "to": "db"
+    },
+    {
+      "from": "network_policies",
+      "to": "dataclasses"
+    },
+    {
+      "from": "network_policies",
+      "to": "typing"
+    },
+    {
+      "from": "network_policies",
+      "to": "config"
+    },
+    {
+      "from": "network_policies",
+      "to": "db"
+    },
+    {
+      "from": "policy_engine",
+      "to": "time"
+    },
+    {
+      "from": "policy_engine",
+      "to": "dataclasses"
+    },
+    {
+      "from": "policy_engine",
+      "to": "pathlib"
+    },
+    {
+      "from": "policy_engine",
+      "to": "typing"
+    },
+    {
+      "from": "policy_engine",
+      "to": "config"
+    },
+    {
+      "from": "policy_engine",
+      "to": "db"
+    },
+    {
+      "from": "policy_engine",
+      "to": "profiles"
+    },
+    {
+      "from": "policy_engine",
+      "to": "network_policies"
+    },
+    {
+      "from": "policy_engine",
+      "to": "cedarpy"
+    },
+    {
+      "from": "profiles",
+      "to": "logging"
+    },
+    {
+      "from": "profiles",
+      "to": "time"
+    },
+    {
+      "from": "profiles",
+      "to": "dataclasses"
+    },
+    {
+      "from": "profiles",
+      "to": "typing"
+    },
+    {
+      "from": "profiles",
+      "to": "audit"
+    },
+    {
+      "from": "profiles",
+      "to": "config"
+    },
+    {
+      "from": "profiles",
+      "to": "db"
+    },
+    {
+      "from": "teams",
+      "to": "dataclasses"
+    },
+    {
+      "from": "teams",
+      "to": "pathlib"
+    },
+    {
+      "from": "teams",
+      "to": "typing"
+    },
+    {
+      "from": "teams",
+      "to": "yaml"
+    },
+    {
+      "from": "teams",
+      "to": "jsonschema"
+    },
+    {
+      "from": "work_queue",
+      "to": "logging"
+    },
+    {
+      "from": "work_queue",
+      "to": "dataclasses"
+    },
+    {
+      "from": "work_queue",
+      "to": "datetime"
+    },
+    {
+      "from": "work_queue",
+      "to": "typing"
+    },
+    {
+      "from": "work_queue",
+      "to": "uuid"
+    },
+    {
+      "from": "work_queue",
+      "to": "audit"
+    },
+    {
+      "from": "work_queue",
+      "to": "config"
+    },
+    {
+      "from": "work_queue",
+      "to": "db"
+    },
+    {
+      "from": "work_queue",
+      "to": "policy_engine"
+    },
+    {
+      "from": "work_queue",
+      "to": "guardrails"
+    }
+  ],
+  "entry_points": [
+    {
+      "function": "coordination_mcp.acquire_lock",
+      "kind": "route",
+      "method": "MCP",
+      "path": "acquire_lock"
+    },
+    {
+      "function": "coordination_mcp.release_lock",
+      "kind": "route",
+      "method": "MCP",
+      "path": "release_lock"
+    },
+    {
+      "function": "coordination_mcp.check_locks",
+      "kind": "route",
+      "method": "MCP",
+      "path": "check_locks"
+    },
+    {
+      "function": "coordination_mcp.get_work",
+      "kind": "route",
+      "method": "MCP",
+      "path": "get_work"
+    },
+    {
+      "function": "coordination_mcp.complete_work",
+      "kind": "route",
+      "method": "MCP",
+      "path": "complete_work"
+    },
+    {
+      "function": "coordination_mcp.submit_work",
+      "kind": "route",
+      "method": "MCP",
+      "path": "submit_work"
+    },
+    {
+      "function": "coordination_mcp.write_handoff",
+      "kind": "route",
+      "method": "MCP",
+      "path": "write_handoff"
+    },
+    {
+      "function": "coordination_mcp.read_handoff",
+      "kind": "route",
+      "method": "MCP",
+      "path": "read_handoff"
+    },
+    {
+      "function": "coordination_mcp.register_session",
+      "kind": "route",
+      "method": "MCP",
+      "path": "register_session"
+    },
+    {
+      "function": "coordination_mcp.discover_agents",
+      "kind": "route",
+      "method": "MCP",
+      "path": "discover_agents"
+    },
+    {
+      "function": "coordination_mcp.heartbeat",
+      "kind": "route",
+      "method": "MCP",
+      "path": "heartbeat"
+    },
+    {
+      "function": "coordination_mcp.cleanup_dead_agents",
+      "kind": "route",
+      "method": "MCP",
+      "path": "cleanup_dead_agents"
+    },
+    {
+      "function": "coordination_mcp.remember",
+      "kind": "route",
+      "method": "MCP",
+      "path": "remember"
+    },
+    {
+      "function": "coordination_mcp.recall",
+      "kind": "route",
+      "method": "MCP",
+      "path": "recall"
+    },
+    {
+      "function": "coordination_mcp.check_guardrails",
+      "kind": "route",
+      "method": "MCP",
+      "path": "check_guardrails"
+    },
+    {
+      "function": "coordination_mcp.get_my_profile",
+      "kind": "route",
+      "method": "MCP",
+      "path": "get_my_profile"
+    },
+    {
+      "function": "coordination_mcp.query_audit",
+      "kind": "route",
+      "method": "MCP",
+      "path": "query_audit"
+    },
+    {
+      "function": "coordination_mcp.check_policy",
+      "kind": "route",
+      "method": "MCP",
+      "path": "check_policy"
+    },
+    {
+      "function": "coordination_mcp.validate_cedar_policy",
+      "kind": "route",
+      "method": "MCP",
+      "path": "validate_cedar_policy"
+    },
+    {
+      "function": "coordination_mcp.get_current_locks",
+      "kind": "route",
+      "method": "MCP",
+      "path": "locks://current"
+    },
+    {
+      "function": "coordination_mcp.get_recent_handoffs",
+      "kind": "route",
+      "method": "MCP",
+      "path": "handoffs://recent"
+    },
+    {
+      "function": "coordination_mcp.get_pending_work",
+      "kind": "route",
+      "method": "MCP",
+      "path": "work://pending"
+    },
+    {
+      "function": "coordination_mcp.get_recent_memories",
+      "kind": "route",
+      "method": "MCP",
+      "path": "memories://recent"
+    },
+    {
+      "function": "coordination_mcp.get_guardrail_patterns",
+      "kind": "route",
+      "method": "MCP",
+      "path": "guardrails://patterns"
+    },
+    {
+      "function": "coordination_mcp.get_current_profile",
+      "kind": "route",
+      "method": "MCP",
+      "path": "profiles://current"
+    },
+    {
+      "function": "coordination_mcp.get_recent_audit",
+      "kind": "route",
+      "method": "MCP",
+      "path": "audit://recent"
+    },
+    {
+      "function": "coordination_mcp.coordinate_file_edit",
+      "kind": "route",
+      "method": "MCP",
+      "path": "coordinate_file_edit"
+    },
+    {
+      "function": "coordination_mcp.start_work_session",
+      "kind": "route",
+      "method": "MCP",
+      "path": "start_work_session"
+    }
+  ],
+  "db_access": [
+    {
+      "function": "audit.AuditEntry.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "audit.AuditResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "audit.AuditService._insert_audit_entry",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "audit.AuditService.query",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.SupabaseConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.AgentConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.LockConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.PostgresConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.DatabaseConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.GuardrailsConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.ProfilesConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.AuditConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.NetworkPolicyConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.PolicyEngineConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_mcp.query_audit",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_mcp.get_recent_audit",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "db.SupabaseClient.query",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "db.SupabaseClient.delete",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "db_postgres.DirectPostgresClient.insert",
+      "tables": [],
+      "pattern": "raw_sql"
+    },
+    {
+      "function": "db_postgres.DirectPostgresClient.update",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "db_postgres.DirectPostgresClient.delete",
+      "tables": [],
+      "pattern": "raw_sql"
+    },
+    {
+      "function": "discovery.AgentInfo.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "discovery.RegisterResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "discovery.DiscoverResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "discovery.HeartbeatResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "discovery.CleanupResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "github_coordination.WebhookSyncResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "github_coordination.GitHubCoordinationService.sync_label_locks",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "github_coordination.GitHubCoordinationService.handle_push_webhook",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "github_coordination.GitHubCoordinationService.handle_issues_webhook",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "guardrails.GuardrailPattern.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "guardrails.GuardrailViolation.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "guardrails.GuardrailResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "guardrails.GuardrailsService._load_patterns",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "handoffs.HandoffDocument.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "handoffs.WriteHandoffResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "handoffs.ReadHandoffResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "handoffs.HandoffService.get_recent",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "locks.Lock.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "locks.LockResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "locks.LockService.check",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "memory.EpisodicMemory.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "memory.MemoryResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "network_policies.AccessDecision.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "policy_engine.NativePolicyEngine.check_operation",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "policy_engine.CedarPolicyEngine._load_policies",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "policy_engine.CedarPolicyEngine._build_entity",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "policy_engine.CedarPolicyEngine.check_operation",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "policy_engine.CedarPolicyEngine.list_policies",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profiles.AgentProfile.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profiles.ProfileResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profiles.OperationCheck.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profiles.ProfilesService.check_operation",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "teams.TeamsConfig.validate",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.Task.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.ClaimResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.CompleteResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.SubmitResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.WorkQueueService.get_pending",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.WorkQueueService.get_task",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "work_queue.WorkQueueService.get_my_tasks",
+      "tables": [],
+      "pattern": "orm"
+    }
+  ],
+  "summary": {
+    "total_functions": 200,
+    "total_classes": 60,
+    "total_modules": 17,
+    "async_functions": 87,
+    "entry_points": 28,
+    "dead_code_candidates": [
+      "audit.AuditResult.from_dict",
+      "audit.AuditService.db",
+      "audit.AuditService.log_operation",
+      "audit.AuditService._insert_audit_entry",
+      "audit.AuditService.query",
+      "audit.AuditService.timed",
+      "config.reset_config",
+      "coordination_mcp.main",
+      "db.DatabaseClient.rpc",
+      "db.DatabaseClient.query",
+      "db.DatabaseClient.insert",
+      "db.DatabaseClient.update",
+      "db.DatabaseClient.delete",
+      "db.DatabaseClient.close",
+      "db.SupabaseClient.config",
+      "db.SupabaseClient.client",
+      "db.SupabaseClient._headers",
+      "db.SupabaseClient.rpc",
+      "db.SupabaseClient.query",
+      "db.SupabaseClient.insert",
+      "db.SupabaseClient.update",
+      "db.SupabaseClient.delete",
+      "db.SupabaseClient.close",
+      "db.close_db",
+      "db.reset_db",
+      "db_postgres.DirectPostgresClient._get_pool",
+      "db_postgres.DirectPostgresClient.rpc",
+      "db_postgres.DirectPostgresClient.query",
+      "db_postgres.DirectPostgresClient.insert",
+      "db_postgres.DirectPostgresClient.update",
+      "db_postgres.DirectPostgresClient.delete",
+      "db_postgres.DirectPostgresClient.close",
+      "discovery.DiscoveryService.db",
+      "discovery.DiscoveryService.register",
+      "discovery.DiscoveryService.discover",
+      "discovery.DiscoveryService.heartbeat",
+      "discovery.DiscoveryService.cleanup_dead_agents",
+      "github_coordination.WebhookSyncResult.from_dict",
+      "github_coordination.GitHubCoordinationService.db",
+      "github_coordination.GitHubCoordinationService.parse_lock_labels",
+      "github_coordination.GitHubCoordinationService.parse_branch",
+      "github_coordination.GitHubCoordinationService.sync_label_locks",
+      "github_coordination.GitHubCoordinationService.sync_branch_tracking",
+      "github_coordination.GitHubCoordinationService.handle_push_webhook",
+      "github_coordination.GitHubCoordinationService.handle_issues_webhook",
+      "github_coordination.get_github_coordination_service",
+      "guardrails.GuardrailResult.from_dict",
+      "guardrails.GuardrailsService.db",
+      "guardrails.GuardrailsService._load_patterns",
+      "guardrails.GuardrailsService.check_operation",
+      "handoffs.HandoffService.db",
+      "handoffs.HandoffService.write",
+      "handoffs.HandoffService.read",
+      "handoffs.HandoffService.get_recent",
+      "locks.LockService.db",
+      "locks.LockService.acquire",
+      "locks.LockService.release",
+      "locks.LockService.check",
+      "locks.LockService.extend",
+      "locks.LockService.is_locked",
+      "memory.MemoryService.db",
+      "memory.MemoryService.remember",
+      "memory.MemoryService.recall",
+      "network_policies.NetworkPolicyService.db",
+      "network_policies.NetworkPolicyService.check_domain",
+      "policy_engine.NativePolicyEngine.db",
+      "policy_engine.NativePolicyEngine.check_operation",
+      "policy_engine.NativePolicyEngine.check_network_access",
+      "policy_engine.CedarPolicyEngine.db",
+      "policy_engine.CedarPolicyEngine._load_default_policies",
+      "policy_engine.CedarPolicyEngine._load_schema",
+      "policy_engine.CedarPolicyEngine._load_policies",
+      "policy_engine.CedarPolicyEngine._build_entity",
+      "policy_engine.CedarPolicyEngine._build_resource_entity",
+      "policy_engine.CedarPolicyEngine._determine_resource_type",
+      "policy_engine.CedarPolicyEngine.check_operation",
+      "policy_engine.CedarPolicyEngine.check_network_access",
+      "policy_engine.CedarPolicyEngine.validate_policy",
+      "policy_engine.CedarPolicyEngine.list_policies",
+      "policy_engine.CedarPolicyEngine.invalidate_cache",
+      "policy_engine.reset_policy_engine",
+      "profiles.OperationCheck.from_dict",
+      "profiles.ProfilesService.db",
+      "profiles.ProfilesService.get_profile",
+      "profiles.ProfilesService.check_operation",
+      "profiles.ProfilesService._log_denial",
+      "teams.TeamsConfig.from_dict",
+      "teams.TeamsConfig.get_agent",
+      "teams.TeamsConfig.get_agents_with_capability",
+      "teams.get_teams_config",
+      "teams.reset_teams_config",
+      "work_queue.WorkQueueService.db",
+      "work_queue.WorkQueueService.claim",
+      "work_queue.WorkQueueService.complete",
+      "work_queue.WorkQueueService.submit",
+      "work_queue.WorkQueueService.get_pending",
+      "work_queue.WorkQueueService.get_task",
+      "work_queue.WorkQueueService.get_my_tasks"
+    ],
+    "hot_functions": [
+      {
+        "name": "config.get_config",
+        "caller_count": 26
+      },
+      {
+        "name": "audit.get_audit_service",
+        "caller_count": 14
+      },
+      {
+        "name": "db.get_db",
+        "caller_count": 12
+      },
+      {
+        "name": "policy_engine.get_policy_engine",
+        "caller_count": 7
+      },
+      {
+        "name": "guardrails.get_guardrails_service",
+        "caller_count": 5
+      },
+      {
+        "name": "discovery.get_discovery_service",
+        "caller_count": 4
+      },
+      {
+        "name": "locks.get_lock_service",
+        "caller_count": 4
+      },
+      {
+        "name": "work_queue.get_work_queue_service",
+        "caller_count": 4
+      },
+      {
+        "name": "handoffs.get_handoff_service",
+        "caller_count": 3
+      },
+      {
+        "name": "memory.get_memory_service",
+        "caller_count": 3
+      }
+    ]
+  }
+}

@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def load_graph(path: Path, *, quiet: bool = False) -> dict[str, Any]:
     """Load an architecture JSON file, returning its parsed contents.
 
-    Returns an empty dict (and prints a warning) when the file is missing and
+    Returns an empty dict (and logs a warning) when the file is missing and
     *quiet* is ``False``.  Raises on malformed JSON.
     """
     if not path.exists():
         if not quiet:
-            print(f"[warn] file not found: {path}", file=sys.stderr)
+            logger.warning("file not found: %s", path)
         return {}
     with open(path) as f:
         return json.load(f)

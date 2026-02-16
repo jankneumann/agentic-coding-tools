@@ -1,0 +1,53 @@
+{
+  "tool_version": "1.0.0",
+  "modules": [
+    {
+      "qualified_name": "src/api",
+      "name": "api",
+      "file": "src/api/index.ts",
+      "span": {"start": 1, "end": 10},
+      "tags": [],
+      "signatures": {}
+    }
+  ],
+  "components": [
+    {
+      "qualified_name": "src/components/AgentList",
+      "name": "AgentList",
+      "file": "src/components/AgentList.tsx",
+      "span": {"start": 1, "end": 10},
+      "tags": [],
+      "signatures": {}
+    }
+  ],
+  "functions": [
+    {
+      "qualified_name": "src/api/createAgent",
+      "name": "createAgent",
+      "file": "src/api/index.ts",
+      "span": {"start": 1, "end": 10},
+      "tags": [],
+      "signatures": {}
+    }
+  ],
+  "import_edges": [
+    {
+      "from": "src/components/AgentList",
+      "to": "src/api"
+    }
+  ],
+  "api_call_sites": [
+    {
+      "qualified_name": "src/api/createAgent",
+      "from": "src/api/createAgent",
+      "url": "/api/agents",
+      "method": "POST"
+    }
+  ],
+  "entrypoints": [
+    {
+      "qualified_name": "src/components/AgentList",
+      "kind": "event_handler"
+    }
+  ]
+}

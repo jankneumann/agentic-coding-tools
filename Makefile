@@ -1,12 +1,12 @@
 # Architecture Analysis Tooling
 #
-# Generates, validates, and manages architecture artifacts in .architecture/
+# Generates, validates, and manages architecture artifacts in docs/architecture-analysis/
 # from the agent-coordinator codebase (Python, TypeScript, Postgres).
 #
 # Usage:
 #   make architecture                     # Full generation pipeline
 #   make architecture-diff BASE_SHA=abc123  # Compare to baseline
-#   make architecture-feature FEATURE="agent-coordinator/src/locks.py,agent-coordinator/src/db.py"
+#   make architecture-feature FEATURE="src/locks.py,src/db.py"
 #   make architecture-validate            # Validate existing graph
 #   make architecture-views               # Regenerate views only
 #   make architecture-clean               # Remove generated artifacts
@@ -19,12 +19,14 @@ SHELL := /bin/bash
 # Configuration
 # ---------------------------------------------------------------------------
 
-ARCH_DIR       := .architecture
-VIEWS_DIR      := $(ARCH_DIR)/views
-SCRIPTS_DIR    := scripts
-PYTHON_SRC     := agent-coordinator/src
-TS_SRC         := web/
-MIGRATIONS_DIR := agent-coordinator/supabase/migrations
+# All source directories are env-configurable. Defaults assume the Makefile
+# lives at the repo root and agent-coordinator is a subdirectory.
+ARCH_DIR         ?= docs/architecture-analysis
+VIEWS_DIR        := $(ARCH_DIR)/views
+SCRIPTS_DIR      ?= scripts
+PYTHON_SRC_DIR   ?= agent-coordinator/src
+TS_SRC_DIR       ?= web
+MIGRATIONS_DIR   ?= agent-coordinator/supabase/migrations
 
 GRAPH_FILE     := $(ARCH_DIR)/architecture.graph.json
 SUMMARY_FILE   := $(ARCH_DIR)/architecture.summary.json
@@ -47,9 +49,9 @@ PYTHON         ?= python3
 # ---------------------------------------------------------------------------
 
 .PHONY: architecture architecture-setup architecture-diff architecture-feature \
-        architecture-validate architecture-views architecture-clean \
+        architecture-validate architecture-views architecture-report architecture-clean \
         help _analyze-python _analyze-postgres _analyze-typescript \
-        _compile _validate _views _parallel-zones
+        _compile _validate _views _parallel-zones _report
 
 # ---------------------------------------------------------------------------
 # help — display available targets
@@ -64,14 +66,18 @@ help: ## Show available make targets with descriptions
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Variables:"
-	@echo "  BASE_SHA=<sha>    Git SHA for baseline diff comparison"
-	@echo "  FEATURE=<glob>    File list or glob for feature slice extraction"
-	@echo "  PYTHON=<path>     Python interpreter (default: python3)"
+	@echo "  PYTHON_SRC_DIR=<path>  Python source directory (default: agent-coordinator/src)"
+	@echo "  TS_SRC_DIR=<path>      TypeScript source directory (default: web)"
+	@echo "  MIGRATIONS_DIR=<path>  SQL migrations directory (default: agent-coordinator/supabase/migrations)"
+	@echo "  ARCH_DIR=<path>        Output directory (default: docs/architecture-analysis)"
+	@echo "  BASE_SHA=<sha>         Git SHA for baseline diff comparison"
+	@echo "  FEATURE=<glob>         File list or glob for feature slice extraction"
+	@echo "  PYTHON=<path>          Python interpreter (default: python3)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make architecture"
 	@echo "  make architecture-diff BASE_SHA=abc123"
-	@echo '  make architecture-feature FEATURE="agent-coordinator/src/locks.py,agent-coordinator/src/db.py"'
+	@echo '  make architecture-feature FEATURE="src/locks.py,src/db.py"'
 	@echo ""
 
 # ---------------------------------------------------------------------------
@@ -95,7 +101,10 @@ architecture-setup: ## Install Python (and optionally Node.js) deps for the anal
 # ---------------------------------------------------------------------------
 
 architecture: ## Full generation: analyzers -> compiler -> validator -> views
-	@$(SCRIPTS_DIR)/refresh_architecture.sh
+	@ARCH_DIR=$(ARCH_DIR) SCRIPTS_DIR=$(SCRIPTS_DIR) \
+	 PYTHON_SRC_DIR=$(PYTHON_SRC_DIR) TS_SRC_DIR=$(TS_SRC_DIR) \
+	 MIGRATIONS_DIR=$(MIGRATIONS_DIR) PYTHON=$(PYTHON) \
+	 $(SCRIPTS_DIR)/refresh_architecture.sh
 
 # ---------------------------------------------------------------------------
 # Individual pipeline stages (used internally and for partial runs)
@@ -105,7 +114,7 @@ _analyze-python:
 	@echo "--- Python analyzer ---"
 	@mkdir -p $(ARCH_DIR)
 	@$(PYTHON) $(SCRIPTS_DIR)/analyze_python.py \
-		$(PYTHON_SRC) \
+		$(PYTHON_SRC_DIR) \
 		--output $(PY_ANALYSIS) \
 	|| { echo "[WARN] Python analyzer failed"; exit 1; }
 
@@ -122,7 +131,7 @@ _analyze-typescript:
 	@mkdir -p $(ARCH_DIR)
 	@if command -v npx >/dev/null 2>&1; then \
 		npx ts-node $(SCRIPTS_DIR)/analyze_typescript.ts \
-			$(TS_SRC) \
+			$(TS_SRC_DIR) \
 			--output $(TS_ANALYSIS) \
 		|| { echo "[WARN] TypeScript analyzer failed (ts-morph may not be installed)"; exit 1; }; \
 	else \
@@ -154,6 +163,12 @@ _parallel-zones:
 	@$(PYTHON) $(SCRIPTS_DIR)/parallel_zones.py \
 		--graph $(GRAPH_FILE) \
 		--output $(ZONES_FILE)
+
+_report:
+	@echo "--- Architecture report ---"
+	@$(PYTHON) $(SCRIPTS_DIR)/reports/architecture_report.py \
+		--input-dir $(ARCH_DIR) \
+		--output $(ARCH_DIR)/architecture.report.md
 
 # ---------------------------------------------------------------------------
 # architecture-diff — baseline comparison
@@ -242,6 +257,19 @@ architecture-views: ## Regenerate views from the existing graph
 	@echo "Views regenerated in $(VIEWS_DIR)/"
 
 # ---------------------------------------------------------------------------
+# architecture-report — generate Markdown report from Layer 2 artifacts
+# ---------------------------------------------------------------------------
+
+architecture-report: ## Generate architecture.report.md from Layer 2 artifacts
+	@echo "=== Generating Architecture Report ==="
+	@if [ ! -f $(GRAPH_FILE) ]; then \
+		echo "ERROR: $(GRAPH_FILE) not found. Run 'make architecture' first."; \
+		exit 1; \
+	fi
+	@$(MAKE) _report
+	@echo "Report written to $(ARCH_DIR)/architecture.report.md"
+
+# ---------------------------------------------------------------------------
 # architecture-clean — remove generated artifacts
 # ---------------------------------------------------------------------------
 
@@ -254,6 +282,9 @@ architecture-clean: ## Remove all generated architecture artifacts
 		$(ARCH_DIR)/architecture.summary.json \
 		$(ARCH_DIR)/architecture.diagnostics.json \
 		$(ARCH_DIR)/architecture.diff.json \
+		$(ARCH_DIR)/architecture.report.md \
+		$(ARCH_DIR)/cross_layer_flows.json \
+		$(ARCH_DIR)/high_impact_nodes.json \
 		$(ARCH_DIR)/parallel_zones.json \
 		$(ARCH_DIR)/views \
 		$(ARCH_DIR)/tmp

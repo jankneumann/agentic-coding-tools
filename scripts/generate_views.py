@@ -13,9 +13,9 @@ Usage:
 
 Options:
     --graph PATH          Path to architecture.graph.json
-                          (default: .architecture/architecture.graph.json)
+                          (default: docs/architecture-analysis/architecture.graph.json)
     --output-dir PATH     Output directory for generated views
-                          (default: .architecture/views)
+                          (default: docs/architecture-analysis/views)
     --feature-files LIST  Comma-separated file paths or glob patterns for
                           feature slice extraction
 """
@@ -25,9 +25,12 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -47,7 +50,7 @@ def load_graph(path: Path) -> Graph:
     """Load and return the canonical architecture graph JSON."""
     graph = _load_graph(path)
     if not graph:
-        print(f"Error: graph file not found or empty: {path}", file=sys.stderr)
+        logger.error("graph file not found or empty: %s", path)
         sys.exit(1)
     return graph
 
@@ -551,14 +554,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--graph",
         type=Path,
-        default=Path(".architecture/architecture.graph.json"),
-        help="Path to architecture.graph.json (default: .architecture/architecture.graph.json)",
+        default=Path("docs/architecture-analysis/architecture.graph.json"),
+        help="Path to architecture.graph.json (default: docs/architecture-analysis/architecture.graph.json)",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(".architecture/views"),
-        help="Output directory for generated views (default: .architecture/views)",
+        default=Path("docs/architecture-analysis/views"),
+        help="Output directory for generated views (default: docs/architecture-analysis/views)",
     )
     parser.add_argument(
         "--feature-files",
@@ -570,6 +573,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -612,9 +616,9 @@ def main(argv: list[str] | None = None) -> int:
             generated.append(json_path)
 
     # Report results.
-    print(f"Generated {len(generated)} view(s) in {output_dir}/")
+    logger.info("Generated %d view(s) in %s/", len(generated), output_dir)
     for p in generated:
-        print(f"  - {p}")
+        logger.info("  - %s", p)
 
     return 0
 

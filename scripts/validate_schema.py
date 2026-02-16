@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import jsonschema
 
@@ -53,23 +56,24 @@ def validate_graph(graph_path: str | Path) -> list[str]:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <architecture.graph.json>", file=sys.stderr)
+        logger.error("Usage: %s <architecture.graph.json>", sys.argv[0])
         return 1
 
     graph_path = Path(sys.argv[1])
     if not graph_path.exists():
-        print(f"File not found: {graph_path}", file=sys.stderr)
+        logger.error("File not found: %s", graph_path)
         return 1
 
     errors = validate_graph(graph_path)
     if errors:
-        print(f"Validation failed with {len(errors)} error(s):")
+        logger.error("Validation failed with %d error(s):", len(errors))
         for err in errors:
-            print(f"  - {err}")
+            logger.error("  - %s", err)
         return 1
 
-    print("Validation passed.")
+    logger.info("Validation passed.")
     return 0
 
 
