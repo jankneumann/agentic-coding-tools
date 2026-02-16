@@ -1045,25 +1045,25 @@ def generate_report(
     cfg = config or ReportConfig()
     enabled = cfg.report.sections
 
-    # Map section names to their generator callables
-    section_map: dict[str, str] = {
-        "system_overview": _section_system_overview(graph, summary, python_analysis, config=cfg),
-        "module_map": _section_module_map(python_analysis, graph),
-        "dependency_layers": _section_dependency_layers(python_analysis),
-        "entry_points": _section_entry_points(graph, python_analysis),
-        "health": _section_health(diagnostics, config=cfg),
-        "impact_analysis": _section_impact_analysis(impact_data, zones_data),
-        "code_health": _section_code_health(python_analysis),
-        "parallel_zones": _section_parallel_zones(zones_data),
-        "cross_layer_flows": _section_cross_layer_flows(summary, flows_data),
-        "diagrams": _section_mermaid_diagrams(graph),
+    # Map section names to builder callables (lazy — only invoked when enabled)
+    builders: dict[str, Any] = {
+        "system_overview": lambda: _section_system_overview(graph, summary, python_analysis, config=cfg),
+        "module_map": lambda: _section_module_map(python_analysis, graph),
+        "dependency_layers": lambda: _section_dependency_layers(python_analysis),
+        "entry_points": lambda: _section_entry_points(graph, python_analysis),
+        "health": lambda: _section_health(diagnostics, config=cfg),
+        "impact_analysis": lambda: _section_impact_analysis(impact_data, zones_data),
+        "code_health": lambda: _section_code_health(python_analysis),
+        "parallel_zones": lambda: _section_parallel_zones(zones_data),
+        "cross_layer_flows": lambda: _section_cross_layer_flows(summary, flows_data),
+        "diagrams": lambda: _section_mermaid_diagrams(graph),
     }
 
-    # Best practices is always appended after enabled sections (if configured)
+    # Only invoke builders for enabled sections
     sections: list[str] = []
     for name in enabled:
-        if name in KNOWN_SECTIONS and name in section_map:
-            content = section_map[name]
+        if name in KNOWN_SECTIONS and name in builders:
+            content = builders[name]()
             if content:
                 sections.append(content)
 

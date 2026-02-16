@@ -233,6 +233,15 @@ def load_config(path: Path | None = None) -> ReportConfig:
     if not isinstance(raw, dict):
         return ReportConfig()
 
+    # Warn on unknown top-level keys (forward-compatible)
+    known_keys = {"project", "paths", "report", "health", "best_practices"}
+    for key in raw:
+        if key not in known_keys:
+            warnings.warn(
+                f"Unknown config key '{key}' — will be ignored",
+                stacklevel=2,
+            )
+
     # Warn on files referenced in best_practices that don't exist
     bp_raw = raw.get("best_practices", [])
     if isinstance(bp_raw, list):

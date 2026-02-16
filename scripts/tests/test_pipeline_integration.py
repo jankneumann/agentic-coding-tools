@@ -295,3 +295,24 @@ def test_config_schema_warns_on_unknown_section(tmp_path: Path) -> None:
         warning_messages = [str(x.message) for x in w]
         assert any("nonexistent_section" in msg for msg in warning_messages)
     assert "nonexistent_section" in cfg.report.sections
+
+
+def test_config_schema_warns_on_unknown_top_level_key(tmp_path: Path) -> None:
+    """Unknown top-level config keys should produce warnings."""
+    import warnings
+
+    config_path = tmp_path / "test.yaml"
+    config_data = {
+        "project": {"name": "test"},
+        "experimental": {"foo": "bar"},
+    }
+    with open(config_path, "w") as f:
+        yaml.dump(config_data, f)
+
+    from reports.config_schema import load_config
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        load_config(config_path)
+        warning_messages = [str(x.message) for x in w]
+        assert any("experimental" in msg for msg in warning_messages)
