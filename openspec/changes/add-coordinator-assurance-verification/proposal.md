@@ -23,6 +23,7 @@ Without an assurance-focused change, the system can appear compliant in unit tes
   - **Does not add new authorization capabilities** (delegated identity, approvals, risk scoring, realtime policy sync, policy rollback, session grants), which remain in `add-dynamic-authorization`.
   - **Does not re-propose Phase 2/3 feature build-out**, which remains in `complete-missing-coordination-features`.
   - Focuses on correctness of enforcement boundaries, behavioral verification, and formal assurance for behavior already implemented or landing via those changes.
+- Define and use an explicit mutation-surface inventory (derived from current MCP tools and HTTP mutation endpoints) as the source of truth for enforcement/audit coverage tests.
 
 ## Coordination With Active Changes
 

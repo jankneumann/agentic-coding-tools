@@ -51,6 +51,11 @@ The direct PostgreSQL backend SHALL reject unsafe dynamic identifier inputs duri
 - **THEN** the backend returns a validation error
 - **AND** no SQL statement is executed
 
+#### Scenario: Safe identifier accepted
+- **WHEN** identifier input matches the configured safe identifier strategy (allowlist or validated quoting path)
+- **THEN** query construction proceeds
+- **AND** the resulting statement executes without identifier-validation errors
+
 ---
 
 ### Requirement: Behavioral Assurance and Formal Verification
@@ -88,3 +93,8 @@ The system SHALL maintain an assurance program that verifies safety-critical coo
 #### Scenario: Formal model safety check
 - **WHEN** TLC runs on the coordination TLA+ model
 - **THEN** lock/task safety invariants hold for bounded state exploration
+
+#### Scenario: Formal invariant regression is surfaced
+- **WHEN** a model change violates one of the declared safety invariants
+- **THEN** TLC reports the violated invariant
+- **AND** CI marks the formal-check step as failed (or warning while non-blocking mode is configured)

@@ -1,7 +1,7 @@
 ## 1. Enforcement Remediation
 
 - [ ] 1.0 Reconcile with active changes before editing code: confirm ownership boundaries with `complete-missing-coordination-features` and `add-dynamic-authorization`.
-- [ ] 1.1 Enforce profile/policy checks in all mutation MCP tools before service mutation calls (`acquire_lock`, `release_lock`, `get_work` claim path, `complete_work`, `submit_work`, `write_handoff`, `remember`).
+- [ ] 1.1 Build a mutation-surface inventory (MCP + HTTP) and enforce profile/policy checks in every mutation path before side effects (`acquire_lock`, `release_lock`, `get_work` claim path, `complete_work`, `submit_work`, `write_handoff`, `remember`, and any newly added mutation tools/endpoints).
 - [ ] 1.2 Enforce equivalent authorization checks in HTTP mutation endpoints.
 - [ ] 1.3 Pass effective trust level/context into guardrail checks on claim/submit/complete flows.
 - [ ] 1.4 Ensure guardrail violations are persisted to `guardrail_violations` and audit trail with consistent schema.
@@ -21,10 +21,11 @@
 ## 4. Behavioral Verification Suite
 
 - [ ] 4.1 Add boundary integration tests validating denied mutations are blocked pre-side-effect.
-- [ ] 4.2 Add stateful/property tests for lock and work-queue invariants under concurrent interleavings.
-- [ ] 4.3 Extend Cedar-vs-native differential tests to full operation/resource matrix.
-- [ ] 4.4 Add migration-level RLS tests for service_role/anon behavior on sensitive tables.
-- [ ] 4.5 Add audit completeness tests ensuring each mutation emits immutable audit records.
+- [ ] 4.2 Add stateful/property tests for lock invariants under concurrent interleavings.
+- [ ] 4.3 Add stateful/property tests for work-queue invariants under concurrent interleavings.
+- [ ] 4.4 Extend Cedar-vs-native differential tests to full operation/resource matrix.
+- [ ] 4.5 Add migration-level RLS tests for service_role/anon behavior on sensitive tables.
+- [ ] 4.6 Add audit completeness tests ensuring each mutation emits immutable audit records.
 
 ## 5. Formal Verification Track
 
@@ -44,6 +45,14 @@
 
 - [ ] D1 Merge-order prerequisite: `complete-missing-coordination-features` landed (or equivalent surfaces available) before starting `1.1+`.
 - [ ] D2 Ownership check: this change does not implement capabilities owned by `add-dynamic-authorization`.
-- [ ] D3 Internal order: complete `1.x` and `2.x` before `4.1`/`4.5`.
+- [ ] D3 Internal order: complete `1.x` and `2.x` before `4.1`/`4.6`.
 - [ ] D4 Internal order: complete `3.x` before closing security verification for direct-postgres path.
 - [ ] D5 Internal order: complete `4.x` before making `5.3` formal verification CI gate blocking.
+
+## Parallelization and File Scope
+
+- [ ] P1 Sequential prerequisite: complete `1.0` and D1-D2 before parallel implementation starts.
+- [ ] P2 Parallel group A (minimal overlap): `3.1`, `3.2`, `5.1`, `5.2` (security hardening + formal model scaffolding).
+- [ ] P3 Parallel group B (after `1.x` and `2.x`): `4.2`, `4.3`, `4.4`, `4.5` (independent verification suites).
+- [ ] P4 Sequential closeout: `4.1` and `4.6` after enforcement paths stabilize, then `5.3`, `5.4`, and `6.x`.
+- [ ] P5 For `/parallel-implement`, each task prompt SHALL declare allowed files explicitly; tasks touching shared files (`coordination_mcp.py`, `coordination_api.py`, `audit.py`, `policy_engine.py`) SHALL run sequentially.

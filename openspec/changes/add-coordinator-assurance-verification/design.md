@@ -100,7 +100,7 @@ This change uses additive requirements for assurance behavior rather than re-mod
 ### Blocking graph
 
 - `1.0` blocks all other tasks.
-- `1.x` and `2.x` block `4.1` and `4.5` (boundary/audit tests require enforcement behavior).
+- `1.x` and `2.x` block `4.1` and `4.6` (boundary/audit tests require enforcement behavior).
 - `3.x` blocks security test completion for direct-postgres path.
 - `4.x` should complete before promoting formal checks to required CI status in `5.3`.
 
