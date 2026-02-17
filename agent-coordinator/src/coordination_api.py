@@ -158,6 +158,22 @@ async def authorize_operation(
         raise HTTPException(status_code=403, detail=decision.reason or "Forbidden")
 
 
+async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
+    """Resolve effective trust level for guardrail evaluation."""
+    from .profiles import get_profiles_service
+
+    try:
+        profile_result = await get_profiles_service().get_profile(
+            agent_id=agent_id,
+            agent_type=agent_type,
+        )
+        if profile_result.success and profile_result.profile is not None:
+            return profile_result.profile.trust_level
+    except Exception:
+        pass
+    return get_config().profiles.default_trust_level
+
+
 # =============================================================================
 # Application factory
 # =============================================================================
@@ -452,11 +468,27 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Check an operation for destructive patterns."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        trust_level = await resolve_trust_level(agent_id, agent_type)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="check_guardrails",
+            context={
+                "trust_level": trust_level,
+                "operation_text_length": len(request.operation_text),
+                "file_count": len(request.file_paths or []),
+            },
+        )
+
         from .guardrails import get_guardrails_service
 
         result = await get_guardrails_service().check_operation(
             operation_text=request.operation_text,
             file_paths=request.file_paths,
+            agent_id=agent_id,
+            agent_type=agent_type,
+            trust_level=trust_level,
         )
         return {
             "safe": result.safe,

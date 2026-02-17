@@ -165,6 +165,12 @@ export POLICY_ENGINE=native
 
 Cedar provides declarative policies using the PARC model (Principal/Action/Resource/Context). Default policies are equivalent to native engine behavior.
 
+## Cloud API Runtime
+
+- Primary production cloud write API path: `src/coordination_api.py`
+- Entry point: `python -m src.coordination_api`
+- Legacy `verification_gateway/` is retired and not part of the runtime path.
+
 ## Development
 
 ```bash
@@ -198,6 +204,7 @@ agent-coordinator/
 │   ├── network_policies.py    # Domain-level network controls
 │   ├── policy_engine.py       # Cedar + Native policy engines
 │   ├── github_coordination.py # GitHub webhook coordination
+│   ├── coordination_api.py    # HTTP API for cloud agents
 │   └── coordination_mcp.py    # MCP server
 ├── cedar/
 │   ├── schema.cedarschema     # Cedar entity type definitions
@@ -205,17 +212,15 @@ agent-coordinator/
 ├── supabase/
 │   └── migrations/
 │       ├── 001_core_schema.sql          # Locks, work queue, sessions
-│       ├── 002_handoff_tables.sql       # Session handoffs
-│       ├── 003_discovery_functions.sql  # Agent discovery
+│       ├── 002_handoff_documents.sql    # Session handoffs
+│       ├── 003_agent_discovery.sql      # Agent discovery
 │       ├── 004_memory_tables.sql        # Episodic memory
-│       ├── 005_guardrail_tables.sql     # Operation guardrails
-│       ├── 006_profile_tables.sql       # Agent profiles
-│       ├── 007_audit_tables.sql         # Audit trail
-│       ├── 008_network_policy_tables.sql # Network policies
-│       ├── 009_verification_tables.sql  # Verification gateway
+│       ├── 005_verification_tables.sql  # Verification data model
+│       ├── 006_guardrails_tables.sql    # Operation guardrails
+│       ├── 007_agent_profiles.sql       # Agent profiles
+│       ├── 008_audit_log.sql            # Audit trail
+│       ├── 009_network_policies.sql     # Network policies
 │       └── 010_cedar_policy_store.sql   # Cedar policy storage
-├── verification_gateway/
-│   └── gateway.py             # Verification routing + executors
 ├── evaluation/
 │   ├── config.py              # Evaluation harness config
 │   ├── metrics.py             # Safety + coordination metrics

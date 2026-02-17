@@ -160,6 +160,21 @@ class WorkQueueService:
             self._db = get_db()
         return self._db
 
+    async def _resolve_trust_level(self, agent_id: str, agent_type: str) -> int:
+        """Resolve effective trust level for guardrail evaluation."""
+        from .profiles import get_profiles_service
+
+        try:
+            profile = await get_profiles_service().get_profile(
+                agent_id=agent_id,
+                agent_type=agent_type,
+            )
+            if profile.success and profile.profile is not None:
+                return profile.profile.trust_level
+        except Exception:
+            logger.debug("Failed to resolve trust level; using default", exc_info=True)
+        return get_config().profiles.default_trust_level
+
     async def claim(
         self,
         agent_id: str | None = None,
@@ -216,6 +231,9 @@ class WorkQueueService:
                 from .guardrails import get_guardrails_service
 
                 guardrails = get_guardrails_service()
+                trust_level = await self._resolve_trust_level(
+                    resolved_agent_id, resolved_agent_type
+                )
                 scan_text = claim_result.description or ""
                 if claim_result.input_data:
                     scan_text += "\n" + str(claim_result.input_data)
@@ -223,6 +241,8 @@ class WorkQueueService:
                     check = await guardrails.check_operation(
                         operation_text=scan_text[:2000],
                         agent_id=resolved_agent_id,
+                        agent_type=resolved_agent_type,
+                        trust_level=trust_level,
                     )
                     if not check.safe:
                         patterns = [
@@ -324,10 +344,15 @@ class WorkQueueService:
                 from .guardrails import get_guardrails_service
 
                 guardrails = get_guardrails_service()
+                trust_level = await self._resolve_trust_level(
+                    resolved_agent_id, resolved_agent_type
+                )
                 result_text = str(result)
                 check = await guardrails.check_operation(
                     operation_text=result_text[:2000],
                     agent_id=resolved_agent_id,
+                    agent_type=resolved_agent_type,
+                    trust_level=trust_level,
                 )
                 if not check.safe:
                     patterns = [v.pattern_name for v in check.violations if v.blocked]
@@ -417,11 +442,17 @@ class WorkQueueService:
             from .guardrails import get_guardrails_service
 
             guardrails = get_guardrails_service()
+            trust_level = await self._resolve_trust_level(
+                resolved_agent_id, resolved_agent_type
+            )
             scan_text = description
             if input_data:
                 scan_text += "\n" + str(input_data)
             check = await guardrails.check_operation(
                 operation_text=scan_text[:2000],
+                agent_id=resolved_agent_id,
+                agent_type=resolved_agent_type,
+                trust_level=trust_level,
             )
             if not check.safe:
                 return SubmitResult(

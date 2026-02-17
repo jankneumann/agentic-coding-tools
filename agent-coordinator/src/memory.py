@@ -125,11 +125,31 @@ class MemoryService:
             MemoryResult with memory_id and action ('created' or 'deduplicated')
         """
         config = get_config()
+        resolved_agent_id = agent_id or config.agent.agent_id
+        resolved_agent_type = config.agent.agent_type
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_id,
+            agent_type=resolved_agent_type,
+            operation="remember",
+            context={
+                "event_type": event_type,
+                "tags": tags or [],
+            },
+        )
+        if not decision.allowed:
+            return MemoryResult(
+                success=False,
+                action="denied",
+                error=decision.reason or "operation_not_permitted",
+            )
 
         result = await self.db.rpc(
             "store_episodic_memory",
             {
-                "p_agent_id": agent_id or config.agent.agent_id,
+                "p_agent_id": resolved_agent_id,
                 "p_session_id": session_id or config.agent.session_id,
                 "p_event_type": event_type,
                 "p_summary": summary,
@@ -144,7 +164,7 @@ class MemoryService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_id or config.agent.agent_id,
+                agent_id=resolved_agent_id,
                 operation="remember",
                 parameters={
                     "event_type": event_type,

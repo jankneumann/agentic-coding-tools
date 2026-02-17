@@ -207,6 +207,7 @@ class GuardrailsService:
         file_paths: list[str] | None = None,
         trust_level: int = 2,
         agent_id: str | None = None,
+        agent_type: str | None = None,
     ) -> GuardrailResult:
         """Check an operation for destructive patterns.
 
@@ -249,10 +250,19 @@ class GuardrailsService:
 
         # Audit: log all violations
         if violations:
+            default_agent_id = "unknown-agent"
+            default_agent_type = "unknown"
             try:
                 config = get_config()
+                default_agent_id = config.agent.agent_id
+                default_agent_type = config.agent.agent_type
+            except Exception:
+                logger.error("Config resolution failed for guardrail_violation", exc_info=True)
+
+            try:
                 await get_audit_service().log_operation(
-                    agent_id=agent_id or config.agent.agent_id,
+                    agent_id=agent_id or default_agent_id,
+                    agent_type=agent_type or default_agent_type,
                     operation="guardrail_violation",
                     parameters={"operation_text": operation_text[:200]},
                     result={
@@ -265,6 +275,35 @@ class GuardrailsService:
                 )
             except Exception:
                 logger.error("Audit log failed for guardrail_violation", exc_info=True)
+
+            # Persistence: write detailed violation rows for forensics/trending.
+            effective_agent_id = agent_id or default_agent_id
+            effective_agent_type = agent_type or default_agent_type
+            for violation in violations:
+                try:
+                    await self.db.insert(
+                        "guardrail_violations",
+                        {
+                            "agent_id": effective_agent_id,
+                            "agent_type": effective_agent_type,
+                            "pattern_name": violation.pattern_name,
+                            "category": violation.category,
+                            "operation_text": operation_text[:500],
+                            "matched_text": violation.matched_text,
+                            "blocked": violation.blocked,
+                            "trust_level": trust_level,
+                            "context": {
+                                "severity": violation.severity,
+                                "file_paths": file_paths or [],
+                            },
+                        },
+                        return_data=False,
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to persist guardrail violation",
+                        exc_info=True,
+                    )
 
         return result
 

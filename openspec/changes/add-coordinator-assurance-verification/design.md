@@ -23,7 +23,7 @@ All state-mutating operations (`acquire_lock`, `release_lock`, `submit_work`, `c
 
 ### 2) Canonical API surface
 
-`verification_gateway/coordination_api.py` must target migration-backed function names and either be integrated into the primary runtime path or explicitly marked legacy with no production claims.
+`src/coordination_api.py` is the canonical cloud API runtime and must target migration-backed function names with no legacy gateway dependency.
 
 ### 3) Trust-propagated guardrails
 

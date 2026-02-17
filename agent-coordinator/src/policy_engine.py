@@ -15,6 +15,10 @@ from typing import Any
 from .config import get_config
 from .db import DatabaseClient, get_db
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Read actions that all agents can perform
 READ_ACTIONS = frozenset({
     "check_locks", "get_work", "recall", "discover_agents",
@@ -24,7 +28,7 @@ READ_ACTIONS = frozenset({
 # Write actions requiring trust_level >= 2
 WRITE_ACTIONS = frozenset({
     "acquire_lock", "release_lock", "complete_work", "submit_work",
-    "remember", "write_handoff",
+    "remember", "write_handoff", "check_guardrails",
 })
 
 # Admin actions requiring trust_level >= 3
@@ -123,29 +127,89 @@ class NativePolicyEngine:
 
         # Suspended agents (trust 0) are denied all operations
         if trust_level == 0:
-            return PolicyDecision.deny("agent_suspended: trust_level=0")
+            decision = PolicyDecision.deny("agent_suspended: trust_level=0")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
 
         # Check by action category
         if operation in READ_ACTIONS:
-            return PolicyDecision.allow("read_permitted")
+            decision = PolicyDecision.allow("read_permitted")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
 
         if operation in WRITE_ACTIONS:
             if trust_level >= 2:
-                return PolicyDecision.allow(
+                decision = PolicyDecision.allow(
                     f"write_permitted: trust_level={trust_level}"
                 )
-            return PolicyDecision.deny(
+                await self._log_policy_decision(
+                    agent_id=agent_id,
+                    agent_type=agent_type,
+                    operation=operation,
+                    resource=resource,
+                    context=ctx,
+                    decision=decision,
+                    engine="native",
+                )
+                return decision
+            decision = PolicyDecision.deny(
                 f"write_denied: trust_level={trust_level} < 2"
             )
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
 
         if operation in ADMIN_ACTIONS:
             if trust_level >= 3:
-                return PolicyDecision.allow(
+                decision = PolicyDecision.allow(
                     f"admin_permitted: trust_level={trust_level}"
                 )
-            return PolicyDecision.deny(
+                await self._log_policy_decision(
+                    agent_id=agent_id,
+                    agent_type=agent_type,
+                    operation=operation,
+                    resource=resource,
+                    context=ctx,
+                    decision=decision,
+                    engine="native",
+                )
+                return decision
+            decision = PolicyDecision.deny(
                 f"admin_denied: trust_level={trust_level} < 3"
             )
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
 
         # Unknown operation — check via profile service
         try:
@@ -155,14 +219,35 @@ class NativePolicyEngine:
                 context=ctx,
             )
             if check.allowed:
-                return PolicyDecision.allow(
+                decision = PolicyDecision.allow(
                     f"profile_permitted: {check.reason or operation}"
                 )
-            return PolicyDecision.deny(
+            else:
+                decision = PolicyDecision.deny(
                 f"profile_denied: {check.reason or operation}"
             )
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
         except Exception:
-            return PolicyDecision.deny(f"unknown_operation: {operation}")
+            decision = PolicyDecision.deny(f"unknown_operation: {operation}")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
 
     async def check_network_access(
         self,
@@ -186,6 +271,41 @@ class NativePolicyEngine:
             )
         except Exception as e:
             return PolicyDecision.deny(f"network_error: {e}")
+
+    async def _log_policy_decision(
+        self,
+        agent_id: str,
+        agent_type: str,
+        operation: str,
+        resource: str,
+        context: dict[str, Any],
+        decision: PolicyDecision,
+        engine: str,
+    ) -> None:
+        """Best-effort policy decision audit logging."""
+        try:
+            from .audit import get_audit_service
+
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation="policy_decision",
+                parameters={
+                    "operation": operation,
+                    "resource": resource,
+                    "engine": engine,
+                    "context": context,
+                },
+                result={
+                    "allowed": decision.allowed,
+                    "reason": decision.reason,
+                    "policy_id": decision.policy_id,
+                    "diagnostics": decision.diagnostics,
+                },
+                success=True,
+            )
+        except Exception:
+            logger.debug("Failed to audit policy decision", exc_info=True)
 
 
 class CedarPolicyEngine:
@@ -389,7 +509,17 @@ class CedarPolicyEngine:
         try:
             policies = await self._load_policies()
         except Exception as e:
-            return PolicyDecision.deny(f"policy_load_error: {e}")
+            decision = PolicyDecision.deny(f"policy_load_error: {e}")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="cedar",
+            )
+            return decision
 
         resource_type = self._determine_resource_type(operation)
         resource_entity = self._build_resource_entity(
@@ -412,11 +542,21 @@ class CedarPolicyEngine:
                 request, policies, entities
             )
         except Exception as e:
-            return PolicyDecision(
+            decision = PolicyDecision(
                 allowed=False,
                 reason=f"cedar_evaluation_error: {e}",
                 diagnostics=[str(e)],
             )
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="cedar",
+            )
+            return decision
 
         allowed = response.decision == self._cedarpy.Decision.Allow
         reason_parts: list[str] = []
@@ -427,11 +567,21 @@ class CedarPolicyEngine:
             if hasattr(diag, "errors") and diag.errors:
                 reason_parts.extend(str(e) for e in diag.errors)
 
-        return PolicyDecision(
+        decision = PolicyDecision(
             allowed=allowed,
             reason=f"cedar:{'allow' if allowed else 'deny'}",
             diagnostics=reason_parts,
         )
+        await self._log_policy_decision(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation=operation,
+            resource=resource,
+            context=ctx,
+            decision=decision,
+            engine="cedar",
+        )
+        return decision
 
     async def check_network_access(
         self,
@@ -496,6 +646,41 @@ class CedarPolicyEngine:
         """Invalidate the policy cache, forcing reload on next check."""
         self._policies_cache = None
         self._policies_cache_time = 0.0
+
+    async def _log_policy_decision(
+        self,
+        agent_id: str,
+        agent_type: str,
+        operation: str,
+        resource: str,
+        context: dict[str, Any],
+        decision: PolicyDecision,
+        engine: str,
+    ) -> None:
+        """Best-effort policy decision audit logging."""
+        try:
+            from .audit import get_audit_service
+
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation="policy_decision",
+                parameters={
+                    "operation": operation,
+                    "resource": resource,
+                    "engine": engine,
+                    "context": context,
+                },
+                result={
+                    "allowed": decision.allowed,
+                    "reason": decision.reason,
+                    "policy_id": decision.policy_id,
+                    "diagnostics": decision.diagnostics,
+                },
+                success=True,
+            )
+        except Exception:
+            logger.debug("Failed to audit policy decision", exc_info=True)
 
 
 # Global engine instance

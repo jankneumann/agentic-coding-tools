@@ -198,6 +198,91 @@ class TestGuardrailsService:
         assert len(result.violations) == 1
         assert result.violations[0].pattern_name == "credentials_file"
 
+    @pytest.mark.asyncio
+    async def test_violation_persisted_to_guardrail_violations(self):
+        """Detected violations should be inserted into guardrail_violations."""
+
+        class FakeDB:
+            def __init__(self):
+                self.insert_calls: list[tuple[str, dict]] = []
+
+            async def query(self, *_args, **_kwargs):
+                return [{
+                    "name": "rm_rf",
+                    "category": "file",
+                    "pattern": r"rm\s+-rf\s+",
+                    "severity": "block",
+                    "min_trust_level": 3,
+                }]
+
+            async def insert(self, table, data, return_data=True):
+                self.insert_calls.append((table, data))
+                return {}
+
+        fake_db = FakeDB()
+        service = GuardrailsService(fake_db)
+        result = await service.check_operation(
+            operation_text="rm -rf /tmp/build",
+            trust_level=1,
+            agent_id="agent-1",
+            agent_type="codex",
+        )
+
+        assert result.safe is False
+        assert len(fake_db.insert_calls) == 1
+        table, payload = fake_db.insert_calls[0]
+        assert table == "guardrail_violations"
+        assert payload["agent_id"] == "agent-1"
+        assert payload["agent_type"] == "codex"
+        assert payload["pattern_name"] == "rm_rf"
+
+    @pytest.mark.asyncio
+    async def test_violation_persistence_survives_config_error(self, monkeypatch):
+        """Config failures should not crash violation persistence path."""
+        from src.config import get_config as real_get_config
+
+        class FakeDB:
+            def __init__(self):
+                self.insert_calls: list[tuple[str, dict]] = []
+
+            async def query(self, *_args, **_kwargs):
+                return [{
+                    "name": "rm_rf",
+                    "category": "file",
+                    "pattern": r"rm\s+-rf\s+",
+                    "severity": "block",
+                    "min_trust_level": 3,
+                }]
+
+            async def insert(self, table, data, return_data=True):
+                self.insert_calls.append((table, data))
+                return {}
+
+        fake_db = FakeDB()
+        service = GuardrailsService(fake_db)
+        call_count = 0
+
+        def flaky_get_config():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return real_get_config()
+            raise RuntimeError("bad config")
+
+        monkeypatch.setattr("src.guardrails.get_config", flaky_get_config)
+
+        result = await service.check_operation(
+            operation_text="rm -rf /tmp/build",
+            trust_level=1,
+        )
+
+        assert result.safe is False
+        assert len(fake_db.insert_calls) == 1
+        table, payload = fake_db.insert_calls[0]
+        assert table == "guardrail_violations"
+        assert payload["agent_id"] == "unknown-agent"
+        assert payload["agent_type"] == "unknown"
+
 
 class TestGuardrailDataClasses:
     """Tests for guardrail dataclasses."""

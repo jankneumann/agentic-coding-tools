@@ -59,6 +59,11 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 | `src/db_postgres.py` | Direct PostgreSQL backend |
 | `supabase/migrations/*.sql` | Database schema |
 
+## Production Cloud API Path
+
+- Primary production cloud write API runtime is `src/coordination_api.py`.
+- Legacy `verification_gateway/` is retired and should not be used for runtime or new integration work.
+
 ## Development Commands
 
 ```bash

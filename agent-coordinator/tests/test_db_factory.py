@@ -6,7 +6,11 @@ from src.config import reset_config
 from src.db import DatabaseClient, SupabaseClient, create_db_client, reset_db
 
 try:
-    from src.db_postgres import _coerce_filter_value
+    from src.db_postgres import (
+        _coerce_filter_value,
+        _validate_identifier,
+        _validate_select_clause,
+    )
 
     HAS_ASYNCPG = True
 except ImportError:
@@ -110,3 +114,21 @@ class TestPostgresFilterParsing:
         assert "=lte." in source, "query() should handle lte filters"
         assert ">=" in source, "gte should translate to >= operator"
         assert "<=" in source, "lte should translate to <= operator"
+
+    def test_validate_identifier_accepts_safe_names(self):
+        assert _validate_identifier("work_queue") == "work_queue"
+        assert _validate_identifier("public.work_queue", allow_qualified=True) == "public.work_queue"
+
+    def test_validate_identifier_rejects_unsafe_names(self):
+        with pytest.raises(ValueError, match="Unsafe identifier"):
+            _validate_identifier("work_queue; DROP TABLE users")
+
+        with pytest.raises(ValueError, match="Unsafe identifier"):
+            _validate_identifier("public.work_queue;--", allow_qualified=True)
+
+    def test_validate_select_clause_rejects_unsafe_projection(self):
+        assert _validate_select_clause("*") == "*"
+        assert _validate_select_clause("id, task_type") == "id, task_type"
+
+        with pytest.raises(ValueError, match="Unsafe identifier"):
+            _validate_select_clause("id, task_type; DROP TABLE work_queue")

@@ -37,13 +37,12 @@ Without an assurance-focused change, the system can appear compliant in unit tes
 - Affected specs: `agent-coordinator`
 - Affected code:
   - `agent-coordinator/src/coordination_mcp.py`
+  - `agent-coordinator/src/coordination_api.py`
   - `agent-coordinator/src/work_queue.py`
   - `agent-coordinator/src/guardrails.py`
   - `agent-coordinator/src/policy_engine.py`
   - `agent-coordinator/src/db_postgres.py`
   - `agent-coordinator/src/audit.py`
-  - `agent-coordinator/verification_gateway/coordination_api.py`
-  - `agent-coordinator/verification_gateway/gateway.py`
   - `agent-coordinator/tests/` (new integration/property/equivalence tests)
   - `agent-coordinator/supabase/migrations/` (if schema hooks needed for decision logging/constraints)
   - `agent-coordinator/formal/` (new TLA+ specs and model configs)

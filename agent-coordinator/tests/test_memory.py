@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
+from src.policy_engine import PolicyDecision
 from src.memory import EpisodicMemory, MemoryResult, MemoryService, RecallResult
 
 
@@ -105,6 +106,32 @@ class TestMemoryService:
         result = await service.recall(tags=["nonexistent"])
 
         assert len(result.memories) == 0
+
+    @pytest.mark.asyncio
+    async def test_remember_denied_by_policy(self, monkeypatch):
+        """remember is blocked when policy engine denies mutation."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("operation_not_permitted")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not run when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = MemoryService(FailDB())
+        result = await service.remember(
+            event_type="discovery",
+            summary="blocked by policy",
+        )
+
+        assert result.success is False
+        assert result.error == "operation_not_permitted"
 
 
 class TestMemoryDataClasses:

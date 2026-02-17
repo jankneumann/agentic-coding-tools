@@ -426,6 +426,12 @@ def test_guardrails_check_delegates_to_service(
     mock_service.check_operation.return_value = GuardrailResult(
         safe=True, violations=[]
     )
+    authorize = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", authorize)
+    monkeypatch.setattr(
+        "src.coordination_api.resolve_trust_level",
+        AsyncMock(return_value=2),
+    )
 
     import src.guardrails
 
@@ -438,6 +444,14 @@ def test_guardrails_check_delegates_to_service(
     )
     assert response.status_code == 200
     assert response.json()["safe"] is True
+    authorize.assert_called_once()
+    mock_service.check_operation.assert_called_once_with(
+        operation_text="echo hello",
+        file_paths=None,
+        agent_id="cloud-agent",
+        agent_type="cloud_agent",
+        trust_level=2,
+    )
 
 
 # =============================================================================

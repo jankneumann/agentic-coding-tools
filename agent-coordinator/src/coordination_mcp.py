@@ -692,10 +692,31 @@ async def check_guardrails(
         safe: True if no destructive patterns matched
         violations: List of matched patterns with category and severity
     """
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    decision = await engine.check_operation(
+        agent_id=get_agent_id(),
+        agent_type=get_agent_type(),
+        operation="check_guardrails",
+        context={
+            "operation_text_length": len(operation_text),
+            "file_count": len(file_paths or []),
+        },
+    )
+    if not decision.allowed:
+        return {
+            "safe": False,
+            "violations": [],
+            "reason": decision.reason or "operation_not_permitted",
+        }
+
     service = get_guardrails_service()
     result = await service.check_operation(
         operation_text=operation_text,
         file_paths=file_paths,
+        agent_id=get_agent_id(),
+        agent_type=get_agent_type(),
     )
 
     return {

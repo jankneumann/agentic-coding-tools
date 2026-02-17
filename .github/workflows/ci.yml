@@ -44,3 +44,19 @@ jobs:
 
       - name: Validate specs
         run: openspec validate --strict --all
+
+  formal-coordination:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Run TLA+ model checks (non-blocking)
+        run: .github/scripts/run_tlc.sh

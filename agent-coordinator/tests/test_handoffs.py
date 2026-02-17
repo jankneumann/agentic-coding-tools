@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
+from src.policy_engine import PolicyDecision
 from src.handoffs import HandoffDocument, HandoffService, ReadHandoffResult, WriteHandoffResult
 
 
@@ -167,6 +168,29 @@ class TestHandoffService:
         assert len(result) == 2
         assert result[0].agent_name == "agent-1"
         assert result[1].agent_name == "agent-2"
+
+    @pytest.mark.asyncio
+    async def test_write_handoff_denied_by_policy(self, monkeypatch):
+        """write_handoff is blocked when policy engine denies mutation."""
+
+        class DenyPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.deny("operation_not_permitted")
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not run when denied")
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: DenyPolicyEngine(),
+        )
+
+        service = HandoffService(FailDB())
+        result = await service.write(summary="blocked by policy")
+
+        assert result.success is False
+        assert result.error == "operation_not_permitted"
 
 
 class TestHandoffDataClasses:

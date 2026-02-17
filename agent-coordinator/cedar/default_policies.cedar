@@ -97,6 +97,14 @@ permit(
     principal.trust_level >= 2
 };
 
+permit(
+    principal,
+    action == Action::"check_guardrails",
+    resource
+) when {
+    principal.trust_level >= 2
+};
+
 // ============================================================
 // ADMIN OPERATIONS — Permit for trust_level >= 3
 // ============================================================

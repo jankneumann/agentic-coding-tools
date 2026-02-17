@@ -128,12 +128,27 @@ class HandoffService:
             WriteHandoffResult with handoff_id on success
         """
         config = get_config()
+        resolved_agent_name = agent_name or config.agent.agent_id
+
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=resolved_agent_name,
+            agent_type=config.agent.agent_type,
+            operation="write_handoff",
+            context={"summary_length": len(summary)},
+        )
+        if not decision.allowed:
+            return WriteHandoffResult(
+                success=False,
+                error=decision.reason or "operation_not_permitted",
+            )
 
         try:
             result = await self.db.rpc(
                 "write_handoff",
                 {
-                    "p_agent_name": agent_name or config.agent.agent_id,
+                    "p_agent_name": resolved_agent_name,
                     "p_session_id": session_id or config.agent.session_id,
                     "p_summary": summary,
                     "p_completed_work": completed_work or [],
@@ -150,7 +165,7 @@ class HandoffService:
 
         try:
             await get_audit_service().log_operation(
-                agent_id=agent_name or config.agent.agent_id,
+                agent_id=resolved_agent_name,
                 operation="write_handoff",
                 parameters={"summary_length": len(summary)},
                 result={

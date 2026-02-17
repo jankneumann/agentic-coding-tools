@@ -18,6 +18,7 @@ from .config import PostgresConfig
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _coerce_filter_value(val: str) -> Any:
@@ -39,6 +40,26 @@ def _coerce_filter_value(val: str) -> Any:
     except ValueError:
         pass
     return val
+
+
+def _validate_identifier(identifier: str, *, allow_qualified: bool = False) -> str:
+    """Validate SQL identifiers used for dynamic SQL construction."""
+    parts = identifier.split(".") if allow_qualified else [identifier]
+    if not parts or any(not _IDENT_RE.match(part) for part in parts):
+        raise ValueError(f"Unsafe identifier: {identifier}")
+    return identifier
+
+
+def _validate_select_clause(select: str) -> str:
+    """Validate a restricted SELECT projection string."""
+    if select.strip() == "*":
+        return select
+    columns = [col.strip() for col in select.split(",")]
+    if not columns:
+        raise ValueError("Empty select clause")
+    for col in columns:
+        _validate_identifier(col, allow_qualified=True)
+    return ", ".join(columns)
 
 
 class DirectPostgresClient:
@@ -66,6 +87,7 @@ class DirectPostgresClient:
 
         Translates to: SELECT function_name(p1 := $1, p2 := $2, ...)
         """
+        _validate_identifier(function_name, allow_qualified=True)
         pool = await self._get_pool()
 
         # Build named parameter call
@@ -106,7 +128,7 @@ class DirectPostgresClient:
             for part in query_params.split("&"):
                 if part.startswith("order="):
                     order_parts = part[6:].split(".")
-                    col = order_parts[0]
+                    col = _validate_identifier(order_parts[0], allow_qualified=True)
                     is_desc = len(order_parts) > 1 and order_parts[1] == "desc"
                     direction = "DESC" if is_desc else "ASC"
                     order_clause = f" ORDER BY {col} {direction}"
@@ -114,11 +136,13 @@ class DirectPostgresClient:
                     limit_clause = f" LIMIT {int(part[6:])}"
                 elif "=eq." in part:
                     col, val = part.split("=eq.", 1)
+                    _validate_identifier(col, allow_qualified=True)
                     where_clauses.append(f"{col} = ${param_idx}")
                     values.append(_coerce_filter_value(val))
                     param_idx += 1
                 elif "=gt." in part:
                     col, val = part.split("=gt.", 1)
+                    _validate_identifier(col, allow_qualified=True)
                     if val == "now()":
                         where_clauses.append(f"{col} > NOW()")
                     else:
@@ -127,16 +151,19 @@ class DirectPostgresClient:
                         param_idx += 1
                 elif "=gte." in part:
                     col, val = part.split("=gte.", 1)
+                    _validate_identifier(col, allow_qualified=True)
                     where_clauses.append(f"{col} >= ${param_idx}")
                     values.append(_coerce_filter_value(val))
                     param_idx += 1
                 elif "=lte." in part:
                     col, val = part.split("=lte.", 1)
+                    _validate_identifier(col, allow_qualified=True)
                     where_clauses.append(f"{col} <= ${param_idx}")
                     values.append(_coerce_filter_value(val))
                     param_idx += 1
                 elif "=in." in part:
                     col, val = part.split("=in.", 1)
+                    _validate_identifier(col, allow_qualified=True)
                     # Parse PostgREST IN syntax: (val1,val2,val3)
                     in_values = val.strip("()").replace('"', "").split(",")
                     placeholders = ", ".join(
@@ -147,7 +174,11 @@ class DirectPostgresClient:
                     param_idx += len(in_values)
 
         where = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
-        query_sql = f"SELECT {select} FROM {table}{where}{order_clause}{limit_clause}"
+        safe_select = _validate_select_clause(select)
+        safe_table = _validate_identifier(table, allow_qualified=True)
+        query_sql = (
+            f"SELECT {safe_select} FROM {safe_table}{where}{order_clause}{limit_clause}"
+        )
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(query_sql, *values)
@@ -163,6 +194,9 @@ class DirectPostgresClient:
         pool = await self._get_pool()
 
         columns = list(data.keys())
+        _validate_identifier(table, allow_qualified=True)
+        for col in columns:
+            _validate_identifier(col, allow_qualified=False)
         values = list(data.values())
         placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
         col_list = ", ".join(columns)
@@ -189,16 +223,19 @@ class DirectPostgresClient:
         pool = await self._get_pool()
 
         set_parts = []
+        _validate_identifier(table, allow_qualified=True)
         values: list[Any] = []
         idx = 1
 
         for col, val in data.items():
+            _validate_identifier(col, allow_qualified=False)
             set_parts.append(f"{col} = ${idx}")
             values.append(val)
             idx += 1
 
         where_parts = []
         for col, val in match.items():
+            _validate_identifier(col, allow_qualified=False)
             where_parts.append(f"{col} = ${idx}")
             values.append(val)
             idx += 1
@@ -224,10 +261,12 @@ class DirectPostgresClient:
     ) -> None:
         """Delete matching rows from a table."""
         pool = await self._get_pool()
+        _validate_identifier(table, allow_qualified=True)
 
         where_parts = []
         values: list[Any] = []
         for idx, (col, val) in enumerate(match.items(), 1):
+            _validate_identifier(col, allow_qualified=False)
             where_parts.append(f"{col} = ${idx}")
             values.append(val)
 

@@ -90,6 +90,11 @@ action "write_handoff" appliesTo {
     resource: Task,
 };
 
+action "check_guardrails" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
 // Admin actions — elevated privileges
 action "force_push" appliesTo {
     principal: Agent,

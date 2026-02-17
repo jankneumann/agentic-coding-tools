@@ -1,22 +1,22 @@
 ## 1. Enforcement Remediation
 
-- [ ] 1.0 Reconcile with active changes before editing code: confirm ownership boundaries with `complete-missing-coordination-features` and `add-dynamic-authorization`.
-- [ ] 1.1 Build a mutation-surface inventory (MCP + HTTP) and enforce profile/policy checks in every mutation path before side effects (`acquire_lock`, `release_lock`, `get_work` claim path, `complete_work`, `submit_work`, `write_handoff`, `remember`, and any newly added mutation tools/endpoints).
-- [ ] 1.2 Enforce equivalent authorization checks in HTTP mutation endpoints.
-- [ ] 1.3 Pass effective trust level/context into guardrail checks on claim/submit/complete flows.
-- [ ] 1.4 Ensure guardrail violations are persisted to `guardrail_violations` and audit trail with consistent schema.
-- [ ] 1.5 Log policy-engine decisions (native and Cedar) to audit trail.
+- [x] 1.0 Reconcile with active changes before editing code: confirm ownership boundaries with `complete-missing-coordination-features` and `add-dynamic-authorization`.
+- [x] 1.1 Build a mutation-surface inventory (MCP + HTTP) and enforce profile/policy checks in every mutation path before side effects (`acquire_lock`, `release_lock`, `get_work` claim path, `complete_work`, `submit_work`, `write_handoff`, `remember`, and any newly added mutation tools/endpoints).
+- [x] 1.2 Enforce equivalent authorization checks in HTTP mutation endpoints.
+- [x] 1.3 Pass effective trust level/context into guardrail checks on claim/submit/complete flows.
+- [x] 1.4 Ensure guardrail violations are persisted to `guardrail_violations` and audit trail with consistent schema.
+- [x] 1.5 Log policy-engine decisions (native and Cedar) to audit trail.
 
 ## 2. API and Architecture Alignment
 
-- [ ] 2.1 Reconcile `verification_gateway/coordination_api.py` RPC names with canonical migrations (remove stale function references).
-- [ ] 2.2 Decide and document primary production path for cloud API (integrated vs legacy gateway).
-- [ ] 2.3 Update docs to reflect actual runnable architecture and migration names.
+- [x] 2.1 Reconcile `src/coordination_api.py` RPC names with canonical migrations (remove stale function references).
+- [x] 2.2 Decide and document primary production path for cloud API (integrated vs legacy gateway).
+- [x] 2.3 Update docs to reflect actual runnable architecture and migration names.
 
 ## 3. Security Hardening
 
-- [ ] 3.1 Harden `DirectPostgresClient` dynamic identifier handling (table/select/order allowlists or safe quoting strategy).
-- [ ] 3.2 Add tests proving unsafe identifier injection is rejected.
+- [x] 3.1 Harden `DirectPostgresClient` dynamic identifier handling (table/select/order allowlists or safe quoting strategy).
+- [x] 3.2 Add tests proving unsafe identifier injection is rejected.
 
 ## 4. Behavioral Verification Suite
 
@@ -29,17 +29,17 @@
 
 ## 5. Formal Verification Track
 
-- [ ] 5.1 Create initial TLA+ model for lock/task lifecycle.
-- [ ] 5.2 Encode safety invariants and liveness checks from this proposal.
-- [ ] 5.3 Add TLC execution script and CI job (initially non-blocking).
-- [ ] 5.4 Map formal invariants to OpenSpec requirement/scenario IDs.
+- [x] 5.1 Create initial TLA+ model for lock/task lifecycle.
+- [x] 5.2 Encode safety invariants and liveness checks from this proposal.
+- [x] 5.3 Add TLC execution script and CI job (initially non-blocking).
+- [x] 5.4 Map formal invariants to OpenSpec requirement/scenario IDs.
 
 ## 6. Validation and Rollout
 
 - [ ] 6.1 Run full test suite and report behavioral deltas caused by tightened enforcement.
 - [ ] 6.2 Add rollout notes for compatibility impact and mitigation (feature flags, profile updates).
 - [ ] 6.3 Update OpenSpec tasks/spec links in PR description for traceability.
-- [ ] 6.4 Confirm no duplicate implementation of dynamic-authorization features (delegation/approval/risk/policy-sync/versioning/session-grants) in this change.
+- [x] 6.4 Confirm no duplicate implementation of dynamic-authorization features (delegation/approval/risk/policy-sync/versioning/session-grants) in this change.
 
 ## Dependency / Merge-Order Summary
 
