@@ -20,8 +20,13 @@ Environment variables:
     NETWORK_DEFAULT_POLICY: Default network policy - "deny" or "allow" (default: deny)
     POLICY_ENGINE: Policy engine - "native" or "cedar" (default: native)
     POLICY_CACHE_TTL: Policy cache TTL in seconds (default: 300)
+    API_HOST: HTTP API host (default: 0.0.0.0)
+    API_PORT: HTTP API port (default: 8081)
+    COORDINATION_API_KEYS: Comma-separated API keys for HTTP API auth
+    COORDINATION_API_KEY_IDENTITIES: JSON mapping API keys to agent identities
 """
 
+import json
 import os
 from dataclasses import dataclass, field
 
@@ -218,6 +223,35 @@ class PolicyEngineConfig:
 
 
 @dataclass
+class ApiConfig:
+    """HTTP API configuration."""
+
+    host: str = "0.0.0.0"  # noqa: S104
+    port: int = 8081
+    api_keys: list[str] = field(default_factory=list)
+    api_key_identities: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    @classmethod
+    def from_env(cls) -> "ApiConfig":
+        raw_keys = os.environ.get("COORDINATION_API_KEYS", "")
+        api_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+
+        try:
+            identities: dict[str, dict[str, str]] = json.loads(
+                os.environ.get("COORDINATION_API_KEY_IDENTITIES", "{}")
+            )
+        except json.JSONDecodeError:
+            identities = {}
+
+        return cls(
+            host=os.environ.get("API_HOST", "0.0.0.0"),
+            port=int(os.environ.get("API_PORT", "8081")),
+            api_keys=api_keys,
+            api_key_identities=identities,
+        )
+
+
+@dataclass
 class Config:
     """Complete configuration for Agent Coordinator."""
 
@@ -234,6 +268,7 @@ class Config:
     policy_engine: PolicyEngineConfig = field(
         default_factory=PolicyEngineConfig.from_env
     )
+    api: ApiConfig = field(default_factory=ApiConfig.from_env)
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -248,6 +283,7 @@ class Config:
             audit=AuditConfig.from_env(),
             network_policy=NetworkPolicyConfig.from_env(),
             policy_engine=PolicyEngineConfig.from_env(),
+            api=ApiConfig.from_env(),
         )
 
 
