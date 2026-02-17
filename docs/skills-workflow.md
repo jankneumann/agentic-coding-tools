@@ -6,6 +6,14 @@ A structured feature development workflow for AI-assisted coding. Skills are reu
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.
 
+## Prerequisites
+
+- OpenSpec CLI installed (v1.0+): `npm install -g @fission-ai/openspec`
+- Repository initialized for OpenSpec (once per repo): `openspec init`
+- Validate environment before running workflow skills:
+  - `openspec list`
+  - `openspec list --specs`
+
 ```
 /plan-feature <description>                        Proposal approval gate
   /iterate-on-plan <change-id> (optional)          Refines plan before approval
