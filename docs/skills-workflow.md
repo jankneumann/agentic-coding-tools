@@ -19,6 +19,7 @@ The workflow breaks feature development into discrete stages, each handled by a 
   /iterate-on-plan <change-id> (optional)          Refines plan before approval
 /implement-feature <change-id>                     PR review gate
   /iterate-on-implementation <change-id> (optional)    Refinement complete
+  /refresh-architecture [mode] (optional)          Regenerate/validate architecture artifacts
   /validate-feature <change-id> (optional)         Live deployment verification
 /cleanup-feature <change-id>                       Done
 ```
@@ -27,13 +28,19 @@ Optional discovery stage before planning:
 
 ```
 /explore-feature [focus-area]                      Candidate feature shortlist
+/refresh-architecture (optional)                   Fresh architecture context for planning
 ```
+
+Architecture refresh callout:
+- Default path: run `/refresh-architecture` before `/plan-feature` if `docs/architecture-analysis/` is stale, missing, or after substantial structural changes.
+- Advanced modes: run `/refresh-architecture --validate` after `/implement-feature` or `/iterate-on-implementation`, and `/refresh-architecture --diff <base-sha>` before `/validate-feature`.
 
 ## Step Dependencies
 
 | Step | Depends On | Unblocks |
 |---|---|---|
 | `/explore-feature` (optional) | Specs + active changes + architecture artifacts | Better-scoped `/plan-feature` inputs |
+| `/refresh-architecture` (optional) | Source code + existing architecture artifacts | Current architecture context for planning, implementation checks, and validation |
 | `/plan-feature` | Discovery/context | Proposal approval |
 | `/iterate-on-plan` (optional) | Existing proposal | Higher-quality approved proposal |
 | `/implement-feature` | Approved proposal/spec/tasks | PR review |
@@ -46,6 +53,7 @@ Optional discovery stage before planning:
 | Step | Consumes | Produces/Updates |
 |---|---|---|
 | `/explore-feature` | `openspec list`, `openspec list --specs`, `docs/architecture-analysis/*`, `docs/feature-discovery/history.json` (if present) | Ranked candidate list, recommended `/plan-feature` target, `docs/feature-discovery/opportunities.json`, updated `docs/feature-discovery/history.json` |
+| `/refresh-architecture` | Codebase sources + existing `docs/architecture-analysis/*` | Updated architecture artifacts: `architecture.summary.json`, `architecture.graph.json`, `architecture.diagnostics.json`, `parallel_zones.json`, `architecture.report.md`, `views/*.mmd` |
 | `/plan-feature` | Existing specs/changes, architecture context, runtime-native OpenSpec assets or CLI fallback | `openspec/changes/<id>/proposal.md`, `openspec/changes/<id>/specs/**/spec.md`, `openspec/changes/<id>/tasks.md`, optional `openspec/changes/<id>/design.md` |
 | `/iterate-on-plan` | Proposal/design/tasks/spec deltas | Updated planning artifacts + `openspec/changes/<id>/plan-findings.md` |
 | `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, feature branch/PR |
@@ -145,7 +153,7 @@ Deploys the feature locally with DEBUG logging and runs five validation phases:
 
 Also checks CI/CD status via GitHub CLI. Produces a structured validation report and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
 
-**Produces**: `openspec/changes/<change-id>/validation-report.md` and a PR comment.
+**Produces**: `openspec/changes/<change-id>/validation-report.md`, `openspec/changes/<change-id>/architecture-impact.md`, and a PR comment.
 
 **Gate**: Validation results — the human decides whether to proceed to cleanup or address findings.
 
@@ -158,6 +166,22 @@ Merges the approved PR, migrates any open tasks (to Beads issues or a follow-up 
 **Gate**: None — this is the final mechanical step.
 
 ## Supporting Skills
+
+### `/refresh-architecture`
+
+Regenerates, validates, or inspects `docs/architecture-analysis/` artifacts that describe code structure, cross-layer flows, and safe parallel modification zones.
+
+**Modes**:
+- Full refresh: `make architecture`
+- Validate only: `make architecture-validate`
+- Views only: `make architecture-views`
+- Report only: `make architecture-report`
+- Diff to baseline: `make architecture-diff BASE_SHA=<sha>`
+- Feature slice: `make architecture-feature FEATURE="<files>"`
+
+**Produces**: Updated architecture artifacts in `docs/architecture-analysis/` for planning context, implementation safety checks, and validation/reporting.
+
+**Gate**: None (support/verification step).
 
 ### `/merge-pull-requests`
 
