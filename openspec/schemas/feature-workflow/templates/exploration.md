@@ -1,32 +1,44 @@
-# Exploration: {{change-id}}
+# Exploration
+
+<!-- What question or feature area is being explored -->
 
 ## Objective
-<!-- What question or feature area is being explored -->
+
+<!-- Describe the feature area or problem being investigated -->
 
 ## Existing Context
 
 ### Related Specs
-<!-- Output of openspec list --specs filtered for relevance -->
+
+<!-- Run openspec list --specs and filter for relevance to this feature area -->
 
 ### Active Changes
-<!-- Output of openspec list, noting potential conflicts -->
+
+<!-- Run openspec list and identify any in-progress changes that might conflict or relate -->
 
 ### Architecture Context
-<!-- Cross-layer flows, components, and parallel zones from .architecture/ -->
+
+<!-- Read .architecture/architecture.summary.json for cross-layer flows, components, and services.
+     Read .architecture/parallel_zones.json for safe parallel modification zones. -->
 
 ### Codebase Patterns
-<!-- Existing implementations, patterns, and integration points found via search -->
+
+<!-- Search the codebase for existing implementations, patterns, and integration points related to this feature -->
 
 ## Context Synthesis
 
 ### Constraints
-<!-- Project constraints that apply to this feature -->
+
+<!-- Project constraints from openspec/project.md that apply to this feature -->
 
 ### Integration Points
-<!-- Where this feature connects to existing code -->
+
+<!-- Where this feature connects to existing code and which layers are affected -->
 
 ### Risks
-<!-- Technical risks or unknowns identified during exploration -->
+
+<!-- Technical risks, unknowns, or dependencies on external systems identified during exploration -->
 
 ## Recommendation
-<!-- Proceed to proposal, or needs more investigation, or already addressed -->
+
+<!-- One of: Proceed to proposal | Needs more investigation (specify what) | Already addressed (reference existing spec/change) -->

@@ -57,6 +57,7 @@ Skills remain the user-facing interface. They orchestrate the workflow (parallel
 ```
 User → /plan-feature → [opsx:explore, opsx:ff] → Approval gate
 User → /implement-feature → [opsx:apply] → PR review gate
+User → /validate-feature → [opsx:verify + deployment phases] → Validation gate
 User → /cleanup-feature → [opsx:sync, opsx:archive] → Done
 ```
 

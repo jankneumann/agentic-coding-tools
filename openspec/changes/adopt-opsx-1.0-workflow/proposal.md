@@ -2,7 +2,7 @@
 
 ## Why
 
-OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined artifact dependency graphs, per-artifact rules, project context injection, and granular commands (`opsx:explore`, `opsx:new`, `opsx:continue`, `opsx:ff`, `opsx:apply`, `opsx:sync`, `opsx:archive`). Our current skills hard-code artifact management logic that OPSX now handles natively. Adopting OPSX lets us define custom artifact types (exploration reports, iteration findings, validation reports, deferred task lists) as first-class schema nodes with dependency tracking, while simplifying skill implementations by delegating artifact lifecycle to the framework.
+OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined artifact dependency graphs, per-artifact rules, project context injection, and granular commands (`opsx:explore`, `opsx:new`, `opsx:continue`, `opsx:ff`, `opsx:apply`, `opsx:verify`, `opsx:sync`, `opsx:archive`). Our current skills hard-code artifact management logic that OPSX now handles natively. Adopting OPSX lets us define custom artifact types (exploration reports, iteration findings, validation reports, deferred task lists) as first-class schema nodes with dependency tracking, while simplifying skill implementations by delegating artifact lifecycle to the framework.
 
 ## What Changes
 
@@ -16,7 +16,7 @@ OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined
 - **`/iterate-on-plan`**: Produce `plan-findings` artifact via `opsx:continue`; use OPSX state tracking for iteration progress
 - **`/implement-feature`**: Replace `openspec-apply` call with `opsx:apply`; remove inline task-tracking logic that OPSX handles
 - **`/iterate-on-implementation`**: Produce `impl-findings` artifact via `opsx:continue`; same pattern as plan iteration
-- **`/validate-feature`**: Register `validation-report` as OPSX artifact; write report via OPSX artifact creation
+- **`/validate-feature`**: Incorporate `opsx:verify` for artifact-vs-implementation completeness/correctness/coherence checks alongside existing deployment validation phases; register `validation-report` as OPSX artifact
 - **`/cleanup-feature`**: Replace `openspec-archive` call with `opsx:sync` + `opsx:archive`; produce `deferred-tasks` artifact for migrated open tasks
 
 ### Skills Layer — Retirement

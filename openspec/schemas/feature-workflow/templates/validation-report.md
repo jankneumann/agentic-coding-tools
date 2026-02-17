@@ -1,10 +1,16 @@
-# Validation Report: {{change-id}}
+# Validation Report
 
-**Date**: {{timestamp}}
-**Commit**: {{commit-sha}}
-**Branch**: openspec/{{change-id}}
+<!-- Date: YYYY-MM-DD HH:MM:SS
+     Commit: short SHA
+     Branch: openspec/<change-id> -->
 
 ## Phase Results
+
+<!-- Use these symbols for each phase:
+     pass  — Phase passed
+     fail  — Phase failed
+     warn  — Phase passed with warnings
+     skip  — Phase skipped -->
 
 | Phase | Result | Details |
 |-------|--------|---------|
@@ -13,22 +19,24 @@
 | E2E | <!-- pass/fail/skip --> | <!-- test count passed/failed --> |
 | Architecture | <!-- pass/fail/warn/skip --> | <!-- broken flows, orphaned code, warnings --> |
 | Spec Compliance | <!-- pass/fail/skip --> | <!-- N/M scenarios verified --> |
-| Logs | <!-- pass/warn/skip --> | <!-- errors, warnings, deprecations, stack traces --> |
-| CI/CD | <!-- pass/fail/skip --> | <!-- GitHub Actions status --> |
+| Logs | <!-- pass/warn/skip --> | <!-- error count, warning count, deprecations, stack traces --> |
+| CI/CD | <!-- pass/fail/skip --> | <!-- GitHub Actions check status --> |
 
 ## Spec Compliance Details
 
+<!-- One row per scenario from the change's spec deltas -->
+
 | Scenario | Result | Notes |
 |----------|--------|-------|
-| <!-- Capability > Scenario name --> | <!-- pass/fail --> | <!-- Details on failure --> |
+|          |        |       |
 
 ## Log Analysis
 
-- Errors: <!-- count -->
-- Warnings: <!-- count -->
-- Deprecations: <!-- count -->
-- Stack traces: <!-- count -->
+<!-- Error count, warning count, deprecation count, stack trace count.
+     Show context for errors and critical entries if any. -->
 
 ## Result
 
-**<!-- PASS or FAIL -->** — <!-- Guidance: ready for cleanup, or address findings first -->
+<!-- PASS — Ready for /cleanup-feature
+     or
+     FAIL — Address findings, then re-run /validate-feature or /iterate-on-implementation -->
