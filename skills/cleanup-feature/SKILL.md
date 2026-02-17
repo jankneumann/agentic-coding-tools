@@ -26,6 +26,14 @@ Merge an approved PR, migrate any open tasks to beads or a follow-up proposal, a
 - Run `/implement-feature` first if PR doesn't exist
 - Recommended: Run `/validate-feature` first to verify live deployment
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Determine Change ID
@@ -74,6 +82,12 @@ git checkout main
 git pull origin main
 ```
 
+After merge, refresh project-global architecture artifacts:
+
+```bash
+make architecture
+```
+
 ### 5. Migrate Open Tasks
 
 Before archiving, check for incomplete tasks in the proposal. Open tasks must not be silently dropped.
@@ -114,7 +128,7 @@ Include in each issue description:
 
 **Option B — Follow-up OpenSpec proposal** (default if beads is not initialized):
 
-Create a new proposal using `/openspec-proposal` with:
+Create a new proposal using runtime-native new/continue workflow (or CLI fallback) with:
 - **Change-id**: `followup-<original-change-id>` (e.g., `followup-add-retry-logic`)
 - **proposal.md**: Reference the original change-id, explain these are remaining tasks
 - **tasks.md**: Copy only the open (unchecked) tasks, preserving their numbering, dependencies, and file scope
@@ -135,16 +149,17 @@ This annotation is preserved in the archive for traceability.
 
 ### 6. Archive OpenSpec Proposal
 
-```
-/openspec-archive <change-id>
+Preferred path:
+- Use runtime-native archive workflow (`opsx:archive` equivalent for the active agent).
+
+CLI fallback path:
+
+```bash
+openspec archive <change-id> --yes
+openspec validate --strict
 ```
 
-This will:
-- Validate the change is ready for archive
-- Run `openspec archive <change-id> --yes`
-- Move proposal to `openspec/changes/archive/<change-id>/`
-- Apply spec deltas to `openspec/specs/`
-- Validate with `openspec validate --strict`
+This archives the change, merges delta specs, and validates repository integrity.
 
 ### 7. Verify Archive
 

@@ -24,6 +24,14 @@ Implement an approved OpenSpec proposal. Ends when PR is created and awaiting re
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/plan-feature` first if no proposal exists
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Verify Proposal Exists
@@ -102,15 +110,21 @@ git checkout openspec/<change-id>
 
 ### 3. Implement Tasks
 
-```
-/openspec-apply <change-id>
+Preferred path:
+- Use the runtime-native apply workflow (`opsx:apply` equivalent for the active agent) to execute tasks.
+
+CLI fallback path:
+
+```bash
+openspec instructions apply --change "<change-id>" --json
+openspec status --change "<change-id>"
 ```
 
-This will:
-- Read proposal.md, design.md, and tasks.md
-- Work through tasks sequentially
-- Keep edits minimal and focused on the requested change
-- Mark tasks complete in tasks.md as `- [x]`
+Execution expectations:
+- Read proposal/spec/design/tasks context from apply instructions
+- Work through tasks sequentially unless safely parallelizable
+- Keep edits minimal and focused
+- Mark completed tasks in `tasks.md` (`- [ ]` -> `- [x]`)
 
 **TDD Approach:**
 - Write tests first that define expected behavior

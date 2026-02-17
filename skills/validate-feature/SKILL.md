@@ -31,6 +31,14 @@ Valid phase names: `deploy`, `smoke`, `e2e`, `spec`, `logs`, `ci`
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Determine Change ID and Configuration
@@ -89,6 +97,21 @@ fi
 ```
 
 If not on the feature branch, check out `openspec/<change-id>`. If no implementation commits exist, abort with guidance.
+
+### 2.5. Prepare Validation Artifacts
+
+Preferred path:
+- Use runtime-native verify/continue workflow (`opsx:verify` equivalent) for artifact guidance.
+
+CLI fallback path:
+
+```bash
+openspec instructions validation-report --change "$CHANGE_ID"
+openspec instructions architecture-impact --change "$CHANGE_ID"
+openspec status --change "$CHANGE_ID"
+```
+
+Ensure `validation-report.md` and `architecture-impact.md` are updated in the change directory as part of this validation run.
 
 ### 3. Deploy Phase
 

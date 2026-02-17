@@ -1,21 +1,3 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
-
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
 
 # Project Guidelines
 
@@ -24,6 +6,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 Use the 5-skill feature workflow with natural approval gates:
 
 ```
+/explore-feature [focus-area] (optional)      → Candidate shortlist for next work
 /plan-feature <description>                    → Proposal approval gate
   /iterate-on-plan <change-id> (optional)      → Refines plan before approval
 /implement-feature <change-id>                 → PR review gate
@@ -64,11 +47,15 @@ Use the 5-skill feature workflow with natural approval gates:
 
 ### OpenSpec Integration
 
-- **All planning through OpenSpec**: Use `/openspec-proposal` for any non-trivial feature. This creates a traceable record of decisions and enables spec-driven development.
+- **Agent-native OpenSpec first**: For planning/implementation/validation/archive internals, prefer generated OpenSpec assets for the active runtime:
+  Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+  Codex: `.codex/skills/openspec-*/SKILL.md`
+  Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- **CLI fallback always available**: If a runtime asset is missing or incompatible, use direct commands (`openspec new change`, `openspec status`, `openspec instructions ...`, `openspec archive`).
 
 - **Spec deltas over ad-hoc docs**: Put requirements and scenarios in `openspec/changes/<id>/specs/` rather than separate planning documents. This ensures specs stay updated.
 
-- **Archive after merge**: Always run `/openspec-archive` after PR merge to consolidate spec deltas into `openspec/specs/`.
+- **Archive after merge**: Always archive completed changes with runtime-native archive flow or CLI fallback `openspec archive <change-id> --yes`.
 
 ### Local Validation Patterns
 

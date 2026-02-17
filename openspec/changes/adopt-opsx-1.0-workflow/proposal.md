@@ -2,42 +2,42 @@
 
 ## Why
 
-OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined artifact dependency graphs, per-artifact rules, project context injection, and granular commands (`opsx:explore`, `opsx:new`, `opsx:continue`, `opsx:ff`, `opsx:apply`, `opsx:verify`, `opsx:sync`, `opsx:archive`). Our current skills hard-code artifact management logic that OPSX now handles natively. Adopting OPSX lets us define custom artifact types (exploration reports, iteration findings, validation reports, deferred task lists) as first-class schema nodes with dependency tracking, while simplifying skill implementations by delegating artifact lifecycle to the framework.
+OpenSpec 1.0 introduces generated, agent-native command/skill artifacts for Claude/Codex/Gemini (`.claude/commands/opsx/*.md`, `.claude/skills/openspec-*/SKILL.md`, `.codex/skills/openspec-*/SKILL.md`, `.gemini/commands/opsx/*.toml`, `.gemini/skills/openspec-*/SKILL.md`) plus a command-driven CLI fallback (`openspec instructions`, `openspec new change`, `openspec status`, `openspec archive`). Our current skills/docs still assume older conventions. This proposal aligns workflow internals to prefer agent-native OpenSpec artifacts first, with direct CLI as deterministic fallback, while preserving the existing 5-skill approval-gated workflow.
 
 ## What Changes
 
 ### Configuration Layer
-- Add `openspec/config.yaml` with schema selection, project context, and per-artifact rules
-- Create custom schema `feature-workflow` at `openspec/schemas/feature-workflow/` with artifact dependency graph extending `spec-driven` with `exploration`, `plan-findings`, `impl-findings`, `architecture-impact`, `validation-report`, and `deferred-tasks` artifacts
-- Add artifact templates for each custom artifact type
+- Keep `openspec/config.yaml` as the canonical schema/rules source and align rule language with the OpenSpec 1.0 command model
+- Keep custom schema `feature-workflow` at `openspec/schemas/feature-workflow/` and validate it with `openspec schema validate`
+- Keep artifact templates for `exploration`, `plan-findings`, `impl-findings`, `architecture-impact`, `validation-report`, and `deferred-tasks`
 
-### Skills Layer — OPSX Command Integration
-- **`/plan-feature`**: Replace inline `openspec-proposal` call with `opsx:explore` for context gathering + `opsx:ff` (or `opsx:new` + `opsx:continue`) for artifact creation
-- **`/iterate-on-plan`**: Produce `plan-findings` artifact via `opsx:continue`; use OPSX state tracking for iteration progress
-- **`/implement-feature`**: Replace `openspec-apply` call with `opsx:apply`; remove inline task-tracking logic that OPSX handles
-- **`/iterate-on-implementation`**: Produce `impl-findings` artifact via `opsx:continue`; same pattern as plan iteration
-- **`/validate-feature`**: Incorporate `opsx:verify` for artifact-vs-implementation completeness/correctness/coherence checks alongside existing deployment validation phases; produce `architecture-impact` artifact via `make architecture-diff` and `make architecture-validate`; register `validation-report` as OPSX artifact
-- **`/cleanup-feature`**: Replace `openspec-archive` call with `opsx:sync` + `opsx:archive`; produce `deferred-tasks` artifact for migrated open tasks
+### Skills Layer — Agent-Native OpenSpec First, CLI Fallback
+- **`/explore-feature`** (new supporting skill): Analyze architecture and code signals to recommend highest-value next features; use weighted scoring + quick-win/big-bet buckets + dependency blockers, persist machine-readable opportunities/history artifacts, and feed outputs into `/plan-feature`
+- **`/plan-feature`**: Prefer agent-native OpenSpec planning artifacts/commands for the current agent; fallback to `openspec new change` + `openspec instructions <artifact> --change <id>`
+- **`/iterate-on-plan`**: Prefer agent-native `plan-findings` generation; fallback to `openspec instructions plan-findings --change <id>` and `openspec status --change <id>`
+- **`/implement-feature`**: Prefer agent-native apply guidance; fallback to `openspec instructions apply --change <id>`
+- **`/iterate-on-implementation`**: Prefer agent-native `impl-findings` generation; fallback to `openspec instructions impl-findings --change <id>`
+- **`/validate-feature`**: Prefer agent-native validation/verification artifacts; fallback to `openspec instructions` + existing deployment checks, with `openspec validate <change-id> --strict` as gate
+- **`/cleanup-feature`**: Prefer agent-native archive flow; fallback to `openspec archive <change-id> --yes`; produce `deferred-tasks` artifact before archive when needed
 
 ### Architecture Integration
 - **`/refresh-architecture`** remains a standalone skill (project-global, not per-change) but is called at specific workflow touchpoints:
-  - **Before `/plan-feature`** (exploration phase): Ensure `docs/architecture-analysis/` is current so `opsx:explore` has accurate cross-layer flow and parallel zone data
+  - **Before `/plan-feature`** (exploration phase): Ensure `docs/architecture-analysis/` is current so proposal/spec/task instructions use accurate cross-layer flow and parallel zone data
   - **During `/validate-feature`**: Run `make architecture-diff` and `make architecture-validate` scoped to changed files, producing the per-change `architecture-impact` artifact
   - **After `/cleanup-feature`** (post-merge): Refresh `docs/architecture-analysis/` on main so it reflects the merged change for future planning
-- Add `architecture-impact` as a per-change OPSX artifact in the schema (depends on `tasks`, produced alongside `validation-report`)
+- Keep `architecture-impact` as a per-change OpenSpec artifact in the schema (depends on `tasks`, produced alongside `validation-report`)
 
-### Skills Layer — Retirement
-- **`/openspec-proposal`**: Retire in favor of `opsx:new` / `opsx:ff` (keep as thin redirect during transition)
-- **`/openspec-apply`**: Retire in favor of `opsx:apply`
-- **`/openspec-archive`**: Retire in favor of `opsx:archive`
+### Skills Layer — Cleanup
+- Remove stale references to retired wrapper skills (`/openspec-proposal`, `/openspec-apply`, `/openspec-archive`) from skill docs and workflow docs
+- Define precedence explicitly: agent-native OpenSpec skill/command artifacts first, direct OpenSpec CLI fallback second
 
 ### Documentation
-- Update `openspec/AGENTS.md` to reference OPSX commands and the `feature-workflow` schema
-- Update `CLAUDE.md` OpenSpec section to reference OPSX 1.0
+- Update `AGENTS.md` to reference OpenSpec 1.0 precedence rules and `feature-workflow` schema usage
+- Update `docs/skills-workflow.md` and `CLAUDE.md` with agent-native-first + CLI-fallback behavior and parity expectations across Claude/Codex/Gemini
 
 ## Impact
 
 - Affected specs: `skill-workflow`
-- Affected code: All 6 core skills (`plan-feature`, `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, `validate-feature`, `cleanup-feature`), `refresh-architecture` (integration touchpoints), 3 retired skills (`openspec-proposal`, `openspec-apply`, `openspec-archive`), `openspec/AGENTS.md`, `CLAUDE.md`
-- No breaking changes to the external workflow — skill names and approval gates remain identical
-- Requires OpenSpec CLI upgrade to 1.0+
+- Affected code/docs: 6 core skills (`plan-feature`, `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, `validate-feature`, `cleanup-feature`), new supporting skill (`explore-feature`), `refresh-architecture` touchpoints, `AGENTS.md`, `docs/skills-workflow.md`, `docs/feature-discovery/`, `CLAUDE.md`, `openspec/config.yaml`, `openspec/schemas/feature-workflow/`
+- No breaking changes to the external workflow; skill names and approval gates remain identical
+- Assumes OpenSpec CLI is already upgraded to 1.0+

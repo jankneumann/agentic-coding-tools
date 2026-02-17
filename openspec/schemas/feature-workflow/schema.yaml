@@ -21,6 +21,7 @@ artifacts:
   # Core planning artifacts (compatible with spec-driven defaults)
   - id: proposal
     generates: proposal.md
+    template: proposal.md
     description: Define why the change is needed and what it changes
     instruction: >
       Write a proposal with Why (1-2 sentences on problem/opportunity), What Changes
@@ -30,6 +31,7 @@ artifacts:
 
   - id: specs
     generates: specs/**/*.md
+    template: spec.md
     description: Delta specifications for affected capabilities
     instruction: >
       Create spec delta files under specs/<capability>/spec.md using ADDED/MODIFIED/REMOVED
@@ -49,6 +51,7 @@ artifacts:
 
   - id: tasks
     generates: tasks.md
+    template: tasks.md
     description: Ordered implementation checklist with dependencies and file scopes
     instruction: >
       Create single-commit-sized, atomic, testable tasks. Each task declares explicit

@@ -25,6 +25,14 @@ Iteratively refine an OpenSpec proposal after `/plan-feature` creates it. Each i
 - Run `/plan-feature` first if no proposal exists
 - Proposal has NOT yet been approved (this skill refines before approval)
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Determine Change ID and Configuration
@@ -64,6 +72,20 @@ openspec validate $CHANGE_ID --strict
 ```
 
 Record any validation failures. These become automatic critical-level findings in the first iteration.
+
+### 3.5. Prepare Findings Artifact
+
+Preferred path:
+- Use the runtime-native continue/findings workflow (`opsx:continue` equivalent) to create or extend `plan-findings`.
+
+CLI fallback path:
+
+```bash
+openspec instructions plan-findings --change "$CHANGE_ID"
+openspec status --change "$CHANGE_ID"
+```
+
+Ensure `openspec/changes/<change-id>/plan-findings.md` exists and append each iteration's findings there.
 
 ### 4. Begin Iteration Loop
 

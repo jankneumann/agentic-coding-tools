@@ -29,7 +29,7 @@
 
 ### Constraints
 
-<!-- Project constraints from openspec/project.md that apply to this feature -->
+<!-- Project constraints from openspec/config.yaml context/rules that apply to this feature -->
 
 ### Integration Points
 

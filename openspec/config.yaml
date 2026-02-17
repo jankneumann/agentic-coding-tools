@@ -5,14 +5,20 @@ context: |
   Primary components: Agent Coordinator (multi-agent MCP server), OpenSpec (spec-driven workflow).
   Tech stack: Python 3.11+, FastMCP, FastAPI, Supabase (PostgreSQL), Docker.
   Architecture: Layered (Execution -> Coordination -> Trust -> Governance).
+  Coordination primitives: file locks, memory (episodic/working/procedural), work queue.
   Testing: pytest (unit/integration), mypy (types), ruff (linting), Playwright (E2E).
+  Verification tiers: Static (0), Unit (1), Integration (2), System (3), Manual (4).
   Agent types: Local (Claude Code CLI, Codex, Aider) via MCP stdio; Cloud via HTTP API.
+  Key constraints: lock TTL enforcement, 1-hour memory dedup window, atomic task claiming, no MCP for cloud agents.
+  External dependencies: Supabase, GitHub Actions, E2B sandbox, local NTM execution.
   Git workflow: Feature branches as openspec/<change-id>, squash merge to main.
+  OpenSpec command precedence: agent-native generated assets first (.claude/.codex/.gemini), direct openspec CLI fallback second.
   Parallelization: Task() agents with file-scope isolation; no git worktrees needed.
   Environment: uv for Python dependency management across all subprojects.
 
 rules:
   exploration:
+    - Prefer runtime-native OpenSpec generated commands/skills; fallback to direct openspec CLI when unavailable
     - Gather context from existing specs (openspec list --specs), active changes (openspec list), and codebase search
     - Check architecture artifacts (docs/architecture-analysis/architecture.summary.json) for cross-layer flows and impact
     - Identify related active proposals that might conflict
@@ -41,40 +47,41 @@ rules:
     - Include sequence diagrams for cross-layer flows
 
   tasks:
-    - Each task must be single-commit sized, atomic, and independently testable
-    - Every task must declare explicit file scope (Files: list) for parallel execution safety
-    - Tasks with overlapping file scope must have explicit Dependencies annotations
-    - Group tasks to maximize parallel execution width
-    - Every task must trace to at least one requirement; every requirement to at least one task
+    - "Each task must be single-commit sized, atomic, and independently testable"
+    - "Every task must declare explicit file scope (Files: list) for parallel execution safety"
+    - "Tasks with overlapping file scope must have explicit Dependencies annotations"
+    - "Group tasks to maximize parallel execution width"
+    - "Every task must trace to at least one requirement; every requirement to at least one task"
 
   plan-findings:
-    - Use tabular format with columns: #, Type, Criticality, Description, Resolution
-    - Finding types: completeness, clarity, feasibility, scope, consistency, testability, parallelizability
-    - Criticality levels: critical > high > medium > low
-    - Each iteration appends a new section with timestamp
-    - Include parallelizability assessment (independent tasks, sequential chains, max parallel width)
+    - "Use tabular format with columns: #, Type, Criticality, Description, Resolution"
+    - "Finding types: completeness, clarity, feasibility, scope, consistency, testability, parallelizability"
+    - "Criticality levels: critical > high > medium > low"
+    - "Each iteration appends a new section with timestamp"
+    - "Include parallelizability assessment (independent tasks, sequential chains, max parallel width)"
 
   impl-findings:
-    - Use tabular format with columns: #, Type, Criticality, Description, Resolution
-    - Finding types: bug, edge-case, workflow, performance, UX
-    - Criticality levels: critical > high > medium > low
-    - Each iteration appends a new section with timestamp
-    - Flag out-of-scope findings for follow-up proposals
+    - "Use tabular format with columns: #, Type, Criticality, Description, Resolution"
+    - "Finding types: bug, edge-case, workflow, performance, UX"
+    - "Criticality levels: critical > high > medium > low"
+    - "Each iteration appends a new section with timestamp"
+    - "Flag out-of-scope findings for follow-up proposals"
 
   architecture-impact:
-    - Run make architecture-diff BASE_SHA=<merge-base> to compare structural changes against main
-    - Run make architecture-validate scoped to changed files for flow validation
-    - Report new/broken cross-layer flows, new cycles, and new high-impact nodes
-    - Identify affected parallel zones and whether previously independent zones merged
-    - If docs/architecture-analysis/ artifacts are stale (older than implementation commits), run make architecture first
-    - Include clear recommendation: safe to merge, needs investigation, or blocking issues
+    - "Run make architecture-diff BASE_SHA=<merge-base> to compare structural changes against main"
+    - "Run make architecture-validate scoped to changed files for flow validation"
+    - "Report new/broken cross-layer flows, new cycles, and new high-impact nodes"
+    - "Identify affected parallel zones and whether previously independent zones merged"
+    - "If docs/architecture-analysis/ artifacts are stale (older than implementation commits), run make architecture first"
+    - "Include clear recommendation: safe to merge, needs investigation, or blocking issues"
 
   validation-report:
-    - Cover all phases: Deploy, Smoke, E2E, Architecture, Spec Compliance, Logs, CI/CD
-    - Use symbols: pass, fail, warn, skip for phase results
-    - Include commit SHA, branch name, and timestamp
-    - Record per-scenario pass/fail for spec compliance phase
-    - Include overall PASS/FAIL determination with next-step guidance
+    - "Prefer runtime-native OpenSpec verify/report guidance; fallback to openspec instructions validation-report --change <id>"
+    - "Cover all phases: Deploy, Smoke, E2E, Architecture, Spec Compliance, Logs, CI/CD"
+    - "Use symbols: pass, fail, warn, skip for phase results"
+    - "Include commit SHA, branch name, and timestamp"
+    - "Record per-scenario pass/fail for spec compliance phase"
+    - "Include overall PASS/FAIL determination with next-step guidance"
 
   deferred-tasks:
     - Reference original change-id and task number for traceability

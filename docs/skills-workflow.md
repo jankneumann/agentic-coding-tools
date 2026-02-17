@@ -15,11 +15,87 @@ The workflow breaks feature development into discrete stages, each handled by a 
 /cleanup-feature <change-id>                       Done
 ```
 
+Optional discovery stage before planning:
+
+```
+/explore-feature [focus-area]                      Candidate feature shortlist
+```
+
+## Step Dependencies
+
+| Step | Depends On | Unblocks |
+|---|---|---|
+| `/explore-feature` (optional) | Specs + active changes + architecture artifacts | Better-scoped `/plan-feature` inputs |
+| `/plan-feature` | Discovery/context | Proposal approval |
+| `/iterate-on-plan` (optional) | Existing proposal | Higher-quality approved proposal |
+| `/implement-feature` | Approved proposal/spec/tasks | PR review |
+| `/iterate-on-implementation` (optional) | Implementation branch | Higher-confidence PR |
+| `/validate-feature` (optional) | Implemented branch | Cleanup decision |
+| `/cleanup-feature` | Approved PR (+ optional validation) | Archived change + synced specs |
+
+## Artifact Flow By Step
+
+| Step | Consumes | Produces/Updates |
+|---|---|---|
+| `/explore-feature` | `openspec list`, `openspec list --specs`, `docs/architecture-analysis/*`, `docs/feature-discovery/history.json` (if present) | Ranked candidate list, recommended `/plan-feature` target, `docs/feature-discovery/opportunities.json`, updated `docs/feature-discovery/history.json` |
+| `/plan-feature` | Existing specs/changes, architecture context, runtime-native OpenSpec assets or CLI fallback | `openspec/changes/<id>/proposal.md`, `openspec/changes/<id>/specs/**/spec.md`, `openspec/changes/<id>/tasks.md`, optional `openspec/changes/<id>/design.md` |
+| `/iterate-on-plan` | Proposal/design/tasks/spec deltas | Updated planning artifacts + `openspec/changes/<id>/plan-findings.md` |
+| `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, feature branch/PR |
+| `/iterate-on-implementation` | Implementation branch + OpenSpec artifacts | Fix commits + `openspec/changes/<id>/impl-findings.md` (+ spec/proposal/design corrections if drift found) |
+| `/validate-feature` | Running system + spec scenarios + changed files | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md` |
+| `/cleanup-feature` | PR state + `tasks.md` completion | Archived change (`openspec/changes/archive/...`), updated `openspec/specs/`, optional `openspec/changes/<id>/deferred-tasks.md` prior to archive |
+
+## OpenSpec 1.0 Integration
+
+High-level workflow skills stay stable, but their internals follow this precedence:
+
+1. Agent-native OpenSpec assets for the active runtime
+2. Direct `openspec` CLI fallback
+
+Runtime asset locations:
+- Claude: `.claude/commands/opsx/*.md`, `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml`, `.gemini/skills/openspec-*/SKILL.md`
+
+Cross-agent mapping parity:
+
+| Intent | Claude | Codex | Gemini |
+|---|---|---|---|
+| Plan (new/ff) | `new`, `ff` | `openspec-new-change`, `openspec-ff-change` | `new`, `ff` |
+| Continue/findings | `continue` | `openspec-continue-change` | `continue` |
+| Apply | `apply` | `openspec-apply-change` | `apply` |
+| Verify | `verify` | `openspec-verify-change` | `verify` |
+| Archive | `archive` | `openspec-archive-change` | `archive` |
+| Sync | `sync` | `openspec-sync-specs` (alias of sync intent) | `sync` |
+
+CLI fallback commands:
+- `openspec new change`
+- `openspec status --change <id>`
+- `openspec instructions <artifact|apply> --change <id>`
+- `openspec archive <id> --yes`
+
 ## Core Skills
+
+### `/explore-feature`
+
+Identifies what to build next using architecture diagnostics, active OpenSpec state, and codebase risk/opportunity signals (for example refactoring candidates, usability improvements, performance/cost opportunities).
+
+**Method**:
+- Scores opportunities with a weighted model (`impact`, `strategic-fit`, `effort`, `risk`) for reproducible ranking
+- Buckets results into `quick-win` and `big-bet`
+- Captures explicit `blocked-by` dependencies per candidate
+- Uses recommendation history to avoid repeatedly surfacing unchanged deferred work
+
+**Produces**:
+- Ranked feature shortlist and one concrete recommendation to start with `/plan-feature`
+- `docs/feature-discovery/opportunities.json` (machine-readable current ranking)
+- `docs/feature-discovery/history.json` (recommendation history for future prioritization)
+
+**Gate**: None (discovery/support step).
 
 ### `/plan-feature`
 
-Creates an [OpenSpec](https://github.com/fission-ai/openspec) proposal for a new feature. The skill gathers context from existing specs and code using parallel exploration agents, then scaffolds a complete proposal with requirements, tasks, and spec deltas.
+Creates an [OpenSpec](https://github.com/fission-ai/openspec) proposal for a new feature. The skill gathers context from existing specs and code using parallel exploration agents, then scaffolds a complete proposal with requirements, tasks, and spec deltas using runtime-native OpenSpec assets first and CLI fallback second.
 
 **Produces**: `openspec/changes/<change-id>/` containing `proposal.md`, `tasks.md`, `design.md`, and spec deltas in `specs/`
 
@@ -35,7 +111,7 @@ Refines an OpenSpec proposal through structured iteration. Each iteration review
 
 ### `/implement-feature`
 
-Implements an approved proposal. Creates an isolated git worktree, works through tasks sequentially or in parallel (for independent tasks with no file overlap), runs quality checks (pytest, mypy, ruff, openspec validate), and creates a PR.
+Implements an approved proposal. Works through tasks sequentially or in parallel (for independent tasks with no file overlap), runs quality checks (pytest, mypy, ruff, openspec validate), and creates a PR. Uses runtime-native apply guidance first and `openspec instructions apply` as fallback.
 
 **Produces**: Feature branch `openspec/<change-id>`, passing tests, and a PR ready for review.
 
@@ -59,7 +135,7 @@ Deploys the feature locally with DEBUG logging and runs five validation phases:
 4. **Spec Compliance** — Verifies each OpenSpec scenario against the live system
 5. **Log Analysis** — Scans logs for warnings, errors, stack traces, and deprecation notices
 
-Also checks CI/CD status via GitHub CLI. Produces a structured validation report, persists it to the change directory, and posts it as a PR comment.
+Also checks CI/CD status via GitHub CLI. Produces a structured validation report and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
 
 **Produces**: `openspec/changes/<change-id>/validation-report.md` and a PR comment.
 
@@ -67,7 +143,7 @@ Also checks CI/CD status via GitHub CLI. Produces a structured validation report
 
 ### `/cleanup-feature`
 
-Merges the approved PR, migrates any open tasks (to Beads issues or a follow-up OpenSpec proposal), archives the proposal, removes the worktree, and cleans up branches.
+Merges the approved PR, migrates any open tasks (to Beads issues or a follow-up OpenSpec proposal), archives the proposal via runtime-native archive guidance or CLI fallback, and cleans up branches.
 
 **Produces**: Merged PR, archived proposal in `openspec/changes/archive/<change-id>/`, updated specs in `openspec/specs/`.
 
@@ -112,6 +188,10 @@ Task decomposition in proposals explicitly identifies dependencies and maximizes
 ### All planning flows through OpenSpec
 
 Every non-trivial feature starts with an [OpenSpec](https://github.com/fission-ai/openspec) proposal. This creates a traceable record of decisions and requirements. Spec deltas ensure specifications stay updated as features are built.
+
+### Cross-agent parity is explicit
+
+Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to plan/apply/validate/archive intent. If one runtime drifts, docs and skill mappings should be corrected before rollout.
 
 ## Formal Specification
 

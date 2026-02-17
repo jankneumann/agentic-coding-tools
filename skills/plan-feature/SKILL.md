@@ -19,6 +19,14 @@ Create an OpenSpec proposal for a new feature. Ends when proposal is approved.
 
 `$ARGUMENTS` - Feature description (e.g., "add user authentication")
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Verify Clean State
@@ -58,20 +66,43 @@ Task(subagent_type="Explore", prompt="Read docs/architecture-analysis/architectu
 
 Understand the current state before proposing changes.
 
+Before creating artifacts, ensure architecture artifacts are current:
+
+```bash
+# If architecture artifacts are missing or stale relative to main, refresh them
+if [ ! -f docs/architecture-analysis/architecture.summary.json ] || \
+   [ "$(git log -1 --format=%ct main)" -gt "$(stat -f %m docs/architecture-analysis/architecture.summary.json 2>/dev/null || echo 0)" ]; then
+  make architecture
+fi
+```
+
 ### 3. Create OpenSpec Proposal
 
-```
-/openspec-proposal $ARGUMENTS
+Preferred path:
+- Use the runtime-native fast-forward/new workflow (`opsx:ff`/`opsx:new` equivalent for the active agent) to scaffold and create planning artifacts.
+
+CLI fallback path:
+
+```bash
+# 1) Create change scaffold
+openspec new change "<change-id>"
+
+# 2) Inspect artifact readiness
+openspec status --change "<change-id>"
+
+# 3) Generate artifacts in dependency order
+openspec instructions proposal --change "<change-id>"
+openspec instructions specs --change "<change-id>"
+openspec instructions tasks --change "<change-id>"
+# Optional when complexity warrants it
+openspec instructions design --change "<change-id>"
 ```
 
-This will:
-- Choose a unique verb-led change-id
-- Scaffold `openspec/changes/<id>/`:
-  - `proposal.md` - Feature description and objectives
-  - `tasks.md` - Ordered, verifiable work items
-  - `design.md` - Architectural reasoning (if needed)
-- Draft spec deltas in `changes/<id>/specs/<capability>/spec.md`
-- Each requirement includes `#### Scenario:` blocks
+Expected artifacts:
+- `openspec/changes/<change-id>/proposal.md`
+- `openspec/changes/<change-id>/tasks.md`
+- `openspec/changes/<change-id>/specs/<capability>/spec.md`
+- Optional `openspec/changes/<change-id>/design.md`
 
 ### 4. Validate Proposal
 

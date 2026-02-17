@@ -24,6 +24,14 @@ Iteratively refine a feature implementation after `/implement-feature` completes
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
+## OpenSpec Execution Preference
+
+Use OpenSpec-generated runtime assets first, then CLI fallback:
+- Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
+- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
+- Fallback: direct `openspec` CLI commands
+
 ## Steps
 
 ### 1. Determine Change ID and Configuration
@@ -69,6 +77,20 @@ git log --oneline main..HEAD
 ```
 
 If not on the feature branch, check out `openspec/<change-id>`. If no implementation commits exist, abort and recommend running `/implement-feature` first.
+
+### 2.5. Prepare Findings Artifact
+
+Preferred path:
+- Use the runtime-native continue/findings workflow (`opsx:continue` equivalent) to create or extend `impl-findings`.
+
+CLI fallback path:
+
+```bash
+openspec instructions impl-findings --change "$CHANGE_ID"
+openspec status --change "$CHANGE_ID"
+```
+
+Ensure `openspec/changes/<change-id>/impl-findings.md` exists and append each iteration's findings there.
 
 ### 3. Begin Iteration Loop
 
