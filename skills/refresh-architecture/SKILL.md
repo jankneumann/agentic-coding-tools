@@ -1,6 +1,6 @@
 ---
 name: refresh-architecture
-description: Refresh architecture analysis artifacts (.architecture/) from the codebase
+description: Refresh architecture analysis artifacts (docs/architecture-analysis/) from the codebase
 category: Architecture
 tags: [architecture, analysis, graph, validation, views]
 triggers:
@@ -13,7 +13,7 @@ triggers:
 
 # Refresh Architecture
 
-Regenerate, validate, or inspect the `.architecture/` artifacts that describe the codebase structure. These artifacts power planning, parallel-zone identification, and cross-layer flow tracing.
+Regenerate, validate, or inspect the `docs/architecture-analysis/` artifacts that describe the codebase structure. These artifacts power planning, parallel-zone identification, and cross-layer flow tracing.
 
 ## Arguments
 
@@ -130,7 +130,7 @@ Compares the current architecture graph to a baseline from the given commit SHA.
 make architecture-feature FEATURE="<comma-separated files or glob>"
 ```
 
-Extracts a subgraph containing only the nodes and edges relevant to the specified files. Produces a Mermaid diagram and JSON in `.architecture/views/`.
+Extracts a subgraph containing only the nodes and edges relevant to the specified files. Produces a Mermaid diagram and JSON in `docs/architecture-analysis/views/`.
 
 **When to use:** To understand the blast radius of changing specific files, or to visualize a feature's dependency footprint.
 
@@ -164,10 +164,10 @@ After running, report to the user:
 
 ### 4. Commit Artifacts (if requested)
 
-If the user asks to commit, stage the `.architecture/` directory:
+If the user asks to commit, stage the `docs/architecture-analysis/` directory:
 
 ```bash
-git add .architecture/
+git add docs/architecture-analysis/
 ```
 
 Architecture artifacts are designed to be committed to the repo so agents can consult them during planning.
@@ -176,14 +176,14 @@ Architecture artifacts are designed to be committed to the repo so agents can co
 
 | File | Purpose |
 |------|---------|
-| `.architecture/architecture.graph.json` | Canonical graph (nodes, edges, entrypoints) |
-| `.architecture/architecture.summary.json` | Compact summary with stats and flows |
-| `.architecture/architecture.diagnostics.json` | Validation findings |
-| `.architecture/parallel_zones.json` | Independent module groups for safe parallel work |
-| `.architecture/cross_layer_flows.json` | Frontend-to-database flow traces |
-| `.architecture/high_impact_nodes.json` | Nodes with many transitive dependents |
-| `.architecture/architecture.report.md` | Human-readable Markdown report |
-| `.architecture/views/*.mmd` | Mermaid diagrams at multiple zoom levels |
+| `docs/architecture-analysis/architecture.graph.json` | Canonical graph (nodes, edges, entrypoints) |
+| `docs/architecture-analysis/architecture.summary.json` | Compact summary with stats and flows |
+| `docs/architecture-analysis/architecture.diagnostics.json` | Validation findings |
+| `docs/architecture-analysis/parallel_zones.json` | Independent module groups for safe parallel work |
+| `docs/architecture-analysis/cross_layer_flows.json` | Frontend-to-database flow traces |
+| `docs/architecture-analysis/high_impact_nodes.json` | Nodes with many transitive dependents |
+| `docs/architecture-analysis/architecture.report.md` | Human-readable Markdown report |
+| `docs/architecture-analysis/views/*.mmd` | Mermaid diagrams at multiple zoom levels |
 
 ## Integration with Workflow
 

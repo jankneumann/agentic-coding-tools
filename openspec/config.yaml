@@ -14,10 +14,10 @@ context: |
 rules:
   exploration:
     - Gather context from existing specs (openspec list --specs), active changes (openspec list), and codebase search
-    - Check architecture artifacts (.architecture/architecture.summary.json) for cross-layer flows and impact
+    - Check architecture artifacts (docs/architecture-analysis/architecture.summary.json) for cross-layer flows and impact
     - Identify related active proposals that might conflict
     - Produce structured context synthesis, not free-form notes
-    - Include parallel modification zones from .architecture/parallel_zones.json
+    - Include parallel modification zones from docs/architecture-analysis/parallel_zones.json
 
   proposal:
     - Include rollback plan for breaking changes (marked with **BREAKING**)
@@ -66,7 +66,7 @@ rules:
     - Run make architecture-validate scoped to changed files for flow validation
     - Report new/broken cross-layer flows, new cycles, and new high-impact nodes
     - Identify affected parallel zones and whether previously independent zones merged
-    - If .architecture/ artifacts are stale (older than implementation commits), run make architecture first
+    - If docs/architecture-analysis/ artifacts are stale (older than implementation commits), run make architecture first
     - Include clear recommendation: safe to merge, needs investigation, or blocking issues
 
   validation-report:

@@ -240,18 +240,18 @@ Run architecture flow validation against the changed files:
 # Get changed files relative to main
 CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
 
-if [ -f "scripts/validate_flows.py" ] && [ -f ".architecture/architecture.graph.json" ]; then
+if [ -f "scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture validation on changed files..."
   python scripts/validate_flows.py \
-    --graph .architecture/architecture.graph.json \
-    --output .architecture/architecture.diagnostics.json \
+    --graph docs/architecture-analysis/architecture.graph.json \
+    --output docs/architecture-analysis/architecture.diagnostics.json \
     --files "$CHANGED_FILES" 2>&1
   ARCH_EXIT=$?
 
   if [ $ARCH_EXIT -eq 0 ]; then
     ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python -c "import json; d=json.load(open('.architecture/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python -c "import json; d=json.load(open('.architecture/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    ARCH_ERRORS=$(python -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
       ARCH_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then

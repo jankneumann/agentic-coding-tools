@@ -193,7 +193,7 @@ Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary"
 Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
 Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
 Task(subagent_type="Bash", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run 'python scripts/validate_flows.py --diff main...HEAD' from the project root and report any architecture diagnostics (broken flows, missing tests, orphaned code). If the script is not available or .architecture/architecture.graph.json doesn't exist, report that architecture validation was skipped.", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run 'python scripts/validate_flows.py --diff main...HEAD' from the project root and report any architecture diagnostics (broken flows, missing tests, orphaned code). If the script is not available or docs/architecture-analysis/architecture.graph.json doesn't exist, report that architecture validation was skipped.", run_in_background=true)
 ```
 
 **Result Aggregation:**

@@ -18,8 +18,8 @@
 
 ### Architecture Context
 
-<!-- Read .architecture/architecture.summary.json for cross-layer flows, components, and services.
-     Read .architecture/parallel_zones.json for safe parallel modification zones. -->
+<!-- Read docs/architecture-analysis/architecture.summary.json for cross-layer flows, components, and services.
+     Read docs/architecture-analysis/parallel_zones.json for safe parallel modification zones. -->
 
 ### Codebase Patterns
 

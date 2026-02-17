@@ -107,7 +107,7 @@ Templates enforce our conventions:
 
 ### Decision 6: Architecture Refresh as Workflow Sidecar, Impact as Per-Change Artifact
 
-The `/refresh-architecture` skill produces project-global artifacts (`.architecture/`) that don't belong to any single change. It stays standalone. However, the *impact analysis* of a specific change on the architecture IS per-change data and belongs in the schema as `architecture-impact`.
+The `/refresh-architecture` skill produces project-global artifacts (`docs/architecture-analysis/`) that don't belong to any single change. It stays standalone. However, the *impact analysis* of a specific change on the architecture IS per-change data and belongs in the schema as `architecture-impact`.
 
 **Integration touchpoints:**
 
@@ -119,7 +119,7 @@ The `/refresh-architecture` skill produces project-global artifacts (`.architect
 
 **Why separate from validation-report:** The architecture impact analysis has its own template, findings format, and audience (architects reviewing structural consequences). Embedding it in the validation report would conflate deployment health with structural health.
 
-**Alternative considered**: Making `.architecture/` artifacts per-change (generated into `openspec/changes/<id>/`). Rejected because architecture artifacts are expensive to generate, are most useful as a shared baseline, and would create massive duplication across changes.
+**Alternative considered**: Making `docs/architecture-analysis/` artifacts per-change (generated into `openspec/changes/<id>/`). Rejected because architecture artifacts are expensive to generate, are most useful as a shared baseline, and would create massive duplication across changes.
 
 ## Risks / Trade-offs
 

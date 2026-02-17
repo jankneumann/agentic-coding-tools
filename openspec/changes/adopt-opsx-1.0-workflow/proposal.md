@@ -21,9 +21,9 @@ OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined
 
 ### Architecture Integration
 - **`/refresh-architecture`** remains a standalone skill (project-global, not per-change) but is called at specific workflow touchpoints:
-  - **Before `/plan-feature`** (exploration phase): Ensure `.architecture/` is current so `opsx:explore` has accurate cross-layer flow and parallel zone data
+  - **Before `/plan-feature`** (exploration phase): Ensure `docs/architecture-analysis/` is current so `opsx:explore` has accurate cross-layer flow and parallel zone data
   - **During `/validate-feature`**: Run `make architecture-diff` and `make architecture-validate` scoped to changed files, producing the per-change `architecture-impact` artifact
-  - **After `/cleanup-feature`** (post-merge): Refresh `.architecture/` on main so it reflects the merged change for future planning
+  - **After `/cleanup-feature`** (post-merge): Refresh `docs/architecture-analysis/` on main so it reflects the merged change for future planning
 - Add `architecture-impact` as a per-change OPSX artifact in the schema (depends on `tasks`, produced alongside `validation-report`)
 
 ### Skills Layer — Retirement

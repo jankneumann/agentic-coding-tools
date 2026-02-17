@@ -209,20 +209,20 @@ The system SHALL auto-generate visual diagrams from the canonical graph at multi
 - The system SHALL generate a frontend component view showing modules with import edges
 - The system SHALL generate a database ERD showing tables with FK relationships
 - The system SHALL support feature slice views: given a file list or path pattern, extract the relevant subgraph and emit as both JSON and Mermaid
-- All views SHALL be written to `.architecture/views/`
+- All views SHALL be written to `docs/architecture-analysis/views/`
 
 #### Scenario: Generate container view
 - **WHEN** the view generator is run on a canonical graph containing frontend, backend, and database nodes
-- **THEN** `.architecture/views/containers.mmd` SHALL contain a Mermaid diagram with boxes for each container and arrows for cross-container edges
+- **THEN** `docs/architecture-analysis/views/containers.mmd` SHALL contain a Mermaid diagram with boxes for each container and arrows for cross-container edges
 
 #### Scenario: Generate feature slice view
 - **WHEN** the view generator is given a file list from a PR (e.g., `backend/api/users.py`, `src/components/UserProfile.tsx`)
 - **THEN** it SHALL extract only the nodes and edges touched by those files
-- **AND** emit both `.architecture/views/feature_users.json` (subgraph) and `.architecture/views/feature_users.mmd` (Mermaid diagram)
+- **AND** emit both `docs/architecture-analysis/views/feature_users.json` (subgraph) and `docs/architecture-analysis/views/feature_users.mmd` (Mermaid diagram)
 
 #### Scenario: Generate DB ERD
 - **WHEN** the canonical graph contains table nodes with FK edges
-- **THEN** `.architecture/views/db_erd.mmd` SHALL contain a Mermaid entity-relationship diagram showing tables and their relationships
+- **THEN** `docs/architecture-analysis/views/db_erd.mmd` SHALL contain a Mermaid entity-relationship diagram showing tables and their relationships
 
 ### Requirement: Parallel Modification Zone Analysis
 
@@ -264,7 +264,7 @@ The system SHALL provide CI-friendly commands for artifact generation, baseline 
 #### Scenario: Full generation
 - **WHEN** `make architecture` is run with no arguments
 - **THEN** all analyzers, insight modules, and report aggregator SHALL execute in layer order
-- **AND** `.architecture/` SHALL contain `architecture.graph.json`, `architecture.summary.json`, `architecture.diagnostics.json`, `architecture.report.md`, and `views/` directory
+- **AND** `docs/architecture-analysis/` SHALL contain `architecture.graph.json`, `architecture.summary.json`, `architecture.diagnostics.json`, `architecture.report.md`, and `views/` directory
 
 #### Scenario: Baseline diff detects new cycle
 - **WHEN** `make architecture-diff BASE_SHA=abc123` is run and the current graph contains a dependency cycle that did not exist at the baseline
@@ -280,25 +280,25 @@ The system SHALL provide CI-friendly commands for artifact generation, baseline 
 
 The system SHALL commit architecture artifacts to the repository to track structural evolution and provide consistent context across environments.
 
-- The `.architecture/` directory SHALL be committed to the repository (not gitignored)
+- The `docs/architecture-analysis/` directory SHALL be committed to the repository (not gitignored)
 - Committed artifacts SHALL include: `architecture.graph.json`, `architecture.summary.json`, `architecture.diagnostics.json`, `parallel_zones.json`, and `views/` directory
 - Per-language intermediate outputs (`python_analysis.json`, `ts_analysis.json`, `postgres_analysis.json`) MAY be committed or generated as CI artifacts
-- The `.architecture/README.md` SHALL explain artifact purpose, refresh workflow, and how agents should use the artifacts
-- CLAUDE.md SHALL reference `.architecture/` artifacts with instructions for agents to consult them before planning or implementing
+- The `docs/architecture-analysis/README.md` SHALL explain artifact purpose, refresh workflow, and how agents should use the artifacts
+- CLAUDE.md SHALL reference `docs/architecture-analysis/` artifacts with instructions for agents to consult them before planning or implementing
 
 #### Scenario: Consistent context across clones
 - **WHEN** a developer clones the repository without analysis tool dependencies installed
-- **THEN** `.architecture/architecture.summary.json` SHALL be available for reading without running any scripts
+- **THEN** `docs/architecture-analysis/architecture.summary.json` SHALL be available for reading without running any scripts
 
 #### Scenario: Track structural evolution
 - **WHEN** architecture artifacts are regenerated after a refactoring
-- **THEN** `git diff .architecture/` SHALL show how the architectural structure changed (new nodes, removed edges, changed flows)
+- **THEN** `git diff docs/architecture-analysis/` SHALL show how the architectural structure changed (new nodes, removed edges, changed flows)
 
 ### Requirement: Skill Workflow Integration
 
 The system SHALL integrate architecture artifacts into the `plan-feature`, `implement-feature`, and `validate-feature` skill workflows.
 
-- The `plan-feature` skill SHALL consult `.architecture/architecture.summary.json` and cross-layer flows as planning context before generating a proposal
+- The `plan-feature` skill SHALL consult `docs/architecture-analysis/architecture.summary.json` and cross-layer flows as planning context before generating a proposal
 - The `implement-feature` skill SHALL run the flow validator after implementation and before PR creation, including diagnostics in the PR description
 - The `validate-feature` skill SHALL include architecture diagnostics in its validation report alongside existing checks
 - Skill documentation SHALL recommend running `make architecture` as a pre-step when artifacts are stale
@@ -357,7 +357,7 @@ Each Layer 2 insight module SHALL follow a consistent interface:
 - Each module SHALL exit with code 0 on success and non-zero on failure, writing errors to stderr
 
 #### Scenario: Run a single insight module in isolation
-- **WHEN** `scripts/insights/flow_tracer.py --input-dir .architecture --output .architecture/cross_layer_flows.json` is executed
+- **WHEN** `scripts/insights/flow_tracer.py --input-dir docs/architecture-analysis --output docs/architecture-analysis/cross_layer_flows.json` is executed
 - **THEN** it SHALL read `architecture.graph.json` from the input directory
 - **AND** produce `cross_layer_flows.json` as output
 - **AND** succeed without requiring any other insight modules to have run

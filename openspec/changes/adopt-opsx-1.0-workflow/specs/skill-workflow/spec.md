@@ -66,7 +66,7 @@ The system SHALL register the validation report as an OPSX artifact in the `feat
 
 ### Requirement: Architecture Impact as Per-Change Artifact
 
-The system SHALL produce an `architecture-impact` artifact during `/validate-feature` that captures the structural consequences of a change on the project architecture. The `/refresh-architecture` skill SHALL remain standalone for project-global regeneration but SHALL be called at specific workflow touchpoints to keep `.architecture/` artifacts current.
+The system SHALL produce an `architecture-impact` artifact during `/validate-feature` that captures the structural consequences of a change on the project architecture. The `/refresh-architecture` skill SHALL remain standalone for project-global regeneration but SHALL be called at specific workflow touchpoints to keep `docs/architecture-analysis/` artifacts current.
 
 #### Scenario: Validate feature produces architecture impact artifact
 - **WHEN** user invokes `/validate-feature <change-id>`
@@ -77,7 +77,7 @@ The system SHALL produce an `architecture-impact` artifact during `/validate-fea
 
 #### Scenario: Plan feature ensures architecture artifacts are current
 - **WHEN** user invokes `/plan-feature <description>`
-- **AND** `.architecture/` artifacts are older than the latest commit on main
+- **AND** `docs/architecture-analysis/` artifacts are older than the latest commit on main
 - **THEN** the skill runs `make architecture` before proceeding to `opsx:explore`
 - **AND** the exploration artifact references current architecture data
 
@@ -85,13 +85,13 @@ The system SHALL produce an `architecture-impact` artifact during `/validate-fea
 - **WHEN** user invokes `/cleanup-feature <change-id>`
 - **AND** the PR is merged to main
 - **THEN** the skill runs `make architecture` on main after the merge
-- **AND** the refreshed `.architecture/` artifacts reflect the merged change
+- **AND** the refreshed `docs/architecture-analysis/` artifacts reflect the merged change
 
 #### Scenario: Architecture refresh remains independent
 - **WHEN** user invokes `/refresh-architecture` directly (not via another skill)
 - **THEN** the full 3-layer pipeline runs against the current codebase
 - **AND** no per-change OPSX artifacts are created
-- **AND** `.architecture/` artifacts are updated in place
+- **AND** `docs/architecture-analysis/` artifacts are updated in place
 
 ### Requirement: Feature Cleanup via OPSX Sync and Archive
 

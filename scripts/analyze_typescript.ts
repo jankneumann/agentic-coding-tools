@@ -11,7 +11,7 @@
  * Usage:
  *   npx ts-node scripts/analyze_typescript.ts <directory> \
  *     [--tsconfig tsconfig.json] \
- *     [--output .architecture/ts_analysis.json]
+ *     [--output docs/architecture-analysis/ts_analysis.json]
  */
 
 import * as path from "path";
@@ -142,7 +142,7 @@ function parseArgs(): CliArgs {
   const args = process.argv.slice(2);
   let directory: string | undefined;
   let tsconfig: string | undefined;
-  let output = ".architecture/ts_analysis.json";
+  let output = "docs/architecture-analysis/ts_analysis.json";
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -152,7 +152,7 @@ function parseArgs(): CliArgs {
       output = args[++i];
     } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: npx ts-node scripts/analyze_typescript.ts <directory> [--tsconfig tsconfig.json] [--output .architecture/ts_analysis.json]"
+        "Usage: npx ts-node scripts/analyze_typescript.ts <directory> [--tsconfig tsconfig.json] [--output docs/architecture-analysis/ts_analysis.json]"
       );
       process.exit(0);
     } else if (!directory && !arg.startsWith("--")) {
@@ -163,7 +163,7 @@ function parseArgs(): CliArgs {
   if (!directory) {
     console.error("Error: <directory> argument is required.");
     console.log(
-      "Usage: npx ts-node scripts/analyze_typescript.ts <directory> [--tsconfig tsconfig.json] [--output .architecture/ts_analysis.json]"
+      "Usage: npx ts-node scripts/analyze_typescript.ts <directory> [--tsconfig tsconfig.json] [--output docs/architecture-analysis/ts_analysis.json]"
     );
     process.exit(1);
   }

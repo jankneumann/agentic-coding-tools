@@ -51,7 +51,7 @@
   **Dependencies**: 2.1, 3.1
   **Files**: skills/plan-feature/SKILL.md
 
-- [ ] 4.8 Update `/cleanup-feature` to call `/refresh-architecture` after merge to keep .architecture/ current on main
+- [ ] 4.8 Update `/cleanup-feature` to call `/refresh-architecture` after merge to keep docs/architecture-analysis/ current on main
   **Dependencies**: 2.1, 3.1
   **Files**: skills/cleanup-feature/SKILL.md
 
