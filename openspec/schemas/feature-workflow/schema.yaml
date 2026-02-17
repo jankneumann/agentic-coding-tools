@@ -1,0 +1,41 @@
+name: feature-workflow
+artifacts:
+  # Pre-planning: optional exploration and context gathering
+  - id: exploration
+    generates: exploration.md
+    requires: []
+
+  # Core planning artifacts (compatible with spec-driven defaults)
+  - id: proposal
+    generates: proposal.md
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    requires: [proposal]
+
+  - id: design
+    generates: design.md
+    requires: [proposal]
+
+  - id: tasks
+    generates: tasks.md
+    requires: [specs]
+
+  # Iteration artifacts: produced during refinement loops
+  - id: plan-findings
+    generates: plan-findings.md
+    requires: [proposal, tasks]
+
+  - id: impl-findings
+    generates: impl-findings.md
+    requires: [tasks]
+
+  # Post-implementation artifacts
+  - id: validation-report
+    generates: validation-report.md
+    requires: [tasks]
+
+  - id: deferred-tasks
+    generates: deferred-tasks.md
+    requires: [tasks]
