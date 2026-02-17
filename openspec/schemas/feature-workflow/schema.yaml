@@ -1,0 +1,118 @@
+name: feature-workflow
+version: 1
+description: >
+  Full-lifecycle feature development workflow with exploration, structured iteration,
+  deployment validation, and deferred task tracking. Extends the default spec-driven
+  schema with artifacts for each stage of the plan-implement-validate-cleanup cycle.
+
+artifacts:
+  # Pre-planning: investigation and context gathering
+  - id: exploration
+    generates: exploration.md
+    template: exploration.md
+    description: Investigate the problem space, gather codebase context, identify constraints
+    instruction: >
+      Research the feature area by examining existing specs, active changes, architecture
+      artifacts, and related code. Produce a structured context synthesis — not free-form
+      notes. Include related specs, active changes, architecture context, integration points,
+      and a clear recommendation on whether to proceed to a proposal.
+    requires: []
+
+  # Core planning artifacts (compatible with spec-driven defaults)
+  - id: proposal
+    generates: proposal.md
+    description: Define why the change is needed and what it changes
+    instruction: >
+      Write a proposal with Why (1-2 sentences on problem/opportunity), What Changes
+      (bullet list, mark breaking changes with **BREAKING**), and Impact (affected specs
+      and code). Use a verb-led kebab-case change-id.
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Delta specifications for affected capabilities
+    instruction: >
+      Create spec delta files under specs/<capability>/spec.md using ADDED/MODIFIED/REMOVED
+      sections. Every requirement uses SHALL/MUST and has at least one #### Scenario: with
+      WHEN/THEN/AND clauses. One file per affected capability.
+    requires: [proposal]
+
+  - id: design
+    generates: design.md
+    template: design.md
+    description: Technical decisions, alternatives, risks, and migration plan
+    instruction: >
+      Only create if the change is cross-cutting, introduces new patterns, or has
+      security/performance/migration complexity. Include Context, Goals/Non-Goals,
+      Decisions with alternatives considered, Risks/Trade-offs, and Migration Plan.
+    requires: [proposal]
+
+  - id: tasks
+    generates: tasks.md
+    description: Ordered implementation checklist with dependencies and file scopes
+    instruction: >
+      Create single-commit-sized, atomic, testable tasks. Each task declares explicit
+      file scope (Files: list) for parallel execution safety. Tasks with overlapping
+      files have explicit Dependencies annotations. Group to maximize parallel width.
+      Every task traces to a requirement; every requirement to a task.
+    requires: [specs]
+
+  # Iteration artifacts: produced during refinement loops
+  - id: plan-findings
+    generates: plan-findings.md
+    template: plan-findings.md
+    description: Structured quality findings from plan iteration cycles
+    instruction: >
+      Append an iteration section with a findings table (columns: #, Type, Criticality,
+      Description, Resolution). Types: completeness, clarity, feasibility, scope,
+      consistency, testability, parallelizability. Include a parallelizability assessment
+      with independent task count, sequential chains, and max parallel width.
+    requires: [proposal, tasks]
+
+  - id: impl-findings
+    generates: impl-findings.md
+    template: impl-findings.md
+    description: Structured improvement findings from implementation iteration cycles
+    instruction: >
+      Append an iteration section with a findings table (columns: #, Type, Criticality,
+      Description, Resolution). Types: bug, edge-case, workflow, performance, UX.
+      Include quality check results (pytest, mypy, ruff, openspec validate) and note
+      any spec drift detected.
+    requires: [tasks]
+
+  # Post-implementation artifacts
+  - id: architecture-impact
+    generates: architecture-impact.md
+    template: architecture-impact.md
+    description: Architectural impact analysis comparing the change to the base branch
+    instruction: >
+      Run make architecture-diff BASE_SHA=<merge-base-sha> and make architecture-validate
+      against the changed files. Report new/broken cross-layer flows, affected parallel
+      zones, new high-impact nodes, new cycles, and untested routes. Include the output
+      of validate_flows.py scoped to changed files. This artifact captures the structural
+      consequences of the implementation on the project architecture.
+    requires: [tasks]
+
+  - id: validation-report
+    generates: validation-report.md
+    template: validation-report.md
+    description: Deployment validation results across all test phases
+    instruction: >
+      Run validation phases (Deploy, Smoke, E2E, Architecture, Spec Compliance, Logs,
+      CI/CD) and record per-phase pass/fail/warn/skip results. Include commit SHA,
+      branch, timestamp, per-scenario spec compliance, and overall PASS/FAIL determination.
+    requires: [tasks]
+
+  - id: deferred-tasks
+    generates: deferred-tasks.md
+    template: deferred-tasks.md
+    description: Open tasks migrated to follow-up proposals or issue trackers
+    instruction: >
+      List each unchecked task from tasks.md with its original context, file scope,
+      dependencies, migration target (Beads issue or follow-up proposal), and reason
+      for deferral. Preserve traceability to the original change-id.
+    requires: [tasks]
+
+apply:
+  requires: [proposal, specs, tasks]
+  tracks: tasks.md
