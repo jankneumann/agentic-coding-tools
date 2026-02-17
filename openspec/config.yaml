@@ -61,6 +61,14 @@ rules:
     - Each iteration appends a new section with timestamp
     - Flag out-of-scope findings for follow-up proposals
 
+  architecture-impact:
+    - Run make architecture-diff BASE_SHA=<merge-base> to compare structural changes against main
+    - Run make architecture-validate scoped to changed files for flow validation
+    - Report new/broken cross-layer flows, new cycles, and new high-impact nodes
+    - Identify affected parallel zones and whether previously independent zones merged
+    - If .architecture/ artifacts are stale (older than implementation commits), run make architecture first
+    - Include clear recommendation: safe to merge, needs investigation, or blocking issues
+
   validation-report:
     - Cover all phases: Deploy, Smoke, E2E, Architecture, Spec Compliance, Logs, CI/CD
     - Use symbols: pass, fail, warn, skip for phase results

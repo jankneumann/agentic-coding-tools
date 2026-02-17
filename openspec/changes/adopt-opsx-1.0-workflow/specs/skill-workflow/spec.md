@@ -64,6 +64,35 @@ The system SHALL register the validation report as an OPSX artifact in the `feat
 - **AND** OPSX tracks the artifact state as DONE
 - **AND** the report is posted as a PR comment if a PR exists
 
+### Requirement: Architecture Impact as Per-Change Artifact
+
+The system SHALL produce an `architecture-impact` artifact during `/validate-feature` that captures the structural consequences of a change on the project architecture. The `/refresh-architecture` skill SHALL remain standalone for project-global regeneration but SHALL be called at specific workflow touchpoints to keep `.architecture/` artifacts current.
+
+#### Scenario: Validate feature produces architecture impact artifact
+- **WHEN** user invokes `/validate-feature <change-id>`
+- **THEN** the skill runs `make architecture-diff BASE_SHA=<merge-base>` against the changed files
+- **AND** runs `make architecture-validate` scoped to changed files
+- **AND** writes `architecture-impact.md` as an OPSX artifact in the change directory
+- **AND** the artifact includes new/broken cross-layer flows, affected parallel zones, and validation findings
+
+#### Scenario: Plan feature ensures architecture artifacts are current
+- **WHEN** user invokes `/plan-feature <description>`
+- **AND** `.architecture/` artifacts are older than the latest commit on main
+- **THEN** the skill runs `make architecture` before proceeding to `opsx:explore`
+- **AND** the exploration artifact references current architecture data
+
+#### Scenario: Cleanup feature refreshes architecture after merge
+- **WHEN** user invokes `/cleanup-feature <change-id>`
+- **AND** the PR is merged to main
+- **THEN** the skill runs `make architecture` on main after the merge
+- **AND** the refreshed `.architecture/` artifacts reflect the merged change
+
+#### Scenario: Architecture refresh remains independent
+- **WHEN** user invokes `/refresh-architecture` directly (not via another skill)
+- **THEN** the full 3-layer pipeline runs against the current codebase
+- **AND** no per-change OPSX artifacts are created
+- **AND** `.architecture/` artifacts are updated in place
+
 ### Requirement: Feature Cleanup via OPSX Sync and Archive
 
 The system SHALL use `opsx:sync` for merging spec deltas and `opsx:archive` for completing changes. The `/cleanup-feature` skill SHALL produce a `deferred-tasks` artifact when open tasks are migrated to follow-up proposals or issue trackers.

@@ -8,7 +8,7 @@ OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined
 
 ### Configuration Layer
 - Add `openspec/config.yaml` with schema selection, project context, and per-artifact rules
-- Create custom schema `feature-workflow` at `openspec/schemas/feature-workflow/` with artifact dependency graph extending `spec-driven` with `exploration`, `plan-findings`, `impl-findings`, `validation-report`, and `deferred-tasks` artifacts
+- Create custom schema `feature-workflow` at `openspec/schemas/feature-workflow/` with artifact dependency graph extending `spec-driven` with `exploration`, `plan-findings`, `impl-findings`, `architecture-impact`, `validation-report`, and `deferred-tasks` artifacts
 - Add artifact templates for each custom artifact type
 
 ### Skills Layer — OPSX Command Integration
@@ -16,8 +16,15 @@ OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined
 - **`/iterate-on-plan`**: Produce `plan-findings` artifact via `opsx:continue`; use OPSX state tracking for iteration progress
 - **`/implement-feature`**: Replace `openspec-apply` call with `opsx:apply`; remove inline task-tracking logic that OPSX handles
 - **`/iterate-on-implementation`**: Produce `impl-findings` artifact via `opsx:continue`; same pattern as plan iteration
-- **`/validate-feature`**: Incorporate `opsx:verify` for artifact-vs-implementation completeness/correctness/coherence checks alongside existing deployment validation phases; register `validation-report` as OPSX artifact
+- **`/validate-feature`**: Incorporate `opsx:verify` for artifact-vs-implementation completeness/correctness/coherence checks alongside existing deployment validation phases; produce `architecture-impact` artifact via `make architecture-diff` and `make architecture-validate`; register `validation-report` as OPSX artifact
 - **`/cleanup-feature`**: Replace `openspec-archive` call with `opsx:sync` + `opsx:archive`; produce `deferred-tasks` artifact for migrated open tasks
+
+### Architecture Integration
+- **`/refresh-architecture`** remains a standalone skill (project-global, not per-change) but is called at specific workflow touchpoints:
+  - **Before `/plan-feature`** (exploration phase): Ensure `.architecture/` is current so `opsx:explore` has accurate cross-layer flow and parallel zone data
+  - **During `/validate-feature`**: Run `make architecture-diff` and `make architecture-validate` scoped to changed files, producing the per-change `architecture-impact` artifact
+  - **After `/cleanup-feature`** (post-merge): Refresh `.architecture/` on main so it reflects the merged change for future planning
+- Add `architecture-impact` as a per-change OPSX artifact in the schema (depends on `tasks`, produced alongside `validation-report`)
 
 ### Skills Layer — Retirement
 - **`/openspec-proposal`**: Retire in favor of `opsx:new` / `opsx:ff` (keep as thin redirect during transition)
@@ -31,6 +38,6 @@ OpenSpec 1.0 introduces a configuration-driven system (OPSX) with schema-defined
 ## Impact
 
 - Affected specs: `skill-workflow`
-- Affected code: All 6 core skills (`plan-feature`, `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, `validate-feature`, `cleanup-feature`), 3 retired skills (`openspec-proposal`, `openspec-apply`, `openspec-archive`), `openspec/AGENTS.md`, `CLAUDE.md`
+- Affected code: All 6 core skills (`plan-feature`, `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, `validate-feature`, `cleanup-feature`), `refresh-architecture` (integration touchpoints), 3 retired skills (`openspec-proposal`, `openspec-apply`, `openspec-archive`), `openspec/AGENTS.md`, `CLAUDE.md`
 - No breaking changes to the external workflow — skill names and approval gates remain identical
 - Requires OpenSpec CLI upgrade to 1.0+

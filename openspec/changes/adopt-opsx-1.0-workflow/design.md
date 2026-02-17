@@ -101,8 +101,25 @@ Templates enforce our conventions:
 - `exploration.md` — structured context synthesis (not free-form notes)
 - `plan-findings.md` — tabular format with type/criticality columns
 - `impl-findings.md` — same format with implementation-specific finding types
+- `architecture-impact.md` — structural diff, flow changes, parallel zone impact
 - `validation-report.md` — phase-based results with pass/fail symbols
 - `deferred-tasks.md` — migrated tasks with provenance and target
+
+### Decision 6: Architecture Refresh as Workflow Sidecar, Impact as Per-Change Artifact
+
+The `/refresh-architecture` skill produces project-global artifacts (`.architecture/`) that don't belong to any single change. It stays standalone. However, the *impact analysis* of a specific change on the architecture IS per-change data and belongs in the schema as `architecture-impact`.
+
+**Integration touchpoints:**
+
+| Workflow Stage | Architecture Action | Trigger |
+|---|---|---|
+| `/plan-feature` (exploration) | Full refresh if stale | `make architecture` before `opsx:explore` |
+| `/validate-feature` | Diff + validate on changed files | `make architecture-diff` + `make architecture-validate` |
+| `/cleanup-feature` (post-merge) | Full refresh on main | `make architecture` after merge |
+
+**Why separate from validation-report:** The architecture impact analysis has its own template, findings format, and audience (architects reviewing structural consequences). Embedding it in the validation report would conflate deployment health with structural health.
+
+**Alternative considered**: Making `.architecture/` artifacts per-change (generated into `openspec/changes/<id>/`). Rejected because architecture artifacts are expensive to generate, are most useful as a shared baseline, and would create massive duplication across changes.
 
 ## Risks / Trade-offs
 

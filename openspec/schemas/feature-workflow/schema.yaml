@@ -81,6 +81,18 @@ artifacts:
     requires: [tasks]
 
   # Post-implementation artifacts
+  - id: architecture-impact
+    generates: architecture-impact.md
+    template: architecture-impact.md
+    description: Architectural impact analysis comparing the change to the base branch
+    instruction: >
+      Run make architecture-diff BASE_SHA=<merge-base-sha> and make architecture-validate
+      against the changed files. Report new/broken cross-layer flows, affected parallel
+      zones, new high-impact nodes, new cycles, and untested routes. Include the output
+      of validate_flows.py scoped to changed files. This artifact captures the structural
+      consequences of the implementation on the project architecture.
+    requires: [tasks]
+
   - id: validation-report
     generates: validation-report.md
     template: validation-report.md

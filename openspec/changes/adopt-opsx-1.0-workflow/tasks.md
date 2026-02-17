@@ -14,7 +14,7 @@
 
 - [ ] 2.2 Create artifact templates for custom artifact types
   **Dependencies**: 2.1
-  **Files**: openspec/schemas/feature-workflow/templates/exploration.md (new), openspec/schemas/feature-workflow/templates/plan-findings.md (new), openspec/schemas/feature-workflow/templates/impl-findings.md (new), openspec/schemas/feature-workflow/templates/validation-report.md (new), openspec/schemas/feature-workflow/templates/deferred-tasks.md (new)
+  **Files**: openspec/schemas/feature-workflow/templates/exploration.md (new), openspec/schemas/feature-workflow/templates/plan-findings.md (new), openspec/schemas/feature-workflow/templates/impl-findings.md (new), openspec/schemas/feature-workflow/templates/architecture-impact.md (new), openspec/schemas/feature-workflow/templates/validation-report.md (new), openspec/schemas/feature-workflow/templates/deferred-tasks.md (new)
 
 ## 3. Project Configuration
 
@@ -43,9 +43,17 @@
   **Dependencies**: 2.2, 3.1
   **Files**: skills/iterate-on-implementation/SKILL.md
 
-- [ ] 4.5 Update `/validate-feature` to register validation-report as OPSX artifact
+- [ ] 4.5 Update `/validate-feature` to produce `architecture-impact` artifact and register `validation-report` as OPSX artifact
   **Dependencies**: 2.2, 3.1
   **Files**: skills/validate-feature/SKILL.md
+
+- [ ] 4.7 Update `/plan-feature` exploration phase to call `/refresh-architecture` when artifacts are stale
+  **Dependencies**: 2.1, 3.1
+  **Files**: skills/plan-feature/SKILL.md
+
+- [ ] 4.8 Update `/cleanup-feature` to call `/refresh-architecture` after merge to keep .architecture/ current on main
+  **Dependencies**: 2.1, 3.1
+  **Files**: skills/cleanup-feature/SKILL.md
 
 - [ ] 4.6 Update `/cleanup-feature` to use `opsx:sync` + `opsx:archive` and produce `deferred-tasks` artifact
   **Dependencies**: 2.2, 3.1
