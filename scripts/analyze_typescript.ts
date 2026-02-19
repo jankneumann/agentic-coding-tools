@@ -378,8 +378,11 @@ function extractStringValue(node: Node | undefined): string | undefined {
     return node.getLiteralValue();
   }
   if (Node.isTemplateExpression(node)) {
-    // Return the head text with a placeholder
-    const head = node.getHead().getLiteralValue();
+    // Return the head text with a placeholder.
+    // TemplateHead doesn't have getLiteralValue() in all ts-morph versions,
+    // so extract the raw text and strip the template-literal delimiters (` and ${).
+    const rawHead = node.getHead().getText();
+    const head = rawHead.replace(/^`/, "").replace(/\$\{$/, "");
     return head ? `${head}<dynamic>` : "<dynamic>";
   }
   return undefined;
