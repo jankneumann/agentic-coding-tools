@@ -56,6 +56,11 @@ The `/security-review` skill SHALL support ZAP Docker scans for web/API targets 
 - **THEN** the skill SHALL skip the ZAP scan with explicit diagnostic context
 - **AND** strict gate mode SHALL not silently pass the overall review
 
+#### Scenario: DAST profile detected without target configuration
+- **WHEN** repository profiling indicates DAST coverage is expected and no `--zap-target` is provided
+- **THEN** the skill SHALL mark ZAP execution status as unavailable with guidance to set `--zap-target`
+- **AND** strict gate mode SHALL produce `INCONCLUSIVE` unless degraded passing is explicitly enabled
+
 ### Requirement: Skill Script Directory Convention
 
 The `/security-review` skill SHALL keep all executable helper scripts under `skills/security-review/scripts/`.

@@ -39,13 +39,13 @@ def build_plan(
     )
 
     zap_profile_match = "docker-api" in profiles or "mixed" in profiles
-    zap_enabled = zap_profile_match and bool(zap_target)
-    if zap_profile_match and not zap_target:
-        zap_reason = "DAST-capable profile detected but no --zap-target provided"
-    elif zap_enabled:
+    zap_enabled = zap_profile_match
+    if not zap_profile_match:
+        zap_reason = "No DAST-capable profile detected"
+    elif zap_target:
         zap_reason = "DAST target configured"
     else:
-        zap_reason = "No DAST profile or target configured"
+        zap_reason = "DAST-capable profile detected but no --zap-target provided"
 
     scanners.append(
         {
@@ -54,6 +54,7 @@ def build_plan(
             "reason": zap_reason,
             "mode": zap_mode,
             "target": zap_target,
+            "target_required": zap_profile_match,
             "required_tools": ["docker"],
             "runner": "skills/security-review/scripts/run_zap_scan.sh",
         }

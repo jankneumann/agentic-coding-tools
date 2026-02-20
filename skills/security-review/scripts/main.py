@@ -23,8 +23,9 @@ def _run_json_command(
     cmd: list[str],
     *,
     check: bool = False,
+    expect_json: bool = True,
 ) -> tuple[int, dict[str, Any]]:
-    """Run command and parse JSON from stdout when present."""
+    """Run command and parse JSON from stdout when requested."""
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -33,16 +34,23 @@ def _run_json_command(
     )
     payload: dict[str, Any] = {}
     stdout = result.stdout.strip()
-    if stdout:
-        try:
-            payload = json.loads(stdout)
-        except json.JSONDecodeError:
-            payload = {
-                "status": "error",
-                "message": f"Non-JSON output from command: {' '.join(cmd)}",
-                "stdout": stdout,
-                "stderr": result.stderr.strip(),
-            }
+    if expect_json:
+        if stdout:
+            try:
+                payload = json.loads(stdout)
+            except json.JSONDecodeError:
+                payload = {
+                    "status": "error",
+                    "message": f"Non-JSON output from command: {' '.join(cmd)}",
+                    "stdout": stdout,
+                    "stderr": result.stderr.strip(),
+                }
+    else:
+        payload = {
+            "status": "ok" if result.returncode == 0 else "error",
+            "stdout": stdout,
+            "stderr": result.stderr.strip(),
+        }
 
     if check and result.returncode != 0:
         raise RuntimeError(
@@ -115,6 +123,30 @@ def _as_scanner_result(
         messages=[message],
         metadata=metadata or {},
     ).to_dict()
+
+
+def _required_prereqs_from_plan(plan: dict[str, Any]) -> list[str]:
+    requirements: set[str] = set()
+    for scanner in plan.get("scanners", []):
+        if not bool(scanner.get("enabled")):
+            continue
+        name = str(scanner.get("scanner", ""))
+        if name == "dependency-check":
+            requirements.add("dependency-check")
+        elif name == "zap":
+            requirements.add("zap")
+    return sorted(requirements)
+
+
+def _bootstrap_components_from_missing(missing: list[str]) -> list[str]:
+    mapping = {
+        "java": "java",
+        "docker": "docker",
+        "dependency-check": "dependency-check",
+        "zap": "docker",
+    }
+    components = {mapping[item] for item in missing if item in mapping}
+    return sorted(components)
 
 
 def _run_dependency_check(
@@ -315,25 +347,41 @@ def main() -> int:
         zap_mode=args.zap_mode,
     )
 
+    prereq_requirements = _required_prereqs_from_plan(plan)
     prereq_cmd = [str(script_dir / "check_prereqs.sh"), "--json"]
+    if prereq_requirements:
+        prereq_cmd.extend(["--require", ",".join(prereq_requirements)])
     prereq_rc, prereq_payload = _run_json_command(prereq_cmd)
     bootstrap_metadata: dict[str, Any] = {
         "attempted": False,
         "mode": args.bootstrap,
         "apply": args.apply_bootstrap,
+        "requirements": prereq_requirements,
     }
 
     if args.bootstrap == "auto" and prereq_rc != 0:
         missing = prereq_payload.get("missing", []) if isinstance(prereq_payload, dict) else []
-        if missing:
-            bootstrap_cmd = [str(script_dir / "install_deps.sh"), "--components", ",".join(missing)]
+        components = _bootstrap_components_from_missing([str(item) for item in missing])
+        bootstrap_metadata["missing"] = [str(item) for item in missing]
+        bootstrap_metadata["components"] = components
+        if components:
+            bootstrap_cmd = [str(script_dir / "install_deps.sh"), "--components", ",".join(components)]
             if args.apply_bootstrap:
                 bootstrap_cmd.append("--apply")
             bootstrap_metadata["attempted"] = True
-            bootstrap_rc, bootstrap_payload = _run_json_command(bootstrap_cmd)
+            bootstrap_rc, bootstrap_payload = _run_json_command(
+                bootstrap_cmd,
+                expect_json=False,
+            )
             bootstrap_metadata["return_code"] = bootstrap_rc
             bootstrap_metadata["output"] = bootstrap_payload
             prereq_rc, prereq_payload = _run_json_command(prereq_cmd)
+        else:
+            bootstrap_metadata["attempted"] = False
+            bootstrap_metadata["output"] = {
+                "status": "skipped",
+                "message": "No installable components mapped from missing prerequisites",
+            }
 
     scanner_payloads: list[dict[str, Any]] = []
     for scanner in plan.get("scanners", []):
@@ -367,8 +415,8 @@ def main() -> int:
                 scanner_payloads.append(
                     _as_scanner_result(
                         scanner="zap",
-                        status="skipped",
-                        message="No ZAP target configured",
+                        status="unavailable",
+                        message="DAST profile requires --zap-target for ZAP execution",
                         metadata={"plan": scanner},
                     )
                 )

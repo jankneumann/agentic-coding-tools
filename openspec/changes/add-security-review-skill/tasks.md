@@ -78,7 +78,7 @@
 
 - [x] 6.1 Add tests for profile detection, adapter parsing, and risk gate decisions.
   **Dependencies**: 2.2, 3.1, 3.2, 4.1
-  **Files**: skills/security-review/tests/test_detect_profile.py, skills/security-review/tests/test_dependency_check_parser.py, skills/security-review/tests/test_zap_parser.py, skills/security-review/tests/test_gate.py, skills/security-review/tests/test_render_report.py
+  **Files**: skills/security-review/tests/test_detect_profile.py, skills/security-review/tests/test_dependency_check_parser.py, skills/security-review/tests/test_zap_parser.py, skills/security-review/tests/test_gate.py, skills/security-review/tests/test_render_report.py, skills/security-review/tests/test_build_scan_plan.py, skills/security-review/tests/test_main_helpers.py
 
 - [x] 6.2 Validate planning artifacts and implementation readiness (`openspec validate add-security-review-skill --strict`).
   **Dependencies**: 5.1, 5.3, 5.4

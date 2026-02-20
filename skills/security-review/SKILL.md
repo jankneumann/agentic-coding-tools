@@ -105,6 +105,7 @@ Outputs (default under `<repo>/docs/security-review/`):
 - `PASS`: no findings at/above threshold and scanner execution acceptable.
 - `FAIL`: findings met/exceeded threshold.
 - `INCONCLUSIVE`: scanner execution incomplete (unless degraded pass is explicitly allowed).
+- For DAST-capable profiles, omitting `--zap-target` marks ZAP as unavailable and yields `INCONCLUSIVE` unless `--allow-degraded-pass` is set.
 
 ## Manual Scanner Commands (Optional)
 
