@@ -1,0 +1,11 @@
+{
+  "updated_at": "2026-02-20T22:45:43Z",
+  "recommendations": [
+    {
+      "opportunity_id": "add-security-review-skill-core",
+      "recommended_at": "2026-02-20T22:45:43Z",
+      "status": "recommended",
+      "reason": "Highest weighted score and direct fit for a reusable cross-project security approval gate."
+    }
+  ]
+}

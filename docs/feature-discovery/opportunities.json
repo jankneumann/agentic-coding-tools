@@ -1,0 +1,120 @@
+{
+  "generated_at": "2026-02-20T22:45:43Z",
+  "focus_area": "security (cross-project skills)",
+  "history_adjustment_applied": false,
+  "weights": {
+    "impact": 0.4,
+    "strategic_fit": 0.25,
+    "effort": 0.2,
+    "risk": 0.15
+  },
+  "mappings": {
+    "priority": {
+      "low": 1,
+      "med": 2,
+      "high": 3
+    },
+    "effort": {
+      "S": 1,
+      "M": 2,
+      "L": 3
+    }
+  },
+  "items": [
+    {
+      "id": "add-security-review-skill-core",
+      "title": "Build a reusable /security-review skill core",
+      "problem_statement": "Security checks are scattered across ad-hoc commands and project-specific flows. There is no dedicated, reusable review skill for the approval gate workflow.",
+      "impact": "high",
+      "strategic_fit": "high",
+      "effort": "M",
+      "risk": "low",
+      "score": 2.8,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-security-review-skill",
+      "blocked_by": [
+        "decision: define minimum required scanners vs optional scanners"
+      ],
+      "recommended_action": "/plan-feature now",
+      "why_now": "Provides an immediate approval-gate tool that can be reused across repositories and aligns directly with the 5-skill workflow."
+    },
+    {
+      "id": "add-security-review-reporting-gate",
+      "title": "Normalize findings and add a risk gate",
+      "problem_statement": "Tool outputs are heterogeneous; without normalization there is no consistent pass/fail signal at review gates.",
+      "impact": "med",
+      "strategic_fit": "high",
+      "effort": "S",
+      "risk": "low",
+      "score": 2.6,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-security-review-reporting",
+      "blocked_by": [
+        "add-security-review-skill-core",
+        "decision: default fail thresholds by severity"
+      ],
+      "recommended_action": "plan in same proposal as core",
+      "why_now": "A normalized report unlocks practical usage and automation without requiring full CI integration first."
+    },
+    {
+      "id": "add-security-review-project-profiles",
+      "title": "Add cross-project profile detection and tool adapters",
+      "problem_statement": "A general-purpose skill must adapt to different stacks (Python, Node, containerized APIs). A static command list will fail in many repos.",
+      "impact": "high",
+      "strategic_fit": "high",
+      "effort": "L",
+      "risk": "med",
+      "score": 2.45,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-security-review-profiles",
+      "blocked_by": [
+        "add-security-review-skill-core",
+        "infra: Docker daemon for ZAP baseline scans",
+        "infra: Java 17+ for OWASP Dependency-Check"
+      ],
+      "recommended_action": "defer until core is approved",
+      "why_now": "User explicitly wants the skill to apply across projects, so profile/adapters are required for reliability."
+    },
+    {
+      "id": "add-security-review-ci-template",
+      "title": "Ship CI template for scheduled and PR-triggered security review",
+      "problem_statement": "A local-only skill misses regressions between manual runs. CI templates are needed for continuous enforcement.",
+      "impact": "med",
+      "strategic_fit": "high",
+      "effort": "M",
+      "risk": "med",
+      "score": 2.25,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-security-review-ci",
+      "blocked_by": [
+        "add-security-review-reporting-gate",
+        "decision: CI runtime and artifact retention budget"
+      ],
+      "recommended_action": "defer until report format stabilizes",
+      "why_now": "Prevents drift and gives repeatable enforcement once local workflows are stable."
+    },
+    {
+      "id": "update-validate-feature-security-phase",
+      "title": "Integrate /security-review into /validate-feature as optional phase",
+      "problem_statement": "Current validation has smoke security checks but no dedicated SCA/DAST phase. Security review remains outside the standard validation path.",
+      "impact": "med",
+      "strategic_fit": "med",
+      "effort": "M",
+      "risk": "low",
+      "score": 2.15,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "update-",
+      "change_id_hint": "update-validate-feature-security-review",
+      "blocked_by": [
+        "add-security-review-skill-core"
+      ],
+      "recommended_action": "defer to follow-up",
+      "why_now": "Creates one cohesive validation experience once /security-review exists."
+    }
+  ],
+  "top_recommendation": "add-security-review-skill-core"
+}

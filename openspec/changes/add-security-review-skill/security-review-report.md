@@ -3,14 +3,14 @@
 ## Run Context
 
 - Change ID: `add-security-review-skill`
-- Commit SHA: 72255b6249d89907034c90ca48284e1ef71a43a0
-- Timestamp: 2026-02-20T23:36:11.814448+00:00
-- Profile: `mixed`
+- Commit SHA: 67179d660d0078b4953c046de97aa5529859bc11
+- Timestamp: 2026-02-20T23:44:11.498593+00:00
+- Profile: `docker-api`
 - Confidence: `high`
 
 ## Gate Summary
 
-- Decision: **PASS**
+- Decision: **INCONCLUSIVE**
 - Fail threshold: `high`
 - Triggered findings: `0`
 
@@ -18,8 +18,8 @@
 
 | Scanner | Status | Notes |
 |---|---|---|
-| dependency-check | ok | Parsed 0 findings |
-| zap | skipped | DAST-capable profile detected but no --zap-target provided |
+| dependency-check | skipped | No dependency-bearing profile detected |
+| zap | unavailable | DAST profile requires --zap-target for ZAP execution |
 
 ## Severity Summary
 
@@ -32,7 +32,7 @@
 
 ## Gate Reasons
 
-- No gate reasons provided
+- Scanner execution incomplete: zap
 
 ## Top Findings
 
