@@ -11,6 +11,7 @@ Use the 5-skill feature workflow with natural approval gates:
   /iterate-on-plan <change-id> (optional)      → Refines plan before approval
 /implement-feature <change-id>                 → PR review gate
   /iterate-on-implementation <change-id> (optional)  → Refinement complete
+  /security-review <change-id> (optional)      → Security gate review
   /validate-feature <change-id> (optional)     → Live deployment verification
 /cleanup-feature <change-id>                   → Done
 ```
@@ -26,6 +27,7 @@ Use the 5-skill feature workflow with natural approval gates:
 - **Use consistent frontmatter format**: Skills should have `name`, `description`, `category`, `tags`, and `triggers` in YAML frontmatter.
 
 - **Flat skill directory structure**: Claude Code skills don't support nested directories. Each skill must be `<skill-name>/SKILL.md`. For namespaced skills, use hyphens: `openspec-proposal/SKILL.md` not `openspec/proposal/SKILL.md`. Symlink to `~/.claude/skills/` for global availability.
+- **Keep skill executables in skill-local scripts/**: Any executable used by a skill must live under `<skill-name>/scripts/` for portability and install consistency.
 
 - **Iterate at both creative stages**: Plans and implementations both benefit from structured iteration loops with domain-specific finding types and quality checks. `/iterate-on-plan` refines proposals before approval; `/iterate-on-implementation` refines code before PR review.
 

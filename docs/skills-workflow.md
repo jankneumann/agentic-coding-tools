@@ -19,6 +19,7 @@ The workflow breaks feature development into discrete stages, each handled by a 
   /iterate-on-plan <change-id> (optional)          Refines plan before approval
 /implement-feature <change-id>                     PR review gate
   /iterate-on-implementation <change-id> (optional)    Refinement complete
+  /security-review <change-id> (optional)          Security gate review
   /refresh-architecture [mode] (optional)          Regenerate/validate architecture artifacts
   /validate-feature <change-id> (optional)         Live deployment verification
 /cleanup-feature <change-id>                       Done
@@ -45,6 +46,7 @@ Architecture refresh callout:
 | `/iterate-on-plan` (optional) | Existing proposal | Higher-quality approved proposal |
 | `/implement-feature` | Approved proposal/spec/tasks | PR review |
 | `/iterate-on-implementation` (optional) | Implementation branch | Higher-confidence PR |
+| `/security-review` (optional) | Implemented branch (+ optional deployment target) | Security gate result before validation/review |
 | `/validate-feature` (optional) | Implemented branch | Cleanup decision |
 | `/cleanup-feature` | Approved PR (+ optional validation) | Archived change + synced specs |
 
@@ -58,7 +60,8 @@ Architecture refresh callout:
 | `/iterate-on-plan` | Proposal/design/tasks/spec deltas | Updated planning artifacts + `openspec/changes/<id>/plan-findings.md` |
 | `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, feature branch/PR |
 | `/iterate-on-implementation` | Implementation branch + OpenSpec artifacts | Fix commits + `openspec/changes/<id>/impl-findings.md` (+ spec/proposal/design corrections if drift found) |
-| `/validate-feature` | Running system + spec scenarios + changed files | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md` |
+| `/security-review` | Repository source + optional target URL/spec + scanner prerequisites | Security scanner outputs (`docs/security-review/*`) and optional `openspec/changes/<id>/security-review-report.md` |
+| `/validate-feature` | Running system + spec scenarios + changed files + `security-review-report.md` precheck (unless skipped) | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md` |
 | `/cleanup-feature` | PR state + `tasks.md` completion | Archived change (`openspec/changes/archive/...`), updated `openspec/specs/`, optional `openspec/changes/<id>/deferred-tasks.md` prior to archive |
 
 ## OpenSpec 1.0 Integration
@@ -156,6 +159,14 @@ Also checks CI/CD status via GitHub CLI. Produces a structured validation report
 **Produces**: `openspec/changes/<change-id>/validation-report.md`, `openspec/changes/<change-id>/architecture-impact.md`, and a PR comment.
 
 **Gate**: Validation results — the human decides whether to proceed to cleanup or address findings.
+
+### `/security-review`
+
+Runs a reusable cross-project security gate with project profile detection and pluggable scanners. Supports OWASP Dependency-Check and ZAP Docker adapters, normalizes findings, and computes a deterministic `PASS`/`FAIL`/`INCONCLUSIVE` decision from a configurable threshold.
+
+**Produces**: canonical report outputs under `docs/security-review/` and optionally `openspec/changes/<change-id>/security-review-report.md` for workflow gating.
+
+**Gate**: Security gate result — the human decides whether to remediate findings before validation/cleanup.
 
 ### `/cleanup-feature`
 

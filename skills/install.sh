@@ -6,6 +6,7 @@ usage() {
 Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rsync|copy>] [--copy] [--force]
 
 Install skills into agent config directories using symlinks or synced copies.
+Any directory under skills/ with SKILL.md is installed automatically.
 
 Options:
   --target <directory>   Base directory that contains .claude/.codex/.gemini

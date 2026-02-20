@@ -20,9 +20,10 @@ Deploy the feature locally with DEBUG logging, run behavioral tests against live
 `$ARGUMENTS` - OpenSpec change-id (required), optionally followed by flags:
 - `--skip-e2e` or `--skip-playwright` — skip the Playwright E2E phase
 - `--skip-ci` — skip the CI/CD status check
+- `--skip-security-check` — bypass `security-review-report.md` precheck
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,e2e`)
 
-Valid phase names: `deploy`, `smoke`, `e2e`, `spec`, `logs`, `ci`
+Valid phase names: `deploy`, `smoke`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
 ## Prerequisites
 
@@ -64,6 +65,7 @@ fi
 Parse flags from `$ARGUMENTS`:
 - `--skip-e2e` or `--skip-playwright` → set SKIP_E2E=true
 - `--skip-ci` → set SKIP_CI=true
+- `--skip-security-check` → set SKIP_SECURITY_CHECK=true
 - `--phase <names>` → set PHASES to comma-separated list; only run those phases
 
 If `--phase` is provided, only the listed phases execute. If `--phase` includes phases other than `deploy`, assume services are already running (skip deploy and teardown).
@@ -93,6 +95,30 @@ else
   echo "  macOS: brew install --cask docker"
   echo "  Linux: sudo systemctl start docker"
   exit 1
+fi
+
+# Verify security review artifact unless explicitly skipped
+if [ "${SKIP_SECURITY_CHECK:-false}" != "true" ]; then
+  SECURITY_REPORT="$OPENSPEC_PATH/changes/$CHANGE_ID/security-review-report.md"
+  if [ ! -f "$SECURITY_REPORT" ]; then
+    echo "ERROR: Missing security review artifact: $SECURITY_REPORT"
+    echo "Run /security-review $CHANGE_ID before /validate-feature, or use --skip-security-check to bypass."
+    exit 1
+  fi
+
+  HEAD_SHA=$(git rev-parse HEAD)
+  REPORT_SHA=$(grep -E '^- Commit SHA:' "$SECURITY_REPORT" | head -1 | sed -E 's/^- Commit SHA:[[:space:]]*`?([^`[:space:]]+)`?.*/\1/')
+  if [ -z "$REPORT_SHA" ]; then
+    echo "ERROR: security-review-report.md is missing required '- Commit SHA:' metadata"
+    echo "Re-run /security-review $CHANGE_ID to regenerate the report, or bypass with --skip-security-check."
+    exit 1
+  fi
+
+  if [ "$REPORT_SHA" != "$HEAD_SHA" ]; then
+    echo "ERROR: security-review-report.md is stale (report SHA: $REPORT_SHA, HEAD: $HEAD_SHA)"
+    echo "Re-run /security-review $CHANGE_ID before validation, or bypass with --skip-security-check."
+    exit 1
+  fi
 fi
 ```
 

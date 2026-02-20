@@ -96,6 +96,18 @@ artifacts:
       consequences of the implementation on the project architecture.
     requires: [tasks]
 
+  - id: security-review-report
+    generates: security-review-report.md
+    template: security-review-report.md
+    description: Security gate report produced by /security-review before validation
+    instruction: >
+      Run the security-review workflow (profile detection, scanner matrix execution,
+      normalized finding aggregation, and gate decision). Record scanner statuses,
+      severity summary, threshold policy, PASS/FAIL/INCONCLUSIVE result, and required
+      remediation. If prerequisites are missing, include exact installation commands or
+      bootstrap results and mark the decision INCONCLUSIVE unless policy allows degraded pass.
+    requires: [tasks]
+
   - id: validation-report
     generates: validation-report.md
     template: validation-report.md
