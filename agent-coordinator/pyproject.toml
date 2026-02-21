@@ -27,6 +27,15 @@ cedar = [
 analysis = [
     "psycopg2-binary>=2.9.0",
 ]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-playwright>=0.5.0",
+    "respx>=0.21.0",
+    "PyJWT>=2.8.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
