@@ -157,7 +157,7 @@
   **Files**: `skills/fix-scrub/scripts/classify.py`
   **Dependencies**: 8.1
   **Requirements**: Finding Fixability Classification
-  **Details**: Accept list of Findings from bug-scrub report JSON. Classify each into a FixTier based on source and category: ruff with fixable rules → auto; mypy type errors, markers with clear intent, deferred items with proposed fix → agent; architecture, security, design-level deferred → manual. Return ClassifiedFinding list. Apply `--severity` filter.
+  **Details**: Accept list of Findings from bug-scrub report JSON. Classify each into a FixTier based on source and category: ruff with fixable rules → auto; mypy type errors, markers with at least 10 characters after the keyword, deferred items with non-empty proposed fix → agent; architecture, security, design-level deferred, markers with fewer than 10 characters after the keyword → manual. Return ClassifiedFinding list. Apply `--severity` filter.
 
 - [ ] 8.4 Create fix planner
   **Files**: `skills/fix-scrub/scripts/plan_fixes.py`
