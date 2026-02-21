@@ -117,7 +117,8 @@ class TestPostgresFilterParsing:
 
     def test_validate_identifier_accepts_safe_names(self):
         assert _validate_identifier("work_queue") == "work_queue"
-        assert _validate_identifier("public.work_queue", allow_qualified=True) == "public.work_queue"
+        result = _validate_identifier("public.work_queue", allow_qualified=True)
+        assert result == "public.work_queue"
 
     def test_validate_identifier_rejects_unsafe_names(self):
         with pytest.raises(ValueError, match="Unsafe identifier"):

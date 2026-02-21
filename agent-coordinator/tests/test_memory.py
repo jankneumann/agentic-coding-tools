@@ -5,8 +5,8 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
-from src.policy_engine import PolicyDecision
 from src.memory import EpisodicMemory, MemoryResult, MemoryService, RecallResult
+from src.policy_engine import PolicyDecision
 
 
 class TestMemoryService:
