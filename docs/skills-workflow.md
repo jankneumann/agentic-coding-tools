@@ -162,7 +162,7 @@ Also checks CI/CD status via GitHub CLI. Produces a structured validation report
 
 ### `/security-review`
 
-Runs a reusable cross-project security gate with project profile detection and pluggable scanners. Supports OWASP Dependency-Check and ZAP Docker adapters, normalizes findings, and computes a deterministic `PASS`/`FAIL`/`INCONCLUSIVE` decision from a configurable threshold.
+Runs a reusable cross-project security gate with project profile detection and pluggable scanners. Supports OWASP Dependency-Check and ZAP container adapters (Podman/Desktop or Docker-compatible runtime), normalizes findings, and computes a deterministic `PASS`/`FAIL`/`INCONCLUSIVE` decision from a configurable threshold.
 
 **Produces**: canonical report outputs under `docs/security-review/` and optionally `openspec/changes/<change-id>/security-review-report.md` for workflow gating.
 
