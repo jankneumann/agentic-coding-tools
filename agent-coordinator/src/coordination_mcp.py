@@ -38,6 +38,7 @@ from .guardrails import get_guardrails_service
 from .handoffs import get_handoff_service
 from .locks import get_lock_service
 from .memory import get_memory_service
+from .port_allocator import get_port_allocator
 from .profiles import get_profiles_service
 from .work_queue import get_work_queue_service
 
@@ -904,6 +905,121 @@ async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
         "valid": result.valid,
         "errors": result.errors,
     }
+
+
+# =============================================================================
+# MCP TOOLS: Port Allocation
+# =============================================================================
+
+
+@mcp.tool()
+async def allocate_ports(session_id: str) -> dict[str, Any]:
+    """
+    Allocate a conflict-free port block for a parallel docker-compose stack.
+
+    Each allocation provides 4 ports (db, rest, realtime, api) and a unique
+    compose project name. Duplicate calls for the same session_id refresh the
+    TTL and return the existing allocation.
+
+    Args:
+        session_id: Unique identifier for the session requesting ports
+
+    Returns:
+        success: Whether ports were allocated
+        allocation: Port details (db_port, rest_port, realtime_port, api_port,
+                    compose_project_name) if successful
+        env_snippet: Shell export snippet ready for sourcing (if successful)
+        error: 'no_ports_available' if all port blocks are in use
+
+    Example:
+        result = allocate_ports("session-abc-123")
+        if result["success"]:
+            # Use result["env_snippet"] to configure docker-compose
+            ...
+    """
+    allocator = get_port_allocator()
+    allocation = allocator.allocate(session_id)
+
+    if allocation is None:
+        return {
+            "success": False,
+            "error": "no_ports_available",
+        }
+
+    return {
+        "success": True,
+        "allocation": {
+            "db_port": allocation.db_port,
+            "rest_port": allocation.rest_port,
+            "realtime_port": allocation.realtime_port,
+            "api_port": allocation.api_port,
+            "compose_project_name": allocation.compose_project_name,
+        },
+        "env_snippet": allocation.env_snippet,
+    }
+
+
+@mcp.tool()
+async def release_ports(session_id: str) -> dict[str, Any]:
+    """
+    Release a previously allocated port block.
+
+    Call this when a session's docker-compose stack is torn down.
+    The operation is idempotent - releasing a non-existent allocation succeeds.
+
+    Args:
+        session_id: The session whose ports should be released
+
+    Returns:
+        success: Always True (idempotent release)
+
+    Example:
+        release_ports("session-abc-123")
+    """
+    allocator = get_port_allocator()
+    allocator.release(session_id)
+
+    return {
+        "success": True,
+    }
+
+
+@mcp.tool()
+async def ports_status() -> list[dict[str, Any]]:
+    """
+    List all active port allocations.
+
+    Returns currently allocated port blocks with remaining TTL information.
+    Expired allocations are automatically cleaned up before reporting.
+
+    Returns:
+        List of active allocations with session_id, ports, compose_project_name,
+        and remaining_ttl_minutes
+
+    Example:
+        status = ports_status()
+        for alloc in status:
+            print(f"{alloc['session_id']}: db={alloc['db_port']} "
+                  f"(TTL: {alloc['remaining_ttl_minutes']:.1f}m)")
+    """
+    import time
+
+    allocator = get_port_allocator()
+    allocations = allocator.status()
+    now = time.time()
+
+    return [
+        {
+            "session_id": alloc.session_id,
+            "db_port": alloc.db_port,
+            "rest_port": alloc.rest_port,
+            "realtime_port": alloc.realtime_port,
+            "api_port": alloc.api_port,
+            "compose_project_name": alloc.compose_project_name,
+            "remaining_ttl_minutes": max(0.0, (alloc.expires_at - now) / 60),
+        }
+        for alloc in allocations
+    ]
 
 
 # =============================================================================

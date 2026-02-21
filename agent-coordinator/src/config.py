@@ -24,6 +24,10 @@ Environment variables:
     API_PORT: HTTP API port (default: 8081)
     COORDINATION_API_KEYS: Comma-separated API keys for HTTP API auth
     COORDINATION_API_KEY_IDENTITIES: JSON mapping API keys to agent identities
+    PORT_ALLOC_BASE: Base port for port allocator (default: 10000)
+    PORT_ALLOC_RANGE: Port range per session (default: 100)
+    PORT_ALLOC_TTL_MINUTES: Port allocation TTL in minutes (default: 120)
+    PORT_ALLOC_MAX_SESSIONS: Maximum concurrent sessions (default: 20)
 """
 
 import json
@@ -223,6 +227,25 @@ class PolicyEngineConfig:
 
 
 @dataclass
+class PortAllocatorConfig:
+    """Port allocator configuration for parallel docker-compose stacks."""
+
+    base_port: int = 10000
+    range_per_session: int = 100
+    ttl_minutes: int = 120
+    max_sessions: int = 20
+
+    @classmethod
+    def from_env(cls) -> "PortAllocatorConfig":
+        return cls(
+            base_port=int(os.environ.get("PORT_ALLOC_BASE", "10000")),
+            range_per_session=int(os.environ.get("PORT_ALLOC_RANGE", "100")),
+            ttl_minutes=int(os.environ.get("PORT_ALLOC_TTL_MINUTES", "120")),
+            max_sessions=int(os.environ.get("PORT_ALLOC_MAX_SESSIONS", "20")),
+        )
+
+
+@dataclass
 class ApiConfig:
     """HTTP API configuration."""
 
@@ -269,6 +292,9 @@ class Config:
         default_factory=PolicyEngineConfig.from_env
     )
     api: ApiConfig = field(default_factory=ApiConfig.from_env)
+    port_allocator: PortAllocatorConfig = field(
+        default_factory=PortAllocatorConfig.from_env
+    )
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -284,6 +310,7 @@ class Config:
             network_policy=NetworkPolicyConfig.from_env(),
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
+            port_allocator=PortAllocatorConfig.from_env(),
         )
 
 
