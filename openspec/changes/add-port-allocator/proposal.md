@@ -12,7 +12,7 @@ The agent-coordinator already parameterizes docker-compose ports via environment
 
 - **Add `PortAllocatorConfig` to `src/config.py`**: New config dataclass with `PORT_ALLOC_BASE` (default: 10000), `PORT_ALLOC_RANGE` (default: 100), `PORT_ALLOC_TTL_MINUTES` (default: 120), and `PORT_ALLOC_MAX_SESSIONS` (default: 20).
 
-- **Add MCP tools `allocate_ports` and `release_ports`**: Agents call `allocate_ports(session_id)` to get a conflict-free port assignment and env snippet. Call `release_ports(session_id)` to free the allocation.
+- **Add MCP tools `allocate_ports`, `release_ports`, and `ports_status`**: Agents call `allocate_ports(session_id)` to get a conflict-free port assignment and env snippet. Call `release_ports(session_id)` to free the allocation. Call `ports_status()` to list active allocations with remaining TTL.
 
 - **Add HTTP endpoints `POST /ports/allocate` and `POST /ports/release`**: Cloud agent equivalents of the MCP tools.
 
@@ -40,7 +40,7 @@ The agent-coordinator already parameterizes docker-compose ports via environment
 **Major code touchpoints:**
 - `agent-coordinator/src/port_allocator.py` (new)
 - `agent-coordinator/src/config.py` (add `PortAllocatorConfig`)
-- `agent-coordinator/src/coordination_mcp.py` (add 2 MCP tools)
+- `agent-coordinator/src/coordination_mcp.py` (add 3 MCP tools)
 - `agent-coordinator/src/coordination_api.py` (add 3 HTTP endpoints)
 - `agent-coordinator/tests/test_port_allocator.py` (new)
 - `agent-coordinator/tests/integration/conftest.py` (fix hardcoded port)

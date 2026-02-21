@@ -18,7 +18,7 @@
   **Dependencies**: 1.2
   **Files**: `agent-coordinator/tests/test_port_allocator.py` (new)
   **Traces**: All port allocation requirements
-  **Details**: Test allocation, duplicate session (returns existing + refreshes TTL), release, idempotent release of unknown session, TTL expiry (mock time), port range exhaustion, env_snippet format, compose_project_name uniqueness, standalone operation without DB config. Pass mypy strict and ruff.
+  **Details**: Test allocation, duplicate session (returns existing + refreshes TTL), release, idempotent release of unknown session, TTL expiry (mock time), port range exhaustion, env_snippet format, compose_project_name uniqueness, standalone operation without DB config, config validation errors (base_port < 1024, range_per_session < 4). Pass mypy strict and ruff.
 
 ## 2. API Exposure (parallel after 1.2)
 
@@ -38,7 +38,7 @@
   **Dependencies**: 2.1, 2.2
   **Files**: `agent-coordinator/tests/test_port_allocator_api.py` (new)
   **Traces**: MCP tool exposure, HTTP API exposure
-  **Details**: Test HTTP endpoints via FastAPI test client. Test MCP tool responses. Verify standalone operation without DB. Verify idempotent allocation and release.
+  **Details**: Test HTTP endpoints via FastAPI test client: successful allocate/release/status, 401 for missing API key on allocate/release, 422 for missing session_id. Test MCP tool responses including ports_status. Verify standalone operation without DB. Verify idempotent allocation and release.
 
 ## 3. Fix Hardcoded Ports (parallel — no overlap with group 1 or 2)
 
