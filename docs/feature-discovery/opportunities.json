@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-02-20T22:45:43Z",
-  "focus_area": "security (cross-project skills)",
-  "history_adjustment_applied": false,
+  "generated_at": "2026-02-21T10:00:00Z",
+  "focus_area": "parallel agent port isolation",
+  "history_adjustment_applied": true,
   "weights": {
     "impact": 0.4,
     "strategic_fit": 0.25,
@@ -9,18 +9,90 @@
     "risk": 0.15
   },
   "mappings": {
-    "priority": {
-      "low": 1,
-      "med": 2,
-      "high": 3
-    },
-    "effort": {
-      "S": 1,
-      "M": 2,
-      "L": 3
-    }
+    "priority": { "low": 1, "med": 2, "high": 3 },
+    "effort": { "S": 1, "M": 2, "L": 3 }
   },
   "items": [
+    {
+      "id": "add-port-allocator-service",
+      "title": "Add standalone port allocation service to agent-coordinator",
+      "problem_statement": "When multiple coding agents run parallel /validate-feature flows, each worktree spins up its own docker-compose stack. All stacks compete for the same default ports (3000, 4000, 54322, 8081), causing bind failures. Manual port remapping is error-prone and doesn't scale. The agent-coordinator already has the right infrastructure (config system, service pattern, MCP+HTTP interfaces) but lacks a port registry that agents can query to get conflict-free port assignments.",
+      "impact": "high",
+      "strategic_fit": "high",
+      "effort": "M",
+      "risk": "low",
+      "score": 2.8,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-port-allocator",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature now",
+      "why_now": "This is a daily pain point when running parallel agents. The agent-coordinator config and service patterns already exist, making it a natural extension. Critically, this feature should work standalone — no Supabase required — making it immediately useful even in lightweight setups."
+    },
+    {
+      "id": "fix-validate-feature-hardcoded-ports",
+      "title": "Fix hardcoded ports in validate-feature skill and integration tests",
+      "problem_statement": "validate-feature/SKILL.md has hardcoded localhost:3000 in health checks (line 181) and spec compliance examples (line 345). Integration test conftest.py hardcodes POSTGREST_URL to localhost:3000. docker-compose invocations don't explicitly forward port env vars. These bugs block any port remapping strategy.",
+      "impact": "med",
+      "strategic_fit": "high",
+      "effort": "S",
+      "risk": "low",
+      "score": 2.6,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "fix-",
+      "change_id_hint": "fix-validate-hardcoded-ports",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature now (can parallel with port-allocator)",
+      "why_now": "These are bugs, not features. They silently break any attempt to run validation on non-default ports. Quick fix, high leverage."
+    },
+    {
+      "id": "add-env-template-generator",
+      "title": "Add env template generator for isolated docker-compose stacks",
+      "problem_statement": "Even with a port allocator, agents need a way to generate a complete .env file with all port variables set consistently for a given worktree/session. Currently this is manual. A template generator that takes a session-id or worktree-id and produces a coherent .env (ports, project names, network names) would close the gap.",
+      "impact": "med",
+      "strategic_fit": "high",
+      "effort": "S",
+      "risk": "low",
+      "score": 2.6,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-env-template-generator",
+      "blocked_by": ["add-port-allocator-service"],
+      "recommended_action": "plan as part of port-allocator proposal",
+      "why_now": "Natural companion to port allocator. Without it, agents still need to manually wire port assignments into env files."
+    },
+    {
+      "id": "add-docker-compose-project-isolation",
+      "title": "Add COMPOSE_PROJECT_NAME isolation for parallel stacks",
+      "problem_statement": "Docker Compose uses the directory name as the default project name. Two worktrees running docker-compose in agent-coordinator/ will collide on container names, networks, and volumes even if ports differ. Setting COMPOSE_PROJECT_NAME per worktree/session is required for true parallel isolation.",
+      "impact": "high",
+      "strategic_fit": "med",
+      "effort": "S",
+      "risk": "low",
+      "score": 2.55,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-compose-project-isolation",
+      "blocked_by": [],
+      "recommended_action": "include in port-allocator proposal",
+      "why_now": "Port remapping alone is insufficient — container name and network collisions are equally blocking for parallel stacks."
+    },
+    {
+      "id": "update-worktree-skill-port-integration",
+      "title": "Integrate port allocator into openspec-beads-worktree skill",
+      "problem_statement": "The openspec-beads-worktree skill handles git worktree isolation but is completely unaware of port/resource isolation. Parallel task execution (its core use case) will fail when tasks spin up services.",
+      "impact": "med",
+      "strategic_fit": "med",
+      "effort": "M",
+      "risk": "med",
+      "score": 2.0,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "update-",
+      "change_id_hint": "update-worktree-port-integration",
+      "blocked_by": ["add-port-allocator-service"],
+      "recommended_action": "defer until port allocator exists",
+      "why_now": "Depends on port allocator being available. Once it is, this becomes a natural enhancement to the worktree skill."
+    },
     {
       "id": "add-security-review-skill-core",
       "title": "Build a reusable /security-review skill core",
@@ -33,88 +105,10 @@
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
       "change_id_hint": "add-security-review-skill",
-      "blocked_by": [
-        "decision: define minimum required scanners vs optional scanners"
-      ],
-      "recommended_action": "/plan-feature now",
-      "why_now": "Provides an immediate approval-gate tool that can be reused across repositories and aligns directly with the 5-skill workflow."
-    },
-    {
-      "id": "add-security-review-reporting-gate",
-      "title": "Normalize findings and add a risk gate",
-      "problem_statement": "Tool outputs are heterogeneous; without normalization there is no consistent pass/fail signal at review gates.",
-      "impact": "med",
-      "strategic_fit": "high",
-      "effort": "S",
-      "risk": "low",
-      "score": 2.6,
-      "bucket": "quick-win",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-security-review-reporting",
-      "blocked_by": [
-        "add-security-review-skill-core",
-        "decision: default fail thresholds by severity"
-      ],
-      "recommended_action": "plan in same proposal as core",
-      "why_now": "A normalized report unlocks practical usage and automation without requiring full CI integration first."
-    },
-    {
-      "id": "add-security-review-project-profiles",
-      "title": "Add cross-project profile detection and tool adapters",
-      "problem_statement": "A general-purpose skill must adapt to different stacks (Python, Node, containerized APIs). A static command list will fail in many repos.",
-      "impact": "high",
-      "strategic_fit": "high",
-      "effort": "L",
-      "risk": "med",
-      "score": 2.45,
-      "bucket": "big-bet",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-security-review-profiles",
-      "blocked_by": [
-        "add-security-review-skill-core",
-        "infra: Docker daemon for ZAP baseline scans",
-        "infra: Java 17+ for OWASP Dependency-Check"
-      ],
-      "recommended_action": "defer until core is approved",
-      "why_now": "User explicitly wants the skill to apply across projects, so profile/adapters are required for reliability."
-    },
-    {
-      "id": "add-security-review-ci-template",
-      "title": "Ship CI template for scheduled and PR-triggered security review",
-      "problem_statement": "A local-only skill misses regressions between manual runs. CI templates are needed for continuous enforcement.",
-      "impact": "med",
-      "strategic_fit": "high",
-      "effort": "M",
-      "risk": "med",
-      "score": 2.25,
-      "bucket": "big-bet",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-security-review-ci",
-      "blocked_by": [
-        "add-security-review-reporting-gate",
-        "decision: CI runtime and artifact retention budget"
-      ],
-      "recommended_action": "defer until report format stabilizes",
-      "why_now": "Prevents drift and gives repeatable enforcement once local workflows are stable."
-    },
-    {
-      "id": "update-validate-feature-security-phase",
-      "title": "Integrate /security-review into /validate-feature as optional phase",
-      "problem_statement": "Current validation has smoke security checks but no dedicated SCA/DAST phase. Security review remains outside the standard validation path.",
-      "impact": "med",
-      "strategic_fit": "med",
-      "effort": "M",
-      "risk": "low",
-      "score": 2.15,
-      "bucket": "big-bet",
-      "suggested_change_prefix": "update-",
-      "change_id_hint": "update-validate-feature-security-review",
-      "blocked_by": [
-        "add-security-review-skill-core"
-      ],
-      "recommended_action": "defer to follow-up",
-      "why_now": "Creates one cohesive validation experience once /security-review exists."
+      "blocked_by": [],
+      "recommended_action": "already implemented (change: add-security-review-skill, status: Complete)",
+      "why_now": "Already done — demoted from active recommendation."
     }
   ],
-  "top_recommendation": "add-security-review-skill-core"
+  "top_recommendation": "add-port-allocator-service"
 }

@@ -1,11 +1,17 @@
 {
-  "updated_at": "2026-02-20T22:45:43Z",
+  "updated_at": "2026-02-21T10:00:00Z",
   "recommendations": [
+    {
+      "opportunity_id": "add-port-allocator-service",
+      "recommended_at": "2026-02-21T10:00:00Z",
+      "status": "recommended",
+      "reason": "Highest-impact unblocked opportunity. Directly addresses daily parallel-agent port conflict pain point. Standalone-capable design fits user requirement of no dependency on Supabase/memory features."
+    },
     {
       "opportunity_id": "add-security-review-skill-core",
       "recommended_at": "2026-02-20T22:45:43Z",
-      "status": "recommended",
-      "reason": "Highest weighted score and direct fit for a reusable cross-project security approval gate."
+      "status": "completed",
+      "reason": "Implemented as change add-security-review-skill (Complete). Demoted from active recommendations."
     }
   ]
 }
