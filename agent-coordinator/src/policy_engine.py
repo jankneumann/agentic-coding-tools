@@ -7,6 +7,7 @@ Provides a unified authorization interface with two backends:
 Selected via POLICY_ENGINE env var ('native' or 'cedar').
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,8 +15,6 @@ from typing import Any
 
 from .config import get_config
 from .db import DatabaseClient, get_db
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -7,6 +7,7 @@ Requires local Supabase running via docker-compose:
 Tests are automatically skipped if PostgREST is not reachable.
 """
 
+import os
 import time
 
 import httpx
@@ -19,7 +20,8 @@ from src.locks import LockService
 from src.work_queue import WorkQueueService
 
 # Local Supabase connection details (from docker-compose.yml)
-POSTGREST_URL = "http://localhost:3000"
+_rest_port = os.environ.get("AGENT_COORDINATOR_REST_PORT", "3000")
+POSTGREST_URL = f"http://localhost:{_rest_port}"
 JWT_SECRET = "super-secret-jwt-token-for-local-dev"
 
 

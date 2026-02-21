@@ -12,12 +12,14 @@ This ensures:
 from __future__ import annotations
 
 import sys
+import time
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from .config import get_config
+from .port_allocator import get_port_allocator
 
 # =============================================================================
 # Pydantic request / response models
@@ -87,6 +89,14 @@ class AuditQueryParams(BaseModel):
     agent_id: str | None = None
     operation: str | None = None
     limit: int = 20
+
+
+class PortAllocateRequest(BaseModel):
+    session_id: str
+
+
+class PortReleaseRequest(BaseModel):
+    session_id: str
 
 
 # =============================================================================
@@ -573,6 +583,60 @@ def create_coordination_api() -> FastAPI:
                 for e in entries
             ],
         }
+
+    # --------------------------------------------------------------------- #
+    # PORT ALLOCATION
+    # --------------------------------------------------------------------- #
+
+    @app.post("/ports/allocate")
+    async def allocate_ports(
+        request: PortAllocateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Allocate a block of ports for a session."""
+        allocation = get_port_allocator().allocate(request.session_id)
+        if allocation is None:
+            return {"success": False, "error": "no_ports_available"}
+        return {
+            "success": True,
+            "allocation": {
+                "session_id": allocation.session_id,
+                "db_port": allocation.db_port,
+                "rest_port": allocation.rest_port,
+                "realtime_port": allocation.realtime_port,
+                "api_port": allocation.api_port,
+                "compose_project_name": allocation.compose_project_name,
+            },
+            "env_snippet": allocation.env_snippet,
+        }
+
+    @app.post("/ports/release")
+    async def release_ports(
+        request: PortReleaseRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Release a port allocation for a session."""
+        get_port_allocator().release(request.session_id)
+        return {"success": True}
+
+    @app.get("/ports/status")
+    async def port_status() -> list[dict[str, Any]]:
+        """List all active port allocations. Read-only, no API key required."""
+        allocations = get_port_allocator().status()
+        return [
+            {
+                "session_id": alloc.session_id,
+                "db_port": alloc.db_port,
+                "rest_port": alloc.rest_port,
+                "realtime_port": alloc.realtime_port,
+                "api_port": alloc.api_port,
+                "compose_project_name": alloc.compose_project_name,
+                "remaining_ttl_minutes": max(
+                    0, (alloc.expires_at - time.time()) / 60
+                ),
+            }
+            for alloc in allocations
+        ]
 
     # --------------------------------------------------------------------- #
     # HEALTH

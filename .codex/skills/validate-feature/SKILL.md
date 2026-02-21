@@ -161,6 +161,9 @@ else
   echo "  Log file: $LOG_FILE"
 
   # Start services with DEBUG logging, redirect output to log file
+  AGENT_COORDINATOR_DB_PORT=${AGENT_COORDINATOR_DB_PORT:-54322} \
+  AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-3000} \
+  AGENT_COORDINATOR_REALTIME_PORT=${AGENT_COORDINATOR_REALTIME_PORT:-4000} \
   LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d 2>&1 | tee "$LOG_FILE"
 
   # Wait for health checks
@@ -178,7 +181,7 @@ else
 
   # Wait for REST API (up to 15 seconds)
   for i in $(seq 1 15); do
-    if curl -s http://localhost:3000/ > /dev/null 2>&1; then
+    if curl -s http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}/ > /dev/null 2>&1; then
       echo "REST API is ready"
       break
     fi
@@ -342,7 +345,8 @@ Read OpenSpec spec deltas for the change and verify each scenario against the li
 # THEN system returns array of {agent_id, agent_type, capabilities, status, ...}
 
 import httpx
-response = httpx.get("http://localhost:3000/agent_sessions?status=eq.active")
+rest_port = os.environ.get("AGENT_COORDINATOR_REST_PORT", "3000")
+response = httpx.get(f"http://localhost:{rest_port}/agent_sessions?status=eq.active")
 assert response.status_code == 200
 data = response.json()
 # Verify response shape matches scenario expectations
