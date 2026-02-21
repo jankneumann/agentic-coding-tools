@@ -100,6 +100,10 @@ Outputs (default under `<repo>/docs/security-review/`):
 - `security-review-report.md`
 - optional OpenSpec artifact: `openspec/changes/<change-id>/security-review-report.md`
 
+Dry-run behavior:
+- `--dry-run` still writes deterministic files under `docs/security-review/`.
+- `--dry-run` does **not** overwrite `openspec/changes/<change-id>/security-review-report.md`.
+
 ### 5. Interpret Gate
 
 - `PASS`: no findings at/above threshold and scanner execution acceptable.

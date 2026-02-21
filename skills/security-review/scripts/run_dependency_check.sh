@@ -53,6 +53,7 @@ report_path="$out_dir/dependency-check-report.json"
 mode=""
 status=""
 message=""
+native_rc=0
 
 if command -v dependency-check >/dev/null 2>&1; then
   mode="native"
@@ -62,14 +63,35 @@ if command -v dependency-check >/dev/null 2>&1; then
   else
     set +e
     dependency-check --scan "$repo" --project "$project" --format JSON --out "$out_dir" >/tmp/security-review-depcheck.log 2>&1
-    rc=$?
+    native_rc=$?
     set -e
-    if [[ $rc -eq 0 ]]; then
+    if [[ $native_rc -eq 0 ]]; then
       status="ok"
       message="native dependency-check completed"
+    elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+      mode="docker-fallback"
+      set +e
+      docker run --rm \
+        -v "$repo":/src \
+        -v "$out_dir":/report \
+        owasp/dependency-check:latest \
+        --scan /src \
+        --project "$project" \
+        --format JSON \
+        --out /report \
+        --noupdate >/tmp/security-review-depcheck.log 2>&1
+      docker_rc=$?
+      set -e
+      if [[ $docker_rc -eq 0 ]]; then
+        status="ok"
+        message="native dependency-check failed (exit $native_rc); docker fallback completed"
+      else
+        status="error"
+        message="native dependency-check failed (exit $native_rc); docker fallback failed (exit $docker_rc)"
+      fi
     else
       status="error"
-      message="native dependency-check failed (exit $rc)"
+      message="native dependency-check failed (exit $native_rc) and docker fallback unavailable"
     fi
   fi
 elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
@@ -104,7 +126,7 @@ else
   message="dependency-check unavailable (missing binary and docker access)"
 fi
 
-if [[ $dry_run -eq 1 ]] && [[ ! -f "$report_path" ]]; then
+if [[ $dry_run -eq 1 ]]; then
   cat > "$report_path" <<'JSON'
 {"scanInfo": {"engineVersion": "dry-run"}, "dependencies": []}
 JSON

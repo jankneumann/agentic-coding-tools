@@ -489,7 +489,7 @@ def main() -> int:
         raise RuntimeError(f"Failed to render report: {render_payload}")
 
     change_report_path: Path | None = None
-    if change_artifact_dir is not None:
+    if change_artifact_dir is not None and not args.dry_run:
         change_report_path = change_artifact_dir / "security-review-report.md"
         shutil.copyfile(md_report_path, change_report_path)
 
@@ -501,6 +501,8 @@ def main() -> int:
     }
     if change_report_path is not None:
         summary["change_artifact"] = str(change_report_path)
+    elif change_artifact_dir is not None and args.dry_run:
+        summary["change_artifact"] = "skipped (dry-run)"
     print(json.dumps(summary, indent=2))
 
     if gate_result.decision == "PASS":

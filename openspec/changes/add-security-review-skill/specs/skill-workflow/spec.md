@@ -42,6 +42,11 @@ The `/security-review` skill SHALL support OWASP Dependency-Check execution thro
 - **THEN** the skill SHALL mark the dependency-check scanner status as unavailable with remediation guidance
 - **AND** strict gate mode SHALL treat the run as failing or inconclusive according to configured policy
 
+#### Scenario: Native dependency-check fails but Docker is available
+- **WHEN** native `dependency-check` execution fails and Docker fallback is available
+- **THEN** the skill SHALL retry dependency scanning using Docker
+- **AND** scanner metadata SHALL record that Docker fallback was used after native failure
+
 ### Requirement: OWASP ZAP Docker Adapter
 
 The `/security-review` skill SHALL support ZAP Docker scans for web/API targets and normalize findings into the shared reporting schema.

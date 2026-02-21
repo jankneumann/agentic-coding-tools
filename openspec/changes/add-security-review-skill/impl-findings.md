@@ -33,9 +33,37 @@
 
 ---
 
+## Iteration 2
+
+<!-- Date: 2026-02-20 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | bug | high | `run_dependency_check.sh` only fell back to Docker when the native binary was absent, not when native execution existed but failed. | Added native-failure Docker fallback path with explicit `docker-fallback` mode and failure provenance in messages. |
+| 2 | edge-case | medium | Dry-run scan adapters only generated stub reports when report files were missing, so stale JSON from previous runs could be reused silently. | Updated dry-run behavior to always overwrite `dependency-check-report.json` and `zap-report.json` with deterministic dry-run payloads. |
+| 3 | workflow | medium | Orchestrator dry-runs with `--change` could overwrite `openspec/changes/<id>/security-review-report.md`, creating review artifact churn from non-authoritative runs. | Skip change-artifact overwrite during `--dry-run` and emit explicit summary marker `change_artifact: skipped (dry-run)`. |
+
+### Quality Checks
+
+- `pytest`: fail (`No module named pytest` in this environment)
+- `mypy`: fail (`mypy` command not installed in this environment)
+- `ruff`: fail (`ruff` command not installed in this environment)
+- `openspec validate add-security-review-skill --strict`: pass
+- `python3 -m py_compile skills/security-review/scripts/*.py`: pass
+- Targeted adapter check: simulated native dependency-check failure with Docker fallback returns `mode=docker-fallback` and status `ok`.
+- Targeted behavior check: `python3 skills/security-review/scripts/main.py --repo . --change add-security-review-skill --profile-override docker-api --dry-run` returns `INCONCLUSIVE` (exit code `11`) and leaves OpenSpec artifact untouched in dry-run mode.
+
+### Spec Drift
+
+- Updated `openspec/changes/add-security-review-skill/specs/skill-workflow/spec.md` with a scenario for native dependency-check failure and Docker fallback behavior.
+
+---
+
 ## Summary
 
-- Total iterations: 1
-- Total findings addressed: 4
+- Total iterations: 2
+- Total findings addressed: 7
 - Remaining findings (below threshold): none
 - Termination reason: threshold met

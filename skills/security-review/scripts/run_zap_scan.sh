@@ -100,7 +100,7 @@ else
   fi
 fi
 
-if [[ $dry_run -eq 1 ]] && [[ ! -f "$report_json" ]]; then
+if [[ $dry_run -eq 1 ]]; then
   cat > "$report_json" <<'JSON'
 {"site": [{"name": "dry-run", "alerts": []}]}
 JSON
