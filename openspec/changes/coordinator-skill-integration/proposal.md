@@ -68,6 +68,15 @@ Runtime parity contract for this change:
 - Canonical edits happen in `skills/`
 - Runtime mirrors are refreshed via `skills/install.sh --mode rsync --agents claude,codex,gemini`
 
+### Related Change Linkage: Neon Standardization
+
+Neon adoption as the default cloud Postgres backend is treated as a separate infrastructure change (for example, `coordinator-neon-standardization`), not part of this skill-integration change.
+
+This proposal links to that future change as follows:
+- `/setup-coordinator` and coordinator integration docs SHOULD reference Neon as the preferred cloud Postgres option once the Neon proposal is approved
+- coordinator skill integration MUST remain backend-agnostic and continue to work with current supported Postgres-compatible backends
+- no Neon-specific branching/provisioning behavior is required to complete this change
+
 ### Non-changes (explicit scope boundaries)
 
 - Existing behavior without coordinator remains unchanged
@@ -75,6 +84,7 @@ Runtime parity contract for this change:
 - No changes to coordinator MCP or HTTP API interfaces
 - No changes to OpenSpec CLI or spec format
 - No duplicate workflow skill families
+- No database provider migration in this change (including Supabase-to-Neon migration mechanics)
 
 ## Impact
 
