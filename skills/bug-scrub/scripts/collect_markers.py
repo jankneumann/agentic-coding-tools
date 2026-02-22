@@ -115,7 +115,8 @@ def collect(project_dir: str) -> SourceResult:
     findings: list[Finding] = []
 
     try:
-        for py_file in root.glob("**/*.py"):
+        py_files = list(root.glob("**/*.py")) + list(root.glob("**/*.pyi"))
+        for py_file in py_files:
             if _should_skip(py_file.relative_to(root)):
                 continue
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Signal collector: mypy type-checker.
 
-Runs ``mypy src/ --no-error-summary`` against *project_dir* and parses the
+Runs ``mypy . --no-error-summary`` against *project_dir* and parses the
 diagnostics into Finding objects with severity "medium", source "mypy", and
 category "type-error".
 
@@ -31,7 +31,7 @@ def collect(project_dir: str) -> SourceResult:
     Parameters
     ----------
     project_dir:
-        Absolute path to the project root that contains ``src/``.
+        Absolute path to the project root (mypy uses pyproject.toml config).
 
     Returns
     -------
@@ -57,7 +57,7 @@ def collect(project_dir: str) -> SourceResult:
     start = time.monotonic()
     try:
         proc = subprocess.run(
-            ["mypy", "src/", "--no-error-summary"],
+            ["mypy", ".", "--no-error-summary"],
             capture_output=True,
             text=True,
             cwd=project_dir,

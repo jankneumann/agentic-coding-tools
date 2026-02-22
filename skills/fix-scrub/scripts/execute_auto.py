@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -60,8 +61,6 @@ def execute_auto_fixes(
             text=True,
             cwd=project_dir,
         )
-        import json
-
         remaining_violations = set()
         if result.stdout.strip():
             for item in json.loads(result.stdout):

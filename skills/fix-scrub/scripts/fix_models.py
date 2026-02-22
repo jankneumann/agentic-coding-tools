@@ -22,7 +22,10 @@ _bug_scrub_models_path = str(
 
 if "bug_scrub_models" not in sys.modules:
     _spec = importlib.util.spec_from_file_location("bug_scrub_models", _bug_scrub_models_path)
-    assert _spec is not None and _spec.loader is not None
+    if _spec is None or _spec.loader is None:
+        raise ImportError(
+            f"Cannot load bug-scrub models from {_bug_scrub_models_path}"
+        )
     _mod = importlib.util.module_from_spec(_spec)
     sys.modules["bug_scrub_models"] = _mod
     _spec.loader.exec_module(_mod)

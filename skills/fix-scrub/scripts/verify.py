@@ -97,7 +97,7 @@ def verify(
 
     tools = [
         ("pytest", ["pytest", "-m", "not e2e and not integration", "--tb=line", "-q"]),
-        ("mypy", ["mypy", "src/", "--no-error-summary"]),
+        ("mypy", ["mypy", ".", "--no-error-summary"]),
         ("ruff", ["ruff", "check", "--output-format=json"]),
         ("openspec", ["openspec", "validate", "--strict", "--all"]),
     ]

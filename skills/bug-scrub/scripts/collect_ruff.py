@@ -59,7 +59,7 @@ def collect(project_dir: str) -> SourceResult:
             text=True,
             check=True,
         )
-    except FileNotFoundError:
+    except (FileNotFoundError, subprocess.SubprocessError):
         elapsed = int((time.monotonic() - start) * 1000)
         return SourceResult(
             source=SOURCE,
