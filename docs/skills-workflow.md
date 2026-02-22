@@ -210,6 +210,33 @@ Updates OpenSpec spec files to reflect what was actually built. Used after imple
 
 Coordinates OpenSpec proposals with Beads task tracking and isolated git worktree execution. Implements systematic spec-driven development with parallel agent coordination.
 
+### `/bug-scrub`
+
+Performs a comprehensive project health check by collecting signals from CI tools (pytest, ruff, mypy, openspec validate), existing reports (architecture diagnostics, security review), deferred OpenSpec issues, and code markers (TODO/FIXME/HACK/XXX). Aggregates all findings into a unified schema and produces a prioritized report.
+
+**Method**:
+- Runs signal collectors in parallel, each producing normalized `Finding` objects
+- Aggregates, sorts by severity/age, and generates actionable recommendations
+- Reports committed to `docs/bug-scrub/` for cross-agent access
+
+**Produces**: `docs/bug-scrub/bug-scrub-report.md` (human-readable) and `docs/bug-scrub/bug-scrub-report.json` (machine-readable for `/fix-scrub`).
+
+**Gate**: None (diagnostic/support step).
+
+### `/fix-scrub`
+
+Consumes the bug-scrub report and applies remediation. Classifies findings into three fixability tiers: auto (tool-native fixes like `ruff --fix`), agent (Task()-dispatched code fixes with file scope isolation), and manual (reported but not fixed). Runs quality verification after fixes and tracks OpenSpec task completions.
+
+**Method**:
+- Classifies findings → plans by file scope → applies auto-fixes → dispatches agent-fixes → verifies quality → commits
+- Updates `tasks.md` checkboxes when deferred findings are resolved
+
+**Produces**: `docs/bug-scrub/fix-scrub-report.md` with tier breakdown, files changed, tasks completed, and manual action items.
+
+**Gate**: None — but prompts user before committing if regressions are detected.
+
+**Workflow pair**: Run `/bug-scrub` first (diagnosis), then `/fix-scrub` (remediation).
+
 ## Design Principles
 
 ### Skills map to approval gates
