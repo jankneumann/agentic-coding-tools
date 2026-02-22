@@ -93,6 +93,7 @@ def aggregate(
     """
     min_rank = severity_rank(severity_filter)
     all_findings: list[Finding] = []
+    filtered_out = 0
     staleness_warnings: list[str] = []
     sources_used: list[str] = []
 
@@ -106,6 +107,8 @@ def aggregate(
         for f in sr.findings:
             if severity_rank(f.severity) >= min_rank:
                 all_findings.append(f)
+            else:
+                filtered_out += 1
 
     # Sort by severity (descending) then age (descending, oldest first)
     all_findings.sort(
@@ -123,6 +126,7 @@ def aggregate(
         sources_used=sources_used,
         severity_filter=severity_filter,
         findings=all_findings,
+        filtered_out_count=filtered_out,
         staleness_warnings=staleness_warnings,
         recommendations=recommendations,
         source_results=source_results,

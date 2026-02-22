@@ -21,6 +21,8 @@ def render_markdown(report: BugScrubReport) -> str:
     lines.append(f"**Sources**: {', '.join(report.sources_used)}")
     lines.append(f"**Severity filter**: {report.severity_filter}")
     lines.append(f"**Total findings**: {len(report.findings)}")
+    if report.filtered_out_count > 0:
+        lines.append(f"**Filtered out**: {report.filtered_out_count} findings below '{report.severity_filter}' severity")
     lines.append("")
 
     # Summary table

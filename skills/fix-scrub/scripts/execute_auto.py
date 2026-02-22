@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -63,10 +64,16 @@ def execute_auto_fixes(
         )
         remaining_violations = set()
         if result.stdout.strip():
+            project_path = Path(project_dir).resolve()
             for item in json.loads(result.stdout):
                 filename = item.get("filename", "")
                 row = item.get("location", {}).get("row", 0)
                 code = item.get("code", "")
+                # Normalize to relative path to match finding IDs
+                try:
+                    filename = str(Path(filename).relative_to(project_path))
+                except ValueError:
+                    pass
                 remaining_violations.add(f"{code}-{filename}:{row}")
     except (FileNotFoundError, json.JSONDecodeError):
         remaining_violations = set()

@@ -105,6 +105,7 @@ class BugScrubReport:
     sources_used: list[str]
     severity_filter: str
     findings: list[Finding] = field(default_factory=list)
+    filtered_out_count: int = 0
     staleness_warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
     source_results: list[SourceResult] = field(default_factory=list)
@@ -127,6 +128,7 @@ class BugScrubReport:
             "sources_used": self.sources_used,
             "severity_filter": self.severity_filter,
             "findings": [f.to_dict() for f in self.findings],
+            "filtered_out_count": self.filtered_out_count,
             "staleness_warnings": self.staleness_warnings,
             "recommendations": self.recommendations,
             "source_results": [sr.to_dict() for sr in self.source_results],

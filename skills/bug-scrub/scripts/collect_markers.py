@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Signal collector: TODO/FIXME/HACK/XXX code markers.
 
-Scans all ``*.py`` files under a project directory for comment lines containing
+Scans all ``*.py`` and ``*.pyi`` files under a project directory for comment lines containing
 TODO, FIXME, HACK, or XXX markers.  Each match produces a Finding with source
 ``"markers"`` and category ``"code-marker"``.
 
