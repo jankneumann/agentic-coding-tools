@@ -2,68 +2,71 @@
 
 ## Why
 
-The agent-coordinator exposes coordination primitives (file locks, work queue, handoffs, memory, guardrails, audit) through MCP and HTTP, but workflow skills still run as standalone flows. Users invoking `explore → plan → implement → validate → cleanup` do not automatically benefit from those primitives.
+The agent-coordinator exposes coordination primitives (file locks, work queue, handoffs, memory, guardrails, audit) through MCP and HTTP, but workflow skills still run as standalone flows. Users invoking `explore -> plan -> implement -> validate -> cleanup` do not automatically benefit from those primitives.
 
-The current proposal draft also under-specifies cross-agent execution. It is mostly phrased as Claude CLI + MCP integration, while this repository ships parallel skill runtimes for Claude Codex, Codex, and Gemini. It also needs explicit Web/Cloud behavior where MCP is unavailable and HTTP is the only coordination path.
+To work reliably across Claude Codex, Codex, and Gemini (CLI + Web/Cloud), we also need a strict authoring model for runtime parity. This repository already has that pattern: canonical skills in `skills/`, then `skills/install.sh` uses `rsync` to sync into `.claude/skills`, `.codex/skills`, and `.gemini/skills`.
 
-Without runtime parity and transport-aware detection, we risk partial rollouts (one runtime updated, others stale), false negatives (`COORDINATOR_AVAILABLE=false` when only some tools are exposed), and unclear behavior for Web/Cloud agents.
+Without that canonical-sync model, runtime drift and transport-specific regressions become likely.
 
 ## What Changes
 
-### Approach: Transport-aware coordination with runtime parity
+### Approach: Transport-aware coordination with canonical skill sync
 
-The core design principle is still **one skill set, two modes** (coordinated vs standalone), but now formalized across:
-- Three runtimes: Claude Codex, Codex, Gemini
-- Two transports: MCP (CLI) and HTTP API (Web/Cloud)
+The design combines two rules:
 
-Each integrated skill determines:
-- `COORDINATOR_AVAILABLE` (`true`/`false`)
-- `COORDINATION_TRANSPORT` (`mcp` | `http` | `none`)
-- Capability flags (`CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`)
+1. **Transport-aware coordination**
+- MCP for local CLI agents
+- HTTP API for Web/Cloud agents
+- Graceful fallback when coordinator/capabilities are unavailable
 
-Coordination hooks are executed only when the required capability flag is true. Missing capabilities degrade gracefully with informational logging and existing behavior.
+2. **Canonical skill distribution**
+- Author coordinator integration only in `skills/`
+- Propagate to runtime skill trees via existing `skills/install.sh` in `rsync` mode
+- Treat runtime skill trees as generated mirrors for this feature work
 
 ### Changes
 
 - **Add transport-aware coordination detection** to integrated skills:
-  - CLI path: detect MCP tools by function name (`acquire_lock`, not server-prefixed names)
-  - Web/Cloud path: detect HTTP coordinator reachability and capability availability via shared helper logic
-  - Set transport + capability flags used by downstream skill steps
+  - Set `COORDINATOR_AVAILABLE` (`true|false`)
+  - Set `COORDINATION_TRANSPORT` (`mcp|http|none`)
+  - Set capability flags (`CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`)
 
-- **Add file locking hooks to `/implement-feature`**: acquire/release locks only when `CAN_LOCK=true`; otherwise continue local behavior unchanged
+- **Add file locking hooks to `/implement-feature`** when `CAN_LOCK=true`; keep existing behavior when unavailable
 
-- **Add work queue hooks to `/implement-feature`**: submit/claim/complete work only when `CAN_QUEUE_WORK=true`; otherwise use existing local `Task()` parallelization
+- **Add work queue hooks to `/implement-feature`** when `CAN_QUEUE_WORK=true`; keep local `Task()` fallback otherwise
 
-- **Add session handoff hooks to creative lifecycle skills** (`/plan-feature`, `/implement-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/cleanup-feature`): read at start and write completion summaries when `CAN_HANDOFF=true`
+- **Add session handoff hooks** to creative lifecycle skills (`/plan-feature`, `/implement-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/cleanup-feature`) when `CAN_HANDOFF=true`
 
 - **Add memory hooks**:
   - Recall at start for `/explore-feature`, `/plan-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/validate-feature` when `CAN_MEMORY=true`
   - Remember on completion for `/iterate-on-plan`, `/iterate-on-implementation`, `/validate-feature` when `CAN_MEMORY=true`
 
-- **Add guardrail pre-checks to `/implement-feature` and `/security-review`** when `CAN_GUARDRAILS=true`: report violations informationally in phase 1, do not hard-block execution
+- **Add guardrail pre-checks** to `/implement-feature` and `/security-review` when `CAN_GUARDRAILS=true`; informational-only in phase 1
 
-- **Create `/setup-coordinator` skill for all runtimes** (`.claude`, `.codex`, `.gemini`, `skills`) covering:
-  - CLI setup (MCP configuration + connectivity verification)
-  - Web/Cloud setup (HTTP API URL/key, allowlist guidance, connectivity verification)
-  - Capability summary and graceful-degradation expectations
+- **Create canonical `skills/setup-coordinator/SKILL.md`** for onboarding:
+  - CLI MCP setup/verification
+  - Web/Cloud HTTP setup/verification
+  - capability summary + fallback expectations
 
-- **Create shared `scripts/coordination_bridge.py`** as the stable HTTP contract layer for scripts and Web/Cloud-oriented checks. The bridge encapsulates endpoint paths, parameter mapping, response normalization, capability detection, and no-op fallback (`status="skipped"`) when the coordinator is unavailable.
+- **Create `scripts/coordination_bridge.py`** as stable HTTP contract layer for helper scripts/Web checks with normalized no-op fallback (`status="skipped"`)
 
-- **Add runtime parity guardrails**: add a parity validation script/check so integrated skill files remain synchronized across runtime trees
+- **Use existing `skills/install.sh` sync workflow** to propagate updated canonical skills to `.claude/.codex/.gemini` runtime mirrors
 
 - **Update docs**:
-  - `docs/skills-workflow.md`: transport model, capability gating, runtime parity expectations
+  - `docs/skills-workflow.md`: transport model + canonical `skills/` -> runtime sync pattern
   - `docs/agent-coordinator.md`: skill integration patterns for MCP (CLI) and HTTP (Web/Cloud)
 
 ### API and Runtime Stability
 
 Skills consume coordinator through two execution paths and one fallback:
 
-1. **MCP path (CLI agents)**: Skill instructions call MCP tools by function name (`acquire_lock`, not server-prefixed aliases).
-2. **HTTP path (Web/Cloud agents and helper scripts)**: Scripts call `scripts/coordination_bridge.py`, which owns HTTP endpoint/parameter compatibility.
-3. **Fallback path**: If neither transport or capability is available, skills log informationally and continue with current standalone behavior.
+1. **MCP path (CLI)**: skill instructions call MCP tools by function name (`acquire_lock`, not server-prefixed aliases)
+2. **HTTP path (Web/Cloud and helper scripts)**: scripts call `scripts/coordination_bridge.py`
+3. **Fallback path**: if transport/capability is unavailable, skills continue with existing standalone behavior
 
-Runtime parity is treated as a contract: the integrated skills in `.claude/skills`, `.codex/skills`, `.gemini/skills`, and `skills` must stay synchronized.
+Runtime parity contract for this change:
+- Canonical edits happen in `skills/`
+- Runtime mirrors are refreshed via `skills/install.sh --mode rsync --agents claude,codex,gemini`
 
 ### Non-changes (explicit scope boundaries)
 
@@ -71,7 +74,7 @@ Runtime parity is treated as a contract: the integrated skills in `.claude/skill
 - No mandatory coordinator dependency
 - No changes to coordinator MCP or HTTP API interfaces
 - No changes to OpenSpec CLI or spec format
-- No duplicate workflow skill families; enhancements are additive to existing skills
+- No duplicate workflow skill families
 
 ## Impact
 
@@ -79,32 +82,26 @@ Runtime parity is treated as a contract: the integrated skills in `.claude/skill
 
 | Spec | Capability | Delta |
 |------|-----------|-------|
-| `skill-workflow` | Workflow + adjacent skills across Claude Codex, Codex, Gemini runtimes | Add transport-aware detection, capability-gated hooks, and runtime parity expectations |
-| `agent-coordinator` | Skill integration usage patterns | Document MCP and HTTP integration paths (CLI + Web/Cloud), with graceful fallback |
+| `skill-workflow` | Workflow + adjacent skills across Claude Codex, Codex, Gemini | Add transport-aware detection, capability-gated hooks, and canonical `skills/` sync distribution pattern |
+| `agent-coordinator` | Skill integration usage patterns | Document MCP and HTTP integration paths with setup and fallback expectations |
 
 ### Code touchpoints
 
 | Path | Change |
 |------|--------|
-| `.claude/skills/{explore-feature,plan-feature,implement-feature,iterate-on-plan,iterate-on-implementation,validate-feature,cleanup-feature,security-review}/SKILL.md` | Add transport-aware detection and capability-gated hooks |
-| `.codex/skills/{explore-feature,plan-feature,implement-feature,iterate-on-plan,iterate-on-implementation,validate-feature,cleanup-feature,security-review}/SKILL.md` | Same integration changes as Claude runtime |
-| `.gemini/skills/{explore-feature,plan-feature,implement-feature,iterate-on-plan,iterate-on-implementation,validate-feature,cleanup-feature,security-review}/SKILL.md` | Same integration changes as Claude runtime |
-| `skills/{explore-feature,plan-feature,implement-feature,iterate-on-plan,iterate-on-implementation,validate-feature,cleanup-feature,security-review}/SKILL.md` | Keep top-level skill mirror in sync |
-| `.claude/skills/setup-coordinator/SKILL.md` | New onboarding skill |
-| `.codex/skills/setup-coordinator/SKILL.md` | New onboarding skill |
-| `.gemini/skills/setup-coordinator/SKILL.md` | New onboarding skill |
-| `skills/setup-coordinator/SKILL.md` | New top-level skill mirror |
+| `skills/{explore-feature,plan-feature,implement-feature,iterate-on-plan,iterate-on-implementation,validate-feature,cleanup-feature,security-review}/SKILL.md` | Canonical coordinator integration changes |
+| `skills/setup-coordinator/SKILL.md` | New canonical onboarding skill |
+| `skills/install.sh` | Existing sync mechanism used to distribute canonical skills to runtime mirrors |
 | `scripts/coordination_bridge.py` | New HTTP coordination helper and fallback contract |
 | `scripts/tests/test_coordination_bridge.py` | Unit tests for transport/capability/fallback behavior |
-| `scripts/validate_skill_runtime_parity.py` | New parity check script across runtime skill trees |
-| `scripts/tests/test_validate_skill_runtime_parity.py` | Unit tests for parity checker |
 | `docs/coordination-detection-template.md` | Shared preamble template with transport/capability flags |
-| `docs/skills-workflow.md` | Add coordinator integration section with runtime/transport matrix |
+| `docs/skills-workflow.md` | Add canonical distribution + transport matrix guidance |
 | `docs/agent-coordinator.md` | Add skill integration section for CLI and Web/Cloud agents |
+| `.claude/skills/*`, `.codex/skills/*`, `.gemini/skills/*` | Generated mirror updates via `skills/install.sh --mode rsync` |
 
 ### Architecture layers affected
 
-- **Execution layer**: runtime skills gain optional coordination calls
-- **Coordination layer**: no API/interface changes (consumer-only integration)
+- **Execution layer**: skills gain optional coordination calls
+- **Coordination layer**: no API/interface changes (consumer-side integration only)
 - **Trust layer**: guardrail checks consumed conditionally when capability exists
 - **Governance layer**: handoff/memory/audit events include skill lifecycle context when available

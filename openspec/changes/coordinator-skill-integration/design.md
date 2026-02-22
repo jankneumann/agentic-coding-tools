@@ -41,14 +41,18 @@ Each hook is gated by the relevant capability flag.
 
 ### Decision
 
-Apply all coordinator-integration edits to `.claude/skills`, `.codex/skills`, `.gemini/skills`, and `skills`, and enforce parity with a dedicated validator.
+Use `skills/` as the canonical authoring location for coordinator-integration edits, then sync runtime mirrors with the existing install workflow:
+
+`skills/install.sh --mode rsync --agents claude,codex,gemini`
+
+Runtime trees (`.claude/skills`, `.codex/skills`, `.gemini/skills`) are treated as generated mirrors for this change.
 
 ### Alternatives considered
 
-- Update only one runtime tree and backfill later
-  - Rejected: guaranteed divergence and delayed regression discovery
-- Generate runtime skill files from one source template in this change
-  - Deferred: larger refactor than needed for initial integration
+- Edit all runtime trees manually in every change
+  - Rejected: higher drift risk and unnecessary duplicate editing burden
+- Introduce a new custom parity-distribution mechanism
+  - Rejected: existing `skills/install.sh` already provides tested rsync-based synchronization
 
 ## Decision 3: Split coordination access by transport
 
@@ -83,7 +87,7 @@ This preserves utility without adding low-value coordination noise to all skills
 ## Risks and Mitigations
 
 - Risk: Runtime drift across skill trees
-  - Mitigation: parity validator + explicit task coverage across all runtime directories
+  - Mitigation: canonical `skills/` edits + mandatory `skills/install.sh` sync + post-sync drift checks
 - Risk: False negatives in availability detection
   - Mitigation: transport-aware detection plus per-capability flags
 - Risk: Web/Cloud incompatibility due MCP assumptions
