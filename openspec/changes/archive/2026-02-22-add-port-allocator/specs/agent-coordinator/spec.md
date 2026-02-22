@@ -114,8 +114,6 @@ The port allocator service MUST function without Supabase, database connections,
 - **THEN** the port allocator SHALL still use in-memory state (not database)
 - **AND** other services (locks, memory, etc.) SHALL continue using the database as before
 
-## MODIFIED Requirements
-
 ### Requirement: Validate-feature port configuration
 
 The validate-feature skill SHALL use environment variables for all port references instead of hardcoded values.
