@@ -387,7 +387,7 @@ for agent in "${agent_list[@]}"; do
       echo "  link  $skill_name -> $skill_path"
     else
       mkdir -p "$dest_path"
-      rsync -a --delete "$skill_path/" "$dest_path/"
+      rsync -a --checksum --delete "$skill_path/" "$dest_path/"
       echo "  $sync_label  $skill_name -> $dest_path"
     fi
     total_installed=$((total_installed + 1))
