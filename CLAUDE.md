@@ -16,79 +16,14 @@ Use the 5-skill feature workflow with natural approval gates:
 /cleanup-feature <change-id>                   → Done
 ```
 
-## Lessons Learned
-
-### Skill Design Patterns
-
-- **Match skills to approval gates**: Each skill should end at a natural handoff point where human approval is needed. This creates clean boundaries and supports async workflows.
-
-- **Separate creative from mechanical work**: Planning and implementation are creative; cleanup/archival is mechanical. Different skills for different work types allows delegation and automation.
-
-- **Use consistent frontmatter format**: Skills should have `name`, `description`, `category`, `tags`, and `triggers` in YAML frontmatter.
-
-- **Flat skill directory structure**: Claude Code skills don't support nested directories. Each skill must be `<skill-name>/SKILL.md`. For namespaced skills, use hyphens: `openspec-proposal/SKILL.md` not `openspec/proposal/SKILL.md`. Symlink to `~/.claude/skills/` for global availability.
-- **Keep skill executables in skill-local scripts/**: Any executable used by a skill must live under `<skill-name>/scripts/` for portability and install consistency.
-
-- **Iterate at both creative stages**: Plans and implementations both benefit from structured iteration loops with domain-specific finding types and quality checks. `/iterate-on-plan` refines proposals before approval; `/iterate-on-implementation` refines code before PR review.
-
-- **Plan for parallel execution**: Task decomposition in proposals should explicitly identify dependencies and maximize independent work units. This enables `/parallel-implement` to spawn isolated agents without merge conflicts.
-
-### Task() Parallelization Patterns
-
-- **Use Task() for parallel work**: The native Task() tool with `run_in_background=true` replaces external CLI spawning (`claude -p`) and git worktrees. Send multiple Task() calls in a single message to run them concurrently.
-
-- **Parallel quality checks**: Run pytest, mypy, ruff, and openspec validate concurrently. Collect all results before reporting—don't fail-fast on first error. This gives users a complete picture of issues.
-
-- **Parallel exploration**: Use Task(Explore) agents to gather context from multiple sources concurrently. This is read-only and safe to parallelize unconditionally.
-
-- **File scope isolation**: For parallel implementation tasks, each agent's prompt must explicitly list which files it may modify. Tasks with overlapping file scope must run sequentially, not in parallel.
-
-- **No worktrees needed**: Task() agents are orchestrator-coordinated. The old worktree pattern was needed because external `claude -p` processes had no coordination. With Task(), logical file scoping via prompts replaces physical isolation via worktrees.
-
-- **Result aggregation**: After parallel tasks complete, the orchestrator collects results via TaskOutput, verifies work, and commits. Don't let agents commit directly—the orchestrator should control the commit.
-
-### OpenSpec Integration
-
-- **Agent-native OpenSpec first**: For planning/implementation/validation/archive internals, prefer generated OpenSpec assets for the active runtime:
-  Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
-  Codex: `.codex/skills/openspec-*/SKILL.md`
-  Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
-- **CLI fallback always available**: If a runtime asset is missing or incompatible, use direct commands (`openspec new change`, `openspec status`, `openspec instructions ...`, `openspec archive`).
-
-- **Spec deltas over ad-hoc docs**: Put requirements and scenarios in `openspec/changes/<id>/specs/` rather than separate planning documents. This ensures specs stay updated.
-
-- **Archive after merge**: Always archive completed changes with runtime-native archive flow or CLI fallback `openspec archive <change-id> --yes`.
-
-### Local Validation Patterns
-
-- **Parameterize docker-compose host ports**: Coordination stacks frequently run alongside other local services. Use env-driven host port mappings (for example `AGENT_COORDINATOR_REST_PORT`) instead of hardcoded ports so validation can run without stopping unrelated containers.
-
-- **Keep E2E base URL configurable**: End-to-end tests should read `BASE_URL` and never hardcode `localhost:3000`. This allows validation against remapped ports (for example `BASE_URL=http://localhost:13000`).
-
-- **Validate with remapped ports as a first-class path**: When defaults are occupied, run `docker compose` with `AGENT_COORDINATOR_DB_PORT`, `AGENT_COORDINATOR_REST_PORT`, and `AGENT_COORDINATOR_REALTIME_PORT`, then execute e2e with matching `BASE_URL`.
-
-### Language & Architecture Choices
-
-- **Python for I/O-bound coordination services**: Despite Go/Rust being faster, Python is the right choice for services that spend most time waiting on databases and HTTP calls. FastMCP and Supabase SDKs are mature.
-
-- **MCP for local agents, HTTP for cloud**: Local agents (Claude Code CLI) use MCP via stdio. Cloud agents can't use MCP and need HTTP API endpoints.
-
-### Python Environment
+## Python Environment
 
 - **uv for all Python environments**: Use `uv` (not pip, pipenv, or poetry) for dependency management and virtual environments across all Python projects. CI uses `astral-sh/setup-uv@v5`.
 - **agent-coordinator**: `cd agent-coordinator && uv sync --all-extras` to install. Venv at `agent-coordinator/.venv`.
 - **scripts**: `cd scripts && uv sync` to install. Venv at `scripts/.venv`.
 - **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `scripts/.venv/bin/python -m pytest`).
 
-### Cross-Skill Python Patterns
-
-- **Shared models via sys.path**: When skills need to share Python modules (e.g., fix-scrub importing bug-scrub's `models.py`), use `sys.path.insert(0, path)` at module top level plus `importlib` for dynamic loading. The canonical models live in `bug-scrub/scripts/models.py`; fix-scrub imports them via `fix_models.py` which handles the path resolution.
-
-- **Skills tests use agent-coordinator venv**: Skills under `skills/` don't have their own venvs. Run their tests via the agent-coordinator venv: `/Users/jankneumann/Coding/agentic-coding-tools/agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/`.
-
-- **Normalize external tool output paths**: Tools like ruff return absolute paths in JSON output, but internal finding IDs use relative paths. Always normalize with `Path(abs_path).relative_to(project_dir)` before comparison. This was a critical bug caught in iteration — all findings were falsely reported as resolved.
-
-### Git Conventions
+## Git Conventions
 
 - **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
 - **Commit format**: Reference the OpenSpec change-id in commit messages
@@ -96,34 +31,9 @@ Use the 5-skill feature workflow with natural approval gates:
 - **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
-## Architecture Artifacts
-
-The `docs/architecture-analysis/` directory contains auto-generated structural analysis of the codebase. These artifacts are committed and should be consulted by agents during planning and validation.
-
-### Key Files
-- `docs/architecture-analysis/architecture.summary.json` — Compact summary with cross-layer flows, stats, disconnected endpoints
-- `docs/architecture-analysis/architecture.graph.json` — Full canonical graph (nodes, edges, entrypoints)
-- `docs/architecture-analysis/architecture.diagnostics.json` — Validation findings (errors, warnings, info)
-- `docs/architecture-analysis/parallel_zones.json` — Independent module groups for safe parallel modification
-- `docs/architecture-analysis/architecture.report.md` — Narrative architecture report
-- `docs/architecture-analysis/views/` — Auto-generated Mermaid diagrams
-
-### Usage
-- **Before planning**: Read `architecture.summary.json` to understand component relationships and existing flows
-- **Before implementing**: Check `parallel_zones.json` for safe parallel modification zones
-- **After implementing**: Run `make architecture-validate` to catch broken flows
-- **Refresh**: Run `make architecture` to regenerate all artifacts
-
-### Refresh Commands
-```bash
-make architecture              # Full refresh
-make architecture-validate     # Validate only
-make architecture-views        # Regenerate views only
-make architecture-diff BASE_SHA=<sha>  # Compare to baseline
-make architecture-feature FEATURE="file1,file2"  # Feature slice
-```
-
 ## Documentation
 
+- [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns
+- [Architecture Artifacts](docs/architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
 - [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
 - [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
