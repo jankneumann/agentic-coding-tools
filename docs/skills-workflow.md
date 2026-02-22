@@ -265,6 +265,6 @@ Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to
 
 ## Formal Specification
 
-The skills workflow is formally specified with 14 requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, and feature validation.
+The skills workflow is formally specified with 34 requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, feature validation, bug-scrub signal collection, and fix-scrub remediation tiers.
 
 See [`openspec/specs/skill-workflow/spec.md`](../openspec/specs/skill-workflow/spec.md) for the complete specification.

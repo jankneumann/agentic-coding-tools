@@ -80,11 +80,21 @@ Use the 5-skill feature workflow with natural approval gates:
 - **scripts**: `cd scripts && uv sync` to install. Venv at `scripts/.venv`.
 - **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `scripts/.venv/bin/python -m pytest`).
 
+### Cross-Skill Python Patterns
+
+- **Shared models via sys.path**: When skills need to share Python modules (e.g., fix-scrub importing bug-scrub's `models.py`), use `sys.path.insert(0, path)` at module top level plus `importlib` for dynamic loading. The canonical models live in `bug-scrub/scripts/models.py`; fix-scrub imports them via `fix_models.py` which handles the path resolution.
+
+- **Skills tests use agent-coordinator venv**: Skills under `skills/` don't have their own venvs. Run their tests via the agent-coordinator venv: `/Users/jankneumann/Coding/agentic-coding-tools/agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/`.
+
+- **Normalize external tool output paths**: Tools like ruff return absolute paths in JSON output, but internal finding IDs use relative paths. Always normalize with `Path(abs_path).relative_to(project_dir)` before comparison. This was a critical bug caught in iteration — all findings were falsely reported as resolved.
+
 ### Git Conventions
 
 - **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
 - **Commit format**: Reference the OpenSpec change-id in commit messages
 - **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
+- **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
+- **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
 ## Architecture Artifacts
 
