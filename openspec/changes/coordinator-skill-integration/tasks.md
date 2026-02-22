@@ -116,7 +116,12 @@
   - Claude Codex CLI + MCP
   - Codex CLI + MCP
   - Gemini CLI + MCP
-  Confirm `COORDINATION_TRANSPORT=mcp`, correct capability flags, and capability-gated execution.
+  For each runtime, explicitly verify:
+  - detection sets `COORDINATION_TRANSPORT=mcp`
+  - capability flags are populated correctly for exposed MCP tools
+  - `/implement-feature` executes lock/queue/guardrail hooks only when the corresponding `CAN_*` flag is true
+  - `/plan-feature` or `/iterate-on-plan` reads/writes handoffs only when `CAN_HANDOFF=true`
+  - `/validate-feature` and `/iterate-on-*` memory hooks run only when `CAN_MEMORY=true`
 
 - [ ] 6.2 HTTP matrix: Web/Cloud path across three providers
   **Dependencies**: 6.1
@@ -126,13 +131,21 @@
   - Claude Web + HTTP API
   - Codex Cloud + HTTP API
   - Gemini Web/Cloud + HTTP API
-  Confirm `COORDINATION_TRANSPORT=http`, correct capability flags, and capability-gated execution.
+  For each runtime, explicitly verify:
+  - detection sets `COORDINATION_TRANSPORT=http`
+  - bridge-based capability detection reflects reachable HTTP endpoints
+  - capability-gated hooks match HTTP capability availability (including partial-capability cases)
+  - guardrail violations are reported informationally (phase 1) without hard blocking
 
 - [ ] 6.3 Degraded fallback matrix (both transports)
   **Dependencies**: 6.2
   **Files**: (read-only validation)
   **Requirements**: Coordination Detection, Coordination Bridge Script
-  **Description**: Simulate coordinator unavailability for MCP and HTTP paths. Confirm skills continue with standalone behavior and bridge/tool calls degrade to informational skip behavior (`status="skipped"` where applicable).
+  **Description**: Simulate coordinator unavailability for MCP and HTTP paths. Verify for each provider/runtime:
+  - detection falls back to `COORDINATION_TRANSPORT=none` and/or `COORDINATOR_AVAILABLE=false` as appropriate
+  - skills continue with standalone behavior (no coordinator-induced hard failure)
+  - bridge/tool calls degrade to informational skip behavior (`status="skipped"` where applicable)
+  - lock release/cleanup paths do not fail if coordinator is unreachable mid-run
 
 - [ ] 6.4 Run OpenSpec validation
   **Dependencies**: 6.3
