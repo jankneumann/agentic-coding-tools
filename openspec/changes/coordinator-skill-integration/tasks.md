@@ -104,7 +104,7 @@
   **Dependencies**: None
   **Files**: `docs/agent-coordinator.md`
   **Requirement**: Skill Integration Usage Patterns (agent-coordinator spec)
-  **Description**: Document skill-to-capability mapping for CLI and Web/Cloud, setup guidance, and fallback semantics.
+  **Description**: Document skill-to-capability mapping for CLI and Web/Cloud, setup guidance, and fallback semantics. Include explicit linkage note that Neon standardization is handled in a separate coordinator infrastructure proposal, while this change remains backend-agnostic.
 
 ## 6. Validation (sequential - explicit 3 providers x 2 transports matrix)
 

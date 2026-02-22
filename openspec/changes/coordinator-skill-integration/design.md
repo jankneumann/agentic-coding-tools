@@ -18,6 +18,7 @@ The design must prevent runtime drift, avoid MCP-only assumptions, and preserve 
 - Changing coordinator MCP or HTTP API contracts
 - Making coordinator mandatory for workflow execution
 - Replacing existing workflow skills with new parallel skill families
+- Migrating coordinator database provider (for example, Supabase to Neon) within this change
 
 ## Decision 1: Use transport-aware capability detection
 
@@ -99,3 +100,4 @@ This preserves utility without adding low-value coordination noise to all skills
 
 - Whether runtime skill trees should be generated from templates in a future follow-up
 - Whether guardrail enforcement should become blocking in a later phase
+- Track Neon default-cloud-Postgres standardization as a separate coordinator infrastructure proposal and link it from setup/docs once approved
