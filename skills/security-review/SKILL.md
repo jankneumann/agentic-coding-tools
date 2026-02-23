@@ -31,9 +31,14 @@ Run a reusable security review workflow across repositories. This skill auto-det
 - `--allow-degraded-pass` (allow pass when scanners are unavailable and no threshold findings exist)
 - `--dry-run`
 
-## Script Layout Convention
+## Script Location
 
-All executable helper scripts for this skill live in `skills/security-review/scripts/`.
+Scripts live in `<agent-skills-dir>/security-review/scripts/`. Each agent runtime substitutes `<agent-skills-dir>` with its config directory:
+- **Claude**: `.claude/skills`
+- **Codex**: `.codex/skills`
+- **Gemini**: `.gemini/skills`
+
+If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
 
 ## Prerequisites
 
@@ -43,21 +48,21 @@ All executable helper scripts for this skill live in `skills/security-review/scr
   - Podman Desktop (preferred) with Docker CLI compatibility enabled
   - or another Docker-compatible container runtime
 - For dependency setup/repair:
-  - `skills/security-review/scripts/install_deps.sh`
-  - `skills/security-review/docs/dependencies.md`
+  - `<agent-skills-dir>/security-review/scripts/install_deps.sh`
+  - `<agent-skills-dir>/security-review/docs/dependencies.md`
 
 ## Steps
 
 ### 1. Detect Project Profile
 
 ```bash
-python skills/security-review/scripts/detect_profile.py --repo <path> --pretty
+python3 <agent-skills-dir>/security-review/scripts/detect_profile.py --repo <path> --pretty
 ```
 
 ### 2. Build Scanner Plan
 
 ```bash
-python skills/security-review/scripts/build_scan_plan.py \
+python3 <agent-skills-dir>/security-review/scripts/build_scan_plan.py \
   --repo <path> \
   --zap-target <url-or-spec> \
   --zap-mode baseline \
@@ -68,23 +73,23 @@ python skills/security-review/scripts/build_scan_plan.py \
 ### 3. Check Prerequisites
 
 ```bash
-skills/security-review/scripts/check_prereqs.sh --json
+<agent-skills-dir>/security-review/scripts/check_prereqs.sh --json
 ```
 
 If requirements are missing:
 
 ```bash
 # print-only by default
-skills/security-review/scripts/install_deps.sh --components java,podman,dependency-check
+<agent-skills-dir>/security-review/scripts/install_deps.sh --components java,podman,dependency-check
 
 # execute install commands
-skills/security-review/scripts/install_deps.sh --apply --components java,podman,dependency-check
+<agent-skills-dir>/security-review/scripts/install_deps.sh --apply --components java,podman,dependency-check
 ```
 
 ### 4. Run End-to-End Orchestrator
 
 ```bash
-python skills/security-review/scripts/main.py \
+python3 <agent-skills-dir>/security-review/scripts/main.py \
   --repo <path> \
   --out-dir docs/security-review \
   --fail-on high \
@@ -117,20 +122,20 @@ Dry-run behavior:
 Dependency-Check adapter (native or container fallback):
 
 ```bash
-skills/security-review/scripts/run_dependency_check.sh --repo <path> --out <dir>
-python skills/security-review/scripts/parse_dependency_check.py --input <dir>/dependency-check-report.json --pretty
+<agent-skills-dir>/security-review/scripts/run_dependency_check.sh --repo <path> --out <dir>
+python3 <agent-skills-dir>/security-review/scripts/parse_dependency_check.py --input <dir>/dependency-check-report.json --pretty
 ```
 
 ZAP adapter (container runtime):
 
 ```bash
-skills/security-review/scripts/run_zap_scan.sh --target <url-or-spec> --out <dir> --mode baseline
-python skills/security-review/scripts/parse_zap_results.py --input <dir>/zap-report.json --pretty
+<agent-skills-dir>/security-review/scripts/run_zap_scan.sh --target <url-or-spec> --out <dir> --mode baseline
+python3 <agent-skills-dir>/security-review/scripts/parse_zap_results.py --input <dir>/zap-report.json --pretty
 ```
 
 ## Quality Checks
 
 ```bash
-python -m pytest skills/security-review/tests -q
+python3 -m pytest <agent-skills-dir>/security-review/tests -q
 openspec validate add-security-review-skill --strict
 ```
