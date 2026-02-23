@@ -11,8 +11,7 @@ Use the 5-skill feature workflow with natural approval gates:
   /iterate-on-plan <change-id> (optional)      → Refines plan before approval
 /implement-feature <change-id>                 → PR review gate
   /iterate-on-implementation <change-id> (optional)  → Refinement complete
-  /security-review <change-id> (optional)      → Security gate review
-  /validate-feature <change-id> (optional)     → Live deployment verification
+  /validate-feature <change-id> (optional)     → Live deployment verification (includes security scanning)
 /cleanup-feature <change-id>                   → Done
 ```
 
