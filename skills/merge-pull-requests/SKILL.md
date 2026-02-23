@@ -19,6 +19,15 @@ Discover, triage, and merge open pull requests from multiple sources. Handles Op
 
 `$ARGUMENTS` - Optional flags: `--dry-run` (report only, no mutations)
 
+## Script Location
+
+Scripts live in `<agent-skills-dir>/merge-pull-requests/scripts/`. Each agent runtime substitutes `<agent-skills-dir>` with its config directory:
+- **Claude**: `.claude/skills`
+- **Codex**: `.codex/skills`
+- **Gemini**: `.gemini/skills`
+
+If scripts are missing, run `skills/install.sh` to sync them from the canonical `skills/` source.
+
 ## Prerequisites
 
 - `gh` CLI authenticated (`gh auth status`)
@@ -57,7 +66,7 @@ git pull origin main
 ### 3. Discover and Classify Open PRs
 
 ```bash
-python skills/merge-pull-requests/scripts/discover_prs.py
+python3 <agent-skills-dir>/merge-pull-requests/scripts/discover_prs.py
 ```
 
 This outputs a JSON array of PRs classified by origin:
@@ -125,7 +134,7 @@ PRs with auto-merge already enabled will merge automatically once their conditio
 For each non-draft PR, run staleness detection:
 
 ```bash
-python skills/merge-pull-requests/scripts/check_staleness.py <pr_number> --origin <origin>
+python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <pr_number> --origin <origin>
 ```
 
 The script fetches the latest remote state (`git fetch origin main`) before checking. Pay special attention to Jules automation PRs (sentinel, bolt, palette) — the script uses normalized whitespace matching to check whether the code patterns being fixed still exist on main. If not, the PR is marked `obsolete`.
@@ -152,7 +161,7 @@ If any PRs are classified as **obsolete**:
 
 ```bash
 # Show obsolete PRs and ask for confirmation
-python skills/merge-pull-requests/scripts/merge_pr.py batch-close <pr_numbers_comma_sep> \
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py batch-close <pr_numbers_comma_sep> \
   --reason "Closing as obsolete: the code patterns this PR fixes no longer exist on main. The underlying issue has been addressed by other changes."
 ```
 
@@ -163,7 +172,7 @@ Present the list of obsolete PRs and confirm with the operator before closing. S
 For remaining PRs (non-obsolete, non-draft), check for unresolved review comments:
 
 ```bash
-python skills/merge-pull-requests/scripts/analyze_comments.py <pr_number>
+python3 <agent-skills-dir>/merge-pull-requests/scripts/analyze_comments.py <pr_number>
 ```
 
 This uses the GitHub GraphQL API to get accurate thread resolution status:
@@ -208,7 +217,7 @@ Then offer actions:
 #### Merge a PR
 
 ```bash
-python skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --strategy squash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --strategy squash
 ```
 
 The script validates CI status (distinguishing failed from pending), draft status, merge conflicts, and mergeability before merging. It handles:
@@ -234,7 +243,7 @@ Run /cleanup-feature <change-id> to archive the OpenSpec proposal.
 #### Re-run Failed CI Checks
 
 ```bash
-python skills/merge-pull-requests/scripts/merge_pr.py rerun-checks <pr_number>
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py rerun-checks <pr_number>
 ```
 
 This finds failed workflow runs on the PR's branch and re-runs only the failed jobs. After re-running, offer to **Wait** for the checks to complete.
@@ -244,7 +253,7 @@ This finds failed workflow runs on the PR's branch and re-runs only the failed j
 After merging a PR, the staleness assessment for remaining PRs may be outdated. **Re-run staleness detection** for the next PR before presenting it:
 
 ```bash
-python skills/merge-pull-requests/scripts/check_staleness.py <next_pr_number> --origin <origin>
+python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <next_pr_number> --origin <origin>
 ```
 
 If a previously fresh PR is now stale (due to overlapping with the just-merged PR), update the assessment before offering actions.
@@ -252,7 +261,7 @@ If a previously fresh PR is now stale (due to overlapping with the just-merged P
 #### Close a PR
 
 ```bash
-python skills/merge-pull-requests/scripts/merge_pr.py close <pr_number> --reason "<explanation>"
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py close <pr_number> --reason "<explanation>"
 ```
 
 #### Address Comments
@@ -287,9 +296,9 @@ After processing all PRs, present a summary:
 When invoked with `--dry-run`, the skill runs all discovery and analysis steps but performs no mutations (no merges, no closes, no comments). Pass `--dry-run` to each script:
 
 ```bash
-python skills/merge-pull-requests/scripts/discover_prs.py --dry-run
-python skills/merge-pull-requests/scripts/check_staleness.py <pr> --origin <type> --dry-run
-python skills/merge-pull-requests/scripts/analyze_comments.py <pr> --dry-run
+python3 <agent-skills-dir>/merge-pull-requests/scripts/discover_prs.py --dry-run
+python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <pr> --origin <type> --dry-run
+python3 <agent-skills-dir>/merge-pull-requests/scripts/analyze_comments.py <pr> --dry-run
 ```
 
 Output a full report:
