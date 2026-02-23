@@ -1,14 +1,12 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-02-16T02:40:10.756719+00:00",
-      "git_sha": "4b5a51070fae59a06021e118a88f4ce644274ee5",
+      "generated_at": "2026-02-23T22:28:40.422141+00:00",
+      "git_sha": "71a8a8a8a94701252ec0d7a47883641a4ecec6bc",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
-      "notes": [
-        "TypeScript analysis not available"
-      ]
+      "notes": []
     }
   ],
   "nodes": [
@@ -18,6 +16,19 @@
       "language": "python",
       "name": "__init__",
       "file": "__init__.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:assurance",
+      "kind": "module",
+      "language": "python",
+      "name": "assurance",
+      "file": "assurance.py",
       "span": {
         "start": 1,
         "end": 1
@@ -44,6 +55,19 @@
       "language": "python",
       "name": "config",
       "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api",
+      "kind": "module",
+      "language": "python",
+      "name": "coordination_api",
+      "file": "coordination_api.py",
       "span": {
         "start": 1,
         "end": 1
@@ -187,6 +211,19 @@
       "language": "python",
       "name": "policy_engine",
       "file": "policy_engine.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator",
+      "kind": "module",
+      "language": "python",
+      "name": "port_allocator",
+      "file": "port_allocator.py",
       "span": {
         "start": 1,
         "end": 1
@@ -416,11 +453,180 @@
       "signatures": {}
     },
     {
+      "id": "py:config.PortAllocatorConfig",
+      "kind": "class",
+      "language": "python",
+      "name": "PortAllocatorConfig",
+      "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:config.ApiConfig",
+      "kind": "class",
+      "language": "python",
+      "name": "ApiConfig",
+      "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:config.Config",
       "kind": "class",
       "language": "python",
       "name": "Config",
       "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.LockAcquireRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "LockAcquireRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.LockReleaseRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "LockReleaseRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.MemoryStoreRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "MemoryStoreRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.MemoryQueryRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "MemoryQueryRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.WorkClaimRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "WorkClaimRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.WorkCompleteRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "WorkCompleteRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.WorkSubmitRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "WorkSubmitRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.GuardrailsCheckRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "GuardrailsCheckRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.AuditQueryParams",
+      "kind": "class",
+      "language": "python",
+      "name": "AuditQueryParams",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.PortAllocateRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "PortAllocateRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.PortReleaseRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "PortReleaseRequest",
+      "file": "coordination_api.py",
       "span": {
         "start": 1,
         "end": 1
@@ -863,6 +1069,32 @@
       "language": "python",
       "name": "CedarPolicyEngine",
       "file": "policy_engine.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocation",
+      "kind": "class",
+      "language": "python",
+      "name": "PortAllocation",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService",
+      "kind": "class",
+      "language": "python",
+      "name": "PortAllocatorService",
+      "file": "port_allocator.py",
       "span": {
         "start": 1,
         "end": 1
@@ -1357,6 +1589,38 @@
       "signatures": {}
     },
     {
+      "id": "py:config.PortAllocatorConfig.from_env",
+      "kind": "function",
+      "language": "python",
+      "name": "from_env",
+      "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:config.ApiConfig.from_env",
+      "kind": "function",
+      "language": "python",
+      "name": "from_env",
+      "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:config.Config.from_env",
       "kind": "function",
       "language": "python",
@@ -1390,6 +1654,337 @@
       "language": "python",
       "name": "reset_config",
       "file": "config.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.verify_api_key",
+      "kind": "function",
+      "language": "python",
+      "name": "verify_api_key",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.resolve_identity",
+      "kind": "function",
+      "language": "python",
+      "name": "resolve_identity",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.authorize_operation",
+      "kind": "function",
+      "language": "python",
+      "name": "authorize_operation",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.resolve_trust_level",
+      "kind": "function",
+      "language": "python",
+      "name": "resolve_trust_level",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api",
+      "kind": "function",
+      "language": "python",
+      "name": "create_coordination_api",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.acquire_lock",
+      "kind": "function",
+      "language": "python",
+      "name": "acquire_lock",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.release_lock",
+      "kind": "function",
+      "language": "python",
+      "name": "release_lock",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "kind": "function",
+      "language": "python",
+      "name": "check_lock_status",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.store_memory",
+      "kind": "function",
+      "language": "python",
+      "name": "store_memory",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.query_memories",
+      "kind": "function",
+      "language": "python",
+      "name": "query_memories",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.claim_work",
+      "kind": "function",
+      "language": "python",
+      "name": "claim_work",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.complete_work",
+      "kind": "function",
+      "language": "python",
+      "name": "complete_work",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.submit_work",
+      "kind": "function",
+      "language": "python",
+      "name": "submit_work",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "kind": "function",
+      "language": "python",
+      "name": "check_guardrails",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "kind": "function",
+      "language": "python",
+      "name": "get_my_profile",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.query_audit",
+      "kind": "function",
+      "language": "python",
+      "name": "query_audit",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.allocate_ports",
+      "kind": "function",
+      "language": "python",
+      "name": "allocate_ports",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.release_ports",
+      "kind": "function",
+      "language": "python",
+      "name": "release_ports",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.port_status",
+      "kind": "function",
+      "language": "python",
+      "name": "port_status",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.health",
+      "kind": "function",
+      "language": "python",
+      "name": "health",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.main",
+      "kind": "function",
+      "language": "python",
+      "name": "main",
+      "file": "coordination_api.py",
       "span": {
         "start": 1,
         "end": 1
@@ -1717,6 +2312,54 @@
       "kind": "function",
       "language": "python",
       "name": "validate_cedar_policy",
+      "file": "coordination_mcp.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_mcp.allocate_ports",
+      "kind": "function",
+      "language": "python",
+      "name": "allocate_ports",
+      "file": "coordination_mcp.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_mcp.release_ports",
+      "kind": "function",
+      "language": "python",
+      "name": "release_ports",
+      "file": "coordination_mcp.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_mcp.ports_status",
+      "kind": "function",
+      "language": "python",
+      "name": "ports_status",
       "file": "coordination_mcp.py",
       "span": {
         "start": 1,
@@ -2185,6 +2828,36 @@
       "kind": "function",
       "language": "python",
       "name": "_coerce_filter_value",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:db_postgres._validate_identifier",
+      "kind": "function",
+      "language": "python",
+      "name": "_validate_identifier",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:db_postgres._validate_select_clause",
+      "kind": "function",
+      "language": "python",
+      "name": "_validate_select_clause",
       "file": "db_postgres.py",
       "span": {
         "start": 1,
@@ -2784,7 +3457,8 @@
         "end": 1
       },
       "tags": [
-        "async"
+        "async",
+        "db_access"
       ],
       "signatures": {}
     },
@@ -3375,6 +4049,22 @@
       "signatures": {}
     },
     {
+      "id": "py:policy_engine.NativePolicyEngine._log_policy_decision",
+      "kind": "function",
+      "language": "python",
+      "name": "_log_policy_decision",
+      "file": "policy_engine.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:policy_engine.CedarPolicyEngine.__init__",
       "kind": "function",
       "language": "python",
@@ -3571,6 +4261,22 @@
       "signatures": {}
     },
     {
+      "id": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
+      "kind": "function",
+      "language": "python",
+      "name": "_log_policy_decision",
+      "file": "policy_engine.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:policy_engine.get_policy_engine",
       "kind": "function",
       "language": "python",
@@ -3589,6 +4295,133 @@
       "language": "python",
       "name": "reset_policy_engine",
       "file": "policy_engine.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocation.env_snippet",
+      "kind": "function",
+      "language": "python",
+      "name": "env_snippet",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService.allocate",
+      "kind": "function",
+      "language": "python",
+      "name": "allocate",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService.release",
+      "kind": "function",
+      "language": "python",
+      "name": "release",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService.status",
+      "kind": "function",
+      "language": "python",
+      "name": "status",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.PortAllocatorService._cleanup_expired",
+      "kind": "function",
+      "language": "python",
+      "name": "_cleanup_expired",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator._compose_project_name",
+      "kind": "function",
+      "language": "python",
+      "name": "_compose_project_name",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.get_port_allocator",
+      "kind": "function",
+      "language": "python",
+      "name": "get_port_allocator",
+      "file": "port_allocator.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:port_allocator.reset_port_allocator",
+      "kind": "function",
+      "language": "python",
+      "name": "reset_port_allocator",
+      "file": "port_allocator.py",
       "span": {
         "start": 1,
         "end": 1
@@ -3935,6 +4768,22 @@
       },
       "tags": [
         "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:work_queue.WorkQueueService._resolve_trust_level",
+      "kind": "function",
+      "language": "python",
+      "name": "_resolve_trust_level",
+      "file": "work_queue.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [
+        "async",
+        "private"
       ],
       "signatures": {}
     },
@@ -8238,6 +9087,342 @@
       "evidence": "ast:call:get_config"
     },
     {
+      "from": "py:coordination_api.verify_api_key",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:coordination_api.authorize_operation",
+      "to": "py:policy_engine.get_policy_engine",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_policy_engine"
+    },
+    {
+      "from": "py:coordination_api.resolve_trust_level",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
+    },
+    {
+      "from": "py:coordination_api.resolve_trust_level",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:locks.get_lock_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_lock_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:memory.get_memory_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_memory_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:coordination_api.resolve_trust_level",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_trust_level"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:guardrails.get_guardrails_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_guardrails_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.acquire_lock",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.acquire_lock",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.acquire_lock",
+      "to": "py:locks.get_lock_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_lock_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.release_lock",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.release_lock",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.release_lock",
+      "to": "py:locks.get_lock_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_lock_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.check_lock_status",
+      "to": "py:locks.get_lock_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_lock_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.store_memory",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.store_memory",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.store_memory",
+      "to": "py:memory.get_memory_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_memory_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.query_memories",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.query_memories",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.query_memories",
+      "to": "py:memory.get_memory_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_memory_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.claim_work",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.claim_work",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.claim_work",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.complete_work",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.complete_work",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.complete_work",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.submit_work",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.submit_work",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.submit_work",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.check_guardrails",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.check_guardrails",
+      "to": "py:coordination_api.resolve_trust_level",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_trust_level"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.check_guardrails",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.check_guardrails",
+      "to": "py:guardrails.get_guardrails_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_guardrails_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.get_my_profile",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.get_my_profile",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.query_audit",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.allocate_ports",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.release_ports",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.port_status",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_api.main",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:coordination_api.main",
+      "to": "py:coordination_api.create_coordination_api",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:create_coordination_api"
+    },
+    {
       "from": "py:coordination_mcp.get_agent_id",
       "to": "py:config.get_config",
       "type": "call",
@@ -8358,6 +9543,27 @@
     },
     {
       "from": "py:coordination_mcp.check_guardrails",
+      "to": "py:policy_engine.get_policy_engine",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_policy_engine"
+    },
+    {
+      "from": "py:coordination_mcp.check_guardrails",
+      "to": "py:coordination_mcp.get_agent_id",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_agent_id"
+    },
+    {
+      "from": "py:coordination_mcp.check_guardrails",
+      "to": "py:coordination_mcp.get_agent_type",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_agent_type"
+    },
+    {
+      "from": "py:coordination_mcp.check_guardrails",
       "to": "py:guardrails.get_guardrails_service",
       "type": "call",
       "confidence": "high",
@@ -8411,6 +9617,27 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_policy_engine"
+    },
+    {
+      "from": "py:coordination_mcp.allocate_ports",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_mcp.release_ports",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_mcp.ports_status",
+      "to": "py:port_allocator.get_port_allocator",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_port_allocator"
     },
     {
       "from": "py:coordination_mcp.get_current_locks",
@@ -8483,11 +9710,60 @@
       "evidence": "ast:call:create_db_client"
     },
     {
+      "from": "py:db_postgres._validate_select_clause",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.rpc",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.query",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
+    },
+    {
       "from": "py:db_postgres.DirectPostgresClient.query",
       "to": "py:db_postgres._coerce_filter_value",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_coerce_filter_value"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.query",
+      "to": "py:db_postgres._validate_select_clause",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_select_clause"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.insert",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.update",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.delete",
+      "to": "py:db_postgres._validate_identifier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_identifier"
     },
     {
       "from": "py:discovery.AgentInfo.from_dict",
@@ -8589,6 +9865,13 @@
     },
     {
       "from": "py:handoffs.HandoffService.write",
+      "to": "py:policy_engine.get_policy_engine",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_policy_engine"
+    },
+    {
+      "from": "py:handoffs.HandoffService.write",
       "to": "py:audit.get_audit_service",
       "type": "call",
       "confidence": "high",
@@ -8666,6 +9949,13 @@
     },
     {
       "from": "py:memory.MemoryService.remember",
+      "to": "py:policy_engine.get_policy_engine",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_policy_engine"
+    },
+    {
+      "from": "py:memory.MemoryService.remember",
       "to": "py:audit.get_audit_service",
       "type": "call",
       "confidence": "high",
@@ -8714,6 +10004,13 @@
       "evidence": "ast:call:get_network_policy_service"
     },
     {
+      "from": "py:policy_engine.NativePolicyEngine._log_policy_decision",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
       "from": "py:policy_engine.CedarPolicyEngine.db",
       "to": "py:db.get_db",
       "type": "call",
@@ -8735,11 +10032,25 @@
       "evidence": "ast:call:get_config"
     },
     {
+      "from": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
       "from": "py:policy_engine.get_policy_engine",
       "to": "py:config.get_config",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:port_allocator.PortAllocatorService.allocate",
+      "to": "py:port_allocator._compose_project_name",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_compose_project_name"
     },
     {
       "from": "py:profiles.ProfilesService.db",
@@ -8789,6 +10100,20 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:work_queue.WorkQueueService._resolve_trust_level",
+      "to": "py:profiles.get_profiles_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_profiles_service"
+    },
+    {
+      "from": "py:work_queue.WorkQueueService._resolve_trust_level",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
     },
     {
       "from": "py:work_queue.WorkQueueService.claim",
@@ -8896,6 +10221,69 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:coordination_api",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:port_allocator",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:policy_engine",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:profiles",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:locks",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:memory",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:work_queue",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:guardrails",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_api",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:coordination_mcp",
       "to": "py:audit",
       "type": "import",
@@ -8940,6 +10328,13 @@
     {
       "from": "py:coordination_mcp",
       "to": "py:memory",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:coordination_mcp",
+      "to": "py:port_allocator",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -9064,6 +10459,13 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:handoffs",
+      "to": "py:policy_engine",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:locks",
       "to": "py:audit",
       "type": "import",
@@ -9108,6 +10510,13 @@
     {
       "from": "py:memory",
       "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:memory",
+      "to": "py:policy_engine",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -9155,6 +10564,20 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:policy_engine",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:port_allocator",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:profiles",
       "to": "py:audit",
       "type": "import",
@@ -9192,6 +10615,13 @@
     {
       "from": "py:work_queue",
       "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:work_queue",
+      "to": "py:profiles",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -9212,6 +10642,96 @@
     }
   ],
   "entrypoints": [
+    {
+      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
+      "kind": "route",
+      "method": "POST",
+      "path": "/locks/acquire"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_lock",
+      "kind": "route",
+      "method": "POST",
+      "path": "/locks/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "kind": "route",
+      "method": "GET",
+      "path": "/locks/status/{file_path:path}"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.store_memory",
+      "kind": "route",
+      "method": "POST",
+      "path": "/memory/store"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "kind": "route",
+      "method": "POST",
+      "path": "/memory/query"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.claim_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/claim"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/complete"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.submit_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/submit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "kind": "route",
+      "method": "POST",
+      "path": "/guardrails/check"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "kind": "route",
+      "method": "GET",
+      "path": "/profiles/me"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_audit",
+      "kind": "route",
+      "method": "GET",
+      "path": "/audit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+      "kind": "route",
+      "method": "POST",
+      "path": "/ports/allocate"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_ports",
+      "kind": "route",
+      "method": "POST",
+      "path": "/ports/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "kind": "route",
+      "method": "GET",
+      "path": "/ports/status"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.health",
+      "kind": "route",
+      "method": "GET",
+      "path": "/health"
+    },
     {
       "node_id": "py:coordination_mcp.acquire_lock",
       "kind": "route",
@@ -9325,6 +10845,24 @@
       "kind": "route",
       "method": "MCP",
       "path": "validate_cedar_policy"
+    },
+    {
+      "node_id": "py:coordination_mcp.allocate_ports",
+      "kind": "route",
+      "method": "MCP",
+      "path": "allocate_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.release_ports",
+      "kind": "route",
+      "method": "MCP",
+      "path": "release_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.ports_status",
+      "kind": "route",
+      "method": "MCP",
+      "path": "ports_status"
     },
     {
       "node_id": "py:coordination_mcp.get_current_locks",
@@ -9383,6 +10921,66 @@
   ],
   "disconnected_endpoints": [
     {
+      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
+      "path": "/locks/acquire"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_lock",
+      "path": "/locks/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "path": "/locks/status/{file_path:path}"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.store_memory",
+      "path": "/memory/store"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "path": "/memory/query"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.claim_work",
+      "path": "/work/claim"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "path": "/work/complete"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.submit_work",
+      "path": "/work/submit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "path": "/guardrails/check"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "path": "/profiles/me"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_audit",
+      "path": "/audit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+      "path": "/ports/allocate"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_ports",
+      "path": "/ports/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "path": "/ports/status"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.health",
+      "path": "/health"
+    },
+    {
       "node_id": "py:coordination_mcp.acquire_lock",
       "path": "acquire_lock"
     },
@@ -9457,6 +11055,18 @@
     {
       "node_id": "py:coordination_mcp.validate_cedar_policy",
       "path": "validate_cedar_policy"
+    },
+    {
+      "node_id": "py:coordination_mcp.allocate_ports",
+      "path": "allocate_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.release_ports",
+      "path": "release_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.ports_status",
+      "path": "ports_status"
     },
     {
       "node_id": "py:coordination_mcp.get_current_locks",

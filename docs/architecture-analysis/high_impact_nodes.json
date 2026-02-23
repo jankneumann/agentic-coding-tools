@@ -1,22 +1,30 @@
 {
-  "generated_at": "2026-02-16T02:40:10.776473+00:00",
+  "generated_at": "2026-02-23T22:28:40.439015+00:00",
   "threshold": 5,
-  "total_high_impact": 10,
+  "total_high_impact": 21,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 41
+      "dependent_count": 56
     },
     {
-      "id": "py:config",
-      "dependent_count": 14
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 21
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 14
+      "dependent_count": 19
+    },
+    {
+      "id": "py:config",
+      "dependent_count": 16
     },
     {
       "id": "py:db_postgres",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:db",
       "dependent_count": 13
     },
     {
@@ -24,24 +32,60 @@
       "dependent_count": 13
     },
     {
-      "id": "py:db",
-      "dependent_count": 12
-    },
-    {
       "id": "py:db.get_db",
       "dependent_count": 12
     },
     {
+      "id": "py:coordination_api.resolve_identity",
+      "dependent_count": 11
+    },
+    {
       "id": "py:audit",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:locks.get_lock_service",
       "dependent_count": 9
     },
     {
-      "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 7
+      "id": "py:profiles.get_profiles_service",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:work_queue.get_work_queue_service",
+      "dependent_count": 9
     },
     {
       "id": "py:guardrails.get_guardrails_service",
-      "dependent_count": 5
+      "dependent_count": 8
+    },
+    {
+      "id": "py:port_allocator.get_port_allocator",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:network_policies",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:profiles",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:memory.get_memory_service",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:policy_engine",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:db_postgres._validate_identifier",
+      "dependent_count": 6
     }
   ]
 }

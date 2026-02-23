@@ -217,90 +217,59 @@ Skills running in worktrees SHALL access OpenSpec files from the main repository
 
 ### Requirement: Feature Validation Skill
 
-The system SHALL provide a `validate-feature` skill that deploys the feature locally, runs behavioral tests against the live system, checks CI/CD status, and verifies OpenSpec spec compliance. The skill operates between `/iterate-on-implementation` and `/cleanup-feature` in the workflow.
+The system SHALL provide a `validate-feature` skill that deploys the feature locally, runs behavioral tests against the live system, **runs security scans against the live deployment**, checks CI/CD status, and verifies OpenSpec spec compliance. The skill operates between `/iterate-on-implementation` and `/cleanup-feature` in the workflow.
 
 The skill SHALL accept the following arguments:
 - Change-id (required; or detected from current branch name `openspec/<change-id>`)
 - `--skip-e2e` (optional; skip Playwright E2E phase)
 - `--skip-playwright` (optional; alias for `--skip-e2e`)
 - `--skip-ci` (optional; skip CI/CD status check)
-- `--phase <name>[,<name>]` (optional; run only specified phases, e.g., `--phase smoke,e2e`)
+- `--skip-security` (optional; skip the Security Scan phase)
+- `--phase <name>[,<name>]` (optional; run only specified phases, e.g., `--phase smoke,security`)
 
-#### Scenario: Full validation run
+Valid phase names SHALL include: `deploy`, `smoke`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
+
+#### Scenario: Full validation run includes security scanning
 - **WHEN** the user invokes `/validate-feature <change-id>`
-- **THEN** the skill SHALL execute validation in five sequential phases: Deploy, Smoke, E2E, Spec Compliance, Log Analysis
-- **AND** check CI/CD status via GitHub CLI
-- **AND** produce a structured validation report with pass/fail per phase
-- **AND** persist the report to `openspec/changes/<change-id>/validation-report.md`
-- **AND** post the report as a PR comment via `gh pr comment` if a PR exists
-- **AND** teardown deployed services after validation completes
+- **THEN** the skill SHALL execute validation in seven sequential phases: Deploy, Smoke, Security, E2E, Architecture, Spec Compliance, Log Analysis
+- **AND** the Security phase SHALL run after Smoke confirms the API is healthy
+- **AND** the Security phase SHALL run before E2E
+- **AND** produce a structured validation report with pass/fail/skip/degraded per phase
+- **AND** include security scan results in the validation report
 
-#### Scenario: Selective phase execution
-- **WHEN** the user invokes `/validate-feature <change-id> --phase smoke,e2e`
-- **THEN** the skill SHALL run only the specified phases (Smoke and E2E in this example)
-- **AND** skip Deploy if not included (assumes services are already running)
-- **AND** skip Teardown if Deploy was not run
-- **AND** still produce a validation report covering only the executed phases
+#### Scenario: Security phase invokes security-review orchestrator
+- **WHEN** the Security phase begins and services are confirmed healthy by Smoke
+- **THEN** the skill SHALL invoke `security-review/scripts/main.py` with:
+  - `--repo` pointing to the repository root
+  - `--zap-target` pointing to the live API URL (e.g., `http://localhost:${AGENT_COORDINATOR_REST_PORT}`)
+  - `--change` set to the current change-id
+  - `--out-dir` set to `docs/security-review`
+  - `--allow-degraded-pass` enabled
+- **AND** capture the exit code and report output
+- **AND** report the gate decision (PASS/FAIL/INCONCLUSIVE) in the phase result
 
-#### Scenario: Deploy phase starts services with DEBUG logging
-- **WHEN** the Deploy phase begins
-- **THEN** the skill SHALL start services via docker-compose with `LOG_LEVEL=DEBUG` environment variable
-- **AND** redirect service stdout/stderr to a log file for later analysis
-- **AND** wait for health checks to confirm all services are ready
-- **AND** fail fast with a clear message if Docker is not available
+#### Scenario: Security phase is non-critical
+- **WHEN** the Security phase fails (exit code 10 = FAIL or exit code 11 = INCONCLUSIVE)
+- **THEN** the skill SHALL continue with remaining phases (E2E, Architecture, Spec Compliance, Log Analysis)
+- **AND** include the security findings in the final validation report
+- **AND** NOT stop validation
 
-#### Scenario: Smoke phase verifies basic service health
-- **WHEN** the Smoke phase begins and services are running
-- **THEN** the skill SHALL verify the API is reachable (HTTP health check)
-- **AND** verify the MCP server responds to a basic tool call (if applicable)
-- **AND** verify database migrations have been applied
-- **AND** report which health checks passed or failed
-
-#### Scenario: E2E phase runs Playwright tests
-- **WHEN** the E2E phase begins and pytest-playwright is installed
-- **THEN** the skill SHALL run Playwright E2E tests from the `tests/e2e/` directory
-- **AND** report test results with failure details
-
-#### Scenario: E2E phase skipped gracefully
-- **WHEN** the E2E phase begins and either pytest-playwright is not installed, no `tests/e2e/` directory exists, or `--skip-e2e` flag was provided
-- **THEN** the skill SHALL skip the E2E phase with an informational message
+#### Scenario: Security phase skipped via flag
+- **WHEN** the user invokes `/validate-feature <change-id> --skip-security`
+- **THEN** the skill SHALL skip the Security phase entirely
+- **AND** report the phase as "skipped" in the validation report
 - **AND** NOT treat the skip as a failure
 
-#### Scenario: Spec compliance phase verifies OpenSpec scenarios
-- **WHEN** the Spec Compliance phase begins
-- **THEN** the skill SHALL read all OpenSpec spec deltas for the change-id
-- **AND** for each scenario, verify the expected behavior against the live system (via API calls, MCP tool invocations, or database queries)
-- **AND** report pass/fail per scenario with details on mismatches
+#### Scenario: Security phase degrades gracefully when prerequisites missing
+- **WHEN** scanner prerequisites are unavailable (no Java for dependency-check, no container runtime for ZAP)
+- **THEN** the Security phase SHALL report degraded coverage (INCONCLUSIVE with `--allow-degraded-pass`)
+- **AND** list which scanners were unavailable and why
+- **AND** NOT block validation
 
-#### Scenario: Log analysis phase scans for warning signs
-- **WHEN** the Log Analysis phase begins
-- **THEN** the skill SHALL scan the collected log file for WARNING, ERROR, and CRITICAL entries
-- **AND** flag deprecation notices, unhandled exceptions, and stack traces
-- **AND** categorize findings by severity
-- **AND** report findings with line numbers and context
-
-#### Scenario: CI/CD status check
-- **WHEN** the CI/CD Status phase begins and a GitHub remote is configured
-- **THEN** the skill SHALL check CI/CD pipeline status via `gh run list` or `gh pr checks`
-- **AND** report which checks passed, failed, or are still running
-- **AND** skip gracefully with an informational message if no CI/CD workflow exists
-
-#### Scenario: Critical phase failure stops validation
-- **WHEN** the Deploy or Smoke phase fails
-- **THEN** the skill SHALL stop validation immediately
-- **AND** report the failure with diagnostic details
-- **AND** still attempt teardown of any started services
-
-#### Scenario: Non-critical phase failure continues validation
-- **WHEN** the E2E, Spec Compliance, or Log Analysis phase fails
-- **THEN** the skill SHALL continue with remaining phases
-- **AND** include all failures in the final validation report
-
-#### Scenario: Teardown cleans up resources
-- **WHEN** validation completes (whether all phases passed or not)
-- **THEN** the skill SHALL stop all docker-compose services started during the Deploy phase
-- **AND** preserve the log file for manual inspection if failures occurred
-- **AND** remove the log file if all phases passed
+#### Scenario: Security phase with selective phases
+- **WHEN** the user invokes `/validate-feature <change-id> --phase security`
+- **THEN** the skill SHALL run only the Security phase (assuming services are already running)
+- **AND** NOT run Deploy, Smoke, E2E, or other phases
 
 ### Requirement: Validation Report Persistence and PR Integration
 
@@ -769,23 +738,13 @@ The fix-scrub skill SHALL run quality checks after applying fixes to confirm no 
 
 ### Requirement: Fix Scrub Commit Convention
 
-The fix-scrub skill SHALL commit all applied fixes as a single commit with a structured message.
+The fix-scrub skill SHALL commit all applied fixes as a single commit with a structured message on the fix-scrub branch (not main).
 
-#### Scenario: Commit after successful fixes
-
+#### Scenario: Commit on fix-scrub branch
 - **WHEN** fixes have been applied and quality checks pass (or the user approves despite warnings)
-- **THEN** the skill SHALL stage all changed files and commit with:
-  ```
-  fix(scrub): apply <N> fixes from bug-scrub report
-
-  Auto-fixes: <count> (ruff)
-  Agent-fixes: <count> (mypy, markers, deferred)
-  Manual-only: <count> (reported, not fixed)
-
-  Source report: <report-path>
-
-  Co-Authored-By: Claude <noreply@anthropic.com>
-  ```
+- **THEN** the skill SHALL stage all changed files and commit on the `fix-scrub/<date>` branch
+- **AND** use the existing commit message format
+- **AND** NOT commit to main directly
 
 ### Requirement: OpenSpec Task Completion Tracking
 
@@ -835,4 +794,314 @@ The fix-scrub skill SHALL produce a summary report of actions taken.
   - Manual-only items requiring human attention
   - Quality check results
 - **AND** write the summary to `docs/bug-scrub/fix-scrub-report.md`
+
+### Requirement: Fix Scrub Branch Isolation
+
+The fix-scrub skill SHALL create an isolated branch before applying any code changes, ensuring all fixes go through PR review before reaching main.
+
+#### Scenario: Branch creation on fix-scrub invocation
+- **WHEN** the user invokes `/fix-scrub`
+- **THEN** the skill SHALL create a branch named `fix-scrub/<YYYY-MM-DD>` from the current main HEAD
+- **AND** switch to the new branch before applying any fixes
+- **AND** NOT apply changes directly to main
+
+#### Scenario: Branch name collision with existing branch
+- **WHEN** the user invokes `/fix-scrub` and a branch `fix-scrub/<YYYY-MM-DD>` already exists
+- **THEN** the skill SHALL append a numeric suffix (e.g., `fix-scrub/2026-02-22-2`)
+- **AND** create the branch with the suffixed name
+
+#### Scenario: PR creation after fixes applied
+- **WHEN** fix-scrub has applied fixes and quality checks pass (or user approves despite warnings)
+- **THEN** the skill SHALL push the branch to origin
+- **AND** create a PR with the fix-scrub-report summary as the body
+- **AND** present the PR URL to the user
+
+#### Scenario: No fixes applied
+- **WHEN** fix-scrub classifies all findings as manual-only or dry-run mode is active
+- **THEN** the skill SHALL NOT create a branch or PR
+- **AND** report the classification results without git operations
+
+### Requirement: Fix Scrub Optional Worktree Isolation
+
+The fix-scrub skill SHALL support optional git worktree isolation using the same pattern as implement-feature, enabled via `--worktree` flag or auto-detected when an active implementation worktree exists.
+
+#### Scenario: Explicit worktree creation with --worktree flag
+- **WHEN** the user invokes `/fix-scrub --worktree`
+- **THEN** the skill SHALL create a worktree at `../<repo-name>.worktrees/fix-scrub/<date>/`
+- **AND** create the fix-scrub branch in the worktree
+- **AND** change the working directory to the worktree
+
+#### Scenario: Auto-detect active implementation worktree
+- **WHEN** the user invokes `/fix-scrub` without `--worktree`
+- **AND** the current working directory is inside a git worktree (detected via `git rev-parse --git-common-dir`)
+- **THEN** the skill SHALL create a separate worktree for the fix-scrub branch
+- **AND** NOT apply fixes in the active implementation worktree
+
+#### Scenario: Worktree not needed
+- **WHEN** the user invokes `/fix-scrub` without `--worktree`
+- **AND** the current working directory is the main repository (not a worktree)
+- **THEN** the skill SHALL create only a branch (no worktree)
+- **AND** apply fixes on the branch in the main working tree
+
+#### Scenario: Skip worktree creation when already in fix-scrub worktree
+- **WHEN** the user invokes `/fix-scrub`
+- **AND** the current working directory is already a fix-scrub worktree
+- **THEN** the skill SHALL skip worktree creation
+- **AND** continue applying fixes in the existing worktree
+
+### Requirement: Skill Script Path Resolution Convention
+
+All SKILL.md files that reference co-located Python scripts SHALL use the `<agent-skills-dir>` placeholder convention to enable portable script resolution across agent runtimes.
+
+Scripts are authored in `skills/<name>/scripts/` and distributed by `install.sh` to agent config directories (`.claude/skills/`, `.codex/skills/`, `.gemini/skills/`). Agents execute scripts from their own config directory, not from the `skills/` source.
+
+#### Scenario: Script path placeholder in SKILL.md
+- **WHEN** a SKILL.md contains a bash code block that invokes a Python script
+- **THEN** the script path SHALL use the `<agent-skills-dir>/<skill-name>/scripts/` placeholder pattern
+- **AND** the agent runtime SHALL substitute `<agent-skills-dir>` with its own config directory path (e.g., `.claude/skills`, `.codex/skills`, `.gemini/skills`)
+
+#### Scenario: Agent substitution for Claude
+- **WHEN** Claude Code reads a SKILL.md containing `python3 <agent-skills-dir>/fix-scrub/scripts/main.py`
+- **THEN** it SHALL execute `python3 .claude/skills/fix-scrub/scripts/main.py`
+
+#### Scenario: Agent substitution for Codex and Gemini
+- **WHEN** Codex or Gemini reads a SKILL.md containing the `<agent-skills-dir>` placeholder
+- **THEN** it SHALL substitute with `.codex/skills` or `.gemini/skills` respectively
+
+#### Scenario: Script not found at agent config path
+- **WHEN** the agent substitutes the placeholder and the resolved script path does not exist
+- **THEN** the agent SHALL report an error indicating the script is missing
+- **AND** suggest running `skills/install.sh` to sync scripts to agent directories
+
+#### Scenario: Convention documented in SKILL.md
+- **WHEN** a SKILL.md uses the `<agent-skills-dir>` placeholder
+- **THEN** it SHALL include a "Script Location" note explaining the convention and the substitution rule
+
+### Requirement: Canonical Skill Distribution
+
+Coordinator-integrated skill content SHALL be authored in the canonical `skills/` tree.
+
+Runtime skill trees (`.claude/skills/`, `.codex/skills/`, `.gemini/skills/`) SHALL be treated as synced mirrors for this work and refreshed using the existing `skills/install.sh` workflow in `rsync` mode.
+
+#### Scenario: Canonical edit and sync
+- **WHEN** coordinator integration changes are made to a skill
+- **THEN** changes SHALL be applied to `skills/<skill-name>/SKILL.md`
+- **AND** runtime mirror trees SHALL be updated by running `skills/install.sh --mode rsync --agents claude,codex,gemini`
+
+#### Scenario: Runtime mirror drift is detected
+- **WHEN** runtime mirror skills differ from canonical `skills/` after sync
+- **THEN** the differences SHALL be treated as parity defects
+- **AND** the change SHALL NOT be considered ready until drift is resolved
+
+#### Scenario: Existing sync workflow is preserved
+- **WHEN** implementing this change
+- **THEN** it SHALL reuse existing `skills/install.sh` behavior
+- **AND** SHALL NOT introduce a second competing distribution mechanism
+
+### Requirement: Coordination Detection
+
+Each integrated skill SHALL detect coordinator access using a transport-aware model that works for both CLI and Web/Cloud agents.
+
+Detection SHALL set:
+- `COORDINATOR_AVAILABLE` (`true` or `false`)
+- `COORDINATION_TRANSPORT` (`mcp`, `http`, or `none`)
+- capability flags: `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+Detection rules:
+- Local CLI agents (Claude Codex, Codex, Gemini CLI) inspect available MCP tools by function name
+- Web/Cloud agents detect coordinator via HTTP API reachability/capability checks
+- Coordination hooks execute only when their capability flag is true
+
+#### Scenario: CLI runtime with MCP tools
+- **WHEN** an integrated skill starts in a CLI runtime
+- **AND** coordination MCP tools are present
+- **THEN** the skill SHALL set `COORDINATION_TRANSPORT=mcp`
+- **AND** set `COORDINATOR_AVAILABLE=true`
+- **AND** set capability flags based on discovered tool availability
+
+#### Scenario: Web/Cloud runtime with HTTP coordinator
+- **WHEN** an integrated skill starts in a Web/Cloud runtime
+- **AND** coordinator HTTP endpoint is reachable with valid credentials
+- **THEN** the skill SHALL set `COORDINATION_TRANSPORT=http`
+- **AND** set `COORDINATOR_AVAILABLE=true`
+- **AND** set capability flags based on available HTTP endpoints/features
+
+#### Scenario: Partial capability availability
+- **WHEN** transport is available but some capabilities are not
+- **THEN** the skill SHALL keep `COORDINATOR_AVAILABLE=true`
+- **AND** set missing capability flags to false
+- **AND** skip only unsupported hooks
+
+#### Scenario: No coordinator access
+- **WHEN** neither MCP nor HTTP coordinator access is available
+- **THEN** the skill SHALL set `COORDINATOR_AVAILABLE=false`
+- **AND** set `COORDINATION_TRANSPORT=none`
+- **AND** continue standalone behavior without errors
+
+#### Scenario: Coordinator becomes unreachable mid-execution
+- **WHEN** a coordination call fails after detection succeeded
+- **THEN** the skill SHALL log informationally
+- **AND** continue standalone fallback behavior for that step
+- **AND** NOT abort solely due to coordinator unavailability
+
+### Requirement: File Locking in Implement Feature
+
+The `/implement-feature` skill SHALL use coordinator file locks only when lock capability is available.
+
+#### Scenario: Lock acquisition succeeds
+- **WHEN** `/implement-feature` is about to modify a file
+- **AND** `CAN_LOCK=true`
+- **THEN** the skill SHALL request a lock before modification
+- **AND** proceed only after lock acquisition succeeds
+
+#### Scenario: Lock acquisition blocked by another agent
+- **WHEN** `/implement-feature` requests a lock held by another agent
+- **THEN** the skill SHALL report owner/expiry details when available
+- **AND** skip blocked files while continuing unblocked work
+
+#### Scenario: Lock release on completion or failure
+- **WHEN** `/implement-feature` completes or fails after acquiring locks
+- **THEN** it SHALL attempt lock release
+- **AND** log release failures as warnings
+
+#### Scenario: Locking capability unavailable
+- **WHEN** `CAN_LOCK=false`
+- **THEN** the skill SHALL continue existing non-locking behavior
+
+### Requirement: Work Queue Integration in Implement Feature
+
+The `/implement-feature` skill SHALL integrate with coordinator work queue capabilities when available.
+
+#### Scenario: Submit independent tasks to queue
+- **WHEN** independent implementation tasks are identified
+- **AND** `CAN_QUEUE_WORK=true`
+- **THEN** the skill SHALL submit them to the coordinator queue
+- **AND** report submitted task identifiers
+
+#### Scenario: Local claim when tasks are unclaimed
+- **WHEN** submitted tasks remain unclaimed within timeout
+- **AND** `CAN_QUEUE_WORK=true`
+- **THEN** the skill SHALL claim and execute them locally via queue APIs
+- **AND** mark completion
+
+#### Scenario: Queue capability unavailable
+- **WHEN** `CAN_QUEUE_WORK=false`
+- **THEN** the skill SHALL use existing local `Task()` behavior
+
+### Requirement: Session Handoff Hooks
+
+Creative lifecycle skills (`/plan-feature`, `/implement-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/cleanup-feature`) SHALL use handoff hooks when `CAN_HANDOFF=true`.
+
+#### Scenario: Read handoff context at skill start
+- **WHEN** a lifecycle skill starts
+- **AND** `CAN_HANDOFF=true`
+- **THEN** the skill SHALL read recent handoffs and incorporate relevant context
+
+#### Scenario: Write handoff summary at completion
+- **WHEN** a lifecycle skill completes
+- **AND** `CAN_HANDOFF=true`
+- **THEN** the skill SHALL write a handoff summary with completed work, in-progress items, decisions, and next steps
+
+#### Scenario: Handoff capability unavailable
+- **WHEN** `CAN_HANDOFF=false`
+- **THEN** the skill SHALL proceed without handoff operations
+
+### Requirement: Memory Hooks
+
+Memory hooks SHALL be applied where historical context is high value.
+
+- Recall at start (`CAN_MEMORY=true`): `/explore-feature`, `/plan-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/validate-feature`
+- Remember on completion (`CAN_MEMORY=true`): `/iterate-on-plan`, `/iterate-on-implementation`, `/validate-feature`
+
+#### Scenario: Recall relevant memories
+- **WHEN** a recall-enabled skill starts
+- **AND** `CAN_MEMORY=true`
+- **THEN** the skill SHALL query relevant memories and use applicable results
+
+#### Scenario: Record iteration or validation outcomes
+- **WHEN** a remember-enabled skill completes
+- **AND** `CAN_MEMORY=true`
+- **THEN** the skill SHALL store structured outcomes and lessons learned
+
+#### Scenario: Memory capability unavailable
+- **WHEN** `CAN_MEMORY=false`
+- **THEN** memory hooks SHALL be skipped without failing the skill
+
+### Requirement: Guardrail Pre-checks
+
+The `/implement-feature` and `/security-review` skills SHALL run guardrail checks when `CAN_GUARDRAILS=true`.
+
+In phase 1, guardrail violations SHALL be informational and SHALL NOT hard-block execution.
+
+#### Scenario: Guardrail check indicates safe operation
+- **WHEN** a guarded operation is evaluated
+- **AND** `CAN_GUARDRAILS=true`
+- **AND** the response indicates safe execution
+- **THEN** the skill SHALL proceed
+
+#### Scenario: Guardrail violations detected
+- **WHEN** guardrail response reports violations
+- **AND** `CAN_GUARDRAILS=true`
+- **THEN** the skill SHALL report violation details
+- **AND** continue in informational mode
+
+#### Scenario: Guardrail capability unavailable
+- **WHEN** `CAN_GUARDRAILS=false`
+- **THEN** the skill SHALL continue without guardrail checks
+
+### Requirement: Setup Coordinator Skill
+
+The system SHALL provide canonical `skills/setup-coordinator/SKILL.md`, then sync it to runtime mirrors using the canonical distribution flow.
+
+The skill SHALL support both:
+- CLI MCP setup/verification
+- Web/Cloud HTTP setup/verification
+
+#### Scenario: CLI setup path
+- **WHEN** user runs `/setup-coordinator` for CLI usage
+- **THEN** the skill SHALL verify or configure MCP coordinator settings
+- **AND** verify connectivity through a coordinator session/health call
+
+#### Scenario: Web/Cloud setup path
+- **WHEN** user runs `/setup-coordinator` for Web/Cloud usage
+- **THEN** the skill SHALL guide HTTP API configuration (URL, credentials, allowlist considerations)
+- **AND** verify API connectivity
+
+#### Scenario: Existing configuration detected
+- **WHEN** setup detects existing configuration
+- **THEN** it SHALL validate and report status
+- **AND** provide reconfiguration guidance on failure
+
+#### Scenario: Setup fails
+- **WHEN** setup cannot complete due to connectivity/credential issues
+- **THEN** the skill SHALL report specific failure and troubleshooting guidance
+- **AND** remind that standalone mode remains available
+
+### Requirement: Coordination Bridge Script
+
+The system SHALL provide `scripts/coordination_bridge.py` as stable HTTP coordination contract for helper scripts and Web/Cloud validation flows.
+
+The bridge SHALL:
+- Normalize endpoint/parameter differences behind stable helpers
+- Detect HTTP availability and exposed capabilities
+- Return no-op responses with `status="skipped"` when unavailable
+
+#### Scenario: Bridge detects HTTP coordinator and capabilities
+- **WHEN** a script calls bridge detection helper
+- **AND** coordinator API is reachable
+- **THEN** bridge returns availability, transport (`http`), and capability metadata
+
+#### Scenario: Bridge provides graceful no-op fallback
+- **WHEN** bridge operation is called and coordinator is unavailable
+- **THEN** bridge returns `status="skipped"` with context
+- **AND** does not raise unhandled exceptions for expected unavailability
+
+#### Scenario: Bridge absorbs API contract changes
+- **WHEN** coordinator HTTP endpoint shapes evolve
+- **THEN** changes are localized to `scripts/coordination_bridge.py`
+- **AND** downstream scripts using bridge helpers remain stable
+
+#### Scenario: Bridge used by validation tooling
+- **WHEN** validation tooling needs coordination assertions
+- **THEN** tooling can use bridge helpers instead of hardcoded HTTP details
 

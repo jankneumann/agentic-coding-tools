@@ -1,27 +1,87 @@
 {
-  "generated_at": "2026-02-16T02:40:10.776809+00:00",
-  "git_sha": "4b5a51070fae59a06021e118a88f4ce644274ee5",
+  "generated_at": "2026-02-23T22:28:40.439395+00:00",
+  "git_sha": "71a8a8a8a94701252ec0d7a47883641a4ecec6bc",
   "stats": {
-    "total_nodes": 568,
-    "total_edges": 141,
+    "total_nodes": 626,
+    "total_edges": 224,
     "by_language": {
-      "python": 277,
+      "python": 335,
       "sql": 291
     },
     "by_kind": {
-      "module": 17,
-      "class": 60,
-      "function": 200,
+      "module": 20,
+      "class": 75,
+      "function": 240,
       "table": 20,
       "column": 197,
       "index": 49,
       "stored_function": 22,
       "trigger": 3
     },
-    "entrypoint_count": 28
+    "entrypoint_count": 46
   },
   "cross_layer_flows": [],
   "disconnected_endpoints": [
+    {
+      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
+      "path": "/locks/acquire"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_lock",
+      "path": "/locks/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "path": "/locks/status/{file_path:path}"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.store_memory",
+      "path": "/memory/store"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "path": "/memory/query"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.claim_work",
+      "path": "/work/claim"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "path": "/work/complete"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.submit_work",
+      "path": "/work/submit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "path": "/guardrails/check"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "path": "/profiles/me"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.query_audit",
+      "path": "/audit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+      "path": "/ports/allocate"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.release_ports",
+      "path": "/ports/release"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "path": "/ports/status"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.health",
+      "path": "/health"
+    },
     {
       "node_id": "py:coordination_mcp.acquire_lock",
       "path": "acquire_lock"
@@ -99,6 +159,18 @@
       "path": "validate_cedar_policy"
     },
     {
+      "node_id": "py:coordination_mcp.allocate_ports",
+      "path": "allocate_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.release_ports",
+      "path": "release_ports"
+    },
+    {
+      "node_id": "py:coordination_mcp.ports_status",
+      "path": "ports_status"
+    },
+    {
       "node_id": "py:coordination_mcp.get_current_locks",
       "path": "locks://current"
     },
@@ -139,18 +211,26 @@
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 41
+      "dependent_count": 56
     },
     {
-      "id": "py:config",
-      "dependent_count": 14
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 21
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 14
+      "dependent_count": 19
+    },
+    {
+      "id": "py:config",
+      "dependent_count": 16
     },
     {
       "id": "py:db_postgres",
+      "dependent_count": 14
+    },
+    {
+      "id": "py:db",
       "dependent_count": 13
     },
     {
@@ -158,24 +238,60 @@
       "dependent_count": 13
     },
     {
-      "id": "py:db",
-      "dependent_count": 12
-    },
-    {
       "id": "py:db.get_db",
       "dependent_count": 12
     },
     {
+      "id": "py:coordination_api.resolve_identity",
+      "dependent_count": 11
+    },
+    {
       "id": "py:audit",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:locks.get_lock_service",
       "dependent_count": 9
     },
     {
-      "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 7
+      "id": "py:profiles.get_profiles_service",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:work_queue.get_work_queue_service",
+      "dependent_count": 9
     },
     {
       "id": "py:guardrails.get_guardrails_service",
-      "dependent_count": 5
+      "dependent_count": 8
+    },
+    {
+      "id": "py:port_allocator.get_port_allocator",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:network_policies",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:profiles",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:memory.get_memory_service",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:policy_engine",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:db_postgres._validate_identifier",
+      "dependent_count": 6
     }
   ]
 }

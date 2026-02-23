@@ -1,0 +1,16 @@
+{
+  "modules": [],
+  "functions": [],
+  "components": [],
+  "custom_hooks": [],
+  "import_graph": [],
+  "api_call_sites": [],
+  "summary": {
+    "total_modules": 0,
+    "total_components": 0,
+    "total_functions": 0,
+    "total_custom_hooks": 0,
+    "top_components": [],
+    "complex_components": []
+  }
+}

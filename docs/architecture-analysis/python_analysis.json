@@ -6,6 +6,13 @@
       "imports": []
     },
     {
+      "name": "assurance",
+      "file": "assurance.py",
+      "imports": [
+        "__future__"
+      ]
+    },
+    {
       "name": "audit",
       "file": "audit.py",
       "imports": [
@@ -22,9 +29,40 @@
       "name": "config",
       "file": "config.py",
       "imports": [
+        "json",
         "os",
         "dataclasses",
         "uuid"
+      ]
+    },
+    {
+      "name": "coordination_api",
+      "file": "coordination_api.py",
+      "imports": [
+        "__future__",
+        "sys",
+        "time",
+        "typing",
+        "fastapi",
+        "pydantic",
+        "config",
+        "port_allocator",
+        "policy_engine",
+        "profiles",
+        "locks",
+        "locks",
+        "locks",
+        "memory",
+        "memory",
+        "work_queue",
+        "uuid",
+        "work_queue",
+        "uuid",
+        "work_queue",
+        "guardrails",
+        "profiles",
+        "audit",
+        "uvicorn"
       ]
     },
     {
@@ -41,12 +79,15 @@
         "handoffs",
         "locks",
         "memory",
+        "port_allocator",
         "profiles",
         "work_queue",
         "uuid",
         "uuid",
         "policy_engine",
-        "policy_engine"
+        "policy_engine",
+        "policy_engine",
+        "time"
       ]
     },
     {
@@ -119,7 +160,8 @@
         "uuid",
         "audit",
         "config",
-        "db"
+        "db",
+        "policy_engine"
       ]
     },
     {
@@ -147,7 +189,8 @@
         "typing",
         "audit",
         "config",
-        "db"
+        "db",
+        "policy_engine"
       ]
     },
     {
@@ -164,6 +207,7 @@
       "name": "policy_engine",
       "file": "policy_engine.py",
       "imports": [
+        "logging",
         "time",
         "dataclasses",
         "pathlib",
@@ -172,7 +216,21 @@
         "db",
         "profiles",
         "network_policies",
-        "cedarpy"
+        "audit",
+        "cedarpy",
+        "audit"
+      ]
+    },
+    {
+      "name": "port_allocator",
+      "file": "port_allocator.py",
+      "imports": [
+        "__future__",
+        "hashlib",
+        "threading",
+        "time",
+        "dataclasses",
+        "config"
       ]
     },
     {
@@ -211,6 +269,7 @@
         "audit",
         "config",
         "db",
+        "profiles",
         "policy_engine",
         "guardrails",
         "policy_engine",
@@ -459,6 +518,8 @@
         "AuditService"
       ],
       "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.query_audit",
         "coordination_mcp.query_audit",
         "coordination_mcp.get_recent_audit",
         "discovery.DiscoveryService.register",
@@ -469,6 +530,8 @@
         "locks.LockService.acquire",
         "locks.LockService.release",
         "memory.MemoryService.remember",
+        "policy_engine.NativePolicyEngine._log_policy_decision",
+        "policy_engine.CedarPolicyEngine._log_policy_decision",
         "profiles.ProfilesService._log_denial",
         "work_queue.WorkQueueService.claim",
         "work_queue.WorkQueueService.complete",
@@ -482,8 +545,8 @@
       "name": "from_env",
       "qualified_name": "config.SupabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 38,
-      "line_end": 51,
+      "line_start": 47,
+      "line_end": 60,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -507,8 +570,8 @@
       "name": "from_env",
       "qualified_name": "config.AgentConfig.from_env",
       "file": "config.py",
-      "line_start": 63,
-      "line_end": 75,
+      "line_start": 72,
+      "line_end": 84,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -532,8 +595,8 @@
       "name": "from_env",
       "qualified_name": "config.LockConfig.from_env",
       "file": "config.py",
-      "line_start": 86,
-      "line_end": 89,
+      "line_start": 95,
+      "line_end": 98,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -557,8 +620,8 @@
       "name": "from_env",
       "qualified_name": "config.PostgresConfig.from_env",
       "file": "config.py",
-      "line_start": 101,
-      "line_end": 106,
+      "line_start": 110,
+      "line_end": 115,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -582,8 +645,8 @@
       "name": "from_env",
       "qualified_name": "config.DatabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 117,
-      "line_end": 121,
+      "line_start": 126,
+      "line_end": 130,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -607,8 +670,8 @@
       "name": "from_env",
       "qualified_name": "config.GuardrailsConfig.from_env",
       "file": "config.py",
-      "line_start": 132,
-      "line_end": 141,
+      "line_start": 141,
+      "line_end": 150,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -633,8 +696,8 @@
       "name": "from_env",
       "qualified_name": "config.ProfilesConfig.from_env",
       "file": "config.py",
-      "line_start": 153,
-      "line_end": 165,
+      "line_start": 162,
+      "line_end": 174,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -659,8 +722,8 @@
       "name": "from_env",
       "qualified_name": "config.AuditConfig.from_env",
       "file": "config.py",
-      "line_start": 176,
-      "line_end": 180,
+      "line_start": 185,
+      "line_end": 189,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -685,8 +748,8 @@
       "name": "from_env",
       "qualified_name": "config.NetworkPolicyConfig.from_env",
       "file": "config.py",
-      "line_start": 190,
-      "line_end": 193,
+      "line_start": 199,
+      "line_end": 202,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -709,8 +772,8 @@
       "name": "from_env",
       "qualified_name": "config.PolicyEngineConfig.from_env",
       "file": "config.py",
-      "line_start": 206,
-      "line_end": 217,
+      "line_start": 215,
+      "line_end": 226,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -733,10 +796,64 @@
     },
     {
       "name": "from_env",
-      "qualified_name": "config.Config.from_env",
+      "qualified_name": "config.PortAllocatorConfig.from_env",
       "file": "config.py",
       "line_start": 239,
-      "line_end": 251,
+      "line_end": 245,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "int",
+        "os.environ.get"
+      ],
+      "called_by": [
+        "config.Config.from_env",
+        "port_allocator.get_port_allocator"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.ApiConfig.from_env",
+      "file": "config.py",
+      "line_start": 258,
+      "line_end": 274,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "os.environ.get",
+        "k.strip",
+        "raw_keys.split",
+        "json.loads",
+        "cls",
+        "int"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_env",
+      "qualified_name": "config.Config.from_env",
+      "file": "config.py",
+      "line_start": 300,
+      "line_end": 314,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -751,7 +868,9 @@
         "ProfilesConfig.from_env",
         "AuditConfig.from_env",
         "NetworkPolicyConfig.from_env",
-        "PolicyEngineConfig.from_env"
+        "PolicyEngineConfig.from_env",
+        "ApiConfig.from_env",
+        "PortAllocatorConfig.from_env"
       ],
       "called_by": [
         "config.get_config"
@@ -766,8 +885,8 @@
       "name": "get_config",
       "qualified_name": "config.get_config",
       "file": "config.py",
-      "line_start": 258,
-      "line_end": 263,
+      "line_start": 321,
+      "line_end": 326,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -775,6 +894,9 @@
       ],
       "called_by": [
         "audit.AuditService.log_operation",
+        "coordination_api.verify_api_key",
+        "coordination_api.resolve_trust_level",
+        "coordination_api.main",
         "coordination_mcp.get_agent_id",
         "coordination_mcp.get_agent_type",
         "coordination_mcp.validate_cedar_policy",
@@ -796,6 +918,7 @@
         "policy_engine.get_policy_engine",
         "profiles.ProfilesService.get_profile",
         "profiles.ProfilesService.check_operation",
+        "work_queue.WorkQueueService._resolve_trust_level",
         "work_queue.WorkQueueService.claim",
         "work_queue.WorkQueueService.complete",
         "work_queue.WorkQueueService.submit",
@@ -809,8 +932,8 @@
       "name": "reset_config",
       "qualified_name": "config.reset_config",
       "file": "config.py",
-      "line_start": 266,
-      "line_end": 269,
+      "line_start": 329,
+      "line_end": 332,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -820,11 +943,556 @@
       "docstring": "Reset the global configuration (for testing)."
     },
     {
+      "name": "verify_api_key",
+      "qualified_name": "coordination_api.verify_api_key",
+      "file": "coordination_api.py",
+      "line_start": 107,
+      "line_end": 117,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "HTTPException",
+        "config.api.api_key_identities.get",
+        "identity.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Verify the API key for write operations."
+    },
+    {
+      "name": "resolve_identity",
+      "qualified_name": "coordination_api.resolve_identity",
+      "file": "coordination_api.py",
+      "line_start": 120,
+      "line_end": 147,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "principal.get",
+        "HTTPException"
+      ],
+      "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.acquire_lock",
+        "coordination_api.create_coordination_api.release_lock",
+        "coordination_api.create_coordination_api.store_memory",
+        "coordination_api.create_coordination_api.query_memories",
+        "coordination_api.create_coordination_api.claim_work",
+        "coordination_api.create_coordination_api.complete_work",
+        "coordination_api.create_coordination_api.submit_work",
+        "coordination_api.create_coordination_api.check_guardrails",
+        "coordination_api.create_coordination_api.get_my_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Resolve effective identity and block spoofed request identity."
+    },
+    {
+      "name": "authorize_operation",
+      "qualified_name": "coordination_api.authorize_operation",
+      "file": "coordination_api.py",
+      "line_start": 150,
+      "line_end": 168,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "HTTPException"
+      ],
+      "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.acquire_lock",
+        "coordination_api.create_coordination_api.release_lock",
+        "coordination_api.create_coordination_api.store_memory",
+        "coordination_api.create_coordination_api.query_memories",
+        "coordination_api.create_coordination_api.claim_work",
+        "coordination_api.create_coordination_api.complete_work",
+        "coordination_api.create_coordination_api.submit_work",
+        "coordination_api.create_coordination_api.check_guardrails"
+      ],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Authorize operation using configured policy engine."
+    },
+    {
+      "name": "resolve_trust_level",
+      "qualified_name": "coordination_api.resolve_trust_level",
+      "file": "coordination_api.py",
+      "line_start": 171,
+      "line_end": 184,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_profiles_service.get_profile",
+        "get_profiles_service",
+        "get_config"
+      ],
+      "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.check_guardrails"
+      ],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Resolve effective trust level for guardrail evaluation."
+    },
+    {
+      "name": "create_coordination_api",
+      "qualified_name": "coordination_api.create_coordination_api",
+      "file": "coordination_api.py",
+      "line_start": 192,
+      "line_end": 650,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "FastAPI",
+        "Depends",
+        "resolve_identity",
+        "authorize_operation",
+        "get_lock_service.acquire",
+        "get_lock_service",
+        "result.expires_at.isoformat",
+        "app.post",
+        "get_lock_service.release",
+        "get_lock_service.check",
+        "lock.locked_at.isoformat",
+        "lock.expires_at.isoformat",
+        "app.get",
+        "get_memory_service.remember",
+        "get_memory_service",
+        "get_memory_service.recall",
+        "m.created_at.isoformat",
+        "get_work_queue_service.claim",
+        "get_work_queue_service",
+        "str",
+        "result.deadline.isoformat",
+        "get_work_queue_service.complete",
+        "UUID",
+        "get_work_queue_service.submit",
+        "resolve_trust_level",
+        "len",
+        "get_guardrails_service.check_operation",
+        "get_guardrails_service",
+        "get_profiles_service.get_profile",
+        "get_profiles_service",
+        "get_audit_service.query",
+        "get_audit_service",
+        "e.created_at.isoformat",
+        "get_port_allocator.allocate",
+        "get_port_allocator",
+        "get_port_allocator.release",
+        "get_port_allocator.status",
+        "max",
+        "time.time"
+      ],
+      "called_by": [
+        "coordination_api.main"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Create the coordination HTTP API application."
+    },
+    {
+      "name": "acquire_lock",
+      "qualified_name": "coordination_api.create_coordination_api.acquire_lock",
+      "file": "coordination_api.py",
+      "line_start": 206,
+      "line_end": 240,
+      "is_async": true,
+      "decorators": [
+        "app.post('/locks/acquire')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_lock_service.acquire",
+        "get_lock_service",
+        "result.expires_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Acquire a file lock. Cloud agents call this before modifying files."
+    },
+    {
+      "name": "release_lock",
+      "qualified_name": "coordination_api.create_coordination_api.release_lock",
+      "file": "coordination_api.py",
+      "line_start": 243,
+      "line_end": 269,
+      "is_async": true,
+      "decorators": [
+        "app.post('/locks/release')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_lock_service.release",
+        "get_lock_service"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Release a file lock."
+    },
+    {
+      "name": "check_lock_status",
+      "qualified_name": "coordination_api.create_coordination_api.check_lock_status",
+      "file": "coordination_api.py",
+      "line_start": 272,
+      "line_end": 290,
+      "is_async": true,
+      "decorators": [
+        "app.get('/locks/status/{file_path:path}')"
+      ],
+      "calls": [
+        "get_lock_service.check",
+        "get_lock_service",
+        "lock.locked_at.isoformat",
+        "lock.expires_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Check lock status for a file. Read-only, no API key required."
+    },
+    {
+      "name": "store_memory",
+      "qualified_name": "coordination_api.create_coordination_api.store_memory",
+      "file": "coordination_api.py",
+      "line_start": 297,
+      "line_end": 326,
+      "is_async": true,
+      "decorators": [
+        "app.post('/memory/store')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_memory_service.remember",
+        "get_memory_service"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Store an episodic memory."
+    },
+    {
+      "name": "query_memories",
+      "qualified_name": "coordination_api.create_coordination_api.query_memories",
+      "file": "coordination_api.py",
+      "line_start": 329,
+      "line_end": 365,
+      "is_async": true,
+      "decorators": [
+        "app.post('/memory/query')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_memory_service.recall",
+        "get_memory_service",
+        "m.created_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "docstring": "Query relevant memories for a task."
+    },
+    {
+      "name": "claim_work",
+      "qualified_name": "coordination_api.create_coordination_api.claim_work",
+      "file": "coordination_api.py",
+      "line_start": 372,
+      "line_end": 403,
+      "is_async": true,
+      "decorators": [
+        "app.post('/work/claim')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_work_queue_service.claim",
+        "get_work_queue_service",
+        "str",
+        "result.deadline.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Claim a task from the work queue."
+    },
+    {
+      "name": "complete_work",
+      "qualified_name": "coordination_api.create_coordination_api.complete_work",
+      "file": "coordination_api.py",
+      "line_start": 406,
+      "line_end": 435,
+      "is_async": true,
+      "decorators": [
+        "app.post('/work/complete')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_work_queue_service.complete",
+        "get_work_queue_service",
+        "UUID",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Mark a task as completed."
+    },
+    {
+      "name": "submit_work",
+      "qualified_name": "coordination_api.create_coordination_api.submit_work",
+      "file": "coordination_api.py",
+      "line_start": 438,
+      "line_end": 469,
+      "is_async": true,
+      "decorators": [
+        "app.post('/work/submit')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "UUID",
+        "get_work_queue_service.submit",
+        "get_work_queue_service",
+        "str"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Submit new work to the queue."
+    },
+    {
+      "name": "check_guardrails",
+      "qualified_name": "coordination_api.create_coordination_api.check_guardrails",
+      "file": "coordination_api.py",
+      "line_start": 476,
+      "line_end": 515,
+      "is_async": true,
+      "decorators": [
+        "app.post('/guardrails/check')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "resolve_trust_level",
+        "authorize_operation",
+        "len",
+        "get_guardrails_service.check_operation",
+        "get_guardrails_service"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Check an operation for destructive patterns."
+    },
+    {
+      "name": "get_my_profile",
+      "qualified_name": "coordination_api.create_coordination_api.get_my_profile",
+      "file": "coordination_api.py",
+      "line_start": 522,
+      "line_end": 549,
+      "is_async": true,
+      "decorators": [
+        "app.get('/profiles/me')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "get_profiles_service.get_profile",
+        "get_profiles_service"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Get the calling agent's profile."
+    },
+    {
+      "name": "query_audit",
+      "qualified_name": "coordination_api.create_coordination_api.query_audit",
+      "file": "coordination_api.py",
+      "line_start": 556,
+      "line_end": 585,
+      "is_async": true,
+      "decorators": [
+        "app.get('/audit')"
+      ],
+      "calls": [
+        "get_audit_service.query",
+        "get_audit_service",
+        "e.created_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point",
+        "db_access"
+      ],
+      "docstring": "Query audit trail entries."
+    },
+    {
+      "name": "allocate_ports",
+      "qualified_name": "coordination_api.create_coordination_api.allocate_ports",
+      "file": "coordination_api.py",
+      "line_start": 592,
+      "line_end": 611,
+      "is_async": true,
+      "decorators": [
+        "app.post('/ports/allocate')"
+      ],
+      "calls": [
+        "get_port_allocator.allocate",
+        "get_port_allocator"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Allocate a block of ports for a session."
+    },
+    {
+      "name": "release_ports",
+      "qualified_name": "coordination_api.create_coordination_api.release_ports",
+      "file": "coordination_api.py",
+      "line_start": 614,
+      "line_end": 620,
+      "is_async": true,
+      "decorators": [
+        "app.post('/ports/release')"
+      ],
+      "calls": [
+        "get_port_allocator.release",
+        "get_port_allocator"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Release a port allocation for a session."
+    },
+    {
+      "name": "port_status",
+      "qualified_name": "coordination_api.create_coordination_api.port_status",
+      "file": "coordination_api.py",
+      "line_start": 623,
+      "line_end": 639,
+      "is_async": true,
+      "decorators": [
+        "app.get('/ports/status')"
+      ],
+      "calls": [
+        "get_port_allocator.status",
+        "get_port_allocator",
+        "max",
+        "time.time"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "List all active port allocations. Read-only, no API key required."
+    },
+    {
+      "name": "health",
+      "qualified_name": "coordination_api.create_coordination_api.health",
+      "file": "coordination_api.py",
+      "line_start": 646,
+      "line_end": 648,
+      "is_async": true,
+      "decorators": [
+        "app.get('/health')"
+      ],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Health check endpoint."
+    },
+    {
+      "name": "main",
+      "qualified_name": "coordination_api.main",
+      "file": "coordination_api.py",
+      "line_start": 658,
+      "line_end": 674,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "arg.startswith",
+        "arg.split",
+        "int",
+        "create_coordination_api",
+        "uvicorn.run"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Entry point for the HTTP API server."
+    },
+    {
       "name": "get_agent_id",
       "qualified_name": "coordination_mcp.get_agent_id",
       "file": "coordination_mcp.py",
-      "line_start": 57,
-      "line_end": 59,
+      "line_start": 58,
+      "line_end": 60,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -832,6 +1500,7 @@
       ],
       "called_by": [
         "coordination_mcp.read_handoff",
+        "coordination_mcp.check_guardrails",
         "coordination_mcp.check_policy"
       ],
       "db_tables": [],
@@ -842,14 +1511,15 @@
       "name": "get_agent_type",
       "qualified_name": "coordination_mcp.get_agent_type",
       "file": "coordination_mcp.py",
-      "line_start": 62,
-      "line_end": 64,
+      "line_start": 63,
+      "line_end": 65,
       "is_async": false,
       "decorators": [],
       "calls": [
         "get_config"
       ],
       "called_by": [
+        "coordination_mcp.check_guardrails",
         "coordination_mcp.check_policy"
       ],
       "db_tables": [],
@@ -860,8 +1530,8 @@
       "name": "acquire_lock",
       "qualified_name": "coordination_mcp.acquire_lock",
       "file": "coordination_mcp.py",
-      "line_start": 73,
-      "line_end": 117,
+      "line_start": 74,
+      "line_end": 118,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -883,8 +1553,8 @@
       "name": "release_lock",
       "qualified_name": "coordination_mcp.release_lock",
       "file": "coordination_mcp.py",
-      "line_start": 121,
-      "line_end": 143,
+      "line_start": 122,
+      "line_end": 144,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -905,8 +1575,8 @@
       "name": "check_locks",
       "qualified_name": "coordination_mcp.check_locks",
       "file": "coordination_mcp.py",
-      "line_start": 147,
-      "line_end": 172,
+      "line_start": 148,
+      "line_end": 173,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -929,8 +1599,8 @@
       "name": "get_work",
       "qualified_name": "coordination_mcp.get_work",
       "file": "coordination_mcp.py",
-      "line_start": 181,
-      "line_end": 218,
+      "line_start": 182,
+      "line_end": 219,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -953,8 +1623,8 @@
       "name": "complete_work",
       "qualified_name": "coordination_mcp.complete_work",
       "file": "coordination_mcp.py",
-      "line_start": 222,
-      "line_end": 259,
+      "line_start": 223,
+      "line_end": 260,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -977,8 +1647,8 @@
       "name": "submit_work",
       "qualified_name": "coordination_mcp.submit_work",
       "file": "coordination_mcp.py",
-      "line_start": 263,
-      "line_end": 314,
+      "line_start": 264,
+      "line_end": 315,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1001,8 +1671,8 @@
       "name": "write_handoff",
       "qualified_name": "coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line_start": 323,
-      "line_end": 373,
+      "line_start": 324,
+      "line_end": 374,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1024,8 +1694,8 @@
       "name": "read_handoff",
       "qualified_name": "coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line_start": 377,
-      "line_end": 428,
+      "line_start": 378,
+      "line_end": 429,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1049,8 +1719,8 @@
       "name": "register_session",
       "qualified_name": "coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line_start": 437,
-      "line_end": 470,
+      "line_start": 438,
+      "line_end": 471,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1071,8 +1741,8 @@
       "name": "discover_agents",
       "qualified_name": "coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line_start": 474,
-      "line_end": 517,
+      "line_start": 475,
+      "line_end": 518,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1095,8 +1765,8 @@
       "name": "heartbeat",
       "qualified_name": "coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line_start": 521,
-      "line_end": 539,
+      "line_start": 522,
+      "line_end": 540,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1117,8 +1787,8 @@
       "name": "cleanup_dead_agents",
       "qualified_name": "coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line_start": 543,
-      "line_end": 569,
+      "line_start": 544,
+      "line_end": 570,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1139,8 +1809,8 @@
       "name": "remember",
       "qualified_name": "coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line_start": 578,
-      "line_end": 620,
+      "line_start": 579,
+      "line_end": 621,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1161,8 +1831,8 @@
       "name": "recall",
       "qualified_name": "coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line_start": 624,
-      "line_end": 668,
+      "line_start": 625,
+      "line_end": 669,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1184,13 +1854,18 @@
       "name": "check_guardrails",
       "qualified_name": "coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line_start": 677,
-      "line_end": 713,
+      "line_start": 678,
+      "line_end": 735,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
       ],
       "calls": [
+        "get_policy_engine",
+        "engine.check_operation",
+        "get_agent_id",
+        "get_agent_type",
+        "len",
         "get_guardrails_service",
         "service.check_operation"
       ],
@@ -1206,8 +1881,8 @@
       "name": "get_my_profile",
       "qualified_name": "coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line_start": 722,
-      "line_end": 753,
+      "line_start": 744,
+      "line_end": 775,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1228,8 +1903,8 @@
       "name": "query_audit",
       "qualified_name": "coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line_start": 762,
-      "line_end": 802,
+      "line_start": 784,
+      "line_end": 824,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1252,8 +1927,8 @@
       "name": "check_policy",
       "qualified_name": "coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line_start": 811,
-      "line_end": 848,
+      "line_start": 833,
+      "line_end": 870,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1277,8 +1952,8 @@
       "name": "validate_cedar_policy",
       "qualified_name": "coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line_start": 852,
-      "line_end": 885,
+      "line_start": 874,
+      "line_end": 907,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1298,11 +1973,79 @@
       "docstring": "Validate Cedar policy text against the schema.\n\nOnly available when POLICY_ENGINE=cedar.\n\nArgs:\n    policy_text: Cedar policy text to validate\n\nReturns:\n    valid: Whether the policy is valid\n    errors: List of validation errors (if any)"
     },
     {
+      "name": "allocate_ports",
+      "qualified_name": "coordination_mcp.allocate_ports",
+      "file": "coordination_mcp.py",
+      "line_start": 916,
+      "line_end": 959,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_port_allocator",
+        "allocator.allocate"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Allocate a conflict-free port block for a parallel docker-compose stack.\n\nEach allocation provides 4 ports (db, rest, realtime, api) and a unique\ncompose project name. Duplicate calls for the same session_id refresh the\nTTL and return the existing allocation.\n\nArgs:\n    session_id: Unique identifier for the session requesting ports\n\nReturns:\n    success: Whether ports were allocated\n    allocation: Port details (db_port, rest_port, realtime_port, api_port,\n                compose_project_name) if successful\n    env_snippet: Shell export snippet ready for sourcing (if successful)\n    error: 'no_ports_available' if all port blocks are in use\n\nExample:\n    result = allocate_ports(\"session-abc-123\")\n    if result[\"success\"]:\n        # Use result[\"env_snippet\"] to configure docker-compose\n        ..."
+    },
+    {
+      "name": "release_ports",
+      "qualified_name": "coordination_mcp.release_ports",
+      "file": "coordination_mcp.py",
+      "line_start": 963,
+      "line_end": 984,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_port_allocator",
+        "allocator.release"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Release a previously allocated port block.\n\nCall this when a session's docker-compose stack is torn down.\nThe operation is idempotent - releasing a non-existent allocation succeeds.\n\nArgs:\n    session_id: The session whose ports should be released\n\nReturns:\n    success: Always True (idempotent release)\n\nExample:\n    release_ports(\"session-abc-123\")"
+    },
+    {
+      "name": "ports_status",
+      "qualified_name": "coordination_mcp.ports_status",
+      "file": "coordination_mcp.py",
+      "line_start": 988,
+      "line_end": 1022,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_port_allocator",
+        "allocator.status",
+        "time.time",
+        "max"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "List all active port allocations.\n\nReturns currently allocated port blocks with remaining TTL information.\nExpired allocations are automatically cleaned up before reporting.\n\nReturns:\n    List of active allocations with session_id, ports, compose_project_name,\n    and remaining_ttl_minutes\n\nExample:\n    status = ports_status()\n    for alloc in status:\n        print(f\"{alloc['session_id']}: db={alloc['db_port']} \"\n              f\"(TTL: {alloc['remaining_ttl_minutes']:.1f}m)\")"
+    },
+    {
       "name": "get_current_locks",
       "qualified_name": "coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line_start": 894,
-      "line_end": 914,
+      "line_start": 1031,
+      "line_end": 1051,
       "is_async": true,
       "decorators": [
         "mcp.resource('locks://current')"
@@ -1326,8 +2069,8 @@
       "name": "get_recent_handoffs",
       "qualified_name": "coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line_start": 918,
-      "line_end": 953,
+      "line_start": 1055,
+      "line_end": 1090,
       "is_async": true,
       "decorators": [
         "mcp.resource('handoffs://recent')"
@@ -1351,8 +2094,8 @@
       "name": "get_pending_work",
       "qualified_name": "coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line_start": 957,
-      "line_end": 983,
+      "line_start": 1094,
+      "line_end": 1120,
       "is_async": true,
       "decorators": [
         "mcp.resource('work://pending')"
@@ -1376,8 +2119,8 @@
       "name": "get_recent_memories",
       "qualified_name": "coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line_start": 987,
-      "line_end": 1010,
+      "line_start": 1124,
+      "line_end": 1147,
       "is_async": true,
       "decorators": [
         "mcp.resource('memories://recent')"
@@ -1400,8 +2143,8 @@
       "name": "get_guardrail_patterns",
       "qualified_name": "coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line_start": 1014,
-      "line_end": 1038,
+      "line_start": 1151,
+      "line_end": 1175,
       "is_async": true,
       "decorators": [
         "mcp.resource('guardrails://patterns')"
@@ -1426,8 +2169,8 @@
       "name": "get_current_profile",
       "qualified_name": "coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line_start": 1042,
-      "line_end": 1072,
+      "line_start": 1179,
+      "line_end": 1209,
       "is_async": true,
       "decorators": [
         "mcp.resource('profiles://current')"
@@ -1450,8 +2193,8 @@
       "name": "get_recent_audit",
       "qualified_name": "coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line_start": 1076,
-      "line_end": 1099,
+      "line_start": 1213,
+      "line_end": 1236,
       "is_async": true,
       "decorators": [
         "mcp.resource('audit://recent')"
@@ -1476,8 +2219,8 @@
       "name": "coordinate_file_edit",
       "qualified_name": "coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line_start": 1108,
-      "line_end": 1126,
+      "line_start": 1245,
+      "line_end": 1263,
       "is_async": false,
       "decorators": [
         "mcp.prompt()"
@@ -1494,8 +2237,8 @@
       "name": "start_work_session",
       "qualified_name": "coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line_start": 1130,
-      "line_end": 1144,
+      "line_start": 1267,
+      "line_end": 1281,
       "is_async": false,
       "decorators": [
         "mcp.prompt()"
@@ -1512,8 +2255,8 @@
       "name": "main",
       "qualified_name": "coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line_start": 1152,
-      "line_end": 1169,
+      "line_start": 1289,
+      "line_end": 1306,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1910,8 +2653,8 @@
       "name": "_coerce_filter_value",
       "qualified_name": "db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line_start": 23,
-      "line_end": 41,
+      "line_start": 24,
+      "line_end": 42,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1931,11 +2674,64 @@
       "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID or int\ncolumn causes a type mismatch error."
     },
     {
+      "name": "_validate_identifier",
+      "qualified_name": "db_postgres._validate_identifier",
+      "file": "db_postgres.py",
+      "line_start": 45,
+      "line_end": 50,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "identifier.split",
+        "any",
+        "_IDENT_RE.match",
+        "ValueError"
+      ],
+      "called_by": [
+        "db_postgres._validate_select_clause",
+        "db_postgres.DirectPostgresClient.rpc",
+        "db_postgres.DirectPostgresClient.query",
+        "db_postgres.DirectPostgresClient.insert",
+        "db_postgres.DirectPostgresClient.update",
+        "db_postgres.DirectPostgresClient.delete"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Validate SQL identifiers used for dynamic SQL construction."
+    },
+    {
+      "name": "_validate_select_clause",
+      "qualified_name": "db_postgres._validate_select_clause",
+      "file": "db_postgres.py",
+      "line_start": 53,
+      "line_end": 62,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "select.strip",
+        "col.strip",
+        "select.split",
+        "ValueError",
+        "_validate_identifier",
+        "join"
+      ],
+      "called_by": [
+        "db_postgres.DirectPostgresClient.query"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Validate a restricted SELECT projection string."
+    },
+    {
       "name": "__init__",
       "qualified_name": "db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line_start": 51,
-      "line_end": 53,
+      "line_start": 72,
+      "line_end": 74,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1952,8 +2748,8 @@
       "name": "_get_pool",
       "qualified_name": "db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line_start": 55,
-      "line_end": 62,
+      "line_start": 76,
+      "line_end": 83,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1971,11 +2767,12 @@
       "name": "rpc",
       "qualified_name": "db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line_start": 64,
-      "line_end": 85,
+      "line_start": 85,
+      "line_end": 107,
       "is_async": true,
       "decorators": [],
       "calls": [
+        "_validate_identifier",
         "self._get_pool",
         "list",
         "params.keys",
@@ -1996,8 +2793,8 @@
       "name": "query",
       "qualified_name": "db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line_start": 87,
-      "line_end": 154,
+      "line_start": 109,
+      "line_end": 185,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2005,6 +2802,7 @@
         "query_params.split",
         "part.startswith",
         "part.split",
+        "_validate_identifier",
         "len",
         "int",
         "where_clauses.append",
@@ -2016,6 +2814,7 @@
         "join",
         "range",
         "values.extend",
+        "_validate_select_clause",
         "pool.acquire",
         "conn.fetch",
         "dict"
@@ -2031,14 +2830,15 @@
       "name": "insert",
       "qualified_name": "db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line_start": 156,
-      "line_end": 179,
+      "line_start": 187,
+      "line_end": 213,
       "is_async": true,
       "decorators": [],
       "calls": [
         "self._get_pool",
         "list",
         "data.keys",
+        "_validate_identifier",
         "data.values",
         "join",
         "range",
@@ -2060,12 +2860,13 @@
       "name": "update",
       "qualified_name": "db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line_start": 181,
-      "line_end": 218,
+      "line_start": 215,
+      "line_end": 255,
       "is_async": true,
       "decorators": [],
       "calls": [
         "self._get_pool",
+        "_validate_identifier",
         "data.items",
         "set_parts.append",
         "values.append",
@@ -2089,12 +2890,13 @@
       "name": "delete",
       "qualified_name": "db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line_start": 220,
-      "line_end": 238,
+      "line_start": 257,
+      "line_end": 277,
       "is_async": true,
       "decorators": [],
       "calls": [
         "self._get_pool",
+        "_validate_identifier",
         "enumerate",
         "match.items",
         "where_parts.append",
@@ -2115,8 +2917,8 @@
       "name": "close",
       "qualified_name": "db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line_start": 240,
-      "line_end": 244,
+      "line_start": 279,
+      "line_end": 283,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2783,7 +3585,7 @@
       "qualified_name": "guardrails.GuardrailsService.check_operation",
       "file": "guardrails.py",
       "line_start": 204,
-      "line_end": 269,
+      "line_end": 308,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2795,15 +3597,17 @@
         "match.group",
         "GuardrailResult",
         "get_config",
+        "logger.error",
         "get_audit_service.log_operation",
         "get_audit_service",
         "len",
-        "logger.error"
+        "self.db.insert"
       ],
       "called_by": [],
       "db_tables": [],
       "tags": [
-        "async"
+        "async",
+        "db_access"
       ],
       "docstring": "Check an operation for destructive patterns.\n\nArgs:\n    operation_text: The operation text to scan (command, result, etc.)\n    file_paths: File paths involved in the operation\n    trust_level: Agent's trust level (higher = more permissive)\n    agent_id: Agent performing the operation (for logging)\n\nReturns:\n    GuardrailResult indicating whether the operation is safe"
     },
@@ -2811,14 +3615,16 @@
       "name": "get_guardrails_service",
       "qualified_name": "guardrails.get_guardrails_service",
       "file": "guardrails.py",
-      "line_start": 276,
-      "line_end": 281,
+      "line_start": 315,
+      "line_end": 320,
       "is_async": false,
       "decorators": [],
       "calls": [
         "GuardrailsService"
       ],
       "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.check_guardrails",
         "coordination_mcp.check_guardrails",
         "coordination_mcp.get_guardrail_patterns",
         "work_queue.WorkQueueService.claim",
@@ -2951,17 +3757,19 @@
       "qualified_name": "handoffs.HandoffService.write",
       "file": "handoffs.py",
       "line_start": 104,
-      "line_end": 165,
+      "line_end": 180,
       "is_async": true,
       "decorators": [],
       "calls": [
         "get_config",
-        "self.db.rpc",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "len",
         "WriteHandoffResult",
+        "self.db.rpc",
         "WriteHandoffResult.from_dict",
         "get_audit_service.log_operation",
         "get_audit_service",
-        "len",
         "str",
         "logger.warning"
       ],
@@ -2976,8 +3784,8 @@
       "name": "read",
       "qualified_name": "handoffs.HandoffService.read",
       "file": "handoffs.py",
-      "line_start": 167,
-      "line_end": 204,
+      "line_start": 182,
+      "line_end": 219,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2999,8 +3807,8 @@
       "name": "get_recent",
       "qualified_name": "handoffs.HandoffService.get_recent",
       "file": "handoffs.py",
-      "line_start": 206,
-      "line_end": 222,
+      "line_start": 221,
+      "line_end": 237,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3019,8 +3827,8 @@
       "name": "get_handoff_service",
       "qualified_name": "handoffs.get_handoff_service",
       "file": "handoffs.py",
-      "line_start": 229,
-      "line_end": 234,
+      "line_start": 244,
+      "line_end": 249,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3246,6 +4054,10 @@
         "LockService"
       ],
       "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.acquire_lock",
+        "coordination_api.create_coordination_api.release_lock",
+        "coordination_api.create_coordination_api.check_lock_status",
         "coordination_mcp.acquire_lock",
         "coordination_mcp.release_lock",
         "coordination_mcp.check_locks",
@@ -3373,11 +4185,14 @@
       "qualified_name": "memory.MemoryService.remember",
       "file": "memory.py",
       "line_start": 101,
-      "line_end": 159,
+      "line_end": 179,
       "is_async": true,
       "decorators": [],
       "calls": [
         "get_config",
+        "get_policy_engine.check_operation",
+        "get_policy_engine",
+        "MemoryResult",
         "self.db.rpc",
         "MemoryResult.from_dict",
         "get_audit_service.log_operation",
@@ -3395,8 +4210,8 @@
       "name": "recall",
       "qualified_name": "memory.MemoryService.recall",
       "file": "memory.py",
-      "line_start": 161,
-      "line_end": 192,
+      "line_start": 181,
+      "line_end": 212,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3414,14 +4229,17 @@
       "name": "get_memory_service",
       "qualified_name": "memory.get_memory_service",
       "file": "memory.py",
-      "line_start": 199,
-      "line_end": 204,
+      "line_start": 219,
+      "line_end": 224,
       "is_async": false,
       "decorators": [],
       "calls": [
         "MemoryService"
       ],
       "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.store_memory",
+        "coordination_api.create_coordination_api.query_memories",
         "coordination_mcp.remember",
         "coordination_mcp.recall",
         "coordination_mcp.get_recent_memories"
@@ -3534,8 +4352,8 @@
       "name": "allow",
       "qualified_name": "policy_engine.PolicyDecision.allow",
       "file": "policy_engine.py",
-      "line_start": 52,
-      "line_end": 53,
+      "line_start": 55,
+      "line_end": 56,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -3557,8 +4375,8 @@
       "name": "deny",
       "qualified_name": "policy_engine.PolicyDecision.deny",
       "file": "policy_engine.py",
-      "line_start": 56,
-      "line_end": 57,
+      "line_start": 59,
+      "line_end": 60,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -3581,8 +4399,8 @@
       "name": "__init__",
       "qualified_name": "policy_engine.NativePolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line_start": 75,
-      "line_end": 76,
+      "line_start": 78,
+      "line_end": 79,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3597,8 +4415,8 @@
       "name": "db",
       "qualified_name": "policy_engine.NativePolicyEngine.db",
       "file": "policy_engine.py",
-      "line_start": 79,
-      "line_end": 82,
+      "line_start": 82,
+      "line_end": 85,
       "is_async": false,
       "decorators": [
         "property"
@@ -3617,8 +4435,8 @@
       "name": "check_operation",
       "qualified_name": "policy_engine.NativePolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line_start": 84,
-      "line_end": 165,
+      "line_start": 87,
+      "line_end": 249,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3627,6 +4445,7 @@
         "profiles.get_profile",
         "get_config",
         "PolicyDecision.deny",
+        "self._log_policy_decision",
         "PolicyDecision.allow",
         "profiles.check_operation"
       ],
@@ -3642,8 +4461,8 @@
       "name": "check_network_access",
       "qualified_name": "policy_engine.NativePolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line_start": 167,
-      "line_end": 188,
+      "line_start": 251,
+      "line_end": 272,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3660,11 +4479,32 @@
       "docstring": "Check network access using native NetworkPolicyService."
     },
     {
+      "name": "_log_policy_decision",
+      "qualified_name": "policy_engine.NativePolicyEngine._log_policy_decision",
+      "file": "policy_engine.py",
+      "line_start": 274,
+      "line_end": 307,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.debug"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private"
+      ],
+      "docstring": "Best-effort policy decision audit logging."
+    },
+    {
       "name": "__init__",
       "qualified_name": "policy_engine.CedarPolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line_start": 201,
-      "line_end": 214,
+      "line_start": 320,
+      "line_end": 333,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3681,8 +4521,8 @@
       "name": "db",
       "qualified_name": "policy_engine.CedarPolicyEngine.db",
       "file": "policy_engine.py",
-      "line_start": 217,
-      "line_end": 220,
+      "line_start": 336,
+      "line_end": 339,
       "is_async": false,
       "decorators": [
         "property"
@@ -3701,8 +4541,8 @@
       "name": "_load_default_policies",
       "qualified_name": "policy_engine.CedarPolicyEngine._load_default_policies",
       "file": "policy_engine.py",
-      "line_start": 222,
-      "line_end": 234,
+      "line_start": 341,
+      "line_end": 353,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3722,8 +4562,8 @@
       "name": "_load_schema",
       "qualified_name": "policy_engine.CedarPolicyEngine._load_schema",
       "file": "policy_engine.py",
-      "line_start": 236,
-      "line_end": 252,
+      "line_start": 355,
+      "line_end": 371,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3743,8 +4583,8 @@
       "name": "_load_policies",
       "qualified_name": "policy_engine.CedarPolicyEngine._load_policies",
       "file": "policy_engine.py",
-      "line_start": 254,
-      "line_end": 292,
+      "line_start": 373,
+      "line_end": 411,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3768,8 +4608,8 @@
       "name": "_build_entity",
       "qualified_name": "policy_engine.CedarPolicyEngine._build_entity",
       "file": "policy_engine.py",
-      "line_start": 294,
-      "line_end": 325,
+      "line_start": 413,
+      "line_end": 444,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3787,8 +4627,8 @@
       "name": "_build_resource_entity",
       "qualified_name": "policy_engine.CedarPolicyEngine._build_resource_entity",
       "file": "policy_engine.py",
-      "line_start": 327,
-      "line_end": 352,
+      "line_start": 446,
+      "line_end": 471,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3803,8 +4643,8 @@
       "name": "_determine_resource_type",
       "qualified_name": "policy_engine.CedarPolicyEngine._determine_resource_type",
       "file": "policy_engine.py",
-      "line_start": 354,
-      "line_end": 364,
+      "line_start": 473,
+      "line_end": 483,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3819,14 +4659,15 @@
       "name": "check_operation",
       "qualified_name": "policy_engine.CedarPolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line_start": 366,
-      "line_end": 434,
+      "line_start": 485,
+      "line_end": 583,
       "is_async": true,
       "decorators": [],
       "calls": [
         "ctx.get",
         "self._load_policies",
         "PolicyDecision.deny",
+        "self._log_policy_decision",
         "self._determine_resource_type",
         "self._build_resource_entity",
         "self._build_entity",
@@ -3849,8 +4690,8 @@
       "name": "check_network_access",
       "qualified_name": "policy_engine.CedarPolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line_start": 436,
-      "line_end": 453,
+      "line_start": 585,
+      "line_end": 602,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3867,8 +4708,8 @@
       "name": "validate_policy",
       "qualified_name": "policy_engine.CedarPolicyEngine.validate_policy",
       "file": "policy_engine.py",
-      "line_start": 455,
-      "line_end": 474,
+      "line_start": 604,
+      "line_end": 623,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3886,8 +4727,8 @@
       "name": "list_policies",
       "qualified_name": "policy_engine.CedarPolicyEngine.list_policies",
       "file": "policy_engine.py",
-      "line_start": 476,
-      "line_end": 493,
+      "line_start": 625,
+      "line_end": 642,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -3906,8 +4747,8 @@
       "name": "invalidate_cache",
       "qualified_name": "policy_engine.CedarPolicyEngine.invalidate_cache",
       "file": "policy_engine.py",
-      "line_start": 495,
-      "line_end": 498,
+      "line_start": 644,
+      "line_end": 647,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3917,11 +4758,32 @@
       "docstring": "Invalidate the policy cache, forcing reload on next check."
     },
     {
+      "name": "_log_policy_decision",
+      "qualified_name": "policy_engine.CedarPolicyEngine._log_policy_decision",
+      "file": "policy_engine.py",
+      "line_start": 649,
+      "line_end": 682,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.debug"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private"
+      ],
+      "docstring": "Best-effort policy decision audit logging."
+    },
+    {
       "name": "get_policy_engine",
       "qualified_name": "policy_engine.get_policy_engine",
       "file": "policy_engine.py",
-      "line_start": 505,
-      "line_end": 519,
+      "line_start": 689,
+      "line_end": 703,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -3930,10 +4792,14 @@
         "NativePolicyEngine"
       ],
       "called_by": [
+        "coordination_api.authorize_operation",
+        "coordination_mcp.check_guardrails",
         "coordination_mcp.check_policy",
         "coordination_mcp.validate_cedar_policy",
+        "handoffs.HandoffService.write",
         "locks.LockService.acquire",
         "locks.LockService.release",
+        "memory.MemoryService.remember",
         "work_queue.WorkQueueService.claim",
         "work_queue.WorkQueueService.complete",
         "work_queue.WorkQueueService.submit"
@@ -3946,8 +4812,8 @@
       "name": "reset_policy_engine",
       "qualified_name": "policy_engine.reset_policy_engine",
       "file": "policy_engine.py",
-      "line_start": 522,
-      "line_end": 525,
+      "line_start": 706,
+      "line_end": 709,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3955,6 +4821,185 @@
       "db_tables": [],
       "tags": [],
       "docstring": "Reset the global policy engine (for testing)."
+    },
+    {
+      "name": "env_snippet",
+      "qualified_name": "port_allocator.PortAllocation.env_snippet",
+      "file": "port_allocator.py",
+      "line_start": 37,
+      "line_end": 49,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": "Return an ``export VAR=value`` snippet ready for shell sourcing."
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "port_allocator.PortAllocatorService.__init__",
+      "file": "port_allocator.py",
+      "line_start": 55,
+      "line_end": 68,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "PortAllocatorConfig",
+        "ValueError",
+        "threading.Lock"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "allocate",
+      "qualified_name": "port_allocator.PortAllocatorService.allocate",
+      "file": "port_allocator.py",
+      "line_start": 74,
+      "line_end": 130,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "self._cleanup_expired",
+        "time.time",
+        "PortAllocation",
+        "set",
+        "self._allocations.values",
+        "used_indices.add",
+        "range",
+        "_compose_project_name"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Allocate a port block for *session_id*.\n\nReturns the allocation on success, or ``None`` when no port blocks\nare available.  Duplicate calls for the same *session_id* return\nthe existing allocation with a refreshed TTL."
+    },
+    {
+      "name": "release",
+      "qualified_name": "port_allocator.PortAllocatorService.release",
+      "file": "port_allocator.py",
+      "line_start": 132,
+      "line_end": 139,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "self._allocations.pop"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Release the allocation for *session_id*.\n\nReturns ``True`` unconditionally (idempotent)."
+    },
+    {
+      "name": "status",
+      "qualified_name": "port_allocator.PortAllocatorService.status",
+      "file": "port_allocator.py",
+      "line_start": 141,
+      "line_end": 145,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "self._cleanup_expired",
+        "list",
+        "self._allocations.values"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Return all active (non-expired) allocations."
+    },
+    {
+      "name": "_cleanup_expired",
+      "qualified_name": "port_allocator.PortAllocatorService._cleanup_expired",
+      "file": "port_allocator.py",
+      "line_start": 151,
+      "line_end": 158,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "time.time",
+        "self._allocations.items"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Remove allocations whose TTL has elapsed.  Caller holds lock."
+    },
+    {
+      "name": "_compose_project_name",
+      "qualified_name": "port_allocator._compose_project_name",
+      "file": "port_allocator.py",
+      "line_start": 166,
+      "line_end": 167,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "hashlib.sha256.hexdigest",
+        "hashlib.sha256",
+        "session_id.encode"
+      ],
+      "called_by": [
+        "port_allocator.PortAllocatorService.allocate"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "get_port_allocator",
+      "qualified_name": "port_allocator.get_port_allocator",
+      "file": "port_allocator.py",
+      "line_start": 178,
+      "line_end": 186,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "PortAllocatorConfig.from_env",
+        "PortAllocatorService"
+      ],
+      "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.allocate_ports",
+        "coordination_api.create_coordination_api.release_ports",
+        "coordination_api.create_coordination_api.port_status",
+        "coordination_mcp.allocate_ports",
+        "coordination_mcp.release_ports",
+        "coordination_mcp.ports_status"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Return the global ``PortAllocatorService`` singleton."
+    },
+    {
+      "name": "reset_port_allocator",
+      "qualified_name": "port_allocator.reset_port_allocator",
+      "file": "port_allocator.py",
+      "line_start": 189,
+      "line_end": 193,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the singleton (for testing)."
     },
     {
       "name": "from_dict",
@@ -4143,9 +5188,13 @@
         "ProfilesService"
       ],
       "called_by": [
+        "coordination_api.resolve_trust_level",
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.get_my_profile",
         "coordination_mcp.get_my_profile",
         "coordination_mcp.get_current_profile",
-        "policy_engine.NativePolicyEngine.check_operation"
+        "policy_engine.NativePolicyEngine.check_operation",
+        "work_queue.WorkQueueService._resolve_trust_level"
       ],
       "db_tables": [],
       "tags": [],
@@ -4453,11 +5502,33 @@
       "docstring": null
     },
     {
+      "name": "_resolve_trust_level",
+      "qualified_name": "work_queue.WorkQueueService._resolve_trust_level",
+      "file": "work_queue.py",
+      "line_start": 163,
+      "line_end": 176,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_profiles_service.get_profile",
+        "get_profiles_service",
+        "logger.debug",
+        "get_config"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private"
+      ],
+      "docstring": "Resolve effective trust level for guardrail evaluation."
+    },
+    {
       "name": "claim",
       "qualified_name": "work_queue.WorkQueueService.claim",
       "file": "work_queue.py",
-      "line_start": 163,
-      "line_end": 273,
+      "line_start": 178,
+      "line_end": 293,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4468,6 +5539,7 @@
         "self.db.rpc",
         "ClaimResult.from_dict",
         "get_guardrails_service",
+        "self._resolve_trust_level",
         "str",
         "scan_text.strip",
         "guardrails.check_operation",
@@ -4488,8 +5560,8 @@
       "name": "complete",
       "qualified_name": "work_queue.WorkQueueService.complete",
       "file": "work_queue.py",
-      "line_start": 275,
-      "line_end": 369,
+      "line_start": 295,
+      "line_end": 394,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4499,6 +5571,7 @@
         "str",
         "CompleteResult",
         "get_guardrails_service",
+        "self._resolve_trust_level",
         "guardrails.check_operation",
         "join",
         "logger.error",
@@ -4519,8 +5592,8 @@
       "name": "submit",
       "qualified_name": "work_queue.WorkQueueService.submit",
       "file": "work_queue.py",
-      "line_start": 371,
-      "line_end": 472,
+      "line_start": 396,
+      "line_end": 503,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4530,6 +5603,7 @@
         "bool",
         "SubmitResult",
         "get_guardrails_service",
+        "self._resolve_trust_level",
         "str",
         "guardrails.check_operation",
         "logger.error",
@@ -4551,8 +5625,8 @@
       "name": "get_pending",
       "qualified_name": "work_queue.WorkQueueService.get_pending",
       "file": "work_queue.py",
-      "line_start": 474,
-      "line_end": 496,
+      "line_start": 505,
+      "line_end": 527,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4573,8 +5647,8 @@
       "name": "get_task",
       "qualified_name": "work_queue.WorkQueueService.get_task",
       "file": "work_queue.py",
-      "line_start": 498,
-      "line_end": 508,
+      "line_start": 529,
+      "line_end": 539,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4593,8 +5667,8 @@
       "name": "get_my_tasks",
       "qualified_name": "work_queue.WorkQueueService.get_my_tasks",
       "file": "work_queue.py",
-      "line_start": 510,
-      "line_end": 532,
+      "line_start": 541,
+      "line_end": 563,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4614,14 +5688,18 @@
       "name": "get_work_queue_service",
       "qualified_name": "work_queue.get_work_queue_service",
       "file": "work_queue.py",
-      "line_start": 539,
-      "line_end": 544,
+      "line_start": 570,
+      "line_end": 575,
       "is_async": false,
       "decorators": [],
       "calls": [
         "WorkQueueService"
       ],
       "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.claim_work",
+        "coordination_api.create_coordination_api.complete_work",
+        "coordination_api.create_coordination_api.submit_work",
         "coordination_mcp.get_work",
         "coordination_mcp.complete_work",
         "coordination_mcp.submit_work",
@@ -4696,8 +5774,8 @@
       "name": "SupabaseConfig",
       "qualified_name": "config.SupabaseConfig",
       "file": "config.py",
-      "line_start": 30,
-      "line_end": 51,
+      "line_start": 39,
+      "line_end": 60,
       "bases": [],
       "methods": [
         "from_env"
@@ -4710,8 +5788,8 @@
       "name": "AgentConfig",
       "qualified_name": "config.AgentConfig",
       "file": "config.py",
-      "line_start": 55,
-      "line_end": 75,
+      "line_start": 64,
+      "line_end": 84,
       "bases": [],
       "methods": [
         "from_env"
@@ -4724,8 +5802,8 @@
       "name": "LockConfig",
       "qualified_name": "config.LockConfig",
       "file": "config.py",
-      "line_start": 79,
-      "line_end": 89,
+      "line_start": 88,
+      "line_end": 98,
       "bases": [],
       "methods": [
         "from_env"
@@ -4738,8 +5816,8 @@
       "name": "PostgresConfig",
       "qualified_name": "config.PostgresConfig",
       "file": "config.py",
-      "line_start": 93,
-      "line_end": 106,
+      "line_start": 102,
+      "line_end": 115,
       "bases": [],
       "methods": [
         "from_env"
@@ -4752,8 +5830,8 @@
       "name": "DatabaseConfig",
       "qualified_name": "config.DatabaseConfig",
       "file": "config.py",
-      "line_start": 110,
-      "line_end": 121,
+      "line_start": 119,
+      "line_end": 130,
       "bases": [],
       "methods": [
         "from_env"
@@ -4766,8 +5844,8 @@
       "name": "GuardrailsConfig",
       "qualified_name": "config.GuardrailsConfig",
       "file": "config.py",
-      "line_start": 125,
-      "line_end": 141,
+      "line_start": 134,
+      "line_end": 150,
       "bases": [],
       "methods": [
         "from_env"
@@ -4780,8 +5858,8 @@
       "name": "ProfilesConfig",
       "qualified_name": "config.ProfilesConfig",
       "file": "config.py",
-      "line_start": 145,
-      "line_end": 165,
+      "line_start": 154,
+      "line_end": 174,
       "bases": [],
       "methods": [
         "from_env"
@@ -4794,8 +5872,8 @@
       "name": "AuditConfig",
       "qualified_name": "config.AuditConfig",
       "file": "config.py",
-      "line_start": 169,
-      "line_end": 180,
+      "line_start": 178,
+      "line_end": 189,
       "bases": [],
       "methods": [
         "from_env"
@@ -4808,8 +5886,8 @@
       "name": "NetworkPolicyConfig",
       "qualified_name": "config.NetworkPolicyConfig",
       "file": "config.py",
-      "line_start": 184,
-      "line_end": 193,
+      "line_start": 193,
+      "line_end": 202,
       "bases": [],
       "methods": [
         "from_env"
@@ -4822,8 +5900,36 @@
       "name": "PolicyEngineConfig",
       "qualified_name": "config.PolicyEngineConfig",
       "file": "config.py",
-      "line_start": 197,
-      "line_end": 217,
+      "line_start": 206,
+      "line_end": 226,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "PortAllocatorConfig",
+      "qualified_name": "config.PortAllocatorConfig",
+      "file": "config.py",
+      "line_start": 230,
+      "line_end": 245,
+      "bases": [],
+      "methods": [
+        "from_env"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ApiConfig",
+      "qualified_name": "config.ApiConfig",
+      "file": "config.py",
+      "line_start": 249,
+      "line_end": 274,
       "bases": [],
       "methods": [
         "from_env"
@@ -4836,8 +5942,8 @@
       "name": "Config",
       "qualified_name": "config.Config",
       "file": "config.py",
-      "line_start": 221,
-      "line_end": 251,
+      "line_start": 278,
+      "line_end": 314,
       "bases": [],
       "methods": [
         "from_env"
@@ -4845,6 +5951,138 @@
       "decorators": [
         "dataclass"
       ]
+    },
+    {
+      "name": "LockAcquireRequest",
+      "qualified_name": "coordination_api.LockAcquireRequest",
+      "file": "coordination_api.py",
+      "line_start": 29,
+      "line_end": 35,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "LockReleaseRequest",
+      "qualified_name": "coordination_api.LockReleaseRequest",
+      "file": "coordination_api.py",
+      "line_start": 38,
+      "line_end": 40,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "MemoryStoreRequest",
+      "qualified_name": "coordination_api.MemoryStoreRequest",
+      "file": "coordination_api.py",
+      "line_start": 43,
+      "line_end": 51,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "MemoryQueryRequest",
+      "qualified_name": "coordination_api.MemoryQueryRequest",
+      "file": "coordination_api.py",
+      "line_start": 54,
+      "line_end": 58,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "WorkClaimRequest",
+      "qualified_name": "coordination_api.WorkClaimRequest",
+      "file": "coordination_api.py",
+      "line_start": 61,
+      "line_end": 64,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "WorkCompleteRequest",
+      "qualified_name": "coordination_api.WorkCompleteRequest",
+      "file": "coordination_api.py",
+      "line_start": 67,
+      "line_end": 72,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "WorkSubmitRequest",
+      "qualified_name": "coordination_api.WorkSubmitRequest",
+      "file": "coordination_api.py",
+      "line_start": 75,
+      "line_end": 80,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "GuardrailsCheckRequest",
+      "qualified_name": "coordination_api.GuardrailsCheckRequest",
+      "file": "coordination_api.py",
+      "line_start": 83,
+      "line_end": 85,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "AuditQueryParams",
+      "qualified_name": "coordination_api.AuditQueryParams",
+      "file": "coordination_api.py",
+      "line_start": 88,
+      "line_end": 91,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "PortAllocateRequest",
+      "qualified_name": "coordination_api.PortAllocateRequest",
+      "file": "coordination_api.py",
+      "line_start": 94,
+      "line_end": 95,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "PortReleaseRequest",
+      "qualified_name": "coordination_api.PortReleaseRequest",
+      "file": "coordination_api.py",
+      "line_start": 98,
+      "line_end": 99,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
     },
     {
       "name": "DatabaseClient",
@@ -4892,8 +6130,8 @@
       "name": "DirectPostgresClient",
       "qualified_name": "db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line_start": 44,
-      "line_end": 244,
+      "line_start": 65,
+      "line_end": 283,
       "bases": [],
       "methods": [
         "__init__",
@@ -5101,7 +6339,7 @@
       "qualified_name": "guardrails.GuardrailsService",
       "file": "guardrails.py",
       "line_start": 164,
-      "line_end": 269,
+      "line_end": 308,
       "bases": [],
       "methods": [
         "__init__",
@@ -5158,7 +6396,7 @@
       "qualified_name": "handoffs.HandoffService",
       "file": "handoffs.py",
       "line_start": 92,
-      "line_end": 222,
+      "line_end": 237,
       "bases": [],
       "methods": [
         "__init__",
@@ -5262,7 +6500,7 @@
       "qualified_name": "memory.MemoryService",
       "file": "memory.py",
       "line_start": 89,
-      "line_end": 192,
+      "line_end": 212,
       "bases": [],
       "methods": [
         "__init__",
@@ -5304,8 +6542,8 @@
       "name": "PolicyDecision",
       "qualified_name": "policy_engine.PolicyDecision",
       "file": "policy_engine.py",
-      "line_start": 43,
-      "line_end": 57,
+      "line_start": 46,
+      "line_end": 60,
       "bases": [],
       "methods": [
         "allow",
@@ -5319,8 +6557,8 @@
       "name": "ValidationResult",
       "qualified_name": "policy_engine.ValidationResult",
       "file": "policy_engine.py",
-      "line_start": 61,
-      "line_end": 65,
+      "line_start": 64,
+      "line_end": 68,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -5331,14 +6569,15 @@
       "name": "NativePolicyEngine",
       "qualified_name": "policy_engine.NativePolicyEngine",
       "file": "policy_engine.py",
-      "line_start": 68,
-      "line_end": 188,
+      "line_start": 71,
+      "line_end": 307,
       "bases": [],
       "methods": [
         "__init__",
         "db",
         "check_operation",
-        "check_network_access"
+        "check_network_access",
+        "_log_policy_decision"
       ],
       "decorators": []
     },
@@ -5346,8 +6585,8 @@
       "name": "CedarPolicyEngine",
       "qualified_name": "policy_engine.CedarPolicyEngine",
       "file": "policy_engine.py",
-      "line_start": 191,
-      "line_end": 498,
+      "line_start": 310,
+      "line_end": 682,
       "bases": [],
       "methods": [
         "__init__",
@@ -5362,7 +6601,38 @@
         "check_network_access",
         "validate_policy",
         "list_policies",
-        "invalidate_cache"
+        "invalidate_cache",
+        "_log_policy_decision"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "PortAllocation",
+      "qualified_name": "port_allocator.PortAllocation",
+      "file": "port_allocator.py",
+      "line_start": 24,
+      "line_end": 49,
+      "bases": [],
+      "methods": [
+        "env_snippet"
+      ],
+      "decorators": [
+        "dataclass(frozen=True)"
+      ]
+    },
+    {
+      "name": "PortAllocatorService",
+      "qualified_name": "port_allocator.PortAllocatorService",
+      "file": "port_allocator.py",
+      "line_start": 52,
+      "line_end": 158,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "allocate",
+        "release",
+        "status",
+        "_cleanup_expired"
       ],
       "decorators": []
     },
@@ -5516,11 +6786,12 @@
       "qualified_name": "work_queue.WorkQueueService",
       "file": "work_queue.py",
       "line_start": 151,
-      "line_end": 532,
+      "line_end": 563,
       "bases": [],
       "methods": [
         "__init__",
         "db",
+        "_resolve_trust_level",
         "claim",
         "complete",
         "submit",
@@ -5532,6 +6803,10 @@
     }
   ],
   "import_graph": [
+    {
+      "from": "assurance",
+      "to": "__future__"
+    },
     {
       "from": "audit",
       "to": "asyncio"
@@ -5562,6 +6837,10 @@
     },
     {
       "from": "config",
+      "to": "json"
+    },
+    {
+      "from": "config",
       "to": "os"
     },
     {
@@ -5571,6 +6850,74 @@
     {
       "from": "config",
       "to": "uuid"
+    },
+    {
+      "from": "coordination_api",
+      "to": "__future__"
+    },
+    {
+      "from": "coordination_api",
+      "to": "sys"
+    },
+    {
+      "from": "coordination_api",
+      "to": "time"
+    },
+    {
+      "from": "coordination_api",
+      "to": "typing"
+    },
+    {
+      "from": "coordination_api",
+      "to": "fastapi"
+    },
+    {
+      "from": "coordination_api",
+      "to": "pydantic"
+    },
+    {
+      "from": "coordination_api",
+      "to": "config"
+    },
+    {
+      "from": "coordination_api",
+      "to": "port_allocator"
+    },
+    {
+      "from": "coordination_api",
+      "to": "policy_engine"
+    },
+    {
+      "from": "coordination_api",
+      "to": "profiles"
+    },
+    {
+      "from": "coordination_api",
+      "to": "locks"
+    },
+    {
+      "from": "coordination_api",
+      "to": "memory"
+    },
+    {
+      "from": "coordination_api",
+      "to": "work_queue"
+    },
+    {
+      "from": "coordination_api",
+      "to": "uuid"
+    },
+    {
+      "from": "coordination_api",
+      "to": "guardrails"
+    },
+    {
+      "from": "coordination_api",
+      "to": "audit"
+    },
+    {
+      "from": "coordination_api",
+      "to": "uvicorn"
     },
     {
       "from": "coordination_mcp",
@@ -5614,6 +6961,10 @@
     },
     {
       "from": "coordination_mcp",
+      "to": "port_allocator"
+    },
+    {
+      "from": "coordination_mcp",
       "to": "profiles"
     },
     {
@@ -5627,6 +6978,10 @@
     {
       "from": "coordination_mcp",
       "to": "policy_engine"
+    },
+    {
+      "from": "coordination_mcp",
+      "to": "time"
     },
     {
       "from": "db",
@@ -5777,6 +7132,10 @@
       "to": "db"
     },
     {
+      "from": "handoffs",
+      "to": "policy_engine"
+    },
+    {
       "from": "locks",
       "to": "logging"
     },
@@ -5837,6 +7196,10 @@
       "to": "db"
     },
     {
+      "from": "memory",
+      "to": "policy_engine"
+    },
+    {
       "from": "network_policies",
       "to": "dataclasses"
     },
@@ -5851,6 +7214,10 @@
     {
       "from": "network_policies",
       "to": "db"
+    },
+    {
+      "from": "policy_engine",
+      "to": "logging"
     },
     {
       "from": "policy_engine",
@@ -5886,7 +7253,35 @@
     },
     {
       "from": "policy_engine",
+      "to": "audit"
+    },
+    {
+      "from": "policy_engine",
       "to": "cedarpy"
+    },
+    {
+      "from": "port_allocator",
+      "to": "__future__"
+    },
+    {
+      "from": "port_allocator",
+      "to": "hashlib"
+    },
+    {
+      "from": "port_allocator",
+      "to": "threading"
+    },
+    {
+      "from": "port_allocator",
+      "to": "time"
+    },
+    {
+      "from": "port_allocator",
+      "to": "dataclasses"
+    },
+    {
+      "from": "port_allocator",
+      "to": "config"
     },
     {
       "from": "profiles",
@@ -5970,6 +7365,10 @@
     },
     {
       "from": "work_queue",
+      "to": "profiles"
+    },
+    {
+      "from": "work_queue",
       "to": "policy_engine"
     },
     {
@@ -5978,6 +7377,96 @@
     }
   ],
   "entry_points": [
+    {
+      "function": "coordination_api.create_coordination_api.acquire_lock",
+      "kind": "route",
+      "method": "POST",
+      "path": "/locks/acquire"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.release_lock",
+      "kind": "route",
+      "method": "POST",
+      "path": "/locks/release"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.check_lock_status",
+      "kind": "route",
+      "method": "GET",
+      "path": "/locks/status/{file_path:path}"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.store_memory",
+      "kind": "route",
+      "method": "POST",
+      "path": "/memory/store"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.query_memories",
+      "kind": "route",
+      "method": "POST",
+      "path": "/memory/query"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.claim_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/claim"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.complete_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/complete"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.submit_work",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/submit"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.check_guardrails",
+      "kind": "route",
+      "method": "POST",
+      "path": "/guardrails/check"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.get_my_profile",
+      "kind": "route",
+      "method": "GET",
+      "path": "/profiles/me"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.query_audit",
+      "kind": "route",
+      "method": "GET",
+      "path": "/audit"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.allocate_ports",
+      "kind": "route",
+      "method": "POST",
+      "path": "/ports/allocate"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.release_ports",
+      "kind": "route",
+      "method": "POST",
+      "path": "/ports/release"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.port_status",
+      "kind": "route",
+      "method": "GET",
+      "path": "/ports/status"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.health",
+      "kind": "route",
+      "method": "GET",
+      "path": "/health"
+    },
     {
       "function": "coordination_mcp.acquire_lock",
       "kind": "route",
@@ -6091,6 +7580,24 @@
       "kind": "route",
       "method": "MCP",
       "path": "validate_cedar_policy"
+    },
+    {
+      "function": "coordination_mcp.allocate_ports",
+      "kind": "route",
+      "method": "MCP",
+      "path": "allocate_ports"
+    },
+    {
+      "function": "coordination_mcp.release_ports",
+      "kind": "route",
+      "method": "MCP",
+      "path": "release_ports"
+    },
+    {
+      "function": "coordination_mcp.ports_status",
+      "kind": "route",
+      "method": "MCP",
+      "path": "ports_status"
     },
     {
       "function": "coordination_mcp.get_current_locks",
@@ -6219,6 +7726,41 @@
       "pattern": "orm"
     },
     {
+      "function": "config.PortAllocatorConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "config.ApiConfig.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_api.verify_api_key",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_api.resolve_identity",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_api.create_coordination_api",
+      "tables": [],
+      "pattern": "query_builder"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.query_memories",
+      "tables": [],
+      "pattern": "query_builder"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.query_audit",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "coordination_mcp.query_audit",
       "tables": [],
       "pattern": "orm"
@@ -6319,6 +7861,11 @@
       "pattern": "orm"
     },
     {
+      "function": "guardrails.GuardrailsService.check_operation",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "handoffs.HandoffDocument.from_dict",
       "tables": [],
       "pattern": "orm"
@@ -6394,6 +7941,11 @@
       "pattern": "orm"
     },
     {
+      "function": "port_allocator.PortAllocatorService.allocate",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "profiles.AgentProfile.from_dict",
       "tables": [],
       "pattern": "orm"
@@ -6455,11 +8007,11 @@
     }
   ],
   "summary": {
-    "total_functions": 200,
-    "total_classes": 60,
-    "total_modules": 17,
-    "async_functions": 87,
-    "entry_points": 28,
+    "total_functions": 240,
+    "total_classes": 75,
+    "total_modules": 20,
+    "async_functions": 111,
+    "entry_points": 46,
     "dead_code_candidates": [
       "audit.AuditResult.from_dict",
       "audit.AuditService.db",
@@ -6468,6 +8020,8 @@
       "audit.AuditService.query",
       "audit.AuditService.timed",
       "config.reset_config",
+      "coordination_api.verify_api_key",
+      "coordination_api.main",
       "coordination_mcp.main",
       "db.DatabaseClient.rpc",
       "db.DatabaseClient.query",
@@ -6529,6 +8083,7 @@
       "policy_engine.NativePolicyEngine.db",
       "policy_engine.NativePolicyEngine.check_operation",
       "policy_engine.NativePolicyEngine.check_network_access",
+      "policy_engine.NativePolicyEngine._log_policy_decision",
       "policy_engine.CedarPolicyEngine.db",
       "policy_engine.CedarPolicyEngine._load_default_policies",
       "policy_engine.CedarPolicyEngine._load_schema",
@@ -6541,7 +8096,14 @@
       "policy_engine.CedarPolicyEngine.validate_policy",
       "policy_engine.CedarPolicyEngine.list_policies",
       "policy_engine.CedarPolicyEngine.invalidate_cache",
+      "policy_engine.CedarPolicyEngine._log_policy_decision",
       "policy_engine.reset_policy_engine",
+      "port_allocator.PortAllocation.env_snippet",
+      "port_allocator.PortAllocatorService.allocate",
+      "port_allocator.PortAllocatorService.release",
+      "port_allocator.PortAllocatorService.status",
+      "port_allocator.PortAllocatorService._cleanup_expired",
+      "port_allocator.reset_port_allocator",
       "profiles.OperationCheck.from_dict",
       "profiles.ProfilesService.db",
       "profiles.ProfilesService.get_profile",
@@ -6553,6 +8115,7 @@
       "teams.get_teams_config",
       "teams.reset_teams_config",
       "work_queue.WorkQueueService.db",
+      "work_queue.WorkQueueService._resolve_trust_level",
       "work_queue.WorkQueueService.claim",
       "work_queue.WorkQueueService.complete",
       "work_queue.WorkQueueService.submit",
@@ -6563,11 +8126,11 @@
     "hot_functions": [
       {
         "name": "config.get_config",
-        "caller_count": 26
+        "caller_count": 30
       },
       {
         "name": "audit.get_audit_service",
-        "caller_count": 14
+        "caller_count": 18
       },
       {
         "name": "db.get_db",
@@ -6575,31 +8138,31 @@
       },
       {
         "name": "policy_engine.get_policy_engine",
-        "caller_count": 7
+        "caller_count": 11
       },
       {
-        "name": "guardrails.get_guardrails_service",
-        "caller_count": 5
+        "name": "coordination_api.resolve_identity",
+        "caller_count": 10
       },
       {
-        "name": "discovery.get_discovery_service",
-        "caller_count": 4
+        "name": "coordination_api.authorize_operation",
+        "caller_count": 9
       },
       {
         "name": "locks.get_lock_service",
-        "caller_count": 4
+        "caller_count": 8
       },
       {
         "name": "work_queue.get_work_queue_service",
-        "caller_count": 4
+        "caller_count": 8
       },
       {
-        "name": "handoffs.get_handoff_service",
-        "caller_count": 3
+        "name": "guardrails.get_guardrails_service",
+        "caller_count": 7
       },
       {
-        "name": "memory.get_memory_service",
-        "caller_count": 3
+        "name": "port_allocator.get_port_allocator",
+        "caller_count": 7
       }
     ]
   }

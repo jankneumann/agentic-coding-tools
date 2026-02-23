@@ -1,10 +1,12 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
+    assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
-    config["config (25 symbols)"]
-    coordination_mcp["coordination_mcp (32 symbols)"]
+    config["config (29 symbols)"]
+    coordination_api["coordination_api (33 symbols)"]
+    coordination_mcp["coordination_mcp (35 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (11 symbols)"]
+    db_postgres["db_postgres (13 symbols)"]
     discovery["discovery (20 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
     guardrails["guardrails (13 symbols)"]
@@ -12,12 +14,22 @@ flowchart TB
     locks["locks (14 symbols)"]
     memory["memory (13 symbols)"]
     network_policies["network_policies (8 symbols)"]
-    policy_engine["policy_engine (26 symbols)"]
+    policy_engine["policy_engine (28 symbols)"]
+    port_allocator["port_allocator (12 symbols)"]
     profiles["profiles (14 symbols)"]
     teams["teams (10 symbols)"]
-    work_queue["work_queue (20 symbols)"]
+    work_queue["work_queue (21 symbols)"]
     audit -->|"call, import"| config
     audit -->|"call, import"| db
+    coordination_api -->|"call, import"| audit
+    coordination_api -->|"call, import"| config
+    coordination_api -->|"call, import"| guardrails
+    coordination_api -->|"call, import"| locks
+    coordination_api -->|"call, import"| memory
+    coordination_api -->|"call, import"| policy_engine
+    coordination_api -->|"call, import"| port_allocator
+    coordination_api -->|"call, import"| profiles
+    coordination_api -->|"call, import"| work_queue
     coordination_mcp -->|"call, import"| audit
     coordination_mcp -->|"call, import"| config
     coordination_mcp -->|"call, import"| discovery
@@ -26,6 +38,7 @@ flowchart TB
     coordination_mcp -->|"call, import"| locks
     coordination_mcp -->|"call, import"| memory
     coordination_mcp -->|"call, import"| policy_engine
+    coordination_mcp -->|"call, import"| port_allocator
     coordination_mcp -->|"call, import"| profiles
     coordination_mcp -->|"call, import"| work_queue
     db -->|"call, import"| config
@@ -42,6 +55,7 @@ flowchart TB
     handoffs -->|"call, import"| audit
     handoffs -->|"call, import"| config
     handoffs -->|"call, import"| db
+    handoffs -->|"call, import"| policy_engine
     locks -->|"call, import"| audit
     locks -->|"call, import"| config
     locks -->|"call, import"| db
@@ -49,12 +63,15 @@ flowchart TB
     memory -->|"call, import"| audit
     memory -->|"call, import"| config
     memory -->|"call, import"| db
+    memory -->|"call, import"| policy_engine
     network_policies -->|"call, import"| config
     network_policies -->|"call, import"| db
+    policy_engine -->|"call, import"| audit
     policy_engine -->|"call, import"| config
     policy_engine -->|"call, import"| db
     policy_engine -->|"call, import"| network_policies
     policy_engine -->|"call, import"| profiles
+    port_allocator -->|"import"| config
     profiles -->|"call, import"| audit
     profiles -->|"call, import"| config
     profiles -->|"call, import"| db
@@ -64,3 +81,4 @@ flowchart TB
     work_queue -->|"call"| discovery
     work_queue -->|"call, import"| guardrails
     work_queue -->|"call, import"| policy_engine
+    work_queue -->|"call, import"| profiles
