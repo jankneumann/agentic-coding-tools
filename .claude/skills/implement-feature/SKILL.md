@@ -32,7 +32,30 @@ Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
+## Coordinator Integration (Optional)
+
+Use `docs/coordination-detection-template.md` as the shared detection preamble.
+
+- Detect transport and capability flags at skill start
+- Execute hooks only when the matching `CAN_*` flag is `true`
+- If coordinator is unavailable, continue with standalone behavior
+
 ## Steps
+
+### 0. Detect Coordinator and Read Handoff
+
+At skill start, run the coordination detection preamble and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+If `CAN_HANDOFF=true`, read recent handoff context before implementation:
+
+- MCP path: `read_handoff`
+- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+
+On handoff failure/unavailability, continue with standalone implementation and log informationally.
 
 ### 1. Verify Proposal Exists
 
@@ -126,6 +149,12 @@ Execution expectations:
 - Keep edits minimal and focused
 - Mark completed tasks in `tasks.md` (`- [ ]` -> `- [x]`)
 
+Capability-gated coordinator hooks:
+
+- **Guardrails (`CAN_GUARDRAILS=true`)**: before running high-risk operations, run a guardrail pre-check and report violations informationally (phase 1 does not hard-block)
+- **File locking (`CAN_LOCK=true`)**: acquire locks before editing files and keep a local list of acquired locks for cleanup
+- **Work queue (`CAN_QUEUE_WORK=true`)**: for independent tasks, optionally submit/claim/complete via coordinator queue APIs; if unavailable or unclaimed, fall back to local `Task()` execution
+
 **TDD Approach:**
 - Write tests first that define expected behavior
 - Implement code to make tests pass
@@ -170,6 +199,13 @@ Do NOT commit - the orchestrator will handle commits.",
 - Tasks with overlapping files MUST run sequentially
 - Collect all results via TaskOutput before committing
 - If an agent fails, use `Task(resume=<agent_id>)` to retry
+
+Locking behavior details (`CAN_LOCK=true`):
+
+- Acquire lock before editing each targeted file
+- If lock acquisition is blocked, report owner/expiry information and skip that file
+- Continue with unblocked files/tasks
+- On completion/failure, release all acquired locks (best effort; warn on release failure)
 
 **When to parallelize:**
 - 3+ independent tasks with no file overlap
@@ -291,6 +327,13 @@ Implements OpenSpec proposal: `<change-id>`
 EOF
 )"
 ```
+
+If `CAN_HANDOFF=true`, write a completion handoff after PR creation containing:
+
+- Completed tasks and major design/implementation decisions
+- Any blocked/skipped work (for example lock contention outcomes)
+- Validation/test status
+- Recommended next command (`/iterate-on-implementation`, `/validate-feature`, or `/cleanup-feature`)
 
 **STOP HERE - Wait for PR approval before proceeding to cleanup.**
 

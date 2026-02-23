@@ -27,7 +27,35 @@ Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
+## Coordinator Integration (Optional)
+
+Use `docs/coordination-detection-template.md` as the shared detection preamble.
+
+- Detect transport and capability flags at skill start
+- Execute hooks only when the matching `CAN_*` flag is `true`
+- If coordinator is unavailable, continue with standalone behavior
+
 ## Steps
+
+### 0. Detect Coordinator, Read Handoff, Recall Memory
+
+At skill start, run the coordination detection preamble and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+If `CAN_HANDOFF=true`, read recent handoff context:
+
+- MCP path: `read_handoff`
+- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+
+If `CAN_MEMORY=true`, recall relevant memories before planning:
+
+- MCP path: `recall`
+- HTTP path: `scripts/coordination_bridge.py` `try_recall(...)`
+
+On handoff/memory failure, continue with standalone planning and log informationally.
 
 ### 1. Verify Clean State
 
@@ -122,6 +150,12 @@ Share the proposal with stakeholders:
 - `openspec/changes/<change-id>/proposal.md` - What and why
 - `openspec/changes/<change-id>/tasks.md` - Implementation plan
 - `openspec/changes/<change-id>/design.md` - How (if applicable)
+
+If `CAN_HANDOFF=true`, write a completion handoff containing:
+- Completed planning artifacts
+- Key decisions and assumptions
+- Open questions and approval blockers
+- Recommended next command (`/iterate-on-plan` or `/implement-feature` after approval)
 
 **STOP HERE - Wait for approval before proceeding to implementation.**
 

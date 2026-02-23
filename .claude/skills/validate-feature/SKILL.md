@@ -1,6 +1,6 @@
 ---
 name: validate-feature
-description: Deploy locally, run behavioral tests, check CI/CD, and verify OpenSpec spec compliance
+description: Deploy locally, run security scans and behavioral tests, check CI/CD, and verify OpenSpec spec compliance
 category: Git Workflow
 tags: [openspec, validation, deployment, e2e, playwright]
 triggers:
@@ -13,17 +13,17 @@ triggers:
 
 # Validate Feature
 
-Deploy the feature locally with DEBUG logging, run behavioral tests against live services, check CI/CD status, and verify OpenSpec spec compliance. Produces a structured validation report and posts it to the PR.
+Deploy the feature locally with DEBUG logging, run security scans and behavioral tests against live services, check CI/CD status, and verify OpenSpec spec compliance. Produces a structured validation report and posts it to the PR.
 
 ## Arguments
 
 `$ARGUMENTS` - OpenSpec change-id (required), optionally followed by flags:
 - `--skip-e2e` or `--skip-playwright` — skip the Playwright E2E phase
 - `--skip-ci` — skip the CI/CD status check
-- `--skip-security-check` — bypass `security-review-report.md` precheck
-- `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,e2e`)
+- `--skip-security` — skip the Security Scan phase
+- `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
 
-Valid phase names: `deploy`, `smoke`, `e2e`, `architecture`, `spec`, `logs`, `ci`
+Valid phase names: `deploy`, `smoke`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
 ## Prerequisites
 
@@ -40,7 +40,30 @@ Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
+## Coordinator Integration (Optional)
+
+Use `docs/coordination-detection-template.md` as the shared detection preamble.
+
+- Detect transport and capability flags at skill start
+- Execute hooks only when the matching `CAN_*` flag is `true`
+- If coordinator is unavailable, continue with standalone behavior
+
 ## Steps
+
+### 0. Detect Coordinator and Recall Memory
+
+At skill start, run the coordination detection preamble and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+If `CAN_MEMORY=true`, recall relevant validation history:
+
+- MCP path: `recall`
+- HTTP path: `scripts/coordination_bridge.py` `try_recall(...)`
+
+On recall failure/unavailability, continue with validation and log informationally.
 
 ### 1. Determine Change ID and Configuration
 
@@ -65,7 +88,7 @@ fi
 Parse flags from `$ARGUMENTS`:
 - `--skip-e2e` or `--skip-playwright` → set SKIP_E2E=true
 - `--skip-ci` → set SKIP_CI=true
-- `--skip-security-check` → set SKIP_SECURITY_CHECK=true
+- `--skip-security` → set SKIP_SECURITY=true
 - `--phase <names>` → set PHASES to comma-separated list; only run those phases
 
 If `--phase` is provided, only the listed phases execute. If `--phase` includes phases other than `deploy`, assume services are already running (skip deploy and teardown).
@@ -97,29 +120,6 @@ else
   exit 1
 fi
 
-# Verify security review artifact unless explicitly skipped
-if [ "${SKIP_SECURITY_CHECK:-false}" != "true" ]; then
-  SECURITY_REPORT="$OPENSPEC_PATH/changes/$CHANGE_ID/security-review-report.md"
-  if [ ! -f "$SECURITY_REPORT" ]; then
-    echo "ERROR: Missing security review artifact: $SECURITY_REPORT"
-    echo "Run /security-review $CHANGE_ID before /validate-feature, or use --skip-security-check to bypass."
-    exit 1
-  fi
-
-  HEAD_SHA=$(git rev-parse HEAD)
-  REPORT_SHA=$(grep -E '^- Commit SHA:' "$SECURITY_REPORT" | head -1 | sed -E 's/^- Commit SHA:[[:space:]]*`?([^`[:space:]]+)`?.*/\1/')
-  if [ -z "$REPORT_SHA" ]; then
-    echo "ERROR: security-review-report.md is missing required '- Commit SHA:' metadata"
-    echo "Re-run /security-review $CHANGE_ID to regenerate the report, or bypass with --skip-security-check."
-    exit 1
-  fi
-
-  if [ "$REPORT_SHA" != "$HEAD_SHA" ]; then
-    echo "ERROR: security-review-report.md is stale (report SHA: $REPORT_SHA, HEAD: $HEAD_SHA)"
-    echo "Re-run /security-review $CHANGE_ID before validation, or bypass with --skip-security-check."
-    exit 1
-  fi
-fi
 ```
 
 If not on the feature branch, check out `openspec/<change-id>`. If no implementation commits exist, abort with guidance.
@@ -241,7 +241,49 @@ The smoke tests cover:
 
 If Smoke fails (SMOKE_EXIT != 0 and != 5), stop validation and skip to Teardown.
 
-### 5. E2E Phase
+### 5. Security Phase
+
+**Phase name:** `security`
+**Criticality:** Non-critical (continues on failure)
+
+Run security scanners (OWASP Dependency-Check and ZAP) against the live deployment using the existing security-review orchestrator.
+
+```bash
+# Skip if --skip-security flag was provided
+if [ "$SKIP_SECURITY" = true ]; then
+  echo "SKIP: Security phase skipped (--skip-security flag)"
+  SECURITY_RESULT="skip"
+else
+  echo "Running security scans against live deployment..."
+
+  # Invoke the security-review orchestrator with the live API target
+  python3 skills/security-review/scripts/main.py \
+    --repo . \
+    --out-dir docs/security-review \
+    --zap-target "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}" \
+    --change "$CHANGE_ID" \
+    --allow-degraded-pass 2>&1
+  SECURITY_EXIT=$?
+
+  if [ $SECURITY_EXIT -eq 0 ]; then
+    SECURITY_RESULT="pass"
+    echo "Security: PASS — No threshold findings"
+  elif [ $SECURITY_EXIT -eq 10 ]; then
+    SECURITY_RESULT="fail"
+    echo "Security: FAIL — Threshold findings detected"
+  elif [ $SECURITY_EXIT -eq 11 ]; then
+    SECURITY_RESULT="degraded"
+    echo "Security: INCONCLUSIVE — Scanners degraded (check prerequisites)"
+  else
+    SECURITY_RESULT="fail"
+    echo "Security: ERROR — Unexpected exit code $SECURITY_EXIT"
+  fi
+fi
+```
+
+The Security phase reuses the `/security-review` skill's scripts without requiring a separate invocation. The `--allow-degraded-pass` flag ensures missing prerequisites (Java, container runtime) degrade gracefully instead of blocking validation.
+
+### 6. E2E Phase
 
 **Phase name:** `e2e`
 **Criticality:** Non-critical (continues on failure)
@@ -281,7 +323,7 @@ else
 fi
 ```
 
-### 5b. Architecture Diagnostics Phase
+### 6b. Architecture Diagnostics Phase
 
 **Phase name:** `architecture`
 **Criticality:** Non-critical (continues on failure)
@@ -321,7 +363,7 @@ fi
 
 Report architecture diagnostics including broken flows, missing test coverage, orphaned code, and disconnected endpoints.
 
-### 6. Spec Compliance Phase
+### 7. Spec Compliance Phase
 
 **Phase name:** `spec`
 **Criticality:** Non-critical (continues on failure)
@@ -362,7 +404,7 @@ Spec Compliance Results:
   ✓ Heartbeat > Agent heartbeat updates timestamp
 ```
 
-### 7. Log Analysis Phase
+### 8. Log Analysis Phase
 
 **Phase name:** `logs`
 **Criticality:** Non-critical (continues on failure)
@@ -414,7 +456,7 @@ Categorize findings by severity:
 - **Warning**: WARNING entries, deprecation notices
 - **Info**: Unusual patterns, high log volume from specific components
 
-### 8. CI/CD Status Phase
+### 9. CI/CD Status Phase
 
 **Phase name:** `ci`
 **Criticality:** Non-critical (continues on failure)
@@ -445,7 +487,7 @@ else
 fi
 ```
 
-### 9. Teardown
+### 10. Teardown
 
 Stop services and clean up:
 
@@ -476,7 +518,7 @@ if [ -f "$LOG_FILE" ]; then
 fi
 ```
 
-### 10. Validation Report
+### 11. Validation Report
 
 Produce a structured summary of all phases:
 
@@ -491,6 +533,7 @@ Produce a structured summary of all phases:
 
 ✓ Deploy: Services started (N containers, DEBUG logging enabled)
 ✓ Smoke: All health checks passed (API, MCP, database)
+✓ Security: PASS — No threshold findings (dependency-check: ok, zap: ok)
 ✗ E2E: 3/5 tests passed, 2 failures
   - test_login_flow: TimeoutError on /api/auth
   - test_dashboard_load: Element not found: #stats-panel
@@ -515,7 +558,7 @@ Use these symbols:
 - ⚠ — Phase passed with warnings
 - ○ — Phase skipped
 
-### 11. Persist Report
+### 12. Persist Report
 
 Write the validation report to the OpenSpec change directory:
 
@@ -544,7 +587,7 @@ EOF
 echo "Report written to: $REPORT_FILE"
 ```
 
-### 12. PR Comment
+### 13. PR Comment
 
 Post the validation report as a PR comment:
 
@@ -600,6 +643,11 @@ Present the validation report and let the user decide the next step.
 - Report posted as PR comment (if PR exists)
 - Services cleaned up (if Deploy phase ran)
 - Log file preserved (if failures occurred) or removed (if all passed)
+
+If `CAN_MEMORY=true`, remember validation outcomes (phase pass/fail, key regressions, and next actions):
+
+- MCP path: `remember`
+- HTTP path: `scripts/coordination_bridge.py` `try_remember(...)`
 
 ## Next Step
 

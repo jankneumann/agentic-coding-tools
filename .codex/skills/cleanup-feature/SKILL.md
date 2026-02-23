@@ -34,7 +34,30 @@ Use OpenSpec-generated runtime assets first, then CLI fallback:
 - Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - Fallback: direct `openspec` CLI commands
 
+## Coordinator Integration (Optional)
+
+Use `docs/coordination-detection-template.md` as the shared detection preamble.
+
+- Detect transport and capability flags at skill start
+- Execute hooks only when the matching `CAN_*` flag is `true`
+- If coordinator is unavailable, continue with standalone behavior
+
 ## Steps
+
+### 0. Detect Coordinator and Read Handoff
+
+At skill start, run the coordination detection preamble and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+If `CAN_HANDOFF=true`, read latest handoff context before merge/archive actions:
+
+- MCP path: `read_handoff`
+- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+
+On handoff failure/unavailability, continue with standalone cleanup and log informationally.
 
 ### 1. Determine Change ID
 
@@ -184,6 +207,12 @@ git branch -d openspec/<change-id> 2>/dev/null || true
 git fetch --prune
 ```
 
+If `CAN_LOCK=true`, perform best-effort lock cleanup for files touched on the feature branch:
+
+- Compare `main...openspec/<change-id>` changed files
+- Attempt release for each lock owned by this agent/session
+- Treat release failures as warnings (do not block cleanup)
+
 ### 8.5. Remove Worktree
 
 If a worktree was created for this feature, remove it:
@@ -229,6 +258,7 @@ pytest
 
 - Clear todo list
 - Document any lessons learned in `CLAUDE.md` if applicable
+- If `CAN_HANDOFF=true`, write a final handoff summary with merge status, migration notes, archive outcome, and follow-up references
 
 ## Output
 
