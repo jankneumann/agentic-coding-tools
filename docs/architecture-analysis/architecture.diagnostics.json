@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-23T22:28:40.483423+00:00",
+  "generated_at": "2026-02-23T22:32:24.109876+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -420,33 +420,6 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'release_lock' has no frontend callers",
-      "node_id": "py:coordination_mcp.release_lock",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'write_handoff' has no frontend callers",
-      "node_id": "py:coordination_mcp.write_handoff",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'complete_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.complete_work",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
       "message": "Backend route 'query_audit' has no frontend callers",
       "node_id": "py:coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
@@ -456,26 +429,8 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'register_session' has no frontend callers",
-      "node_id": "py:coordination_mcp.register_session",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'release_ports' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.release_ports",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'port_status' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "message": "Backend route 'release_lock' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.release_lock",
       "file": "coordination_api.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -492,8 +447,17 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_work",
+      "message": "Backend route 'cleanup_dead_agents' has no frontend callers",
+      "node_id": "py:coordination_mcp.cleanup_dead_agents",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'start_work_session' has no frontend callers",
+      "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -510,8 +474,8 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'read_handoff' has no frontend callers",
-      "node_id": "py:coordination_mcp.read_handoff",
+      "message": "Backend route 'ports_status' has no frontend callers",
+      "node_id": "py:coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -520,70 +484,7 @@
       "severity": "warning",
       "category": "disconnected_flow",
       "message": "Backend route 'check_guardrails' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'release_lock' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.release_lock",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_current_locks' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_current_locks",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'query_memories' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.query_memories",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'coordinate_file_edit' has no frontend callers",
-      "node_id": "py:coordination_mcp.coordinate_file_edit",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_current_profile' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_current_profile",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_lock_status' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'cleanup_dead_agents' has no frontend callers",
-      "node_id": "py:coordination_mcp.cleanup_dead_agents",
+      "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -600,6 +501,150 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
+      "message": "Backend route 'health' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.health",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'allocate_ports' has no frontend callers",
+      "node_id": "py:coordination_mcp.allocate_ports",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'port_status' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'discover_agents' has no frontend callers",
+      "node_id": "py:coordination_mcp.discover_agents",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'recall' has no frontend callers",
+      "node_id": "py:coordination_mcp.recall",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_pending_work' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_pending_work",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'check_guardrails' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_recent_audit' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_audit",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'complete_work' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'acquire_lock' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'query_audit' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.query_audit",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'submit_work' has no frontend callers",
+      "node_id": "py:coordination_mcp.submit_work",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'query_memories' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'read_handoff' has no frontend callers",
+      "node_id": "py:coordination_mcp.read_handoff",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_recent_memories' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_memories",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'check_policy' has no frontend callers",
+      "node_id": "py:coordination_mcp.check_policy",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
       "message": "Backend route 'release_ports' has no frontend callers",
       "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
@@ -609,8 +654,17 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'allocate_ports' has no frontend callers",
-      "node_id": "py:coordination_mcp.allocate_ports",
+      "message": "Backend route 'get_recent_handoffs' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_handoffs",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_my_profile' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -636,33 +690,6 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'store_memory' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.store_memory",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'start_work_session' has no frontend callers",
-      "node_id": "py:coordination_mcp.start_work_session",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'acquire_lock' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
       "message": "Backend route 'submit_work' has no frontend callers",
       "node_id": "py:coordination_api.create_coordination_api.submit_work",
       "file": "coordination_api.py",
@@ -672,62 +699,8 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'health' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.health",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'query_audit' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.query_audit",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'ports_status' has no frontend callers",
-      "node_id": "py:coordination_mcp.ports_status",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_pending_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_pending_work",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_policy' has no frontend callers",
-      "node_id": "py:coordination_mcp.check_policy",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_my_profile' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_guardrails' has no frontend callers",
-      "node_id": "py:coordination_mcp.check_guardrails",
+      "message": "Backend route 'get_current_profile' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -744,62 +717,8 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_audit' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_audit",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_handoffs' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_handoffs",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
       "message": "Backend route 'complete_work' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.complete_work",
-      "file": "coordination_api.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'submit_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.submit_work",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'recall' has no frontend callers",
-      "node_id": "py:coordination_mcp.recall",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_memories' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_memories",
-      "file": "coordination_mcp.py",
-      "line": 1,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'remember' has no frontend callers",
-      "node_id": "py:coordination_mcp.remember",
+      "node_id": "py:coordination_mcp.complete_work",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -816,8 +735,8 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_my_profile' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_my_profile",
+      "message": "Backend route 'register_session' has no frontend callers",
+      "node_id": "py:coordination_mcp.register_session",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
@@ -825,8 +744,89 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'discover_agents' has no frontend callers",
-      "node_id": "py:coordination_mcp.discover_agents",
+      "message": "Backend route 'coordinate_file_edit' has no frontend callers",
+      "node_id": "py:coordination_mcp.coordinate_file_edit",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_my_profile' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'remember' has no frontend callers",
+      "node_id": "py:coordination_mcp.remember",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_work' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_work",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'check_lock_status' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_current_locks' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_current_locks",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'store_memory' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.store_memory",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'write_handoff' has no frontend callers",
+      "node_id": "py:coordination_mcp.write_handoff",
+      "file": "coordination_mcp.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'release_ports' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.release_ports",
+      "file": "coordination_api.py",
+      "line": 1,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'release_lock' has no frontend callers",
+      "node_id": "py:coordination_mcp.release_lock",
       "file": "coordination_mcp.py",
       "line": 1,
       "suggestion": "Add a frontend caller or remove the unused route"
