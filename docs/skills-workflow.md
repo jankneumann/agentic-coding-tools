@@ -19,9 +19,8 @@ The workflow breaks feature development into discrete stages, each handled by a 
   /iterate-on-plan <change-id> (optional)          Refines plan before approval
 /implement-feature <change-id>                     PR review gate
   /iterate-on-implementation <change-id> (optional)    Refinement complete
-  /security-review <change-id> (optional)          Security gate review
   /refresh-architecture [mode] (optional)          Regenerate/validate architecture artifacts
-  /validate-feature <change-id> (optional)         Live deployment verification
+  /validate-feature <change-id> (optional)         Live deployment verification (includes security scanning)
 /cleanup-feature <change-id>                       Done
 ```
 
@@ -46,8 +45,7 @@ Architecture refresh callout:
 | `/iterate-on-plan` (optional) | Existing proposal | Higher-quality approved proposal |
 | `/implement-feature` | Approved proposal/spec/tasks | PR review |
 | `/iterate-on-implementation` (optional) | Implementation branch | Higher-confidence PR |
-| `/security-review` (optional) | Implemented branch (+ optional deployment target) | Security gate result before validation/review |
-| `/validate-feature` (optional) | Implemented branch | Cleanup decision |
+| `/validate-feature` (optional) | Implemented branch | Cleanup decision (includes inline security scanning) |
 | `/cleanup-feature` | Approved PR (+ optional validation) | Archived change + synced specs |
 
 ## Artifact Flow By Step
@@ -60,8 +58,8 @@ Architecture refresh callout:
 | `/iterate-on-plan` | Proposal/design/tasks/spec deltas | Updated planning artifacts + `openspec/changes/<id>/plan-findings.md` |
 | `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, feature branch/PR |
 | `/iterate-on-implementation` | Implementation branch + OpenSpec artifacts | Fix commits + `openspec/changes/<id>/impl-findings.md` (+ spec/proposal/design corrections if drift found) |
-| `/security-review` | Repository source + optional target URL/spec + scanner prerequisites | Security scanner outputs (`docs/security-review/*`) and optional `openspec/changes/<id>/security-review-report.md` |
-| `/validate-feature` | Running system + spec scenarios + changed files + `security-review-report.md` precheck (unless skipped) | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md` |
+| `/security-review` (standalone) | Repository source + optional target URL/spec + scanner prerequisites | Security scanner outputs (`docs/security-review/*`) and optional `openspec/changes/<id>/security-review-report.md` |
+| `/validate-feature` | Running system + spec scenarios + changed files | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md`, security scanner outputs (`docs/security-review/*`) |
 | `/cleanup-feature` | PR state + `tasks.md` completion | Archived change (`openspec/changes/archive/...`), updated `openspec/specs/`, optional `openspec/changes/<id>/deferred-tasks.md` prior to archive |
 
 ## OpenSpec 1.0 Integration
@@ -146,15 +144,17 @@ Refines a feature implementation through structured iteration. Each iteration re
 
 ### `/validate-feature`
 
-Deploys the feature locally with DEBUG logging and runs five validation phases:
+Deploys the feature locally with DEBUG logging and runs seven validation phases:
 
 1. **Deploy** — Starts services via docker-compose
 2. **Smoke** — Verifies health endpoints, auth enforcement, CORS, error sanitization, and security headers
-3. **E2E** — Runs Playwright end-to-end tests (if available)
-4. **Spec Compliance** — Verifies each OpenSpec scenario against the live system
-5. **Log Analysis** — Scans logs for warnings, errors, stack traces, and deprecation notices
+3. **Security** — Runs OWASP Dependency-Check and ZAP against the live deployment (non-critical; degrades gracefully if prerequisites missing)
+4. **E2E** — Runs Playwright end-to-end tests (if available)
+5. **Architecture** — Validates architecture flows against changed files
+6. **Spec Compliance** — Verifies each OpenSpec scenario against the live system
+7. **Log Analysis** — Scans logs for warnings, errors, stack traces, and deprecation notices
 
-Also checks CI/CD status via GitHub CLI. Produces a structured validation report and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
+Also checks CI/CD status via GitHub CLI. Produces a structured validation report, security scanner outputs, and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
 
 **Produces**: `openspec/changes/<change-id>/validation-report.md`, `openspec/changes/<change-id>/architecture-impact.md`, and a PR comment.
 
@@ -164,9 +164,11 @@ Also checks CI/CD status via GitHub CLI. Produces a structured validation report
 
 Runs a reusable cross-project security gate with project profile detection and pluggable scanners. Supports OWASP Dependency-Check and ZAP container adapters (Podman/Desktop or Docker-compatible runtime), normalizes findings, and computes a deterministic `PASS`/`FAIL`/`INCONCLUSIVE` decision from a configurable threshold.
 
-**Produces**: canonical report outputs under `docs/security-review/` and optionally `openspec/changes/<change-id>/security-review-report.md` for workflow gating.
+Security scanning is also available inline as a phase within `/validate-feature`, which is the recommended path for feature development workflows (ZAP benefits from the live deployment). Use `/security-review` standalone for ad-hoc scans, CI pipelines, or when you need security scanning without full validation.
 
-**Gate**: Security gate result — the human decides whether to remediate findings before validation/cleanup.
+**Produces**: canonical report outputs under `docs/security-review/` and optionally `openspec/changes/<change-id>/security-review-report.md`.
+
+**Gate**: Security gate result — the human decides whether to remediate findings.
 
 ### `/cleanup-feature`
 
@@ -265,6 +267,6 @@ Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to
 
 ## Formal Specification
 
-The skills workflow is formally specified with 34 requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, feature validation, bug-scrub signal collection, and fix-scrub remediation tiers.
+The skills workflow is formally specified with requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, feature validation (with inline security scanning), bug-scrub signal collection, and fix-scrub remediation tiers.
 
 See [`openspec/specs/skill-workflow/spec.md`](../openspec/specs/skill-workflow/spec.md) for the complete specification.
