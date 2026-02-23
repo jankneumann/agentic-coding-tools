@@ -24,6 +24,53 @@ When multiple AI agents work on the same codebase simultaneously, they face merg
 | **GitHub Coordination** | Branch tracking, label locks, webhook-driven sync for restricted-network agents |
 | **MCP Integration** | Native tool integration with Claude Code and other MCP clients via stdio transport |
 
+## Skill Integration Patterns
+
+Workflow skills integrate coordinator features through a transport-aware capability model.
+
+### Transport Model
+
+- **CLI runtimes (Claude Codex CLI, Codex CLI, Gemini CLI)**: use MCP tools directly.
+- **Web/Cloud runtimes (Claude Web, Codex Cloud/Web, Gemini Web/Cloud)**: use HTTP detection/operations via `scripts/coordination_bridge.py`.
+- **Fallback**: when neither transport is available, skills run in standalone mode.
+
+All integrated skills set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+Hooks are capability-gated and best-effort. Coordinator failures are reported informationally and do not hard-stop feature workflow execution.
+
+### Skill-to-Capability Mapping
+
+| Skill | Capability Hooks |
+|------|-------------------|
+| `/implement-feature` | lock (`CAN_LOCK`), queue (`CAN_QUEUE_WORK`), guardrails (`CAN_GUARDRAILS`), handoff read/write (`CAN_HANDOFF`) |
+| `/plan-feature` | handoff read/write (`CAN_HANDOFF`), memory recall (`CAN_MEMORY`) |
+| `/iterate-on-plan` | handoff read/write (`CAN_HANDOFF`), memory recall/remember (`CAN_MEMORY`) |
+| `/iterate-on-implementation` | handoff read/write (`CAN_HANDOFF`), memory recall/remember (`CAN_MEMORY`) |
+| `/validate-feature` | memory recall/remember (`CAN_MEMORY`) |
+| `/cleanup-feature` | handoff read/write (`CAN_HANDOFF`), lock cleanup best-effort (`CAN_LOCK`) |
+| `/security-review` | guardrail pre-check reporting (`CAN_GUARDRAILS`) |
+| `/explore-feature` | memory recall (`CAN_MEMORY`) |
+
+### Setup Guidance
+
+- CLI MCP setup and verification: `skills/setup-coordinator/SKILL.md`
+- Web/Cloud HTTP setup and verification: `skills/setup-coordinator/SKILL.md`
+- Shared detection preamble: `docs/coordination-detection-template.md`
+
+For canonical skill parity, author under `skills/` and sync runtime mirrors via:
+
+```bash
+skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+```
+
+### Backend Scope Note
+
+Coordinator skill integration is backend-agnostic. Neon adoption as the default cloud Postgres option is tracked in a separate coordinator infrastructure proposal; this integration change should only reference that proposal and not hard-couple skills to a specific Postgres provider.
+
 ## Architecture
 
 ```

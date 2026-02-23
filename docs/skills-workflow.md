@@ -91,6 +91,117 @@ CLI fallback commands:
 - `openspec instructions <artifact|apply> --change <id>`
 - `openspec archive <id> --yes`
 
+## Coordinator Integration Model
+
+### Canonical Skill Distribution
+
+`skills/` is the source of truth for workflow skill content.
+
+Runtime skill trees are synced mirrors:
+
+- `.claude/skills/`
+- `.codex/skills/`
+- `.gemini/skills/`
+
+Use the existing rsync workflow (no alternate distribution path):
+
+```bash
+skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+```
+
+After sync, any drift between canonical and runtime mirrors is a parity defect.
+
+### Transport and Capability Flags
+
+Integrated skills use a shared preamble (`docs/coordination-detection-template.md`) and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`
+- `CAN_QUEUE_WORK`
+- `CAN_HANDOFF`
+- `CAN_MEMORY`
+- `CAN_GUARDRAILS`
+
+Transport model:
+
+- CLI runtimes: MCP detection by tool availability
+- Web/Cloud runtimes: HTTP detection via `scripts/coordination_bridge.py`
+- No coordinator: fallback to standalone skill behavior
+
+Hook execution is capability-gated: a hook runs only when its `CAN_*` flag is true.
+
+### Explicit Runtime Parity Tests (3 Providers x 2 Transports)
+
+Run these checks before marking coordinator skill integration ready.
+
+#### Preflight: canonical sync and mirror consistency
+
+```bash
+skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+```
+
+Verify representative integrated skills match canonical content:
+
+```bash
+for skill in explore-feature plan-feature implement-feature iterate-on-plan iterate-on-implementation validate-feature cleanup-feature security-review setup-coordinator; do
+  diff -u "skills/$skill/SKILL.md" ".claude/skills/$skill/SKILL.md"
+  diff -u "skills/$skill/SKILL.md" ".codex/skills/$skill/SKILL.md"
+  diff -u "skills/$skill/SKILL.md" ".gemini/skills/$skill/SKILL.md"
+done
+```
+
+#### MCP matrix (local CLI)
+
+Run once per runtime:
+
+1. Claude Codex CLI + MCP
+2. Codex CLI + MCP
+3. Gemini CLI + MCP
+
+Assertions per runtime:
+
+- Detection resolves `COORDINATION_TRANSPORT=mcp`
+- `CAN_*` flags reflect exposed MCP tools
+- `/implement-feature` only runs lock/queue/guardrail hooks when corresponding flags are true
+- `/plan-feature` or `/iterate-on-plan` only runs handoff hooks when `CAN_HANDOFF=true`
+- `/validate-feature` and `/iterate-on-*` only runs memory hooks when `CAN_MEMORY=true`
+
+#### HTTP matrix (Web/Cloud)
+
+Run once per runtime:
+
+1. Claude Web + HTTP API
+2. Codex Cloud/Web + HTTP API
+3. Gemini Web/Cloud + HTTP API
+
+Baseline HTTP assertion command:
+
+```bash
+python scripts/coordination_bridge.py detect --http-url "$COORDINATION_API_URL" --api-key "$COORDINATION_API_KEY"
+```
+
+Assertions per runtime:
+
+- Detection resolves `COORDINATION_TRANSPORT=http`
+- Bridge capability flags match reachable HTTP endpoints (including partial capability cases)
+- Integrated skill hooks honor capability gating
+- Guardrail violations are informational in phase 1 and do not hard-block execution
+
+#### Degraded fallback matrix (both transports)
+
+For each of the six runtime dimensions above, simulate coordinator unavailability:
+
+- MCP unavailable (disable coordinator MCP server/tools)
+- HTTP unavailable (bad URL, network block, or invalid API key)
+
+Expected behavior:
+
+- Detection resolves `COORDINATION_TRANSPORT=none` and/or `COORDINATOR_AVAILABLE=false` as appropriate
+- Skills continue standalone flow without coordinator-induced hard failure
+- HTTP bridge helpers return `status="skipped"` for unavailable operations
+- Lock cleanup/release paths remain best-effort and non-fatal
+
 ## Core Skills
 
 ### `/explore-feature`

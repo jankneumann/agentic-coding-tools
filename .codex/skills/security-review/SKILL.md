@@ -51,7 +51,35 @@ If scripts are missing, run `skills/install.sh` to sync them from the canonical 
   - `<agent-skills-dir>/security-review/scripts/install_deps.sh`
   - `<agent-skills-dir>/security-review/docs/dependencies.md`
 
+## Coordinator Integration (Optional)
+
+Use `docs/coordination-detection-template.md` as the shared detection preamble.
+
+- Detect transport and capability flags at skill start
+- Execute hooks only when the matching `CAN_*` flag is `true`
+- If coordinator is unavailable, continue with standalone behavior
+
 ## Steps
+
+### 0. Detect Coordinator and Run Guardrail Pre-check (Informational)
+
+At skill start, run the coordination detection preamble and set:
+
+- `COORDINATOR_AVAILABLE`
+- `COORDINATION_TRANSPORT` (`mcp|http|none`)
+- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+
+If `CAN_GUARDRAILS=true`, run an informational guardrail pre-check before scanners:
+
+- MCP path: `check_guardrails`
+- HTTP path: `scripts/coordination_bridge.py` `try_check_guardrails(...)`
+
+Pre-check target text should summarize intended scan commands and any write actions (report generation paths, temp outputs).
+
+Phase 1 behavior:
+
+- Report violations with category/severity details
+- Continue execution without hard-blocking
 
 ### 1. Detect Project Profile
 
