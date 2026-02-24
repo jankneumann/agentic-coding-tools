@@ -62,6 +62,17 @@ _HANDOFF_READ_ENDPOINTS: list[tuple[str, str]] = [
 ]
 
 
+# SSRF Protection: URL Allowlist
+#
+# By default, only localhost addresses are allowed for coordinator URLs.
+# For cloud deployments (e.g., Railway), add external hostnames via the
+# COORDINATION_ALLOWED_HOSTS environment variable.
+#
+# Format: comma-separated hostnames (no scheme, no port)
+# Example: COORDINATION_ALLOWED_HOSTS=your-app.railway.app,your-app-production.up.railway.app
+#
+# The _validate_url() function merges COORDINATION_ALLOWED_HOSTS with the
+# built-in localhost allowlist. Requests to unlisted hosts are blocked.
 _ALLOWED_SCHEMES = {"http", "https"}
 _ALLOWED_HOSTS = {"localhost", "127.0.0.1", "::1"}
 

@@ -1,0 +1,31 @@
+# Test and documentation
+tests/
+docs/
+README.md
+CLAUDE.md
+
+# Version control
+.git/
+
+# Node
+node_modules/
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Virtual environment
+.venv/
+
+# Environment files (secrets come from Railway env vars)
+.env
+.env.example
+
+# Database migrations (applied separately via psql)
+supabase/
+
+# Local development only
+docker-compose.yml

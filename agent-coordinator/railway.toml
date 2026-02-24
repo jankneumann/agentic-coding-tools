@@ -1,0 +1,32 @@
+# Railway deployment configuration for the Coordination API
+#
+# Two-service architecture:
+#   Service 1: ParadeDB Postgres
+#     - Add via Railway dashboard: Docker image → paradedb/paradedb
+#     - Accessible on private network: postgres://...@paradedb.railway.internal:5432/coordinator
+#     - Configure persistent volume for /var/lib/postgresql/data
+#
+#   Service 2: Coordination API (this config)
+#     - Builds from agent-coordinator/Dockerfile
+#     - Connects to Postgres via POSTGRES_DSN on private network
+#     - Public HTTPS endpoint for cloud agents
+#
+# Required environment variables (set in Railway dashboard):
+#   POSTGRES_DSN=postgresql://postgres:<password>@<service>.railway.internal:5432/coordinator
+#   DB_BACKEND=postgres
+#   COORDINATION_API_KEYS=<comma-separated API keys>
+#   COORDINATION_API_KEY_IDENTITIES=<JSON mapping keys to agent identities>
+#
+# Optional:
+#   API_WORKERS=2
+#   API_TIMEOUT_KEEP_ALIVE=65
+#   API_ACCESS_LOG=true
+
+[build]
+dockerfilePath = "agent-coordinator/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 5
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
