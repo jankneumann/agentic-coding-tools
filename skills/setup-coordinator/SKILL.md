@@ -49,13 +49,13 @@ Ensure coordinator runtime is reachable before agent setup:
 
 ```bash
 # Coordinator API health (local default)
-curl -s "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}/health"
+curl -s "http://localhost:${API_PORT:-8081}/health"
 
 # Bridge-level detection (HTTP contract)
 python scripts/coordination_bridge.py detect
 ```
 
-If health fails, fix runtime first (for example start `agent-coordinator/docker-compose.yml`).
+If health fails, fix runtime first (start `docker compose up -d` in `agent-coordinator/` for ParadeDB Postgres, then run the API with `DB_BACKEND=postgres`).
 
 ### 3. CLI Path (MCP) Setup and Verification
 
@@ -118,6 +118,30 @@ Expected detection result in integrated skills:
 
 If only some endpoints are available, keep `COORDINATOR_AVAILABLE=true` and set missing capabilities to `false`.
 
+#### Cloud Deployment (Railway)
+
+For Railway-deployed coordinators, set the public HTTPS URL:
+
+```bash
+export COORDINATION_API_URL="https://your-app.railway.app"
+export COORDINATION_API_KEY="<your-provisioned-api-key>"
+# Allow Railway hosts in SSRF filter
+export COORDINATION_ALLOWED_HOSTS="your-app.railway.app,your-app-production.up.railway.app"
+```
+
+Verify cloud connectivity:
+
+```bash
+curl -s "$COORDINATION_API_URL/health"
+# Expected: {"status": "ok", "db": "connected", "version": "0.2.0"}
+
+python scripts/coordination_bridge.py detect \
+  --http-url "$COORDINATION_API_URL" \
+  --api-key "$COORDINATION_API_KEY"
+```
+
+See `docs/cloud-deployment.md` for full Railway setup instructions.
+
 ### 5. Capability Summary and Hook Expectations
 
 For the active runtime, summarize:
@@ -144,10 +168,13 @@ Common checks:
 - Runtime network allowlist / egress restrictions
 - MCP server process and env variables
 - Coordinator `/health` reachability
+- Railway health check failing: verify `POSTGRES_DSN` uses private network URL
+- SSRF blocking cloud URL: add hostname to `COORDINATION_ALLOWED_HOSTS`
+- API key rejected: verify `COORDINATION_API_KEYS` on server matches client key
 
 ## Backend Note
 
-Coordinator skill integration remains backend-agnostic. Cloud Postgres standardization (for example Neon adoption and branching workflows) is tracked in separate coordinator infrastructure proposals and should be linked from docs when approved.
+Cloud deployment uses Railway with ParadeDB Postgres. See `docs/cloud-deployment.md` for setup and `agent-coordinator/railway.toml` for configuration.
 
 ## Output
 

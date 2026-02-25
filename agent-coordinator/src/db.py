@@ -84,7 +84,12 @@ class SupabaseClient:
     @property
     def config(self) -> SupabaseConfig:
         if self._config is None:
-            self._config = get_config().supabase
+            supabase = get_config().supabase
+            if supabase is None:
+                raise RuntimeError(
+                    "Supabase backend requested but SUPABASE_URL/SUPABASE_SERVICE_KEY not set"
+                )
+            self._config = supabase
         return self._config
 
     @property

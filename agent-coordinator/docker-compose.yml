@@ -1,80 +1,35 @@
-# Local Supabase development environment
-# Run: docker-compose up -d
+# Local PostgreSQL development environment (ParadeDB: Postgres + pg_search + pgvector)
+# Run: docker compose up -d
 
 services:
-  # PostgreSQL database
+  # PostgreSQL database with ParadeDB extensions
   postgres:
-    image: supabase/postgres:15.1.1.78
+    image: paradedb/paradedb:latest
     container_name: agent-coordinator-db
     ports:
       - "${AGENT_COORDINATOR_DB_PORT:-54322}:5432"
     environment:
-      POSTGRES_HOST: /var/run/postgresql
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-      JWT_SECRET: super-secret-jwt-token-for-local-dev
-      JWT_EXP: 3600
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./supabase/migrations:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/
     healthcheck:
       test: pg_isready -U postgres
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # Supabase PostgREST API
-  rest:
-    image: postgrest/postgrest:v12.2.0
-    container_name: agent-coordinator-rest
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "${AGENT_COORDINATOR_REST_PORT:-3000}:3000"
-    environment:
-      PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/postgres
-      PGRST_DB_SCHEMAS: public
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: super-secret-jwt-token-for-local-dev
-      PGRST_DB_USE_LEGACY_GUCS: "false"
-
-  # Supabase Realtime (optional, for live updates)
-  realtime:
-    image: supabase/realtime:v2.30.23
-    container_name: agent-coordinator-realtime
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "${AGENT_COORDINATOR_REALTIME_PORT:-4000}:4000"
-    environment:
-      PORT: 4000
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: supabase_admin
-      DB_PASSWORD: postgres
-      DB_NAME: postgres
-      DB_SSL: "false"
-      API_JWT_SECRET: super-secret-jwt-token-for-local-dev
-      SECRET_KEY_BASE: your-secret-key-base-here
-
 volumes:
   postgres-data:
 
 # Development notes:
-# - Host ports are configurable to avoid collisions:
+# - Single-service setup using ParadeDB (Postgres + pg_search + pgvector)
+# - Host port is configurable to avoid collisions:
 #   - AGENT_COORDINATOR_DB_PORT (default: 54322)
-#   - AGENT_COORDINATOR_REST_PORT (default: 3000)
-#   - AGENT_COORDINATOR_REALTIME_PORT (default: 4000)
 # - PostgreSQL is available at localhost:${AGENT_COORDINATOR_DB_PORT:-54322}
-# - REST API is available at http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}
-# - Realtime is available at http://localhost:${AGENT_COORDINATOR_REALTIME_PORT:-4000}
+# - Migrations in ./supabase/migrations/ are applied automatically on first start
 #
 # For local development, set:
-#   SUPABASE_URL=http://localhost:3000
-#   SUPABASE_SERVICE_KEY=<generate a JWT with service_role claim>
-#
-# Or use Supabase CLI for a more complete local setup:
-#   supabase init
-#   supabase start
+#   DB_BACKEND=postgres
+#   POSTGRES_DSN=postgresql://postgres:postgres@localhost:54322/postgres

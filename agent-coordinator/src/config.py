@@ -22,6 +22,9 @@ Environment variables:
     POLICY_CACHE_TTL: Policy cache TTL in seconds (default: 300)
     API_HOST: HTTP API host (default: 0.0.0.0)
     API_PORT: HTTP API port (default: 8081)
+    API_WORKERS: Number of uvicorn workers (default: 1)
+    API_TIMEOUT_KEEP_ALIVE: Keep-alive timeout in seconds (default: 5)
+    API_ACCESS_LOG: Enable uvicorn access logging (default: false)
     COORDINATION_API_KEYS: Comma-separated API keys for HTTP API auth
     COORDINATION_API_KEY_IDENTITIES: JSON mapping API keys to agent identities
     PORT_ALLOC_BASE: Base port for port allocator (default: 10000)
@@ -253,6 +256,9 @@ class ApiConfig:
     port: int = 8081
     api_keys: list[str] = field(default_factory=list)
     api_key_identities: dict[str, dict[str, str]] = field(default_factory=dict)
+    workers: int = 1
+    timeout_keep_alive: int = 5
+    access_log: bool = False
 
     @classmethod
     def from_env(cls) -> "ApiConfig":
@@ -271,6 +277,9 @@ class ApiConfig:
             port=int(os.environ.get("API_PORT", "8081")),
             api_keys=api_keys,
             api_key_identities=identities,
+            workers=int(os.environ.get("API_WORKERS", "1")),
+            timeout_keep_alive=int(os.environ.get("API_TIMEOUT_KEEP_ALIVE", "5")),
+            access_log=os.environ.get("API_ACCESS_LOG", "false").lower() == "true",
         )
 
 
@@ -278,7 +287,7 @@ class ApiConfig:
 class Config:
     """Complete configuration for Agent Coordinator."""
 
-    supabase: SupabaseConfig
+    supabase: SupabaseConfig | None
     agent: AgentConfig
     lock: LockConfig = field(default_factory=LockConfig.from_env)
     database: DatabaseConfig = field(default_factory=DatabaseConfig.from_env)
@@ -299,8 +308,16 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         """Load complete configuration from environment variables."""
+        db_backend = os.environ.get("DB_BACKEND", "supabase")
+        try:
+            supabase_config: SupabaseConfig | None = SupabaseConfig.from_env()
+        except ValueError:
+            if db_backend == "postgres":
+                supabase_config = None
+            else:
+                raise
         return cls(
-            supabase=SupabaseConfig.from_env(),
+            supabase=supabase_config,
             agent=AgentConfig.from_env(),
             lock=LockConfig.from_env(),
             database=DatabaseConfig.from_env(),

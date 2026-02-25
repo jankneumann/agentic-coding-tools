@@ -643,9 +643,35 @@ def create_coordination_api() -> FastAPI:
     # --------------------------------------------------------------------- #
 
     @app.get("/health")
-    async def health() -> dict[str, str]:
-        """Health check endpoint."""
-        return {"status": "ok", "version": "0.2.0"}
+    async def health() -> Any:
+        """Health check endpoint with database connectivity check."""
+        import asyncio
+
+        from fastapi.responses import JSONResponse
+
+        db_status = "connected"
+        cfg = get_config()
+        if cfg.database.backend == "postgres" and cfg.database.postgres.dsn:
+            try:
+                import asyncpg
+
+                conn = await asyncio.wait_for(
+                    asyncpg.connect(dsn=cfg.database.postgres.dsn),
+                    timeout=2.0,
+                )
+                try:
+                    await conn.fetchval("SELECT 1")
+                finally:
+                    await conn.close()
+            except Exception:
+                db_status = "unreachable"
+
+        if db_status == "unreachable":
+            return JSONResponse(
+                status_code=503,
+                content={"status": "degraded", "db": "unreachable", "version": "0.2.0"},
+            )
+        return {"status": "ok", "db": db_status, "version": "0.2.0"}
 
     return app
 
@@ -670,8 +696,15 @@ def main() -> None:
         elif arg.startswith("--port="):
             port = int(arg.split("=", 1)[1])
 
-    app = create_coordination_api()
-    uvicorn.run(app, host=host, port=port)
+    uvicorn.run(
+        "src.coordination_api:create_coordination_api",
+        factory=True,
+        host=host,
+        port=port,
+        workers=config.api.workers,
+        timeout_keep_alive=config.api.timeout_keep_alive,
+        access_log=config.api.access_log,
+    )
 
 
 if __name__ == "__main__":
