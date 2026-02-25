@@ -73,16 +73,9 @@ BRANCH=$(git branch --show-current)
 CHANGE_ID=${ARGUMENTS%% --*}  # Everything before first flag
 CHANGE_ID=${CHANGE_ID:-$(echo $BRANCH | sed 's/^openspec\///')}
 
-# Detect if running in a worktree and resolve OpenSpec path
-GIT_COMMON=$(git rev-parse --git-common-dir)
-if [[ "$GIT_COMMON" == ".git" ]]; then
-  OPENSPEC_PATH="openspec"
-  PROJECT_ROOT=$(git rev-parse --show-toplevel)
-else
-  MAIN_REPO="${GIT_COMMON%%/.git*}"
-  OPENSPEC_PATH="$MAIN_REPO/openspec"
-  PROJECT_ROOT="$MAIN_REPO"
-fi
+# Detect worktree context and resolve OpenSpec path
+eval "$(python3 scripts/worktree.py detect)"
+PROJECT_ROOT="${MAIN_REPO:-$(git rev-parse --show-toplevel)}"
 ```
 
 Parse flags from `$ARGUMENTS`:

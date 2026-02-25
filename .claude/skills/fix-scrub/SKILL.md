@@ -72,44 +72,13 @@ Create a worktree when `--worktree` is passed **or** when already inside a git w
 
 ```bash
 # Detect if worktree isolation is needed
-GIT_COMMON=$(git rev-parse --git-common-dir)
-IN_WORKTREE=false
-if [[ "$GIT_COMMON" != ".git" ]]; then
-  IN_WORKTREE=true
-fi
+eval "$(python3 scripts/worktree.py detect)"
 
 if [[ "$IN_WORKTREE" == "true" ]] || [[ "<--worktree flag passed>" == "true" ]]; then
-  # Resolve main repo path
-  if [[ "$GIT_COMMON" == ".git" ]]; then
-    MAIN_REPO=$(git rev-parse --show-toplevel)
-  else
-    MAIN_REPO="${GIT_COMMON%%/.git*}"
-  fi
-  REPO_NAME=$(basename "$MAIN_REPO")
-  WORKTREE_PARENT="$(dirname "$MAIN_REPO")/${REPO_NAME}.worktrees"
-  WORKTREE_PATH="${WORKTREE_PARENT}/fix-scrub/${BRANCH_DATE}"
-
-  # Check if already in a fix-scrub worktree
-  CURRENT_TOPLEVEL=$(git rev-parse --show-toplevel)
-  if [[ "$CURRENT_TOPLEVEL" == "$WORKTREE_PATH"* ]]; then
-    echo "Already in fix-scrub worktree"
-  else
-    mkdir -p "$(dirname "$WORKTREE_PATH")"
-
-    # Ensure branch exists (created above) and add worktree
-    if [ -d "$WORKTREE_PATH" ]; then
-      echo "Worktree already exists: $WORKTREE_PATH"
-    else
-      # Switch main repo back to main first, then create worktree
-      cd "$MAIN_REPO"
-      git checkout main
-      git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
-      echo "Worktree created: $WORKTREE_PATH"
-    fi
-
-    cd "$WORKTREE_PATH"
-    echo "Working directory changed to: $(pwd)"
-  fi
+  # Setup fix-scrub worktree (creates .git-worktrees/fix-scrub/<date>/)
+  eval "$(python3 scripts/worktree.py setup "${BRANCH_DATE}" --branch "${BRANCH_NAME}" --prefix fix-scrub)"
+  cd "$WORKTREE_PATH"
+  echo "Working directory: $(pwd)"
 fi
 ```
 
