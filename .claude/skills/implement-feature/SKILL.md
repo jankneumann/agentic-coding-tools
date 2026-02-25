@@ -74,52 +74,13 @@ Confirm the proposal is approved before proceeding.
 Create an isolated worktree for this feature to avoid conflicts with other CLI sessions:
 
 ```bash
-# Determine paths — use git-common-dir to find the main repo even from a worktree
-CHANGE_ID="<change-id>"
-GIT_COMMON=$(git rev-parse --git-common-dir)
-if [[ "$GIT_COMMON" == ".git" ]]; then
-  # In main repo
-  MAIN_REPO=$(git rev-parse --show-toplevel)
-else
-  # In worktree — git-common-dir returns /path/to/main/.git or /path/to/main/.git/worktrees/<name>
-  MAIN_REPO="${GIT_COMMON%%/.git*}"
-fi
-REPO_NAME=$(basename "$MAIN_REPO")
-WORKTREE_PARENT="$(dirname "$MAIN_REPO")/${REPO_NAME}.worktrees"
-WORKTREE_PATH="${WORKTREE_PARENT}/${CHANGE_ID}"
-
-# Check if already in the correct worktree
-CURRENT_TOPLEVEL=$(git rev-parse --show-toplevel)
-if [[ "$CURRENT_TOPLEVEL" == "$WORKTREE_PATH" ]]; then
-  echo "Already in worktree for ${CHANGE_ID}"
-else
-  # Create worktree parent directory
-  mkdir -p "$WORKTREE_PARENT"
-
-  # Ensure on main with latest
-  git checkout main
-  git pull origin main
-
-  # Create feature branch if it doesn't exist
-  if ! git show-ref --verify --quiet "refs/heads/openspec/${CHANGE_ID}"; then
-    git branch "openspec/${CHANGE_ID}" main
-  fi
-
-  # Create worktree (or reuse if exists)
-  if [ -d "$WORKTREE_PATH" ]; then
-    echo "Worktree already exists: $WORKTREE_PATH"
-  else
-    git worktree add "$WORKTREE_PATH" "openspec/${CHANGE_ID}"
-    echo "Worktree created: $WORKTREE_PATH"
-  fi
-
-  # Change to worktree
-  cd "$WORKTREE_PATH"
-  echo "Working directory changed to: $(pwd)"
-fi
+# Setup worktree for feature isolation (creates .git-worktrees/<change-id>/)
+eval "$(python3 scripts/worktree.py setup "<change-id>")"
+cd "$WORKTREE_PATH"
+echo "Working directory: $(pwd)"
 ```
 
-After this step, you are working in an isolated directory. Other terminal sessions can work on different features without conflict.
+After this step, you are working in an isolated directory at `.git-worktrees/<change-id>/`. Other terminal sessions can work on different features without conflict.
 
 ### 3. Verify Feature Branch
 

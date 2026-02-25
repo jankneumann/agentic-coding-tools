@@ -74,15 +74,9 @@ CHANGE_ID=${CHANGE_ID:-$(echo $BRANCH | sed 's/^openspec\///')}
 MAX_ITERATIONS=5
 THRESHOLD="medium"  # critical > high > medium > low
 
-# Detect if running in a worktree and resolve OpenSpec path
-GIT_COMMON=$(git rev-parse --git-common-dir)
-if [[ "$GIT_COMMON" == ".git" ]]; then
-  # In main repo
-  OPENSPEC_PATH="openspec"
-else
-  # In worktree — git-common-dir returns /path/to/main/.git or /path/to/main/.git/worktrees/<name>
-  MAIN_REPO="${GIT_COMMON%%/.git*}"
-  OPENSPEC_PATH="$MAIN_REPO/openspec"
+# Detect worktree context and resolve OpenSpec path
+eval "$(python3 scripts/worktree.py detect)"
+if [[ "$IN_WORKTREE" == "true" ]]; then
   echo "Running in worktree. OpenSpec path: $OPENSPEC_PATH"
 fi
 ```

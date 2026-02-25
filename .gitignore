@@ -208,3 +208,6 @@ __marimo__/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Git worktrees (used by OpenSpec skills for feature isolation)
+.git-worktrees/

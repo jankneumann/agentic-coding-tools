@@ -272,7 +272,7 @@ create_task_worktree() {
     sed 's/--*/-/g' | \
     sed 's/^-//;s/-$//')
   
-  local worktree_path="../worktrees/${PROPOSAL_NAME}-${task_num}"
+  local worktree_path=".git-worktrees/${PROPOSAL_NAME}-${task_num}"
   local branch="${FEATURE_BRANCH}-task-${task_num}-${branch_name}"
   
   # Create worktree
