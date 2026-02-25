@@ -7,6 +7,7 @@ This client translates the DatabaseClient protocol methods into standard SQL
 executed via asyncpg's connection pool.
 """
 
+import json
 import re
 from typing import Any
 from uuid import UUID
@@ -62,6 +63,18 @@ def _validate_select_clause(select: str) -> str:
     return ", ".join(columns)
 
 
+def _serialize_for_asyncpg(value: Any) -> Any:
+    """Serialize dict/list values to JSON strings for asyncpg jsonb columns.
+
+    asyncpg requires JSON strings (not Python dicts/lists) when binding
+    parameters to jsonb columns. This converts dict/list values while
+    leaving other types untouched.
+    """
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
+
+
 class DirectPostgresClient:
     """Direct PostgreSQL client using asyncpg connection pool.
 
@@ -92,7 +105,7 @@ class DirectPostgresClient:
 
         # Build named parameter call
         param_names = list(params.keys())
-        param_values = list(params.values())
+        param_values = [_serialize_for_asyncpg(v) for v in params.values()]
         param_clause = ", ".join(
             f"{name} := ${i + 1}" for i, name in enumerate(param_names)
         )
@@ -197,7 +210,7 @@ class DirectPostgresClient:
         _validate_identifier(table, allow_qualified=True)
         for col in columns:
             _validate_identifier(col, allow_qualified=False)
-        values = list(data.values())
+        values = [_serialize_for_asyncpg(v) for v in data.values()]
         placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
         col_list = ", ".join(columns)
 
@@ -230,7 +243,7 @@ class DirectPostgresClient:
         for col, val in data.items():
             _validate_identifier(col, allow_qualified=False)
             set_parts.append(f"{col} = ${idx}")
-            values.append(val)
+            values.append(_serialize_for_asyncpg(val))
             idx += 1
 
         where_parts = []
