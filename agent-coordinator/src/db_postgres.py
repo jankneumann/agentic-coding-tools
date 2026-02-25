@@ -64,13 +64,13 @@ def _validate_select_clause(select: str) -> str:
 
 
 def _serialize_for_asyncpg(value: Any) -> Any:
-    """Serialize dict/list values to JSON strings for asyncpg jsonb columns.
+    """Serialize dict values to JSON strings for asyncpg jsonb columns.
 
-    asyncpg requires JSON strings (not Python dicts/lists) when binding
-    parameters to jsonb columns. This converts dict/list values while
-    leaving other types untouched.
+    asyncpg requires JSON strings (not Python dicts) when binding
+    parameters to jsonb columns. Lists are left as-is because asyncpg
+    handles PostgreSQL array types (TEXT[], etc.) natively.
     """
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict):
         return json.dumps(value)
     return value
 
@@ -103,7 +103,7 @@ class DirectPostgresClient:
         _validate_identifier(function_name, allow_qualified=True)
         pool = await self._get_pool()
 
-        # Build named parameter call
+        # Build named parameter call — serialize dicts/lists for JSONB params
         param_names = list(params.keys())
         param_values = [_serialize_for_asyncpg(v) for v in params.values()]
         param_clause = ", ".join(
@@ -116,7 +116,13 @@ class DirectPostgresClient:
             if row is None:
                 return None
             result = row[0]
-            # PostgreSQL JSONB returns dict directly via asyncpg
+            # asyncpg returns function JSONB results as strings (not dicts)
+            # because function return types aren't introspected from the schema.
+            if isinstance(result, str):
+                try:
+                    return json.loads(result)
+                except (json.JSONDecodeError, TypeError):
+                    pass
             return result
 
     async def query(
