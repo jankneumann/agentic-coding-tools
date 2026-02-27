@@ -151,13 +151,13 @@
 
 ## 7. Feature Registry
 
-- [ ] 7.1 Implement `feature_registry.py` service with PostgreSQL migration for cross-feature resource claim management.
+- [x] 7.1 Implement `feature_registry.py` service with PostgreSQL migration for cross-feature resource claim management.
   **Dependencies**: 3.6
   **Files**: agent-coordinator/src/agent_coordinator/services/feature_registry.py, agent-coordinator/migrations/003_feature_registry.sql, agent-coordinator/tests/test_feature_registry.py
   **Traces**: R15
   **Verify**: `cd agent-coordinator && uv run pytest tests/test_feature_registry.py -v` passes.
 
-- [ ] 7.2 Implement conflict analysis and parallel feasibility assessment (`FULL`, `PARTIAL`, `SEQUENTIAL`) based on lock-key overlap detection.
+- [x] 7.2 Implement conflict analysis and parallel feasibility assessment (`FULL`, `PARTIAL`, `SEQUENTIAL`) based on lock-key overlap detection.
   **Dependencies**: 7.1
   **Files**: agent-coordinator/src/agent_coordinator/services/feature_registry.py, agent-coordinator/tests/test_feasibility_assessment.py
   **Traces**: R15
@@ -165,13 +165,13 @@
 
 ## 8. Merge Queue and Cross-Feature Coordination
 
-- [ ] 8.1 Implement merge ordering and pre-merge check infrastructure in the coordinator.
+- [x] 8.1 Implement merge ordering and pre-merge check infrastructure in the coordinator.
   **Dependencies**: 7.2
   **Files**: agent-coordinator/src/agent_coordinator/services/merge_queue.py, agent-coordinator/tests/test_merge_queue.py
   **Traces**: R16
   **Verify**: `cd agent-coordinator && uv run pytest tests/test_merge_queue.py -v` passes.
 
-- [ ] 8.2 Create `/parallel-cleanup-feature` skill extending existing cleanup with cross-feature rebase coordination and merge queue integration.
+- [x] 8.2 Create `/parallel-cleanup-feature` skill extending existing cleanup with cross-feature rebase coordination and merge queue integration.
   **Dependencies**: 8.1
   **Files**: skills/parallel-cleanup-feature/SKILL.md
   **Traces**: R16
@@ -179,7 +179,7 @@
 
 ## 9. Parallel Validate Feature
 
-- [ ] 9.1 Create `/parallel-validate-feature` skill: slim integration-only validation, evidence completeness checking via `work-queue-result.schema.json` schema validation.
+- [x] 9.1 Create `/parallel-validate-feature` skill: slim integration-only validation, evidence completeness checking via `work-queue-result.schema.json` schema validation.
   **Dependencies**: 3.3
   **Files**: skills/parallel-validate-feature/SKILL.md
   **Traces**: R17
@@ -187,12 +187,12 @@
 
 ## 10. Documentation and Workflow Integration
 
-- [ ] 10.1 Update `docs/skills-workflow.md` with parallel workflow documentation: dual skill family reference, work-packages lifecycle, DAG scheduling overview, escalation handling.
+- [x] 10.1 Update `docs/skills-workflow.md` with parallel workflow documentation: dual skill family reference, work-packages lifecycle, DAG scheduling overview, escalation handling.
   **Dependencies**: 4.2, 6.1
   **Files**: docs/skills-workflow.md
   **Verify**: Documentation covers parallel workflow end-to-end.
 
-- [ ] 10.2 Update `docs/agent-coordinator.md` with new capabilities: `get_task` API, logical lock keys, feature registry, cancellation convention.
+- [x] 10.2 Update `docs/agent-coordinator.md` with new capabilities: `get_task` API, logical lock keys, feature registry, cancellation convention.
   **Dependencies**: 3.4, 3.5, 3.6, 7.1
   **Files**: docs/agent-coordinator.md
   **Verify**: Documentation covers all coordinator deltas.
