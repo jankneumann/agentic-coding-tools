@@ -1,14 +1,15 @@
 ---
-name: plan-feature
+name: linear-plan-feature
 description: Create OpenSpec proposal for a new feature and await approval
 category: Git Workflow
-tags: [openspec, planning, proposal]
+tags: [openspec, planning, proposal, linear]
 triggers:
   - "plan feature"
   - "plan a feature"
   - "design feature"
   - "propose feature"
   - "start planning"
+  - "linear plan feature"
 ---
 
 # Plan Feature

@@ -3,17 +3,35 @@
 
 ## Workflow
 
-Use the 5-skill feature workflow with natural approval gates:
+Two skill families exist: **linear** (sequential, single-agent) and **parallel** (multi-agent, DAG-scheduled). Both share the same OpenSpec artifact structure. Original skill names are aliases for their `linear-*` equivalents.
+
+### Linear Workflow (default)
 
 ```
-/explore-feature [focus-area] (optional)      → Candidate shortlist for next work
-/plan-feature <description>                    → Proposal approval gate
-  /iterate-on-plan <change-id> (optional)      → Refines plan before approval
-/implement-feature <change-id>                 → PR review gate
-  /iterate-on-implementation <change-id> (optional)  → Refinement complete
-  /validate-feature <change-id> (optional)     → Live deployment verification (includes security scanning)
-/cleanup-feature <change-id>                   → Done
+/linear-explore-feature [focus-area] (optional)      → Candidate shortlist for next work
+/linear-plan-feature <description>                    → Proposal approval gate
+  /linear-iterate-on-plan <change-id> (optional)      → Refines plan before approval
+/linear-implement-feature <change-id>                 → PR review gate
+  /linear-iterate-on-implementation <change-id> (optional)  → Refinement complete
+  /linear-validate-feature <change-id> (optional)     → Live deployment verification (includes security scanning)
+/linear-cleanup-feature <change-id>                   → Done
 ```
+
+Original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatible aliases.
+
+### Parallel Workflow (requires coordinator)
+
+```
+/parallel-explore-feature [focus-area]          → Candidate shortlist with resource claim analysis
+/parallel-plan-feature <description>            → Contracts + work-packages.yaml
+  /parallel-review-plan <change-id>             → Independent plan review (vendor-diverse)
+/parallel-implement-feature <change-id>         → DAG-scheduled multi-agent implementation
+  /parallel-review-implementation <change-id>   → Per-package review (vendor-diverse)
+/parallel-validate-feature <change-id>          → Evidence completeness + integration checks
+/parallel-cleanup-feature <change-id>           → Merge queue + cross-feature rebase
+```
+
+See [Two-Level Parallel Development](two-level-parallel-agentic-development.md) for the full design.
 
 ## Python Environment
 

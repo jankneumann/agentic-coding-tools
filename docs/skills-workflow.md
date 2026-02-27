@@ -6,6 +6,40 @@ A structured feature development workflow for AI-assisted coding. Skills are reu
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.
 
+## Skill Families
+
+Two skill families exist: **linear** (sequential, single-agent) and **parallel** (multi-agent, DAG-scheduled). Both share the same OpenSpec artifact structure. The core workflow skills have been renamed to `linear-*`; original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatible aliases.
+
+### Linear Skills (default)
+
+Sequential feature development with one agent per phase:
+
+```
+/linear-explore-feature [focus-area]                   Candidate feature shortlist
+/linear-plan-feature <description>                     Proposal approval gate
+  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
+/linear-implement-feature <change-id>                  PR review gate
+  /linear-iterate-on-implementation <change-id>        Refinement complete
+  /linear-validate-feature <change-id> (optional)      Live deployment verification
+/linear-cleanup-feature <change-id>                    Done
+```
+
+### Parallel Skills (requires coordinator)
+
+Multi-agent feature development with contract-first design and DAG-scheduled work packages:
+
+```
+/parallel-explore-feature [focus-area]                 Candidate shortlist + resource claim analysis
+/parallel-plan-feature <description>                   Contracts + work-packages.yaml
+  /parallel-review-plan <change-id>                    Independent plan review (vendor-diverse)
+/parallel-implement-feature <change-id>                DAG-scheduled multi-agent implementation
+  /parallel-review-implementation <change-id>          Per-package review (vendor-diverse)
+/parallel-validate-feature <change-id>                 Evidence completeness + integration checks
+/parallel-cleanup-feature <change-id>                  Merge queue + cross-feature rebase
+```
+
+See [Two-Level Parallel Development](../two-level-parallel-agentic-development.md) for the full design.
+
 ## Prerequisites
 
 - OpenSpec CLI installed (v1.0+): `npm install -g @fission-ai/openspec`
@@ -15,20 +49,20 @@ The workflow breaks feature development into discrete stages, each handled by a 
   - `openspec list --specs`
 
 ```
-/plan-feature <description>                        Proposal approval gate
-  /iterate-on-plan <change-id> (optional)          Refines plan before approval
-/implement-feature <change-id>                     PR review gate
-  /iterate-on-implementation <change-id> (optional)    Refinement complete
-  /refresh-architecture [mode] (optional)          Regenerate/validate architecture artifacts
-  /validate-feature <change-id> (optional)         Live deployment verification (includes security scanning)
-/cleanup-feature <change-id>                       Done
+/linear-plan-feature <description>                     Proposal approval gate
+  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
+/linear-implement-feature <change-id>                  PR review gate
+  /linear-iterate-on-implementation <change-id>        Refinement complete
+  /refresh-architecture [mode] (optional)              Regenerate/validate architecture artifacts
+  /linear-validate-feature <change-id> (optional)      Live deployment verification (includes security scanning)
+/linear-cleanup-feature <change-id>                    Done
 ```
 
 Optional discovery stage before planning:
 
 ```
-/explore-feature [focus-area]                      Candidate feature shortlist
-/refresh-architecture (optional)                   Fresh architecture context for planning
+/linear-explore-feature [focus-area]                   Candidate feature shortlist
+/refresh-architecture (optional)                       Fresh architecture context for planning
 ```
 
 Architecture refresh callout:
@@ -144,7 +178,7 @@ skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python
 Verify representative integrated skills match canonical content:
 
 ```bash
-for skill in explore-feature plan-feature implement-feature iterate-on-plan iterate-on-implementation validate-feature cleanup-feature security-review setup-coordinator; do
+for skill in linear-explore-feature linear-plan-feature linear-implement-feature linear-iterate-on-plan linear-iterate-on-implementation linear-validate-feature linear-cleanup-feature security-review setup-coordinator; do
   diff -u "skills/$skill/SKILL.md" ".claude/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".codex/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".gemini/skills/$skill/SKILL.md"
