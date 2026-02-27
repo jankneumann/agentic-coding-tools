@@ -85,13 +85,13 @@
 
 ## 4. Parallel Plan and Explore Skills
 
-- [ ] 4.1 Create `/parallel-explore-feature` skill that produces candidate shortlist with resource claim analysis for parallel feasibility.
+- [x] 4.1 Create `/parallel-explore-feature` skill that produces candidate shortlist with resource claim analysis for parallel feasibility.
   **Dependencies**: 1.1, 2.1
   **Files**: skills/parallel-explore-feature/SKILL.md
   **Traces**: R7
   **Verify**: Skill frontmatter is valid. Skill references contract artifacts and work-packages structure.
 
-- [ ] 4.2 Create `/parallel-plan-feature` skill that produces `contracts/` directory and `work-packages.yaml` conforming to `work-packages.schema.json`. Includes context slicing logic and capability-gated coordinator hooks.
+- [x] 4.2 Create `/parallel-plan-feature` skill that produces `contracts/` directory and `work-packages.yaml` conforming to `work-packages.schema.json`. Includes context slicing logic and capability-gated coordinator hooks.
   **Dependencies**: 1.2, 2.1, 3.1
   **Files**: skills/parallel-plan-feature/SKILL.md
   **Traces**: R7
@@ -99,13 +99,13 @@
 
 ## 5. Review Skills
 
-- [ ] 5.1 Create `/parallel-review-plan` skill that receives plan artifacts as read-only input and produces findings per `review-findings.schema.json` with disposition classification.
+- [x] 5.1 Create `/parallel-review-plan` skill that receives plan artifacts as read-only input and produces findings per `review-findings.schema.json` with disposition classification.
   **Dependencies**: 1.1
   **Files**: skills/parallel-review-plan/SKILL.md
   **Traces**: R8
   **Verify**: Skill frontmatter is valid. Output validates against `review-findings.schema.json`.
 
-- [ ] 5.2 Create `/parallel-review-implementation` skill that receives a package diff as read-only input and produces findings per `review-findings.schema.json`. Supports vendor-diverse dispatch.
+- [x] 5.2 Create `/parallel-review-implementation` skill that receives a package diff as read-only input and produces findings per `review-findings.schema.json`. Supports vendor-diverse dispatch.
   **Dependencies**: 1.1
   **Files**: skills/parallel-review-implementation/SKILL.md
   **Traces**: R8
@@ -113,37 +113,37 @@
 
 ## 6. Parallel Implement Feature with DAG Dispatch
 
-- [ ] 6.1 Implement DAG scheduler in `/parallel-implement-feature`: Phase A preflight (parse, validate, compute DAG, submit work queue tasks, begin monitoring).
+- [x] 6.1 Implement DAG scheduler in `/parallel-implement-feature`: Phase A preflight (parse, validate, compute DAG, submit work queue tasks, begin monitoring).
   **Dependencies**: 3.1, 3.2, 3.4, 4.2
   **Files**: skills/parallel-implement-feature/SKILL.md, skills/parallel-implement-feature/scripts/dag_scheduler.py, skills/parallel-implement-feature/scripts/tests/test_dag_scheduler.py
   **Traces**: R9
   **Verify**: `agent-coordinator/.venv/bin/python -m pytest skills/parallel-implement-feature/scripts/tests/test_dag_scheduler.py -v` passes.
 
-- [ ] 6.2 Implement package execution protocol: Phase B (session registration, pause-lock checks B2/B9, deadlock-safe lock acquisition B3, scope enforcement B7, structured result B10).
+- [x] 6.2 Implement package execution protocol: Phase B (session registration, pause-lock checks B2/B9, deadlock-safe lock acquisition B3, scope enforcement B7, structured result B10).
   **Dependencies**: 6.1, 3.6
   **Files**: skills/parallel-implement-feature/scripts/package_executor.py, skills/parallel-implement-feature/scripts/scope_checker.py, skills/parallel-implement-feature/scripts/tests/test_package_executor.py, skills/parallel-implement-feature/scripts/tests/test_scope_checker.py
   **Traces**: R10
   **Verify**: `agent-coordinator/.venv/bin/python -m pytest skills/parallel-implement-feature/scripts/tests/ -v` passes.
 
-- [ ] 6.3 Implement result validation: Phase C1 (schema validation against `work-queue-result.schema.json`, revision matching, output key verification).
+- [x] 6.3 Implement result validation: Phase C1 (schema validation against `work-queue-result.schema.json`, revision matching, output key verification).
   **Dependencies**: 3.3, 6.1
   **Files**: skills/parallel-implement-feature/scripts/result_validator.py, skills/parallel-implement-feature/scripts/tests/test_result_validator.py
   **Traces**: R11
   **Verify**: `agent-coordinator/.venv/bin/python -m pytest skills/parallel-implement-feature/scripts/tests/test_result_validator.py -v` passes.
 
-- [ ] 6.4 Implement escalation handling: deterministic decision procedure per escalation type, pause-lock acquisition, contract revision bump procedure, plan revision bump procedure.
+- [x] 6.4 Implement escalation handling: deterministic decision procedure per escalation type, pause-lock acquisition, contract revision bump procedure, plan revision bump procedure.
   **Dependencies**: 6.2, 3.5
   **Files**: skills/parallel-implement-feature/scripts/escalation_handler.py, skills/parallel-implement-feature/scripts/tests/test_escalation_handler.py
   **Traces**: R12
   **Verify**: `agent-coordinator/.venv/bin/python -m pytest skills/parallel-implement-feature/scripts/tests/test_escalation_handler.py -v` passes.
 
-- [ ] 6.5 Implement review + integration sequencing: Phase C3-C6 (per-package review dispatch, integration gate, `wp-integration` merge package, execution summary generation).
+- [x] 6.5 Implement review + integration sequencing: Phase C3-C6 (per-package review dispatch, integration gate, `wp-integration` merge package, execution summary generation).
   **Dependencies**: 5.2, 6.3
   **Files**: skills/parallel-implement-feature/scripts/integration_orchestrator.py, skills/parallel-implement-feature/scripts/tests/test_integration_orchestrator.py
   **Traces**: R13
   **Verify**: `agent-coordinator/.venv/bin/python -m pytest skills/parallel-implement-feature/scripts/tests/test_integration_orchestrator.py -v` passes.
 
-- [ ] 6.6 Implement circuit breaking: heartbeat detection for stuck agents, retry budget enforcement, cancellation propagation to dependent packages.
+- [x] 6.6 Implement circuit breaking: heartbeat detection for stuck agents, retry budget enforcement, cancellation propagation to dependent packages.
   **Dependencies**: 6.1, 3.5
   **Files**: skills/parallel-implement-feature/scripts/circuit_breaker.py, skills/parallel-implement-feature/scripts/tests/test_circuit_breaker.py
   **Traces**: R14
