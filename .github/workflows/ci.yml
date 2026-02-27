@@ -33,6 +33,27 @@ jobs:
       - name: Run pytest
         run: uv run pytest -m "not e2e and not integration"
 
+  test-scripts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run scripts tests
+        run: uv run pytest -v
+
   validate-specs:
     runs-on: ubuntu-latest
 
