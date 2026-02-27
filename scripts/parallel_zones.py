@@ -241,6 +241,70 @@ def build_output(
 
 
 # ---------------------------------------------------------------------------
+# Work-packages validation mode
+# ---------------------------------------------------------------------------
+
+def _validate_packages_mode(args: argparse.Namespace) -> int:
+    """Validate scope and lock non-overlap for parallel work packages."""
+    try:
+        import yaml
+    except ImportError:
+        logger.error("pyyaml is required for --validate-packages: pip install pyyaml")
+        return 1
+
+    from validate_work_packages import (
+        get_parallel_pairs,
+        validate_lock_overlap,
+        validate_scope_overlap,
+    )
+
+    wp_path: Path = args.validate_packages
+    if not wp_path.exists():
+        logger.error("work-packages file not found: %s", wp_path)
+        return 1
+
+    with open(wp_path) as f:
+        data = yaml.safe_load(f)
+
+    packages = data.get("packages", [])
+    parallel_pairs = get_parallel_pairs(packages)
+    scope_errors = validate_scope_overlap(packages)
+    lock_errors = validate_lock_overlap(packages)
+
+    result = {
+        "file": str(wp_path),
+        "parallel_pairs": [list(p) for p in parallel_pairs],
+        "scope_overlap": {"passed": not scope_errors, "errors": scope_errors},
+        "lock_overlap": {"passed": not lock_errors, "errors": lock_errors},
+        "valid": not scope_errors and not lock_errors,
+    }
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        status = "VALID" if result["valid"] else "OVERLAP DETECTED"
+        logger.info("Work-packages parallel zone validation: %s", status)
+        logger.info("  Parallel pairs: %d", len(parallel_pairs))
+        for a, b in parallel_pairs:
+            logger.info("    %s <-> %s", a, b)
+
+        if scope_errors:
+            logger.info("  Scope overlap errors:")
+            for err in scope_errors:
+                logger.info("    %s", err)
+
+        if lock_errors:
+            logger.info("  Lock overlap errors:")
+            for err in lock_errors:
+                logger.info("    %s", err)
+
+        if not scope_errors and not lock_errors:
+            logger.info("  No scope or lock overlaps detected.")
+
+    return 0 if result["valid"] else 1
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -272,12 +336,28 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Print impact radius for a specific module",
     )
+    parser.add_argument(
+        "--validate-packages",
+        type=Path,
+        default=None,
+        metavar="WORK_PACKAGES_YAML",
+        help="Validate scope and lock non-overlap for parallel packages in a work-packages.yaml file",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON (used with --validate-packages)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args(argv)
+
+    # --- Validate packages mode ---
+    if args.validate_packages is not None:
+        return _validate_packages_mode(args)
 
     # --- Load graph ---
     if not args.graph.exists():
