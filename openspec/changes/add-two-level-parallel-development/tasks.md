@@ -23,61 +23,61 @@
 
 ## 1. Skill Family Structure
 
-- [ ] 1.1 Rename existing skills to `linear-*` prefix with backward-compatible aliases. Update `CLAUDE.md`, `AGENTS.md`, and `docs/skills-workflow.md`.
+- [x] 1.1 Rename existing skills to `linear-*` prefix with backward-compatible aliases. Update `CLAUDE.md`, `AGENTS.md`, and `docs/skills-workflow.md`.
   **Dependencies**: None
   **Files**: skills/linear-explore-feature/SKILL.md, skills/linear-plan-feature/SKILL.md, skills/linear-implement-feature/SKILL.md, skills/linear-validate-feature/SKILL.md, skills/linear-cleanup-feature/SKILL.md, skills/linear-iterate-on-plan/SKILL.md, skills/linear-iterate-on-implementation/SKILL.md, CLAUDE.md, AGENTS.md, docs/skills-workflow.md
   **Verify**: All existing skill invocations continue to work via aliases. `openspec validate add-two-level-parallel-development --strict` passes.
 
-- [ ] 1.2 Add `CAN_DISCOVER`, `CAN_POLICY`, `CAN_AUDIT` capability flags to coordinator capability detection in parallel skill stubs.
+- [x] 1.2 Add `CAN_DISCOVER`, `CAN_POLICY`, `CAN_AUDIT` capability flags to coordinator capability detection in parallel skill stubs.
   **Dependencies**: 1.1
   **Files**: skills/parallel-implement-feature/SKILL.md, skills/parallel-plan-feature/SKILL.md
   **Verify**: Capability flags are declared in skill frontmatter and referenced in preflight checks.
 
 ## 2. Contract Artifacts
 
-- [ ] 2.1 Add `contracts` and `work-packages` artifact types to `openspec/schemas/feature-workflow/schema.yaml`. Add templates for OpenAPI spec stubs, Prism mock config, Schemathesis config, and Pact config.
+- [x] 2.1 Add `contracts` and `work-packages` artifact types to `openspec/schemas/feature-workflow/schema.yaml`. Add templates for OpenAPI spec stubs, Prism mock config, Schemathesis config, and Pact config.
   **Dependencies**: None
   **Files**: openspec/schemas/feature-workflow/schema.yaml, openspec/schemas/feature-workflow/templates/openapi-stub.yaml, openspec/schemas/feature-workflow/templates/prism-config.yaml, openspec/schemas/feature-workflow/templates/schemathesis-config.yaml, openspec/schemas/feature-workflow/templates/pact-config.yaml
   **Verify**: `openspec validate` recognizes the new artifact types without errors.
 
-- [ ] 2.2 Document lock key namespace conventions and canonicalization rules. Add reference page with prefix table, format, normalization rules, and examples.
+- [x] 2.2 Document lock key namespace conventions and canonicalization rules. Add reference page with prefix table, format, normalization rules, and examples.
   **Dependencies**: None
   **Files**: docs/lock-key-namespaces.md
   **Verify**: Documentation covers all 8 namespace prefixes with format and normalization rules.
 
 ## 3. Work-Packages DAG and Coordinator Deltas
 
-- [ ] 3.1 Install `work-packages.schema.json` validation pipeline: YAML-to-JSON parsing, JSON Schema validation, DAG cycle detection, lock key canonicalization checks.
+- [x] 3.1 Install `work-packages.schema.json` validation pipeline: YAML-to-JSON parsing, JSON Schema validation, DAG cycle detection, lock key canonicalization checks.
   **Dependencies**: 2.1
   **Files**: scripts/validate_work_packages.py, scripts/tests/test_validate_work_packages.py
   **Traces**: R3
   **Verify**: `scripts/.venv/bin/python scripts/validate_work_packages.py --help` runs. Tests pass: `scripts/.venv/bin/python -m pytest scripts/tests/test_validate_work_packages.py -v`.
 
-- [ ] 3.2 Add `--validate-packages` mode to `scripts/parallel_zones.py` for scope non-overlap and lock non-overlap validation of parallel packages.
+- [x] 3.2 Add `--validate-packages` mode to `scripts/parallel_zones.py` for scope non-overlap and lock non-overlap validation of parallel packages.
   **Dependencies**: 3.1
   **Files**: scripts/parallel_zones.py, scripts/tests/test_parallel_zones_packages.py
   **Traces**: R3
   **Verify**: `scripts/.venv/bin/python scripts/parallel_zones.py --validate-packages tests/fixtures/sample-work-packages.yaml` produces expected output.
 
-- [ ] 3.3 Install `work-queue-result.schema.json` validation as a library function callable by the orchestrator after `complete_work`.
+- [x] 3.3 Install `work-queue-result.schema.json` validation as a library function callable by the orchestrator after `complete_work`.
   **Dependencies**: 3.1
   **Files**: scripts/validate_work_result.py, scripts/tests/test_validate_work_result.py
   **Traces**: R3
   **Verify**: `scripts/.venv/bin/python -m pytest scripts/tests/test_validate_work_result.py -v` passes.
 
-- [ ] 3.4 Expose existing `WorkQueueService.get_task(task_id)` as MCP tool and HTTP endpoint `GET /api/v1/tasks/{task_id}`.
+- [x] 3.4 Expose existing `WorkQueueService.get_task(task_id)` as MCP tool and HTTP endpoint `GET /api/v1/tasks/{task_id}`.
   **Dependencies**: None
   **Files**: agent-coordinator/src/agent_coordinator/mcp_server.py, agent-coordinator/src/agent_coordinator/http_api.py, agent-coordinator/src/agent_coordinator/services/work_queue.py, agent-coordinator/tests/test_mcp_get_task.py, agent-coordinator/tests/test_http_get_task.py
   **Traces**: R4
   **Verify**: `cd agent-coordinator && uv run pytest tests/test_mcp_get_task.py tests/test_http_get_task.py -v` passes.
 
-- [ ] 3.5 Document cancellation convention: `complete_work(success=false)` with `error_code="cancelled_by_orchestrator"` in result. Add helper function `cancel_task_convention(task_id, reason)`.
+- [x] 3.5 Document cancellation convention: `complete_work(success=false)` with `error_code="cancelled_by_orchestrator"` in result. Add helper function `cancel_task_convention(task_id, reason)`.
   **Dependencies**: 3.4
   **Files**: agent-coordinator/src/agent_coordinator/services/work_queue.py, agent-coordinator/tests/test_cancel_convention.py
   **Traces**: R5
   **Verify**: `cd agent-coordinator && uv run pytest tests/test_cancel_convention.py -v` passes.
 
-- [ ] 3.6 Update lock key policy rules to permit `api:`, `db:`, `event:`, `flag:`, `env:`, `contract:`, `feature:` patterns in `acquire_lock`.
+- [x] 3.6 Update lock key policy rules to permit `api:`, `db:`, `event:`, `flag:`, `env:`, `contract:`, `feature:` patterns in `acquire_lock`.
   **Dependencies**: None
   **Files**: agent-coordinator/src/agent_coordinator/services/lock_service.py, agent-coordinator/tests/test_lock_key_policy.py
   **Traces**: R6
