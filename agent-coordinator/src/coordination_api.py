@@ -80,6 +80,10 @@ class WorkSubmitRequest(BaseModel):
     depends_on: list[str] | None = None
 
 
+class WorkGetTaskRequest(BaseModel):
+    task_id: str
+
+
 class GuardrailsCheckRequest(BaseModel):
     operation_text: str
     file_paths: list[str] | None = None
@@ -466,6 +470,49 @@ def create_coordination_api() -> FastAPI:
         return {
             "success": result.success,
             "task_id": str(result.task_id) if result.task_id else None,
+        }
+
+    @app.post("/work/get")
+    async def get_task_endpoint(
+        request: WorkGetTaskRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get a specific task by ID."""
+        from uuid import UUID
+
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="get_task",
+            resource=request.task_id,
+        )
+
+        from .work_queue import get_work_queue_service
+
+        task = await get_work_queue_service().get_task(UUID(request.task_id))
+
+        if task is None:
+            return {"success": False, "reason": "task_not_found"}
+
+        return {
+            "success": True,
+            "task": {
+                "id": str(task.id),
+                "task_type": task.task_type,
+                "description": task.description,
+                "status": task.status,
+                "priority": task.priority,
+                "input_data": task.input_data,
+                "claimed_by": task.claimed_by,
+                "claimed_at": task.claimed_at.isoformat() if task.claimed_at else None,
+                "result": task.result,
+                "error_message": task.error_message,
+                "depends_on": [str(d) for d in task.depends_on],
+                "deadline": task.deadline.isoformat() if task.deadline else None,
+                "created_at": task.created_at.isoformat() if task.created_at else None,
+                "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            },
         }
 
     # --------------------------------------------------------------------- #
