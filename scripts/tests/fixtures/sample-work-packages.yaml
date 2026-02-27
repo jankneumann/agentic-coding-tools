@@ -1,0 +1,187 @@
+schema_version: 1
+
+feature:
+  id: "FEAT-test-001"
+  title: "Test Feature"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+
+packages:
+  - package_id: "wp-contracts"
+    title: "Generate contracts"
+    task_type: "contracts"
+    description: "Generate OpenAPI contracts and derived artifacts"
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "contracts/openapi/v1.yaml"
+      keys:
+        - "contract:openapi/v1.yaml"
+      ttl_minutes: 60
+      reason: "Contract generation"
+    scope:
+      write_allow:
+        - "contracts/**"
+      read_allow:
+        - "openspec/**"
+        - "contracts/**"
+    worktree:
+      name: "wp-contracts"
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "openapi-lint"
+          kind: "command"
+          command: "openapi-generator validate -i contracts/openapi/v1.yaml"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-contracts/lint.txt"
+            result_keys:
+              - "lint_passed"
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  - package_id: "wp-backend"
+    title: "Backend API"
+    task_type: "implement"
+    description: "Implement backend API endpoints"
+    priority: 3
+    depends_on:
+      - "wp-contracts"
+    locks:
+      files:
+        - "src/api/users.py"
+        - "src/api/routes.py"
+      keys:
+        - "api:GET /v1/users"
+        - "api:POST /v1/users"
+        - "db:schema:users"
+      ttl_minutes: 120
+      reason: "Backend implementation"
+    scope:
+      write_allow:
+        - "src/api/**"
+        - "tests/api/**"
+      read_allow:
+        - "src/**"
+        - "contracts/**"
+      deny:
+        - "src/frontend/**"
+    worktree:
+      name: "wp-backend"
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "pytest tests/api/ -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-backend/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-frontend"
+    title: "Frontend components"
+    task_type: "implement"
+    description: "Implement frontend components"
+    priority: 3
+    depends_on:
+      - "wp-contracts"
+    locks:
+      files:
+        - "src/frontend/UserList.tsx"
+      keys:
+        - "event:user.created"
+      ttl_minutes: 120
+      reason: "Frontend implementation"
+    scope:
+      write_allow:
+        - "src/frontend/**"
+        - "tests/frontend/**"
+      read_allow:
+        - "src/**"
+        - "contracts/**"
+      deny:
+        - "src/api/**"
+    worktree:
+      name: "wp-frontend"
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "npm test -- --filter frontend"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-frontend/test-results.json"
+            result_keys:
+              - "test_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-integration"
+    title: "Integration merge"
+    task_type: "integrate"
+    description: "Merge all worktrees and run full test suite"
+    priority: 1
+    depends_on:
+      - "wp-backend"
+      - "wp-frontend"
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: "wp-integration"
+      mode: "shared"
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full-test-suite"
+          kind: "command"
+          command: "pytest --tb=short"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-integration/pytest.xml"
+            result_keys:
+              - "test_count"
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"

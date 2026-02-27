@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/work-packages.schema.json",
+  "title": "work-packages.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "feature", "contracts", "packages"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for work-packages.yaml"
+    },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "plan_revision"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "description": "Stable feature identifier (used in input_data/result payloads)"
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "plan_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic integer. Increment when plan/work-packages change materially."
+        },
+        "created_by": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "openapi"],
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic integer. Increment on contract changes after dispatch."
+        },
+        "openapi": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary", "files"],
+          "properties": {
+            "primary": { "$ref": "#/$defs/FilePath", "description": "Primary OpenAPI entrypoint file." },
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/FilePath" },
+              "uniqueItems": true,
+              "description": "All OpenAPI files considered part of the canonical contract."
+            }
+          }
+        },
+        "generated": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pydantic_dir": { "$ref": "#/$defs/FilePath" },
+            "typescript_dir": { "$ref": "#/$defs/FilePath" }
+          }
+        },
+        "mocks": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prism": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": true },
+                "command": { "type": "string", "minLength": 1 },
+                "base_url": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "cdc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pact": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "broker_url": { "type": "string", "minLength": 1 },
+                "consumer_dir": { "$ref": "#/$defs/FilePath" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "priority": { "type": "integer", "minimum": 1, "maximum": 10, "default": 5 },
+        "lock_ttl_minutes": { "type": "integer", "minimum": 1, "maximum": 480, "default": 120 },
+        "timeout_minutes": { "type": "integer", "minimum": 1, "default": 60 },
+        "retry_budget": { "type": "integer", "minimum": 0, "default": 1 },
+        "verification_tier_required": { "type": "string", "enum": ["A", "B", "C"], "default": "A" },
+        "min_trust_level": { "type": "integer", "minimum": 0, "maximum": 4, "default": 2 }
+      }
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/WorkPackage" }
+    }
+  },
+  "$defs": {
+    "FilePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*\\s+$).+",
+      "description": "Repo-relative path (no leading slash)."
+    },
+    "Glob": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Glob pattern (e.g., 'src/api/**')."
+    },
+    "PackageId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+      "description": "Stable id used for DAG dependencies (e.g., 'wp-contracts', 'wp-backend')."
+    },
+    "LogicalLockKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(api|db|event|flag|env|contract|feature):.+$",
+      "description": "Non-file lock key stored in file_locks.file_path (namespace prefix required)."
+    },
+    "Locks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "keys"],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FilePath" },
+          "uniqueItems": true,
+          "description": "File locks (raw paths for acquire_lock — existing behavior)."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/LogicalLockKey" },
+          "uniqueItems": true,
+          "description": "Logical resource locks (stored as lock keys via acquire_lock)."
+        },
+        "ttl_minutes": { "type": "integer", "minimum": 1, "maximum": 480 },
+        "reason": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["write_allow", "read_allow"],
+      "properties": {
+        "write_allow": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Glob" },
+          "description": "Globs this package may modify. Empty means read-only package."
+        },
+        "read_allow": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Glob" },
+          "description": "Globs this package may read/scan for context."
+        },
+        "deny": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Glob" },
+          "description": "Globs explicitly forbidden even if included in allow lists."
+        }
+      }
+    },
+    "Worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
+        },
+        "mode": { "type": "string", "enum": ["isolated", "shared"], "default": "isolated" }
+      }
+    },
+    "VerificationStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "evidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "kind": { "type": "string", "enum": ["command", "ci", "manual"] },
+        "command": { "type": "string", "minLength": 1 },
+        "cwd": { "$ref": "#/$defs/FilePath" },
+        "env": { "type": "object", "additionalProperties": { "type": "string" } },
+        "expect_exit_code": { "type": "integer", "default": 0 },
+        "ci": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "type": "string", "enum": ["github", "other"], "default": "github" },
+            "workflow": { "type": "string", "minLength": 1 },
+            "required_checks": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          }
+        },
+        "manual_instructions": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifacts", "result_keys"],
+          "properties": {
+            "artifacts": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/FilePath" },
+              "description": "Paths expected to be produced (logs, junit xml, screenshots)."
+            },
+            "result_keys": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Keys that must be present in work_queue.result.verification for this step."
+            }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "command" } } }, "then": { "required": ["command"] } },
+        { "if": { "properties": { "kind": { "const": "ci" } } }, "then": { "required": ["ci"] } },
+        { "if": { "properties": { "kind": { "const": "manual" } } }, "then": { "required": ["manual_instructions"] } }
+      ]
+    },
+    "Verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier_required", "steps"],
+      "properties": {
+        "tier_required": { "type": "string", "enum": ["A", "B", "C"] },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/VerificationStep" } }
+      }
+    },
+    "WorkPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "package_id", "task_type", "description", "depends_on", "priority",
+        "locks", "scope", "worktree", "timeout_minutes", "retry_budget",
+        "min_trust_level", "verification", "outputs"
+      ],
+      "properties": {
+        "package_id": { "$ref": "#/$defs/PackageId" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "task_type": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "priority": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "depends_on": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PackageId" },
+          "uniqueItems": true
+        },
+        "locks": { "$ref": "#/$defs/Locks" },
+        "scope": { "$ref": "#/$defs/Scope" },
+        "worktree": { "$ref": "#/$defs/Worktree" },
+        "timeout_minutes": { "type": "integer", "minimum": 1 },
+        "retry_budget": { "type": "integer", "minimum": 0 },
+        "min_trust_level": { "type": "integer", "minimum": 0, "maximum": 4 },
+        "verification": { "$ref": "#/$defs/Verification" },
+        "inputs": { "type": "object", "additionalProperties": true },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result_keys"],
+          "properties": {
+            "result_keys": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "artifacts": { "type": "array", "items": { "$ref": "#/$defs/FilePath" } }
+          }
+        }
+      }
+    }
+  }
+}
