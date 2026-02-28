@@ -315,6 +315,55 @@ async def submit_work(
     }
 
 
+@mcp.tool()
+async def get_task(task_id: str) -> dict[str, Any]:
+    """
+    Retrieve a specific task by ID.
+
+    Use this to check the status, result, or details of any task
+    in the work queue.
+
+    Args:
+        task_id: UUID of the task to retrieve
+
+    Returns:
+        success: Whether the task was found
+        task: Task details (id, task_type, description, status, etc.)
+
+    Example:
+        result = get_task("550e8400-e29b-41d4-a716-446655440000")
+        if result["success"]:
+            print(result["task"]["status"])
+    """
+    from uuid import UUID
+
+    service = get_work_queue_service()
+    task = await service.get_task(UUID(task_id))
+
+    if task is None:
+        return {"success": False, "reason": "task_not_found"}
+
+    return {
+        "success": True,
+        "task": {
+            "id": str(task.id),
+            "task_type": task.task_type,
+            "description": task.description,
+            "status": task.status,
+            "priority": task.priority,
+            "input_data": task.input_data,
+            "claimed_by": task.claimed_by,
+            "claimed_at": task.claimed_at.isoformat() if task.claimed_at else None,
+            "result": task.result,
+            "error_message": task.error_message,
+            "depends_on": [str(d) for d in task.depends_on],
+            "deadline": task.deadline.isoformat() if task.deadline else None,
+            "created_at": task.created_at.isoformat() if task.created_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+        },
+    }
+
+
 # =============================================================================
 # MCP TOOLS: Handoff Documents (Session Continuity)
 # =============================================================================

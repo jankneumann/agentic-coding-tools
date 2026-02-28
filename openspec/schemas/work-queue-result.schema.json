@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/work-queue-result.schema.json",
+  "title": "work_queue.result payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "feature_id", "package_id", "plan_revision",
+    "contracts_revision", "status", "locks", "scope", "files_modified",
+    "git", "verification", "escalations"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "feature_id": {
+      "type": "string", "minLength": 1, "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "package_id": {
+      "type": "string", "minLength": 1, "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "attempt": { "type": "integer", "minimum": 1, "default": 1 },
+    "plan_revision": { "type": "integer", "minimum": 1 },
+    "contracts_revision": { "type": "integer", "minimum": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed"],
+      "description": "Mirrors complete_work(success). Use 'failed' for cancelled too."
+    },
+    "error_code": {
+      "type": "string",
+      "description": "Present when status=failed. Standard codes: SCOPE_VIOLATION, VERIFICATION_FAILED, LOCK_UNAVAILABLE, TIMEOUT, cancelled_by_orchestrator, PAUSED."
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "locks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "keys"],
+      "properties": {
+        "files": { "type": "array", "items": { "$ref": "#/$defs/FilePath" }, "uniqueItems": true },
+        "keys": { "type": "array", "items": { "$ref": "#/$defs/LogicalLockKey" }, "uniqueItems": true }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["write_allow", "read_allow", "deny"],
+      "properties": {
+        "write_allow": { "type": "array", "items": { "$ref": "#/$defs/Glob" } },
+        "read_allow": { "type": "array", "items": { "$ref": "#/$defs/Glob" } },
+        "deny": { "type": "array", "items": { "$ref": "#/$defs/Glob" } }
+      },
+      "description": "Echo of the package scope for deterministic verification."
+    },
+    "files_modified": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FilePath" },
+      "uniqueItems": true,
+      "description": "From git diff --name-only; orchestrator validates ⊆ write_allow \\ deny."
+    },
+    "scope_check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "violations": { "type": "array", "items": { "$ref": "#/$defs/FilePath" }, "uniqueItems": true }
+      }
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "head"],
+      "properties": {
+        "base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ref"],
+          "properties": {
+            "ref": { "type": "string", "minLength": 1 }
+          }
+        },
+        "head": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit"],
+          "properties": {
+            "commit": { "type": "string", "minLength": 7, "maxLength": 64, "pattern": "^[0-9a-fA-F]+$" },
+            "branch": { "type": "string", "minLength": 1 },
+            "worktree": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "passed", "steps"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["A", "B", "C"] },
+        "passed": { "type": "boolean" },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/VerificationStepResult" } }
+      }
+    },
+    "contract_checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openapi_validation": {
+          "type": "object", "additionalProperties": false, "required": ["passed"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "details": { "type": "string" },
+            "artifact": { "$ref": "#/$defs/FilePath" }
+          }
+        },
+        "schemathesis": {
+          "type": "object", "additionalProperties": false, "required": ["passed"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "base_url": { "type": "string" },
+            "artifact": { "$ref": "#/$defs/FilePath" },
+            "seed": { "type": "integer" }
+          }
+        },
+        "pact_provider_verification": {
+          "type": "object", "additionalProperties": false, "required": ["passed"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "broker": { "type": "string" },
+            "artifact": { "$ref": "#/$defs/FilePath" }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ports": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "notes": { "type": "string", "maxLength": 8000 },
+    "escalations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Escalation" },
+      "description": "Escalations emitted by this package (may be empty)."
+    }
+  },
+  "$defs": {
+    "FilePath": {
+      "type": "string", "minLength": 1, "maxLength": 512,
+      "pattern": "^(?!/)(?!.*\\s+$).+"
+    },
+    "Glob": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "LogicalLockKey": {
+      "type": "string", "minLength": 1, "maxLength": 512,
+      "pattern": "^(api|db|event|flag|env|contract|feature):.+$"
+    },
+    "VerificationStepResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "passed", "evidence"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "kind": { "type": "string", "enum": ["command", "ci", "manual"] },
+        "passed": { "type": "boolean" },
+        "command": { "type": "string", "minLength": 1 },
+        "cwd": { "$ref": "#/$defs/FilePath" },
+        "exit_code": { "type": "integer" },
+        "ci": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "type": "string" },
+            "run_id": { "type": "string" },
+            "url": { "type": "string" },
+            "required_checks": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "manual": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "instructions": { "type": "string", "minLength": 1 } }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifacts", "metrics"],
+          "properties": {
+            "artifacts": { "type": "array", "items": { "$ref": "#/$defs/FilePath" } },
+            "metrics": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Machine-readable metrics (duration_seconds, test_count, etc.)."
+            }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "command" } } }, "then": { "required": ["command", "exit_code"] } },
+        { "if": { "properties": { "kind": { "const": "ci" } } }, "then": { "required": ["ci"] } },
+        { "if": { "properties": { "kind": { "const": "manual" } } }, "then": { "required": ["manual"] } }
+      ]
+    },
+    "Escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["escalation_id", "feature_id", "package_id", "type", "severity", "summary", "detected_at"],
+      "properties": {
+        "escalation_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "feature_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "package_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "CONTRACT_REVISION_REQUIRED", "PLAN_REVISION_REQUIRED", "RESOURCE_CONFLICT",
+            "VERIFICATION_INFEASIBLE", "SCOPE_VIOLATION", "ENV_RESOURCE_CONFLICT",
+            "SECURITY_ESCALATION", "FLAKY_TEST_QUARANTINE_REQUEST"
+          ]
+        },
+        "severity": { "type": "string", "enum": ["NON_BLOCKING", "LOW", "MEDIUM", "HIGH", "BLOCKING"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "details": { "type": "string", "maxLength": 8000 },
+        "detected_at": { "type": "string", "format": "date-time" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "files": { "type": "array", "items": { "$ref": "#/$defs/FilePath" }, "uniqueItems": true },
+            "logs": { "type": "array", "items": { "$ref": "#/$defs/FilePath" }, "uniqueItems": true }
+          }
+        },
+        "impact": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contract_revision_bump_required": { "type": "boolean" },
+            "plan_revision_bump_required": { "type": "boolean" },
+            "impacted_packages": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "uniqueItems": true
+            },
+            "logical_locks": { "type": "array", "items": { "$ref": "#/$defs/LogicalLockKey" }, "uniqueItems": true }
+          }
+        },
+        "proposed_action": { "type": "string", "maxLength": 2000 },
+        "requires_human": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}

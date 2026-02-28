@@ -1,0 +1,13 @@
+# Schemathesis property-based API testing configuration
+# Run with: schemathesis run <openapi-url> --base-url <base-url>
+spec: "contracts/openapi/v1.yaml"
+base_url: "http://localhost:4010"
+# Options:
+#   max_examples: 100
+#   seed: 42             # For reproducibility
+#   stateful: links      # Follow OpenAPI links for stateful testing
+#   checks:
+#     - not_a_server_error
+#     - status_code_conformance
+#     - content_type_conformance
+#     - response_schema_conformance

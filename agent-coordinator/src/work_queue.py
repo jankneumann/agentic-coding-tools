@@ -562,6 +562,34 @@ class WorkQueueService:
         tasks = await self.db.query("work_queue", query)
         return [Task.from_dict(t) for t in tasks]
 
+    async def cancel_task_convention(
+        self,
+        task_id: UUID,
+        reason: str,
+        agent_id: str | None = None,
+    ) -> CompleteResult:
+        """Cancel a task using the orchestrator cancellation convention.
+
+        Calls complete(success=False) with error_code="cancelled_by_orchestrator"
+        in the result payload. This is the standard way for an orchestrator to
+        signal that a task should be abandoned.
+
+        Args:
+            task_id: ID of the task to cancel
+            reason: Human-readable reason for cancellation
+            agent_id: Agent performing the cancellation (default: from config)
+
+        Returns:
+            CompleteResult indicating whether the cancellation was recorded
+        """
+        return await self.complete(
+            task_id=task_id,
+            success=False,
+            result={"error_code": "cancelled_by_orchestrator", "reason": reason},
+            error_message=f"Cancelled by orchestrator: {reason}",
+            agent_id=agent_id,
+        )
+
 
 # Global service instance
 _work_queue_service: WorkQueueService | None = None

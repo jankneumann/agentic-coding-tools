@@ -49,6 +49,9 @@ permit(
 // WRITE OPERATIONS — Permit for trust_level >= 2
 // ============================================================
 
+// Lock keys may be file paths (src/main.py) or logical lock keys
+// with namespace prefixes: api:, db:, event:, flag:, env:, contract:, feature:
+// See docs/lock-key-namespaces.md for the full namespace reference.
 permit(
     principal,
     action == Action::"acquire_lock",

@@ -60,6 +60,35 @@ artifacts:
       Every task traces to a requirement; every requirement to a task.
     requires: [specs]
 
+  # Parallel workflow: contract-first development and work-package decomposition
+  - id: contracts
+    generates: contracts/**/*
+    template: contracts.md
+    description: Machine-readable interface definitions for contract-first multi-agent development
+    instruction: >
+      Generate contract artifacts in a contracts/ directory. The primary artifact is an
+      OpenAPI spec (contracts/openapi/v1.yaml) defining all API endpoints. Generate
+      language-specific types from the spec: Pydantic models (contracts/generated/python/),
+      TypeScript interfaces (contracts/generated/typescript/). Add SQL schema definitions
+      for new tables (contracts/sql/), event schemas as JSON Schema (contracts/events/),
+      and Prism mock config (contracts/mocks/). All contracts are frozen per revision
+      during work-package execution.
+    requires: [proposal, specs]
+
+  - id: work-packages
+    generates: work-packages.yaml
+    template: work-packages.yaml
+    description: Versioned execution contract for DAG-scheduled multi-agent implementation
+    instruction: >
+      Decompose tasks into agent-scoped work packages in work-packages.yaml. Each package
+      declares: package_id, task_type, description, depends_on (DAG edges), priority,
+      locks (files + logical keys), scope (write_allow/read_allow/deny globs), worktree
+      config, verification steps, and outputs. Validate against
+      openspec/schemas/work-packages.schema.json. Ensure parallel packages have
+      non-overlapping write_allow scopes and non-overlapping lock keys. Include a
+      wp-integration package that merges all worktrees and runs the full test suite.
+    requires: [contracts, tasks]
+
   # Iteration artifacts: produced during refinement loops
   - id: plan-findings
     generates: plan-findings.md

@@ -6,6 +6,40 @@ A structured feature development workflow for AI-assisted coding. Skills are reu
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.
 
+## Skill Families
+
+Two skill families exist: **linear** (sequential, single-agent) and **parallel** (multi-agent, DAG-scheduled). Both share the same OpenSpec artifact structure. The core workflow skills have been renamed to `linear-*`; original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatible aliases.
+
+### Linear Skills (default)
+
+Sequential feature development with one agent per phase:
+
+```
+/linear-explore-feature [focus-area]                   Candidate feature shortlist
+/linear-plan-feature <description>                     Proposal approval gate
+  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
+/linear-implement-feature <change-id>                  PR review gate
+  /linear-iterate-on-implementation <change-id>        Refinement complete
+  /linear-validate-feature <change-id> (optional)      Live deployment verification
+/linear-cleanup-feature <change-id>                    Done
+```
+
+### Parallel Skills (requires coordinator)
+
+Multi-agent feature development with contract-first design and DAG-scheduled work packages:
+
+```
+/parallel-explore-feature [focus-area]                 Candidate shortlist + resource claim analysis
+/parallel-plan-feature <description>                   Contracts + work-packages.yaml
+  /parallel-review-plan <change-id>                    Independent plan review (vendor-diverse)
+/parallel-implement-feature <change-id>                DAG-scheduled multi-agent implementation
+  /parallel-review-implementation <change-id>          Per-package review (vendor-diverse)
+/parallel-validate-feature <change-id>                 Evidence completeness + integration checks
+/parallel-cleanup-feature <change-id>                  Merge queue + cross-feature rebase
+```
+
+See [Two-Level Parallel Development](../two-level-parallel-agentic-development.md) for the full design.
+
 ## Prerequisites
 
 - OpenSpec CLI installed (v1.0+): `npm install -g @fission-ai/openspec`
@@ -15,20 +49,20 @@ The workflow breaks feature development into discrete stages, each handled by a 
   - `openspec list --specs`
 
 ```
-/plan-feature <description>                        Proposal approval gate
-  /iterate-on-plan <change-id> (optional)          Refines plan before approval
-/implement-feature <change-id>                     PR review gate
-  /iterate-on-implementation <change-id> (optional)    Refinement complete
-  /refresh-architecture [mode] (optional)          Regenerate/validate architecture artifacts
-  /validate-feature <change-id> (optional)         Live deployment verification (includes security scanning)
-/cleanup-feature <change-id>                       Done
+/linear-plan-feature <description>                     Proposal approval gate
+  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
+/linear-implement-feature <change-id>                  PR review gate
+  /linear-iterate-on-implementation <change-id>        Refinement complete
+  /refresh-architecture [mode] (optional)              Regenerate/validate architecture artifacts
+  /linear-validate-feature <change-id> (optional)      Live deployment verification (includes security scanning)
+/linear-cleanup-feature <change-id>                    Done
 ```
 
 Optional discovery stage before planning:
 
 ```
-/explore-feature [focus-area]                      Candidate feature shortlist
-/refresh-architecture (optional)                   Fresh architecture context for planning
+/linear-explore-feature [focus-area]                   Candidate feature shortlist
+/refresh-architecture (optional)                       Fresh architecture context for planning
 ```
 
 Architecture refresh callout:
@@ -144,7 +178,7 @@ skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python
 Verify representative integrated skills match canonical content:
 
 ```bash
-for skill in explore-feature plan-feature implement-feature iterate-on-plan iterate-on-implementation validate-feature cleanup-feature security-review setup-coordinator; do
+for skill in linear-explore-feature linear-plan-feature linear-implement-feature linear-iterate-on-plan linear-iterate-on-implementation linear-validate-feature linear-cleanup-feature security-review setup-coordinator; do
   diff -u "skills/$skill/SKILL.md" ".claude/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".codex/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".gemini/skills/$skill/SKILL.md"
@@ -375,6 +409,73 @@ Every non-trivial feature starts with an [OpenSpec](https://github.com/fission-a
 ### Cross-agent parity is explicit
 
 Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to plan/apply/validate/archive intent. If one runtime drifts, docs and skill mappings should be corrected before rollout.
+
+## Parallel Workflow Details
+
+### Work-Packages Lifecycle
+
+The parallel workflow decomposes features into work packages defined in `work-packages.yaml`:
+
+1. **Plan** — `/parallel-plan-feature` produces `contracts/` and `work-packages.yaml` with package definitions, dependency DAG, scope declarations, and lock key claims.
+2. **Validate** — `scripts/validate_work_packages.py` validates against `work-packages.schema.json`: schema compliance, DAG acyclicity, lock key canonicalization, and scope non-overlap via `scripts/parallel_zones.py --validate-packages`.
+3. **Submit** — The orchestrator submits each package as a work queue task with `input_data` containing the package definition and context slice.
+4. **Execute** — Per-package agents claim tasks, acquire locks, implement within scope boundaries, and produce structured results conforming to `work-queue-result.schema.json`.
+5. **Review** — `/parallel-review-implementation` dispatches independent reviews per package. Review findings use `review-findings.schema.json` with dispositions: `fix`, `regenerate`, `accept`, `escalate`.
+6. **Integrate** — A `wp-integration` merge package runs the full test suite across all completed packages.
+7. **Validate** — `/parallel-validate-feature` audits evidence completeness across all package results.
+
+### DAG Scheduling
+
+The DAG scheduler (`skills/parallel-implement-feature/scripts/dag_scheduler.py`) manages Phase A preflight:
+
+- **Topological ordering** via Kahn's algorithm with `sorted()` for deterministic peer ordering
+- **Contract validation** — verifies all contract files referenced in packages exist
+- **Context slicing** — each package agent receives only its bounded context (package definition + relevant contracts subset)
+- **Task submission** — converts packages to work queue submissions with proper `depends_on` chains
+- **State tracking** — packages progress through: PENDING → READY → SUBMITTED → IN_PROGRESS → COMPLETED/FAILED/CANCELLED
+
+### Package Execution Protocol
+
+Each package agent follows Phase B (`skills/parallel-implement-feature/scripts/package_executor.py`):
+
+1. **Pause-lock check** (B2/B9) — checks for `feature:<id>:pause` lock before starting and before completing
+2. **Deadlock-safe lock acquisition** (B3) — acquires all locks in sorted global order
+3. **Implementation** — codes against contracts and mocks, not against other agents' code
+4. **Scope enforcement** (B7) — post-hoc deterministic check via `fnmatch` against `write_allow`/`write_deny` globs
+5. **Structured result** (B10) — produces result conforming to `work-queue-result.schema.json`
+
+### Escalation Handling
+
+The escalation handler (`skills/parallel-implement-feature/scripts/escalation_handler.py`) implements deterministic decisions for 8 escalation types:
+
+| Type | Action | Description |
+|------|--------|-------------|
+| `CONTRACT_REVISION_REQUIRED` | Pause + reschedule | Contract needs update, bump revision |
+| `PLAN_REVISION_REQUIRED` | Pause + replan | Work packages need restructuring |
+| `RESOURCE_CONFLICT` | Retry package | Lock contention with another feature |
+| `VERIFICATION_INFEASIBLE` | Fail package | Cannot meet verification requirements |
+| `SCOPE_VIOLATION` | Fail package | Package modified files outside scope |
+| `ENV_RESOURCE_CONFLICT` | Retry package | Environment resource contention |
+| `SECURITY_ESCALATION` | Require human | Security issue needs human review |
+| `FLAKY_TEST_QUARANTINE_REQUEST` | Quarantine + retry | Flaky test excluded, re-run |
+
+### Circuit Breaking
+
+The circuit breaker (`skills/parallel-implement-feature/scripts/circuit_breaker.py`) monitors agent health:
+
+- **Heartbeat detection** — packages exceeding their `timeout_minutes` without heartbeat are flagged as stuck
+- **Retry budget enforcement** — each package has a `retry_budget`; exhausted budgets trip the breaker
+- **Cancellation propagation** — when a package is tripped, all transitive dependents are cancelled via `cancel_task_convention`
+
+### Cross-Feature Coordination
+
+The feature registry (`agent-coordinator/src/feature_registry.py`) and merge queue (`agent-coordinator/src/merge_queue.py`) manage program-level coordination:
+
+- **Registration** — features register resource claims (lock keys) before implementation
+- **Conflict analysis** — detects lock-key overlaps between active features
+- **Feasibility assessment** — classifies parallelizability as `FULL` (no overlaps), `PARTIAL` (some shared resources), or `SEQUENTIAL` (too many conflicts)
+- **Merge queue** — orders merges by priority, runs pre-merge conflict re-validation
+- **Resource lifecycle** — deregisters claims on merge, freeing resources for other features
 
 ## Formal Specification
 

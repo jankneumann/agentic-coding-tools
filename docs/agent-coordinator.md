@@ -10,8 +10,8 @@ When multiple AI agents work on the same codebase simultaneously, they face merg
 
 | Capability | Description |
 |------------|-------------|
-| **File Locking** | Exclusive locks with TTL and auto-expiration prevent concurrent edits to the same file |
-| **Work Queue** | Task assignment with priorities, dependencies, and atomic claiming prevents double-work |
+| **File Locking** | Exclusive locks with TTL and auto-expiration prevent concurrent edits. Supports both file paths and logical lock keys (`api:`, `db:`, `event:`, `flag:`, `env:`, `contract:`, `feature:` namespaces) |
+| **Work Queue** | Task assignment with priorities, dependencies, and atomic claiming prevents double-work. Includes `get_task` by ID and orchestrator cancellation convention |
 | **Session Handoffs** | Structured handoff documents preserve context across agent sessions |
 | **Agent Discovery** | Agents register capabilities and status, enabling peers to find collaborators |
 | **Heartbeat Monitoring** | Periodic heartbeats detect unresponsive agents; stale agents' locks are auto-released |
@@ -23,6 +23,8 @@ When multiple AI agents work on the same codebase simultaneously, they face merg
 | **Cedar Policy Engine** | Optional AWS Cedar-based authorization (alternative to native profiles) |
 | **GitHub Coordination** | Branch tracking, label locks, webhook-driven sync for restricted-network agents |
 | **MCP Integration** | Native tool integration with Claude Code and other MCP clients via stdio transport |
+| **Feature Registry** | Cross-feature resource claim management with conflict analysis and parallel feasibility assessment (`FULL`/`PARTIAL`/`SEQUENTIAL`) |
+| **Merge Queue** | Priority-ordered merge queue with pre-merge conflict re-validation for cross-feature coordination |
 
 ## Skill Integration Patterns
 
@@ -54,6 +56,10 @@ Hooks are capability-gated and best-effort. Coordinator failures are reported in
 | `/cleanup-feature` | handoff read/write (`CAN_HANDOFF`), lock cleanup best-effort (`CAN_LOCK`) |
 | `/security-review` | guardrail pre-check reporting (`CAN_GUARDRAILS`) |
 | `/explore-feature` | memory recall (`CAN_MEMORY`) |
+| `/parallel-implement-feature` | lock (`CAN_LOCK`), queue (`CAN_QUEUE_WORK`), guardrails (`CAN_GUARDRAILS`), handoff (`CAN_HANDOFF`), discover (`CAN_DISCOVER`), audit (`CAN_AUDIT`) |
+| `/parallel-plan-feature` | handoff (`CAN_HANDOFF`), memory (`CAN_MEMORY`), discover (`CAN_DISCOVER`), policy (`CAN_POLICY`) |
+| `/parallel-cleanup-feature` | lock cleanup (`CAN_LOCK`), handoff (`CAN_HANDOFF`), audit (`CAN_AUDIT`), memory (`CAN_MEMORY`) |
+| `/parallel-validate-feature` | guardrails (`CAN_GUARDRAILS`), handoff (`CAN_HANDOFF`), memory (`CAN_MEMORY`), audit (`CAN_AUDIT`) |
 
 ### Setup Guidance
 
@@ -108,10 +114,10 @@ Local agents connect via MCP (stdio transport). Cloud agents with restricted net
 
 ### Implementation Details
 
-- **Database**: 10 migrations, 10+ tables, 15+ PL/pgSQL functions, DatabaseClient protocol with Supabase and asyncpg backends
-- **MCP Server**: 18 tools + 7 resources
-- **Services**: Locks, Work Queue, Handoffs, Discovery, Memory, Guardrails, Profiles, Audit, Network Policies, Policy Engine (Cedar + Native), GitHub Coordination
-- **Tests**: 250+ unit tests (respx mocks)
+- **Database**: 12 migrations, 12+ tables, 17+ PL/pgSQL functions, DatabaseClient protocol with Supabase and asyncpg backends
+- **MCP Server**: 19 tools + 7 resources
+- **Services**: Locks (with logical lock key namespaces), Work Queue (with `get_task` and cancellation convention), Handoffs, Discovery, Memory, Guardrails, Profiles, Audit, Network Policies, Policy Engine (Cedar + Native), GitHub Coordination, Feature Registry, Merge Queue
+- **Tests**: 300+ unit tests (respx mocks + AsyncMock)
 
 ## MCP Tools
 
@@ -121,7 +127,8 @@ Local agents connect via MCP (stdio transport). Cloud agents with restricted net
 | `release_lock` | Release a lock when done editing |
 | `check_locks` | See which files are currently locked |
 | `get_work` | Claim a task from the work queue |
-| `complete_work` | Mark a claimed task as completed/failed (with guardrails pre-check) |
+| `get_task` | Get a specific task by ID (for orchestrator status polling) |
+| `complete_work` | Mark a claimed task as completed/failed (with guardrails pre-check). Supports `cancel_task_convention` with `error_code="cancelled_by_orchestrator"` |
 | `submit_work` | Add a new task to the work queue |
 | `write_handoff` | Create a structured session handoff |
 | `read_handoff` | Read the latest handoff document |
@@ -135,6 +142,67 @@ Local agents connect via MCP (stdio transport). Cloud agents with restricted net
 | `query_audit` | Query the audit trail |
 | `check_policy` | Check operation authorization (Cedar/native) |
 | `validate_cedar_policy` | Validate Cedar policy syntax |
+
+## Parallel Workflow Coordinator Extensions
+
+### Logical Lock Keys
+
+Beyond file paths, the lock service accepts logical lock keys with namespace prefixes:
+
+| Prefix | Example | Purpose |
+|--------|---------|---------|
+| `api:` | `api:/auth/login` | API route ownership |
+| `db:` | `db:users` | Database table/migration ownership |
+| `event:` | `event:user.created` | Event schema ownership |
+| `flag:` | `flag:dark-mode` | Feature flag ownership |
+| `env:` | `env:DATABASE_URL` | Environment variable ownership |
+| `contract:` | `contract:auth-api` | Contract artifact ownership |
+| `feature:` | `feature:add-auth:pause` | Feature-level coordination (pause-lock) |
+
+See [`docs/lock-key-namespaces.md`](lock-key-namespaces.md) for the full namespace reference.
+
+### `get_task` API
+
+The `get_task(task_id)` endpoint enables orchestrators to poll task status by ID:
+
+- **MCP**: `get_task` tool
+- **HTTP**: `GET /api/v1/tasks/{task_id}`
+
+This is used by the DAG scheduler to monitor package progress during parallel execution.
+
+### Cancellation Convention
+
+The `cancel_task_convention(task_id, reason)` helper standardizes orchestrator-initiated task cancellation:
+
+```python
+await work_queue.cancel_task_convention(
+    task_id=task_id,
+    reason="contract revision bump required"
+)
+# Calls complete(success=False) with error_code="cancelled_by_orchestrator"
+```
+
+### Feature Registry
+
+The feature registry (`src/feature_registry.py`) manages cross-feature resource claims:
+
+- **Register**: declare lock keys a feature will use before implementation
+- **Conflict analysis**: detect overlapping claims between active features
+- **Feasibility assessment**: classify as `FULL` (no overlaps), `PARTIAL` (some), or `SEQUENTIAL` (too many)
+- **Deregister**: free claims when a feature completes or is cancelled
+
+Backed by `feature_registry` table (migration `012_feature_registry.sql`).
+
+### Merge Queue
+
+The merge queue (`src/merge_queue.py`) orders feature merges by priority:
+
+- **Enqueue**: add a feature's PR to the merge queue
+- **Pre-merge checks**: re-validate resource conflicts before merging
+- **Priority ordering**: features merge in `merge_priority` order (1=highest)
+- **Mark merged**: deregister feature and free its resource claims
+
+Uses feature registry metadata for queue state (no separate table).
 
 ## Future Capabilities
 

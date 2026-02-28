@@ -2,9 +2,13 @@
 
 Provides distributed file locking to prevent concurrent edits by multiple agents.
 Locks are stored in Supabase with automatic TTL expiration.
+
+Supports both file path locks and logical lock keys with namespace prefixes.
+See docs/lock-key-namespaces.md for the full namespace reference.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -14,6 +18,28 @@ from .config import get_config
 from .db import DatabaseClient, get_db
 
 logger = logging.getLogger(__name__)
+
+# Permitted logical lock key namespace prefixes.
+# Keys matching these prefixes are treated as logical resource locks
+# rather than file path locks. Both share the same acquire/release API.
+LOGICAL_LOCK_KEY_PREFIXES = frozenset(
+    ["api:", "db:", "event:", "flag:", "env:", "contract:", "feature:"]
+)
+
+# Pattern for valid logical lock keys
+LOGICAL_LOCK_KEY_PATTERN = re.compile(
+    r"^(api|db|event|flag|env|contract|feature):.+$"
+)
+
+# Pattern for valid file paths (repo-relative, no leading slash)
+FILE_PATH_PATTERN = re.compile(r"^(?!/)(?!.*\s+$).+$")
+
+
+def is_valid_lock_key(key: str) -> bool:
+    """Check whether a lock key is a valid file path or logical lock key."""
+    if not key or not key.strip():
+        return False
+    return bool(LOGICAL_LOCK_KEY_PATTERN.match(key) or FILE_PATH_PATTERN.match(key))
 
 
 @dataclass
