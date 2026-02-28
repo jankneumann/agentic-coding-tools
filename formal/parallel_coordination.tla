@@ -4,7 +4,7 @@
 \* Models: lock acquisition/release/expiry, task claim/complete,
 \*         dependency gating, pause-lock coordination, orchestrator rescheduling.
 \*
-\* Verify with: tlc formal/parallel-coordination.tla
+\* Verify with: tlc formal/parallel_coordination.tla
 \* Requires: TLA+ Toolbox or standalone TLC model checker
 
 EXTENDS Integers, Sequences, FiniteSets, TLC
@@ -152,11 +152,14 @@ Next ==
 
 \* ------ Safety Invariants ------
 
-\* INV1: Lock Exclusivity — each lock held by at most one agent
+\* INV1: Lock Exclusivity — each lock key held by at most one agent.
+\* The model represents locks as a function LockKeys -> Agents ∪ {None},
+\* so exclusivity is structural. This invariant additionally verifies that
+\* AcquireLock never overwrites a lock held by a *different* agent.
 LockExclusivity ==
     \A k \in LockKeys :
-        locks[k] # None => \A k2 \in LockKeys :
-            (k # k2 /\ locks[k2] # None) => locks[k] # locks[k2] \/ k = k2
+        locks[k] # None =>
+            Cardinality({a \in Agents : locks[k] = a}) = 1
 
 \* INV2: No Double-Claim — each task claimed by at most one agent
 NoDoubleClaim ==

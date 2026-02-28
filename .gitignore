@@ -211,3 +211,11 @@ __marimo__/
 
 # Git worktrees (used by OpenSpec skills for feature isolation)
 .git-worktrees/
+
+# TLA+ TLC model checker artifacts
+states/
+*_TTrace_*.tla
+*_TTrace_*.bin
+
+# Lean 4 build artifacts
+formal/lean/.lake/

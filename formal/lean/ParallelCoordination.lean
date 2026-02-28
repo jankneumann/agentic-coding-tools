@@ -42,7 +42,7 @@ structure CoordState where
   pausedFeatures : List String
 
 -- Initial state constructor
-def CoordState.init (taskIds : List TaskId) : CoordState :=
+def CoordState.init (_taskIds : List TaskId) : CoordState :=
   { lockState := fun _ => none
   , tasks := fun _ => { status := .pending, claimedBy := none, deps := [] }
   , pausedFeatures := []
@@ -53,7 +53,7 @@ def canAcquireLock (s : CoordState) (key : LockKey) (agent : AgentId) : Prop :=
   s.lockState key = none ∨ s.lockState key = some agent
 
 -- Task claim precondition
-def canClaimTask (s : CoordState) (taskId : TaskId) (agent : AgentId) : Prop :=
+def canClaimTask (s : CoordState) (taskId : TaskId) (_agent : AgentId) : Prop :=
   (s.tasks taskId).status = .pending ∧
   ∀ dep ∈ (s.tasks taskId).deps, (s.tasks dep).status = .completed
 
