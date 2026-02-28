@@ -62,6 +62,9 @@
         "guardrails",
         "profiles",
         "audit",
+        "asyncio",
+        "fastapi.responses",
+        "asyncpg",
         "uvicorn"
       ]
     },
@@ -104,6 +107,7 @@
       "name": "db_postgres",
       "file": "db_postgres.py",
       "imports": [
+        "json",
         "re",
         "typing",
         "uuid",
@@ -545,8 +549,8 @@
       "name": "from_env",
       "qualified_name": "config.SupabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 47,
-      "line_end": 60,
+      "line_start": 50,
+      "line_end": 63,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -570,8 +574,8 @@
       "name": "from_env",
       "qualified_name": "config.AgentConfig.from_env",
       "file": "config.py",
-      "line_start": 72,
-      "line_end": 84,
+      "line_start": 75,
+      "line_end": 87,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -595,8 +599,8 @@
       "name": "from_env",
       "qualified_name": "config.LockConfig.from_env",
       "file": "config.py",
-      "line_start": 95,
-      "line_end": 98,
+      "line_start": 98,
+      "line_end": 101,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -620,8 +624,8 @@
       "name": "from_env",
       "qualified_name": "config.PostgresConfig.from_env",
       "file": "config.py",
-      "line_start": 110,
-      "line_end": 115,
+      "line_start": 113,
+      "line_end": 118,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -645,8 +649,8 @@
       "name": "from_env",
       "qualified_name": "config.DatabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 126,
-      "line_end": 130,
+      "line_start": 129,
+      "line_end": 133,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -670,8 +674,8 @@
       "name": "from_env",
       "qualified_name": "config.GuardrailsConfig.from_env",
       "file": "config.py",
-      "line_start": 141,
-      "line_end": 150,
+      "line_start": 144,
+      "line_end": 153,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -696,8 +700,8 @@
       "name": "from_env",
       "qualified_name": "config.ProfilesConfig.from_env",
       "file": "config.py",
-      "line_start": 162,
-      "line_end": 174,
+      "line_start": 165,
+      "line_end": 177,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -722,8 +726,8 @@
       "name": "from_env",
       "qualified_name": "config.AuditConfig.from_env",
       "file": "config.py",
-      "line_start": 185,
-      "line_end": 189,
+      "line_start": 188,
+      "line_end": 192,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -748,8 +752,8 @@
       "name": "from_env",
       "qualified_name": "config.NetworkPolicyConfig.from_env",
       "file": "config.py",
-      "line_start": 199,
-      "line_end": 202,
+      "line_start": 202,
+      "line_end": 205,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -772,8 +776,8 @@
       "name": "from_env",
       "qualified_name": "config.PolicyEngineConfig.from_env",
       "file": "config.py",
-      "line_start": 215,
-      "line_end": 226,
+      "line_start": 218,
+      "line_end": 229,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -798,8 +802,8 @@
       "name": "from_env",
       "qualified_name": "config.PortAllocatorConfig.from_env",
       "file": "config.py",
-      "line_start": 239,
-      "line_end": 245,
+      "line_start": 242,
+      "line_end": 248,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -824,8 +828,8 @@
       "name": "from_env",
       "qualified_name": "config.ApiConfig.from_env",
       "file": "config.py",
-      "line_start": 258,
-      "line_end": 274,
+      "line_start": 264,
+      "line_end": 283,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -836,7 +840,8 @@
         "raw_keys.split",
         "json.loads",
         "cls",
-        "int"
+        "int",
+        "os.environ.get.lower"
       ],
       "called_by": [
         "config.Config.from_env"
@@ -852,15 +857,16 @@
       "name": "from_env",
       "qualified_name": "config.Config.from_env",
       "file": "config.py",
-      "line_start": 300,
-      "line_end": 314,
+      "line_start": 309,
+      "line_end": 331,
       "is_async": false,
       "decorators": [
         "classmethod"
       ],
       "calls": [
-        "cls",
+        "os.environ.get",
         "SupabaseConfig.from_env",
+        "cls",
         "AgentConfig.from_env",
         "LockConfig.from_env",
         "DatabaseConfig.from_env",
@@ -877,7 +883,8 @@
       ],
       "db_tables": [],
       "tags": [
-        "classmethod"
+        "classmethod",
+        "db_access"
       ],
       "docstring": "Load complete configuration from environment variables."
     },
@@ -885,8 +892,8 @@
       "name": "get_config",
       "qualified_name": "config.get_config",
       "file": "config.py",
-      "line_start": 321,
-      "line_end": 326,
+      "line_start": 338,
+      "line_end": 343,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -896,6 +903,8 @@
         "audit.AuditService.log_operation",
         "coordination_api.verify_api_key",
         "coordination_api.resolve_trust_level",
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.health",
         "coordination_api.main",
         "coordination_mcp.get_agent_id",
         "coordination_mcp.get_agent_type",
@@ -932,8 +941,8 @@
       "name": "reset_config",
       "qualified_name": "config.reset_config",
       "file": "config.py",
-      "line_start": 329,
-      "line_end": 332,
+      "line_start": 346,
+      "line_end": 349,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1052,7 +1061,7 @@
       "qualified_name": "coordination_api.create_coordination_api",
       "file": "coordination_api.py",
       "line_start": 192,
-      "line_end": 650,
+      "line_end": 676,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1094,11 +1103,15 @@
         "get_port_allocator.release",
         "get_port_allocator.status",
         "max",
-        "time.time"
+        "time.time",
+        "get_config",
+        "asyncio.wait_for",
+        "asyncpg.connect",
+        "conn.fetchval",
+        "conn.close",
+        "JSONResponse"
       ],
-      "called_by": [
-        "coordination_api.main"
-      ],
+      "called_by": [],
       "db_tables": [],
       "tags": [
         "db_access"
@@ -1452,26 +1465,33 @@
       "qualified_name": "coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
       "line_start": 646,
-      "line_end": 648,
+      "line_end": 674,
       "is_async": true,
       "decorators": [
         "app.get('/health')"
       ],
-      "calls": [],
+      "calls": [
+        "get_config",
+        "asyncio.wait_for",
+        "asyncpg.connect",
+        "conn.fetchval",
+        "conn.close",
+        "JSONResponse"
+      ],
       "called_by": [],
       "db_tables": [],
       "tags": [
         "async",
         "entry_point"
       ],
-      "docstring": "Health check endpoint."
+      "docstring": "Health check endpoint with database connectivity check."
     },
     {
       "name": "main",
       "qualified_name": "coordination_api.main",
       "file": "coordination_api.py",
-      "line_start": 658,
-      "line_end": 674,
+      "line_start": 684,
+      "line_end": 707,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1479,7 +1499,6 @@
         "arg.startswith",
         "arg.split",
         "int",
-        "create_coordination_api",
         "uvicorn.run"
       ],
       "called_by": [],
@@ -2387,13 +2406,14 @@
       "qualified_name": "db.SupabaseClient.config",
       "file": "db.py",
       "line_start": 85,
-      "line_end": 88,
+      "line_end": 93,
       "is_async": false,
       "decorators": [
         "property"
       ],
       "calls": [
-        "get_config"
+        "get_config",
+        "RuntimeError"
       ],
       "called_by": [],
       "db_tables": [],
@@ -2406,8 +2426,8 @@
       "name": "client",
       "qualified_name": "db.SupabaseClient.client",
       "file": "db.py",
-      "line_start": 91,
-      "line_end": 94,
+      "line_start": 96,
+      "line_end": 99,
       "is_async": false,
       "decorators": [
         "property"
@@ -2426,8 +2446,8 @@
       "name": "_headers",
       "qualified_name": "db.SupabaseClient._headers",
       "file": "db.py",
-      "line_start": 96,
-      "line_end": 102,
+      "line_start": 101,
+      "line_end": 107,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -2442,8 +2462,8 @@
       "name": "rpc",
       "qualified_name": "db.SupabaseClient.rpc",
       "file": "db.py",
-      "line_start": 104,
-      "line_end": 123,
+      "line_start": 109,
+      "line_end": 128,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2463,8 +2483,8 @@
       "name": "query",
       "qualified_name": "db.SupabaseClient.query",
       "file": "db.py",
-      "line_start": 125,
-      "line_end": 147,
+      "line_start": 130,
+      "line_end": 152,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2485,8 +2505,8 @@
       "name": "insert",
       "qualified_name": "db.SupabaseClient.insert",
       "file": "db.py",
-      "line_start": 149,
-      "line_end": 177,
+      "line_start": 154,
+      "line_end": 182,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2506,8 +2526,8 @@
       "name": "update",
       "qualified_name": "db.SupabaseClient.update",
       "file": "db.py",
-      "line_start": 179,
-      "line_end": 210,
+      "line_start": 184,
+      "line_end": 215,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2529,8 +2549,8 @@
       "name": "delete",
       "qualified_name": "db.SupabaseClient.delete",
       "file": "db.py",
-      "line_start": 212,
-      "line_end": 230,
+      "line_start": 217,
+      "line_end": 235,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2552,8 +2572,8 @@
       "name": "close",
       "qualified_name": "db.SupabaseClient.close",
       "file": "db.py",
-      "line_start": 232,
-      "line_end": 236,
+      "line_start": 237,
+      "line_end": 241,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2570,8 +2590,8 @@
       "name": "create_db_client",
       "qualified_name": "db.create_db_client",
       "file": "db.py",
-      "line_start": 239,
-      "line_end": 259,
+      "line_start": 244,
+      "line_end": 264,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2592,8 +2612,8 @@
       "name": "get_db",
       "qualified_name": "db.get_db",
       "file": "db.py",
-      "line_start": 266,
-      "line_end": 271,
+      "line_start": 271,
+      "line_end": 276,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2621,8 +2641,8 @@
       "name": "close_db",
       "qualified_name": "db.close_db",
       "file": "db.py",
-      "line_start": 274,
-      "line_end": 279,
+      "line_start": 279,
+      "line_end": 284,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2639,8 +2659,8 @@
       "name": "reset_db",
       "qualified_name": "db.reset_db",
       "file": "db.py",
-      "line_start": 282,
-      "line_end": 285,
+      "line_start": 287,
+      "line_end": 290,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -2653,8 +2673,8 @@
       "name": "_coerce_filter_value",
       "qualified_name": "db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line_start": 24,
-      "line_end": 42,
+      "line_start": 25,
+      "line_end": 43,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2677,8 +2697,8 @@
       "name": "_validate_identifier",
       "qualified_name": "db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line_start": 45,
-      "line_end": 50,
+      "line_start": 46,
+      "line_end": 51,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2705,8 +2725,8 @@
       "name": "_validate_select_clause",
       "qualified_name": "db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line_start": 53,
-      "line_end": 62,
+      "line_start": 54,
+      "line_end": 63,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2727,11 +2747,34 @@
       "docstring": "Validate a restricted SELECT projection string."
     },
     {
+      "name": "_serialize_for_asyncpg",
+      "qualified_name": "db_postgres._serialize_for_asyncpg",
+      "file": "db_postgres.py",
+      "line_start": 66,
+      "line_end": 75,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "json.dumps"
+      ],
+      "called_by": [
+        "db_postgres.DirectPostgresClient.rpc",
+        "db_postgres.DirectPostgresClient.insert",
+        "db_postgres.DirectPostgresClient.update"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Serialize dict values to JSON strings for asyncpg jsonb columns.\n\nasyncpg requires JSON strings (not Python dicts) when binding\nparameters to jsonb columns. Lists are left as-is because asyncpg\nhandles PostgreSQL array types (TEXT[], etc.) natively."
+    },
+    {
       "name": "__init__",
       "qualified_name": "db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line_start": 72,
-      "line_end": 74,
+      "line_start": 85,
+      "line_end": 87,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2748,8 +2791,8 @@
       "name": "_get_pool",
       "qualified_name": "db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line_start": 76,
-      "line_end": 83,
+      "line_start": 89,
+      "line_end": 96,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2767,8 +2810,8 @@
       "name": "rpc",
       "qualified_name": "db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line_start": 85,
-      "line_end": 107,
+      "line_start": 98,
+      "line_end": 126,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2776,11 +2819,14 @@
         "self._get_pool",
         "list",
         "params.keys",
+        "_serialize_for_asyncpg",
         "params.values",
         "join",
         "enumerate",
         "pool.acquire",
-        "conn.fetchrow"
+        "conn.fetchrow",
+        "isinstance",
+        "json.loads"
       ],
       "called_by": [],
       "db_tables": [],
@@ -2793,8 +2839,8 @@
       "name": "query",
       "qualified_name": "db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line_start": 109,
-      "line_end": 185,
+      "line_start": 128,
+      "line_end": 204,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2830,8 +2876,8 @@
       "name": "insert",
       "qualified_name": "db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line_start": 187,
-      "line_end": 213,
+      "line_start": 206,
+      "line_end": 232,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2839,6 +2885,7 @@
         "list",
         "data.keys",
         "_validate_identifier",
+        "_serialize_for_asyncpg",
         "data.values",
         "join",
         "range",
@@ -2860,8 +2907,8 @@
       "name": "update",
       "qualified_name": "db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line_start": 215,
-      "line_end": 255,
+      "line_start": 234,
+      "line_end": 274,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2870,6 +2917,7 @@
         "data.items",
         "set_parts.append",
         "values.append",
+        "_serialize_for_asyncpg",
         "match.items",
         "where_parts.append",
         "join",
@@ -2890,8 +2938,8 @@
       "name": "delete",
       "qualified_name": "db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line_start": 257,
-      "line_end": 277,
+      "line_start": 276,
+      "line_end": 296,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -2917,8 +2965,8 @@
       "name": "close",
       "qualified_name": "db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line_start": 279,
-      "line_end": 283,
+      "line_start": 298,
+      "line_end": 302,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -5774,8 +5822,8 @@
       "name": "SupabaseConfig",
       "qualified_name": "config.SupabaseConfig",
       "file": "config.py",
-      "line_start": 39,
-      "line_end": 60,
+      "line_start": 42,
+      "line_end": 63,
       "bases": [],
       "methods": [
         "from_env"
@@ -5788,8 +5836,8 @@
       "name": "AgentConfig",
       "qualified_name": "config.AgentConfig",
       "file": "config.py",
-      "line_start": 64,
-      "line_end": 84,
+      "line_start": 67,
+      "line_end": 87,
       "bases": [],
       "methods": [
         "from_env"
@@ -5802,8 +5850,8 @@
       "name": "LockConfig",
       "qualified_name": "config.LockConfig",
       "file": "config.py",
-      "line_start": 88,
-      "line_end": 98,
+      "line_start": 91,
+      "line_end": 101,
       "bases": [],
       "methods": [
         "from_env"
@@ -5816,8 +5864,8 @@
       "name": "PostgresConfig",
       "qualified_name": "config.PostgresConfig",
       "file": "config.py",
-      "line_start": 102,
-      "line_end": 115,
+      "line_start": 105,
+      "line_end": 118,
       "bases": [],
       "methods": [
         "from_env"
@@ -5830,8 +5878,8 @@
       "name": "DatabaseConfig",
       "qualified_name": "config.DatabaseConfig",
       "file": "config.py",
-      "line_start": 119,
-      "line_end": 130,
+      "line_start": 122,
+      "line_end": 133,
       "bases": [],
       "methods": [
         "from_env"
@@ -5844,8 +5892,8 @@
       "name": "GuardrailsConfig",
       "qualified_name": "config.GuardrailsConfig",
       "file": "config.py",
-      "line_start": 134,
-      "line_end": 150,
+      "line_start": 137,
+      "line_end": 153,
       "bases": [],
       "methods": [
         "from_env"
@@ -5858,8 +5906,8 @@
       "name": "ProfilesConfig",
       "qualified_name": "config.ProfilesConfig",
       "file": "config.py",
-      "line_start": 154,
-      "line_end": 174,
+      "line_start": 157,
+      "line_end": 177,
       "bases": [],
       "methods": [
         "from_env"
@@ -5872,8 +5920,8 @@
       "name": "AuditConfig",
       "qualified_name": "config.AuditConfig",
       "file": "config.py",
-      "line_start": 178,
-      "line_end": 189,
+      "line_start": 181,
+      "line_end": 192,
       "bases": [],
       "methods": [
         "from_env"
@@ -5886,8 +5934,8 @@
       "name": "NetworkPolicyConfig",
       "qualified_name": "config.NetworkPolicyConfig",
       "file": "config.py",
-      "line_start": 193,
-      "line_end": 202,
+      "line_start": 196,
+      "line_end": 205,
       "bases": [],
       "methods": [
         "from_env"
@@ -5900,8 +5948,8 @@
       "name": "PolicyEngineConfig",
       "qualified_name": "config.PolicyEngineConfig",
       "file": "config.py",
-      "line_start": 206,
-      "line_end": 226,
+      "line_start": 209,
+      "line_end": 229,
       "bases": [],
       "methods": [
         "from_env"
@@ -5914,8 +5962,8 @@
       "name": "PortAllocatorConfig",
       "qualified_name": "config.PortAllocatorConfig",
       "file": "config.py",
-      "line_start": 230,
-      "line_end": 245,
+      "line_start": 233,
+      "line_end": 248,
       "bases": [],
       "methods": [
         "from_env"
@@ -5928,8 +5976,8 @@
       "name": "ApiConfig",
       "qualified_name": "config.ApiConfig",
       "file": "config.py",
-      "line_start": 249,
-      "line_end": 274,
+      "line_start": 252,
+      "line_end": 283,
       "bases": [],
       "methods": [
         "from_env"
@@ -5942,8 +5990,8 @@
       "name": "Config",
       "qualified_name": "config.Config",
       "file": "config.py",
-      "line_start": 278,
-      "line_end": 314,
+      "line_start": 287,
+      "line_end": 331,
       "bases": [],
       "methods": [
         "from_env"
@@ -6110,7 +6158,7 @@
       "qualified_name": "db.SupabaseClient",
       "file": "db.py",
       "line_start": 73,
-      "line_end": 236,
+      "line_end": 241,
       "bases": [],
       "methods": [
         "__init__",
@@ -6130,8 +6178,8 @@
       "name": "DirectPostgresClient",
       "qualified_name": "db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line_start": 65,
-      "line_end": 283,
+      "line_start": 78,
+      "line_end": 302,
       "bases": [],
       "methods": [
         "__init__",
@@ -6917,6 +6965,18 @@
     },
     {
       "from": "coordination_api",
+      "to": "asyncio"
+    },
+    {
+      "from": "coordination_api",
+      "to": "fastapi.responses"
+    },
+    {
+      "from": "coordination_api",
+      "to": "asyncpg"
+    },
+    {
+      "from": "coordination_api",
       "to": "uvicorn"
     },
     {
@@ -6998,6 +7058,10 @@
     {
       "from": "db",
       "to": "db_postgres"
+    },
+    {
+      "from": "db_postgres",
+      "to": "json"
     },
     {
       "from": "db_postgres",
@@ -7736,6 +7800,11 @@
       "pattern": "orm"
     },
     {
+      "function": "config.Config.from_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "coordination_api.verify_api_key",
       "tables": [],
       "pattern": "orm"
@@ -8007,7 +8076,7 @@
     }
   ],
   "summary": {
-    "total_functions": 240,
+    "total_functions": 241,
     "total_classes": 75,
     "total_modules": 20,
     "async_functions": 111,
@@ -8021,6 +8090,7 @@
       "audit.AuditService.timed",
       "config.reset_config",
       "coordination_api.verify_api_key",
+      "coordination_api.create_coordination_api",
       "coordination_api.main",
       "coordination_mcp.main",
       "db.DatabaseClient.rpc",
@@ -8126,7 +8196,7 @@
     "hot_functions": [
       {
         "name": "config.get_config",
-        "caller_count": 30
+        "caller_count": 32
       },
       {
         "name": "audit.get_audit_service",

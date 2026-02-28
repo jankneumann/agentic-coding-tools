@@ -1,0 +1,184 @@
+{
+  "generated_at": "2026-02-28T02:55:30.004887+00:00",
+  "summary": {
+    "total_comments": 193,
+    "total_with_markers": 1,
+    "marker_totals": {
+      "WARN": 1
+    },
+    "total_graph_nodes": 636,
+    "documented_nodes": 45,
+    "documentation_coverage": 0.071
+  },
+  "marker_hotspots": [
+    {
+      "file": "guardrails.py",
+      "total_markers": 1,
+      "markers": {
+        "WARN": 1
+      }
+    }
+  ],
+  "node_marker_map": {
+    "py:guardrails.GuardrailPattern": {
+      "comment_count": 1,
+      "markers": [
+        "WARN"
+      ]
+    }
+  },
+  "file_summaries": [
+    {
+      "file": "assurance.py",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "audit.py",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "config.py",
+      "total_comments": 14,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "coordination_api.py",
+      "total_comments": 37,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "coordination_mcp.py",
+      "total_comments": 48,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "db.py",
+      "total_comments": 3,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "db_postgres.py",
+      "total_comments": 5,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "discovery.py",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "github_coordination.py",
+      "total_comments": 10,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "guardrails.py",
+      "total_comments": 9,
+      "with_markers": 1,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "handoffs.py",
+      "total_comments": 1,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "locks.py",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "memory.py",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "network_policies.py",
+      "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "policy_engine.py",
+      "total_comments": 13,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "port_allocator.py",
+      "total_comments": 15,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "profiles.py",
+      "total_comments": 8,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "teams.py",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "work_queue.py",
+      "total_comments": 7,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    }
+  ]
+}

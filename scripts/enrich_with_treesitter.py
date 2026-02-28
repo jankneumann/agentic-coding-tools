@@ -185,15 +185,12 @@ class TreeSitterEnricher:
             logger.warning("TypeScript source dir not found: %s", src_dir)
             return
 
-        for ts_file in sorted(src_dir.rglob("*.ts")):
-            if "node_modules" in str(ts_file):
-                continue
+        ts_files = sorted(
+            f for f in src_dir.rglob("*")
+            if f.suffix in (".ts", ".tsx") and "node_modules" not in f.parts
+        )
+        for ts_file in ts_files:
             self._process_typescript_file(ts_file, src_dir)
-
-        for tsx_file in sorted(src_dir.rglob("*.tsx")):
-            if "node_modules" in str(tsx_file):
-                continue
-            self._process_typescript_file(tsx_file, src_dir)
 
     def _process_python_file(self, path: Path, src_root: Path) -> None:
         """Process a single Python file."""
@@ -473,21 +470,19 @@ class TreeSitterEnricher:
                             break
 
     @staticmethod
-    def _walk_tree(node: Node) -> list[Node]:
-        """Depth-first walk of all nodes in the tree."""
-        nodes = []
+    def _walk_tree(node: Node):  # noqa: ANN205 — generator
+        """Depth-first walk of all nodes in the tree (generator)."""
         cursor = node.walk()
         visited = False
         while True:
             if not visited:
-                nodes.append(cursor.node)
+                yield cursor.node
                 if not cursor.goto_first_child():
                     visited = True
             elif cursor.goto_next_sibling():
                 visited = False
             elif not cursor.goto_parent():
                 break
-        return nodes
 
     def build_output(self) -> dict[str, Any]:
         """Build the final enrichment JSON."""

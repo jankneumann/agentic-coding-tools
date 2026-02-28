@@ -51,6 +51,12 @@
           "type": "JSONB",
           "nullable": true,
           "default": "'{}'"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -106,64 +112,10 @@
           "default": "5"
         },
         {
-          "name": "depends_on",
-          "type": "UUID[]",
+          "name": "enable",
+          "type": "UNKNOWN",
           "nullable": true,
           "default": null
-        },
-        {
-          "name": "status",
-          "type": "TEXT",
-          "nullable": true,
-          "default": "'pending'"
-        },
-        {
-          "name": "result",
-          "type": "JSONB",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "error_message",
-          "type": "TEXT",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "created_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": "NOW()"
-        },
-        {
-          "name": "started_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "completed_at",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "deadline",
-          "type": "TIMESTAMPTZ",
-          "nullable": true,
-          "default": null
-        },
-        {
-          "name": "attempt_count",
-          "type": "INTEGER",
-          "nullable": true,
-          "default": "0"
-        },
-        {
-          "name": "max_attempts",
-          "type": "INTEGER",
-          "nullable": true,
-          "default": "3"
         }
       ],
       "primary_key": [
@@ -220,7 +172,7 @@
         },
         {
           "name": "files_modified",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -231,8 +183,14 @@
           "default": "'{}'"
         },
         {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
+        },
+        {
           "name": "capabilities",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -324,6 +282,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "NOW()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -380,13 +344,13 @@
         },
         {
           "name": "lessons",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": null
         },
         {
           "name": "tags",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -401,6 +365,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -432,12 +402,6 @@
           "default": null
         },
         {
-          "name": "key",
-          "type": "TEXT",
-          "nullable": false,
-          "default": null
-        },
-        {
           "name": "value",
           "type": "JSONB",
           "nullable": false,
@@ -460,6 +424,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -498,7 +468,7 @@
         },
         {
           "name": "prerequisites",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -531,6 +501,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -602,6 +578,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -628,19 +610,19 @@
         },
         {
           "name": "tier",
-          "type": "verification_tier",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "verification_executor",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "status",
-          "type": "verification_status",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": "'pending'"
         },
@@ -679,6 +661,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -717,13 +705,13 @@
         },
         {
           "name": "tier",
-          "type": "verification_tier",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
         {
           "name": "executor",
-          "type": "verification_executor",
+          "type": "UNKNOWN",
           "nullable": false,
           "default": null
         },
@@ -750,6 +738,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -815,6 +809,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -880,6 +880,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -957,6 +963,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1001,13 +1013,13 @@
         },
         {
           "name": "allowed_operations",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
         {
           "name": "blocked_operations",
-          "type": "TEXT[]",
+          "type": "TEXT",
           "nullable": true,
           "default": "'{}'"
         },
@@ -1058,6 +1070,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1099,6 +1117,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1170,6 +1194,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1229,6 +1259,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1282,6 +1318,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": false,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1341,6 +1383,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1394,6 +1442,12 @@
           "type": "TIMESTAMPTZ",
           "nullable": true,
           "default": "now()"
+        },
+        {
+          "name": "enable",
+          "type": "UNKNOWN",
+          "nullable": true,
+          "default": null
         }
       ],
       "primary_key": [
@@ -1884,133 +1938,541 @@
       "name": "auth.role",
       "file": "000_bootstrap.sql",
       "line": 31,
-      "language": "sql"
+      "language": "sql",
+      "parameters": [],
+      "return_type": "text",
+      "referenced_tables": []
     },
     {
       "name": "public.acquire_lock",
       "file": "001_core_schema.sql",
       "line": 98,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FILE_PATH TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_REASON TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TTL_MINUTES INTEGER DEFAULT 120"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.file_locks",
+        "public.v_existing"
+      ]
     },
     {
       "name": "public.release_lock",
       "file": "001_core_schema.sql",
       "line": 179,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FILE_PATH TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.file_locks"
+      ]
     },
     {
       "name": "public.claim_task",
       "file": "001_core_schema.sql",
       "line": 208,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TASK_TYPES TEXT[] DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.skip",
+        "public.v_task",
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.complete_task",
       "file": "001_core_schema.sql",
       "line": 262,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SUCCESS BOOLEAN"
+        },
+        {
+          "name": "",
+          "type": "P_RESULT JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_ERROR_MESSAGE TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.submit_task",
       "file": "001_core_schema.sql",
       "line": 302,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.v_task_id",
+        "public.work_queue"
+      ]
     },
     {
       "name": "public.write_handoff",
       "file": "002_handoff_documents.sql",
       "line": 22,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_SUMMARY TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_COMPLETED_WORK JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_IN_PROGRESS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_DECISIONS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_NEXT_STEPS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_RELEVANT_FILES JSONB DEFAULT '[]'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoff_id"
+      ]
     },
     {
       "name": "public.read_handoff",
       "file": "002_handoff_documents.sql",
       "line": 65,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LIMIT INTEGER DEFAULT 1"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoffs"
+      ]
     },
     {
       "name": "public.register_agent_session",
       "file": "003_agent_discovery.sql",
       "line": 16,
-      "language": "plpgsql"
+      "language": "unknown",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_CAPABILITIES TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_CURRENT_TASK TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb as",
+      "referenced_tables": []
     },
     {
       "name": "public.discover_agents",
       "file": "003_agent_discovery.sql",
       "line": 49,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_CAPABILITY TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions",
+        "public.v_agents"
+      ]
     },
     {
       "name": "public.agent_heartbeat",
       "file": "003_agent_discovery.sql",
       "line": 83,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions"
+      ]
     },
     {
       "name": "public.cleanup_dead_agents",
       "file": "003_agent_discovery.sql",
       "line": 112,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_STALE_THRESHOLD INTERVAL DEFAULT '15 MINUTES'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_sessions",
+        "public.file_locks",
+        "public.v_stale_agent_ids"
+      ]
     },
     {
       "name": "public.store_episodic_memory",
       "file": "004_memory_tables.sql",
       "line": 57,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_EVENT_TYPE TEXT DEFAULT 'DISCOVERY'"
+        },
+        {
+          "name": "",
+          "type": "P_SUMMARY TEXT DEFAULT ''"
+        },
+        {
+          "name": "",
+          "type": "P_DETAILS JSONB DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_OUTCOME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LESSONS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_TAGS TEXT[] DEFAULT '{}'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.memory_episodic",
+        "public.v_existing",
+        "public.v_memory_id"
+      ]
     },
     {
       "name": "public.get_relevant_memories",
       "file": "004_memory_tables.sql",
       "line": 107,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TAGS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_EVENT_TYPE TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LIMIT INT DEFAULT 10"
+        },
+        {
+          "name": "",
+          "type": "P_MIN_RELEVANCE FLOAT DEFAULT 0.0"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.memory_episodic",
+        "public.v_result"
+      ]
     },
     {
       "name": "public.get_pending_approvals",
       "file": "005_verification_tables.sql",
       "line": 134,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.approval_queue",
+        "public.changesets"
+      ]
     },
     {
       "name": "public.approve_changeset",
       "file": "005_verification_tables.sql",
       "line": 157,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_APPROVAL_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_REVIEWER TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_APPROVED BOOLEAN"
+        },
+        {
+          "name": "",
+          "type": "P_NOTES TEXT DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.approval_queue",
+        "public.changeset",
+        "public.changesets",
+        "public.v_changeset_id"
+      ]
     },
     {
       "name": "public.check_guardrails",
       "file": "006_guardrails_tables.sql",
       "line": 66,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_OPERATION_TEXT TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_TRUST_LEVEL INT DEFAULT 2"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.guardrail_violations",
+        "public.operation_guardrails"
+      ]
     },
     {
       "name": "public.get_agent_profile",
       "file": "007_agent_profiles.sql",
       "line": 73,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_TYPE TEXT DEFAULT 'CLAUDE_CODE'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_profile_assignments",
+        "public.agent_profiles",
+        "public.v_profile"
+      ]
     },
     {
       "name": "public.raise_immutable_error",
       "file": "008_audit_log.sql",
       "line": 28,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger as",
+      "referenced_tables": [
+        "public.and"
+      ]
     },
     {
       "name": "public.cleanup_old_audit_entries",
       "file": "008_audit_log.sql",
       "line": 45,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_RETENTION_DAYS INT DEFAULT 90"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.audit_log"
+      ]
     },
     {
       "name": "public.is_domain_allowed",
       "file": "009_network_policies.sql",
       "line": 53,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DOMAIN TEXT"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.agent_profile_assignments",
+        "public.network_access_log",
+        "public.network_policies",
+        "public.v_profile_id"
+      ]
     },
     {
       "name": "public.update_cedar_policies_timestamp",
       "file": "010_cedar_policy_store.sql",
       "line": 19,
-      "language": "plpgsql"
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     }
   ],
   "triggers": [
@@ -2019,21 +2481,21 @@
       "table": "public.audit_log",
       "event": "UPDATE|DELETE",
       "timing": "BEFORE",
-      "function": "raise_immutable_error"
+      "function": "public.raise_immutable_error"
     },
     {
       "name": "cedar_policies_updated_at",
       "table": "public.cedar_policies",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "update_cedar_policies_timestamp"
+      "function": "public.update_cedar_policies_timestamp"
     },
     {
       "name": "cedar_entities_updated_at",
       "table": "public.cedar_entities",
       "event": "UPDATE",
       "timing": "BEFORE",
-      "function": "update_cedar_policies_timestamp"
+      "function": "public.update_cedar_policies_timestamp"
     }
   ],
   "fk_graph": [
@@ -2082,7 +2544,7 @@
   ],
   "summary": {
     "total_tables": 20,
-    "total_columns": 197,
+    "total_columns": 206,
     "total_foreign_keys": 6,
     "total_indexes": 49,
     "most_referenced_tables": [
@@ -2105,44 +2567,44 @@
     ],
     "widest_tables": [
       {
-        "table": "public.work_queue",
-        "column_count": 17
-      },
-      {
         "table": "public.agent_profiles",
-        "column_count": 15
+        "column_count": 16
       },
       {
         "table": "public.agent_sessions",
-        "column_count": 13
+        "column_count": 14
       },
       {
         "table": "public.memory_episodic",
-        "column_count": 11
+        "column_count": 12
       },
       {
         "table": "public.verification_results",
-        "column_count": 11
+        "column_count": 12
       },
       {
         "table": "public.guardrail_violations",
-        "column_count": 11
+        "column_count": 12
       },
       {
         "table": "public.handoff_documents",
-        "column_count": 10
+        "column_count": 11
       },
       {
         "table": "public.memory_procedural",
-        "column_count": 10
+        "column_count": 11
       },
       {
         "table": "public.changesets",
-        "column_count": 10
+        "column_count": 11
       },
       {
         "table": "public.verification_policies",
-        "column_count": 10
+        "column_count": 11
+      },
+      {
+        "table": "public.audit_log",
+        "column_count": 11
       }
     ]
   }
