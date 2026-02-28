@@ -219,3 +219,6 @@ states/
 
 # Lean 4 build artifacts
 formal/lean/.lake/
+
+# Coordinator secrets (profile interpolation)
+.secrets.yaml

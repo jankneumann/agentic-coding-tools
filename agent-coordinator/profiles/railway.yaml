@@ -1,0 +1,21 @@
+# railway.yaml — Railway cloud deployment with ParadeDB Postgres.
+extends: base
+
+settings:
+  postgres_dsn: "${POSTGRES_DSN}"
+  postgres_pool_min: 2
+  postgres_pool_max: 10
+  agent_id: "${AGENT_ID:-coordinator}"
+
+api:
+  host: "0.0.0.0"
+  port: "${PORT:-8081}"
+  workers: "${API_WORKERS:-1}"
+  coordination_api_keys: "${COORDINATION_API_KEYS}"
+  coordination_api_key_identities: "${COORDINATION_API_KEY_IDENTITIES:-}"
+  coordination_allowed_hosts: "${COORDINATION_ALLOWED_HOSTS:-}"
+
+docker:
+  enabled: false
+
+transport: http

@@ -1,6 +1,7 @@
 """Configuration management for Agent Coordinator.
 
 Environment variables:
+    COORDINATOR_PROFILE: Active deployment profile (default: "local")
     SUPABASE_URL: Supabase project URL
     SUPABASE_SERVICE_KEY: Service role key for full access
     AGENT_ID: Identifier for this agent instance
@@ -33,9 +34,15 @@ Environment variables:
     PORT_ALLOC_MAX_SESSIONS: Maximum concurrent sessions (default: 20)
 """
 
+from __future__ import annotations
+
 import json
+import logging
 import os
 from dataclasses import dataclass, field
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,7 +54,7 @@ class SupabaseConfig:
     rest_prefix: str = "/rest/v1"  # Empty string for direct PostgREST connections
 
     @classmethod
-    def from_env(cls) -> "SupabaseConfig":
+    def from_env(cls) -> SupabaseConfig:
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_KEY")
 
@@ -72,7 +79,7 @@ class AgentConfig:
     session_id: str | None = None
 
     @classmethod
-    def from_env(cls) -> "AgentConfig":
+    def from_env(cls) -> AgentConfig:
         agent_id = os.environ.get("AGENT_ID")
         if not agent_id:
             # Generate a default agent ID from process info
@@ -95,7 +102,7 @@ class LockConfig:
     max_ttl_minutes: int = 480  # 8 hours max
 
     @classmethod
-    def from_env(cls) -> "LockConfig":
+    def from_env(cls) -> LockConfig:
         return cls(
             default_ttl_minutes=int(os.environ.get("LOCK_TTL_MINUTES", "120")),
         )
@@ -110,7 +117,7 @@ class PostgresConfig:
     pool_max: int = 10
 
     @classmethod
-    def from_env(cls) -> "PostgresConfig":
+    def from_env(cls) -> PostgresConfig:
         return cls(
             dsn=os.environ.get("POSTGRES_DSN", ""),
             pool_min=int(os.environ.get("POSTGRES_POOL_MIN", "2")),
@@ -126,7 +133,7 @@ class DatabaseConfig:
     postgres: PostgresConfig = field(default_factory=PostgresConfig)
 
     @classmethod
-    def from_env(cls) -> "DatabaseConfig":
+    def from_env(cls) -> DatabaseConfig:
         return cls(
             backend=os.environ.get("DB_BACKEND", "supabase"),
             postgres=PostgresConfig.from_env(),
@@ -141,7 +148,7 @@ class GuardrailsConfig:
     enable_code_fallback: bool = True  # Use hardcoded patterns if DB unavailable
 
     @classmethod
-    def from_env(cls) -> "GuardrailsConfig":
+    def from_env(cls) -> GuardrailsConfig:
         return cls(
             patterns_cache_ttl_seconds=int(
                 os.environ.get("GUARDRAILS_CACHE_TTL", "300")
@@ -162,7 +169,7 @@ class ProfilesConfig:
     cache_ttl_seconds: int = 300  # Profile cache TTL
 
     @classmethod
-    def from_env(cls) -> "ProfilesConfig":
+    def from_env(cls) -> ProfilesConfig:
         return cls(
             default_trust_level=int(
                 os.environ.get("PROFILES_DEFAULT_TRUST", "2")
@@ -185,7 +192,7 @@ class AuditConfig:
     async_logging: bool = True  # Non-blocking audit inserts
 
     @classmethod
-    def from_env(cls) -> "AuditConfig":
+    def from_env(cls) -> AuditConfig:
         return cls(
             retention_days=int(os.environ.get("AUDIT_RETENTION_DAYS", "90")),
             async_logging=os.environ.get("AUDIT_ASYNC", "true").lower() == "true",
@@ -199,7 +206,7 @@ class NetworkPolicyConfig:
     default_policy: str = "deny"  # "deny" or "allow" for unspecified domains
 
     @classmethod
-    def from_env(cls) -> "NetworkPolicyConfig":
+    def from_env(cls) -> NetworkPolicyConfig:
         return cls(
             default_policy=os.environ.get("NETWORK_DEFAULT_POLICY", "deny"),
         )
@@ -215,7 +222,7 @@ class PolicyEngineConfig:
     schema_path: str | None = None
 
     @classmethod
-    def from_env(cls) -> "PolicyEngineConfig":
+    def from_env(cls) -> PolicyEngineConfig:
         return cls(
             engine=os.environ.get("POLICY_ENGINE", "native"),
             policy_cache_ttl_seconds=int(
@@ -239,7 +246,7 @@ class PortAllocatorConfig:
     max_sessions: int = 20
 
     @classmethod
-    def from_env(cls) -> "PortAllocatorConfig":
+    def from_env(cls) -> PortAllocatorConfig:
         return cls(
             base_port=int(os.environ.get("PORT_ALLOC_BASE", "10000")),
             range_per_session=int(os.environ.get("PORT_ALLOC_RANGE", "100")),
@@ -261,16 +268,27 @@ class ApiConfig:
     access_log: bool = False
 
     @classmethod
-    def from_env(cls) -> "ApiConfig":
+    def from_env(cls) -> ApiConfig:
         raw_keys = os.environ.get("COORDINATION_API_KEYS", "")
         api_keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
 
-        try:
-            identities: dict[str, dict[str, str]] = json.loads(
-                os.environ.get("COORDINATION_API_KEY_IDENTITIES", "{}")
-            )
-        except json.JSONDecodeError:
-            identities = {}
+        raw_identities = os.environ.get("COORDINATION_API_KEY_IDENTITIES")
+        identities: dict[str, dict[str, str]] = {}
+        if raw_identities:
+            try:
+                identities = json.loads(raw_identities)
+            except json.JSONDecodeError:
+                identities = {}
+        else:
+            # Auto-populate from agents.yaml when no explicit env var is set.
+            try:
+                from src.agents_config import get_api_key_identities
+
+                identities = get_api_key_identities()
+            except Exception:  # noqa: BLE001
+                logger.debug(
+                    "Could not auto-populate API key identities from agents.yaml"
+                )
 
         return cls(
             host=os.environ.get("API_HOST", "0.0.0.0"),
@@ -304,10 +322,23 @@ class Config:
     port_allocator: PortAllocatorConfig = field(
         default_factory=PortAllocatorConfig.from_env
     )
+    active_profile: str | None = None
+    transport: str = "none"
+    _profile_data: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_env(cls) -> "Config":
-        """Load complete configuration from environment variables."""
+    def from_env(cls) -> Config:
+        """Load complete configuration from environment variables.
+
+        When a ``profiles/`` directory exists, loads the active deployment
+        profile first (injecting values into ``os.environ`` as defaults)
+        before reading the individual config sections.
+        """
+        # Apply deployment profile (injects defaults into os.environ).
+        from src.profile_loader import apply_profile
+
+        profile_data = apply_profile()
+
         db_backend = os.environ.get("DB_BACKEND", "supabase")
         try:
             supabase_config: SupabaseConfig | None = SupabaseConfig.from_env()
@@ -316,6 +347,12 @@ class Config:
                 supabase_config = None
             else:
                 raise
+
+        active_profile: str | None = None
+        transport = os.environ.get("COORDINATION_TRANSPORT", "none")
+        if profile_data is not None:
+            active_profile = os.environ.get("COORDINATOR_PROFILE", "local")
+
         return cls(
             supabase=supabase_config,
             agent=AgentConfig.from_env(),
@@ -328,6 +365,9 @@ class Config:
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
             port_allocator=PortAllocatorConfig.from_env(),
+            active_profile=active_profile,
+            transport=transport,
+            _profile_data=profile_data or {},
         )
 
 

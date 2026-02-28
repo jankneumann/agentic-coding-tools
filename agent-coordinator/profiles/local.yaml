@@ -1,0 +1,18 @@
+# local.yaml — Local development with ParadeDB via Docker.
+extends: base
+
+settings:
+  postgres_dsn: "postgresql://postgres:${DB_PASSWORD:-postgres}@localhost:54322/postgres"
+  postgres_pool_min: 2
+  postgres_pool_max: 10
+  agent_id: claude-code-local
+
+api:
+  coordination_api_keys: "${COORDINATION_API_KEYS:-}"
+  coordination_allowed_hosts: "${COORDINATION_ALLOWED_HOSTS:-}"
+
+docker:
+  enabled: true
+  auto_start: true
+
+transport: mcp

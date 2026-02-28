@@ -19,43 +19,89 @@ Configure coordinator access for local CLI runtimes (MCP) and Web/Cloud runtimes
 
 `$ARGUMENTS` - Optional flags:
 
+- `--profile <local|railway>` (default: read from `COORDINATOR_PROFILE` env var, fallback `local`)
 - `--mode <auto|cli|web>` (default: `auto`)
 - `--http-url <url>` (for Web/Cloud verification)
 - `--api-key <key>` (for Web/Cloud verification)
 
 ## Objectives
 
+- Load deployment profile (`local` or `railway`) and apply configuration
 - Enable MCP coordinator access for Claude Codex CLI, Codex CLI, and Gemini CLI
 - Enable HTTP coordinator access for Claude Web, Codex Cloud/Web, and Gemini Web/Cloud
+- Read `agents.yaml` to determine which agents to configure
 - Verify capability detection contract used by integrated skills
 - Confirm graceful standalone fallback when coordinator is unavailable
 
 ## Steps
 
-### 1. Determine Setup Mode
+### 1. Determine Profile and Setup Mode
 
 ```bash
-MODE=auto
-# Parse --mode from $ARGUMENTS when provided.
+PROFILE=local   # Parse --profile from $ARGUMENTS, or read COORDINATOR_PROFILE env var
+MODE=auto       # Parse --mode from $ARGUMENTS when provided
 ```
 
-- `auto`: run both CLI and Web checks (recommended)
-- `cli`: run MCP-only checks
-- `web`: run HTTP-only checks
+- Profiles: `local` (MCP + Docker), `railway` (HTTP + cloud)
+- Modes: `auto` (run both CLI and Web checks), `cli` (MCP only), `web` (HTTP only)
+
+### 1a. Load Profile and Check Secrets
+
+```bash
+cd agent-coordinator
+
+# Check for .secrets.yaml — copy from template if missing
+if [ ! -f .secrets.yaml ]; then
+  cp .secrets.yaml.example .secrets.yaml
+  echo "Created .secrets.yaml from template — fill in real values before continuing."
+fi
+
+# Profile loading happens automatically via config.py when COORDINATOR_PROFILE is set
+export COORDINATOR_PROFILE="$PROFILE"
+```
+
+Read `agents.yaml` to determine which agents need configuration:
+
+- **MCP agents** (transport: mcp): generate vendor-specific MCP config via `get_mcp_env(agent_id)`
+- **HTTP agents** (transport: http): derive `COORDINATION_API_KEY_IDENTITIES` via `get_api_key_identities()`
 
 ### 2. Validate Coordinator Runtime Prerequisites
 
-Ensure coordinator runtime is reachable before agent setup:
+#### Local profile
 
 ```bash
-# Coordinator API health (local default)
-curl -s "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}/health"
+# Auto-start ParadeDB container if docker.auto_start is true in profile
+# The docker_manager module handles: detect runtime → start container → health wait
+cd agent-coordinator
+python3 -c "
+from src.docker_manager import start_container, wait_for_healthy
+from src.profile_loader import load_profile
+profile = load_profile('$PROFILE')
+docker_cfg = profile.get('docker', {})
+result = start_container(docker_cfg)
+print(result)
+if result.get('started') or result.get('already_running'):
+    runtime = result.get('runtime', 'docker')
+    name = docker_cfg.get('container_name', 'paradedb')
+    healthy = wait_for_healthy(runtime, name)
+    print(f'Healthy: {healthy}')
+"
+
+# Coordinator API health
+curl -s "http://localhost:${API_PORT:-8081}/health"
+```
+
+#### Railway profile
+
+```bash
+# Verify COORDINATION_API_URL resolves (from profile + secrets)
+curl -s "$COORDINATION_API_URL/health"
 
 # Bridge-level detection (HTTP contract)
 python scripts/coordination_bridge.py detect
 ```
 
-If health fails, fix runtime first (for example start `agent-coordinator/docker-compose.yml`).
+If health fails, fix runtime first (start `docker compose up -d` in `agent-coordinator/` for ParadeDB Postgres, then run the API with `DB_BACKEND=postgres`).
 
 ### 3. CLI Path (MCP) Setup and Verification
 
@@ -73,7 +119,19 @@ Use one canonical command target:
 python -m src.coordination_mcp
 ```
 
-with environment variables for identity and database access (`AGENT_ID`, `AGENT_TYPE`, and backend credentials).
+with environment variables from `agents.yaml` via `get_mcp_env(agent_id)`:
+
+```bash
+cd agent-coordinator
+python3 -c "
+from src.agents_config import get_mcp_env
+env = get_mcp_env('claude-code-local')
+for k, v in env.items():
+    print(f'{k}={v}')
+"
+```
+
+This generates `AGENT_ID`, `AGENT_TYPE`, and database connection settings for the MCP server registration.
 
 #### 3b. Verify MCP capabilities
 
@@ -118,6 +176,30 @@ Expected detection result in integrated skills:
 
 If only some endpoints are available, keep `COORDINATOR_AVAILABLE=true` and set missing capabilities to `false`.
 
+#### Cloud Deployment (Railway)
+
+For Railway-deployed coordinators, set the public HTTPS URL:
+
+```bash
+export COORDINATION_API_URL="https://your-app.railway.app"
+export COORDINATION_API_KEY="<your-provisioned-api-key>"
+# Allow Railway hosts in SSRF filter
+export COORDINATION_ALLOWED_HOSTS="your-app.railway.app,your-app-production.up.railway.app"
+```
+
+Verify cloud connectivity:
+
+```bash
+curl -s "$COORDINATION_API_URL/health"
+# Expected: {"status": "ok", "db": "connected", "version": "0.2.0"}
+
+python scripts/coordination_bridge.py detect \
+  --http-url "$COORDINATION_API_URL" \
+  --api-key "$COORDINATION_API_KEY"
+```
+
+See `docs/cloud-deployment.md` for full Railway setup instructions.
+
 ### 5. Capability Summary and Hook Expectations
 
 For the active runtime, summarize:
@@ -144,10 +226,23 @@ Common checks:
 - Runtime network allowlist / egress restrictions
 - MCP server process and env variables
 - Coordinator `/health` reachability
+- Railway health check failing: verify `POSTGRES_DSN` uses private network URL
+- SSRF blocking cloud URL: add hostname to `COORDINATION_ALLOWED_HOSTS`
+- API key rejected: verify `COORDINATION_API_KEYS` on server matches client key
+
+## Profile Configuration
+
+The coordinator uses YAML-based deployment profiles (`agent-coordinator/profiles/`) with inheritance and `${VAR}` secret interpolation from `.secrets.yaml`. Profiles inject defaults into `os.environ` — existing env vars always win.
+
+- `local.yaml`: MCP transport, Docker auto-start, ParadeDB on localhost
+- `railway.yaml`: HTTP transport, Railway cloud deployment
+- `base.yaml`: Shared defaults inherited by both
+
+Agent identity is declared in `agent-coordinator/agents.yaml` — the single source of truth for agent type, trust level, transport, capabilities, and API key mapping.
 
 ## Backend Note
 
-Coordinator skill integration remains backend-agnostic. Cloud Postgres standardization (for example Neon adoption and branching workflows) is tracked in separate coordinator infrastructure proposals and should be linked from docs when approved.
+Cloud deployment uses Railway with ParadeDB Postgres. See `docs/cloud-deployment.md` for setup and `agent-coordinator/railway.toml` for configuration.
 
 ## Output
 

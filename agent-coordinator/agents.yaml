@@ -1,0 +1,38 @@
+# agents.yaml — Single source of truth for agent identity and permissions.
+# Referenced by profile_loader and setup-coordinator skill.
+
+agents:
+  claude-code-local:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    description: Local Claude Code CLI agent with full coordination access
+
+  claude-code-web:
+    type: claude_code
+    profile: claude_code_web_implementer
+    trust_level: 2
+    transport: http
+    api_key: "${CLAUDE_WEB_API_KEY}"
+    capabilities: [lock, queue, memory, guardrails, handoff, discover]
+    description: Claude Code web agent for cloud-based implementation
+
+  codex-cloud:
+    type: codex
+    profile: codex_cloud_worker
+    trust_level: 2
+    transport: http
+    api_key: "${CODEX_API_KEY}"
+    capabilities: [lock, queue, memory, guardrails]
+    description: Codex cloud worker for parallel task execution
+
+  gemini-cloud:
+    type: gemini
+    profile: gemini_cloud_worker
+    trust_level: 2
+    transport: http
+    api_key: "${GEMINI_API_KEY}"
+    capabilities: [lock, queue, memory]
+    description: Gemini cloud agent for parallel task execution

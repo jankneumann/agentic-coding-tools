@@ -104,3 +104,7 @@ fi
 3. Fallback URL: `http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}`
 
 This keeps local dev smooth while allowing explicit Web/Cloud endpoints in hosted runtimes.
+
+## Profile-Based Configuration
+
+When `COORDINATOR_PROFILE` is set (or `profiles/` directory exists), the coordinator loads a YAML deployment profile that pre-populates environment variables as defaults. Profiles support inheritance (`extends: base`) and `${VAR}` interpolation from `.secrets.yaml`. Agent identity and API key mappings can also be declared in `agents.yaml` instead of scattered env vars. See `agent-coordinator/profiles/` and `agent-coordinator/agents.yaml`.

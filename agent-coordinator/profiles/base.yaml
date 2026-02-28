@@ -1,0 +1,35 @@
+# base.yaml — Shared defaults inherited by all deployment profiles.
+# Child profiles override with `extends: base`.
+
+settings:
+  db_backend: postgres
+  agent_type: claude_code
+  lock_ttl_minutes: 120
+  guardrails_cache_ttl: 300
+  guardrails_code_fallback: "true"
+  profiles_default_trust: 2
+  profiles_enforce_limits: "true"
+  audit_retention_days: 90
+  audit_async: "true"
+  network_default_policy: deny
+  policy_engine: native
+  policy_cache_ttl: 300
+
+api:
+  host: "0.0.0.0"
+  port: 8081
+  workers: 1
+  timeout_keep_alive: 5
+  access_log: "false"
+
+# docker and providers blocks are profile-only metadata — NOT mapped to env vars.
+docker:
+  enabled: false
+  container_runtime: auto
+  compose_file: docker-compose.yml
+  container_name: paradedb
+  auto_start: false
+  health_timeout: 60
+
+providers:
+  agents_yaml: agents.yaml
