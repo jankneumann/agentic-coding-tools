@@ -1,7 +1,7 @@
 # Architecture Report
 
-Generated: 2026-02-28T02:55:29.855950+00:00  
-Git SHA: `27652f84a02c369dab78d814e248ba47c1ea45d0`
+Generated: 2026-02-28T03:11:13.347160+00:00  
+Git SHA: `ea647136218f4b2aad34281e485f4935fa813ff0`
 
 ## System Overview
 
@@ -189,11 +189,11 @@ Breakdown: 44 info, 2 warning.
 
 46 MCP routes have no frontend callers — expected for an MCP server (clients are AI agents, not browsers).
 
-- Backend route 'get_guardrail_patterns' has no frontend callers
-- Backend route 'get_recent_memories' has no frontend callers
-- Backend route 'get_my_profile' has no frontend callers
-- Backend route 'acquire_lock' has no frontend callers
-- Backend route 'release_ports' has no frontend callers
+- Backend route 'get_current_profile' has no frontend callers
+- Backend route 'check_guardrails' has no frontend callers
+- Backend route 'heartbeat' has no frontend callers
+- Backend route 'check_policy' has no frontend callers
+- Backend route 'remember' has no frontend callers
 - ... and 41 more
 
 ## High-Impact Nodes
