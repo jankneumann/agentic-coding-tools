@@ -211,7 +211,7 @@
   **Traces**: R18
   **Verify**: `lake build` compiles without errors.
 
-- [ ] FV.3 Create property-based tests with randomized operation sequences against real coordinator, compared to abstract model. Integrate into CI.
+- [x] FV.3 Create property-based tests with randomized operation sequences against real coordinator, compared to abstract model. Integrate into CI.
   **Dependencies**: FV.1, 6.2
   **Files**: agent-coordinator/tests/test_property_based.py
   **Traces**: R18
