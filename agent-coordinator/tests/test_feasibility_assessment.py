@@ -6,7 +6,6 @@ import pytest
 from httpx import Response
 
 from src.feature_registry import (
-    ConflictReport,
     Feasibility,
     FeatureRegistryService,
 )

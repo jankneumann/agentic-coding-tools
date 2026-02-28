@@ -17,7 +17,6 @@ from enum import Enum
 from typing import Any
 
 from .audit import get_audit_service
-from .config import get_config
 from .db import DatabaseClient, get_db
 from .feature_registry import (
     Feasibility,
@@ -29,7 +28,7 @@ from .feature_registry import (
 logger = logging.getLogger(__name__)
 
 
-class MergeStatus(str, Enum):
+class MergeStatus(Enum):
     """Status of a feature in the merge queue."""
 
     QUEUED = "queued"

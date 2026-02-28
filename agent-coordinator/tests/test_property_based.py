@@ -21,11 +21,9 @@ from pathlib import Path
 from typing import Any
 
 import hypothesis.strategies as st
-import pytest
 from hypothesis import given, settings
-from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule
 
-# Import the actual modules under test
+# Import the actual modules under test — must modify sys.path before import (E402 suppressed)
 _SKILL_SCRIPTS_DIR = (
     Path(__file__).resolve().parent.parent.parent
     / "skills"
@@ -35,11 +33,10 @@ _SKILL_SCRIPTS_DIR = (
 if str(_SKILL_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SKILL_SCRIPTS_DIR))
 
-from circuit_breaker import CircuitBreaker
-from dag_scheduler import DAGScheduler, PackageState, compute_topo_order
-from escalation_handler import EscalationAction, EscalationHandler
-from scope_checker import check_scope_compliance
-
+from circuit_breaker import CircuitBreaker  # noqa: E402
+from dag_scheduler import compute_topo_order  # noqa: E402
+from escalation_handler import EscalationHandler  # noqa: E402
+from scope_checker import check_scope_compliance  # noqa: E402
 
 # =============================================================================
 # Abstract Coordination Model
@@ -150,7 +147,9 @@ class TestLockExclusivity:
     """No two agents can hold the same lock simultaneously."""
 
     @given(
-        keys=st.lists(st.sampled_from(["src/a.py", "src/b.py", "api:/test"]), min_size=1, max_size=5),
+        keys=st.lists(
+            st.sampled_from(["src/a.py", "src/b.py", "api:/test"]), min_size=1, max_size=5
+        ),
         agents=st.lists(st.sampled_from(["agent-1", "agent-2", "agent-3"]), min_size=1, max_size=5),
     )
     @settings(max_examples=200)

@@ -18,7 +18,6 @@ from src.merge_queue import (
     MergeQueueEntry,
     MergeQueueService,
     MergeStatus,
-    PreMergeCheckResult,
 )
 
 

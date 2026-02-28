@@ -64,3 +64,19 @@ Accumulated patterns and conventions from building and operating this project.
 - **Skills tests use agent-coordinator venv**: Skills under `skills/` don't have their own venvs. Run their tests via the agent-coordinator venv: `/Users/jankneumann/Coding/agentic-coding-tools/agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/`.
 
 - **Normalize external tool output paths**: Tools like ruff return absolute paths in JSON output, but internal finding IDs use relative paths. Always normalize with `Path(abs_path).relative_to(project_dir)` before comparison. This was a critical bug caught in iteration — all findings were falsely reported as resolved.
+
+## Two-Level Parallel Development Patterns
+
+- **Layer services on existing metadata**: The merge queue stores queue state in the feature registry's metadata JSONB column rather than adding a separate table. This avoids migration overhead and keeps the data model cohesive — query one table to get feature + queue state.
+
+- **AsyncMock for service-layer tests**: When a service depends on another service (merge queue → feature registry), mock the dependency at the service layer using `unittest.mock.AsyncMock` rather than HTTP-level mocking with `respx`. This tests the actual service logic without coupling to transport details.
+
+- **datetime.now(UTC) over datetime.utcnow()**: Python 3.12+ deprecates `datetime.utcnow()`. Use `from datetime import UTC, datetime` and `datetime.now(UTC)` to avoid deprecation warnings in tests.
+
+- **Discover actual source layout before implementing**: Tasks.md may specify paths like `agent_coordinator/services/feature_registry.py` but the actual layout is flat at `agent-coordinator/src/feature_registry.py`. Always read the real directory structure before creating files.
+
+- **Property-based tests catch API mismatches**: Hypothesis tests against real modules revealed: `check_scope_compliance` returns `compliant` not `passed`, uses `deny` not `write_deny` parameter, `EscalationHandler` requires `contracts_revision`/`plan_revision`, and `handle()` returns dataclass not dict. Unit tests with full mocks would miss these.
+
+- **Formal verification as documentation**: Even without TLC/Lake installed locally, TLA+ models and Lean proofs serve as precise, machine-checkable documentation of invariants. The abstract model in `ParallelCoordination.lean` clearly defines what "lock exclusivity" and "dependency safety" mean.
+
+- **Feasibility thresholds need tuning**: The `SEQUENTIAL_THRESHOLD = 0.5` for determining when features must run sequentially vs. partially parallel is a policy knob. Starting conservative (50% overlap → sequential) is safer; teams can relax it as they gain confidence in the conflict resolution mechanisms.

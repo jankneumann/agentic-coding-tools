@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
-from src.work_queue import CompleteResult, WorkQueueService
+from src.work_queue import WorkQueueService
 
 
 class TestCancelConvention:

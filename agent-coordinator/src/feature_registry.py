@@ -23,7 +23,7 @@ from .db import DatabaseClient, get_db
 logger = logging.getLogger(__name__)
 
 
-class Feasibility(str, Enum):
+class Feasibility(Enum):
     """Parallel feasibility assessment result."""
 
     FULL = "FULL"  # No resource overlaps — safe to run fully parallel

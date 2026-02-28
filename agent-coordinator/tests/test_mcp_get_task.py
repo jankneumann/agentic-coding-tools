@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import Response
 
-from src.work_queue import Task, WorkQueueService
+from src.work_queue import WorkQueueService
 
 
 class TestGetTaskMCP:
