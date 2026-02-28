@@ -146,6 +146,28 @@
           }
         }
       }
+    },
+    "disconnected_endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "node_id": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      },
+      "description": "Backend endpoints with no frontend callers (added by cross-layer linker)"
+    },
+    "disconnected_frontend_calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "node_id": { "type": "string" },
+          "url": { "type": "string" }
+        }
+      },
+      "description": "Frontend API calls with no matching backend route (added by cross-layer linker)"
     }
   }
 }
