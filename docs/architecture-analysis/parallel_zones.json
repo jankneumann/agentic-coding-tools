@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-28T03:16:43.225331+00:00",
+  "generated_at": "2026-02-28T04:07:20.325892+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -17,6 +17,7 @@
         "py:coordination_api.create_coordination_api.claim_work",
         "py:coordination_api.create_coordination_api.complete_work",
         "py:coordination_api.create_coordination_api.get_my_profile",
+        "py:coordination_api.create_coordination_api.get_task_endpoint",
         "py:coordination_api.create_coordination_api.health",
         "py:coordination_api.create_coordination_api.port_status",
         "py:coordination_api.create_coordination_api.query_audit",
@@ -45,6 +46,7 @@
         "py:coordination_mcp.get_recent_audit",
         "py:coordination_mcp.get_recent_handoffs",
         "py:coordination_mcp.get_recent_memories",
+        "py:coordination_mcp.get_task",
         "py:coordination_mcp.get_work",
         "py:coordination_mcp.ports_status",
         "py:coordination_mcp.query_audit",
@@ -63,6 +65,9 @@
         "py:discovery.DiscoveryService.db",
         "py:discovery.DiscoveryService.heartbeat",
         "py:discovery.DiscoveryService.register",
+        "py:feature_registry.FeatureRegistryService.db",
+        "py:feature_registry.FeatureRegistryService.deregister",
+        "py:feature_registry.FeatureRegistryService.register",
         "py:github_coordination.GitHubCoordinationService.db",
         "py:github_coordination.GitHubCoordinationService.sync_label_locks",
         "py:guardrails.GuardrailsService._load_patterns",
@@ -80,6 +85,10 @@
         "py:memory.MemoryService.db",
         "py:memory.MemoryService.remember",
         "py:memory.get_memory_service",
+        "py:merge_queue.MergeQueueService.db",
+        "py:merge_queue.MergeQueueService.enqueue",
+        "py:merge_queue.MergeQueueService.mark_merged",
+        "py:merge_queue.MergeQueueService.run_pre_merge_checks",
         "py:network_policies.NetworkPolicyService.check_domain",
         "py:network_policies.NetworkPolicyService.db",
         "py:policy_engine.CedarPolicyEngine._load_policies",
@@ -107,7 +116,7 @@
       "language_mix": [
         "python"
       ],
-      "size": 99
+      "size": 108
     },
     {
       "id": 1,
@@ -119,11 +128,13 @@
         "py:db",
         "py:db_postgres",
         "py:discovery",
+        "py:feature_registry",
         "py:github_coordination",
         "py:guardrails",
         "py:handoffs",
         "py:locks",
         "py:memory",
+        "py:merge_queue",
         "py:network_policies",
         "py:policy_engine",
         "py:port_allocator",
@@ -133,7 +144,7 @@
       "language_mix": [
         "python"
       ],
-      "size": 17
+      "size": 19
     },
     {
       "id": 2,
@@ -172,15 +183,38 @@
       "modules": [
         "py:discovery.AgentInfo.from_dict",
         "py:discovery.AgentInfo.from_dict.parse_dt",
+        "py:feature_registry.Feature.from_dict",
         "py:work_queue.Task.from_dict"
       ],
       "language_mix": [
         "python"
       ],
-      "size": 3
+      "size": 4
     },
     {
       "id": 5,
+      "modules": [
+        "py:feature_registry.get_feature_registry_service",
+        "py:merge_queue.MergeQueueService.registry"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 2
+    },
+    {
+      "id": 6,
+      "modules": [
+        "py:merge_queue.MergeQueueService.get_queue",
+        "py:merge_queue._parse_dt"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 2
+    },
+    {
+      "id": 7,
       "modules": [
         "py:network_policies.get_network_policy_service",
         "py:policy_engine.NativePolicyEngine.check_network_access"
@@ -191,7 +225,7 @@
       "size": 2
     },
     {
-      "id": 6,
+      "id": 8,
       "modules": [
         "py:port_allocator.PortAllocatorService.allocate",
         "py:port_allocator._compose_project_name"
@@ -202,7 +236,7 @@
       "size": 2
     },
     {
-      "id": 7,
+      "id": 9,
       "modules": [
         "py:teams.TeamsConfig.from_dict",
         "py:teams.TeamsConfig.validate"
@@ -213,7 +247,7 @@
       "size": 2
     },
     {
-      "id": 8,
+      "id": 10,
       "modules": [
         "pg:cedar_entities_updated_at"
       ],
@@ -223,7 +257,7 @@
       "size": 1
     },
     {
-      "id": 9,
+      "id": 11,
       "modules": [
         "pg:cedar_policies_updated_at"
       ],
@@ -233,7 +267,7 @@
       "size": 1
     },
     {
-      "id": 10,
+      "id": 12,
       "modules": [
         "pg:idx_agent_sessions_agent"
       ],
@@ -243,7 +277,7 @@
       "size": 1
     },
     {
-      "id": 11,
+      "id": 13,
       "modules": [
         "pg:idx_agent_sessions_capabilities"
       ],
@@ -253,7 +287,7 @@
       "size": 1
     },
     {
-      "id": 12,
+      "id": 14,
       "modules": [
         "pg:idx_agent_sessions_heartbeat"
       ],
@@ -263,7 +297,7 @@
       "size": 1
     },
     {
-      "id": 13,
+      "id": 15,
       "modules": [
         "pg:idx_agent_sessions_started"
       ],
@@ -273,7 +307,7 @@
       "size": 1
     },
     {
-      "id": 14,
+      "id": 16,
       "modules": [
         "pg:idx_agent_sessions_status"
       ],
@@ -283,7 +317,7 @@
       "size": 1
     },
     {
-      "id": 15,
+      "id": 17,
       "modules": [
         "pg:idx_agent_sessions_type"
       ],
@@ -293,7 +327,7 @@
       "size": 1
     },
     {
-      "id": 16,
+      "id": 18,
       "modules": [
         "pg:idx_approval_queue_status"
       ],
@@ -303,7 +337,7 @@
       "size": 1
     },
     {
-      "id": 17,
+      "id": 19,
       "modules": [
         "pg:idx_audit_log_agent"
       ],
@@ -313,7 +347,7 @@
       "size": 1
     },
     {
-      "id": 18,
+      "id": 20,
       "modules": [
         "pg:idx_audit_log_operation"
       ],
@@ -323,7 +357,7 @@
       "size": 1
     },
     {
-      "id": 19,
+      "id": 21,
       "modules": [
         "pg:idx_audit_log_timestamp"
       ],
@@ -333,7 +367,7 @@
       "size": 1
     },
     {
-      "id": 20,
+      "id": 22,
       "modules": [
         "pg:idx_cedar_entities_type"
       ],
@@ -343,7 +377,7 @@
       "size": 1
     },
     {
-      "id": 21,
+      "id": 23,
       "modules": [
         "pg:idx_cedar_policies_enabled"
       ],
@@ -353,7 +387,7 @@
       "size": 1
     },
     {
-      "id": 22,
+      "id": 24,
       "modules": [
         "pg:idx_changesets_agent"
       ],
@@ -363,7 +397,7 @@
       "size": 1
     },
     {
-      "id": 23,
+      "id": 25,
       "modules": [
         "pg:idx_changesets_status"
       ],
@@ -373,29 +407,9 @@
       "size": 1
     },
     {
-      "id": 24,
-      "modules": [
-        "pg:idx_file_locks_agent"
-      ],
-      "language_mix": [
-        "sql"
-      ],
-      "size": 1
-    },
-    {
-      "id": 25,
-      "modules": [
-        "pg:idx_file_locks_expires"
-      ],
-      "language_mix": [
-        "sql"
-      ],
-      "size": 1
-    },
-    {
       "id": 26,
       "modules": [
-        "pg:idx_file_locks_session"
+        "pg:idx_feature_registry_registered_by"
       ],
       "language_mix": [
         "sql"
@@ -405,7 +419,7 @@
     {
       "id": 27,
       "modules": [
-        "pg:idx_guardrails_category"
+        "pg:idx_feature_registry_status"
       ],
       "language_mix": [
         "sql"
@@ -415,7 +429,7 @@
     {
       "id": 28,
       "modules": [
-        "pg:idx_guardrails_enabled"
+        "pg:idx_file_locks_agent"
       ],
       "language_mix": [
         "sql"
@@ -425,7 +439,7 @@
     {
       "id": 29,
       "modules": [
-        "pg:idx_handoff_agent"
+        "pg:idx_file_locks_expires"
       ],
       "language_mix": [
         "sql"
@@ -435,7 +449,7 @@
     {
       "id": 30,
       "modules": [
-        "pg:idx_handoff_session"
+        "pg:idx_file_locks_session"
       ],
       "language_mix": [
         "sql"
@@ -445,7 +459,7 @@
     {
       "id": 31,
       "modules": [
-        "pg:idx_memory_episodic_agent"
+        "pg:idx_guardrails_category"
       ],
       "language_mix": [
         "sql"
@@ -455,7 +469,7 @@
     {
       "id": 32,
       "modules": [
-        "pg:idx_memory_episodic_created"
+        "pg:idx_guardrails_enabled"
       ],
       "language_mix": [
         "sql"
@@ -465,7 +479,7 @@
     {
       "id": 33,
       "modules": [
-        "pg:idx_memory_episodic_event_type"
+        "pg:idx_handoff_agent"
       ],
       "language_mix": [
         "sql"
@@ -475,7 +489,7 @@
     {
       "id": 34,
       "modules": [
-        "pg:idx_memory_episodic_tags"
+        "pg:idx_handoff_session"
       ],
       "language_mix": [
         "sql"
@@ -485,7 +499,7 @@
     {
       "id": 35,
       "modules": [
-        "pg:idx_memory_procedural_skill"
+        "pg:idx_memory_episodic_agent"
       ],
       "language_mix": [
         "sql"
@@ -495,7 +509,7 @@
     {
       "id": 36,
       "modules": [
-        "pg:idx_memory_working_agent_session"
+        "pg:idx_memory_episodic_created"
       ],
       "language_mix": [
         "sql"
@@ -505,7 +519,7 @@
     {
       "id": 37,
       "modules": [
-        "pg:idx_network_access_log_agent"
+        "pg:idx_memory_episodic_event_type"
       ],
       "language_mix": [
         "sql"
@@ -515,7 +529,7 @@
     {
       "id": 38,
       "modules": [
-        "pg:idx_network_access_log_created"
+        "pg:idx_memory_episodic_tags"
       ],
       "language_mix": [
         "sql"
@@ -525,7 +539,7 @@
     {
       "id": 39,
       "modules": [
-        "pg:idx_network_access_log_domain"
+        "pg:idx_memory_procedural_skill"
       ],
       "language_mix": [
         "sql"
@@ -535,7 +549,7 @@
     {
       "id": 40,
       "modules": [
-        "pg:idx_network_policies_domain"
+        "pg:idx_memory_working_agent_session"
       ],
       "language_mix": [
         "sql"
@@ -545,7 +559,7 @@
     {
       "id": 41,
       "modules": [
-        "pg:idx_network_policies_profile"
+        "pg:idx_network_access_log_agent"
       ],
       "language_mix": [
         "sql"
@@ -555,7 +569,7 @@
     {
       "id": 42,
       "modules": [
-        "pg:idx_profile_assignments_agent"
+        "pg:idx_network_access_log_created"
       ],
       "language_mix": [
         "sql"
@@ -565,7 +579,7 @@
     {
       "id": 43,
       "modules": [
-        "pg:idx_profile_assignments_profile"
+        "pg:idx_network_access_log_domain"
       ],
       "language_mix": [
         "sql"
@@ -575,7 +589,7 @@
     {
       "id": 44,
       "modules": [
-        "pg:idx_profiles_agent_type"
+        "pg:idx_network_policies_domain"
       ],
       "language_mix": [
         "sql"
@@ -585,7 +599,7 @@
     {
       "id": 45,
       "modules": [
-        "pg:idx_profiles_trust_level"
+        "pg:idx_network_policies_profile"
       ],
       "language_mix": [
         "sql"
@@ -595,7 +609,7 @@
     {
       "id": 46,
       "modules": [
-        "pg:idx_verification_policies_pattern"
+        "pg:idx_profile_assignments_agent"
       ],
       "language_mix": [
         "sql"
@@ -605,7 +619,7 @@
     {
       "id": 47,
       "modules": [
-        "pg:idx_verification_results_changeset"
+        "pg:idx_profile_assignments_profile"
       ],
       "language_mix": [
         "sql"
@@ -615,7 +629,7 @@
     {
       "id": 48,
       "modules": [
-        "pg:idx_verification_results_status"
+        "pg:idx_profiles_agent_type"
       ],
       "language_mix": [
         "sql"
@@ -625,7 +639,7 @@
     {
       "id": 49,
       "modules": [
-        "pg:idx_violations_agent"
+        "pg:idx_profiles_trust_level"
       ],
       "language_mix": [
         "sql"
@@ -635,7 +649,7 @@
     {
       "id": 50,
       "modules": [
-        "pg:idx_violations_created"
+        "pg:idx_verification_policies_pattern"
       ],
       "language_mix": [
         "sql"
@@ -645,7 +659,7 @@
     {
       "id": 51,
       "modules": [
-        "pg:idx_violations_pattern"
+        "pg:idx_verification_results_changeset"
       ],
       "language_mix": [
         "sql"
@@ -655,7 +669,7 @@
     {
       "id": 52,
       "modules": [
-        "pg:idx_work_queue_claimed"
+        "pg:idx_verification_results_status"
       ],
       "language_mix": [
         "sql"
@@ -665,7 +679,7 @@
     {
       "id": 53,
       "modules": [
-        "pg:idx_work_queue_claimed_status"
+        "pg:idx_violations_agent"
       ],
       "language_mix": [
         "sql"
@@ -675,7 +689,7 @@
     {
       "id": 54,
       "modules": [
-        "pg:idx_work_queue_deadline"
+        "pg:idx_violations_created"
       ],
       "language_mix": [
         "sql"
@@ -685,7 +699,7 @@
     {
       "id": 55,
       "modules": [
-        "pg:idx_work_queue_depends_on"
+        "pg:idx_violations_pattern"
       ],
       "language_mix": [
         "sql"
@@ -695,7 +709,7 @@
     {
       "id": 56,
       "modules": [
-        "pg:idx_work_queue_pending"
+        "pg:idx_work_queue_claimed"
       ],
       "language_mix": [
         "sql"
@@ -705,7 +719,7 @@
     {
       "id": 57,
       "modules": [
-        "pg:idx_work_queue_priority"
+        "pg:idx_work_queue_claimed_status"
       ],
       "language_mix": [
         "sql"
@@ -715,7 +729,7 @@
     {
       "id": 58,
       "modules": [
-        "pg:idx_work_queue_status"
+        "pg:idx_work_queue_deadline"
       ],
       "language_mix": [
         "sql"
@@ -725,7 +739,7 @@
     {
       "id": 59,
       "modules": [
-        "pg:prevent_audit_modification"
+        "pg:idx_work_queue_depends_on"
       ],
       "language_mix": [
         "sql"
@@ -735,7 +749,7 @@
     {
       "id": 60,
       "modules": [
-        "pg:public.auth.role"
+        "pg:idx_work_queue_pending"
       ],
       "language_mix": [
         "sql"
@@ -745,7 +759,7 @@
     {
       "id": 61,
       "modules": [
-        "pg:public.public.acquire_lock"
+        "pg:idx_work_queue_priority"
       ],
       "language_mix": [
         "sql"
@@ -755,7 +769,7 @@
     {
       "id": 62,
       "modules": [
-        "pg:public.public.agent_heartbeat"
+        "pg:idx_work_queue_status"
       ],
       "language_mix": [
         "sql"
@@ -765,7 +779,7 @@
     {
       "id": 63,
       "modules": [
-        "pg:public.public.agent_profile_assignments"
+        "pg:prevent_audit_modification"
       ],
       "language_mix": [
         "sql"
@@ -775,7 +789,7 @@
     {
       "id": 64,
       "modules": [
-        "pg:public.public.agent_profile_assignments.agent_id"
+        "pg:public.auth.role"
       ],
       "language_mix": [
         "sql"
@@ -785,7 +799,7 @@
     {
       "id": 65,
       "modules": [
-        "pg:public.public.agent_profile_assignments.assigned_at"
+        "pg:public.public.acquire_lock"
       ],
       "language_mix": [
         "sql"
@@ -795,7 +809,7 @@
     {
       "id": 66,
       "modules": [
-        "pg:public.public.agent_profile_assignments.assigned_by"
+        "pg:public.public.agent_heartbeat"
       ],
       "language_mix": [
         "sql"
@@ -805,7 +819,7 @@
     {
       "id": 67,
       "modules": [
-        "pg:public.public.agent_profile_assignments.enable"
+        "pg:public.public.agent_profile_assignments"
       ],
       "language_mix": [
         "sql"
@@ -815,7 +829,7 @@
     {
       "id": 68,
       "modules": [
-        "pg:public.public.agent_profile_assignments.id"
+        "pg:public.public.agent_profile_assignments.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -825,7 +839,7 @@
     {
       "id": 69,
       "modules": [
-        "pg:public.public.agent_profile_assignments.profile_id"
+        "pg:public.public.agent_profile_assignments.assigned_at"
       ],
       "language_mix": [
         "sql"
@@ -835,7 +849,7 @@
     {
       "id": 70,
       "modules": [
-        "pg:public.public.agent_profiles"
+        "pg:public.public.agent_profile_assignments.assigned_by"
       ],
       "language_mix": [
         "sql"
@@ -845,7 +859,7 @@
     {
       "id": 71,
       "modules": [
-        "pg:public.public.agent_profiles.agent_type"
+        "pg:public.public.agent_profile_assignments.enable"
       ],
       "language_mix": [
         "sql"
@@ -855,7 +869,7 @@
     {
       "id": 72,
       "modules": [
-        "pg:public.public.agent_profiles.allowed_operations"
+        "pg:public.public.agent_profile_assignments.id"
       ],
       "language_mix": [
         "sql"
@@ -865,7 +879,7 @@
     {
       "id": 73,
       "modules": [
-        "pg:public.public.agent_profiles.blocked_operations"
+        "pg:public.public.agent_profile_assignments.profile_id"
       ],
       "language_mix": [
         "sql"
@@ -875,7 +889,7 @@
     {
       "id": 74,
       "modules": [
-        "pg:public.public.agent_profiles.created_at"
+        "pg:public.public.agent_profiles"
       ],
       "language_mix": [
         "sql"
@@ -885,7 +899,7 @@
     {
       "id": 75,
       "modules": [
-        "pg:public.public.agent_profiles.description"
+        "pg:public.public.agent_profiles.agent_type"
       ],
       "language_mix": [
         "sql"
@@ -895,7 +909,7 @@
     {
       "id": 76,
       "modules": [
-        "pg:public.public.agent_profiles.enable"
+        "pg:public.public.agent_profiles.allowed_operations"
       ],
       "language_mix": [
         "sql"
@@ -905,7 +919,7 @@
     {
       "id": 77,
       "modules": [
-        "pg:public.public.agent_profiles.enabled"
+        "pg:public.public.agent_profiles.blocked_operations"
       ],
       "language_mix": [
         "sql"
@@ -915,7 +929,7 @@
     {
       "id": 78,
       "modules": [
-        "pg:public.public.agent_profiles.id"
+        "pg:public.public.agent_profiles.created_at"
       ],
       "language_mix": [
         "sql"
@@ -925,7 +939,7 @@
     {
       "id": 79,
       "modules": [
-        "pg:public.public.agent_profiles.max_api_calls_per_hour"
+        "pg:public.public.agent_profiles.description"
       ],
       "language_mix": [
         "sql"
@@ -935,7 +949,7 @@
     {
       "id": 80,
       "modules": [
-        "pg:public.public.agent_profiles.max_execution_time_seconds"
+        "pg:public.public.agent_profiles.enable"
       ],
       "language_mix": [
         "sql"
@@ -945,7 +959,7 @@
     {
       "id": 81,
       "modules": [
-        "pg:public.public.agent_profiles.max_file_modifications"
+        "pg:public.public.agent_profiles.enabled"
       ],
       "language_mix": [
         "sql"
@@ -955,7 +969,7 @@
     {
       "id": 82,
       "modules": [
-        "pg:public.public.agent_profiles.metadata"
+        "pg:public.public.agent_profiles.id"
       ],
       "language_mix": [
         "sql"
@@ -965,7 +979,7 @@
     {
       "id": 83,
       "modules": [
-        "pg:public.public.agent_profiles.name"
+        "pg:public.public.agent_profiles.max_api_calls_per_hour"
       ],
       "language_mix": [
         "sql"
@@ -975,7 +989,7 @@
     {
       "id": 84,
       "modules": [
-        "pg:public.public.agent_profiles.network_policy"
+        "pg:public.public.agent_profiles.max_execution_time_seconds"
       ],
       "language_mix": [
         "sql"
@@ -985,7 +999,7 @@
     {
       "id": 85,
       "modules": [
-        "pg:public.public.agent_profiles.trust_level"
+        "pg:public.public.agent_profiles.max_file_modifications"
       ],
       "language_mix": [
         "sql"
@@ -995,7 +1009,7 @@
     {
       "id": 86,
       "modules": [
-        "pg:public.public.agent_profiles.updated_at"
+        "pg:public.public.agent_profiles.metadata"
       ],
       "language_mix": [
         "sql"
@@ -1005,7 +1019,7 @@
     {
       "id": 87,
       "modules": [
-        "pg:public.public.agent_sessions"
+        "pg:public.public.agent_profiles.name"
       ],
       "language_mix": [
         "sql"
@@ -1015,7 +1029,7 @@
     {
       "id": 88,
       "modules": [
-        "pg:public.public.agent_sessions.agent_id"
+        "pg:public.public.agent_profiles.network_policy"
       ],
       "language_mix": [
         "sql"
@@ -1025,7 +1039,7 @@
     {
       "id": 89,
       "modules": [
-        "pg:public.public.agent_sessions.agent_type"
+        "pg:public.public.agent_profiles.trust_level"
       ],
       "language_mix": [
         "sql"
@@ -1035,7 +1049,7 @@
     {
       "id": 90,
       "modules": [
-        "pg:public.public.agent_sessions.capabilities"
+        "pg:public.public.agent_profiles.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -1045,7 +1059,7 @@
     {
       "id": 91,
       "modules": [
-        "pg:public.public.agent_sessions.current_task"
+        "pg:public.public.agent_sessions"
       ],
       "language_mix": [
         "sql"
@@ -1055,7 +1069,7 @@
     {
       "id": 92,
       "modules": [
-        "pg:public.public.agent_sessions.enable"
+        "pg:public.public.agent_sessions.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -1065,7 +1079,7 @@
     {
       "id": 93,
       "modules": [
-        "pg:public.public.agent_sessions.ended_at"
+        "pg:public.public.agent_sessions.agent_type"
       ],
       "language_mix": [
         "sql"
@@ -1075,7 +1089,7 @@
     {
       "id": 94,
       "modules": [
-        "pg:public.public.agent_sessions.files_modified"
+        "pg:public.public.agent_sessions.capabilities"
       ],
       "language_mix": [
         "sql"
@@ -1085,7 +1099,7 @@
     {
       "id": 95,
       "modules": [
-        "pg:public.public.agent_sessions.id"
+        "pg:public.public.agent_sessions.current_task"
       ],
       "language_mix": [
         "sql"
@@ -1095,7 +1109,7 @@
     {
       "id": 96,
       "modules": [
-        "pg:public.public.agent_sessions.last_heartbeat"
+        "pg:public.public.agent_sessions.enable"
       ],
       "language_mix": [
         "sql"
@@ -1105,7 +1119,7 @@
     {
       "id": 97,
       "modules": [
-        "pg:public.public.agent_sessions.metadata"
+        "pg:public.public.agent_sessions.ended_at"
       ],
       "language_mix": [
         "sql"
@@ -1115,7 +1129,7 @@
     {
       "id": 98,
       "modules": [
-        "pg:public.public.agent_sessions.started_at"
+        "pg:public.public.agent_sessions.files_modified"
       ],
       "language_mix": [
         "sql"
@@ -1125,7 +1139,7 @@
     {
       "id": 99,
       "modules": [
-        "pg:public.public.agent_sessions.status"
+        "pg:public.public.agent_sessions.id"
       ],
       "language_mix": [
         "sql"
@@ -1135,7 +1149,7 @@
     {
       "id": 100,
       "modules": [
-        "pg:public.public.agent_sessions.task_description"
+        "pg:public.public.agent_sessions.last_heartbeat"
       ],
       "language_mix": [
         "sql"
@@ -1145,7 +1159,7 @@
     {
       "id": 101,
       "modules": [
-        "pg:public.public.agent_sessions.tasks_completed"
+        "pg:public.public.agent_sessions.metadata"
       ],
       "language_mix": [
         "sql"
@@ -1155,7 +1169,7 @@
     {
       "id": 102,
       "modules": [
-        "pg:public.public.approval_queue"
+        "pg:public.public.agent_sessions.started_at"
       ],
       "language_mix": [
         "sql"
@@ -1165,7 +1179,7 @@
     {
       "id": 103,
       "modules": [
-        "pg:public.public.approval_queue.changeset_id"
+        "pg:public.public.agent_sessions.status"
       ],
       "language_mix": [
         "sql"
@@ -1175,7 +1189,7 @@
     {
       "id": 104,
       "modules": [
-        "pg:public.public.approval_queue.created_at"
+        "pg:public.public.agent_sessions.task_description"
       ],
       "language_mix": [
         "sql"
@@ -1185,7 +1199,7 @@
     {
       "id": 105,
       "modules": [
-        "pg:public.public.approval_queue.enable"
+        "pg:public.public.agent_sessions.tasks_completed"
       ],
       "language_mix": [
         "sql"
@@ -1195,7 +1209,7 @@
     {
       "id": 106,
       "modules": [
-        "pg:public.public.approval_queue.id"
+        "pg:public.public.approval_queue"
       ],
       "language_mix": [
         "sql"
@@ -1205,7 +1219,7 @@
     {
       "id": 107,
       "modules": [
-        "pg:public.public.approval_queue.reason"
+        "pg:public.public.approval_queue.changeset_id"
       ],
       "language_mix": [
         "sql"
@@ -1215,7 +1229,7 @@
     {
       "id": 108,
       "modules": [
-        "pg:public.public.approval_queue.requested_by"
+        "pg:public.public.approval_queue.created_at"
       ],
       "language_mix": [
         "sql"
@@ -1225,7 +1239,7 @@
     {
       "id": 109,
       "modules": [
-        "pg:public.public.approval_queue.review_notes"
+        "pg:public.public.approval_queue.enable"
       ],
       "language_mix": [
         "sql"
@@ -1235,7 +1249,7 @@
     {
       "id": 110,
       "modules": [
-        "pg:public.public.approval_queue.reviewed_at"
+        "pg:public.public.approval_queue.id"
       ],
       "language_mix": [
         "sql"
@@ -1245,7 +1259,7 @@
     {
       "id": 111,
       "modules": [
-        "pg:public.public.approval_queue.reviewed_by"
+        "pg:public.public.approval_queue.reason"
       ],
       "language_mix": [
         "sql"
@@ -1255,7 +1269,7 @@
     {
       "id": 112,
       "modules": [
-        "pg:public.public.approval_queue.status"
+        "pg:public.public.approval_queue.requested_by"
       ],
       "language_mix": [
         "sql"
@@ -1265,7 +1279,7 @@
     {
       "id": 113,
       "modules": [
-        "pg:public.public.approve_changeset"
+        "pg:public.public.approval_queue.review_notes"
       ],
       "language_mix": [
         "sql"
@@ -1275,7 +1289,7 @@
     {
       "id": 114,
       "modules": [
-        "pg:public.public.audit_log"
+        "pg:public.public.approval_queue.reviewed_at"
       ],
       "language_mix": [
         "sql"
@@ -1285,7 +1299,7 @@
     {
       "id": 115,
       "modules": [
-        "pg:public.public.audit_log.agent_id"
+        "pg:public.public.approval_queue.reviewed_by"
       ],
       "language_mix": [
         "sql"
@@ -1295,7 +1309,7 @@
     {
       "id": 116,
       "modules": [
-        "pg:public.public.audit_log.agent_type"
+        "pg:public.public.approval_queue.status"
       ],
       "language_mix": [
         "sql"
@@ -1305,7 +1319,7 @@
     {
       "id": 117,
       "modules": [
-        "pg:public.public.audit_log.created_at"
+        "pg:public.public.approve_changeset"
       ],
       "language_mix": [
         "sql"
@@ -1315,7 +1329,7 @@
     {
       "id": 118,
       "modules": [
-        "pg:public.public.audit_log.duration_ms"
+        "pg:public.public.audit_log"
       ],
       "language_mix": [
         "sql"
@@ -1325,7 +1339,7 @@
     {
       "id": 119,
       "modules": [
-        "pg:public.public.audit_log.enable"
+        "pg:public.public.audit_log.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -1335,7 +1349,7 @@
     {
       "id": 120,
       "modules": [
-        "pg:public.public.audit_log.error_message"
+        "pg:public.public.audit_log.agent_type"
       ],
       "language_mix": [
         "sql"
@@ -1345,7 +1359,7 @@
     {
       "id": 121,
       "modules": [
-        "pg:public.public.audit_log.id"
+        "pg:public.public.audit_log.created_at"
       ],
       "language_mix": [
         "sql"
@@ -1355,7 +1369,7 @@
     {
       "id": 122,
       "modules": [
-        "pg:public.public.audit_log.operation"
+        "pg:public.public.audit_log.duration_ms"
       ],
       "language_mix": [
         "sql"
@@ -1365,7 +1379,7 @@
     {
       "id": 123,
       "modules": [
-        "pg:public.public.audit_log.parameters"
+        "pg:public.public.audit_log.enable"
       ],
       "language_mix": [
         "sql"
@@ -1375,7 +1389,7 @@
     {
       "id": 124,
       "modules": [
-        "pg:public.public.audit_log.result"
+        "pg:public.public.audit_log.error_message"
       ],
       "language_mix": [
         "sql"
@@ -1385,7 +1399,7 @@
     {
       "id": 125,
       "modules": [
-        "pg:public.public.audit_log.success"
+        "pg:public.public.audit_log.id"
       ],
       "language_mix": [
         "sql"
@@ -1395,7 +1409,7 @@
     {
       "id": 126,
       "modules": [
-        "pg:public.public.cedar_entities"
+        "pg:public.public.audit_log.operation"
       ],
       "language_mix": [
         "sql"
@@ -1405,7 +1419,7 @@
     {
       "id": 127,
       "modules": [
-        "pg:public.public.cedar_entities.attributes"
+        "pg:public.public.audit_log.parameters"
       ],
       "language_mix": [
         "sql"
@@ -1415,7 +1429,7 @@
     {
       "id": 128,
       "modules": [
-        "pg:public.public.cedar_entities.created_at"
+        "pg:public.public.audit_log.result"
       ],
       "language_mix": [
         "sql"
@@ -1425,7 +1439,7 @@
     {
       "id": 129,
       "modules": [
-        "pg:public.public.cedar_entities.enable"
+        "pg:public.public.audit_log.success"
       ],
       "language_mix": [
         "sql"
@@ -1435,7 +1449,7 @@
     {
       "id": 130,
       "modules": [
-        "pg:public.public.cedar_entities.entity_id"
+        "pg:public.public.cedar_entities"
       ],
       "language_mix": [
         "sql"
@@ -1445,7 +1459,7 @@
     {
       "id": 131,
       "modules": [
-        "pg:public.public.cedar_entities.entity_type"
+        "pg:public.public.cedar_entities.attributes"
       ],
       "language_mix": [
         "sql"
@@ -1455,7 +1469,7 @@
     {
       "id": 132,
       "modules": [
-        "pg:public.public.cedar_entities.id"
+        "pg:public.public.cedar_entities.created_at"
       ],
       "language_mix": [
         "sql"
@@ -1465,7 +1479,7 @@
     {
       "id": 133,
       "modules": [
-        "pg:public.public.cedar_entities.parents"
+        "pg:public.public.cedar_entities.enable"
       ],
       "language_mix": [
         "sql"
@@ -1475,7 +1489,7 @@
     {
       "id": 134,
       "modules": [
-        "pg:public.public.cedar_entities.updated_at"
+        "pg:public.public.cedar_entities.entity_id"
       ],
       "language_mix": [
         "sql"
@@ -1485,7 +1499,7 @@
     {
       "id": 135,
       "modules": [
-        "pg:public.public.cedar_policies"
+        "pg:public.public.cedar_entities.entity_type"
       ],
       "language_mix": [
         "sql"
@@ -1495,7 +1509,7 @@
     {
       "id": 136,
       "modules": [
-        "pg:public.public.cedar_policies.created_at"
+        "pg:public.public.cedar_entities.id"
       ],
       "language_mix": [
         "sql"
@@ -1505,7 +1519,7 @@
     {
       "id": 137,
       "modules": [
-        "pg:public.public.cedar_policies.description"
+        "pg:public.public.cedar_entities.parents"
       ],
       "language_mix": [
         "sql"
@@ -1515,7 +1529,7 @@
     {
       "id": 138,
       "modules": [
-        "pg:public.public.cedar_policies.enable"
+        "pg:public.public.cedar_entities.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -1525,7 +1539,7 @@
     {
       "id": 139,
       "modules": [
-        "pg:public.public.cedar_policies.enabled"
+        "pg:public.public.cedar_policies"
       ],
       "language_mix": [
         "sql"
@@ -1535,7 +1549,7 @@
     {
       "id": 140,
       "modules": [
-        "pg:public.public.cedar_policies.id"
+        "pg:public.public.cedar_policies.created_at"
       ],
       "language_mix": [
         "sql"
@@ -1545,7 +1559,7 @@
     {
       "id": 141,
       "modules": [
-        "pg:public.public.cedar_policies.name"
+        "pg:public.public.cedar_policies.description"
       ],
       "language_mix": [
         "sql"
@@ -1555,7 +1569,7 @@
     {
       "id": 142,
       "modules": [
-        "pg:public.public.cedar_policies.policy_text"
+        "pg:public.public.cedar_policies.enable"
       ],
       "language_mix": [
         "sql"
@@ -1565,7 +1579,7 @@
     {
       "id": 143,
       "modules": [
-        "pg:public.public.cedar_policies.priority"
+        "pg:public.public.cedar_policies.enabled"
       ],
       "language_mix": [
         "sql"
@@ -1575,7 +1589,7 @@
     {
       "id": 144,
       "modules": [
-        "pg:public.public.cedar_policies.updated_at"
+        "pg:public.public.cedar_policies.id"
       ],
       "language_mix": [
         "sql"
@@ -1585,7 +1599,7 @@
     {
       "id": 145,
       "modules": [
-        "pg:public.public.changesets"
+        "pg:public.public.cedar_policies.name"
       ],
       "language_mix": [
         "sql"
@@ -1595,7 +1609,7 @@
     {
       "id": 146,
       "modules": [
-        "pg:public.public.changesets.agent_id"
+        "pg:public.public.cedar_policies.policy_text"
       ],
       "language_mix": [
         "sql"
@@ -1605,7 +1619,7 @@
     {
       "id": 147,
       "modules": [
-        "pg:public.public.changesets.branch_name"
+        "pg:public.public.cedar_policies.priority"
       ],
       "language_mix": [
         "sql"
@@ -1615,7 +1629,7 @@
     {
       "id": 148,
       "modules": [
-        "pg:public.public.changesets.changed_files"
+        "pg:public.public.cedar_policies.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -1625,7 +1639,7 @@
     {
       "id": 149,
       "modules": [
-        "pg:public.public.changesets.commit_sha"
+        "pg:public.public.changesets"
       ],
       "language_mix": [
         "sql"
@@ -1635,7 +1649,7 @@
     {
       "id": 150,
       "modules": [
-        "pg:public.public.changesets.created_at"
+        "pg:public.public.changesets.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -1645,7 +1659,7 @@
     {
       "id": 151,
       "modules": [
-        "pg:public.public.changesets.description"
+        "pg:public.public.changesets.branch_name"
       ],
       "language_mix": [
         "sql"
@@ -1655,7 +1669,7 @@
     {
       "id": 152,
       "modules": [
-        "pg:public.public.changesets.enable"
+        "pg:public.public.changesets.changed_files"
       ],
       "language_mix": [
         "sql"
@@ -1665,7 +1679,7 @@
     {
       "id": 153,
       "modules": [
-        "pg:public.public.changesets.id"
+        "pg:public.public.changesets.commit_sha"
       ],
       "language_mix": [
         "sql"
@@ -1675,7 +1689,7 @@
     {
       "id": 154,
       "modules": [
-        "pg:public.public.changesets.session_id"
+        "pg:public.public.changesets.created_at"
       ],
       "language_mix": [
         "sql"
@@ -1685,7 +1699,7 @@
     {
       "id": 155,
       "modules": [
-        "pg:public.public.changesets.status"
+        "pg:public.public.changesets.description"
       ],
       "language_mix": [
         "sql"
@@ -1695,7 +1709,7 @@
     {
       "id": 156,
       "modules": [
-        "pg:public.public.changesets.updated_at"
+        "pg:public.public.changesets.enable"
       ],
       "language_mix": [
         "sql"
@@ -1705,7 +1719,7 @@
     {
       "id": 157,
       "modules": [
-        "pg:public.public.check_guardrails"
+        "pg:public.public.changesets.id"
       ],
       "language_mix": [
         "sql"
@@ -1715,7 +1729,7 @@
     {
       "id": 158,
       "modules": [
-        "pg:public.public.claim_task"
+        "pg:public.public.changesets.session_id"
       ],
       "language_mix": [
         "sql"
@@ -1725,7 +1739,7 @@
     {
       "id": 159,
       "modules": [
-        "pg:public.public.cleanup_dead_agents"
+        "pg:public.public.changesets.status"
       ],
       "language_mix": [
         "sql"
@@ -1735,7 +1749,7 @@
     {
       "id": 160,
       "modules": [
-        "pg:public.public.cleanup_old_audit_entries"
+        "pg:public.public.changesets.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -1745,7 +1759,7 @@
     {
       "id": 161,
       "modules": [
-        "pg:public.public.complete_task"
+        "pg:public.public.check_guardrails"
       ],
       "language_mix": [
         "sql"
@@ -1755,7 +1769,7 @@
     {
       "id": 162,
       "modules": [
-        "pg:public.public.discover_agents"
+        "pg:public.public.claim_task"
       ],
       "language_mix": [
         "sql"
@@ -1765,7 +1779,7 @@
     {
       "id": 163,
       "modules": [
-        "pg:public.public.file_locks"
+        "pg:public.public.cleanup_dead_agents"
       ],
       "language_mix": [
         "sql"
@@ -1775,7 +1789,7 @@
     {
       "id": 164,
       "modules": [
-        "pg:public.public.file_locks.agent_type"
+        "pg:public.public.cleanup_old_audit_entries"
       ],
       "language_mix": [
         "sql"
@@ -1785,7 +1799,7 @@
     {
       "id": 165,
       "modules": [
-        "pg:public.public.file_locks.enable"
+        "pg:public.public.complete_task"
       ],
       "language_mix": [
         "sql"
@@ -1795,7 +1809,7 @@
     {
       "id": 166,
       "modules": [
-        "pg:public.public.file_locks.expires_at"
+        "pg:public.public.deregister_feature"
       ],
       "language_mix": [
         "sql"
@@ -1805,7 +1819,7 @@
     {
       "id": 167,
       "modules": [
-        "pg:public.public.file_locks.file_path"
+        "pg:public.public.discover_agents"
       ],
       "language_mix": [
         "sql"
@@ -1815,7 +1829,7 @@
     {
       "id": 168,
       "modules": [
-        "pg:public.public.file_locks.locked_at"
+        "pg:public.public.feature_registry"
       ],
       "language_mix": [
         "sql"
@@ -1825,7 +1839,7 @@
     {
       "id": 169,
       "modules": [
-        "pg:public.public.file_locks.locked_by"
+        "pg:public.public.feature_registry.branch_name"
       ],
       "language_mix": [
         "sql"
@@ -1835,7 +1849,7 @@
     {
       "id": 170,
       "modules": [
-        "pg:public.public.file_locks.metadata"
+        "pg:public.public.feature_registry.completed_at"
       ],
       "language_mix": [
         "sql"
@@ -1845,7 +1859,7 @@
     {
       "id": 171,
       "modules": [
-        "pg:public.public.file_locks.reason"
+        "pg:public.public.feature_registry.feature_id"
       ],
       "language_mix": [
         "sql"
@@ -1855,7 +1869,7 @@
     {
       "id": 172,
       "modules": [
-        "pg:public.public.file_locks.session_id"
+        "pg:public.public.feature_registry.merge_priority"
       ],
       "language_mix": [
         "sql"
@@ -1865,7 +1879,7 @@
     {
       "id": 173,
       "modules": [
-        "pg:public.public.get_agent_profile"
+        "pg:public.public.feature_registry.registered_at"
       ],
       "language_mix": [
         "sql"
@@ -1875,7 +1889,7 @@
     {
       "id": 174,
       "modules": [
-        "pg:public.public.get_pending_approvals"
+        "pg:public.public.feature_registry.registered_by"
       ],
       "language_mix": [
         "sql"
@@ -1885,7 +1899,7 @@
     {
       "id": 175,
       "modules": [
-        "pg:public.public.get_relevant_memories"
+        "pg:public.public.feature_registry.resource_claims"
       ],
       "language_mix": [
         "sql"
@@ -1895,7 +1909,7 @@
     {
       "id": 176,
       "modules": [
-        "pg:public.public.guardrail_violations"
+        "pg:public.public.feature_registry.status"
       ],
       "language_mix": [
         "sql"
@@ -1905,7 +1919,7 @@
     {
       "id": 177,
       "modules": [
-        "pg:public.public.guardrail_violations.agent_id"
+        "pg:public.public.feature_registry.title"
       ],
       "language_mix": [
         "sql"
@@ -1915,7 +1929,7 @@
     {
       "id": 178,
       "modules": [
-        "pg:public.public.guardrail_violations.agent_type"
+        "pg:public.public.feature_registry.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -1925,7 +1939,7 @@
     {
       "id": 179,
       "modules": [
-        "pg:public.public.guardrail_violations.blocked"
+        "pg:public.public.file_locks"
       ],
       "language_mix": [
         "sql"
@@ -1935,7 +1949,7 @@
     {
       "id": 180,
       "modules": [
-        "pg:public.public.guardrail_violations.category"
+        "pg:public.public.file_locks.agent_type"
       ],
       "language_mix": [
         "sql"
@@ -1945,7 +1959,7 @@
     {
       "id": 181,
       "modules": [
-        "pg:public.public.guardrail_violations.context"
+        "pg:public.public.file_locks.enable"
       ],
       "language_mix": [
         "sql"
@@ -1955,7 +1969,7 @@
     {
       "id": 182,
       "modules": [
-        "pg:public.public.guardrail_violations.created_at"
+        "pg:public.public.file_locks.expires_at"
       ],
       "language_mix": [
         "sql"
@@ -1965,7 +1979,7 @@
     {
       "id": 183,
       "modules": [
-        "pg:public.public.guardrail_violations.enable"
+        "pg:public.public.file_locks.file_path"
       ],
       "language_mix": [
         "sql"
@@ -1975,7 +1989,7 @@
     {
       "id": 184,
       "modules": [
-        "pg:public.public.guardrail_violations.id"
+        "pg:public.public.file_locks.locked_at"
       ],
       "language_mix": [
         "sql"
@@ -1985,7 +1999,7 @@
     {
       "id": 185,
       "modules": [
-        "pg:public.public.guardrail_violations.matched_text"
+        "pg:public.public.file_locks.locked_by"
       ],
       "language_mix": [
         "sql"
@@ -1995,7 +2009,7 @@
     {
       "id": 186,
       "modules": [
-        "pg:public.public.guardrail_violations.operation_text"
+        "pg:public.public.file_locks.metadata"
       ],
       "language_mix": [
         "sql"
@@ -2005,7 +2019,7 @@
     {
       "id": 187,
       "modules": [
-        "pg:public.public.guardrail_violations.pattern_name"
+        "pg:public.public.file_locks.reason"
       ],
       "language_mix": [
         "sql"
@@ -2015,7 +2029,7 @@
     {
       "id": 188,
       "modules": [
-        "pg:public.public.guardrail_violations.trust_level"
+        "pg:public.public.file_locks.session_id"
       ],
       "language_mix": [
         "sql"
@@ -2025,7 +2039,7 @@
     {
       "id": 189,
       "modules": [
-        "pg:public.public.handoff_documents"
+        "pg:public.public.get_agent_profile"
       ],
       "language_mix": [
         "sql"
@@ -2035,7 +2049,7 @@
     {
       "id": 190,
       "modules": [
-        "pg:public.public.handoff_documents.agent_name"
+        "pg:public.public.get_pending_approvals"
       ],
       "language_mix": [
         "sql"
@@ -2045,7 +2059,7 @@
     {
       "id": 191,
       "modules": [
-        "pg:public.public.handoff_documents.completed_work"
+        "pg:public.public.get_relevant_memories"
       ],
       "language_mix": [
         "sql"
@@ -2055,7 +2069,7 @@
     {
       "id": 192,
       "modules": [
-        "pg:public.public.handoff_documents.created_at"
+        "pg:public.public.guardrail_violations"
       ],
       "language_mix": [
         "sql"
@@ -2065,7 +2079,7 @@
     {
       "id": 193,
       "modules": [
-        "pg:public.public.handoff_documents.decisions"
+        "pg:public.public.guardrail_violations.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -2075,7 +2089,7 @@
     {
       "id": 194,
       "modules": [
-        "pg:public.public.handoff_documents.enable"
+        "pg:public.public.guardrail_violations.agent_type"
       ],
       "language_mix": [
         "sql"
@@ -2085,7 +2099,7 @@
     {
       "id": 195,
       "modules": [
-        "pg:public.public.handoff_documents.id"
+        "pg:public.public.guardrail_violations.blocked"
       ],
       "language_mix": [
         "sql"
@@ -2095,7 +2109,7 @@
     {
       "id": 196,
       "modules": [
-        "pg:public.public.handoff_documents.in_progress"
+        "pg:public.public.guardrail_violations.category"
       ],
       "language_mix": [
         "sql"
@@ -2105,7 +2119,7 @@
     {
       "id": 197,
       "modules": [
-        "pg:public.public.handoff_documents.next_steps"
+        "pg:public.public.guardrail_violations.context"
       ],
       "language_mix": [
         "sql"
@@ -2115,7 +2129,7 @@
     {
       "id": 198,
       "modules": [
-        "pg:public.public.handoff_documents.relevant_files"
+        "pg:public.public.guardrail_violations.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2125,7 +2139,7 @@
     {
       "id": 199,
       "modules": [
-        "pg:public.public.handoff_documents.session_id"
+        "pg:public.public.guardrail_violations.enable"
       ],
       "language_mix": [
         "sql"
@@ -2135,7 +2149,7 @@
     {
       "id": 200,
       "modules": [
-        "pg:public.public.handoff_documents.summary"
+        "pg:public.public.guardrail_violations.id"
       ],
       "language_mix": [
         "sql"
@@ -2145,7 +2159,7 @@
     {
       "id": 201,
       "modules": [
-        "pg:public.public.is_domain_allowed"
+        "pg:public.public.guardrail_violations.matched_text"
       ],
       "language_mix": [
         "sql"
@@ -2155,7 +2169,7 @@
     {
       "id": 202,
       "modules": [
-        "pg:public.public.memory_episodic"
+        "pg:public.public.guardrail_violations.operation_text"
       ],
       "language_mix": [
         "sql"
@@ -2165,7 +2179,7 @@
     {
       "id": 203,
       "modules": [
-        "pg:public.public.memory_episodic.agent_id"
+        "pg:public.public.guardrail_violations.pattern_name"
       ],
       "language_mix": [
         "sql"
@@ -2175,7 +2189,7 @@
     {
       "id": 204,
       "modules": [
-        "pg:public.public.memory_episodic.created_at"
+        "pg:public.public.guardrail_violations.trust_level"
       ],
       "language_mix": [
         "sql"
@@ -2185,7 +2199,7 @@
     {
       "id": 205,
       "modules": [
-        "pg:public.public.memory_episodic.details"
+        "pg:public.public.handoff_documents"
       ],
       "language_mix": [
         "sql"
@@ -2195,7 +2209,7 @@
     {
       "id": 206,
       "modules": [
-        "pg:public.public.memory_episodic.enable"
+        "pg:public.public.handoff_documents.agent_name"
       ],
       "language_mix": [
         "sql"
@@ -2205,7 +2219,7 @@
     {
       "id": 207,
       "modules": [
-        "pg:public.public.memory_episodic.event_type"
+        "pg:public.public.handoff_documents.completed_work"
       ],
       "language_mix": [
         "sql"
@@ -2215,7 +2229,7 @@
     {
       "id": 208,
       "modules": [
-        "pg:public.public.memory_episodic.id"
+        "pg:public.public.handoff_documents.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2225,7 +2239,7 @@
     {
       "id": 209,
       "modules": [
-        "pg:public.public.memory_episodic.lessons"
+        "pg:public.public.handoff_documents.decisions"
       ],
       "language_mix": [
         "sql"
@@ -2235,7 +2249,7 @@
     {
       "id": 210,
       "modules": [
-        "pg:public.public.memory_episodic.outcome"
+        "pg:public.public.handoff_documents.enable"
       ],
       "language_mix": [
         "sql"
@@ -2245,7 +2259,7 @@
     {
       "id": 211,
       "modules": [
-        "pg:public.public.memory_episodic.relevance_score"
+        "pg:public.public.handoff_documents.id"
       ],
       "language_mix": [
         "sql"
@@ -2255,7 +2269,7 @@
     {
       "id": 212,
       "modules": [
-        "pg:public.public.memory_episodic.session_id"
+        "pg:public.public.handoff_documents.in_progress"
       ],
       "language_mix": [
         "sql"
@@ -2265,7 +2279,7 @@
     {
       "id": 213,
       "modules": [
-        "pg:public.public.memory_episodic.summary"
+        "pg:public.public.handoff_documents.next_steps"
       ],
       "language_mix": [
         "sql"
@@ -2275,7 +2289,7 @@
     {
       "id": 214,
       "modules": [
-        "pg:public.public.memory_episodic.tags"
+        "pg:public.public.handoff_documents.relevant_files"
       ],
       "language_mix": [
         "sql"
@@ -2285,7 +2299,7 @@
     {
       "id": 215,
       "modules": [
-        "pg:public.public.memory_procedural"
+        "pg:public.public.handoff_documents.session_id"
       ],
       "language_mix": [
         "sql"
@@ -2295,7 +2309,7 @@
     {
       "id": 216,
       "modules": [
-        "pg:public.public.memory_procedural.created_at"
+        "pg:public.public.handoff_documents.summary"
       ],
       "language_mix": [
         "sql"
@@ -2305,7 +2319,7 @@
     {
       "id": 217,
       "modules": [
-        "pg:public.public.memory_procedural.description"
+        "pg:public.public.is_domain_allowed"
       ],
       "language_mix": [
         "sql"
@@ -2315,7 +2329,7 @@
     {
       "id": 218,
       "modules": [
-        "pg:public.public.memory_procedural.enable"
+        "pg:public.public.memory_episodic"
       ],
       "language_mix": [
         "sql"
@@ -2325,7 +2339,7 @@
     {
       "id": 219,
       "modules": [
-        "pg:public.public.memory_procedural.failure_count"
+        "pg:public.public.memory_episodic.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -2335,7 +2349,7 @@
     {
       "id": 220,
       "modules": [
-        "pg:public.public.memory_procedural.id"
+        "pg:public.public.memory_episodic.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2345,7 +2359,7 @@
     {
       "id": 221,
       "modules": [
-        "pg:public.public.memory_procedural.last_used"
+        "pg:public.public.memory_episodic.details"
       ],
       "language_mix": [
         "sql"
@@ -2355,7 +2369,7 @@
     {
       "id": 222,
       "modules": [
-        "pg:public.public.memory_procedural.prerequisites"
+        "pg:public.public.memory_episodic.enable"
       ],
       "language_mix": [
         "sql"
@@ -2365,7 +2379,7 @@
     {
       "id": 223,
       "modules": [
-        "pg:public.public.memory_procedural.skill_name"
+        "pg:public.public.memory_episodic.event_type"
       ],
       "language_mix": [
         "sql"
@@ -2375,7 +2389,7 @@
     {
       "id": 224,
       "modules": [
-        "pg:public.public.memory_procedural.steps"
+        "pg:public.public.memory_episodic.id"
       ],
       "language_mix": [
         "sql"
@@ -2385,7 +2399,7 @@
     {
       "id": 225,
       "modules": [
-        "pg:public.public.memory_procedural.success_count"
+        "pg:public.public.memory_episodic.lessons"
       ],
       "language_mix": [
         "sql"
@@ -2395,7 +2409,7 @@
     {
       "id": 226,
       "modules": [
-        "pg:public.public.memory_procedural.updated_at"
+        "pg:public.public.memory_episodic.outcome"
       ],
       "language_mix": [
         "sql"
@@ -2405,7 +2419,7 @@
     {
       "id": 227,
       "modules": [
-        "pg:public.public.memory_working"
+        "pg:public.public.memory_episodic.relevance_score"
       ],
       "language_mix": [
         "sql"
@@ -2415,7 +2429,7 @@
     {
       "id": 228,
       "modules": [
-        "pg:public.public.memory_working.agent_id"
+        "pg:public.public.memory_episodic.session_id"
       ],
       "language_mix": [
         "sql"
@@ -2425,7 +2439,7 @@
     {
       "id": 229,
       "modules": [
-        "pg:public.public.memory_working.created_at"
+        "pg:public.public.memory_episodic.summary"
       ],
       "language_mix": [
         "sql"
@@ -2435,7 +2449,7 @@
     {
       "id": 230,
       "modules": [
-        "pg:public.public.memory_working.enable"
+        "pg:public.public.memory_episodic.tags"
       ],
       "language_mix": [
         "sql"
@@ -2445,7 +2459,7 @@
     {
       "id": 231,
       "modules": [
-        "pg:public.public.memory_working.expires_at"
+        "pg:public.public.memory_procedural"
       ],
       "language_mix": [
         "sql"
@@ -2455,7 +2469,7 @@
     {
       "id": 232,
       "modules": [
-        "pg:public.public.memory_working.id"
+        "pg:public.public.memory_procedural.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2465,7 +2479,7 @@
     {
       "id": 233,
       "modules": [
-        "pg:public.public.memory_working.session_id"
+        "pg:public.public.memory_procedural.description"
       ],
       "language_mix": [
         "sql"
@@ -2475,7 +2489,7 @@
     {
       "id": 234,
       "modules": [
-        "pg:public.public.memory_working.updated_at"
+        "pg:public.public.memory_procedural.enable"
       ],
       "language_mix": [
         "sql"
@@ -2485,7 +2499,7 @@
     {
       "id": 235,
       "modules": [
-        "pg:public.public.memory_working.value"
+        "pg:public.public.memory_procedural.failure_count"
       ],
       "language_mix": [
         "sql"
@@ -2495,7 +2509,7 @@
     {
       "id": 236,
       "modules": [
-        "pg:public.public.network_access_log"
+        "pg:public.public.memory_procedural.id"
       ],
       "language_mix": [
         "sql"
@@ -2505,7 +2519,7 @@
     {
       "id": 237,
       "modules": [
-        "pg:public.public.network_access_log.agent_id"
+        "pg:public.public.memory_procedural.last_used"
       ],
       "language_mix": [
         "sql"
@@ -2515,7 +2529,7 @@
     {
       "id": 238,
       "modules": [
-        "pg:public.public.network_access_log.allowed"
+        "pg:public.public.memory_procedural.prerequisites"
       ],
       "language_mix": [
         "sql"
@@ -2525,7 +2539,7 @@
     {
       "id": 239,
       "modules": [
-        "pg:public.public.network_access_log.created_at"
+        "pg:public.public.memory_procedural.skill_name"
       ],
       "language_mix": [
         "sql"
@@ -2535,7 +2549,7 @@
     {
       "id": 240,
       "modules": [
-        "pg:public.public.network_access_log.domain"
+        "pg:public.public.memory_procedural.steps"
       ],
       "language_mix": [
         "sql"
@@ -2545,7 +2559,7 @@
     {
       "id": 241,
       "modules": [
-        "pg:public.public.network_access_log.enable"
+        "pg:public.public.memory_procedural.success_count"
       ],
       "language_mix": [
         "sql"
@@ -2555,7 +2569,7 @@
     {
       "id": 242,
       "modules": [
-        "pg:public.public.network_access_log.id"
+        "pg:public.public.memory_procedural.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -2565,7 +2579,7 @@
     {
       "id": 243,
       "modules": [
-        "pg:public.public.network_access_log.policy_id"
+        "pg:public.public.memory_working"
       ],
       "language_mix": [
         "sql"
@@ -2575,7 +2589,7 @@
     {
       "id": 244,
       "modules": [
-        "pg:public.public.network_access_log.reason"
+        "pg:public.public.memory_working.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -2585,7 +2599,7 @@
     {
       "id": 245,
       "modules": [
-        "pg:public.public.network_policies"
+        "pg:public.public.memory_working.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2595,7 +2609,7 @@
     {
       "id": 246,
       "modules": [
-        "pg:public.public.network_policies.action"
+        "pg:public.public.memory_working.enable"
       ],
       "language_mix": [
         "sql"
@@ -2605,7 +2619,7 @@
     {
       "id": 247,
       "modules": [
-        "pg:public.public.network_policies.created_at"
+        "pg:public.public.memory_working.expires_at"
       ],
       "language_mix": [
         "sql"
@@ -2615,7 +2629,7 @@
     {
       "id": 248,
       "modules": [
-        "pg:public.public.network_policies.description"
+        "pg:public.public.memory_working.id"
       ],
       "language_mix": [
         "sql"
@@ -2625,7 +2639,7 @@
     {
       "id": 249,
       "modules": [
-        "pg:public.public.network_policies.domain_pattern"
+        "pg:public.public.memory_working.session_id"
       ],
       "language_mix": [
         "sql"
@@ -2635,7 +2649,7 @@
     {
       "id": 250,
       "modules": [
-        "pg:public.public.network_policies.enable"
+        "pg:public.public.memory_working.updated_at"
       ],
       "language_mix": [
         "sql"
@@ -2645,7 +2659,7 @@
     {
       "id": 251,
       "modules": [
-        "pg:public.public.network_policies.enabled"
+        "pg:public.public.memory_working.value"
       ],
       "language_mix": [
         "sql"
@@ -2655,7 +2669,7 @@
     {
       "id": 252,
       "modules": [
-        "pg:public.public.network_policies.id"
+        "pg:public.public.network_access_log"
       ],
       "language_mix": [
         "sql"
@@ -2665,7 +2679,7 @@
     {
       "id": 253,
       "modules": [
-        "pg:public.public.network_policies.priority"
+        "pg:public.public.network_access_log.agent_id"
       ],
       "language_mix": [
         "sql"
@@ -2675,7 +2689,7 @@
     {
       "id": 254,
       "modules": [
-        "pg:public.public.network_policies.profile_id"
+        "pg:public.public.network_access_log.allowed"
       ],
       "language_mix": [
         "sql"
@@ -2685,7 +2699,7 @@
     {
       "id": 255,
       "modules": [
-        "pg:public.public.operation_guardrails"
+        "pg:public.public.network_access_log.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2695,7 +2709,7 @@
     {
       "id": 256,
       "modules": [
-        "pg:public.public.operation_guardrails.category"
+        "pg:public.public.network_access_log.domain"
       ],
       "language_mix": [
         "sql"
@@ -2705,7 +2719,7 @@
     {
       "id": 257,
       "modules": [
-        "pg:public.public.operation_guardrails.created_at"
+        "pg:public.public.network_access_log.enable"
       ],
       "language_mix": [
         "sql"
@@ -2715,7 +2729,7 @@
     {
       "id": 258,
       "modules": [
-        "pg:public.public.operation_guardrails.description"
+        "pg:public.public.network_access_log.id"
       ],
       "language_mix": [
         "sql"
@@ -2725,7 +2739,7 @@
     {
       "id": 259,
       "modules": [
-        "pg:public.public.operation_guardrails.enable"
+        "pg:public.public.network_access_log.policy_id"
       ],
       "language_mix": [
         "sql"
@@ -2735,7 +2749,7 @@
     {
       "id": 260,
       "modules": [
-        "pg:public.public.operation_guardrails.enabled"
+        "pg:public.public.network_access_log.reason"
       ],
       "language_mix": [
         "sql"
@@ -2745,7 +2759,7 @@
     {
       "id": 261,
       "modules": [
-        "pg:public.public.operation_guardrails.id"
+        "pg:public.public.network_policies"
       ],
       "language_mix": [
         "sql"
@@ -2755,7 +2769,7 @@
     {
       "id": 262,
       "modules": [
-        "pg:public.public.operation_guardrails.min_trust_level"
+        "pg:public.public.network_policies.action"
       ],
       "language_mix": [
         "sql"
@@ -2765,7 +2779,7 @@
     {
       "id": 263,
       "modules": [
-        "pg:public.public.operation_guardrails.name"
+        "pg:public.public.network_policies.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2775,7 +2789,7 @@
     {
       "id": 264,
       "modules": [
-        "pg:public.public.operation_guardrails.pattern"
+        "pg:public.public.network_policies.description"
       ],
       "language_mix": [
         "sql"
@@ -2785,7 +2799,7 @@
     {
       "id": 265,
       "modules": [
-        "pg:public.public.operation_guardrails.severity"
+        "pg:public.public.network_policies.domain_pattern"
       ],
       "language_mix": [
         "sql"
@@ -2795,7 +2809,7 @@
     {
       "id": 266,
       "modules": [
-        "pg:public.public.raise_immutable_error"
+        "pg:public.public.network_policies.enable"
       ],
       "language_mix": [
         "sql"
@@ -2805,7 +2819,7 @@
     {
       "id": 267,
       "modules": [
-        "pg:public.public.read_handoff"
+        "pg:public.public.network_policies.enabled"
       ],
       "language_mix": [
         "sql"
@@ -2815,7 +2829,7 @@
     {
       "id": 268,
       "modules": [
-        "pg:public.public.register_agent_session"
+        "pg:public.public.network_policies.id"
       ],
       "language_mix": [
         "sql"
@@ -2825,7 +2839,7 @@
     {
       "id": 269,
       "modules": [
-        "pg:public.public.release_lock"
+        "pg:public.public.network_policies.priority"
       ],
       "language_mix": [
         "sql"
@@ -2835,7 +2849,7 @@
     {
       "id": 270,
       "modules": [
-        "pg:public.public.store_episodic_memory"
+        "pg:public.public.network_policies.profile_id"
       ],
       "language_mix": [
         "sql"
@@ -2845,7 +2859,7 @@
     {
       "id": 271,
       "modules": [
-        "pg:public.public.submit_task"
+        "pg:public.public.operation_guardrails"
       ],
       "language_mix": [
         "sql"
@@ -2855,7 +2869,7 @@
     {
       "id": 272,
       "modules": [
-        "pg:public.public.update_cedar_policies_timestamp"
+        "pg:public.public.operation_guardrails.category"
       ],
       "language_mix": [
         "sql"
@@ -2865,7 +2879,7 @@
     {
       "id": 273,
       "modules": [
-        "pg:public.public.verification_policies"
+        "pg:public.public.operation_guardrails.created_at"
       ],
       "language_mix": [
         "sql"
@@ -2875,7 +2889,7 @@
     {
       "id": 274,
       "modules": [
-        "pg:public.public.verification_policies.config"
+        "pg:public.public.operation_guardrails.description"
       ],
       "language_mix": [
         "sql"
@@ -2885,7 +2899,7 @@
     {
       "id": 275,
       "modules": [
-        "pg:public.public.verification_policies.created_at"
+        "pg:public.public.operation_guardrails.enable"
       ],
       "language_mix": [
         "sql"
@@ -2895,7 +2909,7 @@
     {
       "id": 276,
       "modules": [
-        "pg:public.public.verification_policies.description"
+        "pg:public.public.operation_guardrails.enabled"
       ],
       "language_mix": [
         "sql"
@@ -2905,7 +2919,7 @@
     {
       "id": 277,
       "modules": [
-        "pg:public.public.verification_policies.enable"
+        "pg:public.public.operation_guardrails.id"
       ],
       "language_mix": [
         "sql"
@@ -2915,7 +2929,7 @@
     {
       "id": 278,
       "modules": [
-        "pg:public.public.verification_policies.enabled"
+        "pg:public.public.operation_guardrails.min_trust_level"
       ],
       "language_mix": [
         "sql"
@@ -2925,7 +2939,7 @@
     {
       "id": 279,
       "modules": [
-        "pg:public.public.verification_policies.executor"
+        "pg:public.public.operation_guardrails.name"
       ],
       "language_mix": [
         "sql"
@@ -2935,7 +2949,7 @@
     {
       "id": 280,
       "modules": [
-        "pg:public.public.verification_policies.file_pattern"
+        "pg:public.public.operation_guardrails.pattern"
       ],
       "language_mix": [
         "sql"
@@ -2945,7 +2959,7 @@
     {
       "id": 281,
       "modules": [
-        "pg:public.public.verification_policies.id"
+        "pg:public.public.operation_guardrails.severity"
       ],
       "language_mix": [
         "sql"
@@ -2955,7 +2969,7 @@
     {
       "id": 282,
       "modules": [
-        "pg:public.public.verification_policies.name"
+        "pg:public.public.raise_immutable_error"
       ],
       "language_mix": [
         "sql"
@@ -2965,7 +2979,7 @@
     {
       "id": 283,
       "modules": [
-        "pg:public.public.verification_policies.priority"
+        "pg:public.public.read_handoff"
       ],
       "language_mix": [
         "sql"
@@ -2975,7 +2989,7 @@
     {
       "id": 284,
       "modules": [
-        "pg:public.public.verification_policies.tier"
+        "pg:public.public.register_agent_session"
       ],
       "language_mix": [
         "sql"
@@ -2985,7 +2999,7 @@
     {
       "id": 285,
       "modules": [
-        "pg:public.public.verification_results"
+        "pg:public.public.register_feature"
       ],
       "language_mix": [
         "sql"
@@ -2995,7 +3009,7 @@
     {
       "id": 286,
       "modules": [
-        "pg:public.public.verification_results.changeset_id"
+        "pg:public.public.release_lock"
       ],
       "language_mix": [
         "sql"
@@ -3005,7 +3019,7 @@
     {
       "id": 287,
       "modules": [
-        "pg:public.public.verification_results.completed_at"
+        "pg:public.public.store_episodic_memory"
       ],
       "language_mix": [
         "sql"
@@ -3015,7 +3029,7 @@
     {
       "id": 288,
       "modules": [
-        "pg:public.public.verification_results.created_at"
+        "pg:public.public.submit_task"
       ],
       "language_mix": [
         "sql"
@@ -3025,7 +3039,7 @@
     {
       "id": 289,
       "modules": [
-        "pg:public.public.verification_results.duration_ms"
+        "pg:public.public.update_cedar_policies_timestamp"
       ],
       "language_mix": [
         "sql"
@@ -3035,7 +3049,7 @@
     {
       "id": 290,
       "modules": [
-        "pg:public.public.verification_results.enable"
+        "pg:public.public.verification_policies"
       ],
       "language_mix": [
         "sql"
@@ -3045,7 +3059,7 @@
     {
       "id": 291,
       "modules": [
-        "pg:public.public.verification_results.error_message"
+        "pg:public.public.verification_policies.config"
       ],
       "language_mix": [
         "sql"
@@ -3055,7 +3069,7 @@
     {
       "id": 292,
       "modules": [
-        "pg:public.public.verification_results.executor"
+        "pg:public.public.verification_policies.created_at"
       ],
       "language_mix": [
         "sql"
@@ -3065,7 +3079,7 @@
     {
       "id": 293,
       "modules": [
-        "pg:public.public.verification_results.id"
+        "pg:public.public.verification_policies.description"
       ],
       "language_mix": [
         "sql"
@@ -3075,7 +3089,7 @@
     {
       "id": 294,
       "modules": [
-        "pg:public.public.verification_results.result"
+        "pg:public.public.verification_policies.enable"
       ],
       "language_mix": [
         "sql"
@@ -3085,7 +3099,7 @@
     {
       "id": 295,
       "modules": [
-        "pg:public.public.verification_results.started_at"
+        "pg:public.public.verification_policies.enabled"
       ],
       "language_mix": [
         "sql"
@@ -3095,7 +3109,7 @@
     {
       "id": 296,
       "modules": [
-        "pg:public.public.verification_results.status"
+        "pg:public.public.verification_policies.executor"
       ],
       "language_mix": [
         "sql"
@@ -3105,7 +3119,7 @@
     {
       "id": 297,
       "modules": [
-        "pg:public.public.verification_results.tier"
+        "pg:public.public.verification_policies.file_pattern"
       ],
       "language_mix": [
         "sql"
@@ -3115,7 +3129,7 @@
     {
       "id": 298,
       "modules": [
-        "pg:public.public.work_queue"
+        "pg:public.public.verification_policies.id"
       ],
       "language_mix": [
         "sql"
@@ -3125,7 +3139,7 @@
     {
       "id": 299,
       "modules": [
-        "pg:public.public.work_queue.claimed_at"
+        "pg:public.public.verification_policies.name"
       ],
       "language_mix": [
         "sql"
@@ -3135,7 +3149,7 @@
     {
       "id": 300,
       "modules": [
-        "pg:public.public.work_queue.claimed_by"
+        "pg:public.public.verification_policies.priority"
       ],
       "language_mix": [
         "sql"
@@ -3145,7 +3159,7 @@
     {
       "id": 301,
       "modules": [
-        "pg:public.public.work_queue.description"
+        "pg:public.public.verification_policies.tier"
       ],
       "language_mix": [
         "sql"
@@ -3155,7 +3169,7 @@
     {
       "id": 302,
       "modules": [
-        "pg:public.public.work_queue.enable"
+        "pg:public.public.verification_results"
       ],
       "language_mix": [
         "sql"
@@ -3165,7 +3179,7 @@
     {
       "id": 303,
       "modules": [
-        "pg:public.public.work_queue.id"
+        "pg:public.public.verification_results.changeset_id"
       ],
       "language_mix": [
         "sql"
@@ -3175,7 +3189,7 @@
     {
       "id": 304,
       "modules": [
-        "pg:public.public.work_queue.input_data"
+        "pg:public.public.verification_results.completed_at"
       ],
       "language_mix": [
         "sql"
@@ -3185,7 +3199,7 @@
     {
       "id": 305,
       "modules": [
-        "pg:public.public.work_queue.priority"
+        "pg:public.public.verification_results.created_at"
       ],
       "language_mix": [
         "sql"
@@ -3195,7 +3209,7 @@
     {
       "id": 306,
       "modules": [
-        "pg:public.public.work_queue.task_type"
+        "pg:public.public.verification_results.duration_ms"
       ],
       "language_mix": [
         "sql"
@@ -3205,7 +3219,7 @@
     {
       "id": 307,
       "modules": [
-        "pg:public.public.write_handoff"
+        "pg:public.public.verification_results.enable"
       ],
       "language_mix": [
         "sql"
@@ -3215,177 +3229,177 @@
     {
       "id": 308,
       "modules": [
-        "py:__init__"
+        "pg:public.public.verification_results.error_message"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 309,
       "modules": [
-        "py:assurance"
+        "pg:public.public.verification_results.executor"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 310,
       "modules": [
-        "py:audit.AuditEntry"
+        "pg:public.public.verification_results.id"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 311,
       "modules": [
-        "py:audit.AuditEntry.from_dict"
+        "pg:public.public.verification_results.result"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 312,
       "modules": [
-        "py:audit.AuditResult"
+        "pg:public.public.verification_results.started_at"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 313,
       "modules": [
-        "py:audit.AuditResult.from_dict"
+        "pg:public.public.verification_results.status"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 314,
       "modules": [
-        "py:audit.AuditService"
+        "pg:public.public.verification_results.tier"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 315,
       "modules": [
-        "py:audit.AuditService.__init__"
+        "pg:public.public.work_queue"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 316,
       "modules": [
-        "py:audit.AuditService._insert_audit_entry"
+        "pg:public.public.work_queue.claimed_at"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 317,
       "modules": [
-        "py:audit.AuditService.query"
+        "pg:public.public.work_queue.claimed_by"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 318,
       "modules": [
-        "py:audit.AuditService.timed"
+        "pg:public.public.work_queue.description"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 319,
       "modules": [
-        "py:audit.AuditTimer"
+        "pg:public.public.work_queue.enable"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 320,
       "modules": [
-        "py:audit.AuditTimer.__aenter__"
+        "pg:public.public.work_queue.id"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 321,
       "modules": [
-        "py:audit.AuditTimer.__aexit__"
+        "pg:public.public.work_queue.input_data"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 322,
       "modules": [
-        "py:audit.AuditTimer.__init__"
+        "pg:public.public.work_queue.priority"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 323,
       "modules": [
-        "py:config.AgentConfig"
+        "pg:public.public.work_queue.task_type"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 324,
       "modules": [
-        "py:config.AgentConfig.from_env"
+        "pg:public.public.write_handoff"
       ],
       "language_mix": [
-        "python"
+        "sql"
       ],
       "size": 1
     },
     {
       "id": 325,
       "modules": [
-        "py:config.ApiConfig"
+        "py:__init__"
       ],
       "language_mix": [
         "python"
@@ -3395,7 +3409,7 @@
     {
       "id": 326,
       "modules": [
-        "py:config.ApiConfig.from_env"
+        "py:assurance"
       ],
       "language_mix": [
         "python"
@@ -3405,7 +3419,7 @@
     {
       "id": 327,
       "modules": [
-        "py:config.AuditConfig"
+        "py:audit.AuditEntry"
       ],
       "language_mix": [
         "python"
@@ -3415,7 +3429,7 @@
     {
       "id": 328,
       "modules": [
-        "py:config.AuditConfig.from_env"
+        "py:audit.AuditEntry.from_dict"
       ],
       "language_mix": [
         "python"
@@ -3425,7 +3439,7 @@
     {
       "id": 329,
       "modules": [
-        "py:config.Config"
+        "py:audit.AuditResult"
       ],
       "language_mix": [
         "python"
@@ -3435,7 +3449,7 @@
     {
       "id": 330,
       "modules": [
-        "py:config.Config.from_env"
+        "py:audit.AuditResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -3445,7 +3459,7 @@
     {
       "id": 331,
       "modules": [
-        "py:config.DatabaseConfig"
+        "py:audit.AuditService"
       ],
       "language_mix": [
         "python"
@@ -3455,7 +3469,7 @@
     {
       "id": 332,
       "modules": [
-        "py:config.DatabaseConfig.from_env"
+        "py:audit.AuditService.__init__"
       ],
       "language_mix": [
         "python"
@@ -3465,7 +3479,7 @@
     {
       "id": 333,
       "modules": [
-        "py:config.GuardrailsConfig"
+        "py:audit.AuditService._insert_audit_entry"
       ],
       "language_mix": [
         "python"
@@ -3475,7 +3489,7 @@
     {
       "id": 334,
       "modules": [
-        "py:config.GuardrailsConfig.from_env"
+        "py:audit.AuditService.query"
       ],
       "language_mix": [
         "python"
@@ -3485,7 +3499,7 @@
     {
       "id": 335,
       "modules": [
-        "py:config.LockConfig"
+        "py:audit.AuditService.timed"
       ],
       "language_mix": [
         "python"
@@ -3495,7 +3509,7 @@
     {
       "id": 336,
       "modules": [
-        "py:config.LockConfig.from_env"
+        "py:audit.AuditTimer"
       ],
       "language_mix": [
         "python"
@@ -3505,7 +3519,7 @@
     {
       "id": 337,
       "modules": [
-        "py:config.NetworkPolicyConfig"
+        "py:audit.AuditTimer.__aenter__"
       ],
       "language_mix": [
         "python"
@@ -3515,7 +3529,7 @@
     {
       "id": 338,
       "modules": [
-        "py:config.NetworkPolicyConfig.from_env"
+        "py:audit.AuditTimer.__aexit__"
       ],
       "language_mix": [
         "python"
@@ -3525,7 +3539,7 @@
     {
       "id": 339,
       "modules": [
-        "py:config.PolicyEngineConfig"
+        "py:audit.AuditTimer.__init__"
       ],
       "language_mix": [
         "python"
@@ -3535,7 +3549,7 @@
     {
       "id": 340,
       "modules": [
-        "py:config.PolicyEngineConfig.from_env"
+        "py:config.AgentConfig"
       ],
       "language_mix": [
         "python"
@@ -3545,7 +3559,7 @@
     {
       "id": 341,
       "modules": [
-        "py:config.PortAllocatorConfig"
+        "py:config.AgentConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3555,7 +3569,7 @@
     {
       "id": 342,
       "modules": [
-        "py:config.PortAllocatorConfig.from_env"
+        "py:config.ApiConfig"
       ],
       "language_mix": [
         "python"
@@ -3565,7 +3579,7 @@
     {
       "id": 343,
       "modules": [
-        "py:config.PostgresConfig"
+        "py:config.ApiConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3575,7 +3589,7 @@
     {
       "id": 344,
       "modules": [
-        "py:config.PostgresConfig.from_env"
+        "py:config.AuditConfig"
       ],
       "language_mix": [
         "python"
@@ -3585,7 +3599,7 @@
     {
       "id": 345,
       "modules": [
-        "py:config.ProfilesConfig"
+        "py:config.AuditConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3595,7 +3609,7 @@
     {
       "id": 346,
       "modules": [
-        "py:config.ProfilesConfig.from_env"
+        "py:config.Config"
       ],
       "language_mix": [
         "python"
@@ -3605,7 +3619,7 @@
     {
       "id": 347,
       "modules": [
-        "py:config.SupabaseConfig"
+        "py:config.Config.from_env"
       ],
       "language_mix": [
         "python"
@@ -3615,7 +3629,7 @@
     {
       "id": 348,
       "modules": [
-        "py:config.SupabaseConfig.from_env"
+        "py:config.DatabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -3625,7 +3639,7 @@
     {
       "id": 349,
       "modules": [
-        "py:config.reset_config"
+        "py:config.DatabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3635,7 +3649,7 @@
     {
       "id": 350,
       "modules": [
-        "py:coordination_api.AuditQueryParams"
+        "py:config.GuardrailsConfig"
       ],
       "language_mix": [
         "python"
@@ -3645,7 +3659,7 @@
     {
       "id": 351,
       "modules": [
-        "py:coordination_api.GuardrailsCheckRequest"
+        "py:config.GuardrailsConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3655,7 +3669,7 @@
     {
       "id": 352,
       "modules": [
-        "py:coordination_api.LockAcquireRequest"
+        "py:config.LockConfig"
       ],
       "language_mix": [
         "python"
@@ -3665,7 +3679,7 @@
     {
       "id": 353,
       "modules": [
-        "py:coordination_api.LockReleaseRequest"
+        "py:config.LockConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3675,7 +3689,7 @@
     {
       "id": 354,
       "modules": [
-        "py:coordination_api.MemoryQueryRequest"
+        "py:config.NetworkPolicyConfig"
       ],
       "language_mix": [
         "python"
@@ -3685,7 +3699,7 @@
     {
       "id": 355,
       "modules": [
-        "py:coordination_api.MemoryStoreRequest"
+        "py:config.NetworkPolicyConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3695,7 +3709,7 @@
     {
       "id": 356,
       "modules": [
-        "py:coordination_api.PortAllocateRequest"
+        "py:config.PolicyEngineConfig"
       ],
       "language_mix": [
         "python"
@@ -3705,7 +3719,7 @@
     {
       "id": 357,
       "modules": [
-        "py:coordination_api.PortReleaseRequest"
+        "py:config.PolicyEngineConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3715,7 +3729,7 @@
     {
       "id": 358,
       "modules": [
-        "py:coordination_api.WorkClaimRequest"
+        "py:config.PortAllocatorConfig"
       ],
       "language_mix": [
         "python"
@@ -3725,7 +3739,7 @@
     {
       "id": 359,
       "modules": [
-        "py:coordination_api.WorkCompleteRequest"
+        "py:config.PortAllocatorConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3735,7 +3749,7 @@
     {
       "id": 360,
       "modules": [
-        "py:coordination_api.WorkSubmitRequest"
+        "py:config.PostgresConfig"
       ],
       "language_mix": [
         "python"
@@ -3745,7 +3759,7 @@
     {
       "id": 361,
       "modules": [
-        "py:coordination_mcp.coordinate_file_edit"
+        "py:config.PostgresConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3755,7 +3769,7 @@
     {
       "id": 362,
       "modules": [
-        "py:coordination_mcp.main"
+        "py:config.ProfilesConfig"
       ],
       "language_mix": [
         "python"
@@ -3765,7 +3779,7 @@
     {
       "id": 363,
       "modules": [
-        "py:coordination_mcp.start_work_session"
+        "py:config.ProfilesConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3775,7 +3789,7 @@
     {
       "id": 364,
       "modules": [
-        "py:db.DatabaseClient"
+        "py:config.SupabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -3785,7 +3799,7 @@
     {
       "id": 365,
       "modules": [
-        "py:db.DatabaseClient.close"
+        "py:config.SupabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3795,7 +3809,7 @@
     {
       "id": 366,
       "modules": [
-        "py:db.DatabaseClient.delete"
+        "py:config.reset_config"
       ],
       "language_mix": [
         "python"
@@ -3805,7 +3819,7 @@
     {
       "id": 367,
       "modules": [
-        "py:db.DatabaseClient.insert"
+        "py:coordination_api.AuditQueryParams"
       ],
       "language_mix": [
         "python"
@@ -3815,7 +3829,7 @@
     {
       "id": 368,
       "modules": [
-        "py:db.DatabaseClient.query"
+        "py:coordination_api.GuardrailsCheckRequest"
       ],
       "language_mix": [
         "python"
@@ -3825,7 +3839,7 @@
     {
       "id": 369,
       "modules": [
-        "py:db.DatabaseClient.rpc"
+        "py:coordination_api.LockAcquireRequest"
       ],
       "language_mix": [
         "python"
@@ -3835,7 +3849,7 @@
     {
       "id": 370,
       "modules": [
-        "py:db.DatabaseClient.update"
+        "py:coordination_api.LockReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -3845,7 +3859,7 @@
     {
       "id": 371,
       "modules": [
-        "py:db.SupabaseClient"
+        "py:coordination_api.MemoryQueryRequest"
       ],
       "language_mix": [
         "python"
@@ -3855,7 +3869,7 @@
     {
       "id": 372,
       "modules": [
-        "py:db.SupabaseClient.__init__"
+        "py:coordination_api.MemoryStoreRequest"
       ],
       "language_mix": [
         "python"
@@ -3865,7 +3879,7 @@
     {
       "id": 373,
       "modules": [
-        "py:db.SupabaseClient._headers"
+        "py:coordination_api.PortAllocateRequest"
       ],
       "language_mix": [
         "python"
@@ -3875,7 +3889,7 @@
     {
       "id": 374,
       "modules": [
-        "py:db.SupabaseClient.client"
+        "py:coordination_api.PortReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -3885,7 +3899,7 @@
     {
       "id": 375,
       "modules": [
-        "py:db.SupabaseClient.close"
+        "py:coordination_api.WorkClaimRequest"
       ],
       "language_mix": [
         "python"
@@ -3895,7 +3909,7 @@
     {
       "id": 376,
       "modules": [
-        "py:db.SupabaseClient.delete"
+        "py:coordination_api.WorkCompleteRequest"
       ],
       "language_mix": [
         "python"
@@ -3905,7 +3919,7 @@
     {
       "id": 377,
       "modules": [
-        "py:db.SupabaseClient.insert"
+        "py:coordination_api.WorkGetTaskRequest"
       ],
       "language_mix": [
         "python"
@@ -3915,7 +3929,7 @@
     {
       "id": 378,
       "modules": [
-        "py:db.SupabaseClient.query"
+        "py:coordination_api.WorkSubmitRequest"
       ],
       "language_mix": [
         "python"
@@ -3925,7 +3939,7 @@
     {
       "id": 379,
       "modules": [
-        "py:db.SupabaseClient.rpc"
+        "py:coordination_mcp.coordinate_file_edit"
       ],
       "language_mix": [
         "python"
@@ -3935,7 +3949,7 @@
     {
       "id": 380,
       "modules": [
-        "py:db.SupabaseClient.update"
+        "py:coordination_mcp.main"
       ],
       "language_mix": [
         "python"
@@ -3945,7 +3959,7 @@
     {
       "id": 381,
       "modules": [
-        "py:db.close_db"
+        "py:coordination_mcp.start_work_session"
       ],
       "language_mix": [
         "python"
@@ -3955,7 +3969,7 @@
     {
       "id": 382,
       "modules": [
-        "py:db.reset_db"
+        "py:db.DatabaseClient"
       ],
       "language_mix": [
         "python"
@@ -3965,7 +3979,7 @@
     {
       "id": 383,
       "modules": [
-        "py:db_postgres.DirectPostgresClient"
+        "py:db.DatabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -3975,7 +3989,7 @@
     {
       "id": 384,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.__init__"
+        "py:db.DatabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -3985,7 +3999,7 @@
     {
       "id": 385,
       "modules": [
-        "py:db_postgres.DirectPostgresClient._get_pool"
+        "py:db.DatabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -3995,7 +4009,7 @@
     {
       "id": 386,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.close"
+        "py:db.DatabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -4005,7 +4019,7 @@
     {
       "id": 387,
       "modules": [
-        "py:discovery.AgentInfo"
+        "py:db.DatabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -4015,7 +4029,7 @@
     {
       "id": 388,
       "modules": [
-        "py:discovery.CleanupResult"
+        "py:db.DatabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -4025,7 +4039,7 @@
     {
       "id": 389,
       "modules": [
-        "py:discovery.CleanupResult.from_dict"
+        "py:db.SupabaseClient"
       ],
       "language_mix": [
         "python"
@@ -4035,7 +4049,7 @@
     {
       "id": 390,
       "modules": [
-        "py:discovery.DiscoverResult"
+        "py:db.SupabaseClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -4045,7 +4059,7 @@
     {
       "id": 391,
       "modules": [
-        "py:discovery.DiscoverResult.from_dict"
+        "py:db.SupabaseClient._headers"
       ],
       "language_mix": [
         "python"
@@ -4055,7 +4069,7 @@
     {
       "id": 392,
       "modules": [
-        "py:discovery.DiscoveryService"
+        "py:db.SupabaseClient.client"
       ],
       "language_mix": [
         "python"
@@ -4065,7 +4079,7 @@
     {
       "id": 393,
       "modules": [
-        "py:discovery.DiscoveryService.__init__"
+        "py:db.SupabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -4075,7 +4089,7 @@
     {
       "id": 394,
       "modules": [
-        "py:discovery.DiscoveryService.discover"
+        "py:db.SupabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -4085,7 +4099,7 @@
     {
       "id": 395,
       "modules": [
-        "py:discovery.HeartbeatResult"
+        "py:db.SupabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -4095,7 +4109,7 @@
     {
       "id": 396,
       "modules": [
-        "py:discovery.HeartbeatResult.from_dict"
+        "py:db.SupabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -4105,7 +4119,7 @@
     {
       "id": 397,
       "modules": [
-        "py:discovery.RegisterResult"
+        "py:db.SupabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -4115,7 +4129,7 @@
     {
       "id": 398,
       "modules": [
-        "py:discovery.RegisterResult.from_dict"
+        "py:db.SupabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -4125,7 +4139,7 @@
     {
       "id": 399,
       "modules": [
-        "py:github_coordination.BranchInfo"
+        "py:db.close_db"
       ],
       "language_mix": [
         "python"
@@ -4135,7 +4149,7 @@
     {
       "id": 400,
       "modules": [
-        "py:github_coordination.BranchInfo.parse"
+        "py:db.reset_db"
       ],
       "language_mix": [
         "python"
@@ -4145,7 +4159,7 @@
     {
       "id": 401,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService"
+        "py:db_postgres.DirectPostgresClient"
       ],
       "language_mix": [
         "python"
@@ -4155,7 +4169,7 @@
     {
       "id": 402,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.__init__"
+        "py:db_postgres.DirectPostgresClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -4165,7 +4179,7 @@
     {
       "id": 403,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
+        "py:db_postgres.DirectPostgresClient._get_pool"
       ],
       "language_mix": [
         "python"
@@ -4175,7 +4189,7 @@
     {
       "id": 404,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
+        "py:db_postgres.DirectPostgresClient.close"
       ],
       "language_mix": [
         "python"
@@ -4185,7 +4199,7 @@
     {
       "id": 405,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_branch"
+        "py:discovery.AgentInfo"
       ],
       "language_mix": [
         "python"
@@ -4195,7 +4209,7 @@
     {
       "id": 406,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
+        "py:discovery.CleanupResult"
       ],
       "language_mix": [
         "python"
@@ -4205,7 +4219,7 @@
     {
       "id": 407,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
+        "py:discovery.CleanupResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4215,7 +4229,7 @@
     {
       "id": 408,
       "modules": [
-        "py:github_coordination.LabelLock"
+        "py:discovery.DiscoverResult"
       ],
       "language_mix": [
         "python"
@@ -4225,7 +4239,7 @@
     {
       "id": 409,
       "modules": [
-        "py:github_coordination.WebhookSyncResult"
+        "py:discovery.DiscoverResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4235,7 +4249,7 @@
     {
       "id": 410,
       "modules": [
-        "py:github_coordination.WebhookSyncResult.from_dict"
+        "py:discovery.DiscoveryService"
       ],
       "language_mix": [
         "python"
@@ -4245,7 +4259,7 @@
     {
       "id": 411,
       "modules": [
-        "py:github_coordination.get_github_coordination_service"
+        "py:discovery.DiscoveryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4255,7 +4269,7 @@
     {
       "id": 412,
       "modules": [
-        "py:guardrails.GuardrailPattern"
+        "py:discovery.DiscoveryService.discover"
       ],
       "language_mix": [
         "python"
@@ -4265,7 +4279,7 @@
     {
       "id": 413,
       "modules": [
-        "py:guardrails.GuardrailPattern.from_dict"
+        "py:discovery.HeartbeatResult"
       ],
       "language_mix": [
         "python"
@@ -4275,7 +4289,7 @@
     {
       "id": 414,
       "modules": [
-        "py:guardrails.GuardrailResult"
+        "py:discovery.HeartbeatResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4285,7 +4299,7 @@
     {
       "id": 415,
       "modules": [
-        "py:guardrails.GuardrailResult.from_dict"
+        "py:discovery.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -4295,7 +4309,7 @@
     {
       "id": 416,
       "modules": [
-        "py:guardrails.GuardrailViolation"
+        "py:discovery.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4305,7 +4319,7 @@
     {
       "id": 417,
       "modules": [
-        "py:guardrails.GuardrailViolation.from_dict"
+        "py:feature_registry.ConflictReport"
       ],
       "language_mix": [
         "python"
@@ -4315,7 +4329,7 @@
     {
       "id": 418,
       "modules": [
-        "py:guardrails.GuardrailsService"
+        "py:feature_registry.DeregisterResult"
       ],
       "language_mix": [
         "python"
@@ -4325,7 +4339,7 @@
     {
       "id": 419,
       "modules": [
-        "py:guardrails.GuardrailsService.__init__"
+        "py:feature_registry.DeregisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4335,7 +4349,7 @@
     {
       "id": 420,
       "modules": [
-        "py:handoffs.HandoffDocument"
+        "py:feature_registry.Feasibility"
       ],
       "language_mix": [
         "python"
@@ -4345,7 +4359,7 @@
     {
       "id": 421,
       "modules": [
-        "py:handoffs.HandoffDocument.from_dict"
+        "py:feature_registry.Feature"
       ],
       "language_mix": [
         "python"
@@ -4355,7 +4369,7 @@
     {
       "id": 422,
       "modules": [
-        "py:handoffs.HandoffService"
+        "py:feature_registry.Feature.from_dict.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -4365,7 +4379,7 @@
     {
       "id": 423,
       "modules": [
-        "py:handoffs.HandoffService.__init__"
+        "py:feature_registry.FeatureRegistryService"
       ],
       "language_mix": [
         "python"
@@ -4375,7 +4389,7 @@
     {
       "id": 424,
       "modules": [
-        "py:handoffs.HandoffService.get_recent"
+        "py:feature_registry.FeatureRegistryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4385,7 +4399,7 @@
     {
       "id": 425,
       "modules": [
-        "py:handoffs.ReadHandoffResult"
+        "py:feature_registry.FeatureRegistryService.analyze_conflicts"
       ],
       "language_mix": [
         "python"
@@ -4395,7 +4409,7 @@
     {
       "id": 426,
       "modules": [
-        "py:handoffs.ReadHandoffResult.from_dict"
+        "py:feature_registry.FeatureRegistryService.get_active_features"
       ],
       "language_mix": [
         "python"
@@ -4405,7 +4419,7 @@
     {
       "id": 427,
       "modules": [
-        "py:handoffs.WriteHandoffResult"
+        "py:feature_registry.FeatureRegistryService.get_feature"
       ],
       "language_mix": [
         "python"
@@ -4415,7 +4429,7 @@
     {
       "id": 428,
       "modules": [
-        "py:handoffs.WriteHandoffResult.from_dict"
+        "py:feature_registry.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -4425,7 +4439,7 @@
     {
       "id": 429,
       "modules": [
-        "py:locks.Lock"
+        "py:feature_registry.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4435,7 +4449,7 @@
     {
       "id": 430,
       "modules": [
-        "py:locks.Lock.from_dict"
+        "py:github_coordination.BranchInfo"
       ],
       "language_mix": [
         "python"
@@ -4445,7 +4459,7 @@
     {
       "id": 431,
       "modules": [
-        "py:locks.LockResult"
+        "py:github_coordination.BranchInfo.parse"
       ],
       "language_mix": [
         "python"
@@ -4455,7 +4469,7 @@
     {
       "id": 432,
       "modules": [
-        "py:locks.LockResult.from_dict"
+        "py:github_coordination.GitHubCoordinationService"
       ],
       "language_mix": [
         "python"
@@ -4465,7 +4479,7 @@
     {
       "id": 433,
       "modules": [
-        "py:locks.LockService"
+        "py:github_coordination.GitHubCoordinationService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4475,7 +4489,7 @@
     {
       "id": 434,
       "modules": [
-        "py:locks.LockService.__init__"
+        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
       ],
       "language_mix": [
         "python"
@@ -4485,7 +4499,7 @@
     {
       "id": 435,
       "modules": [
-        "py:locks.LockService.check"
+        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
       ],
       "language_mix": [
         "python"
@@ -4495,7 +4509,7 @@
     {
       "id": 436,
       "modules": [
-        "py:locks.LockService.extend"
+        "py:github_coordination.GitHubCoordinationService.parse_branch"
       ],
       "language_mix": [
         "python"
@@ -4505,7 +4519,7 @@
     {
       "id": 437,
       "modules": [
-        "py:locks.LockService.is_locked"
+        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
       ],
       "language_mix": [
         "python"
@@ -4515,7 +4529,7 @@
     {
       "id": 438,
       "modules": [
-        "py:memory.EpisodicMemory"
+        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
       ],
       "language_mix": [
         "python"
@@ -4525,7 +4539,7 @@
     {
       "id": 439,
       "modules": [
-        "py:memory.EpisodicMemory.from_dict"
+        "py:github_coordination.LabelLock"
       ],
       "language_mix": [
         "python"
@@ -4535,7 +4549,7 @@
     {
       "id": 440,
       "modules": [
-        "py:memory.MemoryResult"
+        "py:github_coordination.WebhookSyncResult"
       ],
       "language_mix": [
         "python"
@@ -4545,7 +4559,7 @@
     {
       "id": 441,
       "modules": [
-        "py:memory.MemoryResult.from_dict"
+        "py:github_coordination.WebhookSyncResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4555,7 +4569,7 @@
     {
       "id": 442,
       "modules": [
-        "py:memory.MemoryService"
+        "py:github_coordination.get_github_coordination_service"
       ],
       "language_mix": [
         "python"
@@ -4565,7 +4579,7 @@
     {
       "id": 443,
       "modules": [
-        "py:memory.MemoryService.__init__"
+        "py:guardrails.GuardrailPattern"
       ],
       "language_mix": [
         "python"
@@ -4575,7 +4589,7 @@
     {
       "id": 444,
       "modules": [
-        "py:memory.MemoryService.recall"
+        "py:guardrails.GuardrailPattern.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4585,7 +4599,7 @@
     {
       "id": 445,
       "modules": [
-        "py:memory.RecallResult"
+        "py:guardrails.GuardrailResult"
       ],
       "language_mix": [
         "python"
@@ -4595,7 +4609,7 @@
     {
       "id": 446,
       "modules": [
-        "py:memory.RecallResult.from_dict"
+        "py:guardrails.GuardrailResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4605,7 +4619,7 @@
     {
       "id": 447,
       "modules": [
-        "py:network_policies.AccessDecision"
+        "py:guardrails.GuardrailViolation"
       ],
       "language_mix": [
         "python"
@@ -4615,7 +4629,7 @@
     {
       "id": 448,
       "modules": [
-        "py:network_policies.AccessDecision.from_dict"
+        "py:guardrails.GuardrailViolation.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4625,7 +4639,7 @@
     {
       "id": 449,
       "modules": [
-        "py:network_policies.NetworkPolicyService"
+        "py:guardrails.GuardrailsService"
       ],
       "language_mix": [
         "python"
@@ -4635,7 +4649,7 @@
     {
       "id": 450,
       "modules": [
-        "py:network_policies.NetworkPolicyService.__init__"
+        "py:guardrails.GuardrailsService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4645,7 +4659,7 @@
     {
       "id": 451,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine"
+        "py:handoffs.HandoffDocument"
       ],
       "language_mix": [
         "python"
@@ -4655,7 +4669,7 @@
     {
       "id": 452,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.__init__"
+        "py:handoffs.HandoffDocument.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4665,7 +4679,7 @@
     {
       "id": 453,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_entity"
+        "py:handoffs.HandoffService"
       ],
       "language_mix": [
         "python"
@@ -4675,7 +4689,7 @@
     {
       "id": 454,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
+        "py:handoffs.HandoffService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4685,7 +4699,7 @@
     {
       "id": 455,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
+        "py:handoffs.HandoffService.get_recent"
       ],
       "language_mix": [
         "python"
@@ -4695,7 +4709,7 @@
     {
       "id": 456,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._load_default_policies"
+        "py:handoffs.ReadHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -4705,7 +4719,7 @@
     {
       "id": 457,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.check_network_access"
+        "py:handoffs.ReadHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4715,7 +4729,7 @@
     {
       "id": 458,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.check_operation"
+        "py:handoffs.WriteHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -4725,7 +4739,7 @@
     {
       "id": 459,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
+        "py:handoffs.WriteHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4735,7 +4749,7 @@
     {
       "id": 460,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.list_policies"
+        "py:locks.Lock"
       ],
       "language_mix": [
         "python"
@@ -4745,7 +4759,7 @@
     {
       "id": 461,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.validate_policy"
+        "py:locks.Lock.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4755,7 +4769,7 @@
     {
       "id": 462,
       "modules": [
-        "py:policy_engine.NativePolicyEngine"
+        "py:locks.LockResult"
       ],
       "language_mix": [
         "python"
@@ -4765,7 +4779,7 @@
     {
       "id": 463,
       "modules": [
-        "py:policy_engine.NativePolicyEngine.__init__"
+        "py:locks.LockResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4775,7 +4789,7 @@
     {
       "id": 464,
       "modules": [
-        "py:policy_engine.PolicyDecision"
+        "py:locks.LockService"
       ],
       "language_mix": [
         "python"
@@ -4785,7 +4799,7 @@
     {
       "id": 465,
       "modules": [
-        "py:policy_engine.PolicyDecision.allow"
+        "py:locks.LockService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4795,7 +4809,7 @@
     {
       "id": 466,
       "modules": [
-        "py:policy_engine.PolicyDecision.deny"
+        "py:locks.LockService.check"
       ],
       "language_mix": [
         "python"
@@ -4805,7 +4819,7 @@
     {
       "id": 467,
       "modules": [
-        "py:policy_engine.ValidationResult"
+        "py:locks.LockService.extend"
       ],
       "language_mix": [
         "python"
@@ -4815,7 +4829,7 @@
     {
       "id": 468,
       "modules": [
-        "py:policy_engine.reset_policy_engine"
+        "py:locks.LockService.is_locked"
       ],
       "language_mix": [
         "python"
@@ -4825,7 +4839,7 @@
     {
       "id": 469,
       "modules": [
-        "py:port_allocator.PortAllocation"
+        "py:locks.is_valid_lock_key"
       ],
       "language_mix": [
         "python"
@@ -4835,7 +4849,7 @@
     {
       "id": 470,
       "modules": [
-        "py:port_allocator.PortAllocation.env_snippet"
+        "py:memory.EpisodicMemory"
       ],
       "language_mix": [
         "python"
@@ -4845,7 +4859,7 @@
     {
       "id": 471,
       "modules": [
-        "py:port_allocator.PortAllocatorService"
+        "py:memory.EpisodicMemory.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4855,7 +4869,7 @@
     {
       "id": 472,
       "modules": [
-        "py:port_allocator.PortAllocatorService.__init__"
+        "py:memory.MemoryResult"
       ],
       "language_mix": [
         "python"
@@ -4865,7 +4879,7 @@
     {
       "id": 473,
       "modules": [
-        "py:port_allocator.PortAllocatorService._cleanup_expired"
+        "py:memory.MemoryResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4875,7 +4889,7 @@
     {
       "id": 474,
       "modules": [
-        "py:port_allocator.PortAllocatorService.release"
+        "py:memory.MemoryService"
       ],
       "language_mix": [
         "python"
@@ -4885,7 +4899,7 @@
     {
       "id": 475,
       "modules": [
-        "py:port_allocator.PortAllocatorService.status"
+        "py:memory.MemoryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4895,7 +4909,7 @@
     {
       "id": 476,
       "modules": [
-        "py:port_allocator.reset_port_allocator"
+        "py:memory.MemoryService.recall"
       ],
       "language_mix": [
         "python"
@@ -4905,7 +4919,7 @@
     {
       "id": 477,
       "modules": [
-        "py:profiles.AgentProfile"
+        "py:memory.RecallResult"
       ],
       "language_mix": [
         "python"
@@ -4915,7 +4929,7 @@
     {
       "id": 478,
       "modules": [
-        "py:profiles.AgentProfile.from_dict"
+        "py:memory.RecallResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4925,7 +4939,7 @@
     {
       "id": 479,
       "modules": [
-        "py:profiles.OperationCheck"
+        "py:merge_queue.MergeQueueEntry"
       ],
       "language_mix": [
         "python"
@@ -4935,7 +4949,7 @@
     {
       "id": 480,
       "modules": [
-        "py:profiles.OperationCheck.from_dict"
+        "py:merge_queue.MergeQueueEntry.from_feature"
       ],
       "language_mix": [
         "python"
@@ -4945,7 +4959,7 @@
     {
       "id": 481,
       "modules": [
-        "py:profiles.ProfileResult"
+        "py:merge_queue.MergeQueueService"
       ],
       "language_mix": [
         "python"
@@ -4955,7 +4969,7 @@
     {
       "id": 482,
       "modules": [
-        "py:profiles.ProfileResult.from_dict"
+        "py:merge_queue.MergeQueueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4965,7 +4979,7 @@
     {
       "id": 483,
       "modules": [
-        "py:profiles.ProfilesService"
+        "py:merge_queue.MergeQueueService.get_next_to_merge"
       ],
       "language_mix": [
         "python"
@@ -4975,7 +4989,7 @@
     {
       "id": 484,
       "modules": [
-        "py:profiles.ProfilesService.__init__"
+        "py:merge_queue.MergeQueueService.remove_from_queue"
       ],
       "language_mix": [
         "python"
@@ -4985,7 +4999,7 @@
     {
       "id": 485,
       "modules": [
-        "py:teams"
+        "py:merge_queue.MergeStatus"
       ],
       "language_mix": [
         "python"
@@ -4995,7 +5009,7 @@
     {
       "id": 486,
       "modules": [
-        "py:teams.AgentDefinition"
+        "py:merge_queue.PreMergeCheckResult"
       ],
       "language_mix": [
         "python"
@@ -5005,7 +5019,7 @@
     {
       "id": 487,
       "modules": [
-        "py:teams.TeamsConfig"
+        "py:merge_queue.get_merge_queue_service"
       ],
       "language_mix": [
         "python"
@@ -5015,7 +5029,7 @@
     {
       "id": 488,
       "modules": [
-        "py:teams.TeamsConfig.from_file"
+        "py:network_policies.AccessDecision"
       ],
       "language_mix": [
         "python"
@@ -5025,7 +5039,7 @@
     {
       "id": 489,
       "modules": [
-        "py:teams.TeamsConfig.get_agent"
+        "py:network_policies.AccessDecision.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5035,7 +5049,7 @@
     {
       "id": 490,
       "modules": [
-        "py:teams.TeamsConfig.get_agents_with_capability"
+        "py:network_policies.NetworkPolicyService"
       ],
       "language_mix": [
         "python"
@@ -5045,7 +5059,7 @@
     {
       "id": 491,
       "modules": [
-        "py:teams.get_teams_config"
+        "py:network_policies.NetworkPolicyService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5055,7 +5069,7 @@
     {
       "id": 492,
       "modules": [
-        "py:teams.reset_teams_config"
+        "py:policy_engine.CedarPolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -5065,7 +5079,7 @@
     {
       "id": 493,
       "modules": [
-        "py:work_queue.ClaimResult"
+        "py:policy_engine.CedarPolicyEngine.__init__"
       ],
       "language_mix": [
         "python"
@@ -5075,7 +5089,7 @@
     {
       "id": 494,
       "modules": [
-        "py:work_queue.ClaimResult.from_dict"
+        "py:policy_engine.CedarPolicyEngine._build_entity"
       ],
       "language_mix": [
         "python"
@@ -5085,7 +5099,7 @@
     {
       "id": 495,
       "modules": [
-        "py:work_queue.CompleteResult"
+        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
       ],
       "language_mix": [
         "python"
@@ -5095,7 +5109,7 @@
     {
       "id": 496,
       "modules": [
-        "py:work_queue.CompleteResult.from_dict"
+        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
       ],
       "language_mix": [
         "python"
@@ -5105,7 +5119,7 @@
     {
       "id": 497,
       "modules": [
-        "py:work_queue.SubmitResult"
+        "py:policy_engine.CedarPolicyEngine._load_default_policies"
       ],
       "language_mix": [
         "python"
@@ -5115,7 +5129,7 @@
     {
       "id": 498,
       "modules": [
-        "py:work_queue.SubmitResult.from_dict"
+        "py:policy_engine.CedarPolicyEngine.check_network_access"
       ],
       "language_mix": [
         "python"
@@ -5125,7 +5139,7 @@
     {
       "id": 499,
       "modules": [
-        "py:work_queue.Task"
+        "py:policy_engine.CedarPolicyEngine.check_operation"
       ],
       "language_mix": [
         "python"
@@ -5135,7 +5149,7 @@
     {
       "id": 500,
       "modules": [
-        "py:work_queue.Task.from_dict.parse_dt"
+        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
       ],
       "language_mix": [
         "python"
@@ -5145,7 +5159,7 @@
     {
       "id": 501,
       "modules": [
-        "py:work_queue.WorkQueueService"
+        "py:policy_engine.CedarPolicyEngine.list_policies"
       ],
       "language_mix": [
         "python"
@@ -5155,7 +5169,7 @@
     {
       "id": 502,
       "modules": [
-        "py:work_queue.WorkQueueService.__init__"
+        "py:policy_engine.CedarPolicyEngine.validate_policy"
       ],
       "language_mix": [
         "python"
@@ -5165,7 +5179,7 @@
     {
       "id": 503,
       "modules": [
-        "py:work_queue.WorkQueueService.get_pending"
+        "py:policy_engine.NativePolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -5174,6 +5188,426 @@
     },
     {
       "id": 504,
+      "modules": [
+        "py:policy_engine.NativePolicyEngine.__init__"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 505,
+      "modules": [
+        "py:policy_engine.PolicyDecision"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 506,
+      "modules": [
+        "py:policy_engine.PolicyDecision.allow"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 507,
+      "modules": [
+        "py:policy_engine.PolicyDecision.deny"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 508,
+      "modules": [
+        "py:policy_engine.ValidationResult"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 509,
+      "modules": [
+        "py:policy_engine.reset_policy_engine"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 510,
+      "modules": [
+        "py:port_allocator.PortAllocation"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 511,
+      "modules": [
+        "py:port_allocator.PortAllocation.env_snippet"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 512,
+      "modules": [
+        "py:port_allocator.PortAllocatorService"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 513,
+      "modules": [
+        "py:port_allocator.PortAllocatorService.__init__"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 514,
+      "modules": [
+        "py:port_allocator.PortAllocatorService._cleanup_expired"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 515,
+      "modules": [
+        "py:port_allocator.PortAllocatorService.release"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 516,
+      "modules": [
+        "py:port_allocator.PortAllocatorService.status"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 517,
+      "modules": [
+        "py:port_allocator.reset_port_allocator"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 518,
+      "modules": [
+        "py:profiles.AgentProfile"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 519,
+      "modules": [
+        "py:profiles.AgentProfile.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 520,
+      "modules": [
+        "py:profiles.OperationCheck"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 521,
+      "modules": [
+        "py:profiles.OperationCheck.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 522,
+      "modules": [
+        "py:profiles.ProfileResult"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 523,
+      "modules": [
+        "py:profiles.ProfileResult.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 524,
+      "modules": [
+        "py:profiles.ProfilesService"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 525,
+      "modules": [
+        "py:profiles.ProfilesService.__init__"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 526,
+      "modules": [
+        "py:teams"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 527,
+      "modules": [
+        "py:teams.AgentDefinition"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 528,
+      "modules": [
+        "py:teams.TeamsConfig"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 529,
+      "modules": [
+        "py:teams.TeamsConfig.from_file"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 530,
+      "modules": [
+        "py:teams.TeamsConfig.get_agent"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 531,
+      "modules": [
+        "py:teams.TeamsConfig.get_agents_with_capability"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 532,
+      "modules": [
+        "py:teams.get_teams_config"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 533,
+      "modules": [
+        "py:teams.reset_teams_config"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 534,
+      "modules": [
+        "py:work_queue.ClaimResult"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 535,
+      "modules": [
+        "py:work_queue.ClaimResult.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 536,
+      "modules": [
+        "py:work_queue.CompleteResult"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 537,
+      "modules": [
+        "py:work_queue.CompleteResult.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 538,
+      "modules": [
+        "py:work_queue.SubmitResult"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 539,
+      "modules": [
+        "py:work_queue.SubmitResult.from_dict"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 540,
+      "modules": [
+        "py:work_queue.Task"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 541,
+      "modules": [
+        "py:work_queue.Task.from_dict.parse_dt"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 542,
+      "modules": [
+        "py:work_queue.WorkQueueService"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 543,
+      "modules": [
+        "py:work_queue.WorkQueueService.__init__"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 544,
+      "modules": [
+        "py:work_queue.WorkQueueService.cancel_task_convention"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 545,
+      "modules": [
+        "py:work_queue.WorkQueueService.get_pending"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 546,
       "modules": [
         "py:work_queue.WorkQueueService.get_task"
       ],
@@ -5261,6 +5695,16 @@
     },
     {
       "id": "pg:idx_changesets_status",
+      "language": "sql",
+      "file": ""
+    },
+    {
+      "id": "pg:idx_feature_registry_registered_by",
+      "language": "sql",
+      "file": ""
+    },
+    {
+      "id": "pg:idx_feature_registry_status",
       "language": "sql",
       "file": ""
     },
@@ -5955,9 +6399,69 @@
       "file": "001_core_schema.sql"
     },
     {
+      "id": "pg:public.public.deregister_feature",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
       "id": "pg:public.public.discover_agents",
       "language": "sql",
       "file": "003_agent_discovery.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.branch_name",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.completed_at",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.feature_id",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.merge_priority",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.registered_at",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.registered_by",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.resource_claims",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.status",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.title",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
+      "id": "pg:public.public.feature_registry.updated_at",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
     },
     {
       "id": "pg:public.public.file_locks",
@@ -6490,6 +6994,11 @@
       "file": "003_agent_discovery.sql"
     },
     {
+      "id": "pg:public.public.register_feature",
+      "language": "sql",
+      "file": "012_feature_registry.sql"
+    },
+    {
       "id": "pg:public.public.release_lock",
       "language": "sql",
       "file": "001_core_schema.sql"
@@ -6960,6 +7469,11 @@
       "file": "coordination_api.py"
     },
     {
+      "id": "py:coordination_api.WorkGetTaskRequest",
+      "language": "python",
+      "file": "coordination_api.py"
+    },
+    {
       "id": "py:coordination_api.WorkSubmitRequest",
       "language": "python",
       "file": "coordination_api.py"
@@ -7001,6 +7515,11 @@
     },
     {
       "id": "py:coordination_api.create_coordination_api.get_my_profile",
+      "language": "python",
+      "file": "coordination_api.py"
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.get_task_endpoint",
       "language": "python",
       "file": "coordination_api.py"
     },
@@ -7141,6 +7660,11 @@
     },
     {
       "id": "py:coordination_mcp.get_recent_memories",
+      "language": "python",
+      "file": "coordination_mcp.py"
+    },
+    {
+      "id": "py:coordination_mcp.get_task",
       "language": "python",
       "file": "coordination_mcp.py"
     },
@@ -7450,6 +7974,91 @@
       "file": "discovery.py"
     },
     {
+      "id": "py:feature_registry.ConflictReport",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.DeregisterResult",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.DeregisterResult.from_dict",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.Feasibility",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.Feature",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.Feature.from_dict",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.Feature.from_dict.parse_dt",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.__init__",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.analyze_conflicts",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.db",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.deregister",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.get_active_features",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.get_feature",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.register",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.RegisterResult",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
+      "id": "py:feature_registry.RegisterResult.from_dict",
+      "language": "python",
+      "file": "feature_registry.py"
+    },
+    {
       "id": "py:github_coordination",
       "language": "python",
       "file": "github_coordination.py"
@@ -7705,6 +8314,11 @@
       "file": "locks.py"
     },
     {
+      "id": "py:locks.is_valid_lock_key",
+      "language": "python",
+      "file": "locks.py"
+    },
+    {
       "id": "py:memory.EpisodicMemory",
       "language": "python",
       "file": "memory.py"
@@ -7758,6 +8372,86 @@
       "id": "py:memory.RecallResult.from_dict",
       "language": "python",
       "file": "memory.py"
+    },
+    {
+      "id": "py:merge_queue",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueEntry",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueEntry.from_feature",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.__init__",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.db",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.enqueue",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.get_next_to_merge",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.get_queue",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.mark_merged",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.registry",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.remove_from_queue",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.MergeStatus",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.PreMergeCheckResult",
+      "language": "python",
+      "file": "merge_queue.py"
+    },
+    {
+      "id": "py:merge_queue.get_merge_queue_service",
+      "language": "python",
+      "file": "merge_queue.py"
     },
     {
       "id": "py:network_policies.AccessDecision",
@@ -8130,6 +8824,11 @@
       "file": "work_queue.py"
     },
     {
+      "id": "py:work_queue.WorkQueueService.cancel_task_convention",
+      "language": "python",
+      "file": "work_queue.py"
+    },
+    {
       "id": "py:work_queue.WorkQueueService.claim",
       "language": "python",
       "file": "work_queue.py"
@@ -8168,7 +8867,7 @@
   "high_impact_modules": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 57,
+      "dependent_count": 61,
       "dependents": [
         "py:audit.AuditService.db",
         "py:audit.AuditService.log_operation",
@@ -8178,6 +8877,7 @@
         "py:coordination_api.create_coordination_api.check_guardrails",
         "py:coordination_api.create_coordination_api.claim_work",
         "py:coordination_api.create_coordination_api.complete_work",
+        "py:coordination_api.create_coordination_api.get_task_endpoint",
         "py:coordination_api.create_coordination_api.health",
         "py:coordination_api.create_coordination_api.query_memories",
         "py:coordination_api.create_coordination_api.release_lock",
@@ -8198,6 +8898,8 @@
         "py:discovery.DiscoveryService.db",
         "py:discovery.DiscoveryService.heartbeat",
         "py:discovery.DiscoveryService.register",
+        "py:feature_registry.FeatureRegistryService.db",
+        "py:feature_registry.FeatureRegistryService.register",
         "py:github_coordination.GitHubCoordinationService.db",
         "py:github_coordination.GitHubCoordinationService.sync_label_locks",
         "py:guardrails.GuardrailsService._load_patterns",
@@ -8210,6 +8912,7 @@
         "py:locks.LockService.release",
         "py:memory.MemoryService.db",
         "py:memory.MemoryService.remember",
+        "py:merge_queue.MergeQueueService.db",
         "py:network_policies.NetworkPolicyService.check_domain",
         "py:network_policies.NetworkPolicyService.db",
         "py:policy_engine.CedarPolicyEngine._load_policies",
@@ -8230,8 +8933,37 @@
       ]
     },
     {
+      "id": "py:audit.get_audit_service",
+      "dependent_count": 23,
+      "dependents": [
+        "py:coordination_api.create_coordination_api",
+        "py:coordination_api.create_coordination_api.query_audit",
+        "py:coordination_mcp.get_recent_audit",
+        "py:coordination_mcp.query_audit",
+        "py:discovery.DiscoveryService.cleanup_dead_agents",
+        "py:discovery.DiscoveryService.register",
+        "py:feature_registry.FeatureRegistryService.deregister",
+        "py:feature_registry.FeatureRegistryService.register",
+        "py:guardrails.GuardrailsService.check_operation",
+        "py:handoffs.HandoffService.read",
+        "py:handoffs.HandoffService.write",
+        "py:locks.LockService.acquire",
+        "py:locks.LockService.release",
+        "py:memory.MemoryService.remember",
+        "py:merge_queue.MergeQueueService.enqueue",
+        "py:merge_queue.MergeQueueService.mark_merged",
+        "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+        "py:policy_engine.CedarPolicyEngine._log_policy_decision",
+        "py:policy_engine.NativePolicyEngine._log_policy_decision",
+        "py:profiles.ProfilesService._log_denial",
+        "py:work_queue.WorkQueueService.claim",
+        "py:work_queue.WorkQueueService.complete",
+        "py:work_queue.WorkQueueService.submit"
+      ]
+    },
+    {
       "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 20,
+      "dependent_count": 21,
       "dependents": [
         "py:coordination_api.authorize_operation",
         "py:coordination_api.create_coordination_api",
@@ -8239,6 +8971,7 @@
         "py:coordination_api.create_coordination_api.check_guardrails",
         "py:coordination_api.create_coordination_api.claim_work",
         "py:coordination_api.create_coordination_api.complete_work",
+        "py:coordination_api.create_coordination_api.get_task_endpoint",
         "py:coordination_api.create_coordination_api.query_memories",
         "py:coordination_api.create_coordination_api.release_lock",
         "py:coordination_api.create_coordination_api.store_memory",
@@ -8256,32 +8989,8 @@
       ]
     },
     {
-      "id": "py:audit.get_audit_service",
-      "dependent_count": 18,
-      "dependents": [
-        "py:coordination_api.create_coordination_api",
-        "py:coordination_api.create_coordination_api.query_audit",
-        "py:coordination_mcp.get_recent_audit",
-        "py:coordination_mcp.query_audit",
-        "py:discovery.DiscoveryService.cleanup_dead_agents",
-        "py:discovery.DiscoveryService.register",
-        "py:guardrails.GuardrailsService.check_operation",
-        "py:handoffs.HandoffService.read",
-        "py:handoffs.HandoffService.write",
-        "py:locks.LockService.acquire",
-        "py:locks.LockService.release",
-        "py:memory.MemoryService.remember",
-        "py:policy_engine.CedarPolicyEngine._log_policy_decision",
-        "py:policy_engine.NativePolicyEngine._log_policy_decision",
-        "py:profiles.ProfilesService._log_denial",
-        "py:work_queue.WorkQueueService.claim",
-        "py:work_queue.WorkQueueService.complete",
-        "py:work_queue.WorkQueueService.submit"
-      ]
-    },
-    {
       "id": "py:config",
-      "dependent_count": 16,
+      "dependent_count": 18,
       "dependents": [
         "py:audit",
         "py:coordination_api",
@@ -8289,11 +8998,13 @@
         "py:db",
         "py:db_postgres",
         "py:discovery",
+        "py:feature_registry",
         "py:github_coordination",
         "py:guardrails",
         "py:handoffs",
         "py:locks",
         "py:memory",
+        "py:merge_queue",
         "py:network_policies",
         "py:policy_engine",
         "py:port_allocator",
@@ -8303,18 +9014,20 @@
     },
     {
       "id": "py:db_postgres",
-      "dependent_count": 14,
+      "dependent_count": 16,
       "dependents": [
         "py:audit",
         "py:coordination_api",
         "py:coordination_mcp",
         "py:db",
         "py:discovery",
+        "py:feature_registry",
         "py:github_coordination",
         "py:guardrails",
         "py:handoffs",
         "py:locks",
         "py:memory",
+        "py:merge_queue",
         "py:network_policies",
         "py:policy_engine",
         "py:profiles",
@@ -8323,17 +9036,19 @@
     },
     {
       "id": "py:db",
-      "dependent_count": 13,
+      "dependent_count": 15,
       "dependents": [
         "py:audit",
         "py:coordination_api",
         "py:coordination_mcp",
         "py:discovery",
+        "py:feature_registry",
         "py:github_coordination",
         "py:guardrails",
         "py:handoffs",
         "py:locks",
         "py:memory",
+        "py:merge_queue",
         "py:network_policies",
         "py:policy_engine",
         "py:profiles",
@@ -8342,16 +9057,18 @@
     },
     {
       "id": "py:db.create_db_client",
-      "dependent_count": 13,
+      "dependent_count": 15,
       "dependents": [
         "py:audit.AuditService.db",
         "py:db.get_db",
         "py:discovery.DiscoveryService.db",
+        "py:feature_registry.FeatureRegistryService.db",
         "py:github_coordination.GitHubCoordinationService.db",
         "py:guardrails.GuardrailsService.db",
         "py:handoffs.HandoffService.db",
         "py:locks.LockService.db",
         "py:memory.MemoryService.db",
+        "py:merge_queue.MergeQueueService.db",
         "py:network_policies.NetworkPolicyService.db",
         "py:policy_engine.CedarPolicyEngine.db",
         "py:policy_engine.NativePolicyEngine.db",
@@ -8361,28 +9078,65 @@
     },
     {
       "id": "py:db.get_db",
-      "dependent_count": 12,
+      "dependent_count": 14,
       "dependents": [
         "py:audit.AuditService.db",
         "py:discovery.DiscoveryService.db",
+        "py:feature_registry.FeatureRegistryService.db",
         "py:github_coordination.GitHubCoordinationService.db",
         "py:guardrails.GuardrailsService.db",
         "py:handoffs.HandoffService.db",
         "py:locks.LockService.db",
         "py:memory.MemoryService.db",
+        "py:merge_queue.MergeQueueService.db",
         "py:network_policies.NetworkPolicyService.db",
         "py:policy_engine.CedarPolicyEngine.db",
         "py:policy_engine.NativePolicyEngine.db",
         "py:profiles.ProfilesService.db",
         "py:work_queue.WorkQueueService.db"
       ]
+    },
+    {
+      "id": "py:audit",
+      "dependent_count": 12,
+      "dependents": [
+        "py:coordination_api",
+        "py:coordination_mcp",
+        "py:discovery",
+        "py:feature_registry",
+        "py:guardrails",
+        "py:handoffs",
+        "py:locks",
+        "py:memory",
+        "py:merge_queue",
+        "py:policy_engine",
+        "py:profiles",
+        "py:work_queue"
+      ]
+    },
+    {
+      "id": "py:coordination_api.resolve_identity",
+      "dependent_count": 11,
+      "dependents": [
+        "py:coordination_api.create_coordination_api",
+        "py:coordination_api.create_coordination_api.acquire_lock",
+        "py:coordination_api.create_coordination_api.check_guardrails",
+        "py:coordination_api.create_coordination_api.claim_work",
+        "py:coordination_api.create_coordination_api.complete_work",
+        "py:coordination_api.create_coordination_api.get_my_profile",
+        "py:coordination_api.create_coordination_api.get_task_endpoint",
+        "py:coordination_api.create_coordination_api.query_memories",
+        "py:coordination_api.create_coordination_api.release_lock",
+        "py:coordination_api.create_coordination_api.store_memory",
+        "py:coordination_api.create_coordination_api.submit_work"
+      ]
     }
   ],
   "summary": {
-    "total_modules": 636,
-    "total_groups": 505,
-    "largest_group_size": 99,
-    "leaf_count": 596,
-    "high_impact_count": 8
+    "total_modules": 692,
+    "total_groups": 547,
+    "largest_group_size": 108,
+    "leaf_count": 649,
+    "high_impact_count": 10
   }
 }

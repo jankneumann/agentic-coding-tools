@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-02-28T03:16:42.773428+00:00",
-      "git_sha": "118cc50e866bc301103615d47798c61ce1bd6cbb",
+      "generated_at": "2026-02-28T04:07:19.870046+00:00",
+      "git_sha": "cad2e2d62836157fdecb4f0a9452978ba72d84ad",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -128,6 +128,19 @@
       "signatures": {}
     },
     {
+      "id": "py:feature_registry",
+      "kind": "module",
+      "language": "python",
+      "name": "feature_registry",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:github_coordination",
       "kind": "module",
       "language": "python",
@@ -185,6 +198,19 @@
       "language": "python",
       "name": "memory",
       "file": "memory.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue",
+      "kind": "module",
+      "language": "python",
+      "name": "merge_queue",
+      "file": "merge_queue.py",
       "span": {
         "start": 1,
         "end": 1
@@ -583,14 +609,27 @@
       "signatures": {}
     },
     {
+      "id": "py:coordination_api.WorkGetTaskRequest",
+      "kind": "class",
+      "language": "python",
+      "name": "WorkGetTaskRequest",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 83,
+        "end": 84
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:coordination_api.GuardrailsCheckRequest",
       "kind": "class",
       "language": "python",
       "name": "GuardrailsCheckRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 83,
-        "end": 85
+        "start": 87,
+        "end": 89
       },
       "tags": [],
       "signatures": {}
@@ -602,8 +641,8 @@
       "name": "AuditQueryParams",
       "file": "coordination_api.py",
       "span": {
-        "start": 88,
-        "end": 91
+        "start": 92,
+        "end": 95
       },
       "tags": [],
       "signatures": {}
@@ -615,8 +654,8 @@
       "name": "PortAllocateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 94,
-        "end": 95
+        "start": 98,
+        "end": 99
       },
       "tags": [],
       "signatures": {}
@@ -628,8 +667,8 @@
       "name": "PortReleaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 98,
-        "end": 99
+        "start": 102,
+        "end": 103
       },
       "tags": [],
       "signatures": {}
@@ -747,6 +786,84 @@
       "span": {
         "start": 114,
         "end": 260
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.Feasibility",
+      "kind": "class",
+      "language": "python",
+      "name": "Feasibility",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 26,
+        "end": 31
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.Feature",
+      "kind": "class",
+      "language": "python",
+      "name": "Feature",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 35,
+        "end": 71
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.RegisterResult",
+      "kind": "class",
+      "language": "python",
+      "name": "RegisterResult",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 75,
+        "end": 90
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.DeregisterResult",
+      "kind": "class",
+      "language": "python",
+      "name": "DeregisterResult",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 94,
+        "end": 109
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.ConflictReport",
+      "kind": "class",
+      "language": "python",
+      "name": "ConflictReport",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 113,
+        "end": 121
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService",
+      "kind": "class",
+      "language": "python",
+      "name": "FeatureRegistryService",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 124,
+        "end": 313
       },
       "tags": [],
       "signatures": {}
@@ -914,8 +1031,8 @@
       "name": "Lock",
       "file": "locks.py",
       "span": {
-        "start": 20,
-        "end": 41
+        "start": 46,
+        "end": 67
       },
       "tags": [],
       "signatures": {}
@@ -927,8 +1044,8 @@
       "name": "LockResult",
       "file": "locks.py",
       "span": {
-        "start": 45,
-        "end": 72
+        "start": 71,
+        "end": 98
       },
       "tags": [],
       "signatures": {}
@@ -940,8 +1057,8 @@
       "name": "LockService",
       "file": "locks.py",
       "span": {
-        "start": 75,
-        "end": 274
+        "start": 101,
+        "end": 300
       },
       "tags": [],
       "signatures": {}
@@ -994,6 +1111,58 @@
       "span": {
         "start": 89,
         "end": 212
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeStatus",
+      "kind": "class",
+      "language": "python",
+      "name": "MergeStatus",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 31,
+        "end": 39
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.PreMergeCheckResult",
+      "kind": "class",
+      "language": "python",
+      "name": "PreMergeCheckResult",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 43,
+        "end": 50
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueEntry",
+      "kind": "class",
+      "language": "python",
+      "name": "MergeQueueEntry",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 54,
+        "end": 79
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService",
+      "kind": "class",
+      "language": "python",
+      "name": "MergeQueueService",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 82,
+        "end": 358
       },
       "tags": [],
       "signatures": {}
@@ -1240,7 +1409,7 @@
       "file": "work_queue.py",
       "span": {
         "start": 151,
-        "end": 563
+        "end": 591
       },
       "tags": [],
       "signatures": {}
@@ -1669,8 +1838,8 @@
       "name": "verify_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 107,
-        "end": 117
+        "start": 111,
+        "end": 121
       },
       "tags": [
         "async",
@@ -1685,8 +1854,8 @@
       "name": "resolve_identity",
       "file": "coordination_api.py",
       "span": {
-        "start": 120,
-        "end": 147
+        "start": 124,
+        "end": 151
       },
       "tags": [
         "db_access"
@@ -1700,8 +1869,8 @@
       "name": "authorize_operation",
       "file": "coordination_api.py",
       "span": {
-        "start": 150,
-        "end": 168
+        "start": 154,
+        "end": 172
       },
       "tags": [
         "async"
@@ -1715,8 +1884,8 @@
       "name": "resolve_trust_level",
       "file": "coordination_api.py",
       "span": {
-        "start": 171,
-        "end": 184
+        "start": 175,
+        "end": 188
       },
       "tags": [
         "async"
@@ -1730,8 +1899,8 @@
       "name": "create_coordination_api",
       "file": "coordination_api.py",
       "span": {
-        "start": 192,
-        "end": 676
+        "start": 196,
+        "end": 723
       },
       "tags": [
         "db_access"
@@ -1745,8 +1914,8 @@
       "name": "acquire_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 206,
-        "end": 240
+        "start": 210,
+        "end": 244
       },
       "tags": [
         "async",
@@ -1761,8 +1930,8 @@
       "name": "release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 243,
-        "end": 269
+        "start": 247,
+        "end": 273
       },
       "tags": [
         "async",
@@ -1777,8 +1946,8 @@
       "name": "check_lock_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 272,
-        "end": 290
+        "start": 276,
+        "end": 294
       },
       "tags": [
         "async",
@@ -1793,8 +1962,8 @@
       "name": "store_memory",
       "file": "coordination_api.py",
       "span": {
-        "start": 297,
-        "end": 326
+        "start": 301,
+        "end": 330
       },
       "tags": [
         "async",
@@ -1809,8 +1978,8 @@
       "name": "query_memories",
       "file": "coordination_api.py",
       "span": {
-        "start": 329,
-        "end": 365
+        "start": 333,
+        "end": 369
       },
       "tags": [
         "async",
@@ -1826,8 +1995,8 @@
       "name": "claim_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 372,
-        "end": 403
+        "start": 376,
+        "end": 407
       },
       "tags": [
         "async",
@@ -1842,8 +2011,8 @@
       "name": "complete_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 406,
-        "end": 435
+        "start": 410,
+        "end": 439
       },
       "tags": [
         "async",
@@ -1858,8 +2027,24 @@
       "name": "submit_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 438,
-        "end": 469
+        "start": 442,
+        "end": 473
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "kind": "function",
+      "language": "python",
+      "name": "get_task_endpoint",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 476,
+        "end": 516
       },
       "tags": [
         "async",
@@ -1874,8 +2059,8 @@
       "name": "check_guardrails",
       "file": "coordination_api.py",
       "span": {
-        "start": 476,
-        "end": 515
+        "start": 523,
+        "end": 562
       },
       "tags": [
         "async",
@@ -1890,8 +2075,8 @@
       "name": "get_my_profile",
       "file": "coordination_api.py",
       "span": {
-        "start": 522,
-        "end": 549
+        "start": 569,
+        "end": 596
       },
       "tags": [
         "async",
@@ -1906,8 +2091,8 @@
       "name": "query_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 556,
-        "end": 585
+        "start": 603,
+        "end": 632
       },
       "tags": [
         "async",
@@ -1923,8 +2108,8 @@
       "name": "allocate_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 592,
-        "end": 611
+        "start": 639,
+        "end": 658
       },
       "tags": [
         "async",
@@ -1939,8 +2124,8 @@
       "name": "release_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 614,
-        "end": 620
+        "start": 661,
+        "end": 667
       },
       "tags": [
         "async",
@@ -1955,8 +2140,8 @@
       "name": "port_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 623,
-        "end": 639
+        "start": 670,
+        "end": 686
       },
       "tags": [
         "async",
@@ -1971,8 +2156,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 646,
-        "end": 674
+        "start": 693,
+        "end": 721
       },
       "tags": [
         "async",
@@ -1987,8 +2172,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 684,
-        "end": 707
+        "start": 731,
+        "end": 754
       },
       "tags": [],
       "signatures": {}
@@ -2116,14 +2301,30 @@
       "signatures": {}
     },
     {
+      "id": "py:coordination_mcp.get_task",
+      "kind": "function",
+      "language": "python",
+      "name": "get_task",
+      "file": "coordination_mcp.py",
+      "span": {
+        "start": 319,
+        "end": 364
+      },
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:coordination_mcp.write_handoff",
       "kind": "function",
       "language": "python",
       "name": "write_handoff",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 324,
-        "end": 374
+        "start": 373,
+        "end": 423
       },
       "tags": [
         "async",
@@ -2138,8 +2339,8 @@
       "name": "read_handoff",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 378,
-        "end": 429
+        "start": 427,
+        "end": 478
       },
       "tags": [
         "async",
@@ -2154,8 +2355,8 @@
       "name": "register_session",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 438,
-        "end": 471
+        "start": 487,
+        "end": 520
       },
       "tags": [
         "async",
@@ -2170,8 +2371,8 @@
       "name": "discover_agents",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 475,
-        "end": 518
+        "start": 524,
+        "end": 567
       },
       "tags": [
         "async",
@@ -2186,8 +2387,8 @@
       "name": "heartbeat",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 522,
-        "end": 540
+        "start": 571,
+        "end": 589
       },
       "tags": [
         "async",
@@ -2202,8 +2403,8 @@
       "name": "cleanup_dead_agents",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 544,
-        "end": 570
+        "start": 593,
+        "end": 619
       },
       "tags": [
         "async",
@@ -2218,8 +2419,8 @@
       "name": "remember",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 579,
-        "end": 621
+        "start": 628,
+        "end": 670
       },
       "tags": [
         "async",
@@ -2234,8 +2435,8 @@
       "name": "recall",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 625,
-        "end": 669
+        "start": 674,
+        "end": 718
       },
       "tags": [
         "async",
@@ -2250,8 +2451,8 @@
       "name": "check_guardrails",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 678,
-        "end": 735
+        "start": 727,
+        "end": 784
       },
       "tags": [
         "async",
@@ -2266,8 +2467,8 @@
       "name": "get_my_profile",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 744,
-        "end": 775
+        "start": 793,
+        "end": 824
       },
       "tags": [
         "async",
@@ -2282,8 +2483,8 @@
       "name": "query_audit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 784,
-        "end": 824
+        "start": 833,
+        "end": 873
       },
       "tags": [
         "async",
@@ -2299,8 +2500,8 @@
       "name": "check_policy",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 833,
-        "end": 870
+        "start": 882,
+        "end": 919
       },
       "tags": [
         "async",
@@ -2315,8 +2516,8 @@
       "name": "validate_cedar_policy",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 874,
-        "end": 907
+        "start": 923,
+        "end": 956
       },
       "tags": [
         "async",
@@ -2331,8 +2532,8 @@
       "name": "allocate_ports",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 916,
-        "end": 959
+        "start": 965,
+        "end": 1008
       },
       "tags": [
         "async",
@@ -2347,8 +2548,8 @@
       "name": "release_ports",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 963,
-        "end": 984
+        "start": 1012,
+        "end": 1033
       },
       "tags": [
         "async",
@@ -2363,8 +2564,8 @@
       "name": "ports_status",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 988,
-        "end": 1022
+        "start": 1037,
+        "end": 1071
       },
       "tags": [
         "async",
@@ -2379,8 +2580,8 @@
       "name": "get_current_locks",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1031,
-        "end": 1051
+        "start": 1080,
+        "end": 1100
       },
       "tags": [
         "async",
@@ -2395,8 +2596,8 @@
       "name": "get_recent_handoffs",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1055,
-        "end": 1090
+        "start": 1104,
+        "end": 1139
       },
       "tags": [
         "async",
@@ -2411,8 +2612,8 @@
       "name": "get_pending_work",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1094,
-        "end": 1120
+        "start": 1143,
+        "end": 1169
       },
       "tags": [
         "async",
@@ -2427,8 +2628,8 @@
       "name": "get_recent_memories",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1124,
-        "end": 1147
+        "start": 1173,
+        "end": 1196
       },
       "tags": [
         "async",
@@ -2443,8 +2644,8 @@
       "name": "get_guardrail_patterns",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1151,
-        "end": 1175
+        "start": 1200,
+        "end": 1224
       },
       "tags": [
         "async",
@@ -2459,8 +2660,8 @@
       "name": "get_current_profile",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1179,
-        "end": 1209
+        "start": 1228,
+        "end": 1258
       },
       "tags": [
         "async",
@@ -2475,8 +2676,8 @@
       "name": "get_recent_audit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1213,
-        "end": 1236
+        "start": 1262,
+        "end": 1285
       },
       "tags": [
         "async",
@@ -2492,8 +2693,8 @@
       "name": "coordinate_file_edit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1245,
-        "end": 1263
+        "start": 1294,
+        "end": 1312
       },
       "tags": [
         "entry_point"
@@ -2507,8 +2708,8 @@
       "name": "start_work_session",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1267,
-        "end": 1281
+        "start": 1316,
+        "end": 1330
       },
       "tags": [
         "entry_point"
@@ -2522,8 +2723,8 @@
       "name": "main",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1289,
-        "end": 1306
+        "start": 1338,
+        "end": 1355
       },
       "tags": [],
       "signatures": {}
@@ -3205,6 +3406,187 @@
       "signatures": {}
     },
     {
+      "id": "py:feature_registry.Feature.from_dict",
+      "kind": "function",
+      "language": "python",
+      "name": "from_dict",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 51,
+        "end": 71
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.Feature.from_dict.parse_dt",
+      "kind": "function",
+      "language": "python",
+      "name": "parse_dt",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 52,
+        "end": 57
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.RegisterResult.from_dict",
+      "kind": "function",
+      "language": "python",
+      "name": "from_dict",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 84,
+        "end": 90
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.DeregisterResult.from_dict",
+      "kind": "function",
+      "language": "python",
+      "name": "from_dict",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 103,
+        "end": 109
+      },
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 131,
+        "end": 132
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.db",
+      "kind": "function",
+      "language": "python",
+      "name": "db",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 135,
+        "end": 138
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.register",
+      "kind": "function",
+      "language": "python",
+      "name": "register",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 140,
+        "end": 196
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.deregister",
+      "kind": "function",
+      "language": "python",
+      "name": "deregister",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 198,
+        "end": 231
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.get_feature",
+      "kind": "function",
+      "language": "python",
+      "name": "get_feature",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 233,
+        "end": 246
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.get_active_features",
+      "kind": "function",
+      "language": "python",
+      "name": "get_active_features",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 248,
+        "end": 258
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.FeatureRegistryService.analyze_conflicts",
+      "kind": "function",
+      "language": "python",
+      "name": "analyze_conflicts",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 260,
+        "end": 313
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:feature_registry.get_feature_registry_service",
+      "kind": "function",
+      "language": "python",
+      "name": "get_feature_registry_service",
+      "file": "feature_registry.py",
+      "span": {
+        "start": 320,
+        "end": 325
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:github_coordination.BranchInfo.parse",
       "kind": "function",
       "language": "python",
@@ -3629,14 +4011,27 @@
       "signatures": {}
     },
     {
+      "id": "py:locks.is_valid_lock_key",
+      "kind": "function",
+      "language": "python",
+      "name": "is_valid_lock_key",
+      "file": "locks.py",
+      "span": {
+        "start": 38,
+        "end": 42
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:locks.Lock.from_dict",
       "kind": "function",
       "language": "python",
       "name": "from_dict",
       "file": "locks.py",
       "span": {
-        "start": 32,
-        "end": 41
+        "start": 58,
+        "end": 67
       },
       "tags": [
         "classmethod",
@@ -3651,8 +4046,8 @@
       "name": "from_dict",
       "file": "locks.py",
       "span": {
-        "start": 57,
-        "end": 72
+        "start": 83,
+        "end": 98
       },
       "tags": [
         "classmethod",
@@ -3667,8 +4062,8 @@
       "name": "__init__",
       "file": "locks.py",
       "span": {
-        "start": 78,
-        "end": 79
+        "start": 104,
+        "end": 105
       },
       "tags": [
         "dunder"
@@ -3682,8 +4077,8 @@
       "name": "db",
       "file": "locks.py",
       "span": {
-        "start": 82,
-        "end": 85
+        "start": 108,
+        "end": 111
       },
       "tags": [
         "property"
@@ -3697,8 +4092,8 @@
       "name": "acquire",
       "file": "locks.py",
       "span": {
-        "start": 87,
-        "end": 156
+        "start": 113,
+        "end": 182
       },
       "tags": [
         "async"
@@ -3712,8 +4107,8 @@
       "name": "release",
       "file": "locks.py",
       "span": {
-        "start": 158,
-        "end": 211
+        "start": 184,
+        "end": 237
       },
       "tags": [
         "async"
@@ -3727,8 +4122,8 @@
       "name": "check",
       "file": "locks.py",
       "span": {
-        "start": 213,
-        "end": 238
+        "start": 239,
+        "end": 264
       },
       "tags": [
         "async",
@@ -3743,8 +4138,8 @@
       "name": "extend",
       "file": "locks.py",
       "span": {
-        "start": 240,
-        "end": 262
+        "start": 266,
+        "end": 288
       },
       "tags": [
         "async"
@@ -3758,8 +4153,8 @@
       "name": "is_locked",
       "file": "locks.py",
       "span": {
-        "start": 264,
-        "end": 274
+        "start": 290,
+        "end": 300
       },
       "tags": [
         "async"
@@ -3773,8 +4168,8 @@
       "name": "get_lock_service",
       "file": "locks.py",
       "span": {
-        "start": 281,
-        "end": 286
+        "start": 307,
+        "end": 312
       },
       "tags": [],
       "signatures": {}
@@ -3895,6 +4290,188 @@
       "span": {
         "start": 219,
         "end": 224
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueEntry.from_feature",
+      "kind": "function",
+      "language": "python",
+      "name": "from_feature",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 67,
+        "end": 79
+      },
+      "tags": [
+        "classmethod"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 93,
+        "end": 99
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.db",
+      "kind": "function",
+      "language": "python",
+      "name": "db",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 102,
+        "end": 105
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.registry",
+      "kind": "function",
+      "language": "python",
+      "name": "registry",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 108,
+        "end": 111
+      },
+      "tags": [
+        "property"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.enqueue",
+      "kind": "function",
+      "language": "python",
+      "name": "enqueue",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 113,
+        "end": 165
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.get_queue",
+      "kind": "function",
+      "language": "python",
+      "name": "get_queue",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 167,
+        "end": 201
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.get_next_to_merge",
+      "kind": "function",
+      "language": "python",
+      "name": "get_next_to_merge",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 203,
+        "end": 215
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+      "kind": "function",
+      "language": "python",
+      "name": "run_pre_merge_checks",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 217,
+        "end": 304
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.mark_merged",
+      "kind": "function",
+      "language": "python",
+      "name": "mark_merged",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 306,
+        "end": 331
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.MergeQueueService.remove_from_queue",
+      "kind": "function",
+      "language": "python",
+      "name": "remove_from_queue",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 333,
+        "end": 358
+      },
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue._parse_dt",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_dt",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 361,
+        "end": 367
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:merge_queue.get_merge_queue_service",
+      "kind": "function",
+      "language": "python",
+      "name": "get_merge_queue_service",
+      "file": "merge_queue.py",
+      "span": {
+        "start": 374,
+        "end": 379
       },
       "tags": [],
       "signatures": {}
@@ -4897,14 +5474,29 @@
       "signatures": {}
     },
     {
+      "id": "py:work_queue.WorkQueueService.cancel_task_convention",
+      "kind": "function",
+      "language": "python",
+      "name": "cancel_task_convention",
+      "file": "work_queue.py",
+      "span": {
+        "start": 565,
+        "end": 591
+      },
+      "tags": [
+        "async"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:work_queue.get_work_queue_service",
       "kind": "function",
       "language": "python",
       "name": "get_work_queue_service",
       "file": "work_queue.py",
       "span": {
-        "start": 570,
-        "end": 575
+        "start": 598,
+        "end": 603
       },
       "tags": [],
       "signatures": {}
@@ -8260,6 +8852,169 @@
       }
     },
     {
+      "id": "pg:public.public.feature_registry",
+      "kind": "table",
+      "language": "sql",
+      "name": "public.feature_registry",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.feature_registry.feature_id",
+      "kind": "column",
+      "language": "sql",
+      "name": "feature_id",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.title",
+      "kind": "column",
+      "language": "sql",
+      "name": "title",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.status",
+      "kind": "column",
+      "language": "sql",
+      "name": "status",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.registered_by",
+      "kind": "column",
+      "language": "sql",
+      "name": "registered_by",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.registered_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "registered_at",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.updated_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "updated_at",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.completed_at",
+      "kind": "column",
+      "language": "sql",
+      "name": "completed_at",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.resource_claims",
+      "kind": "column",
+      "language": "sql",
+      "name": "resource_claims",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.branch_name",
+      "kind": "column",
+      "language": "sql",
+      "name": "branch_name",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.merge_priority",
+      "kind": "column",
+      "language": "sql",
+      "name": "merge_priority",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
       "id": "pg:idx_file_locks_agent",
       "kind": "index",
       "language": "sql",
@@ -8897,6 +9652,32 @@
       "signatures": {}
     },
     {
+      "id": "pg:idx_feature_registry_status",
+      "kind": "index",
+      "language": "sql",
+      "name": "idx_feature_registry_status",
+      "file": "",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:idx_feature_registry_registered_by",
+      "kind": "index",
+      "language": "sql",
+      "name": "idx_feature_registry_registered_by",
+      "file": "",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "pg:public.auth.role",
       "kind": "stored_function",
       "language": "sql",
@@ -9178,6 +9959,32 @@
       "span": {
         "start": 19,
         "end": 19
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.register_feature",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.register_feature",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 34,
+        "end": 34
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.deregister_feature",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.deregister_feature",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 86,
+        "end": 86
       },
       "tags": [],
       "signatures": {}
@@ -9497,6 +10304,27 @@
       "evidence": "ast:call:get_work_queue_service"
     },
     {
+      "from": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "to": "py:coordination_api.resolve_identity",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:resolve_identity"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "to": "py:coordination_api.authorize_operation",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:authorize_operation"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
       "from": "py:coordination_api.create_coordination_api.check_guardrails",
       "to": "py:coordination_api.resolve_identity",
       "type": "call",
@@ -9631,6 +10459,13 @@
     },
     {
       "from": "py:coordination_mcp.submit_work",
+      "to": "py:work_queue.get_work_queue_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_work_queue_service"
+    },
+    {
+      "from": "py:coordination_mcp.get_task",
       "to": "py:work_queue.get_work_queue_service",
       "type": "call",
       "confidence": "high",
@@ -9987,6 +10822,41 @@
       "evidence": "ast:call:get_audit_service"
     },
     {
+      "from": "py:feature_registry.Feature.from_dict",
+      "to": "py:discovery.AgentInfo.from_dict.parse_dt",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:parse_dt"
+    },
+    {
+      "from": "py:feature_registry.FeatureRegistryService.db",
+      "to": "py:db.get_db",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:feature_registry.FeatureRegistryService.register",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:feature_registry.FeatureRegistryService.register",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:feature_registry.FeatureRegistryService.deregister",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
       "from": "py:github_coordination.GitHubCoordinationService.db",
       "to": "py:db.get_db",
       "type": "call",
@@ -10135,6 +11005,48 @@
     },
     {
       "from": "py:memory.MemoryService.remember",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.db",
+      "to": "py:db.get_db",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.registry",
+      "to": "py:feature_registry.get_feature_registry_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_feature_registry_service"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.enqueue",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.get_queue",
+      "to": "py:merge_queue._parse_dt",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_dt"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:merge_queue.MergeQueueService.mark_merged",
       "to": "py:audit.get_audit_service",
       "type": "call",
       "confidence": "high",
@@ -10582,6 +11494,27 @@
       "evidence": "ast:import"
     },
     {
+      "from": "py:feature_registry",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:feature_registry",
+      "to": "py:config",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:feature_registry",
+      "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
       "from": "py:github_coordination",
       "to": "py:config",
       "type": "import",
@@ -10696,6 +11629,27 @@
     {
       "from": "py:memory",
       "to": "py:policy_engine",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:merge_queue",
+      "to": "py:audit",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:merge_queue",
+      "to": "py:db",
+      "type": "import",
+      "confidence": "high",
+      "evidence": "ast:import"
+    },
+    {
+      "from": "py:merge_queue",
+      "to": "py:feature_registry",
       "type": "import",
       "confidence": "high",
       "evidence": "ast:import"
@@ -10870,6 +11824,12 @@
       "path": "/work/submit"
     },
     {
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/get"
+    },
+    {
       "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
       "kind": "route",
       "method": "POST",
@@ -10946,6 +11906,12 @@
       "kind": "route",
       "method": "MCP",
       "path": "submit_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_task",
+      "kind": "route",
+      "method": "MCP",
+      "path": "get_task"
     },
     {
       "node_id": "py:coordination_mcp.write_handoff",
@@ -11132,6 +12098,10 @@
       "path": "/work/submit"
     },
     {
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "path": "/work/get"
+    },
+    {
       "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
       "path": "/guardrails/check"
     },
@@ -11182,6 +12152,10 @@
     {
       "node_id": "py:coordination_mcp.submit_work",
       "path": "submit_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_task",
+      "path": "get_task"
     },
     {
       "node_id": "py:coordination_mcp.write_handoff",

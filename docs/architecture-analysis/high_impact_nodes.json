@@ -1,51 +1,55 @@
 {
-  "generated_at": "2026-02-28T03:16:42.794266+00:00",
+  "generated_at": "2026-02-28T04:07:19.889195+00:00",
   "threshold": 5,
   "total_high_impact": 21,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 57
-    },
-    {
-      "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 20
+      "dependent_count": 61
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 18
+      "dependent_count": 23
+    },
+    {
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 21
     },
     {
       "id": "py:config",
-      "dependent_count": 16
+      "dependent_count": 18
     },
     {
       "id": "py:db_postgres",
-      "dependent_count": 14
+      "dependent_count": 16
     },
     {
       "id": "py:db",
-      "dependent_count": 13
+      "dependent_count": 15
     },
     {
       "id": "py:db.create_db_client",
-      "dependent_count": 13
+      "dependent_count": 15
     },
     {
       "id": "py:db.get_db",
-      "dependent_count": 12
+      "dependent_count": 14
     },
     {
       "id": "py:audit",
-      "dependent_count": 10
+      "dependent_count": 12
     },
     {
       "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 10
+      "dependent_count": 11
     },
     {
       "id": "py:coordination_api.authorize_operation",
-      "dependent_count": 9
+      "dependent_count": 10
+    },
+    {
+      "id": "py:work_queue.get_work_queue_service",
+      "dependent_count": 10
     },
     {
       "id": "py:locks.get_lock_service",
@@ -53,10 +57,6 @@
     },
     {
       "id": "py:profiles.get_profiles_service",
-      "dependent_count": 8
-    },
-    {
-      "id": "py:work_queue.get_work_queue_service",
       "dependent_count": 8
     },
     {

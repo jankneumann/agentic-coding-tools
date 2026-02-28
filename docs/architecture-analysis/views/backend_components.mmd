@@ -3,22 +3,24 @@ flowchart TB
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
     config["config (29 symbols)"]
-    coordination_api["coordination_api (33 symbols)"]
-    coordination_mcp["coordination_mcp (35 symbols)"]
+    coordination_api["coordination_api (35 symbols)"]
+    coordination_mcp["coordination_mcp (36 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
+    feature_registry["feature_registry (19 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
     guardrails["guardrails (13 symbols)"]
     handoffs["handoffs (14 symbols)"]
-    locks["locks (14 symbols)"]
+    locks["locks (15 symbols)"]
     memory["memory (13 symbols)"]
+    merge_queue["merge_queue (17 symbols)"]
     network_policies["network_policies (8 symbols)"]
     policy_engine["policy_engine (28 symbols)"]
     port_allocator["port_allocator (12 symbols)"]
     profiles["profiles (14 symbols)"]
     teams["teams (10 symbols)"]
-    work_queue["work_queue (21 symbols)"]
+    work_queue["work_queue (22 symbols)"]
     audit -->|"call, import"| config
     audit -->|"call, import"| db
     coordination_api -->|"call, import"| audit
@@ -47,6 +49,10 @@ flowchart TB
     discovery -->|"call, import"| audit
     discovery -->|"call, import"| config
     discovery -->|"call, import"| db
+    feature_registry -->|"call, import"| audit
+    feature_registry -->|"call, import"| config
+    feature_registry -->|"call, import"| db
+    feature_registry -->|"call"| discovery
     github_coordination -->|"call, import"| config
     github_coordination -->|"call, import"| db
     guardrails -->|"call, import"| audit
@@ -64,6 +70,9 @@ flowchart TB
     memory -->|"call, import"| config
     memory -->|"call, import"| db
     memory -->|"call, import"| policy_engine
+    merge_queue -->|"call, import"| audit
+    merge_queue -->|"call, import"| db
+    merge_queue -->|"call, import"| feature_registry
     network_policies -->|"call, import"| config
     network_policies -->|"call, import"| db
     policy_engine -->|"call, import"| audit

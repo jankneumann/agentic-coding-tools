@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-02-28T03:16:42.942726+00:00",
+  "generated_at": "2026-02-28T04:07:20.056757+00:00",
   "summary": {
-    "total_comments": 193,
+    "total_comments": 214,
     "total_with_markers": 1,
     "marker_totals": {
       "WARN": 1
     },
-    "total_graph_nodes": 636,
-    "documented_nodes": 45,
-    "documentation_coverage": 0.071
+    "total_graph_nodes": 692,
+    "documented_nodes": 53,
+    "documentation_coverage": 0.077
   },
   "marker_hotspots": [
     {
@@ -93,6 +93,14 @@
       ]
     },
     {
+      "file": "feature_registry.py",
+      "total_comments": 9,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "github_coordination.py",
       "total_comments": 10,
       "with_markers": 0,
@@ -118,7 +126,7 @@
     },
     {
       "file": "locks.py",
-      "total_comments": 7,
+      "total_comments": 12,
       "with_markers": 0,
       "languages": [
         "python"
@@ -127,6 +135,14 @@
     {
       "file": "memory.py",
       "total_comments": 2,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "merge_queue.py",
+      "total_comments": 7,
       "with_markers": 0,
       "languages": [
         "python"

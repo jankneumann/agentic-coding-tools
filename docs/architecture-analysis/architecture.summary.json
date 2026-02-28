@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-02-28T03:16:42.794728+00:00",
-  "git_sha": "118cc50e866bc301103615d47798c61ce1bd6cbb",
+  "generated_at": "2026-02-28T04:07:19.889548+00:00",
+  "git_sha": "cad2e2d62836157fdecb4f0a9452978ba72d84ad",
   "stats": {
-    "total_nodes": 636,
-    "total_edges": 228,
+    "total_nodes": 692,
+    "total_edges": 249,
     "by_language": {
-      "python": 336,
-      "sql": 300
+      "python": 377,
+      "sql": 315
     },
     "by_kind": {
-      "module": 20,
-      "class": 75,
-      "function": 241,
-      "table": 20,
-      "column": 206,
-      "index": 49,
-      "stored_function": 22,
+      "module": 22,
+      "class": 86,
+      "function": 269,
+      "table": 21,
+      "column": 216,
+      "index": 51,
+      "stored_function": 24,
       "trigger": 3
     },
-    "entrypoint_count": 46
+    "entrypoint_count": 48
   },
   "cross_layer_flows": [],
   "disconnected_endpoints": [
@@ -53,6 +53,10 @@
     {
       "node_id": "py:coordination_api.create_coordination_api.submit_work",
       "path": "/work/submit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "path": "/work/get"
     },
     {
       "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
@@ -105,6 +109,10 @@
     {
       "node_id": "py:coordination_mcp.submit_work",
       "path": "submit_work"
+    },
+    {
+      "node_id": "py:coordination_mcp.get_task",
+      "path": "get_task"
     },
     {
       "node_id": "py:coordination_mcp.write_handoff",
@@ -211,47 +219,51 @@
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 57
-    },
-    {
-      "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 20
+      "dependent_count": 61
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 18
+      "dependent_count": 23
+    },
+    {
+      "id": "py:policy_engine.get_policy_engine",
+      "dependent_count": 21
     },
     {
       "id": "py:config",
-      "dependent_count": 16
+      "dependent_count": 18
     },
     {
       "id": "py:db_postgres",
-      "dependent_count": 14
+      "dependent_count": 16
     },
     {
       "id": "py:db",
-      "dependent_count": 13
+      "dependent_count": 15
     },
     {
       "id": "py:db.create_db_client",
-      "dependent_count": 13
+      "dependent_count": 15
     },
     {
       "id": "py:db.get_db",
-      "dependent_count": 12
+      "dependent_count": 14
     },
     {
       "id": "py:audit",
-      "dependent_count": 10
+      "dependent_count": 12
     },
     {
       "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 10
+      "dependent_count": 11
     },
     {
       "id": "py:coordination_api.authorize_operation",
-      "dependent_count": 9
+      "dependent_count": 10
+    },
+    {
+      "id": "py:work_queue.get_work_queue_service",
+      "dependent_count": 10
     },
     {
       "id": "py:locks.get_lock_service",
@@ -259,10 +271,6 @@
     },
     {
       "id": "py:profiles.get_profiles_service",
-      "dependent_count": 8
-    },
-    {
-      "id": "py:work_queue.get_work_queue_service",
       "dependent_count": 8
     },
     {

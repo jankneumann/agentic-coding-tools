@@ -59,6 +59,8 @@
         "work_queue",
         "uuid",
         "work_queue",
+        "uuid",
+        "work_queue",
         "guardrails",
         "profiles",
         "audit",
@@ -85,6 +87,7 @@
         "port_allocator",
         "profiles",
         "work_queue",
+        "uuid",
         "uuid",
         "uuid",
         "policy_engine",
@@ -122,6 +125,20 @@
         "logging",
         "dataclasses",
         "datetime",
+        "typing",
+        "audit",
+        "config",
+        "db"
+      ]
+    },
+    {
+      "name": "feature_registry",
+      "file": "feature_registry.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "enum",
         "typing",
         "audit",
         "config",
@@ -173,6 +190,7 @@
       "file": "locks.py",
       "imports": [
         "logging",
+        "re",
         "dataclasses",
         "datetime",
         "typing",
@@ -195,6 +213,20 @@
         "config",
         "db",
         "policy_engine"
+      ]
+    },
+    {
+      "name": "merge_queue",
+      "file": "merge_queue.py",
+      "imports": [
+        "logging",
+        "dataclasses",
+        "datetime",
+        "enum",
+        "typing",
+        "audit",
+        "db",
+        "feature_registry"
       ]
     },
     {
@@ -528,12 +560,17 @@
         "coordination_mcp.get_recent_audit",
         "discovery.DiscoveryService.register",
         "discovery.DiscoveryService.cleanup_dead_agents",
+        "feature_registry.FeatureRegistryService.register",
+        "feature_registry.FeatureRegistryService.deregister",
         "guardrails.GuardrailsService.check_operation",
         "handoffs.HandoffService.write",
         "handoffs.HandoffService.read",
         "locks.LockService.acquire",
         "locks.LockService.release",
         "memory.MemoryService.remember",
+        "merge_queue.MergeQueueService.enqueue",
+        "merge_queue.MergeQueueService.run_pre_merge_checks",
+        "merge_queue.MergeQueueService.mark_merged",
         "policy_engine.NativePolicyEngine._log_policy_decision",
         "policy_engine.CedarPolicyEngine._log_policy_decision",
         "profiles.ProfilesService._log_denial",
@@ -913,6 +950,7 @@
         "db.create_db_client",
         "discovery.DiscoveryService.register",
         "discovery.DiscoveryService.heartbeat",
+        "feature_registry.FeatureRegistryService.register",
         "github_coordination.GitHubCoordinationService.sync_label_locks",
         "guardrails.GuardrailsService._load_patterns",
         "guardrails.GuardrailsService.check_operation",
@@ -955,8 +993,8 @@
       "name": "verify_api_key",
       "qualified_name": "coordination_api.verify_api_key",
       "file": "coordination_api.py",
-      "line_start": 107,
-      "line_end": 117,
+      "line_start": 111,
+      "line_end": 121,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -977,8 +1015,8 @@
       "name": "resolve_identity",
       "qualified_name": "coordination_api.resolve_identity",
       "file": "coordination_api.py",
-      "line_start": 120,
-      "line_end": 147,
+      "line_start": 124,
+      "line_end": 151,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -994,6 +1032,7 @@
         "coordination_api.create_coordination_api.claim_work",
         "coordination_api.create_coordination_api.complete_work",
         "coordination_api.create_coordination_api.submit_work",
+        "coordination_api.create_coordination_api.get_task_endpoint",
         "coordination_api.create_coordination_api.check_guardrails",
         "coordination_api.create_coordination_api.get_my_profile"
       ],
@@ -1007,8 +1046,8 @@
       "name": "authorize_operation",
       "qualified_name": "coordination_api.authorize_operation",
       "file": "coordination_api.py",
-      "line_start": 150,
-      "line_end": 168,
+      "line_start": 154,
+      "line_end": 172,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1025,6 +1064,7 @@
         "coordination_api.create_coordination_api.claim_work",
         "coordination_api.create_coordination_api.complete_work",
         "coordination_api.create_coordination_api.submit_work",
+        "coordination_api.create_coordination_api.get_task_endpoint",
         "coordination_api.create_coordination_api.check_guardrails"
       ],
       "db_tables": [],
@@ -1037,8 +1077,8 @@
       "name": "resolve_trust_level",
       "qualified_name": "coordination_api.resolve_trust_level",
       "file": "coordination_api.py",
-      "line_start": 171,
-      "line_end": 184,
+      "line_start": 175,
+      "line_end": 188,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1060,8 +1100,8 @@
       "name": "create_coordination_api",
       "qualified_name": "coordination_api.create_coordination_api",
       "file": "coordination_api.py",
-      "line_start": 192,
-      "line_end": 676,
+      "line_start": 196,
+      "line_end": 723,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1089,6 +1129,11 @@
         "get_work_queue_service.complete",
         "UUID",
         "get_work_queue_service.submit",
+        "get_work_queue_service.get_task",
+        "task.claimed_at.isoformat",
+        "task.deadline.isoformat",
+        "task.created_at.isoformat",
+        "task.completed_at.isoformat",
         "resolve_trust_level",
         "len",
         "get_guardrails_service.check_operation",
@@ -1122,8 +1167,8 @@
       "name": "acquire_lock",
       "qualified_name": "coordination_api.create_coordination_api.acquire_lock",
       "file": "coordination_api.py",
-      "line_start": 206,
-      "line_end": 240,
+      "line_start": 210,
+      "line_end": 244,
       "is_async": true,
       "decorators": [
         "app.post('/locks/acquire')"
@@ -1147,8 +1192,8 @@
       "name": "release_lock",
       "qualified_name": "coordination_api.create_coordination_api.release_lock",
       "file": "coordination_api.py",
-      "line_start": 243,
-      "line_end": 269,
+      "line_start": 247,
+      "line_end": 273,
       "is_async": true,
       "decorators": [
         "app.post('/locks/release')"
@@ -1171,8 +1216,8 @@
       "name": "check_lock_status",
       "qualified_name": "coordination_api.create_coordination_api.check_lock_status",
       "file": "coordination_api.py",
-      "line_start": 272,
-      "line_end": 290,
+      "line_start": 276,
+      "line_end": 294,
       "is_async": true,
       "decorators": [
         "app.get('/locks/status/{file_path:path}')"
@@ -1195,8 +1240,8 @@
       "name": "store_memory",
       "qualified_name": "coordination_api.create_coordination_api.store_memory",
       "file": "coordination_api.py",
-      "line_start": 297,
-      "line_end": 326,
+      "line_start": 301,
+      "line_end": 330,
       "is_async": true,
       "decorators": [
         "app.post('/memory/store')"
@@ -1219,8 +1264,8 @@
       "name": "query_memories",
       "qualified_name": "coordination_api.create_coordination_api.query_memories",
       "file": "coordination_api.py",
-      "line_start": 329,
-      "line_end": 365,
+      "line_start": 333,
+      "line_end": 369,
       "is_async": true,
       "decorators": [
         "app.post('/memory/query')"
@@ -1245,8 +1290,8 @@
       "name": "claim_work",
       "qualified_name": "coordination_api.create_coordination_api.claim_work",
       "file": "coordination_api.py",
-      "line_start": 372,
-      "line_end": 403,
+      "line_start": 376,
+      "line_end": 407,
       "is_async": true,
       "decorators": [
         "app.post('/work/claim')"
@@ -1271,8 +1316,8 @@
       "name": "complete_work",
       "qualified_name": "coordination_api.create_coordination_api.complete_work",
       "file": "coordination_api.py",
-      "line_start": 406,
-      "line_end": 435,
+      "line_start": 410,
+      "line_end": 439,
       "is_async": true,
       "decorators": [
         "app.post('/work/complete')"
@@ -1297,8 +1342,8 @@
       "name": "submit_work",
       "qualified_name": "coordination_api.create_coordination_api.submit_work",
       "file": "coordination_api.py",
-      "line_start": 438,
-      "line_end": 469,
+      "line_start": 442,
+      "line_end": 473,
       "is_async": true,
       "decorators": [
         "app.post('/work/submit')"
@@ -1320,11 +1365,41 @@
       "docstring": "Submit new work to the queue."
     },
     {
+      "name": "get_task_endpoint",
+      "qualified_name": "coordination_api.create_coordination_api.get_task_endpoint",
+      "file": "coordination_api.py",
+      "line_start": 476,
+      "line_end": 516,
+      "is_async": true,
+      "decorators": [
+        "app.post('/work/get')"
+      ],
+      "calls": [
+        "resolve_identity",
+        "authorize_operation",
+        "get_work_queue_service.get_task",
+        "get_work_queue_service",
+        "UUID",
+        "str",
+        "task.claimed_at.isoformat",
+        "task.deadline.isoformat",
+        "task.created_at.isoformat",
+        "task.completed_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Get a specific task by ID."
+    },
+    {
       "name": "check_guardrails",
       "qualified_name": "coordination_api.create_coordination_api.check_guardrails",
       "file": "coordination_api.py",
-      "line_start": 476,
-      "line_end": 515,
+      "line_start": 523,
+      "line_end": 562,
       "is_async": true,
       "decorators": [
         "app.post('/guardrails/check')"
@@ -1349,8 +1424,8 @@
       "name": "get_my_profile",
       "qualified_name": "coordination_api.create_coordination_api.get_my_profile",
       "file": "coordination_api.py",
-      "line_start": 522,
-      "line_end": 549,
+      "line_start": 569,
+      "line_end": 596,
       "is_async": true,
       "decorators": [
         "app.get('/profiles/me')"
@@ -1372,8 +1447,8 @@
       "name": "query_audit",
       "qualified_name": "coordination_api.create_coordination_api.query_audit",
       "file": "coordination_api.py",
-      "line_start": 556,
-      "line_end": 585,
+      "line_start": 603,
+      "line_end": 632,
       "is_async": true,
       "decorators": [
         "app.get('/audit')"
@@ -1396,8 +1471,8 @@
       "name": "allocate_ports",
       "qualified_name": "coordination_api.create_coordination_api.allocate_ports",
       "file": "coordination_api.py",
-      "line_start": 592,
-      "line_end": 611,
+      "line_start": 639,
+      "line_end": 658,
       "is_async": true,
       "decorators": [
         "app.post('/ports/allocate')"
@@ -1418,8 +1493,8 @@
       "name": "release_ports",
       "qualified_name": "coordination_api.create_coordination_api.release_ports",
       "file": "coordination_api.py",
-      "line_start": 614,
-      "line_end": 620,
+      "line_start": 661,
+      "line_end": 667,
       "is_async": true,
       "decorators": [
         "app.post('/ports/release')"
@@ -1440,8 +1515,8 @@
       "name": "port_status",
       "qualified_name": "coordination_api.create_coordination_api.port_status",
       "file": "coordination_api.py",
-      "line_start": 623,
-      "line_end": 639,
+      "line_start": 670,
+      "line_end": 686,
       "is_async": true,
       "decorators": [
         "app.get('/ports/status')"
@@ -1464,8 +1539,8 @@
       "name": "health",
       "qualified_name": "coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line_start": 646,
-      "line_end": 674,
+      "line_start": 693,
+      "line_end": 721,
       "is_async": true,
       "decorators": [
         "app.get('/health')"
@@ -1490,8 +1565,8 @@
       "name": "main",
       "qualified_name": "coordination_api.main",
       "file": "coordination_api.py",
-      "line_start": 684,
-      "line_end": 707,
+      "line_start": 731,
+      "line_end": 754,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1687,11 +1762,39 @@
       "docstring": "Submit a new task to the work queue.\n\nUse this to create subtasks or delegate work to other agents.\n\nArgs:\n    task_type: Category of task ('summarize', 'refactor', 'test', etc.)\n    description: What needs to be done\n    input_data: Data needed to complete the task (optional)\n    priority: 1 (highest) to 10 (lowest), default 5\n    depends_on: List of task_ids that must complete first (optional)\n\nReturns:\n    success: Whether the task was created\n    task_id: ID of the new task\n\nExample:\n    # Create a subtask for testing\n    result = submit_work(\n        task_type=\"test\",\n        description=\"Write unit tests for cache module\",\n        input_data={\"files\": [\"src/cache.py\"]},\n        priority=3\n    )"
     },
     {
+      "name": "get_task",
+      "qualified_name": "coordination_mcp.get_task",
+      "file": "coordination_mcp.py",
+      "line_start": 319,
+      "line_end": 364,
+      "is_async": true,
+      "decorators": [
+        "mcp.tool()"
+      ],
+      "calls": [
+        "get_work_queue_service",
+        "service.get_task",
+        "UUID",
+        "str",
+        "task.claimed_at.isoformat",
+        "task.deadline.isoformat",
+        "task.created_at.isoformat",
+        "task.completed_at.isoformat"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "entry_point"
+      ],
+      "docstring": "Retrieve a specific task by ID.\n\nUse this to check the status, result, or details of any task\nin the work queue.\n\nArgs:\n    task_id: UUID of the task to retrieve\n\nReturns:\n    success: Whether the task was found\n    task: Task details (id, task_type, description, status, etc.)\n\nExample:\n    result = get_task(\"550e8400-e29b-41d4-a716-446655440000\")\n    if result[\"success\"]:\n        print(result[\"task\"][\"status\"])"
+    },
+    {
       "name": "write_handoff",
       "qualified_name": "coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line_start": 324,
-      "line_end": 374,
+      "line_start": 373,
+      "line_end": 423,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1713,8 +1816,8 @@
       "name": "read_handoff",
       "qualified_name": "coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line_start": 378,
-      "line_end": 429,
+      "line_start": 427,
+      "line_end": 478,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1738,8 +1841,8 @@
       "name": "register_session",
       "qualified_name": "coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line_start": 438,
-      "line_end": 471,
+      "line_start": 487,
+      "line_end": 520,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1760,8 +1863,8 @@
       "name": "discover_agents",
       "qualified_name": "coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line_start": 475,
-      "line_end": 518,
+      "line_start": 524,
+      "line_end": 567,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1784,8 +1887,8 @@
       "name": "heartbeat",
       "qualified_name": "coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line_start": 522,
-      "line_end": 540,
+      "line_start": 571,
+      "line_end": 589,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1806,8 +1909,8 @@
       "name": "cleanup_dead_agents",
       "qualified_name": "coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line_start": 544,
-      "line_end": 570,
+      "line_start": 593,
+      "line_end": 619,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1828,8 +1931,8 @@
       "name": "remember",
       "qualified_name": "coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line_start": 579,
-      "line_end": 621,
+      "line_start": 628,
+      "line_end": 670,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1850,8 +1953,8 @@
       "name": "recall",
       "qualified_name": "coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line_start": 625,
-      "line_end": 669,
+      "line_start": 674,
+      "line_end": 718,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1873,8 +1976,8 @@
       "name": "check_guardrails",
       "qualified_name": "coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line_start": 678,
-      "line_end": 735,
+      "line_start": 727,
+      "line_end": 784,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1900,8 +2003,8 @@
       "name": "get_my_profile",
       "qualified_name": "coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line_start": 744,
-      "line_end": 775,
+      "line_start": 793,
+      "line_end": 824,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1922,8 +2025,8 @@
       "name": "query_audit",
       "qualified_name": "coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line_start": 784,
-      "line_end": 824,
+      "line_start": 833,
+      "line_end": 873,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1946,8 +2049,8 @@
       "name": "check_policy",
       "qualified_name": "coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line_start": 833,
-      "line_end": 870,
+      "line_start": 882,
+      "line_end": 919,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1971,8 +2074,8 @@
       "name": "validate_cedar_policy",
       "qualified_name": "coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line_start": 874,
-      "line_end": 907,
+      "line_start": 923,
+      "line_end": 956,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -1995,8 +2098,8 @@
       "name": "allocate_ports",
       "qualified_name": "coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line_start": 916,
-      "line_end": 959,
+      "line_start": 965,
+      "line_end": 1008,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -2017,8 +2120,8 @@
       "name": "release_ports",
       "qualified_name": "coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line_start": 963,
-      "line_end": 984,
+      "line_start": 1012,
+      "line_end": 1033,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -2039,8 +2142,8 @@
       "name": "ports_status",
       "qualified_name": "coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
-      "line_start": 988,
-      "line_end": 1022,
+      "line_start": 1037,
+      "line_end": 1071,
       "is_async": true,
       "decorators": [
         "mcp.tool()"
@@ -2063,8 +2166,8 @@
       "name": "get_current_locks",
       "qualified_name": "coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line_start": 1031,
-      "line_end": 1051,
+      "line_start": 1080,
+      "line_end": 1100,
       "is_async": true,
       "decorators": [
         "mcp.resource('locks://current')"
@@ -2088,8 +2191,8 @@
       "name": "get_recent_handoffs",
       "qualified_name": "coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line_start": 1055,
-      "line_end": 1090,
+      "line_start": 1104,
+      "line_end": 1139,
       "is_async": true,
       "decorators": [
         "mcp.resource('handoffs://recent')"
@@ -2113,8 +2216,8 @@
       "name": "get_pending_work",
       "qualified_name": "coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line_start": 1094,
-      "line_end": 1120,
+      "line_start": 1143,
+      "line_end": 1169,
       "is_async": true,
       "decorators": [
         "mcp.resource('work://pending')"
@@ -2138,8 +2241,8 @@
       "name": "get_recent_memories",
       "qualified_name": "coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line_start": 1124,
-      "line_end": 1147,
+      "line_start": 1173,
+      "line_end": 1196,
       "is_async": true,
       "decorators": [
         "mcp.resource('memories://recent')"
@@ -2162,8 +2265,8 @@
       "name": "get_guardrail_patterns",
       "qualified_name": "coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line_start": 1151,
-      "line_end": 1175,
+      "line_start": 1200,
+      "line_end": 1224,
       "is_async": true,
       "decorators": [
         "mcp.resource('guardrails://patterns')"
@@ -2188,8 +2291,8 @@
       "name": "get_current_profile",
       "qualified_name": "coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line_start": 1179,
-      "line_end": 1209,
+      "line_start": 1228,
+      "line_end": 1258,
       "is_async": true,
       "decorators": [
         "mcp.resource('profiles://current')"
@@ -2212,8 +2315,8 @@
       "name": "get_recent_audit",
       "qualified_name": "coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line_start": 1213,
-      "line_end": 1236,
+      "line_start": 1262,
+      "line_end": 1285,
       "is_async": true,
       "decorators": [
         "mcp.resource('audit://recent')"
@@ -2238,8 +2341,8 @@
       "name": "coordinate_file_edit",
       "qualified_name": "coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line_start": 1245,
-      "line_end": 1263,
+      "line_start": 1294,
+      "line_end": 1312,
       "is_async": false,
       "decorators": [
         "mcp.prompt()"
@@ -2256,8 +2359,8 @@
       "name": "start_work_session",
       "qualified_name": "coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line_start": 1267,
-      "line_end": 1281,
+      "line_start": 1316,
+      "line_end": 1330,
       "is_async": false,
       "decorators": [
         "mcp.prompt()"
@@ -2274,8 +2377,8 @@
       "name": "main",
       "qualified_name": "coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line_start": 1289,
-      "line_end": 1306,
+      "line_start": 1338,
+      "line_end": 1355,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2622,11 +2725,13 @@
       "called_by": [
         "audit.AuditService.db",
         "discovery.DiscoveryService.db",
+        "feature_registry.FeatureRegistryService.db",
         "github_coordination.GitHubCoordinationService.db",
         "guardrails.GuardrailsService.db",
         "handoffs.HandoffService.db",
         "locks.LockService.db",
         "memory.MemoryService.db",
+        "merge_queue.MergeQueueService.db",
         "network_policies.NetworkPolicyService.db",
         "policy_engine.NativePolicyEngine.db",
         "policy_engine.CedarPolicyEngine.db",
@@ -3024,6 +3129,7 @@
       ],
       "called_by": [
         "discovery.AgentInfo.from_dict",
+        "feature_registry.Feature.from_dict",
         "work_queue.Task.from_dict"
       ],
       "db_tables": [],
@@ -3045,7 +3151,8 @@
         "data.get"
       ],
       "called_by": [
-        "discovery.DiscoveryService.register"
+        "discovery.DiscoveryService.register",
+        "feature_registry.FeatureRegistryService.register"
       ],
       "db_tables": [],
       "tags": [
@@ -3268,6 +3375,271 @@
       "db_tables": [],
       "tags": [],
       "docstring": "Get the global discovery service instance."
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "feature_registry.Feature.from_dict",
+      "file": "feature_registry.py",
+      "line_start": 51,
+      "line_end": 71,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str",
+        "cls",
+        "data.get",
+        "parse_dt"
+      ],
+      "called_by": [
+        "feature_registry.FeatureRegistryService.get_feature",
+        "feature_registry.FeatureRegistryService.get_active_features"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "parse_dt",
+      "qualified_name": "feature_registry.Feature.from_dict.parse_dt",
+      "file": "feature_registry.py",
+      "line_start": 52,
+      "line_end": 57,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str"
+      ],
+      "called_by": [
+        "discovery.AgentInfo.from_dict",
+        "feature_registry.Feature.from_dict",
+        "work_queue.Task.from_dict"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "feature_registry.RegisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line_start": 84,
+      "line_end": 90,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "discovery.DiscoveryService.register",
+        "feature_registry.FeatureRegistryService.register"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "from_dict",
+      "qualified_name": "feature_registry.DeregisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line_start": 103,
+      "line_end": 109,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls",
+        "data.get"
+      ],
+      "called_by": [
+        "feature_registry.FeatureRegistryService.deregister"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "feature_registry.FeatureRegistryService.__init__",
+      "file": "feature_registry.py",
+      "line_start": 131,
+      "line_end": 132,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "feature_registry.FeatureRegistryService.db",
+      "file": "feature_registry.py",
+      "line_start": 135,
+      "line_end": 138,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "register",
+      "qualified_name": "feature_registry.FeatureRegistryService.register",
+      "file": "feature_registry.py",
+      "line_start": 140,
+      "line_end": 196,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_config",
+        "self.db.rpc",
+        "RegisterResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "len",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Register a feature with its resource claims.\n\nArgs:\n    feature_id: Unique feature identifier\n    resource_claims: List of lock keys this feature will use\n    title: Human-readable feature title\n    agent_id: Agent registering the feature (default: from config)\n    branch_name: Git branch for this feature\n    merge_priority: Merge priority (1=highest, 10=lowest)\n    metadata: Additional metadata\n\nReturns:\n    RegisterResult indicating success/failure"
+    },
+    {
+      "name": "deregister",
+      "qualified_name": "feature_registry.FeatureRegistryService.deregister",
+      "file": "feature_registry.py",
+      "line_start": 198,
+      "line_end": 231,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.rpc",
+        "DeregisterResult.from_dict",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Deregister a feature (mark as completed or cancelled).\n\nArgs:\n    feature_id: Feature to deregister\n    status: Target status ('completed' or 'cancelled')\n\nReturns:\n    DeregisterResult indicating success/failure"
+    },
+    {
+      "name": "get_feature",
+      "qualified_name": "feature_registry.FeatureRegistryService.get_feature",
+      "file": "feature_registry.py",
+      "line_start": 233,
+      "line_end": 246,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.query",
+        "Feature.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get a specific feature by ID.\n\nArgs:\n    feature_id: Feature ID to look up\n\nReturns:\n    Feature if found, None otherwise"
+    },
+    {
+      "name": "get_active_features",
+      "qualified_name": "feature_registry.FeatureRegistryService.get_active_features",
+      "file": "feature_registry.py",
+      "line_start": 248,
+      "line_end": 258,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.db.query",
+        "Feature.from_dict"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get all active features.\n\nReturns:\n    List of features with status='active'"
+    },
+    {
+      "name": "analyze_conflicts",
+      "qualified_name": "feature_registry.FeatureRegistryService.analyze_conflicts",
+      "file": "feature_registry.py",
+      "line_start": 260,
+      "line_end": 313,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.get_active_features",
+        "set",
+        "conflicts.append",
+        "sorted",
+        "len",
+        "ConflictReport"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Analyze conflicts between a candidate feature and active features.\n\nCompares the candidate's resource claims against all active features\n(excluding itself) and produces a feasibility assessment.\n\nArgs:\n    candidate_feature_id: Feature being analyzed\n    candidate_claims: Lock keys the candidate intends to use\n\nReturns:\n    ConflictReport with conflicts and feasibility assessment"
+    },
+    {
+      "name": "get_feature_registry_service",
+      "qualified_name": "feature_registry.get_feature_registry_service",
+      "file": "feature_registry.py",
+      "line_start": 320,
+      "line_end": 325,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "FeatureRegistryService"
+      ],
+      "called_by": [
+        "merge_queue.MergeQueueService.registry"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global feature registry service instance."
     },
     {
       "name": "parse",
@@ -3892,11 +4264,30 @@
       "docstring": "Get the global handoff service instance."
     },
     {
+      "name": "is_valid_lock_key",
+      "qualified_name": "locks.is_valid_lock_key",
+      "file": "locks.py",
+      "line_start": 38,
+      "line_end": 42,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "key.strip",
+        "bool",
+        "LOGICAL_LOCK_KEY_PATTERN.match",
+        "FILE_PATH_PATTERN.match"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Check whether a lock key is a valid file path or logical lock key."
+    },
+    {
       "name": "from_dict",
       "qualified_name": "locks.Lock.from_dict",
       "file": "locks.py",
-      "line_start": 32,
-      "line_end": 41,
+      "line_start": 58,
+      "line_end": 67,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -3921,8 +4312,8 @@
       "name": "from_dict",
       "qualified_name": "locks.LockResult.from_dict",
       "file": "locks.py",
-      "line_start": 57,
-      "line_end": 72,
+      "line_start": 83,
+      "line_end": 98,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -3949,8 +4340,8 @@
       "name": "__init__",
       "qualified_name": "locks.LockService.__init__",
       "file": "locks.py",
-      "line_start": 78,
-      "line_end": 79,
+      "line_start": 104,
+      "line_end": 105,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3965,8 +4356,8 @@
       "name": "db",
       "qualified_name": "locks.LockService.db",
       "file": "locks.py",
-      "line_start": 82,
-      "line_end": 85,
+      "line_start": 108,
+      "line_end": 111,
       "is_async": false,
       "decorators": [
         "property"
@@ -3985,8 +4376,8 @@
       "name": "acquire",
       "qualified_name": "locks.LockService.acquire",
       "file": "locks.py",
-      "line_start": 87,
-      "line_end": 156,
+      "line_start": 113,
+      "line_end": 182,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4011,8 +4402,8 @@
       "name": "release",
       "qualified_name": "locks.LockService.release",
       "file": "locks.py",
-      "line_start": 158,
-      "line_end": 211,
+      "line_start": 184,
+      "line_end": 237,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4037,8 +4428,8 @@
       "name": "check",
       "qualified_name": "locks.LockService.check",
       "file": "locks.py",
-      "line_start": 213,
-      "line_end": 238,
+      "line_start": 239,
+      "line_end": 264,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4058,8 +4449,8 @@
       "name": "extend",
       "qualified_name": "locks.LockService.extend",
       "file": "locks.py",
-      "line_start": 240,
-      "line_end": 262,
+      "line_start": 266,
+      "line_end": 288,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4076,8 +4467,8 @@
       "name": "is_locked",
       "qualified_name": "locks.LockService.is_locked",
       "file": "locks.py",
-      "line_start": 264,
-      "line_end": 274,
+      "line_start": 290,
+      "line_end": 300,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -4094,8 +4485,8 @@
       "name": "get_lock_service",
       "qualified_name": "locks.get_lock_service",
       "file": "locks.py",
-      "line_start": 281,
-      "line_end": 286,
+      "line_start": 307,
+      "line_end": 312,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -4295,6 +4686,266 @@
       "db_tables": [],
       "tags": [],
       "docstring": "Get the global memory service instance."
+    },
+    {
+      "name": "from_feature",
+      "qualified_name": "merge_queue.MergeQueueEntry.from_feature",
+      "file": "merge_queue.py",
+      "line_start": 67,
+      "line_end": 79,
+      "is_async": false,
+      "decorators": [
+        "classmethod"
+      ],
+      "calls": [
+        "cls"
+      ],
+      "called_by": [
+        "merge_queue.MergeQueueService.enqueue"
+      ],
+      "db_tables": [],
+      "tags": [
+        "classmethod"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "merge_queue.MergeQueueService.__init__",
+      "file": "merge_queue.py",
+      "line_start": 93,
+      "line_end": 99,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "db",
+      "qualified_name": "merge_queue.MergeQueueService.db",
+      "file": "merge_queue.py",
+      "line_start": 102,
+      "line_end": 105,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_db"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "registry",
+      "qualified_name": "merge_queue.MergeQueueService.registry",
+      "file": "merge_queue.py",
+      "line_start": 108,
+      "line_end": 111,
+      "is_async": false,
+      "decorators": [
+        "property"
+      ],
+      "calls": [
+        "get_feature_registry_service"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "property"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "enqueue",
+      "qualified_name": "merge_queue.MergeQueueService.enqueue",
+      "file": "merge_queue.py",
+      "line_start": 113,
+      "line_end": 165,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.registry.get_feature",
+        "datetime.now.isoformat",
+        "datetime.now",
+        "self.db.update",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning",
+        "MergeQueueEntry.from_feature"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Add a feature to the merge queue.\n\nThe feature must be active in the registry. Sets merge_queue\nmetadata on the feature.\n\nArgs:\n    feature_id: Feature to enqueue\n    pr_url: URL of the PR to merge\n\nReturns:\n    MergeQueueEntry if successful, None if feature not found"
+    },
+    {
+      "name": "get_queue",
+      "qualified_name": "merge_queue.MergeQueueService.get_queue",
+      "file": "merge_queue.py",
+      "line_start": 167,
+      "line_end": 201,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.registry.get_active_features",
+        "feature.metadata.get",
+        "merge_meta.get",
+        "MergeStatus",
+        "MergeQueueEntry",
+        "_parse_dt",
+        "entries.append"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Get all features in the merge queue, ordered by priority.\n\nReturns features that have merge_queue metadata and are still active.\n\nReturns:\n    List of MergeQueueEntry ordered by merge_priority"
+    },
+    {
+      "name": "get_next_to_merge",
+      "qualified_name": "merge_queue.MergeQueueService.get_next_to_merge",
+      "file": "merge_queue.py",
+      "line_start": 203,
+      "line_end": 215,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.get_queue"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Get the highest-priority feature ready to merge.\n\nReturns the first entry with status READY, ordered by merge_priority.\n\nReturns:\n    MergeQueueEntry if one is ready, None otherwise"
+    },
+    {
+      "name": "run_pre_merge_checks",
+      "qualified_name": "merge_queue.MergeQueueService.run_pre_merge_checks",
+      "file": "merge_queue.py",
+      "line_start": 217,
+      "line_end": 304,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.registry.get_feature",
+        "PreMergeCheckResult",
+        "issues.append",
+        "self.registry.analyze_conflicts",
+        "feature.metadata.get",
+        "all",
+        "checks.values",
+        "datetime.now.isoformat",
+        "datetime.now",
+        "self.db.update",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Run pre-merge validation checks on a feature.\n\nChecks:\n1. Feature is still active in registry\n2. No new resource conflicts with other active features\n3. Feature has merge_queue metadata\n\nArgs:\n    feature_id: Feature to validate\n\nReturns:\n    PreMergeCheckResult with pass/fail and details"
+    },
+    {
+      "name": "mark_merged",
+      "qualified_name": "merge_queue.MergeQueueService.mark_merged",
+      "file": "merge_queue.py",
+      "line_start": 306,
+      "line_end": 331,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.registry.get_feature",
+        "self.registry.deregister",
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "logger.warning"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Mark a feature as merged and deregister it.\n\nArgs:\n    feature_id: Feature that was merged\n\nReturns:\n    True if successful"
+    },
+    {
+      "name": "remove_from_queue",
+      "qualified_name": "merge_queue.MergeQueueService.remove_from_queue",
+      "file": "merge_queue.py",
+      "line_start": 333,
+      "line_end": 358,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.registry.get_feature",
+        "feature.metadata.items",
+        "self.db.update"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "db_access"
+      ],
+      "docstring": "Remove a feature from the merge queue without merging.\n\nClears the merge_queue metadata but keeps the feature active.\n\nArgs:\n    feature_id: Feature to remove from queue\n\nReturns:\n    True if the feature was in the queue and removed"
+    },
+    {
+      "name": "_parse_dt",
+      "qualified_name": "merge_queue._parse_dt",
+      "file": "merge_queue.py",
+      "line_start": 361,
+      "line_end": 367,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "datetime.fromisoformat",
+        "str.replace",
+        "str"
+      ],
+      "called_by": [
+        "merge_queue.MergeQueueService.get_queue"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Parse an ISO datetime string, returning None for empty/None."
+    },
+    {
+      "name": "get_merge_queue_service",
+      "qualified_name": "merge_queue.get_merge_queue_service",
+      "file": "merge_queue.py",
+      "line_start": 374,
+      "line_end": 379,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "MergeQueueService"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global merge queue service instance."
     },
     {
       "name": "from_dict",
@@ -5427,6 +6078,7 @@
       ],
       "called_by": [
         "discovery.AgentInfo.from_dict",
+        "feature_registry.Feature.from_dict",
         "work_queue.Task.from_dict"
       ],
       "db_tables": [],
@@ -5733,11 +6385,29 @@
       "docstring": "Get tasks claimed by this agent.\n\nArgs:\n    agent_id: Agent ID (default: from config)\n    include_completed: Whether to include completed tasks\n\nReturns:\n    List of tasks claimed by the agent"
     },
     {
+      "name": "cancel_task_convention",
+      "qualified_name": "work_queue.WorkQueueService.cancel_task_convention",
+      "file": "work_queue.py",
+      "line_start": 565,
+      "line_end": 591,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "self.complete"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "async"
+      ],
+      "docstring": "Cancel a task using the orchestrator cancellation convention.\n\nCalls complete(success=False) with error_code=\"cancelled_by_orchestrator\"\nin the result payload. This is the standard way for an orchestrator to\nsignal that a task should be abandoned.\n\nArgs:\n    task_id: ID of the task to cancel\n    reason: Human-readable reason for cancellation\n    agent_id: Agent performing the cancellation (default: from config)\n\nReturns:\n    CompleteResult indicating whether the cancellation was recorded"
+    },
+    {
       "name": "get_work_queue_service",
       "qualified_name": "work_queue.get_work_queue_service",
       "file": "work_queue.py",
-      "line_start": 570,
-      "line_end": 575,
+      "line_start": 598,
+      "line_end": 603,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -5748,9 +6418,11 @@
         "coordination_api.create_coordination_api.claim_work",
         "coordination_api.create_coordination_api.complete_work",
         "coordination_api.create_coordination_api.submit_work",
+        "coordination_api.create_coordination_api.get_task_endpoint",
         "coordination_mcp.get_work",
         "coordination_mcp.complete_work",
         "coordination_mcp.submit_work",
+        "coordination_mcp.get_task",
         "coordination_mcp.get_pending_work"
       ],
       "db_tables": [],
@@ -6085,11 +6757,23 @@
       "decorators": []
     },
     {
+      "name": "WorkGetTaskRequest",
+      "qualified_name": "coordination_api.WorkGetTaskRequest",
+      "file": "coordination_api.py",
+      "line_start": 83,
+      "line_end": 84,
+      "bases": [
+        "BaseModel"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
       "name": "GuardrailsCheckRequest",
       "qualified_name": "coordination_api.GuardrailsCheckRequest",
       "file": "coordination_api.py",
-      "line_start": 83,
-      "line_end": 85,
+      "line_start": 87,
+      "line_end": 89,
       "bases": [
         "BaseModel"
       ],
@@ -6100,8 +6784,8 @@
       "name": "AuditQueryParams",
       "qualified_name": "coordination_api.AuditQueryParams",
       "file": "coordination_api.py",
-      "line_start": 88,
-      "line_end": 91,
+      "line_start": 92,
+      "line_end": 95,
       "bases": [
         "BaseModel"
       ],
@@ -6112,8 +6796,8 @@
       "name": "PortAllocateRequest",
       "qualified_name": "coordination_api.PortAllocateRequest",
       "file": "coordination_api.py",
-      "line_start": 94,
-      "line_end": 95,
+      "line_start": 98,
+      "line_end": 99,
       "bases": [
         "BaseModel"
       ],
@@ -6124,8 +6808,8 @@
       "name": "PortReleaseRequest",
       "qualified_name": "coordination_api.PortReleaseRequest",
       "file": "coordination_api.py",
-      "line_start": 98,
-      "line_end": 99,
+      "line_start": 102,
+      "line_end": 103,
       "bases": [
         "BaseModel"
       ],
@@ -6278,6 +6962,91 @@
         "discover",
         "heartbeat",
         "cleanup_dead_agents"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "Feasibility",
+      "qualified_name": "feature_registry.Feasibility",
+      "file": "feature_registry.py",
+      "line_start": 26,
+      "line_end": 31,
+      "bases": [
+        "Enum"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "Feature",
+      "qualified_name": "feature_registry.Feature",
+      "file": "feature_registry.py",
+      "line_start": 35,
+      "line_end": 71,
+      "bases": [],
+      "methods": [
+        "from_dict",
+        "parse_dt"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "RegisterResult",
+      "qualified_name": "feature_registry.RegisterResult",
+      "file": "feature_registry.py",
+      "line_start": 75,
+      "line_end": 90,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "DeregisterResult",
+      "qualified_name": "feature_registry.DeregisterResult",
+      "file": "feature_registry.py",
+      "line_start": 94,
+      "line_end": 109,
+      "bases": [],
+      "methods": [
+        "from_dict"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "ConflictReport",
+      "qualified_name": "feature_registry.ConflictReport",
+      "file": "feature_registry.py",
+      "line_start": 113,
+      "line_end": 121,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "FeatureRegistryService",
+      "qualified_name": "feature_registry.FeatureRegistryService",
+      "file": "feature_registry.py",
+      "line_start": 124,
+      "line_end": 313,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "register",
+        "deregister",
+        "get_feature",
+        "get_active_features",
+        "analyze_conflicts"
       ],
       "decorators": []
     },
@@ -6459,8 +7228,8 @@
       "name": "Lock",
       "qualified_name": "locks.Lock",
       "file": "locks.py",
-      "line_start": 20,
-      "line_end": 41,
+      "line_start": 46,
+      "line_end": 67,
       "bases": [],
       "methods": [
         "from_dict"
@@ -6473,8 +7242,8 @@
       "name": "LockResult",
       "qualified_name": "locks.LockResult",
       "file": "locks.py",
-      "line_start": 45,
-      "line_end": 72,
+      "line_start": 71,
+      "line_end": 98,
       "bases": [],
       "methods": [
         "from_dict"
@@ -6487,8 +7256,8 @@
       "name": "LockService",
       "qualified_name": "locks.LockService",
       "file": "locks.py",
-      "line_start": 75,
-      "line_end": 274,
+      "line_start": 101,
+      "line_end": 300,
       "bases": [],
       "methods": [
         "__init__",
@@ -6555,6 +7324,64 @@
         "db",
         "remember",
         "recall"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "MergeStatus",
+      "qualified_name": "merge_queue.MergeStatus",
+      "file": "merge_queue.py",
+      "line_start": 31,
+      "line_end": 39,
+      "bases": [
+        "Enum"
+      ],
+      "methods": [],
+      "decorators": []
+    },
+    {
+      "name": "PreMergeCheckResult",
+      "qualified_name": "merge_queue.PreMergeCheckResult",
+      "file": "merge_queue.py",
+      "line_start": 43,
+      "line_end": 50,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "MergeQueueEntry",
+      "qualified_name": "merge_queue.MergeQueueEntry",
+      "file": "merge_queue.py",
+      "line_start": 54,
+      "line_end": 79,
+      "bases": [],
+      "methods": [
+        "from_feature"
+      ],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
+      "name": "MergeQueueService",
+      "qualified_name": "merge_queue.MergeQueueService",
+      "file": "merge_queue.py",
+      "line_start": 82,
+      "line_end": 358,
+      "bases": [],
+      "methods": [
+        "__init__",
+        "db",
+        "registry",
+        "enqueue",
+        "get_queue",
+        "get_next_to_merge",
+        "run_pre_merge_checks",
+        "mark_merged",
+        "remove_from_queue"
       ],
       "decorators": []
     },
@@ -6834,7 +7661,7 @@
       "qualified_name": "work_queue.WorkQueueService",
       "file": "work_queue.py",
       "line_start": 151,
-      "line_end": 563,
+      "line_end": 591,
       "bases": [],
       "methods": [
         "__init__",
@@ -6845,7 +7672,8 @@
         "submit",
         "get_pending",
         "get_task",
-        "get_my_tasks"
+        "get_my_tasks",
+        "cancel_task_convention"
       ],
       "decorators": []
     }
@@ -7112,6 +7940,38 @@
       "to": "db"
     },
     {
+      "from": "feature_registry",
+      "to": "logging"
+    },
+    {
+      "from": "feature_registry",
+      "to": "dataclasses"
+    },
+    {
+      "from": "feature_registry",
+      "to": "datetime"
+    },
+    {
+      "from": "feature_registry",
+      "to": "enum"
+    },
+    {
+      "from": "feature_registry",
+      "to": "typing"
+    },
+    {
+      "from": "feature_registry",
+      "to": "audit"
+    },
+    {
+      "from": "feature_registry",
+      "to": "config"
+    },
+    {
+      "from": "feature_registry",
+      "to": "db"
+    },
+    {
       "from": "github_coordination",
       "to": "re"
     },
@@ -7205,6 +8065,10 @@
     },
     {
       "from": "locks",
+      "to": "re"
+    },
+    {
+      "from": "locks",
       "to": "dataclasses"
     },
     {
@@ -7262,6 +8126,38 @@
     {
       "from": "memory",
       "to": "policy_engine"
+    },
+    {
+      "from": "merge_queue",
+      "to": "logging"
+    },
+    {
+      "from": "merge_queue",
+      "to": "dataclasses"
+    },
+    {
+      "from": "merge_queue",
+      "to": "datetime"
+    },
+    {
+      "from": "merge_queue",
+      "to": "enum"
+    },
+    {
+      "from": "merge_queue",
+      "to": "typing"
+    },
+    {
+      "from": "merge_queue",
+      "to": "audit"
+    },
+    {
+      "from": "merge_queue",
+      "to": "db"
+    },
+    {
+      "from": "merge_queue",
+      "to": "feature_registry"
     },
     {
       "from": "network_policies",
@@ -7490,6 +8386,12 @@
       "path": "/work/submit"
     },
     {
+      "function": "coordination_api.create_coordination_api.get_task_endpoint",
+      "kind": "route",
+      "method": "POST",
+      "path": "/work/get"
+    },
+    {
       "function": "coordination_api.create_coordination_api.check_guardrails",
       "kind": "route",
       "method": "POST",
@@ -7566,6 +8468,12 @@
       "kind": "route",
       "method": "MCP",
       "path": "submit_work"
+    },
+    {
+      "function": "coordination_mcp.get_task",
+      "kind": "route",
+      "method": "MCP",
+      "path": "get_task"
     },
     {
       "function": "coordination_mcp.write_handoff",
@@ -7890,6 +8798,31 @@
       "pattern": "orm"
     },
     {
+      "function": "feature_registry.Feature.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "feature_registry.RegisterResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "feature_registry.DeregisterResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "feature_registry.FeatureRegistryService.get_feature",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "feature_registry.FeatureRegistryService.get_active_features",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "github_coordination.WebhookSyncResult.from_dict",
       "tables": [],
       "pattern": "orm"
@@ -7976,6 +8909,26 @@
     },
     {
       "function": "memory.MemoryResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "merge_queue.MergeQueueService.enqueue",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "merge_queue.MergeQueueService.get_queue",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "merge_queue.MergeQueueService.run_pre_merge_checks",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "merge_queue.MergeQueueService.remove_from_queue",
       "tables": [],
       "pattern": "orm"
     },
@@ -8076,11 +9029,11 @@
     }
   ],
   "summary": {
-    "total_functions": 241,
-    "total_classes": 75,
-    "total_modules": 20,
-    "async_functions": 111,
-    "entry_points": 46,
+    "total_functions": 269,
+    "total_classes": 86,
+    "total_modules": 22,
+    "async_functions": 125,
+    "entry_points": 48,
     "dead_code_candidates": [
       "audit.AuditResult.from_dict",
       "audit.AuditService.db",
@@ -8122,6 +9075,12 @@
       "discovery.DiscoveryService.discover",
       "discovery.DiscoveryService.heartbeat",
       "discovery.DiscoveryService.cleanup_dead_agents",
+      "feature_registry.FeatureRegistryService.db",
+      "feature_registry.FeatureRegistryService.register",
+      "feature_registry.FeatureRegistryService.deregister",
+      "feature_registry.FeatureRegistryService.get_feature",
+      "feature_registry.FeatureRegistryService.get_active_features",
+      "feature_registry.FeatureRegistryService.analyze_conflicts",
       "github_coordination.WebhookSyncResult.from_dict",
       "github_coordination.GitHubCoordinationService.db",
       "github_coordination.GitHubCoordinationService.parse_lock_labels",
@@ -8139,6 +9098,7 @@
       "handoffs.HandoffService.write",
       "handoffs.HandoffService.read",
       "handoffs.HandoffService.get_recent",
+      "locks.is_valid_lock_key",
       "locks.LockService.db",
       "locks.LockService.acquire",
       "locks.LockService.release",
@@ -8148,6 +9108,15 @@
       "memory.MemoryService.db",
       "memory.MemoryService.remember",
       "memory.MemoryService.recall",
+      "merge_queue.MergeQueueService.db",
+      "merge_queue.MergeQueueService.registry",
+      "merge_queue.MergeQueueService.enqueue",
+      "merge_queue.MergeQueueService.get_queue",
+      "merge_queue.MergeQueueService.get_next_to_merge",
+      "merge_queue.MergeQueueService.run_pre_merge_checks",
+      "merge_queue.MergeQueueService.mark_merged",
+      "merge_queue.MergeQueueService.remove_from_queue",
+      "merge_queue.get_merge_queue_service",
       "network_policies.NetworkPolicyService.db",
       "network_policies.NetworkPolicyService.check_domain",
       "policy_engine.NativePolicyEngine.db",
@@ -8191,39 +9160,40 @@
       "work_queue.WorkQueueService.submit",
       "work_queue.WorkQueueService.get_pending",
       "work_queue.WorkQueueService.get_task",
-      "work_queue.WorkQueueService.get_my_tasks"
+      "work_queue.WorkQueueService.get_my_tasks",
+      "work_queue.WorkQueueService.cancel_task_convention"
     ],
     "hot_functions": [
       {
         "name": "config.get_config",
-        "caller_count": 32
+        "caller_count": 33
       },
       {
         "name": "audit.get_audit_service",
-        "caller_count": 18
+        "caller_count": 23
       },
       {
         "name": "db.get_db",
-        "caller_count": 12
+        "caller_count": 14
+      },
+      {
+        "name": "coordination_api.resolve_identity",
+        "caller_count": 11
       },
       {
         "name": "policy_engine.get_policy_engine",
         "caller_count": 11
       },
       {
-        "name": "coordination_api.resolve_identity",
+        "name": "coordination_api.authorize_operation",
         "caller_count": 10
       },
       {
-        "name": "coordination_api.authorize_operation",
-        "caller_count": 9
+        "name": "work_queue.get_work_queue_service",
+        "caller_count": 10
       },
       {
         "name": "locks.get_lock_service",
-        "caller_count": 8
-      },
-      {
-        "name": "work_queue.get_work_queue_service",
         "caller_count": 8
       },
       {

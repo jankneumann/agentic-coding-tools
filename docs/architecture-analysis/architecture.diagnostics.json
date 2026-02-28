@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-28T03:16:43.025643+00:00",
+  "generated_at": "2026-02-28T04:07:20.126174+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -9,7 +9,7 @@
       "message": "Entrypoint 'acquire_lock' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
       "file": "coordination_api.py",
-      "line": 206,
+      "line": 210,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -18,7 +18,7 @@
       "message": "Entrypoint 'release_lock' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.release_lock",
       "file": "coordination_api.py",
-      "line": 243,
+      "line": 247,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -27,7 +27,7 @@
       "message": "Entrypoint 'check_lock_status' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
       "file": "coordination_api.py",
-      "line": 272,
+      "line": 276,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -36,7 +36,7 @@
       "message": "Entrypoint 'store_memory' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.store_memory",
       "file": "coordination_api.py",
-      "line": 297,
+      "line": 301,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -45,7 +45,7 @@
       "message": "Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.query_memories",
       "file": "coordination_api.py",
-      "line": 329,
+      "line": 333,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -54,7 +54,7 @@
       "message": "Entrypoint 'claim_work' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.claim_work",
       "file": "coordination_api.py",
-      "line": 372,
+      "line": 376,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -63,7 +63,7 @@
       "message": "Entrypoint 'complete_work' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.complete_work",
       "file": "coordination_api.py",
-      "line": 406,
+      "line": 410,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -72,7 +72,16 @@
       "message": "Entrypoint 'submit_work' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.submit_work",
       "file": "coordination_api.py",
-      "line": 438,
+      "line": 442,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
+      "message": "Entrypoint 'get_task_endpoint' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "file": "coordination_api.py",
+      "line": 476,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -81,7 +90,7 @@
       "message": "Entrypoint 'check_guardrails' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
       "file": "coordination_api.py",
-      "line": 476,
+      "line": 523,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -90,7 +99,7 @@
       "message": "Entrypoint 'get_my_profile' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
       "file": "coordination_api.py",
-      "line": 522,
+      "line": 569,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -99,7 +108,7 @@
       "message": "Entrypoint 'query_audit' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.query_audit",
       "file": "coordination_api.py",
-      "line": 556,
+      "line": 603,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -108,7 +117,7 @@
       "message": "Entrypoint 'allocate_ports' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
       "file": "coordination_api.py",
-      "line": 592,
+      "line": 639,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -117,7 +126,7 @@
       "message": "Entrypoint 'release_ports' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.release_ports",
       "file": "coordination_api.py",
-      "line": 614,
+      "line": 661,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -126,7 +135,7 @@
       "message": "Entrypoint 'port_status' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.port_status",
       "file": "coordination_api.py",
-      "line": 623,
+      "line": 670,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -135,7 +144,7 @@
       "message": "Entrypoint 'health' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line": 646,
+      "line": 693,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -195,10 +204,19 @@
     {
       "severity": "info",
       "category": "reachability",
+      "message": "Entrypoint 'get_task' has downstream dependencies but none touch a DB or produce side effects",
+      "node_id": "py:coordination_mcp.get_task",
+      "file": "coordination_mcp.py",
+      "line": 319,
+      "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
+    },
+    {
+      "severity": "info",
+      "category": "reachability",
       "message": "Entrypoint 'write_handoff' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line": 324,
+      "line": 373,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -207,7 +225,7 @@
       "message": "Entrypoint 'read_handoff' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line": 378,
+      "line": 427,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -216,7 +234,7 @@
       "message": "Entrypoint 'register_session' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line": 438,
+      "line": 487,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -225,7 +243,7 @@
       "message": "Entrypoint 'discover_agents' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line": 475,
+      "line": 524,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -234,7 +252,7 @@
       "message": "Entrypoint 'heartbeat' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line": 522,
+      "line": 571,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -243,7 +261,7 @@
       "message": "Entrypoint 'cleanup_dead_agents' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line": 544,
+      "line": 593,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -252,7 +270,7 @@
       "message": "Entrypoint 'remember' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line": 579,
+      "line": 628,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -261,7 +279,7 @@
       "message": "Entrypoint 'recall' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line": 625,
+      "line": 674,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -270,7 +288,7 @@
       "message": "Entrypoint 'check_guardrails' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line": 678,
+      "line": 727,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -279,7 +297,7 @@
       "message": "Entrypoint 'get_my_profile' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line": 744,
+      "line": 793,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -288,7 +306,7 @@
       "message": "Entrypoint 'query_audit' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line": 784,
+      "line": 833,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -297,7 +315,7 @@
       "message": "Entrypoint 'check_policy' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line": 833,
+      "line": 882,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -306,7 +324,7 @@
       "message": "Entrypoint 'validate_cedar_policy' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line": 874,
+      "line": 923,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -315,7 +333,7 @@
       "message": "Entrypoint 'allocate_ports' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line": 916,
+      "line": 965,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -324,7 +342,7 @@
       "message": "Entrypoint 'release_ports' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line": 963,
+      "line": 1012,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -333,7 +351,7 @@
       "message": "Entrypoint 'ports_status' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
-      "line": 988,
+      "line": 1037,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -342,7 +360,7 @@
       "message": "Entrypoint 'get_current_locks' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 1031,
+      "line": 1080,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -351,7 +369,7 @@
       "message": "Entrypoint 'get_recent_handoffs' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line": 1055,
+      "line": 1104,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -360,7 +378,7 @@
       "message": "Entrypoint 'get_pending_work' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 1094,
+      "line": 1143,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -369,7 +387,7 @@
       "message": "Entrypoint 'get_recent_memories' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line": 1124,
+      "line": 1173,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -378,7 +396,7 @@
       "message": "Entrypoint 'get_guardrail_patterns' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line": 1151,
+      "line": 1200,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -387,7 +405,7 @@
       "message": "Entrypoint 'get_current_profile' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line": 1179,
+      "line": 1228,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -396,7 +414,7 @@
       "message": "Entrypoint 'get_recent_audit' has downstream dependencies but none touch a DB or produce side effects",
       "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 1213,
+      "line": 1262,
       "suggestion": "Verify this is expected, or tag the entrypoint as 'pure'"
     },
     {
@@ -405,7 +423,7 @@
       "message": "Entrypoint 'coordinate_file_edit' has no downstream dependencies",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 1245,
+      "line": 1294,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
@@ -414,151 +432,16 @@
       "message": "Entrypoint 'start_work_session' has no downstream dependencies",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 1267,
+      "line": 1316,
       "suggestion": "Add downstream calls or tag this entrypoint as 'pure' if it has no side effects"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_my_profile' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_my_profile",
-      "file": "coordination_mcp.py",
-      "line": 744,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'health' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.health",
-      "file": "coordination_api.py",
-      "line": 646,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'release_ports' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.release_ports",
-      "file": "coordination_api.py",
-      "line": 614,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'release_lock' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.release_lock",
-      "file": "coordination_api.py",
-      "line": 243,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'allocate_ports' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
-      "file": "coordination_api.py",
-      "line": 592,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'release_ports' has no frontend callers",
-      "node_id": "py:coordination_mcp.release_ports",
-      "file": "coordination_mcp.py",
-      "line": 963,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'query_audit' has no frontend callers",
-      "node_id": "py:coordination_mcp.query_audit",
-      "file": "coordination_mcp.py",
-      "line": 784,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_guardrails' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "message": "Backend route 'get_task_endpoint' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
       "file": "coordination_api.py",
       "line": 476,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'recall' has no frontend callers",
-      "node_id": "py:coordination_mcp.recall",
-      "file": "coordination_mcp.py",
-      "line": 625,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'acquire_lock' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
-      "file": "coordination_api.py",
-      "line": 206,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_my_profile' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
-      "file": "coordination_api.py",
-      "line": 522,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'claim_work' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.claim_work",
-      "file": "coordination_api.py",
-      "line": 372,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'submit_work' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.submit_work",
-      "file": "coordination_api.py",
-      "line": 438,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_guardrail_patterns' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_guardrail_patterns",
-      "file": "coordination_mcp.py",
-      "line": 1151,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_locks' has no frontend callers",
-      "node_id": "py:coordination_mcp.check_locks",
-      "file": "coordination_mcp.py",
-      "line": 148,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'validate_cedar_policy' has no frontend callers",
-      "node_id": "py:coordination_mcp.validate_cedar_policy",
-      "file": "coordination_mcp.py",
-      "line": 874,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -567,25 +450,7 @@
       "message": "Backend route 'start_work_session' has no frontend callers",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 1267,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'check_policy' has no frontend callers",
-      "node_id": "py:coordination_mcp.check_policy",
-      "file": "coordination_mcp.py",
-      "line": 833,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'heartbeat' has no frontend callers",
-      "node_id": "py:coordination_mcp.heartbeat",
-      "file": "coordination_mcp.py",
-      "line": 522,
+      "line": 1316,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -600,64 +465,37 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_current_locks' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_current_locks",
+      "message": "Backend route 'get_recent_audit' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 1031,
+      "line": 1262,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'check_lock_status' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "message": "Backend route 'query_audit' has no frontend callers",
+      "node_id": "py:coordination_mcp.query_audit",
+      "file": "coordination_mcp.py",
+      "line": 833,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'query_audit' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.query_audit",
       "file": "coordination_api.py",
-      "line": 272,
+      "line": 603,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'remember' has no frontend callers",
-      "node_id": "py:coordination_mcp.remember",
-      "file": "coordination_mcp.py",
-      "line": 579,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_handoffs' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_handoffs",
-      "file": "coordination_mcp.py",
-      "line": 1055,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'complete_work' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "message": "Backend route 'acquire_lock' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
       "file": "coordination_api.py",
-      "line": 406,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'cleanup_dead_agents' has no frontend callers",
-      "node_id": "py:coordination_mcp.cleanup_dead_agents",
-      "file": "coordination_mcp.py",
-      "line": 544,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'submit_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.submit_work",
-      "file": "coordination_mcp.py",
-      "line": 264,
+      "line": 210,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -672,10 +510,73 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'discover_agents' has no frontend callers",
-      "node_id": "py:coordination_mcp.discover_agents",
+      "message": "Backend route 'complete_work' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.complete_work",
+      "file": "coordination_api.py",
+      "line": 410,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_pending_work' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 475,
+      "line": 1143,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_task' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_task",
+      "file": "coordination_mcp.py",
+      "line": 319,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'port_status' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.port_status",
+      "file": "coordination_api.py",
+      "line": 670,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'read_handoff' has no frontend callers",
+      "node_id": "py:coordination_mcp.read_handoff",
+      "file": "coordination_mcp.py",
+      "line": 427,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'register_session' has no frontend callers",
+      "node_id": "py:coordination_mcp.register_session",
+      "file": "coordination_mcp.py",
+      "line": 487,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'release_ports' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.release_ports",
+      "file": "coordination_api.py",
+      "line": 661,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_current_profile' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_current_profile",
+      "file": "coordination_mcp.py",
+      "line": 1228,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -684,16 +585,43 @@
       "message": "Backend route 'check_guardrails' has no frontend callers",
       "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line": 678,
+      "line": 727,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'query_memories' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "message": "Backend route 'get_my_profile' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
       "file": "coordination_api.py",
-      "line": 329,
+      "line": 569,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'heartbeat' has no frontend callers",
+      "node_id": "py:coordination_mcp.heartbeat",
+      "file": "coordination_mcp.py",
+      "line": 571,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'claim_work' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.claim_work",
+      "file": "coordination_api.py",
+      "line": 376,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_guardrail_patterns' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_guardrail_patterns",
+      "file": "coordination_mcp.py",
+      "line": 1200,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -708,28 +636,46 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_pending_work' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_pending_work",
-      "file": "coordination_mcp.py",
-      "line": 1094,
+      "message": "Backend route 'check_lock_status' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
+      "file": "coordination_api.py",
+      "line": 276,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_audit' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_audit",
+      "message": "Backend route 'check_policy' has no frontend callers",
+      "node_id": "py:coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line": 1213,
+      "line": 882,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'ports_status' has no frontend callers",
-      "node_id": "py:coordination_mcp.ports_status",
+      "message": "Backend route 'submit_work' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.submit_work",
+      "file": "coordination_api.py",
+      "line": 442,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'store_memory' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.store_memory",
+      "file": "coordination_api.py",
+      "line": 301,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'release_ports' has no frontend callers",
+      "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line": 988,
+      "line": 1012,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -744,37 +690,10 @@
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'store_memory' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.store_memory",
-      "file": "coordination_api.py",
-      "line": 297,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'register_session' has no frontend callers",
-      "node_id": "py:coordination_mcp.register_session",
+      "message": "Backend route 'get_current_locks' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 438,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'get_recent_memories' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_recent_memories",
-      "file": "coordination_mcp.py",
-      "line": 1124,
-      "suggestion": "Add a frontend caller or remove the unused route"
-    },
-    {
-      "severity": "warning",
-      "category": "disconnected_flow",
-      "message": "Backend route 'port_status' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.port_status",
-      "file": "coordination_api.py",
-      "line": 623,
+      "line": 1080,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -783,25 +702,43 @@
       "message": "Backend route 'coordinate_file_edit' has no frontend callers",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 1245,
+      "line": 1294,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'get_current_profile' has no frontend callers",
-      "node_id": "py:coordination_mcp.get_current_profile",
+      "message": "Backend route 'discover_agents' has no frontend callers",
+      "node_id": "py:coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line": 1179,
+      "line": 524,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'read_handoff' has no frontend callers",
-      "node_id": "py:coordination_mcp.read_handoff",
+      "message": "Backend route 'check_guardrails' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
+      "file": "coordination_api.py",
+      "line": 523,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_my_profile' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line": 378,
+      "line": 793,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'submit_work' has no frontend callers",
+      "node_id": "py:coordination_mcp.submit_work",
+      "file": "coordination_mcp.py",
+      "line": 264,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -810,16 +747,25 @@
       "message": "Backend route 'write_handoff' has no frontend callers",
       "node_id": "py:coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line": 324,
+      "line": 373,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
       "severity": "warning",
       "category": "disconnected_flow",
-      "message": "Backend route 'query_audit' has no frontend callers",
-      "node_id": "py:coordination_api.create_coordination_api.query_audit",
-      "file": "coordination_api.py",
-      "line": 556,
+      "message": "Backend route 'check_locks' has no frontend callers",
+      "node_id": "py:coordination_mcp.check_locks",
+      "file": "coordination_mcp.py",
+      "line": 148,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_recent_handoffs' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_handoffs",
+      "file": "coordination_mcp.py",
+      "line": 1104,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -828,7 +774,97 @@
       "message": "Backend route 'allocate_ports' has no frontend callers",
       "node_id": "py:coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line": 916,
+      "line": 965,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'remember' has no frontend callers",
+      "node_id": "py:coordination_mcp.remember",
+      "file": "coordination_mcp.py",
+      "line": 628,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'release_lock' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.release_lock",
+      "file": "coordination_api.py",
+      "line": 247,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'cleanup_dead_agents' has no frontend callers",
+      "node_id": "py:coordination_mcp.cleanup_dead_agents",
+      "file": "coordination_mcp.py",
+      "line": 593,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'query_memories' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.query_memories",
+      "file": "coordination_api.py",
+      "line": 333,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'ports_status' has no frontend callers",
+      "node_id": "py:coordination_mcp.ports_status",
+      "file": "coordination_mcp.py",
+      "line": 1037,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'validate_cedar_policy' has no frontend callers",
+      "node_id": "py:coordination_mcp.validate_cedar_policy",
+      "file": "coordination_mcp.py",
+      "line": 923,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'recall' has no frontend callers",
+      "node_id": "py:coordination_mcp.recall",
+      "file": "coordination_mcp.py",
+      "line": 674,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'health' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.health",
+      "file": "coordination_api.py",
+      "line": 693,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'allocate_ports' has no frontend callers",
+      "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
+      "file": "coordination_api.py",
+      "line": 639,
+      "suggestion": "Add a frontend caller or remove the unused route"
+    },
+    {
+      "severity": "warning",
+      "category": "disconnected_flow",
+      "message": "Backend route 'get_recent_memories' has no frontend callers",
+      "node_id": "py:coordination_mcp.get_recent_memories",
+      "file": "coordination_mcp.py",
+      "line": 1173,
       "suggestion": "Add a frontend caller or remove the unused route"
     },
     {
@@ -1050,10 +1086,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'WorkGetTaskRequest' has no corresponding test references",
+      "node_id": "py:coordination_api.WorkGetTaskRequest",
+      "file": "coordination_api.py",
+      "line": 83,
+      "suggestion": "Add tests that reference 'WorkGetTaskRequest' (e.g., test_WorkGetTaskRequest or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'GuardrailsCheckRequest' has no corresponding test references",
       "node_id": "py:coordination_api.GuardrailsCheckRequest",
       "file": "coordination_api.py",
-      "line": 83,
+      "line": 87,
       "suggestion": "Add tests that reference 'GuardrailsCheckRequest' (e.g., test_GuardrailsCheckRequest or import it in a test file)"
     },
     {
@@ -1062,7 +1107,7 @@
       "message": "Function 'AuditQueryParams' has no corresponding test references",
       "node_id": "py:coordination_api.AuditQueryParams",
       "file": "coordination_api.py",
-      "line": 88,
+      "line": 92,
       "suggestion": "Add tests that reference 'AuditQueryParams' (e.g., test_AuditQueryParams or import it in a test file)"
     },
     {
@@ -1071,7 +1116,7 @@
       "message": "Function 'PortAllocateRequest' has no corresponding test references",
       "node_id": "py:coordination_api.PortAllocateRequest",
       "file": "coordination_api.py",
-      "line": 94,
+      "line": 98,
       "suggestion": "Add tests that reference 'PortAllocateRequest' (e.g., test_PortAllocateRequest or import it in a test file)"
     },
     {
@@ -1080,7 +1125,7 @@
       "message": "Function 'PortReleaseRequest' has no corresponding test references",
       "node_id": "py:coordination_api.PortReleaseRequest",
       "file": "coordination_api.py",
-      "line": 98,
+      "line": 102,
       "suggestion": "Add tests that reference 'PortReleaseRequest' (e.g., test_PortReleaseRequest or import it in a test file)"
     },
     {
@@ -1163,6 +1208,60 @@
       "file": "discovery.py",
       "line": 114,
       "suggestion": "Add tests that reference 'DiscoveryService' (e.g., test_DiscoveryService or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'Feasibility' has no corresponding test references",
+      "node_id": "py:feature_registry.Feasibility",
+      "file": "feature_registry.py",
+      "line": 26,
+      "suggestion": "Add tests that reference 'Feasibility' (e.g., test_Feasibility or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'Feature' has no corresponding test references",
+      "node_id": "py:feature_registry.Feature",
+      "file": "feature_registry.py",
+      "line": 35,
+      "suggestion": "Add tests that reference 'Feature' (e.g., test_Feature or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'RegisterResult' has no corresponding test references",
+      "node_id": "py:feature_registry.RegisterResult",
+      "file": "feature_registry.py",
+      "line": 75,
+      "suggestion": "Add tests that reference 'RegisterResult' (e.g., test_RegisterResult or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'DeregisterResult' has no corresponding test references",
+      "node_id": "py:feature_registry.DeregisterResult",
+      "file": "feature_registry.py",
+      "line": 94,
+      "suggestion": "Add tests that reference 'DeregisterResult' (e.g., test_DeregisterResult or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ConflictReport' has no corresponding test references",
+      "node_id": "py:feature_registry.ConflictReport",
+      "file": "feature_registry.py",
+      "line": 113,
+      "suggestion": "Add tests that reference 'ConflictReport' (e.g., test_ConflictReport or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'FeatureRegistryService' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService",
+      "file": "feature_registry.py",
+      "line": 124,
+      "suggestion": "Add tests that reference 'FeatureRegistryService' (e.g., test_FeatureRegistryService or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -1278,7 +1377,7 @@
       "message": "Function 'Lock' has no corresponding test references",
       "node_id": "py:locks.Lock",
       "file": "locks.py",
-      "line": 20,
+      "line": 46,
       "suggestion": "Add tests that reference 'Lock' (e.g., test_Lock or import it in a test file)"
     },
     {
@@ -1287,7 +1386,7 @@
       "message": "Function 'LockResult' has no corresponding test references",
       "node_id": "py:locks.LockResult",
       "file": "locks.py",
-      "line": 45,
+      "line": 71,
       "suggestion": "Add tests that reference 'LockResult' (e.g., test_LockResult or import it in a test file)"
     },
     {
@@ -1296,7 +1395,7 @@
       "message": "Function 'LockService' has no corresponding test references",
       "node_id": "py:locks.LockService",
       "file": "locks.py",
-      "line": 75,
+      "line": 101,
       "suggestion": "Add tests that reference 'LockService' (e.g., test_LockService or import it in a test file)"
     },
     {
@@ -1334,6 +1433,42 @@
       "file": "memory.py",
       "line": 89,
       "suggestion": "Add tests that reference 'MemoryService' (e.g., test_MemoryService or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'MergeStatus' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeStatus",
+      "file": "merge_queue.py",
+      "line": 31,
+      "suggestion": "Add tests that reference 'MergeStatus' (e.g., test_MergeStatus or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'PreMergeCheckResult' has no corresponding test references",
+      "node_id": "py:merge_queue.PreMergeCheckResult",
+      "file": "merge_queue.py",
+      "line": 43,
+      "suggestion": "Add tests that reference 'PreMergeCheckResult' (e.g., test_PreMergeCheckResult or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'MergeQueueEntry' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueEntry",
+      "file": "merge_queue.py",
+      "line": 54,
+      "suggestion": "Add tests that reference 'MergeQueueEntry' (e.g., test_MergeQueueEntry or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'MergeQueueService' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService",
+      "file": "merge_queue.py",
+      "line": 82,
+      "suggestion": "Add tests that reference 'MergeQueueService' (e.g., test_MergeQueueService or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -1755,7 +1890,7 @@
       "message": "Function 'verify_api_key' has no corresponding test references",
       "node_id": "py:coordination_api.verify_api_key",
       "file": "coordination_api.py",
-      "line": 107,
+      "line": 111,
       "suggestion": "Add tests that reference 'verify_api_key' (e.g., test_verify_api_key or import it in a test file)"
     },
     {
@@ -1764,7 +1899,7 @@
       "message": "Function 'resolve_identity' has no corresponding test references",
       "node_id": "py:coordination_api.resolve_identity",
       "file": "coordination_api.py",
-      "line": 120,
+      "line": 124,
       "suggestion": "Add tests that reference 'resolve_identity' (e.g., test_resolve_identity or import it in a test file)"
     },
     {
@@ -1773,7 +1908,7 @@
       "message": "Function 'authorize_operation' has no corresponding test references",
       "node_id": "py:coordination_api.authorize_operation",
       "file": "coordination_api.py",
-      "line": 150,
+      "line": 154,
       "suggestion": "Add tests that reference 'authorize_operation' (e.g., test_authorize_operation or import it in a test file)"
     },
     {
@@ -1782,7 +1917,7 @@
       "message": "Function 'resolve_trust_level' has no corresponding test references",
       "node_id": "py:coordination_api.resolve_trust_level",
       "file": "coordination_api.py",
-      "line": 171,
+      "line": 175,
       "suggestion": "Add tests that reference 'resolve_trust_level' (e.g., test_resolve_trust_level or import it in a test file)"
     },
     {
@@ -1791,7 +1926,7 @@
       "message": "Function 'create_coordination_api' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api",
       "file": "coordination_api.py",
-      "line": 192,
+      "line": 196,
       "suggestion": "Add tests that reference 'create_coordination_api' (e.g., test_create_coordination_api or import it in a test file)"
     },
     {
@@ -1800,7 +1935,7 @@
       "message": "Function 'acquire_lock' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.acquire_lock",
       "file": "coordination_api.py",
-      "line": 206,
+      "line": 210,
       "suggestion": "Add tests that reference 'acquire_lock' (e.g., test_acquire_lock or import it in a test file)"
     },
     {
@@ -1809,7 +1944,7 @@
       "message": "Function 'release_lock' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.release_lock",
       "file": "coordination_api.py",
-      "line": 243,
+      "line": 247,
       "suggestion": "Add tests that reference 'release_lock' (e.g., test_release_lock or import it in a test file)"
     },
     {
@@ -1818,7 +1953,7 @@
       "message": "Function 'check_lock_status' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.check_lock_status",
       "file": "coordination_api.py",
-      "line": 272,
+      "line": 276,
       "suggestion": "Add tests that reference 'check_lock_status' (e.g., test_check_lock_status or import it in a test file)"
     },
     {
@@ -1827,7 +1962,7 @@
       "message": "Function 'store_memory' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.store_memory",
       "file": "coordination_api.py",
-      "line": 297,
+      "line": 301,
       "suggestion": "Add tests that reference 'store_memory' (e.g., test_store_memory or import it in a test file)"
     },
     {
@@ -1836,7 +1971,7 @@
       "message": "Function 'query_memories' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.query_memories",
       "file": "coordination_api.py",
-      "line": 329,
+      "line": 333,
       "suggestion": "Add tests that reference 'query_memories' (e.g., test_query_memories or import it in a test file)"
     },
     {
@@ -1845,7 +1980,7 @@
       "message": "Function 'claim_work' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.claim_work",
       "file": "coordination_api.py",
-      "line": 372,
+      "line": 376,
       "suggestion": "Add tests that reference 'claim_work' (e.g., test_claim_work or import it in a test file)"
     },
     {
@@ -1854,7 +1989,7 @@
       "message": "Function 'complete_work' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.complete_work",
       "file": "coordination_api.py",
-      "line": 406,
+      "line": 410,
       "suggestion": "Add tests that reference 'complete_work' (e.g., test_complete_work or import it in a test file)"
     },
     {
@@ -1863,8 +1998,17 @@
       "message": "Function 'submit_work' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.submit_work",
       "file": "coordination_api.py",
-      "line": 438,
+      "line": 442,
       "suggestion": "Add tests that reference 'submit_work' (e.g., test_submit_work or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_task_endpoint' has no corresponding test references",
+      "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
+      "file": "coordination_api.py",
+      "line": 476,
+      "suggestion": "Add tests that reference 'get_task_endpoint' (e.g., test_get_task_endpoint or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -1872,7 +2016,7 @@
       "message": "Function 'check_guardrails' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.check_guardrails",
       "file": "coordination_api.py",
-      "line": 476,
+      "line": 523,
       "suggestion": "Add tests that reference 'check_guardrails' (e.g., test_check_guardrails or import it in a test file)"
     },
     {
@@ -1881,7 +2025,7 @@
       "message": "Function 'get_my_profile' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.get_my_profile",
       "file": "coordination_api.py",
-      "line": 522,
+      "line": 569,
       "suggestion": "Add tests that reference 'get_my_profile' (e.g., test_get_my_profile or import it in a test file)"
     },
     {
@@ -1890,7 +2034,7 @@
       "message": "Function 'query_audit' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.query_audit",
       "file": "coordination_api.py",
-      "line": 556,
+      "line": 603,
       "suggestion": "Add tests that reference 'query_audit' (e.g., test_query_audit or import it in a test file)"
     },
     {
@@ -1899,7 +2043,7 @@
       "message": "Function 'allocate_ports' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.allocate_ports",
       "file": "coordination_api.py",
-      "line": 592,
+      "line": 639,
       "suggestion": "Add tests that reference 'allocate_ports' (e.g., test_allocate_ports or import it in a test file)"
     },
     {
@@ -1908,7 +2052,7 @@
       "message": "Function 'release_ports' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.release_ports",
       "file": "coordination_api.py",
-      "line": 614,
+      "line": 661,
       "suggestion": "Add tests that reference 'release_ports' (e.g., test_release_ports or import it in a test file)"
     },
     {
@@ -1917,7 +2061,7 @@
       "message": "Function 'port_status' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.port_status",
       "file": "coordination_api.py",
-      "line": 623,
+      "line": 670,
       "suggestion": "Add tests that reference 'port_status' (e.g., test_port_status or import it in a test file)"
     },
     {
@@ -1926,7 +2070,7 @@
       "message": "Function 'health' has no corresponding test references",
       "node_id": "py:coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line": 646,
+      "line": 693,
       "suggestion": "Add tests that reference 'health' (e.g., test_health or import it in a test file)"
     },
     {
@@ -1935,7 +2079,7 @@
       "message": "Function 'main' has no corresponding test references",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 684,
+      "line": 731,
       "suggestion": "Add tests that reference 'main' (e.g., test_main or import it in a test file)"
     },
     {
@@ -2013,10 +2157,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'get_task' has no corresponding test references",
+      "node_id": "py:coordination_mcp.get_task",
+      "file": "coordination_mcp.py",
+      "line": 319,
+      "suggestion": "Add tests that reference 'get_task' (e.g., test_get_task or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'write_handoff' has no corresponding test references",
       "node_id": "py:coordination_mcp.write_handoff",
       "file": "coordination_mcp.py",
-      "line": 324,
+      "line": 373,
       "suggestion": "Add tests that reference 'write_handoff' (e.g., test_write_handoff or import it in a test file)"
     },
     {
@@ -2025,7 +2178,7 @@
       "message": "Function 'read_handoff' has no corresponding test references",
       "node_id": "py:coordination_mcp.read_handoff",
       "file": "coordination_mcp.py",
-      "line": 378,
+      "line": 427,
       "suggestion": "Add tests that reference 'read_handoff' (e.g., test_read_handoff or import it in a test file)"
     },
     {
@@ -2034,7 +2187,7 @@
       "message": "Function 'register_session' has no corresponding test references",
       "node_id": "py:coordination_mcp.register_session",
       "file": "coordination_mcp.py",
-      "line": 438,
+      "line": 487,
       "suggestion": "Add tests that reference 'register_session' (e.g., test_register_session or import it in a test file)"
     },
     {
@@ -2043,7 +2196,7 @@
       "message": "Function 'discover_agents' has no corresponding test references",
       "node_id": "py:coordination_mcp.discover_agents",
       "file": "coordination_mcp.py",
-      "line": 475,
+      "line": 524,
       "suggestion": "Add tests that reference 'discover_agents' (e.g., test_discover_agents or import it in a test file)"
     },
     {
@@ -2052,7 +2205,7 @@
       "message": "Function 'heartbeat' has no corresponding test references",
       "node_id": "py:coordination_mcp.heartbeat",
       "file": "coordination_mcp.py",
-      "line": 522,
+      "line": 571,
       "suggestion": "Add tests that reference 'heartbeat' (e.g., test_heartbeat or import it in a test file)"
     },
     {
@@ -2061,7 +2214,7 @@
       "message": "Function 'cleanup_dead_agents' has no corresponding test references",
       "node_id": "py:coordination_mcp.cleanup_dead_agents",
       "file": "coordination_mcp.py",
-      "line": 544,
+      "line": 593,
       "suggestion": "Add tests that reference 'cleanup_dead_agents' (e.g., test_cleanup_dead_agents or import it in a test file)"
     },
     {
@@ -2070,7 +2223,7 @@
       "message": "Function 'remember' has no corresponding test references",
       "node_id": "py:coordination_mcp.remember",
       "file": "coordination_mcp.py",
-      "line": 579,
+      "line": 628,
       "suggestion": "Add tests that reference 'remember' (e.g., test_remember or import it in a test file)"
     },
     {
@@ -2079,7 +2232,7 @@
       "message": "Function 'recall' has no corresponding test references",
       "node_id": "py:coordination_mcp.recall",
       "file": "coordination_mcp.py",
-      "line": 625,
+      "line": 674,
       "suggestion": "Add tests that reference 'recall' (e.g., test_recall or import it in a test file)"
     },
     {
@@ -2088,7 +2241,7 @@
       "message": "Function 'check_guardrails' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_guardrails",
       "file": "coordination_mcp.py",
-      "line": 678,
+      "line": 727,
       "suggestion": "Add tests that reference 'check_guardrails' (e.g., test_check_guardrails or import it in a test file)"
     },
     {
@@ -2097,7 +2250,7 @@
       "message": "Function 'get_my_profile' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_my_profile",
       "file": "coordination_mcp.py",
-      "line": 744,
+      "line": 793,
       "suggestion": "Add tests that reference 'get_my_profile' (e.g., test_get_my_profile or import it in a test file)"
     },
     {
@@ -2106,7 +2259,7 @@
       "message": "Function 'query_audit' has no corresponding test references",
       "node_id": "py:coordination_mcp.query_audit",
       "file": "coordination_mcp.py",
-      "line": 784,
+      "line": 833,
       "suggestion": "Add tests that reference 'query_audit' (e.g., test_query_audit or import it in a test file)"
     },
     {
@@ -2115,7 +2268,7 @@
       "message": "Function 'check_policy' has no corresponding test references",
       "node_id": "py:coordination_mcp.check_policy",
       "file": "coordination_mcp.py",
-      "line": 833,
+      "line": 882,
       "suggestion": "Add tests that reference 'check_policy' (e.g., test_check_policy or import it in a test file)"
     },
     {
@@ -2124,7 +2277,7 @@
       "message": "Function 'validate_cedar_policy' has no corresponding test references",
       "node_id": "py:coordination_mcp.validate_cedar_policy",
       "file": "coordination_mcp.py",
-      "line": 874,
+      "line": 923,
       "suggestion": "Add tests that reference 'validate_cedar_policy' (e.g., test_validate_cedar_policy or import it in a test file)"
     },
     {
@@ -2133,7 +2286,7 @@
       "message": "Function 'allocate_ports' has no corresponding test references",
       "node_id": "py:coordination_mcp.allocate_ports",
       "file": "coordination_mcp.py",
-      "line": 916,
+      "line": 965,
       "suggestion": "Add tests that reference 'allocate_ports' (e.g., test_allocate_ports or import it in a test file)"
     },
     {
@@ -2142,7 +2295,7 @@
       "message": "Function 'release_ports' has no corresponding test references",
       "node_id": "py:coordination_mcp.release_ports",
       "file": "coordination_mcp.py",
-      "line": 963,
+      "line": 1012,
       "suggestion": "Add tests that reference 'release_ports' (e.g., test_release_ports or import it in a test file)"
     },
     {
@@ -2151,7 +2304,7 @@
       "message": "Function 'ports_status' has no corresponding test references",
       "node_id": "py:coordination_mcp.ports_status",
       "file": "coordination_mcp.py",
-      "line": 988,
+      "line": 1037,
       "suggestion": "Add tests that reference 'ports_status' (e.g., test_ports_status or import it in a test file)"
     },
     {
@@ -2160,7 +2313,7 @@
       "message": "Function 'get_current_locks' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_current_locks",
       "file": "coordination_mcp.py",
-      "line": 1031,
+      "line": 1080,
       "suggestion": "Add tests that reference 'get_current_locks' (e.g., test_get_current_locks or import it in a test file)"
     },
     {
@@ -2169,7 +2322,7 @@
       "message": "Function 'get_recent_handoffs' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_handoffs",
       "file": "coordination_mcp.py",
-      "line": 1055,
+      "line": 1104,
       "suggestion": "Add tests that reference 'get_recent_handoffs' (e.g., test_get_recent_handoffs or import it in a test file)"
     },
     {
@@ -2178,7 +2331,7 @@
       "message": "Function 'get_pending_work' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_pending_work",
       "file": "coordination_mcp.py",
-      "line": 1094,
+      "line": 1143,
       "suggestion": "Add tests that reference 'get_pending_work' (e.g., test_get_pending_work or import it in a test file)"
     },
     {
@@ -2187,7 +2340,7 @@
       "message": "Function 'get_recent_memories' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_memories",
       "file": "coordination_mcp.py",
-      "line": 1124,
+      "line": 1173,
       "suggestion": "Add tests that reference 'get_recent_memories' (e.g., test_get_recent_memories or import it in a test file)"
     },
     {
@@ -2196,7 +2349,7 @@
       "message": "Function 'get_guardrail_patterns' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_guardrail_patterns",
       "file": "coordination_mcp.py",
-      "line": 1151,
+      "line": 1200,
       "suggestion": "Add tests that reference 'get_guardrail_patterns' (e.g., test_get_guardrail_patterns or import it in a test file)"
     },
     {
@@ -2205,7 +2358,7 @@
       "message": "Function 'get_current_profile' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_current_profile",
       "file": "coordination_mcp.py",
-      "line": 1179,
+      "line": 1228,
       "suggestion": "Add tests that reference 'get_current_profile' (e.g., test_get_current_profile or import it in a test file)"
     },
     {
@@ -2214,7 +2367,7 @@
       "message": "Function 'get_recent_audit' has no corresponding test references",
       "node_id": "py:coordination_mcp.get_recent_audit",
       "file": "coordination_mcp.py",
-      "line": 1213,
+      "line": 1262,
       "suggestion": "Add tests that reference 'get_recent_audit' (e.g., test_get_recent_audit or import it in a test file)"
     },
     {
@@ -2223,7 +2376,7 @@
       "message": "Function 'coordinate_file_edit' has no corresponding test references",
       "node_id": "py:coordination_mcp.coordinate_file_edit",
       "file": "coordination_mcp.py",
-      "line": 1245,
+      "line": 1294,
       "suggestion": "Add tests that reference 'coordinate_file_edit' (e.g., test_coordinate_file_edit or import it in a test file)"
     },
     {
@@ -2232,7 +2385,7 @@
       "message": "Function 'start_work_session' has no corresponding test references",
       "node_id": "py:coordination_mcp.start_work_session",
       "file": "coordination_mcp.py",
-      "line": 1267,
+      "line": 1316,
       "suggestion": "Add tests that reference 'start_work_session' (e.g., test_start_work_session or import it in a test file)"
     },
     {
@@ -2241,7 +2394,7 @@
       "message": "Function 'main' has no corresponding test references",
       "node_id": "py:coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line": 1289,
+      "line": 1338,
       "suggestion": "Add tests that reference 'main' (e.g., test_main or import it in a test file)"
     },
     {
@@ -2652,6 +2805,114 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'from_dict' has no corresponding test references",
+      "node_id": "py:feature_registry.Feature.from_dict",
+      "file": "feature_registry.py",
+      "line": 51,
+      "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'parse_dt' has no corresponding test references",
+      "node_id": "py:feature_registry.Feature.from_dict.parse_dt",
+      "file": "feature_registry.py",
+      "line": 52,
+      "suggestion": "Add tests that reference 'parse_dt' (e.g., test_parse_dt or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'from_dict' has no corresponding test references",
+      "node_id": "py:feature_registry.RegisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line": 84,
+      "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'from_dict' has no corresponding test references",
+      "node_id": "py:feature_registry.DeregisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line": 103,
+      "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '__init__' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.__init__",
+      "file": "feature_registry.py",
+      "line": 131,
+      "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'db' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.db",
+      "file": "feature_registry.py",
+      "line": 135,
+      "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'register' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.register",
+      "file": "feature_registry.py",
+      "line": 140,
+      "suggestion": "Add tests that reference 'register' (e.g., test_register or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'deregister' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.deregister",
+      "file": "feature_registry.py",
+      "line": 198,
+      "suggestion": "Add tests that reference 'deregister' (e.g., test_deregister or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_feature' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.get_feature",
+      "file": "feature_registry.py",
+      "line": 233,
+      "suggestion": "Add tests that reference 'get_feature' (e.g., test_get_feature or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_active_features' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.get_active_features",
+      "file": "feature_registry.py",
+      "line": 248,
+      "suggestion": "Add tests that reference 'get_active_features' (e.g., test_get_active_features or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'analyze_conflicts' has no corresponding test references",
+      "node_id": "py:feature_registry.FeatureRegistryService.analyze_conflicts",
+      "file": "feature_registry.py",
+      "line": 260,
+      "suggestion": "Add tests that reference 'analyze_conflicts' (e.g., test_analyze_conflicts or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_feature_registry_service' has no corresponding test references",
+      "node_id": "py:feature_registry.get_feature_registry_service",
+      "file": "feature_registry.py",
+      "line": 320,
+      "suggestion": "Add tests that reference 'get_feature_registry_service' (e.g., test_get_feature_registry_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'parse' has no corresponding test references",
       "node_id": "py:github_coordination.BranchInfo.parse",
       "file": "github_coordination.py",
@@ -2904,10 +3165,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'is_valid_lock_key' has no corresponding test references",
+      "node_id": "py:locks.is_valid_lock_key",
+      "file": "locks.py",
+      "line": 38,
+      "suggestion": "Add tests that reference 'is_valid_lock_key' (e.g., test_is_valid_lock_key or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:locks.Lock.from_dict",
       "file": "locks.py",
-      "line": 32,
+      "line": 58,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2916,7 +3186,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:locks.LockResult.from_dict",
       "file": "locks.py",
-      "line": 57,
+      "line": 83,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2925,7 +3195,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:locks.LockService.__init__",
       "file": "locks.py",
-      "line": 78,
+      "line": 104,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2934,7 +3204,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:locks.LockService.db",
       "file": "locks.py",
-      "line": 82,
+      "line": 108,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -2943,7 +3213,7 @@
       "message": "Function 'acquire' has no corresponding test references",
       "node_id": "py:locks.LockService.acquire",
       "file": "locks.py",
-      "line": 87,
+      "line": 113,
       "suggestion": "Add tests that reference 'acquire' (e.g., test_acquire or import it in a test file)"
     },
     {
@@ -2952,7 +3222,7 @@
       "message": "Function 'release' has no corresponding test references",
       "node_id": "py:locks.LockService.release",
       "file": "locks.py",
-      "line": 158,
+      "line": 184,
       "suggestion": "Add tests that reference 'release' (e.g., test_release or import it in a test file)"
     },
     {
@@ -2961,7 +3231,7 @@
       "message": "Function 'check' has no corresponding test references",
       "node_id": "py:locks.LockService.check",
       "file": "locks.py",
-      "line": 213,
+      "line": 239,
       "suggestion": "Add tests that reference 'check' (e.g., test_check or import it in a test file)"
     },
     {
@@ -2970,7 +3240,7 @@
       "message": "Function 'extend' has no corresponding test references",
       "node_id": "py:locks.LockService.extend",
       "file": "locks.py",
-      "line": 240,
+      "line": 266,
       "suggestion": "Add tests that reference 'extend' (e.g., test_extend or import it in a test file)"
     },
     {
@@ -2979,7 +3249,7 @@
       "message": "Function 'is_locked' has no corresponding test references",
       "node_id": "py:locks.LockService.is_locked",
       "file": "locks.py",
-      "line": 264,
+      "line": 290,
       "suggestion": "Add tests that reference 'is_locked' (e.g., test_is_locked or import it in a test file)"
     },
     {
@@ -2988,7 +3258,7 @@
       "message": "Function 'get_lock_service' has no corresponding test references",
       "node_id": "py:locks.get_lock_service",
       "file": "locks.py",
-      "line": 281,
+      "line": 307,
       "suggestion": "Add tests that reference 'get_lock_service' (e.g., test_get_lock_service or import it in a test file)"
     },
     {
@@ -3062,6 +3332,114 @@
       "file": "memory.py",
       "line": 219,
       "suggestion": "Add tests that reference 'get_memory_service' (e.g., test_get_memory_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'from_feature' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueEntry.from_feature",
+      "file": "merge_queue.py",
+      "line": 67,
+      "suggestion": "Add tests that reference 'from_feature' (e.g., test_from_feature or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '__init__' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.__init__",
+      "file": "merge_queue.py",
+      "line": 93,
+      "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'db' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.db",
+      "file": "merge_queue.py",
+      "line": 102,
+      "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'registry' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.registry",
+      "file": "merge_queue.py",
+      "line": 108,
+      "suggestion": "Add tests that reference 'registry' (e.g., test_registry or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'enqueue' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.enqueue",
+      "file": "merge_queue.py",
+      "line": 113,
+      "suggestion": "Add tests that reference 'enqueue' (e.g., test_enqueue or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_queue' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.get_queue",
+      "file": "merge_queue.py",
+      "line": 167,
+      "suggestion": "Add tests that reference 'get_queue' (e.g., test_get_queue or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_next_to_merge' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.get_next_to_merge",
+      "file": "merge_queue.py",
+      "line": 203,
+      "suggestion": "Add tests that reference 'get_next_to_merge' (e.g., test_get_next_to_merge or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'run_pre_merge_checks' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+      "file": "merge_queue.py",
+      "line": 217,
+      "suggestion": "Add tests that reference 'run_pre_merge_checks' (e.g., test_run_pre_merge_checks or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'mark_merged' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.mark_merged",
+      "file": "merge_queue.py",
+      "line": 306,
+      "suggestion": "Add tests that reference 'mark_merged' (e.g., test_mark_merged or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'remove_from_queue' has no corresponding test references",
+      "node_id": "py:merge_queue.MergeQueueService.remove_from_queue",
+      "file": "merge_queue.py",
+      "line": 333,
+      "suggestion": "Add tests that reference 'remove_from_queue' (e.g., test_remove_from_queue or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_parse_dt' has no corresponding test references",
+      "node_id": "py:merge_queue._parse_dt",
+      "file": "merge_queue.py",
+      "line": 361,
+      "suggestion": "Add tests that reference '_parse_dt' (e.g., test__parse_dt or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'get_merge_queue_service' has no corresponding test references",
+      "node_id": "py:merge_queue.get_merge_queue_service",
+      "file": "merge_queue.py",
+      "line": 374,
+      "suggestion": "Add tests that reference 'get_merge_queue_service' (e.g., test_get_merge_queue_service or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -3669,10 +4047,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function 'cancel_task_convention' has no corresponding test references",
+      "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
+      "file": "work_queue.py",
+      "line": 565,
+      "suggestion": "Add tests that reference 'cancel_task_convention' (e.g., test_cancel_task_convention or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'get_work_queue_service' has no corresponding test references",
       "node_id": "py:work_queue.get_work_queue_service",
       "file": "work_queue.py",
-      "line": 570,
+      "line": 598,
       "suggestion": "Add tests that reference 'get_work_queue_service' (e.g., test_get_work_queue_service or import it in a test file)"
     },
     {
@@ -3759,6 +4146,15 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'feature_registry' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry",
+      "file": "feature_registry.py",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'github_coordination' is unreachable from any entrypoint or test",
       "node_id": "py:github_coordination",
       "file": "github_coordination.py",
@@ -3798,6 +4194,15 @@
       "message": "'memory' is unreachable from any entrypoint or test",
       "node_id": "py:memory",
       "file": "memory.py",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'merge_queue' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue",
+      "file": "merge_queue.py",
       "line": 1,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
@@ -4074,10 +4479,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'WorkGetTaskRequest' is unreachable from any entrypoint or test",
+      "node_id": "py:coordination_api.WorkGetTaskRequest",
+      "file": "coordination_api.py",
+      "line": 83,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'GuardrailsCheckRequest' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.GuardrailsCheckRequest",
       "file": "coordination_api.py",
-      "line": 83,
+      "line": 87,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4086,7 +4500,7 @@
       "message": "'AuditQueryParams' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.AuditQueryParams",
       "file": "coordination_api.py",
-      "line": 88,
+      "line": 92,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4095,7 +4509,7 @@
       "message": "'PortAllocateRequest' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.PortAllocateRequest",
       "file": "coordination_api.py",
-      "line": 94,
+      "line": 98,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4104,7 +4518,7 @@
       "message": "'PortReleaseRequest' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.PortReleaseRequest",
       "file": "coordination_api.py",
-      "line": 98,
+      "line": 102,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4186,6 +4600,60 @@
       "node_id": "py:discovery.DiscoveryService",
       "file": "discovery.py",
       "line": 114,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'Feasibility' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.Feasibility",
+      "file": "feature_registry.py",
+      "line": 26,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'Feature' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.Feature",
+      "file": "feature_registry.py",
+      "line": 35,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'RegisterResult' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.RegisterResult",
+      "file": "feature_registry.py",
+      "line": 75,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'DeregisterResult' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.DeregisterResult",
+      "file": "feature_registry.py",
+      "line": 94,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ConflictReport' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.ConflictReport",
+      "file": "feature_registry.py",
+      "line": 113,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'FeatureRegistryService' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService",
+      "file": "feature_registry.py",
+      "line": 124,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4302,7 +4770,7 @@
       "message": "'Lock' is unreachable from any entrypoint or test",
       "node_id": "py:locks.Lock",
       "file": "locks.py",
-      "line": 20,
+      "line": 46,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4311,7 +4779,7 @@
       "message": "'LockResult' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockResult",
       "file": "locks.py",
-      "line": 45,
+      "line": 71,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4320,7 +4788,7 @@
       "message": "'LockService' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService",
       "file": "locks.py",
-      "line": 75,
+      "line": 101,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4357,6 +4825,42 @@
       "node_id": "py:memory.MemoryService",
       "file": "memory.py",
       "line": 89,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'MergeStatus' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeStatus",
+      "file": "merge_queue.py",
+      "line": 31,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'PreMergeCheckResult' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.PreMergeCheckResult",
+      "file": "merge_queue.py",
+      "line": 43,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'MergeQueueEntry' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueEntry",
+      "file": "merge_queue.py",
+      "line": 54,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'MergeQueueService' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService",
+      "file": "merge_queue.py",
+      "line": 82,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4761,7 +5265,7 @@
       "message": "'verify_api_key' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.verify_api_key",
       "file": "coordination_api.py",
-      "line": 107,
+      "line": 111,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4770,7 +5274,7 @@
       "message": "'create_coordination_api' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.create_coordination_api",
       "file": "coordination_api.py",
-      "line": 192,
+      "line": 196,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4779,7 +5283,7 @@
       "message": "'main' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_api.main",
       "file": "coordination_api.py",
-      "line": 684,
+      "line": 731,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -4788,7 +5292,7 @@
       "message": "'main' is unreachable from any entrypoint or test",
       "node_id": "py:coordination_mcp.main",
       "file": "coordination_mcp.py",
-      "line": 1289,
+      "line": 1338,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5190,6 +5694,114 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'from_dict' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.Feature.from_dict",
+      "file": "feature_registry.py",
+      "line": 51,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'parse_dt' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.Feature.from_dict.parse_dt",
+      "file": "feature_registry.py",
+      "line": 52,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'from_dict' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.RegisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line": 84,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'from_dict' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.DeregisterResult.from_dict",
+      "file": "feature_registry.py",
+      "line": 103,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'__init__' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.__init__",
+      "file": "feature_registry.py",
+      "line": 131,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'db' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.db",
+      "file": "feature_registry.py",
+      "line": 135,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'register' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.register",
+      "file": "feature_registry.py",
+      "line": 140,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'deregister' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.deregister",
+      "file": "feature_registry.py",
+      "line": 198,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_feature' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.get_feature",
+      "file": "feature_registry.py",
+      "line": 233,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_active_features' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.get_active_features",
+      "file": "feature_registry.py",
+      "line": 248,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'analyze_conflicts' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.FeatureRegistryService.analyze_conflicts",
+      "file": "feature_registry.py",
+      "line": 260,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_feature_registry_service' is unreachable from any entrypoint or test",
+      "node_id": "py:feature_registry.get_feature_registry_service",
+      "file": "feature_registry.py",
+      "line": 320,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'parse' is unreachable from any entrypoint or test",
       "node_id": "py:github_coordination.BranchInfo.parse",
       "file": "github_coordination.py",
@@ -5424,10 +6036,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'is_valid_lock_key' is unreachable from any entrypoint or test",
+      "node_id": "py:locks.is_valid_lock_key",
+      "file": "locks.py",
+      "line": 38,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:locks.Lock.from_dict",
       "file": "locks.py",
-      "line": 32,
+      "line": 58,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5436,7 +6057,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockResult.from_dict",
       "file": "locks.py",
-      "line": 57,
+      "line": 83,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5445,7 +6066,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.__init__",
       "file": "locks.py",
-      "line": 78,
+      "line": 104,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5454,7 +6075,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.db",
       "file": "locks.py",
-      "line": 82,
+      "line": 108,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5463,7 +6084,7 @@
       "message": "'acquire' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.acquire",
       "file": "locks.py",
-      "line": 87,
+      "line": 113,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5472,7 +6093,7 @@
       "message": "'release' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.release",
       "file": "locks.py",
-      "line": 158,
+      "line": 184,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5481,7 +6102,7 @@
       "message": "'check' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.check",
       "file": "locks.py",
-      "line": 213,
+      "line": 239,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5490,7 +6111,7 @@
       "message": "'extend' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.extend",
       "file": "locks.py",
-      "line": 240,
+      "line": 266,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5499,7 +6120,7 @@
       "message": "'is_locked' is unreachable from any entrypoint or test",
       "node_id": "py:locks.LockService.is_locked",
       "file": "locks.py",
-      "line": 264,
+      "line": 290,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -5563,6 +6184,114 @@
       "node_id": "py:memory.MemoryService.recall",
       "file": "memory.py",
       "line": 181,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'from_feature' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueEntry.from_feature",
+      "file": "merge_queue.py",
+      "line": 67,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'__init__' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.__init__",
+      "file": "merge_queue.py",
+      "line": 93,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'db' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.db",
+      "file": "merge_queue.py",
+      "line": 102,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'registry' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.registry",
+      "file": "merge_queue.py",
+      "line": 108,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'enqueue' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.enqueue",
+      "file": "merge_queue.py",
+      "line": 113,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_queue' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.get_queue",
+      "file": "merge_queue.py",
+      "line": 167,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_next_to_merge' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.get_next_to_merge",
+      "file": "merge_queue.py",
+      "line": 203,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'run_pre_merge_checks' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.run_pre_merge_checks",
+      "file": "merge_queue.py",
+      "line": 217,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'mark_merged' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.mark_merged",
+      "file": "merge_queue.py",
+      "line": 306,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'remove_from_queue' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.MergeQueueService.remove_from_queue",
+      "file": "merge_queue.py",
+      "line": 333,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_parse_dt' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue._parse_dt",
+      "file": "merge_queue.py",
+      "line": 361,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'get_merge_queue_service' is unreachable from any entrypoint or test",
+      "node_id": "py:merge_queue.get_merge_queue_service",
+      "file": "merge_queue.py",
+      "line": 374,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -6140,15 +6869,24 @@
       "file": "work_queue.py",
       "line": 541,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'cancel_task_convention' is unreachable from any entrypoint or test",
+      "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
+      "file": "work_queue.py",
+      "line": 565,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     }
   ],
   "summary": {
-    "total_findings": 682,
+    "total_findings": 764,
     "errors": 0,
-    "warnings": 638,
-    "info": 44,
-    "entrypoints_checked": 46,
+    "warnings": 718,
+    "info": 46,
+    "entrypoints_checked": 48,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 316
+    "flows_without_coverage": 355
   }
 }

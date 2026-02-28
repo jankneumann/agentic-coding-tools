@@ -1455,6 +1455,77 @@
       ],
       "file": "010_cedar_policy_store.sql",
       "line": 33
+    },
+    {
+      "name": "public.feature_registry",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "feature_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'active'"
+        },
+        {
+          "name": "registered_by",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "registered_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": "NOW()"
+        },
+        {
+          "name": "completed_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "resource_claims",
+          "type": "TEXT",
+          "nullable": false,
+          "default": "'{}'"
+        },
+        {
+          "name": "branch_name",
+          "type": "TEXT",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "merge_priority",
+          "type": "INTEGER",
+          "nullable": true,
+          "default": "5"
+        }
+      ],
+      "primary_key": [
+        "feature_id"
+      ],
+      "file": "012_feature_registry.sql",
+      "line": 1
     }
   ],
   "foreign_keys": [
@@ -1929,6 +2000,22 @@
       "table": "public.cedar_entities",
       "columns": [
         "entity_type"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_status",
+      "table": "public.feature_registry",
+      "columns": [
+        "status"
+      ],
+      "unique": false
+    },
+    {
+      "name": "idx_feature_registry_registered_by",
+      "table": "public.feature_registry",
+      "columns": [
+        "registered_by"
       ],
       "unique": false
     }
@@ -2473,6 +2560,69 @@
       "parameters": [],
       "return_type": "trigger",
       "referenced_tables": []
+    },
+    {
+      "name": "public.register_feature",
+      "file": "012_feature_registry.sql",
+      "line": 34,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FEATURE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TITLE TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_ID TEXT DEFAULT 'UNKNOWN'"
+        },
+        {
+          "name": "",
+          "type": "P_RESOURCE_CLAIMS TEXT[] DEFAULT '{}'"
+        },
+        {
+          "name": "",
+          "type": "P_BRANCH_NAME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_MERGE_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_METADATA JSONB DEFAULT '{}'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.claims",
+        "public.feature_registry",
+        "public.set",
+        "public.v_result"
+      ]
+    },
+    {
+      "name": "public.deregister_feature",
+      "file": "012_feature_registry.sql",
+      "line": 86,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_FEATURE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_STATUS TEXT DEFAULT 'COMPLETED'"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.feature_registry"
+      ]
     }
   ],
   "triggers": [
@@ -2543,10 +2693,10 @@
     }
   ],
   "summary": {
-    "total_tables": 20,
-    "total_columns": 206,
+    "total_tables": 21,
+    "total_columns": 216,
     "total_foreign_keys": 6,
-    "total_indexes": 49,
+    "total_indexes": 51,
     "most_referenced_tables": [
       {
         "table": "public.changesets",

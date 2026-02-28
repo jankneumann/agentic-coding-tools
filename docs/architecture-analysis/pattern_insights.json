@@ -1,19 +1,21 @@
 {
-  "generated_at": "2026-02-28T03:16:42.971254+00:00",
+  "generated_at": "2026-02-28T04:07:20.085880+00:00",
   "python_patterns": {
     "bare_except": {
       "count": 0,
       "files": {}
     },
     "broad_except": {
-      "count": 31,
+      "count": 36,
       "files": {
         "work_queue.py": 8,
         "policy_engine.py": 6,
         "guardrails.py": 4,
         "discovery.py": 3,
         "handoffs.py": 3,
+        "merge_queue.py": 3,
         "coordination_api.py": 2,
+        "feature_registry.py": 2,
         "locks.py": 2,
         "memory.py": 1,
         "network_policies.py": 1,
@@ -29,19 +31,21 @@
       }
     },
     "type_hints": {
-      "count": 392,
+      "count": 439,
       "files": {
         "policy_engine.py": 51,
-        "coordination_mcp.py": 48,
-        "coordination_api.py": 40,
+        "coordination_mcp.py": 50,
+        "coordination_api.py": 42,
         "db.py": 39,
-        "work_queue.py": 26,
+        "work_queue.py": 29,
         "db_postgres.py": 25,
+        "feature_registry.py": 21,
         "audit.py": 19,
         "github_coordination.py": 19,
         "discovery.py": 18,
+        "locks.py": 17,
+        "merge_queue.py": 17,
         "config.py": 15,
-        "locks.py": 15,
         "profiles.py": 15,
         "handoffs.py": 12,
         "port_allocator.py": 12,
@@ -71,13 +75,13 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 187,
-    "typed_parameters": 166
+    "functions_with_return_type": 211,
+    "typed_parameters": 187
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 31,
-    "total_except_issues": 31
+    "broad_except": 36,
+    "total_except_issues": 36
   },
   "security": {
     "total": 0,

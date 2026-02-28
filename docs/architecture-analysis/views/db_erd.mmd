@@ -100,6 +100,18 @@ erDiagram
         TEXT status
         TIMESTAMPTZ updated_at
     }
+    public__feature_registry {
+        TEXT branch_name
+        TIMESTAMPTZ completed_at
+        TEXT feature_id
+        INTEGER merge_priority
+        TIMESTAMPTZ registered_at
+        TEXT registered_by
+        TEXT resource_claims
+        TEXT status
+        TEXT title
+        TIMESTAMPTZ updated_at
+    }
     public__file_locks {
         TEXT agent_type
         UNKNOWN enable
