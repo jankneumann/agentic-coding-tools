@@ -199,13 +199,13 @@
 
 ## FV. Formal Verification
 
-- [ ] FV.1 Create TLA+ model for lock acquisition/release/expiry, task claim/complete, dependency gating, pause-lock coordination, orchestrator rescheduling. Run TLC model checker on bounded instances.
+- [x] FV.1 Create TLA+ model for lock acquisition/release/expiry, task claim/complete, dependency gating, pause-lock coordination, orchestrator rescheduling. Run TLC model checker on bounded instances.
   **Dependencies**: 6.2
   **Files**: formal/parallel-coordination.tla, formal/parallel-coordination.cfg
   **Traces**: R18
   **Verify**: `tlc formal/parallel-coordination.tla` terminates without invariant violations.
 
-- [ ] FV.2 Create Lean safety proofs for DAG scheduler correctness: lock exclusivity, no double-claim, dependency safety, result immutability, cancellation propagation, pause-lock safety.
+- [x] FV.2 Create Lean safety proofs for DAG scheduler correctness: lock exclusivity, no double-claim, dependency safety, result immutability, cancellation propagation, pause-lock safety.
   **Dependencies**: FV.1
   **Files**: formal/lean/ParallelCoordination.lean, formal/lean/Proofs.lean
   **Traces**: R18
