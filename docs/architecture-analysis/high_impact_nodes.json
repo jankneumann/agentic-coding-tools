@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-02-23T22:32:24.063741+00:00",
+  "generated_at": "2026-02-28T02:55:29.855530+00:00",
   "threshold": 5,
   "total_high_impact": 21,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 56
+      "dependent_count": 57
     },
     {
       "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 21
+      "dependent_count": 20
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 19
+      "dependent_count": 18
     },
     {
       "id": "py:config",
@@ -36,35 +36,27 @@
       "dependent_count": 12
     },
     {
-      "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 11
-    },
-    {
       "id": "py:audit",
       "dependent_count": 10
     },
     {
-      "id": "py:coordination_api.authorize_operation",
+      "id": "py:coordination_api.resolve_identity",
       "dependent_count": 10
     },
     {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 9
+    },
+    {
       "id": "py:locks.get_lock_service",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:profiles.get_profiles_service",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:work_queue.get_work_queue_service",
-      "dependent_count": 9
-    },
-    {
-      "id": "py:guardrails.get_guardrails_service",
       "dependent_count": 8
     },
     {
-      "id": "py:port_allocator.get_port_allocator",
+      "id": "py:profiles.get_profiles_service",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:work_queue.get_work_queue_service",
       "dependent_count": 8
     },
     {
@@ -76,7 +68,11 @@
       "dependent_count": 7
     },
     {
-      "id": "py:memory.get_memory_service",
+      "id": "py:guardrails.get_guardrails_service",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:port_allocator.get_port_allocator",
       "dependent_count": 7
     },
     {
@@ -85,6 +81,10 @@
     },
     {
       "id": "py:db_postgres._validate_identifier",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:memory.get_memory_service",
       "dependent_count": 6
     }
   ]

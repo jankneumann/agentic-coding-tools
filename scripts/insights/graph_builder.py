@@ -80,6 +80,28 @@ def load_intermediate(path: Path) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Span helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_span(item: dict[str, Any]) -> dict[str, int]:
+    """Resolve a span dict from an analysis item.
+
+    Analysis outputs use different keys:
+    - python_analysis.json uses ``line_start`` / ``line_end``
+    - postgres_analysis.json may use ``line``
+    - Some outputs use ``span`` dict directly
+
+    Returns ``{"start": N, "end": M}`` with a fallback of ``{1, 1}``.
+    """
+    if "span" in item:
+        return item["span"]
+    start = item.get("line_start") or item.get("line") or 1
+    end = item.get("line_end") or start
+    return {"start": start, "end": end}
+
+
+# ---------------------------------------------------------------------------
 # Python analysis ingestion
 # ---------------------------------------------------------------------------
 
@@ -103,7 +125,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
             "language": "python",
             "name": mod.get("name", ""),
             "file": mod.get("file", ""),
-            "span": mod.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(mod),
             "tags": mod.get("tags", []),
             "signatures": mod.get("signatures", {}),
         })
@@ -120,7 +142,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
             "language": "python",
             "name": cls.get("name", ""),
             "file": cls.get("file", ""),
-            "span": cls.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(cls),
             "tags": cls.get("tags", []),
             "signatures": cls.get("signatures", {}),
         })
@@ -138,7 +160,7 @@ def ingest_python(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[En
             "language": "python",
             "name": func.get("name", ""),
             "file": func.get("file", ""),
-            "span": func.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(func),
             "tags": tags,
             "signatures": func.get("signatures", {}),
         }
@@ -249,7 +271,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
             "language": "typescript",
             "name": mod.get("name", ""),
             "file": mod.get("file", ""),
-            "span": mod.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(mod),
             "tags": mod.get("tags", []),
             "signatures": mod.get("signatures", {}),
         })
@@ -266,7 +288,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
             "language": "typescript",
             "name": comp.get("name", ""),
             "file": comp.get("file", ""),
-            "span": comp.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(comp),
             "tags": comp.get("tags", []),
             "signatures": comp.get("signatures", {}),
         })
@@ -283,7 +305,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
             "language": "typescript",
             "name": hook.get("name", ""),
             "file": hook.get("file", ""),
-            "span": hook.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(hook),
             "tags": hook.get("tags", []),
             "signatures": hook.get("signatures", {}),
         })
@@ -300,7 +322,7 @@ def ingest_typescript(data: dict[str, Any]) -> tuple[list[Node], list[Edge], lis
             "language": "typescript",
             "name": func.get("name", ""),
             "file": func.get("file", ""),
-            "span": func.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(func),
             "tags": func.get("tags", []),
             "signatures": func.get("signatures", {}),
         })
@@ -393,7 +415,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
             "language": "sql",
             "name": table_name,
             "file": table.get("file", table.get("migration_file", "")),
-            "span": table.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(table),
             "tags": table.get("tags", []),
             "signatures": table.get("signatures", {}),
         })
@@ -411,7 +433,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
                 "language": "sql",
                 "name": col.get("name", ""),
                 "file": table.get("file", table.get("migration_file", "")),
-                "span": col.get("span", {"start": 1, "end": 1}),
+                "span": _resolve_span(col),
                 "tags": col.get("tags", []),
                 "signatures": col.get("signatures", {"type": col.get("type", "")}),
             })
@@ -428,7 +450,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
             "language": "sql",
             "name": idx.get("name", ""),
             "file": idx.get("file", ""),
-            "span": idx.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(idx),
             "tags": idx.get("tags", []),
             "signatures": idx.get("signatures", {}),
         })
@@ -448,7 +470,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
             "language": "sql",
             "name": func_name,
             "file": func.get("file", ""),
-            "span": func.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(func),
             "tags": func.get("tags", []),
             "signatures": func.get("signatures", {}),
         })
@@ -465,7 +487,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
             "language": "sql",
             "name": trigger.get("name", ""),
             "file": trigger.get("file", ""),
-            "span": trigger.get("span", {"start": 1, "end": 1}),
+            "span": _resolve_span(trigger),
             "tags": trigger.get("tags", []),
             "signatures": trigger.get("signatures", {}),
         })
@@ -481,7 +503,7 @@ def ingest_postgres(data: dict[str, Any]) -> tuple[list[Node], list[Edge], list[
                 "language": "sql",
                 "name": migration.get("name", ""),
                 "file": migration.get("file", ""),
-                "span": migration.get("span", {"start": 1, "end": 1}),
+                "span": _resolve_span(migration),
                 "tags": migration.get("tags", []),
                 "signatures": migration.get("signatures", {}),
             })

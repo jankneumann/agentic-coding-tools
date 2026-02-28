@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-02-28T02:55:30.034574+00:00",
+  "python_patterns": {
+    "bare_except": {
+      "count": 0,
+      "files": {}
+    },
+    "broad_except": {
+      "count": 31,
+      "files": {
+        "work_queue.py": 8,
+        "policy_engine.py": 6,
+        "guardrails.py": 4,
+        "discovery.py": 3,
+        "handoffs.py": 3,
+        "coordination_api.py": 2,
+        "locks.py": 2,
+        "memory.py": 1,
+        "network_policies.py": 1,
+        "profiles.py": 1
+      }
+    },
+    "context_managers": {
+      "count": 11,
+      "files": {
+        "db_postgres.py": 5,
+        "port_allocator.py": 5,
+        "teams.py": 1
+      }
+    },
+    "type_hints": {
+      "count": 392,
+      "files": {
+        "policy_engine.py": 51,
+        "coordination_mcp.py": 48,
+        "coordination_api.py": 40,
+        "db.py": 39,
+        "work_queue.py": 26,
+        "db_postgres.py": 25,
+        "audit.py": 19,
+        "github_coordination.py": 19,
+        "discovery.py": 18,
+        "config.py": 15,
+        "locks.py": 15,
+        "profiles.py": 15,
+        "handoffs.py": 12,
+        "port_allocator.py": 12,
+        "guardrails.py": 11,
+        "teams.py": 11,
+        "memory.py": 10,
+        "network_policies.py": 6
+      }
+    },
+    "assertions": {
+      "count": 0,
+      "files": {}
+    }
+  },
+  "typescript_patterns": {
+    "empty_catch": {
+      "count": 0,
+      "files": {}
+    },
+    "catch_clauses": {
+      "count": 0,
+      "files": {}
+    },
+    "dynamic_imports": {
+      "count": 0,
+      "files": {}
+    }
+  },
+  "type_hint_coverage": {
+    "functions_with_return_type": 187,
+    "typed_parameters": 166
+  },
+  "exception_handling": {
+    "bare_except": 0,
+    "broad_except": 31,
+    "total_except_issues": 31
+  },
+  "security": {
+    "total": 0,
+    "by_severity": {},
+    "by_category": {}
+  }
+}

@@ -33,6 +33,13 @@ SUMMARY_FILE   := $(ARCH_DIR)/architecture.summary.json
 DIAG_FILE      := $(ARCH_DIR)/architecture.diagnostics.json
 ZONES_FILE     := $(ARCH_DIR)/parallel_zones.json
 
+# Tree-sitter enrichment outputs
+ENRICHMENT_FILE  := $(ARCH_DIR)/treesitter_enrichment.json
+COMMENT_FILE     := $(ARCH_DIR)/comment_insights.json
+PATTERN_FILE     := $(ARCH_DIR)/pattern_insights.json
+QUERIES_DIR      := $(SCRIPTS_DIR)/treesitter_queries
+SCRIPTS_PYTHON   := $(SCRIPTS_DIR)/.venv/bin/python
+
 # Intermediate per-language outputs
 PY_ANALYSIS    := $(ARCH_DIR)/python_analysis.json
 TS_ANALYSIS    := $(ARCH_DIR)/ts_analysis.json
@@ -48,10 +55,11 @@ PYTHON         ?= python3
 # Phony targets
 # ---------------------------------------------------------------------------
 
-.PHONY: architecture architecture-setup architecture-diff architecture-feature \
+.PHONY: architecture architecture-setup scripts-setup architecture-diff architecture-feature \
         architecture-validate architecture-views architecture-report architecture-clean \
         help _analyze-python _analyze-postgres _analyze-typescript \
-        _compile _validate _views _parallel-zones _report
+        _compile _validate _views _parallel-zones _report \
+        _enrich-treesitter _comment-linker _pattern-reporter
 
 # ---------------------------------------------------------------------------
 # help — display available targets
@@ -83,6 +91,11 @@ help: ## Show available make targets with descriptions
 # ---------------------------------------------------------------------------
 # architecture-setup — install dependencies for the analysis pipeline
 # ---------------------------------------------------------------------------
+
+scripts-setup: ## Install scripts/ venv with tree-sitter and analysis dependencies
+	@echo "=== Setting up scripts/ virtual environment ==="
+	@cd $(SCRIPTS_DIR) && uv sync
+	@echo "Scripts venv ready at $(SCRIPTS_DIR)/.venv"
 
 architecture-setup: ## Install Python (and optionally Node.js) deps for the analysis pipeline
 	@echo "=== Installing architecture analysis dependencies ==="
@@ -166,6 +179,46 @@ _parallel-zones:
 	@$(PYTHON) $(SCRIPTS_DIR)/parallel_zones.py \
 		--graph $(GRAPH_FILE) \
 		--output $(ZONES_FILE)
+
+_enrich-treesitter:
+	@echo "--- Tree-sitter enrichment ---"
+	@if [ -x "$(SCRIPTS_PYTHON)" ] && $(SCRIPTS_PYTHON) -c "import tree_sitter" 2>/dev/null; then \
+		$(SCRIPTS_PYTHON) $(SCRIPTS_DIR)/enrich_with_treesitter.py \
+			--python-src $(PYTHON_SRC_DIR) \
+			--ts-src $(TS_SRC_DIR) \
+			--graph $(GRAPH_FILE) \
+			--queries $(QUERIES_DIR) \
+			--output $(ENRICHMENT_FILE); \
+	else \
+		echo "[INFO] tree-sitter not available — skipping enrichment"; \
+	fi
+
+_comment-linker:
+	@echo "--- Comment linker ---"
+	@if [ -f "$(ENRICHMENT_FILE)" ] && [ -x "$(SCRIPTS_PYTHON)" ]; then \
+		$(SCRIPTS_PYTHON) $(SCRIPTS_DIR)/insights/comment_linker.py \
+			--input-dir $(ARCH_DIR) \
+			--output $(COMMENT_FILE); \
+	else \
+		echo "[INFO] No enrichment data — skipping comment linker"; \
+	fi
+
+_pattern-reporter:
+	@echo "--- Pattern reporter ---"
+	@if [ -f "$(ENRICHMENT_FILE)" ] && [ -x "$(SCRIPTS_PYTHON)" ]; then \
+		$(SCRIPTS_PYTHON) $(SCRIPTS_DIR)/insights/pattern_reporter.py \
+			--input-dir $(ARCH_DIR) \
+			--output $(PATTERN_FILE); \
+	else \
+		echo "[INFO] No enrichment data — skipping pattern reporter"; \
+	fi
+
+architecture-enrichment: ## Run tree-sitter enrichment pass (requires scripts venv)
+	@echo "=== Tree-sitter Architecture Enrichment ==="
+	@$(MAKE) _enrich-treesitter
+	@$(MAKE) _comment-linker
+	@$(MAKE) _pattern-reporter
+	@echo "Enrichment complete."
 
 _report:
 	@echo "--- Architecture report ---"
@@ -289,6 +342,9 @@ architecture-clean: ## Remove all generated architecture artifacts
 		$(ARCH_DIR)/cross_layer_flows.json \
 		$(ARCH_DIR)/high_impact_nodes.json \
 		$(ARCH_DIR)/parallel_zones.json \
+		$(ARCH_DIR)/treesitter_enrichment.json \
+		$(ARCH_DIR)/comment_insights.json \
+		$(ARCH_DIR)/pattern_insights.json \
 		$(ARCH_DIR)/views \
 		$(ARCH_DIR)/tmp
 	@echo "Cleaned. Committed artifacts in $(ARCH_DIR)/ may remain (e.g., README.md)."

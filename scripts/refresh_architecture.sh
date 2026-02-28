@@ -68,7 +68,12 @@ done
 # ---------------------------------------------------------------------------
 
 # Use simple variables instead of associative arrays (bash 3 compat)
-STEPS="python_analyzer postgres_analyzer typescript_analyzer compiler validator parallel_zones views report"
+STEPS="python_analyzer postgres_analyzer treesitter_sql typescript_analyzer compiler treesitter_enrichment comment_linker pattern_reporter validator parallel_zones views report"
+TREESITTER_ENABLED="${TREESITTER_ENABLED:-true}"
+ENRICHMENT_FILE="${ARCH_DIR}/treesitter_enrichment.json"
+COMMENT_INSIGHTS_FILE="${ARCH_DIR}/comment_insights.json"
+PATTERN_INSIGHTS_FILE="${ARCH_DIR}/pattern_insights.json"
+QUERIES_DIR="${SCRIPTS_DIR}/treesitter_queries"
 ERRORS=0
 WARNINGS=0
 START_TIME=$(date +%s)
@@ -100,6 +105,20 @@ try_install_typescript_deps() {
     ); then
         info "TypeScript analyzer deps installed"
         return 0
+    fi
+    return 1
+}
+
+check_treesitter() {
+    # Check if tree-sitter is available via the scripts venv
+    if [ "${TREESITTER_ENABLED}" != "true" ]; then
+        return 1
+    fi
+    local scripts_python="${SCRIPTS_DIR}/.venv/bin/python"
+    if [ -x "${scripts_python}" ]; then
+        if "${scripts_python}" -c "import tree_sitter; import tree_sitter_sql" 2>/dev/null; then
+            return 0
+        fi
     fi
     return 1
 }
@@ -198,6 +217,33 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
+# Step 1.2b: Tree-sitter SQL Analyzer (replaces regex parser when available)
+# ---------------------------------------------------------------------------
+
+info "--- [1.2b] Tree-sitter SQL Analyzer ---"
+
+if check_treesitter; then
+    SCRIPTS_PYTHON="${SCRIPTS_DIR}/.venv/bin/python"
+    if [ -f "${SCRIPTS_DIR}/analyze_sql_treesitter.py" ] && [ -d "${MIGRATIONS_DIR}" ]; then
+        if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/analyze_sql_treesitter.py" \
+            "${MIGRATIONS_DIR}" \
+            --output "${PG_ANALYSIS}" 2>&1; then
+            info "Tree-sitter SQL analysis overwrote ${PG_ANALYSIS} (enhanced)"
+            pass "treesitter_sql"
+        else
+            warn "Tree-sitter SQL analyzer failed — regex output retained"
+            skip "treesitter_sql"
+        fi
+    else
+        skip "treesitter_sql"
+    fi
+else
+    info "Tree-sitter not available — using regex SQL analyzer output"
+    skip "treesitter_sql"
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
 # Step 1.3: TypeScript Analyzer (optional)
 # ---------------------------------------------------------------------------
 
@@ -280,6 +326,77 @@ else
         error "Graph compiler failed (exit code $?)"
         fail "compiler"
     fi
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 2.1b: Tree-sitter Enrichment Pass
+# ---------------------------------------------------------------------------
+
+info "--- [2.1b] Tree-sitter Enrichment ---"
+
+if check_treesitter && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
+    SCRIPTS_PYTHON="${SCRIPTS_DIR}/.venv/bin/python"
+    ENRICH_ARGS=("--queries" "${QUERIES_DIR}" "--output" "${ENRICHMENT_FILE}")
+    [ -d "${PYTHON_SRC_DIR}" ] && ENRICH_ARGS+=("--python-src" "${PYTHON_SRC_DIR}")
+    [ -d "${TS_SRC_DIR}" ] && ENRICH_ARGS+=("--ts-src" "${TS_SRC_DIR}")
+    [ -f "${GRAPH_FILE}" ] && ENRICH_ARGS+=("--graph" "${GRAPH_FILE}")
+
+    if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/enrich_with_treesitter.py" \
+        "${ENRICH_ARGS[@]}" 2>&1; then
+        info "Enrichment written to ${ENRICHMENT_FILE}"
+        pass "treesitter_enrichment"
+    else
+        warn "Tree-sitter enrichment failed"
+        skip "treesitter_enrichment"
+    fi
+else
+    info "Tree-sitter not available — skipping enrichment"
+    skip "treesitter_enrichment"
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 2.1c: Comment Linker Insight Module
+# ---------------------------------------------------------------------------
+
+info "--- [2.1c] Comment Linker ---"
+
+if [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/comment_linker.py" ]; then
+    SCRIPTS_PYTHON="${SCRIPTS_DIR}/.venv/bin/python"
+    if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/comment_linker.py" \
+        --input-dir "${ARCH_DIR}" \
+        --output "${COMMENT_INSIGHTS_FILE}" 2>&1; then
+        info "Comment insights written to ${COMMENT_INSIGHTS_FILE}"
+        pass "comment_linker"
+    else
+        warn "Comment linker failed"
+        skip "comment_linker"
+    fi
+else
+    skip "comment_linker"
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 2.1d: Pattern Reporter Insight Module
+# ---------------------------------------------------------------------------
+
+info "--- [2.1d] Pattern Reporter ---"
+
+if [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/pattern_reporter.py" ]; then
+    SCRIPTS_PYTHON="${SCRIPTS_DIR}/.venv/bin/python"
+    if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/pattern_reporter.py" \
+        --input-dir "${ARCH_DIR}" \
+        --output "${PATTERN_INSIGHTS_FILE}" 2>&1; then
+        info "Pattern insights written to ${PATTERN_INSIGHTS_FILE}"
+        pass "pattern_reporter"
+    else
+        warn "Pattern reporter failed"
+        skip "pattern_reporter"
+    fi
+else
+    skip "pattern_reporter"
 fi
 echo ""
 
@@ -450,7 +567,8 @@ echo ""
 if [ -d "${ARCH_DIR}" ]; then
     echo "Generated artifacts:"
     for f in "${GRAPH_FILE}" "${SUMMARY_FILE}" "${DIAG_FILE}" "${ZONES_FILE}" "${REPORT_FILE}" \
-             "${PY_ANALYSIS}" "${TS_ANALYSIS}" "${PG_ANALYSIS}"; do
+             "${PY_ANALYSIS}" "${TS_ANALYSIS}" "${PG_ANALYSIS}" \
+             "${ENRICHMENT_FILE}" "${COMMENT_INSIGHTS_FILE}" "${PATTERN_INSIGHTS_FILE}"; do
         if [ -f "$f" ]; then
             size=$(wc -c < "$f" 2>/dev/null || echo "?")
             printf "  %-50s %s bytes\n" "$f" "$size"

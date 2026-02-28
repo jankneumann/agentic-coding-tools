@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-02-23T22:32:24.046350+00:00",
-      "git_sha": "b7452a1f92a8495f5e4705d6d977341350ca401e",
+      "generated_at": "2026-02-28T02:55:29.834466+00:00",
+      "git_sha": "27652f84a02c369dab78d814e248ba47c1ea45d0",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -277,8 +277,8 @@
       "name": "AuditEntry",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 18,
+        "end": 50
       },
       "tags": [],
       "signatures": {}
@@ -290,8 +290,8 @@
       "name": "AuditResult",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 54,
+        "end": 67
       },
       "tags": [],
       "signatures": {}
@@ -303,8 +303,8 @@
       "name": "AuditService",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 70,
+        "end": 154
       },
       "tags": [],
       "signatures": {}
@@ -316,8 +316,8 @@
       "name": "AuditTimer",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 157,
+        "end": 181
       },
       "tags": [],
       "signatures": {}
@@ -329,8 +329,8 @@
       "name": "SupabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 42,
+        "end": 63
       },
       "tags": [],
       "signatures": {}
@@ -342,8 +342,8 @@
       "name": "AgentConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 67,
+        "end": 87
       },
       "tags": [],
       "signatures": {}
@@ -355,8 +355,8 @@
       "name": "LockConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 91,
+        "end": 101
       },
       "tags": [],
       "signatures": {}
@@ -368,8 +368,8 @@
       "name": "PostgresConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 105,
+        "end": 118
       },
       "tags": [],
       "signatures": {}
@@ -381,8 +381,8 @@
       "name": "DatabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 122,
+        "end": 133
       },
       "tags": [],
       "signatures": {}
@@ -394,8 +394,8 @@
       "name": "GuardrailsConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 137,
+        "end": 153
       },
       "tags": [],
       "signatures": {}
@@ -407,8 +407,8 @@
       "name": "ProfilesConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 157,
+        "end": 177
       },
       "tags": [],
       "signatures": {}
@@ -420,8 +420,8 @@
       "name": "AuditConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 181,
+        "end": 192
       },
       "tags": [],
       "signatures": {}
@@ -433,8 +433,8 @@
       "name": "NetworkPolicyConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 196,
+        "end": 205
       },
       "tags": [],
       "signatures": {}
@@ -446,8 +446,8 @@
       "name": "PolicyEngineConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 209,
+        "end": 229
       },
       "tags": [],
       "signatures": {}
@@ -459,8 +459,8 @@
       "name": "PortAllocatorConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 233,
+        "end": 248
       },
       "tags": [],
       "signatures": {}
@@ -472,8 +472,8 @@
       "name": "ApiConfig",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 252,
+        "end": 283
       },
       "tags": [],
       "signatures": {}
@@ -485,8 +485,8 @@
       "name": "Config",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 287,
+        "end": 331
       },
       "tags": [],
       "signatures": {}
@@ -498,8 +498,8 @@
       "name": "LockAcquireRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 29,
+        "end": 35
       },
       "tags": [],
       "signatures": {}
@@ -511,8 +511,8 @@
       "name": "LockReleaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 38,
+        "end": 40
       },
       "tags": [],
       "signatures": {}
@@ -524,8 +524,8 @@
       "name": "MemoryStoreRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 43,
+        "end": 51
       },
       "tags": [],
       "signatures": {}
@@ -537,8 +537,8 @@
       "name": "MemoryQueryRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 54,
+        "end": 58
       },
       "tags": [],
       "signatures": {}
@@ -550,8 +550,8 @@
       "name": "WorkClaimRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 61,
+        "end": 64
       },
       "tags": [],
       "signatures": {}
@@ -563,8 +563,8 @@
       "name": "WorkCompleteRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 67,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
@@ -576,8 +576,8 @@
       "name": "WorkSubmitRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 80
       },
       "tags": [],
       "signatures": {}
@@ -589,8 +589,8 @@
       "name": "GuardrailsCheckRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 83,
+        "end": 85
       },
       "tags": [],
       "signatures": {}
@@ -602,8 +602,8 @@
       "name": "AuditQueryParams",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 88,
+        "end": 91
       },
       "tags": [],
       "signatures": {}
@@ -615,8 +615,8 @@
       "name": "PortAllocateRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 94,
+        "end": 95
       },
       "tags": [],
       "signatures": {}
@@ -628,8 +628,8 @@
       "name": "PortReleaseRequest",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 98,
+        "end": 99
       },
       "tags": [],
       "signatures": {}
@@ -641,8 +641,8 @@
       "name": "DatabaseClient",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 25,
+        "end": 70
       },
       "tags": [],
       "signatures": {}
@@ -654,8 +654,8 @@
       "name": "SupabaseClient",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 73,
+        "end": 241
       },
       "tags": [],
       "signatures": {}
@@ -667,8 +667,8 @@
       "name": "DirectPostgresClient",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 78,
+        "end": 302
       },
       "tags": [],
       "signatures": {}
@@ -680,8 +680,8 @@
       "name": "AgentInfo",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 20,
+        "end": 50
       },
       "tags": [],
       "signatures": {}
@@ -693,8 +693,8 @@
       "name": "RegisterResult",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 54,
+        "end": 65
       },
       "tags": [],
       "signatures": {}
@@ -706,8 +706,8 @@
       "name": "DiscoverResult",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 69,
+        "end": 77
       },
       "tags": [],
       "signatures": {}
@@ -719,8 +719,8 @@
       "name": "HeartbeatResult",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 81,
+        "end": 94
       },
       "tags": [],
       "signatures": {}
@@ -732,8 +732,8 @@
       "name": "CleanupResult",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 98,
+        "end": 111
       },
       "tags": [],
       "signatures": {}
@@ -745,8 +745,8 @@
       "name": "DiscoveryService",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 114,
+        "end": 260
       },
       "tags": [],
       "signatures": {}
@@ -758,8 +758,8 @@
       "name": "BranchInfo",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 30,
+        "end": 57
       },
       "tags": [],
       "signatures": {}
@@ -771,8 +771,8 @@
       "name": "LabelLock",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 61,
+        "end": 65
       },
       "tags": [],
       "signatures": {}
@@ -784,8 +784,8 @@
       "name": "WebhookSyncResult",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 69,
+        "end": 86
       },
       "tags": [],
       "signatures": {}
@@ -797,8 +797,8 @@
       "name": "GitHubCoordinationService",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 89,
+        "end": 321
       },
       "tags": [],
       "signatures": {}
@@ -810,8 +810,8 @@
       "name": "GuardrailPattern",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 105,
+        "end": 122
       },
       "tags": [],
       "signatures": {}
@@ -823,8 +823,8 @@
       "name": "GuardrailViolation",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 126,
+        "end": 143
       },
       "tags": [],
       "signatures": {}
@@ -836,8 +836,8 @@
       "name": "GuardrailResult",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 147,
+        "end": 161
       },
       "tags": [],
       "signatures": {}
@@ -849,8 +849,8 @@
       "name": "GuardrailsService",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 164,
+        "end": 308
       },
       "tags": [],
       "signatures": {}
@@ -862,8 +862,8 @@
       "name": "HandoffDocument",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 21,
+        "end": 54
       },
       "tags": [],
       "signatures": {}
@@ -875,8 +875,8 @@
       "name": "WriteHandoffResult",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 58,
+        "end": 75
       },
       "tags": [],
       "signatures": {}
@@ -888,8 +888,8 @@
       "name": "ReadHandoffResult",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 79,
+        "end": 89
       },
       "tags": [],
       "signatures": {}
@@ -901,8 +901,8 @@
       "name": "HandoffService",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 92,
+        "end": 237
       },
       "tags": [],
       "signatures": {}
@@ -914,8 +914,8 @@
       "name": "Lock",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 20,
+        "end": 41
       },
       "tags": [],
       "signatures": {}
@@ -927,8 +927,8 @@
       "name": "LockResult",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 45,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
@@ -940,8 +940,8 @@
       "name": "LockService",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 274
       },
       "tags": [],
       "signatures": {}
@@ -953,8 +953,8 @@
       "name": "EpisodicMemory",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 20,
+        "end": 52
       },
       "tags": [],
       "signatures": {}
@@ -966,8 +966,8 @@
       "name": "MemoryResult",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 56,
+        "end": 71
       },
       "tags": [],
       "signatures": {}
@@ -979,8 +979,8 @@
       "name": "RecallResult",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 86
       },
       "tags": [],
       "signatures": {}
@@ -992,8 +992,8 @@
       "name": "MemoryService",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 89,
+        "end": 212
       },
       "tags": [],
       "signatures": {}
@@ -1005,8 +1005,8 @@
       "name": "AccessDecision",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 15,
+        "end": 30
       },
       "tags": [],
       "signatures": {}
@@ -1018,8 +1018,8 @@
       "name": "NetworkPolicyService",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 33,
+        "end": 78
       },
       "tags": [],
       "signatures": {}
@@ -1031,8 +1031,8 @@
       "name": "PolicyDecision",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 46,
+        "end": 60
       },
       "tags": [],
       "signatures": {}
@@ -1044,8 +1044,8 @@
       "name": "ValidationResult",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 64,
+        "end": 68
       },
       "tags": [],
       "signatures": {}
@@ -1057,8 +1057,8 @@
       "name": "NativePolicyEngine",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 71,
+        "end": 307
       },
       "tags": [],
       "signatures": {}
@@ -1070,8 +1070,8 @@
       "name": "CedarPolicyEngine",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 310,
+        "end": 682
       },
       "tags": [],
       "signatures": {}
@@ -1083,8 +1083,8 @@
       "name": "PortAllocation",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 24,
+        "end": 49
       },
       "tags": [],
       "signatures": {}
@@ -1096,8 +1096,8 @@
       "name": "PortAllocatorService",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 52,
+        "end": 158
       },
       "tags": [],
       "signatures": {}
@@ -1109,8 +1109,8 @@
       "name": "AgentProfile",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 20,
+        "end": 49
       },
       "tags": [],
       "signatures": {}
@@ -1122,8 +1122,8 @@
       "name": "ProfileResult",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 53,
+        "end": 71
       },
       "tags": [],
       "signatures": {}
@@ -1135,8 +1135,8 @@
       "name": "OperationCheck",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 86
       },
       "tags": [],
       "signatures": {}
@@ -1148,8 +1148,8 @@
       "name": "ProfilesService",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 89,
+        "end": 216
       },
       "tags": [],
       "signatures": {}
@@ -1161,8 +1161,8 @@
       "name": "AgentDefinition",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 48,
+        "end": 54
       },
       "tags": [],
       "signatures": {}
@@ -1174,8 +1174,8 @@
       "name": "TeamsConfig",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 58,
+        "end": 173
       },
       "tags": [],
       "signatures": {}
@@ -1187,8 +1187,8 @@
       "name": "Task",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 23,
+        "end": 69
       },
       "tags": [],
       "signatures": {}
@@ -1200,8 +1200,8 @@
       "name": "ClaimResult",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 73,
+        "end": 106
       },
       "tags": [],
       "signatures": {}
@@ -1213,8 +1213,8 @@
       "name": "CompleteResult",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 110,
+        "end": 129
       },
       "tags": [],
       "signatures": {}
@@ -1226,8 +1226,8 @@
       "name": "SubmitResult",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 133,
+        "end": 148
       },
       "tags": [],
       "signatures": {}
@@ -1239,8 +1239,8 @@
       "name": "WorkQueueService",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 151,
+        "end": 563
       },
       "tags": [],
       "signatures": {}
@@ -1252,8 +1252,8 @@
       "name": "from_dict",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 33,
+        "end": 50
       },
       "tags": [
         "classmethod",
@@ -1268,8 +1268,8 @@
       "name": "from_dict",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 62,
+        "end": 67
       },
       "tags": [
         "classmethod",
@@ -1284,8 +1284,8 @@
       "name": "__init__",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 73,
+        "end": 74
       },
       "tags": [
         "dunder"
@@ -1299,8 +1299,8 @@
       "name": "db",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 77,
+        "end": 80
       },
       "tags": [
         "property"
@@ -1314,8 +1314,8 @@
       "name": "log_operation",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 82,
+        "end": 118
       },
       "tags": [
         "async"
@@ -1329,8 +1329,8 @@
       "name": "_insert_audit_entry",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 120,
+        "end": 126
       },
       "tags": [
         "async",
@@ -1346,8 +1346,8 @@
       "name": "query",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 128,
+        "end": 150
       },
       "tags": [
         "async",
@@ -1362,8 +1362,8 @@
       "name": "timed",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 152,
+        "end": 154
       },
       "tags": [],
       "signatures": {}
@@ -1375,8 +1375,8 @@
       "name": "__init__",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 160,
+        "end": 163
       },
       "tags": [
         "dunder"
@@ -1390,8 +1390,8 @@
       "name": "__aenter__",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 165,
+        "end": 167
       },
       "tags": [
         "async",
@@ -1406,8 +1406,8 @@
       "name": "__aexit__",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 169,
+        "end": 181
       },
       "tags": [
         "async",
@@ -1422,8 +1422,8 @@
       "name": "get_audit_service",
       "file": "audit.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 188,
+        "end": 193
       },
       "tags": [],
       "signatures": {}
@@ -1435,8 +1435,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 50,
+        "end": 63
       },
       "tags": [
         "classmethod",
@@ -1451,8 +1451,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 87
       },
       "tags": [
         "classmethod",
@@ -1467,8 +1467,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 98,
+        "end": 101
       },
       "tags": [
         "classmethod",
@@ -1483,8 +1483,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 113,
+        "end": 118
       },
       "tags": [
         "classmethod",
@@ -1499,8 +1499,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 129,
+        "end": 133
       },
       "tags": [
         "classmethod",
@@ -1515,8 +1515,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 144,
+        "end": 153
       },
       "tags": [
         "classmethod",
@@ -1531,8 +1531,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 165,
+        "end": 177
       },
       "tags": [
         "classmethod",
@@ -1547,8 +1547,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 188,
+        "end": 192
       },
       "tags": [
         "classmethod",
@@ -1563,8 +1563,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 202,
+        "end": 205
       },
       "tags": [
         "classmethod",
@@ -1579,8 +1579,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 218,
+        "end": 229
       },
       "tags": [
         "classmethod",
@@ -1595,8 +1595,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 242,
+        "end": 248
       },
       "tags": [
         "classmethod",
@@ -1611,8 +1611,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 264,
+        "end": 283
       },
       "tags": [
         "classmethod",
@@ -1627,11 +1627,12 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 309,
+        "end": 331
       },
       "tags": [
-        "classmethod"
+        "classmethod",
+        "db_access"
       ],
       "signatures": {}
     },
@@ -1642,8 +1643,8 @@
       "name": "get_config",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 338,
+        "end": 343
       },
       "tags": [],
       "signatures": {}
@@ -1655,8 +1656,8 @@
       "name": "reset_config",
       "file": "config.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 346,
+        "end": 349
       },
       "tags": [],
       "signatures": {}
@@ -1668,8 +1669,8 @@
       "name": "verify_api_key",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 107,
+        "end": 117
       },
       "tags": [
         "async",
@@ -1684,8 +1685,8 @@
       "name": "resolve_identity",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 120,
+        "end": 147
       },
       "tags": [
         "db_access"
@@ -1699,8 +1700,8 @@
       "name": "authorize_operation",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 150,
+        "end": 168
       },
       "tags": [
         "async"
@@ -1714,8 +1715,8 @@
       "name": "resolve_trust_level",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 171,
+        "end": 184
       },
       "tags": [
         "async"
@@ -1729,8 +1730,8 @@
       "name": "create_coordination_api",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 192,
+        "end": 676
       },
       "tags": [
         "db_access"
@@ -1744,8 +1745,8 @@
       "name": "acquire_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 206,
+        "end": 240
       },
       "tags": [
         "async",
@@ -1760,8 +1761,8 @@
       "name": "release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 243,
+        "end": 269
       },
       "tags": [
         "async",
@@ -1776,8 +1777,8 @@
       "name": "check_lock_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 272,
+        "end": 290
       },
       "tags": [
         "async",
@@ -1792,8 +1793,8 @@
       "name": "store_memory",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 297,
+        "end": 326
       },
       "tags": [
         "async",
@@ -1808,8 +1809,8 @@
       "name": "query_memories",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 329,
+        "end": 365
       },
       "tags": [
         "async",
@@ -1825,8 +1826,8 @@
       "name": "claim_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 372,
+        "end": 403
       },
       "tags": [
         "async",
@@ -1841,8 +1842,8 @@
       "name": "complete_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 406,
+        "end": 435
       },
       "tags": [
         "async",
@@ -1857,8 +1858,8 @@
       "name": "submit_work",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 438,
+        "end": 469
       },
       "tags": [
         "async",
@@ -1873,8 +1874,8 @@
       "name": "check_guardrails",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 476,
+        "end": 515
       },
       "tags": [
         "async",
@@ -1889,8 +1890,8 @@
       "name": "get_my_profile",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 522,
+        "end": 549
       },
       "tags": [
         "async",
@@ -1905,8 +1906,8 @@
       "name": "query_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 556,
+        "end": 585
       },
       "tags": [
         "async",
@@ -1922,8 +1923,8 @@
       "name": "allocate_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 592,
+        "end": 611
       },
       "tags": [
         "async",
@@ -1938,8 +1939,8 @@
       "name": "release_ports",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 614,
+        "end": 620
       },
       "tags": [
         "async",
@@ -1954,8 +1955,8 @@
       "name": "port_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 623,
+        "end": 639
       },
       "tags": [
         "async",
@@ -1970,8 +1971,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 646,
+        "end": 674
       },
       "tags": [
         "async",
@@ -1986,8 +1987,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 684,
+        "end": 707
       },
       "tags": [],
       "signatures": {}
@@ -1999,8 +2000,8 @@
       "name": "get_agent_id",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 58,
+        "end": 60
       },
       "tags": [],
       "signatures": {}
@@ -2012,8 +2013,8 @@
       "name": "get_agent_type",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 63,
+        "end": 65
       },
       "tags": [],
       "signatures": {}
@@ -2025,8 +2026,8 @@
       "name": "acquire_lock",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 74,
+        "end": 118
       },
       "tags": [
         "async",
@@ -2041,8 +2042,8 @@
       "name": "release_lock",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 122,
+        "end": 144
       },
       "tags": [
         "async",
@@ -2057,8 +2058,8 @@
       "name": "check_locks",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 148,
+        "end": 173
       },
       "tags": [
         "async",
@@ -2073,8 +2074,8 @@
       "name": "get_work",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 182,
+        "end": 219
       },
       "tags": [
         "async",
@@ -2089,8 +2090,8 @@
       "name": "complete_work",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 223,
+        "end": 260
       },
       "tags": [
         "async",
@@ -2105,8 +2106,8 @@
       "name": "submit_work",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 264,
+        "end": 315
       },
       "tags": [
         "async",
@@ -2121,8 +2122,8 @@
       "name": "write_handoff",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 324,
+        "end": 374
       },
       "tags": [
         "async",
@@ -2137,8 +2138,8 @@
       "name": "read_handoff",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 378,
+        "end": 429
       },
       "tags": [
         "async",
@@ -2153,8 +2154,8 @@
       "name": "register_session",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 438,
+        "end": 471
       },
       "tags": [
         "async",
@@ -2169,8 +2170,8 @@
       "name": "discover_agents",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 475,
+        "end": 518
       },
       "tags": [
         "async",
@@ -2185,8 +2186,8 @@
       "name": "heartbeat",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 522,
+        "end": 540
       },
       "tags": [
         "async",
@@ -2201,8 +2202,8 @@
       "name": "cleanup_dead_agents",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 544,
+        "end": 570
       },
       "tags": [
         "async",
@@ -2217,8 +2218,8 @@
       "name": "remember",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 579,
+        "end": 621
       },
       "tags": [
         "async",
@@ -2233,8 +2234,8 @@
       "name": "recall",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 625,
+        "end": 669
       },
       "tags": [
         "async",
@@ -2249,8 +2250,8 @@
       "name": "check_guardrails",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 678,
+        "end": 735
       },
       "tags": [
         "async",
@@ -2265,8 +2266,8 @@
       "name": "get_my_profile",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 744,
+        "end": 775
       },
       "tags": [
         "async",
@@ -2281,8 +2282,8 @@
       "name": "query_audit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 784,
+        "end": 824
       },
       "tags": [
         "async",
@@ -2298,8 +2299,8 @@
       "name": "check_policy",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 833,
+        "end": 870
       },
       "tags": [
         "async",
@@ -2314,8 +2315,8 @@
       "name": "validate_cedar_policy",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 874,
+        "end": 907
       },
       "tags": [
         "async",
@@ -2330,8 +2331,8 @@
       "name": "allocate_ports",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 916,
+        "end": 959
       },
       "tags": [
         "async",
@@ -2346,8 +2347,8 @@
       "name": "release_ports",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 963,
+        "end": 984
       },
       "tags": [
         "async",
@@ -2362,8 +2363,8 @@
       "name": "ports_status",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 988,
+        "end": 1022
       },
       "tags": [
         "async",
@@ -2378,8 +2379,8 @@
       "name": "get_current_locks",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1031,
+        "end": 1051
       },
       "tags": [
         "async",
@@ -2394,8 +2395,8 @@
       "name": "get_recent_handoffs",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1055,
+        "end": 1090
       },
       "tags": [
         "async",
@@ -2410,8 +2411,8 @@
       "name": "get_pending_work",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1094,
+        "end": 1120
       },
       "tags": [
         "async",
@@ -2426,8 +2427,8 @@
       "name": "get_recent_memories",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1124,
+        "end": 1147
       },
       "tags": [
         "async",
@@ -2442,8 +2443,8 @@
       "name": "get_guardrail_patterns",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1151,
+        "end": 1175
       },
       "tags": [
         "async",
@@ -2458,8 +2459,8 @@
       "name": "get_current_profile",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1179,
+        "end": 1209
       },
       "tags": [
         "async",
@@ -2474,8 +2475,8 @@
       "name": "get_recent_audit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1213,
+        "end": 1236
       },
       "tags": [
         "async",
@@ -2491,8 +2492,8 @@
       "name": "coordinate_file_edit",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1245,
+        "end": 1263
       },
       "tags": [
         "entry_point"
@@ -2506,8 +2507,8 @@
       "name": "start_work_session",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1267,
+        "end": 1281
       },
       "tags": [
         "entry_point"
@@ -2521,8 +2522,8 @@
       "name": "main",
       "file": "coordination_mcp.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 1289,
+        "end": 1306
       },
       "tags": [],
       "signatures": {}
@@ -2534,8 +2535,8 @@
       "name": "rpc",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 32,
+        "end": 34
       },
       "tags": [
         "async"
@@ -2549,8 +2550,8 @@
       "name": "query",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 36,
+        "end": 43
       },
       "tags": [
         "async"
@@ -2564,8 +2565,8 @@
       "name": "insert",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 45,
+        "end": 52
       },
       "tags": [
         "async"
@@ -2579,8 +2580,8 @@
       "name": "update",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 54,
+        "end": 62
       },
       "tags": [
         "async"
@@ -2594,8 +2595,8 @@
       "name": "delete",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 64,
+        "end": 66
       },
       "tags": [
         "async"
@@ -2609,8 +2610,8 @@
       "name": "close",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 68,
+        "end": 70
       },
       "tags": [
         "async"
@@ -2624,8 +2625,8 @@
       "name": "__init__",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 80,
+        "end": 82
       },
       "tags": [
         "dunder"
@@ -2639,8 +2640,8 @@
       "name": "config",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 85,
+        "end": 93
       },
       "tags": [
         "property"
@@ -2654,8 +2655,8 @@
       "name": "client",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 96,
+        "end": 99
       },
       "tags": [
         "property"
@@ -2669,8 +2670,8 @@
       "name": "_headers",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 101,
+        "end": 107
       },
       "tags": [
         "private"
@@ -2684,8 +2685,8 @@
       "name": "rpc",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 109,
+        "end": 128
       },
       "tags": [
         "async"
@@ -2699,8 +2700,8 @@
       "name": "query",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 130,
+        "end": 152
       },
       "tags": [
         "async",
@@ -2715,8 +2716,8 @@
       "name": "insert",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 154,
+        "end": 182
       },
       "tags": [
         "async"
@@ -2730,8 +2731,8 @@
       "name": "update",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 184,
+        "end": 215
       },
       "tags": [
         "async"
@@ -2745,8 +2746,8 @@
       "name": "delete",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 217,
+        "end": 235
       },
       "tags": [
         "async",
@@ -2761,8 +2762,8 @@
       "name": "close",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 237,
+        "end": 241
       },
       "tags": [
         "async"
@@ -2776,8 +2777,8 @@
       "name": "create_db_client",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 244,
+        "end": 264
       },
       "tags": [],
       "signatures": {}
@@ -2789,8 +2790,8 @@
       "name": "get_db",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 271,
+        "end": 276
       },
       "tags": [],
       "signatures": {}
@@ -2802,8 +2803,8 @@
       "name": "close_db",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 279,
+        "end": 284
       },
       "tags": [
         "async"
@@ -2817,8 +2818,8 @@
       "name": "reset_db",
       "file": "db.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 287,
+        "end": 290
       },
       "tags": [],
       "signatures": {}
@@ -2830,8 +2831,8 @@
       "name": "_coerce_filter_value",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 25,
+        "end": 43
       },
       "tags": [
         "private"
@@ -2845,8 +2846,8 @@
       "name": "_validate_identifier",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 46,
+        "end": 51
       },
       "tags": [
         "private"
@@ -2860,8 +2861,23 @@
       "name": "_validate_select_clause",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 54,
+        "end": 63
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:db_postgres._serialize_for_asyncpg",
+      "kind": "function",
+      "language": "python",
+      "name": "_serialize_for_asyncpg",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 66,
+        "end": 75
       },
       "tags": [
         "private"
@@ -2875,8 +2891,8 @@
       "name": "__init__",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 85,
+        "end": 87
       },
       "tags": [
         "dunder"
@@ -2890,8 +2906,8 @@
       "name": "_get_pool",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 89,
+        "end": 96
       },
       "tags": [
         "async",
@@ -2906,8 +2922,8 @@
       "name": "rpc",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 98,
+        "end": 126
       },
       "tags": [
         "async"
@@ -2921,8 +2937,8 @@
       "name": "query",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 128,
+        "end": 204
       },
       "tags": [
         "async"
@@ -2936,8 +2952,8 @@
       "name": "insert",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 206,
+        "end": 232
       },
       "tags": [
         "async",
@@ -2952,8 +2968,8 @@
       "name": "update",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 234,
+        "end": 274
       },
       "tags": [
         "async",
@@ -2968,8 +2984,8 @@
       "name": "delete",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 276,
+        "end": 296
       },
       "tags": [
         "async",
@@ -2984,8 +3000,8 @@
       "name": "close",
       "file": "db_postgres.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 298,
+        "end": 302
       },
       "tags": [
         "async"
@@ -2999,8 +3015,8 @@
       "name": "from_dict",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 33,
+        "end": 50
       },
       "tags": [
         "classmethod",
@@ -3015,8 +3031,8 @@
       "name": "parse_dt",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 34,
+        "end": 39
       },
       "tags": [],
       "signatures": {}
@@ -3028,8 +3044,8 @@
       "name": "from_dict",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 61,
+        "end": 65
       },
       "tags": [
         "classmethod",
@@ -3044,8 +3060,8 @@
       "name": "from_dict",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 75,
+        "end": 77
       },
       "tags": [
         "classmethod",
@@ -3060,8 +3076,8 @@
       "name": "from_dict",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 89,
+        "end": 94
       },
       "tags": [
         "classmethod",
@@ -3076,8 +3092,8 @@
       "name": "from_dict",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 106,
+        "end": 111
       },
       "tags": [
         "classmethod",
@@ -3092,8 +3108,8 @@
       "name": "__init__",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 117,
+        "end": 118
       },
       "tags": [
         "dunder"
@@ -3107,8 +3123,8 @@
       "name": "db",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 121,
+        "end": 124
       },
       "tags": [
         "property"
@@ -3122,8 +3138,8 @@
       "name": "register",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 126,
+        "end": 172
       },
       "tags": [
         "async"
@@ -3137,8 +3153,8 @@
       "name": "discover",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 174,
+        "end": 196
       },
       "tags": [
         "async"
@@ -3152,8 +3168,8 @@
       "name": "heartbeat",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 198,
+        "end": 222
       },
       "tags": [
         "async"
@@ -3167,8 +3183,8 @@
       "name": "cleanup_dead_agents",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 224,
+        "end": 260
       },
       "tags": [
         "async"
@@ -3182,8 +3198,8 @@
       "name": "get_discovery_service",
       "file": "discovery.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 267,
+        "end": 272
       },
       "tags": [],
       "signatures": {}
@@ -3195,8 +3211,8 @@
       "name": "parse",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 39,
+        "end": 57
       },
       "tags": [
         "classmethod"
@@ -3210,8 +3226,8 @@
       "name": "from_dict",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 79,
+        "end": 86
       },
       "tags": [
         "classmethod",
@@ -3226,8 +3242,8 @@
       "name": "__init__",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 92,
+        "end": 93
       },
       "tags": [
         "dunder"
@@ -3241,8 +3257,8 @@
       "name": "db",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 96,
+        "end": 99
       },
       "tags": [
         "property"
@@ -3256,8 +3272,8 @@
       "name": "parse_lock_labels",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 101,
+        "end": 119
       },
       "tags": [],
       "signatures": {}
@@ -3269,8 +3285,8 @@
       "name": "parse_branch",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 121,
+        "end": 130
       },
       "tags": [],
       "signatures": {}
@@ -3282,8 +3298,8 @@
       "name": "sync_label_locks",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 132,
+        "end": 210
       },
       "tags": [
         "async",
@@ -3298,8 +3314,8 @@
       "name": "sync_branch_tracking",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 212,
+        "end": 263
       },
       "tags": [
         "async"
@@ -3313,8 +3329,8 @@
       "name": "handle_push_webhook",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 265,
+        "end": 292
       },
       "tags": [
         "async",
@@ -3329,8 +3345,8 @@
       "name": "handle_issues_webhook",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 294,
+        "end": 321
       },
       "tags": [
         "async",
@@ -3345,8 +3361,8 @@
       "name": "get_github_coordination_service",
       "file": "github_coordination.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 328,
+        "end": 333
       },
       "tags": [],
       "signatures": {}
@@ -3358,8 +3374,8 @@
       "name": "from_dict",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 115,
+        "end": 122
       },
       "tags": [
         "classmethod",
@@ -3374,8 +3390,8 @@
       "name": "from_dict",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 136,
+        "end": 143
       },
       "tags": [
         "classmethod",
@@ -3390,8 +3406,8 @@
       "name": "from_dict",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 154,
+        "end": 161
       },
       "tags": [
         "classmethod",
@@ -3406,8 +3422,8 @@
       "name": "__init__",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 167,
+        "end": 170
       },
       "tags": [
         "dunder"
@@ -3421,8 +3437,8 @@
       "name": "db",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 173,
+        "end": 176
       },
       "tags": [
         "property"
@@ -3436,8 +3452,8 @@
       "name": "_load_patterns",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 178,
+        "end": 202
       },
       "tags": [
         "async",
@@ -3453,8 +3469,8 @@
       "name": "check_operation",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 204,
+        "end": 308
       },
       "tags": [
         "async",
@@ -3469,8 +3485,8 @@
       "name": "get_guardrails_service",
       "file": "guardrails.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 315,
+        "end": 320
       },
       "tags": [],
       "signatures": {}
@@ -3482,8 +3498,8 @@
       "name": "from_dict",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 36,
+        "end": 54
       },
       "tags": [
         "classmethod",
@@ -3498,8 +3514,8 @@
       "name": "from_dict",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 66,
+        "end": 75
       },
       "tags": [
         "classmethod",
@@ -3514,8 +3530,8 @@
       "name": "from_dict",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 85,
+        "end": 89
       },
       "tags": [
         "classmethod",
@@ -3530,8 +3546,8 @@
       "name": "__init__",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 95,
+        "end": 96
       },
       "tags": [
         "dunder"
@@ -3545,8 +3561,8 @@
       "name": "db",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 99,
+        "end": 102
       },
       "tags": [
         "property"
@@ -3560,8 +3576,8 @@
       "name": "write",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 104,
+        "end": 180
       },
       "tags": [
         "async"
@@ -3575,8 +3591,8 @@
       "name": "read",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 182,
+        "end": 219
       },
       "tags": [
         "async"
@@ -3590,8 +3606,8 @@
       "name": "get_recent",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 221,
+        "end": 237
       },
       "tags": [
         "async",
@@ -3606,8 +3622,8 @@
       "name": "get_handoff_service",
       "file": "handoffs.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 244,
+        "end": 249
       },
       "tags": [],
       "signatures": {}
@@ -3619,8 +3635,8 @@
       "name": "from_dict",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 32,
+        "end": 41
       },
       "tags": [
         "classmethod",
@@ -3635,8 +3651,8 @@
       "name": "from_dict",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 57,
+        "end": 72
       },
       "tags": [
         "classmethod",
@@ -3651,8 +3667,8 @@
       "name": "__init__",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 78,
+        "end": 79
       },
       "tags": [
         "dunder"
@@ -3666,8 +3682,8 @@
       "name": "db",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 82,
+        "end": 85
       },
       "tags": [
         "property"
@@ -3681,8 +3697,8 @@
       "name": "acquire",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 87,
+        "end": 156
       },
       "tags": [
         "async"
@@ -3696,8 +3712,8 @@
       "name": "release",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 158,
+        "end": 211
       },
       "tags": [
         "async"
@@ -3711,8 +3727,8 @@
       "name": "check",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 213,
+        "end": 238
       },
       "tags": [
         "async",
@@ -3727,8 +3743,8 @@
       "name": "extend",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 240,
+        "end": 262
       },
       "tags": [
         "async"
@@ -3742,8 +3758,8 @@
       "name": "is_locked",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 264,
+        "end": 274
       },
       "tags": [
         "async"
@@ -3757,8 +3773,8 @@
       "name": "get_lock_service",
       "file": "locks.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 281,
+        "end": 286
       },
       "tags": [],
       "signatures": {}
@@ -3770,8 +3786,8 @@
       "name": "from_dict",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 35,
+        "end": 52
       },
       "tags": [
         "classmethod",
@@ -3786,8 +3802,8 @@
       "name": "from_dict",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 65,
+        "end": 71
       },
       "tags": [
         "classmethod",
@@ -3802,8 +3818,8 @@
       "name": "from_dict",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 81,
+        "end": 86
       },
       "tags": [
         "classmethod"
@@ -3817,8 +3833,8 @@
       "name": "__init__",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 92,
+        "end": 93
       },
       "tags": [
         "dunder"
@@ -3832,8 +3848,8 @@
       "name": "db",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 96,
+        "end": 99
       },
       "tags": [
         "property"
@@ -3847,8 +3863,8 @@
       "name": "remember",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 101,
+        "end": 179
       },
       "tags": [
         "async"
@@ -3862,8 +3878,8 @@
       "name": "recall",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 181,
+        "end": 212
       },
       "tags": [
         "async"
@@ -3877,8 +3893,8 @@
       "name": "get_memory_service",
       "file": "memory.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 219,
+        "end": 224
       },
       "tags": [],
       "signatures": {}
@@ -3890,8 +3906,8 @@
       "name": "from_dict",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 24,
+        "end": 30
       },
       "tags": [
         "classmethod",
@@ -3906,8 +3922,8 @@
       "name": "__init__",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 36,
+        "end": 37
       },
       "tags": [
         "dunder"
@@ -3921,8 +3937,8 @@
       "name": "db",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 40,
+        "end": 43
       },
       "tags": [
         "property"
@@ -3936,8 +3952,8 @@
       "name": "check_domain",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 45,
+        "end": 78
       },
       "tags": [
         "async"
@@ -3951,8 +3967,8 @@
       "name": "get_network_policy_service",
       "file": "network_policies.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 85,
+        "end": 90
       },
       "tags": [],
       "signatures": {}
@@ -3964,8 +3980,8 @@
       "name": "allow",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 55,
+        "end": 56
       },
       "tags": [
         "classmethod"
@@ -3979,8 +3995,8 @@
       "name": "deny",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 59,
+        "end": 60
       },
       "tags": [
         "classmethod"
@@ -3994,8 +4010,8 @@
       "name": "__init__",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 78,
+        "end": 79
       },
       "tags": [
         "dunder"
@@ -4009,8 +4025,8 @@
       "name": "db",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 82,
+        "end": 85
       },
       "tags": [
         "property"
@@ -4024,8 +4040,8 @@
       "name": "check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 87,
+        "end": 249
       },
       "tags": [
         "async",
@@ -4040,8 +4056,8 @@
       "name": "check_network_access",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 251,
+        "end": 272
       },
       "tags": [
         "async"
@@ -4055,8 +4071,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 274,
+        "end": 307
       },
       "tags": [
         "async",
@@ -4071,8 +4087,8 @@
       "name": "__init__",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 320,
+        "end": 333
       },
       "tags": [
         "dunder"
@@ -4086,8 +4102,8 @@
       "name": "db",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 336,
+        "end": 339
       },
       "tags": [
         "property"
@@ -4101,8 +4117,8 @@
       "name": "_load_default_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 341,
+        "end": 353
       },
       "tags": [
         "private"
@@ -4116,8 +4132,8 @@
       "name": "_load_schema",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 355,
+        "end": 371
       },
       "tags": [
         "private"
@@ -4131,8 +4147,8 @@
       "name": "_load_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 373,
+        "end": 411
       },
       "tags": [
         "async",
@@ -4148,8 +4164,8 @@
       "name": "_build_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 413,
+        "end": 444
       },
       "tags": [
         "private",
@@ -4164,8 +4180,8 @@
       "name": "_build_resource_entity",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 446,
+        "end": 471
       },
       "tags": [
         "private"
@@ -4179,8 +4195,8 @@
       "name": "_determine_resource_type",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 473,
+        "end": 483
       },
       "tags": [
         "private"
@@ -4194,8 +4210,8 @@
       "name": "check_operation",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 485,
+        "end": 583
       },
       "tags": [
         "async",
@@ -4210,8 +4226,8 @@
       "name": "check_network_access",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 585,
+        "end": 602
       },
       "tags": [
         "async"
@@ -4225,8 +4241,8 @@
       "name": "validate_policy",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 604,
+        "end": 623
       },
       "tags": [],
       "signatures": {}
@@ -4238,8 +4254,8 @@
       "name": "list_policies",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 625,
+        "end": 642
       },
       "tags": [
         "async",
@@ -4254,8 +4270,8 @@
       "name": "invalidate_cache",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 644,
+        "end": 647
       },
       "tags": [],
       "signatures": {}
@@ -4267,8 +4283,8 @@
       "name": "_log_policy_decision",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 649,
+        "end": 682
       },
       "tags": [
         "async",
@@ -4283,8 +4299,8 @@
       "name": "get_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 689,
+        "end": 703
       },
       "tags": [],
       "signatures": {}
@@ -4296,8 +4312,8 @@
       "name": "reset_policy_engine",
       "file": "policy_engine.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 706,
+        "end": 709
       },
       "tags": [],
       "signatures": {}
@@ -4309,8 +4325,8 @@
       "name": "env_snippet",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 37,
+        "end": 49
       },
       "tags": [
         "property"
@@ -4324,8 +4340,8 @@
       "name": "__init__",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 55,
+        "end": 68
       },
       "tags": [
         "dunder"
@@ -4339,8 +4355,8 @@
       "name": "allocate",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 74,
+        "end": 130
       },
       "tags": [
         "db_access"
@@ -4354,8 +4370,8 @@
       "name": "release",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 132,
+        "end": 139
       },
       "tags": [],
       "signatures": {}
@@ -4367,8 +4383,8 @@
       "name": "status",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 141,
+        "end": 145
       },
       "tags": [],
       "signatures": {}
@@ -4380,8 +4396,8 @@
       "name": "_cleanup_expired",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 151,
+        "end": 158
       },
       "tags": [
         "private"
@@ -4395,8 +4411,8 @@
       "name": "_compose_project_name",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 166,
+        "end": 167
       },
       "tags": [
         "private"
@@ -4410,8 +4426,8 @@
       "name": "get_port_allocator",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 178,
+        "end": 186
       },
       "tags": [],
       "signatures": {}
@@ -4423,8 +4439,8 @@
       "name": "reset_port_allocator",
       "file": "port_allocator.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 189,
+        "end": 193
       },
       "tags": [],
       "signatures": {}
@@ -4436,8 +4452,8 @@
       "name": "from_dict",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 36,
+        "end": 49
       },
       "tags": [
         "classmethod",
@@ -4452,8 +4468,8 @@
       "name": "from_dict",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 62,
+        "end": 71
       },
       "tags": [
         "classmethod",
@@ -4468,8 +4484,8 @@
       "name": "from_dict",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 82,
+        "end": 86
       },
       "tags": [
         "classmethod",
@@ -4484,8 +4500,8 @@
       "name": "__init__",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 92,
+        "end": 94
       },
       "tags": [
         "dunder"
@@ -4499,8 +4515,8 @@
       "name": "db",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 97,
+        "end": 100
       },
       "tags": [
         "property"
@@ -4514,8 +4530,8 @@
       "name": "get_profile",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 102,
+        "end": 137
       },
       "tags": [
         "async"
@@ -4529,8 +4545,8 @@
       "name": "check_operation",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 139,
+        "end": 198
       },
       "tags": [
         "async",
@@ -4545,8 +4561,8 @@
       "name": "_log_denial",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 200,
+        "end": 216
       },
       "tags": [
         "async",
@@ -4561,8 +4577,8 @@
       "name": "get_profiles_service",
       "file": "profiles.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 223,
+        "end": 228
       },
       "tags": [],
       "signatures": {}
@@ -4574,8 +4590,8 @@
       "name": "from_file",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 69,
+        "end": 90
       },
       "tags": [
         "classmethod"
@@ -4589,8 +4605,8 @@
       "name": "from_dict",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 93,
+        "end": 127
       },
       "tags": [
         "classmethod"
@@ -4604,8 +4620,8 @@
       "name": "get_agent",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 129,
+        "end": 141
       },
       "tags": [],
       "signatures": {}
@@ -4617,8 +4633,8 @@
       "name": "get_agents_with_capability",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 143,
+        "end": 152
       },
       "tags": [],
       "signatures": {}
@@ -4630,8 +4646,8 @@
       "name": "validate",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 154,
+        "end": 173
       },
       "tags": [
         "db_access"
@@ -4645,8 +4661,8 @@
       "name": "get_teams_config",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 180,
+        "end": 197
       },
       "tags": [],
       "signatures": {}
@@ -4658,8 +4674,8 @@
       "name": "reset_teams_config",
       "file": "teams.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 200,
+        "end": 203
       },
       "tags": [],
       "signatures": {}
@@ -4671,8 +4687,8 @@
       "name": "from_dict",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 42,
+        "end": 69
       },
       "tags": [
         "classmethod",
@@ -4687,8 +4703,8 @@
       "name": "parse_dt",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 43,
+        "end": 48
       },
       "tags": [],
       "signatures": {}
@@ -4700,8 +4716,8 @@
       "name": "from_dict",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 86,
+        "end": 106
       },
       "tags": [
         "classmethod",
@@ -4716,8 +4732,8 @@
       "name": "from_dict",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 119,
+        "end": 129
       },
       "tags": [
         "classmethod",
@@ -4732,8 +4748,8 @@
       "name": "from_dict",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 140,
+        "end": 148
       },
       "tags": [
         "classmethod",
@@ -4748,8 +4764,8 @@
       "name": "__init__",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 154,
+        "end": 155
       },
       "tags": [
         "dunder"
@@ -4763,8 +4779,8 @@
       "name": "db",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 158,
+        "end": 161
       },
       "tags": [
         "property"
@@ -4778,8 +4794,8 @@
       "name": "_resolve_trust_level",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 163,
+        "end": 176
       },
       "tags": [
         "async",
@@ -4794,8 +4810,8 @@
       "name": "claim",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 178,
+        "end": 293
       },
       "tags": [
         "async"
@@ -4809,8 +4825,8 @@
       "name": "complete",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 295,
+        "end": 394
       },
       "tags": [
         "async"
@@ -4824,8 +4840,8 @@
       "name": "submit",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 396,
+        "end": 503
       },
       "tags": [
         "async"
@@ -4839,8 +4855,8 @@
       "name": "get_pending",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 505,
+        "end": 527
       },
       "tags": [
         "async",
@@ -4855,8 +4871,8 @@
       "name": "get_task",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 529,
+        "end": 539
       },
       "tags": [
         "async",
@@ -4871,8 +4887,8 @@
       "name": "get_my_tasks",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 541,
+        "end": 563
       },
       "tags": [
         "async",
@@ -4887,8 +4903,8 @@
       "name": "get_work_queue_service",
       "file": "work_queue.py",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 570,
+        "end": 575
       },
       "tags": [],
       "signatures": {}
@@ -5027,14 +5043,29 @@
       }
     },
     {
+      "id": "pg:public.public.file_locks.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
       "name": "public.work_queue",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 21,
+        "end": 21
       },
       "tags": [],
       "signatures": {}
@@ -5145,10 +5176,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.depends_on",
+      "id": "pg:public.public.work_queue.enable",
       "kind": "column",
       "language": "sql",
-      "name": "depends_on",
+      "name": "enable",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -5156,142 +5187,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID[]"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.status",
-      "kind": "column",
-      "language": "sql",
-      "name": "status",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.result",
-      "kind": "column",
-      "language": "sql",
-      "name": "result",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.error_message",
-      "kind": "column",
-      "language": "sql",
-      "name": "error_message",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.created_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "created_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.started_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "started_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.completed_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "completed_at",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.deadline",
-      "kind": "column",
-      "language": "sql",
-      "name": "deadline",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.attempt_count",
-      "kind": "column",
-      "language": "sql",
-      "name": "attempt_count",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.max_attempts",
-      "kind": "column",
-      "language": "sql",
-      "name": "max_attempts",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -5301,8 +5197,8 @@
       "name": "public.agent_sessions",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 72,
+        "end": 72
       },
       "tags": [],
       "signatures": {}
@@ -5424,7 +5320,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -5443,6 +5339,21 @@
       }
     },
     {
+      "id": "pg:public.public.agent_sessions.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -5454,7 +5365,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -5666,6 +5577,21 @@
       }
     },
     {
+      "id": "pg:public.public.handoff_documents.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "002_handoff_documents.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.memory_episodic",
       "kind": "table",
       "language": "sql",
@@ -5795,7 +5721,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -5810,7 +5736,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -5844,14 +5770,29 @@
       }
     },
     {
+      "id": "pg:public.public.memory_episodic.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.memory_working",
       "kind": "table",
       "language": "sql",
       "name": "public.memory_working",
       "file": "004_memory_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 21,
+        "end": 21
       },
       "tags": [],
       "signatures": {}
@@ -5891,21 +5832,6 @@
       "kind": "column",
       "language": "sql",
       "name": "session_id",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_working.key",
-      "kind": "column",
-      "language": "sql",
-      "name": "key",
       "file": "004_memory_tables.sql",
       "span": {
         "start": 1,
@@ -5977,14 +5903,29 @@
       }
     },
     {
+      "id": "pg:public.public.memory_working.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.memory_procedural",
       "kind": "table",
       "language": "sql",
       "name": "public.memory_procedural",
       "file": "004_memory_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 33,
+        "end": 33
       },
       "tags": [],
       "signatures": {}
@@ -6061,7 +6002,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -6140,14 +6081,29 @@
       }
     },
     {
+      "id": "pg:public.public.memory_procedural.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "004_memory_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.changesets",
       "kind": "table",
       "language": "sql",
       "name": "public.changesets",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 22,
+        "end": 22
       },
       "tags": [],
       "signatures": {}
@@ -6303,14 +6259,29 @@
       }
     },
     {
+      "id": "pg:public.public.changesets.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
       "name": "public.verification_results",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 39,
+        "end": 39
       },
       "tags": [],
       "signatures": {}
@@ -6357,7 +6328,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_tier"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6372,7 +6343,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_executor"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6387,7 +6358,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_status"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6481,14 +6452,29 @@
       }
     },
     {
+      "id": "pg:public.public.verification_results.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
       "name": "public.verification_policies",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 53,
+        "end": 53
       },
       "tags": [],
       "signatures": {}
@@ -6565,7 +6551,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_tier"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6580,7 +6566,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "verification_executor"
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6644,14 +6630,29 @@
       }
     },
     {
+      "id": "pg:public.public.verification_policies.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.approval_queue",
       "kind": "table",
       "language": "sql",
       "name": "public.approval_queue",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 66,
+        "end": 66
       },
       "tags": [],
       "signatures": {}
@@ -6789,6 +6790,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.approval_queue.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "005_verification_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -6940,14 +6956,29 @@
       }
     },
     {
+      "id": "pg:public.public.operation_guardrails.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "006_guardrails_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.guardrail_violations",
       "kind": "table",
       "language": "sql",
       "name": "public.guardrail_violations",
       "file": "006_guardrails_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 19,
+        "end": 19
       },
       "tags": [],
       "signatures": {}
@@ -7118,6 +7149,21 @@
       }
     },
     {
+      "id": "pg:public.public.guardrail_violations.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "006_guardrails_tables.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -7217,7 +7263,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -7232,7 +7278,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT[]"
+        "type": "TEXT"
       }
     },
     {
@@ -7356,14 +7402,29 @@
       }
     },
     {
+      "id": "pg:public.public.agent_profiles.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "007_agent_profiles.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.agent_profile_assignments",
       "kind": "table",
       "language": "sql",
       "name": "public.agent_profile_assignments",
       "file": "007_agent_profiles.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 25,
+        "end": 25
       },
       "tags": [],
       "signatures": {}
@@ -7441,6 +7502,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.agent_profile_assignments.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "007_agent_profiles.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -7607,6 +7683,21 @@
       }
     },
     {
+      "id": "pg:public.public.audit_log.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "008_audit_log.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.network_policies",
       "kind": "table",
       "language": "sql",
@@ -7740,14 +7831,29 @@
       }
     },
     {
+      "id": "pg:public.public.network_policies.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "009_network_policies.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
       "name": "public.network_access_log",
       "file": "009_network_policies.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 18,
+        "end": 18
       },
       "tags": [],
       "signatures": {}
@@ -7855,6 +7961,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.network_access_log.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "009_network_policies.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -7991,14 +8112,29 @@
       }
     },
     {
+      "id": "pg:public.public.cedar_policies.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "010_cedar_policy_store.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
+      }
+    },
+    {
       "id": "pg:public.public.cedar_entities",
       "kind": "table",
       "language": "sql",
       "name": "public.cedar_entities",
       "file": "010_cedar_policy_store.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 33,
+        "end": 33
       },
       "tags": [],
       "signatures": {}
@@ -8106,6 +8242,21 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.cedar_entities.enable",
+      "kind": "column",
+      "language": "sql",
+      "name": "enable",
+      "file": "010_cedar_policy_store.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "UNKNOWN"
       }
     },
     {
@@ -8752,8 +8903,8 @@
       "name": "auth.role",
       "file": "000_bootstrap.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 31,
+        "end": 31
       },
       "tags": [],
       "signatures": {}
@@ -8765,8 +8916,8 @@
       "name": "public.acquire_lock",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 98,
+        "end": 98
       },
       "tags": [],
       "signatures": {}
@@ -8778,8 +8929,8 @@
       "name": "public.release_lock",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 179,
+        "end": 179
       },
       "tags": [],
       "signatures": {}
@@ -8791,8 +8942,8 @@
       "name": "public.claim_task",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 208,
+        "end": 208
       },
       "tags": [],
       "signatures": {}
@@ -8804,8 +8955,8 @@
       "name": "public.complete_task",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 262,
+        "end": 262
       },
       "tags": [],
       "signatures": {}
@@ -8817,8 +8968,8 @@
       "name": "public.submit_task",
       "file": "001_core_schema.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 302,
+        "end": 302
       },
       "tags": [],
       "signatures": {}
@@ -8830,8 +8981,8 @@
       "name": "public.write_handoff",
       "file": "002_handoff_documents.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 22,
+        "end": 22
       },
       "tags": [],
       "signatures": {}
@@ -8843,8 +8994,8 @@
       "name": "public.read_handoff",
       "file": "002_handoff_documents.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 65,
+        "end": 65
       },
       "tags": [],
       "signatures": {}
@@ -8856,8 +9007,8 @@
       "name": "public.register_agent_session",
       "file": "003_agent_discovery.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 16,
+        "end": 16
       },
       "tags": [],
       "signatures": {}
@@ -8869,8 +9020,8 @@
       "name": "public.discover_agents",
       "file": "003_agent_discovery.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 49,
+        "end": 49
       },
       "tags": [],
       "signatures": {}
@@ -8882,8 +9033,8 @@
       "name": "public.agent_heartbeat",
       "file": "003_agent_discovery.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 83,
+        "end": 83
       },
       "tags": [],
       "signatures": {}
@@ -8895,8 +9046,8 @@
       "name": "public.cleanup_dead_agents",
       "file": "003_agent_discovery.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 112,
+        "end": 112
       },
       "tags": [],
       "signatures": {}
@@ -8908,8 +9059,8 @@
       "name": "public.store_episodic_memory",
       "file": "004_memory_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 57,
+        "end": 57
       },
       "tags": [],
       "signatures": {}
@@ -8921,8 +9072,8 @@
       "name": "public.get_relevant_memories",
       "file": "004_memory_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 107,
+        "end": 107
       },
       "tags": [],
       "signatures": {}
@@ -8934,8 +9085,8 @@
       "name": "public.get_pending_approvals",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 134,
+        "end": 134
       },
       "tags": [],
       "signatures": {}
@@ -8947,8 +9098,8 @@
       "name": "public.approve_changeset",
       "file": "005_verification_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 157,
+        "end": 157
       },
       "tags": [],
       "signatures": {}
@@ -8960,8 +9111,8 @@
       "name": "public.check_guardrails",
       "file": "006_guardrails_tables.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 66,
+        "end": 66
       },
       "tags": [],
       "signatures": {}
@@ -8973,8 +9124,8 @@
       "name": "public.get_agent_profile",
       "file": "007_agent_profiles.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 73,
+        "end": 73
       },
       "tags": [],
       "signatures": {}
@@ -8986,8 +9137,8 @@
       "name": "public.raise_immutable_error",
       "file": "008_audit_log.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 28,
+        "end": 28
       },
       "tags": [],
       "signatures": {}
@@ -8999,8 +9150,8 @@
       "name": "public.cleanup_old_audit_entries",
       "file": "008_audit_log.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 45,
+        "end": 45
       },
       "tags": [],
       "signatures": {}
@@ -9012,8 +9163,8 @@
       "name": "public.is_domain_allowed",
       "file": "009_network_policies.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 53,
+        "end": 53
       },
       "tags": [],
       "signatures": {}
@@ -9025,8 +9176,8 @@
       "name": "public.update_cedar_policies_timestamp",
       "file": "010_cedar_policy_store.sql",
       "span": {
-        "start": 1,
-        "end": 1
+        "start": 19,
+        "end": 19
       },
       "tags": [],
       "signatures": {}
@@ -9183,6 +9334,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_port_allocator"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:config.get_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_config"
     },
     {
       "from": "py:coordination_api.create_coordination_api.acquire_lock",
@@ -9409,7 +9567,7 @@
       "evidence": "ast:call:get_port_allocator"
     },
     {
-      "from": "py:coordination_api.main",
+      "from": "py:coordination_api.create_coordination_api.health",
       "to": "py:config.get_config",
       "type": "call",
       "confidence": "high",
@@ -9417,10 +9575,10 @@
     },
     {
       "from": "py:coordination_api.main",
-      "to": "py:coordination_api.create_coordination_api",
+      "to": "py:config.get_config",
       "type": "call",
       "confidence": "high",
-      "evidence": "ast:call:create_coordination_api"
+      "evidence": "ast:call:get_config"
     },
     {
       "from": "py:coordination_mcp.get_agent_id",
@@ -9724,6 +9882,13 @@
       "evidence": "ast:call:_validate_identifier"
     },
     {
+      "from": "py:db_postgres.DirectPostgresClient.rpc",
+      "to": "py:db_postgres._serialize_for_asyncpg",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_serialize_for_asyncpg"
+    },
+    {
       "from": "py:db_postgres.DirectPostgresClient.query",
       "to": "py:db_postgres._validate_identifier",
       "type": "call",
@@ -9752,11 +9917,25 @@
       "evidence": "ast:call:_validate_identifier"
     },
     {
+      "from": "py:db_postgres.DirectPostgresClient.insert",
+      "to": "py:db_postgres._serialize_for_asyncpg",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_serialize_for_asyncpg"
+    },
+    {
       "from": "py:db_postgres.DirectPostgresClient.update",
       "to": "py:db_postgres._validate_identifier",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.update",
+      "to": "py:db_postgres._serialize_for_asyncpg",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_serialize_for_asyncpg"
     },
     {
       "from": "py:db_postgres.DirectPostgresClient.delete",

@@ -51,6 +51,18 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **Validate with remapped ports as a first-class path**: When defaults are occupied, run `docker compose` with `AGENT_COORDINATOR_DB_PORT`, `AGENT_COORDINATOR_REST_PORT`, and `AGENT_COORDINATOR_REALTIME_PORT`, then execute e2e with matching `BASE_URL`.
 
+## Tree-sitter Integration Patterns
+
+- **Parse SQL statements individually**: Generic SQL grammar fails on PostgreSQL extensions (CHECK constraints, array types, POLICY). Split migrations into individual statements with `_split_statements()` before parsing to prevent cascading errors.
+
+- **Manual predicate filtering required**: Python tree-sitter bindings do NOT apply `#match?`, `#eq?`, or `#not-has-child?` predicates in `captures()`. Always filter results manually after capture, or you'll get massive false positives (e.g., every function call matching `eval`).
+
+- **ERROR node recovery**: When tree-sitter produces ERROR nodes for valid PostgreSQL (PL/pgSQL), useful information can still be extracted by inspecting keyword children and their order within the ERROR node.
+
+- **Bare except detection needs multiple node types**: Python `except SomeException:` may produce `identifier`, `attribute` (dotted names), `tuple` (multiple exceptions), or `as_pattern` children. Check all four to avoid false positives.
+
+- **Graceful degradation over hard failures**: Tree-sitter enrichment is optional — the pipeline works without it. Check for venv/module availability before running and skip cleanly if unavailable.
+
 ## Language & Architecture Choices
 
 - **Python for I/O-bound coordination services**: Despite Go/Rust being faster, Python is the right choice for services that spend most time waiting on databases and HTTP calls. FastMCP and Supabase SDKs are mature.
