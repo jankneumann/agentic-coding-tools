@@ -427,15 +427,21 @@ fi
 # Also run the schema validator if available
 if [ -f "${GRAPH_FILE}" ] && [ -f "${SCRIPTS_DIR}/validate_schema.py" ]; then
     info "Running schema validation..."
-    if ! ${PYTHON} -c "import jsonschema" >/dev/null 2>&1; then
-        if ! try_install_jsonschema; then
-            warn "jsonschema unavailable; schema validation may fail"
+    SCRIPTS_PYTHON="${SCRIPTS_DIR}/.venv/bin/python"
+    if [ -x "${SCRIPTS_PYTHON}" ] && "${SCRIPTS_PYTHON}" -c "import jsonschema" >/dev/null 2>&1; then
+        if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/validate_schema.py" "${GRAPH_FILE}" 2>&1; then
+            info "Schema validation passed"
+        else
+            warn "Schema validation found issues"
         fi
-    fi
-    if ${PYTHON} "${SCRIPTS_DIR}/validate_schema.py" "${GRAPH_FILE}" 2>&1; then
-        info "Schema validation passed"
+    elif ${PYTHON} -c "import jsonschema" >/dev/null 2>&1; then
+        if ${PYTHON} "${SCRIPTS_DIR}/validate_schema.py" "${GRAPH_FILE}" 2>&1; then
+            info "Schema validation passed"
+        else
+            warn "Schema validation found issues"
+        fi
     else
-        warn "Schema validation found issues"
+        warn "jsonschema unavailable; skipping schema validation"
     fi
 fi
 echo ""
