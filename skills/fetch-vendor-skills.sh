@@ -98,14 +98,27 @@ fi
 
 # ── Clean mode ─────────────────────────────────────────────────────────────
 
+AGENT_SKILL_DIRS=(".claude/skills" ".codex/skills" ".gemini/skills")
+
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 if [[ $CLEAN -eq 1 ]]; then
   echo "Cleaning vendor skills..."
   for dir in $(vendor_skill_dirs); do
+    # Remove canonical source in skills/
     target="$SCRIPT_DIR/$dir"
     if [[ -d "$target" ]]; then
-      echo "  rm    $dir"
+      echo "  rm    skills/$dir"
       rm -rf "$target"
     fi
+    # Remove installed copies from agent config directories
+    for agent_dir in "${AGENT_SKILL_DIRS[@]}"; do
+      installed="$REPO_ROOT/$agent_dir/$dir"
+      if [[ -e "$installed" || -L "$installed" ]]; then
+        echo "  rm    $agent_dir/$dir"
+        rm -rf "$installed"
+      fi
+    done
   done
 fi
 
@@ -134,9 +147,7 @@ for entry in "${VENDORS[@]}"; do
     cp "$src" "$dest"
     echo "  file  $LOCAL_NAME"
   elif [[ -d "$src" ]]; then
-    # Directory — sync into place
-    # Remove existing destination to get a clean copy
-    rm -rf "$dest"
+    # Directory — update in place (no delete; only add/overwrite files)
     mkdir -p "$dest"
     if command -v rsync >/dev/null 2>&1; then
       rsync -a --checksum \
@@ -146,10 +157,14 @@ for entry in "${VENDORS[@]}"; do
         --exclude='.cursor-plugin' \
         "$src/" "$dest/"
     else
-      # Fallback: cp -a then remove unwanted dirs
-      cp -a "$src/." "$dest/"
-      rm -rf "$dest/.git" "$dest/node_modules" \
-             "$dest/.claude-plugin" "$dest/.cursor-plugin"
+      # Fallback: copy files over existing directory
+      # Use a temp staging dir to strip unwanted content before copying
+      staging="$(mktemp -d "$TMPDIR_BASE/vendor-stage-XXXXXX")"
+      cp -a "$src/." "$staging/"
+      rm -rf "$staging/.git" "$staging/node_modules" \
+             "$staging/.claude-plugin" "$staging/.cursor-plugin"
+      cp -a "$staging/." "$dest/"
+      rm -rf "$staging"
     fi
     echo "  fetch $LOCAL_NAME"
   fi
