@@ -1,6 +1,6 @@
 # Delta Spec: Setup Coordinator — Profile-Driven Setup
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Profile-Aware Setup
 
