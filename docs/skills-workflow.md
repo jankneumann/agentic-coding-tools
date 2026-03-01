@@ -38,7 +38,7 @@ Multi-agent feature development with contract-first design and DAG-scheduled wor
 /parallel-cleanup-feature <change-id>                  Merge queue + cross-feature rebase
 ```
 
-See [Two-Level Parallel Development](../two-level-parallel-agentic-development.md) for the full design.
+See [Two-Level Parallel Development](two-level-parallel-agentic-development.md) for the full design.
 
 ## Prerequisites
 

@@ -31,7 +31,7 @@ Original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatib
 /parallel-cleanup-feature <change-id>           → Merge queue + cross-feature rebase
 ```
 
-See [Two-Level Parallel Development](two-level-parallel-agentic-development.md) for the full design.
+See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development.md) for the full design.
 
 ## Python Environment
 
