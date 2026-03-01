@@ -15,6 +15,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+_ALLOWED_RUNTIMES = {"auto", "docker", "podman"}
+
 
 def detect_runtime(preferred: str = "auto") -> str | None:
     """Detect an available container runtime.
@@ -27,6 +29,9 @@ def detect_runtime(preferred: str = "auto") -> str | None:
         The runtime name (``"docker"`` or ``"podman"``), or ``None`` when
         no usable runtime is found.
     """
+    if preferred not in _ALLOWED_RUNTIMES:
+        logger.warning("Unsupported container runtime: %r", preferred)
+        return None
     candidates = (
         ["docker", "podman"]
         if preferred == "auto"
@@ -90,9 +95,16 @@ def start_container(
 
     container_name = str(docker_config.get("container_name", "paradedb"))
     if is_container_running(runtime, container_name):
-        return {"already_running": True, "runtime": runtime}
+        return {"started": False, "already_running": True, "runtime": runtime}
 
     compose_file = base_dir / str(docker_config.get("compose_file", "docker-compose.yml"))
+    try:
+        compose_file.resolve().relative_to(base_dir.resolve())
+    except ValueError:
+        return {
+            "started": False,
+            "error": f"compose file path escapes base directory: {compose_file.name}",
+        }
     if not compose_file.is_file():
         return {"started": False, "error": f"compose file not found: {compose_file}"}
 

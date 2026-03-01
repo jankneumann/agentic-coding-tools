@@ -285,9 +285,12 @@ class ApiConfig:
                 from src.agents_config import get_api_key_identities
 
                 identities = get_api_key_identities()
+            except FileNotFoundError:
+                logger.debug("agents.yaml not found — skipping API key identity auto-population")
             except Exception:  # noqa: BLE001
-                logger.debug(
-                    "Could not auto-populate API key identities from agents.yaml"
+                logger.warning(
+                    "Could not auto-populate API key identities from agents.yaml",
+                    exc_info=True,
                 )
 
         return cls(
@@ -337,7 +340,13 @@ class Config:
         # Apply deployment profile (injects defaults into os.environ).
         from src.profile_loader import apply_profile
 
-        profile_data = apply_profile()
+        try:
+            profile_data = apply_profile()
+        except (FileNotFoundError, ValueError) as exc:
+            profile_name = os.environ.get("COORDINATOR_PROFILE", "local")
+            raise RuntimeError(
+                f"Failed to load profile '{profile_name}': {exc}"
+            ) from exc
 
         db_backend = os.environ.get("DB_BACKEND", "supabase")
         try:

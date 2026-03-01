@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 from jsonschema import validate
 
-from src.profile_loader import _load_secrets, interpolate
+from src.profile_loader import _INTERPOLATION_RE, _load_secrets, interpolate
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,11 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     "api_key": {"type": "string"},
                     "capabilities": {
                         "type": "array",
-                        "items": {"type": "string", "minLength": 1},
+                        "minItems": 1,
+                        "items": {
+                            "type": "string",
+                            "enum": sorted(VALID_CAPABILITIES),
+                        },
                     },
                     "description": {"type": "string", "minLength": 1},
                 },
@@ -138,8 +142,8 @@ def load_agents_config(
         resolved_key: str | None = None
         if raw_key:
             resolved_key = interpolate(raw_key, secrets)
-            # If interpolation left the ${VAR} literal, treat as unresolved.
-            if resolved_key.startswith("${"):
+            # If any ${VAR} token remains after interpolation, treat as unresolved.
+            if _INTERPOLATION_RE.search(resolved_key):
                 resolved_key = None
 
         entries.append(
@@ -177,6 +181,15 @@ def get_api_key_identities(
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
         if agent.transport == "http" and agent.api_key:
+            if agent.api_key in identities:
+                existing = identities[agent.api_key]["agent_id"]
+                logger.warning(
+                    "Duplicate API key: agents '%s' and '%s' share the same key — "
+                    "'%s' will be used",
+                    existing,
+                    agent.name,
+                    agent.name,
+                )
             identities[agent.api_key] = {
                 "agent_id": agent.name,
                 "agent_type": agent.type,

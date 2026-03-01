@@ -85,14 +85,30 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
 # ---------------------------------------------------------------------------
 
 def _load_secrets(secrets_path: Path) -> dict[str, str]:
-    """Load ``.secrets.yaml`` if it exists, returning a flat str→str dict."""
+    """Load ``.secrets.yaml`` if it exists, returning a flat str→str dict.
+
+    Non-string values (booleans, integers, nulls) are logged and skipped
+    to prevent silent ``"None"`` or ``"True"`` interpolation.
+    """
     if not secrets_path.is_file():
         return {}
-    with open(secrets_path) as fh:
+    with open(secrets_path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
-    if not isinstance(data, dict):
+    if data is None:
+        logger.debug("Secrets file %s is empty", secrets_path)
         return {}
-    return {str(k): str(v) for k, v in data.items()}
+    if not isinstance(data, dict):
+        logger.warning("Secrets file %s is not a YAML mapping — ignored", secrets_path)
+        return {}
+    result: dict[str, str] = {}
+    for k, v in data.items():
+        if not isinstance(v, str):
+            logger.warning(
+                "Secret '%s' has non-string type %s — skipped", k, type(v).__name__
+            )
+            continue
+        result[str(k)] = v
+    return result
 
 
 def interpolate(value: str, secrets: dict[str, str]) -> str:
@@ -106,7 +122,11 @@ def interpolate(value: str, secrets: dict[str, str]) -> str:
     def _replace(match: re.Match[str]) -> str:
         var_name = match.group(1)
         default = match.group(2)  # None when no ``:-`` clause
-        resolved = secrets.get(var_name) or os.environ.get(var_name)
+        # Secrets take priority; use explicit ``in`` check so empty strings
+        # are honoured (``or`` would skip falsy values).
+        if var_name in secrets:
+            return secrets[var_name]
+        resolved = os.environ.get(var_name)
         if resolved is not None:
             return resolved
         if default is not None:
