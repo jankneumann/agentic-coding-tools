@@ -85,7 +85,7 @@ Community threads are anecdotal. Always pair with official docs when the answer 
 All GraphQL operations use the API helper script, which handles authentication automatically:
 
 ```bash
-scripts/railway-api.sh '<query>' '<variables-json>'
+<agent-skills-dir>/use-railway/scripts/railway-api.sh '<query>' '<variables-json>'
 ```
 
 The script reads the API token from `~/.railway/config.json` and sends requests to `https://backboard.railway.com/graphql/v2`.
@@ -97,7 +97,7 @@ For the full API schema, see: https://docs.railway.com/api/llms-docs.md
 The CLI doesn't expose project setting updates (rename, PR deploys, visibility). Use GraphQL:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'mutation updateProject($id: String!, $input: ProjectUpdateInput!) {
     projectUpdate(id: $id, input: $input) { id name isPublic prDeploys botPrEnvironments }
   }' \
@@ -112,7 +112,7 @@ Common `ProjectUpdateInput` fields: `name`, `isPublic`, `prDeploys`, `botPrEnvir
 The CLI can create services (`railway add`) but cannot rename them or change icons. Use GraphQL:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'mutation updateService($id: String!, $input: ServiceUpdateInput!) {
     serviceUpdate(id: $id, input: $input) { id name icon }
   }' \
@@ -129,7 +129,7 @@ Get the service ID from `railway status --json`.
 Prefer `railway add` for most cases. Use GraphQL for programmatic or advanced use:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'mutation createService($input: ServiceCreateInput!) {
     serviceCreate(input: $input) { id name }
   }' \
@@ -155,7 +155,7 @@ After creating a service via GraphQL, configure it with a JSON config patch incl
 Resource usage metrics are only available via GraphQL:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'query metrics($environmentId: String!, $serviceId: String, $startDate: DateTime!, $endDate: DateTime, $sampleRateSeconds: Int, $averagingWindowSeconds: Int, $groupBy: [MetricTag!], $measurements: [MetricMeasurement!]!) {
     metrics(environmentId: $environmentId, serviceId: $serviceId, startDate: $startDate, endDate: $endDate, sampleRateSeconds: $sampleRateSeconds, averagingWindowSeconds: $averagingWindowSeconds, groupBy: $groupBy, measurements: $measurements) {
       measurement tags { serviceId deploymentId region } values { ts value }
@@ -175,7 +175,7 @@ Get environment and service IDs from `railway status --json`.
 Search Railway's template marketplace:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'query templates($query: String!, $verified: Boolean, $recommended: Boolean) {
     templates(query: $query, verified: $verified, recommended: $recommended) {
       edges { node { code name description category } }
@@ -206,7 +206,7 @@ For deploying into a specific environment or tracking the workflow, use the two-
 **Step 1** — Fetch the template config:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'query template($code: String!) {
     template(code: $code) { id serializedConfig }
   }' \
@@ -216,7 +216,7 @@ scripts/railway-api.sh \
 **Step 2** — Deploy with `templateDeployV2`:
 
 ```bash
-scripts/railway-api.sh \
+<agent-skills-dir>/use-railway/scripts/railway-api.sh \
   'mutation deploy($input: TemplateDeployV2Input!) {
     templateDeployV2(input: $input) { projectId workflowId }
   }' \
@@ -229,7 +229,7 @@ scripts/railway-api.sh \
   }}'
 ```
 
-`serializedConfig` is the raw JSON object from the template query, not a string. Get `workspaceId` via `scripts/railway-api.sh 'query { project(id: "<project-id>") { workspaceId } }' '{}'`.
+`serializedConfig` is the raw JSON object from the template query, not a string. Get `workspaceId` via `<agent-skills-dir>/use-railway/scripts/railway-api.sh 'query { project(id: "<project-id>") { workspaceId } }' '{}'`.
 
 
 ## Validated against
