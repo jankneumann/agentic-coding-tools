@@ -1,14 +1,15 @@
 ---
-name: iterate-on-plan
+name: linear-iterate-on-plan
 description: Iteratively refine an OpenSpec proposal by identifying and fixing completeness, clarity, feasibility, scope, consistency, testability, and parallelizability issues
 category: Git Workflow
-tags: [openspec, refinement, iteration, planning, quality]
+tags: [openspec, refinement, iteration, planning, quality, linear]
 triggers:
   - "iterate on plan"
   - "refine plan"
   - "improve plan"
   - "iterate on proposal"
   - "refine proposal"
+  - "linear iterate on plan"
 ---
 
 # Iterate on Plan

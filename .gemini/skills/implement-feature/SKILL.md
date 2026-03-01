@@ -1,14 +1,15 @@
 ---
-name: implement-feature
+name: linear-implement-feature
 description: Implement approved OpenSpec proposal through to PR creation
 category: Git Workflow
-tags: [openspec, implementation, pr]
+tags: [openspec, implementation, pr, linear]
 triggers:
   - "implement feature"
   - "build feature"
   - "start implementation"
   - "begin implementation"
   - "code feature"
+  - "linear implement feature"
 ---
 
 # Implement Feature

@@ -1,13 +1,14 @@
 ---
-name: explore-feature
+name: linear-explore-feature
 description: Identify high-value next features using architecture artifacts, code signals, and active OpenSpec context
 category: Git Workflow
-tags: [openspec, discovery, architecture, prioritization]
+tags: [openspec, discovery, architecture, prioritization, linear]
 triggers:
   - "explore feature"
   - "what should we build next"
   - "identify next feature"
   - "feature discovery"
+  - "linear explore feature"
 ---
 
 # Explore Feature

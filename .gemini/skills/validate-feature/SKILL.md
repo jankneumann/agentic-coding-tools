@@ -1,14 +1,15 @@
 ---
-name: validate-feature
+name: linear-validate-feature
 description: Deploy locally, run security scans and behavioral tests, check CI/CD, and verify OpenSpec spec compliance
 category: Git Workflow
-tags: [openspec, validation, deployment, e2e, playwright]
+tags: [openspec, validation, deployment, e2e, playwright, linear]
 triggers:
   - "validate feature"
   - "validate deployment"
   - "test deployment"
   - "verify feature"
   - "run validation"
+  - "linear validate feature"
 ---
 
 # Validate Feature

@@ -1,14 +1,15 @@
 ---
-name: cleanup-feature
+name: linear-cleanup-feature
 description: Merge approved PR, migrate open tasks, archive OpenSpec proposal, and cleanup branches
 category: Git Workflow
-tags: [openspec, archive, cleanup, merge]
+tags: [openspec, archive, cleanup, merge, linear]
 triggers:
   - "cleanup feature"
   - "merge feature"
   - "finish feature"
   - "archive feature"
   - "close feature"
+  - "linear cleanup feature"
 ---
 
 # Cleanup Feature
