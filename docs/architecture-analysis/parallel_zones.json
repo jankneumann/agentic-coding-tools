@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-28T04:07:20.325892+00:00",
+  "generated_at": "2026-03-01T02:32:44.843853+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -121,6 +121,35 @@
     {
       "id": 1,
       "modules": [
+        "py:agents_config._default_agents_path",
+        "py:agents_config._default_secrets_path",
+        "py:agents_config.get_agent_config",
+        "py:agents_config.get_agents_config",
+        "py:agents_config.get_api_key_identities",
+        "py:agents_config.get_mcp_env",
+        "py:agents_config.load_agents_config",
+        "py:config.ApiConfig.from_env",
+        "py:config.Config.from_env",
+        "py:profile_loader._flatten",
+        "py:profile_loader._inject_env",
+        "py:profile_loader._interpolate_tree",
+        "py:profile_loader._load_secrets",
+        "py:profile_loader._resolve_profile",
+        "py:profile_loader.apply_profile",
+        "py:profile_loader.deep_merge",
+        "py:profile_loader.interpolate",
+        "py:profile_loader.load_profile",
+        "py:teams.TeamsConfig.from_dict",
+        "py:teams.TeamsConfig.validate"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 20
+    },
+    {
+      "id": 2,
+      "modules": [
         "py:audit",
         "py:config",
         "py:coordination_api",
@@ -147,7 +176,7 @@
       "size": 19
     },
     {
-      "id": 2,
+      "id": 3,
       "modules": [
         "py:db_postgres.DirectPostgresClient.delete",
         "py:db_postgres.DirectPostgresClient.insert",
@@ -165,7 +194,7 @@
       "size": 9
     },
     {
-      "id": 3,
+      "id": 4,
       "modules": [
         "py:coordination_mcp.cleanup_dead_agents",
         "py:coordination_mcp.discover_agents",
@@ -179,7 +208,7 @@
       "size": 5
     },
     {
-      "id": 4,
+      "id": 5,
       "modules": [
         "py:discovery.AgentInfo.from_dict",
         "py:discovery.AgentInfo.from_dict.parse_dt",
@@ -192,7 +221,19 @@
       "size": 4
     },
     {
-      "id": 5,
+      "id": 6,
+      "modules": [
+        "py:docker_manager.detect_runtime",
+        "py:docker_manager.is_container_running",
+        "py:docker_manager.start_container"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 3
+    },
+    {
+      "id": 7,
       "modules": [
         "py:feature_registry.get_feature_registry_service",
         "py:merge_queue.MergeQueueService.registry"
@@ -203,7 +244,7 @@
       "size": 2
     },
     {
-      "id": 6,
+      "id": 8,
       "modules": [
         "py:merge_queue.MergeQueueService.get_queue",
         "py:merge_queue._parse_dt"
@@ -214,7 +255,7 @@
       "size": 2
     },
     {
-      "id": 7,
+      "id": 9,
       "modules": [
         "py:network_policies.get_network_policy_service",
         "py:policy_engine.NativePolicyEngine.check_network_access"
@@ -225,7 +266,7 @@
       "size": 2
     },
     {
-      "id": 8,
+      "id": 10,
       "modules": [
         "py:port_allocator.PortAllocatorService.allocate",
         "py:port_allocator._compose_project_name"
@@ -236,18 +277,7 @@
       "size": 2
     },
     {
-      "id": 9,
-      "modules": [
-        "py:teams.TeamsConfig.from_dict",
-        "py:teams.TeamsConfig.validate"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 2
-    },
-    {
-      "id": 10,
+      "id": 11,
       "modules": [
         "pg:cedar_entities_updated_at"
       ],
@@ -257,7 +287,7 @@
       "size": 1
     },
     {
-      "id": 11,
+      "id": 12,
       "modules": [
         "pg:cedar_policies_updated_at"
       ],
@@ -267,7 +297,7 @@
       "size": 1
     },
     {
-      "id": 12,
+      "id": 13,
       "modules": [
         "pg:idx_agent_sessions_agent"
       ],
@@ -277,7 +307,7 @@
       "size": 1
     },
     {
-      "id": 13,
+      "id": 14,
       "modules": [
         "pg:idx_agent_sessions_capabilities"
       ],
@@ -287,7 +317,7 @@
       "size": 1
     },
     {
-      "id": 14,
+      "id": 15,
       "modules": [
         "pg:idx_agent_sessions_heartbeat"
       ],
@@ -297,7 +327,7 @@
       "size": 1
     },
     {
-      "id": 15,
+      "id": 16,
       "modules": [
         "pg:idx_agent_sessions_started"
       ],
@@ -307,7 +337,7 @@
       "size": 1
     },
     {
-      "id": 16,
+      "id": 17,
       "modules": [
         "pg:idx_agent_sessions_status"
       ],
@@ -317,7 +347,7 @@
       "size": 1
     },
     {
-      "id": 17,
+      "id": 18,
       "modules": [
         "pg:idx_agent_sessions_type"
       ],
@@ -327,7 +357,7 @@
       "size": 1
     },
     {
-      "id": 18,
+      "id": 19,
       "modules": [
         "pg:idx_approval_queue_status"
       ],
@@ -337,7 +367,7 @@
       "size": 1
     },
     {
-      "id": 19,
+      "id": 20,
       "modules": [
         "pg:idx_audit_log_agent"
       ],
@@ -347,7 +377,7 @@
       "size": 1
     },
     {
-      "id": 20,
+      "id": 21,
       "modules": [
         "pg:idx_audit_log_operation"
       ],
@@ -357,7 +387,7 @@
       "size": 1
     },
     {
-      "id": 21,
+      "id": 22,
       "modules": [
         "pg:idx_audit_log_timestamp"
       ],
@@ -367,7 +397,7 @@
       "size": 1
     },
     {
-      "id": 22,
+      "id": 23,
       "modules": [
         "pg:idx_cedar_entities_type"
       ],
@@ -377,7 +407,7 @@
       "size": 1
     },
     {
-      "id": 23,
+      "id": 24,
       "modules": [
         "pg:idx_cedar_policies_enabled"
       ],
@@ -387,7 +417,7 @@
       "size": 1
     },
     {
-      "id": 24,
+      "id": 25,
       "modules": [
         "pg:idx_changesets_agent"
       ],
@@ -397,7 +427,7 @@
       "size": 1
     },
     {
-      "id": 25,
+      "id": 26,
       "modules": [
         "pg:idx_changesets_status"
       ],
@@ -407,7 +437,7 @@
       "size": 1
     },
     {
-      "id": 26,
+      "id": 27,
       "modules": [
         "pg:idx_feature_registry_registered_by"
       ],
@@ -417,7 +447,7 @@
       "size": 1
     },
     {
-      "id": 27,
+      "id": 28,
       "modules": [
         "pg:idx_feature_registry_status"
       ],
@@ -427,7 +457,7 @@
       "size": 1
     },
     {
-      "id": 28,
+      "id": 29,
       "modules": [
         "pg:idx_file_locks_agent"
       ],
@@ -437,7 +467,7 @@
       "size": 1
     },
     {
-      "id": 29,
+      "id": 30,
       "modules": [
         "pg:idx_file_locks_expires"
       ],
@@ -447,7 +477,7 @@
       "size": 1
     },
     {
-      "id": 30,
+      "id": 31,
       "modules": [
         "pg:idx_file_locks_session"
       ],
@@ -457,7 +487,7 @@
       "size": 1
     },
     {
-      "id": 31,
+      "id": 32,
       "modules": [
         "pg:idx_guardrails_category"
       ],
@@ -467,7 +497,7 @@
       "size": 1
     },
     {
-      "id": 32,
+      "id": 33,
       "modules": [
         "pg:idx_guardrails_enabled"
       ],
@@ -477,7 +507,7 @@
       "size": 1
     },
     {
-      "id": 33,
+      "id": 34,
       "modules": [
         "pg:idx_handoff_agent"
       ],
@@ -487,7 +517,7 @@
       "size": 1
     },
     {
-      "id": 34,
+      "id": 35,
       "modules": [
         "pg:idx_handoff_session"
       ],
@@ -497,7 +527,7 @@
       "size": 1
     },
     {
-      "id": 35,
+      "id": 36,
       "modules": [
         "pg:idx_memory_episodic_agent"
       ],
@@ -507,7 +537,7 @@
       "size": 1
     },
     {
-      "id": 36,
+      "id": 37,
       "modules": [
         "pg:idx_memory_episodic_created"
       ],
@@ -517,7 +547,7 @@
       "size": 1
     },
     {
-      "id": 37,
+      "id": 38,
       "modules": [
         "pg:idx_memory_episodic_event_type"
       ],
@@ -527,7 +557,7 @@
       "size": 1
     },
     {
-      "id": 38,
+      "id": 39,
       "modules": [
         "pg:idx_memory_episodic_tags"
       ],
@@ -537,7 +567,7 @@
       "size": 1
     },
     {
-      "id": 39,
+      "id": 40,
       "modules": [
         "pg:idx_memory_procedural_skill"
       ],
@@ -547,7 +577,7 @@
       "size": 1
     },
     {
-      "id": 40,
+      "id": 41,
       "modules": [
         "pg:idx_memory_working_agent_session"
       ],
@@ -557,7 +587,7 @@
       "size": 1
     },
     {
-      "id": 41,
+      "id": 42,
       "modules": [
         "pg:idx_network_access_log_agent"
       ],
@@ -567,7 +597,7 @@
       "size": 1
     },
     {
-      "id": 42,
+      "id": 43,
       "modules": [
         "pg:idx_network_access_log_created"
       ],
@@ -577,7 +607,7 @@
       "size": 1
     },
     {
-      "id": 43,
+      "id": 44,
       "modules": [
         "pg:idx_network_access_log_domain"
       ],
@@ -587,7 +617,7 @@
       "size": 1
     },
     {
-      "id": 44,
+      "id": 45,
       "modules": [
         "pg:idx_network_policies_domain"
       ],
@@ -597,7 +627,7 @@
       "size": 1
     },
     {
-      "id": 45,
+      "id": 46,
       "modules": [
         "pg:idx_network_policies_profile"
       ],
@@ -607,7 +637,7 @@
       "size": 1
     },
     {
-      "id": 46,
+      "id": 47,
       "modules": [
         "pg:idx_profile_assignments_agent"
       ],
@@ -617,7 +647,7 @@
       "size": 1
     },
     {
-      "id": 47,
+      "id": 48,
       "modules": [
         "pg:idx_profile_assignments_profile"
       ],
@@ -627,7 +657,7 @@
       "size": 1
     },
     {
-      "id": 48,
+      "id": 49,
       "modules": [
         "pg:idx_profiles_agent_type"
       ],
@@ -637,7 +667,7 @@
       "size": 1
     },
     {
-      "id": 49,
+      "id": 50,
       "modules": [
         "pg:idx_profiles_trust_level"
       ],
@@ -647,7 +677,7 @@
       "size": 1
     },
     {
-      "id": 50,
+      "id": 51,
       "modules": [
         "pg:idx_verification_policies_pattern"
       ],
@@ -657,7 +687,7 @@
       "size": 1
     },
     {
-      "id": 51,
+      "id": 52,
       "modules": [
         "pg:idx_verification_results_changeset"
       ],
@@ -667,7 +697,7 @@
       "size": 1
     },
     {
-      "id": 52,
+      "id": 53,
       "modules": [
         "pg:idx_verification_results_status"
       ],
@@ -677,7 +707,7 @@
       "size": 1
     },
     {
-      "id": 53,
+      "id": 54,
       "modules": [
         "pg:idx_violations_agent"
       ],
@@ -687,7 +717,7 @@
       "size": 1
     },
     {
-      "id": 54,
+      "id": 55,
       "modules": [
         "pg:idx_violations_created"
       ],
@@ -697,7 +727,7 @@
       "size": 1
     },
     {
-      "id": 55,
+      "id": 56,
       "modules": [
         "pg:idx_violations_pattern"
       ],
@@ -707,7 +737,7 @@
       "size": 1
     },
     {
-      "id": 56,
+      "id": 57,
       "modules": [
         "pg:idx_work_queue_claimed"
       ],
@@ -717,7 +747,7 @@
       "size": 1
     },
     {
-      "id": 57,
+      "id": 58,
       "modules": [
         "pg:idx_work_queue_claimed_status"
       ],
@@ -727,7 +757,7 @@
       "size": 1
     },
     {
-      "id": 58,
+      "id": 59,
       "modules": [
         "pg:idx_work_queue_deadline"
       ],
@@ -737,7 +767,7 @@
       "size": 1
     },
     {
-      "id": 59,
+      "id": 60,
       "modules": [
         "pg:idx_work_queue_depends_on"
       ],
@@ -747,7 +777,7 @@
       "size": 1
     },
     {
-      "id": 60,
+      "id": 61,
       "modules": [
         "pg:idx_work_queue_pending"
       ],
@@ -757,7 +787,7 @@
       "size": 1
     },
     {
-      "id": 61,
+      "id": 62,
       "modules": [
         "pg:idx_work_queue_priority"
       ],
@@ -767,7 +797,7 @@
       "size": 1
     },
     {
-      "id": 62,
+      "id": 63,
       "modules": [
         "pg:idx_work_queue_status"
       ],
@@ -777,7 +807,7 @@
       "size": 1
     },
     {
-      "id": 63,
+      "id": 64,
       "modules": [
         "pg:prevent_audit_modification"
       ],
@@ -787,7 +817,7 @@
       "size": 1
     },
     {
-      "id": 64,
+      "id": 65,
       "modules": [
         "pg:public.auth.role"
       ],
@@ -797,7 +827,7 @@
       "size": 1
     },
     {
-      "id": 65,
+      "id": 66,
       "modules": [
         "pg:public.public.acquire_lock"
       ],
@@ -807,7 +837,7 @@
       "size": 1
     },
     {
-      "id": 66,
+      "id": 67,
       "modules": [
         "pg:public.public.agent_heartbeat"
       ],
@@ -817,7 +847,7 @@
       "size": 1
     },
     {
-      "id": 67,
+      "id": 68,
       "modules": [
         "pg:public.public.agent_profile_assignments"
       ],
@@ -827,7 +857,7 @@
       "size": 1
     },
     {
-      "id": 68,
+      "id": 69,
       "modules": [
         "pg:public.public.agent_profile_assignments.agent_id"
       ],
@@ -837,7 +867,7 @@
       "size": 1
     },
     {
-      "id": 69,
+      "id": 70,
       "modules": [
         "pg:public.public.agent_profile_assignments.assigned_at"
       ],
@@ -847,7 +877,7 @@
       "size": 1
     },
     {
-      "id": 70,
+      "id": 71,
       "modules": [
         "pg:public.public.agent_profile_assignments.assigned_by"
       ],
@@ -857,7 +887,7 @@
       "size": 1
     },
     {
-      "id": 71,
+      "id": 72,
       "modules": [
         "pg:public.public.agent_profile_assignments.enable"
       ],
@@ -867,7 +897,7 @@
       "size": 1
     },
     {
-      "id": 72,
+      "id": 73,
       "modules": [
         "pg:public.public.agent_profile_assignments.id"
       ],
@@ -877,7 +907,7 @@
       "size": 1
     },
     {
-      "id": 73,
+      "id": 74,
       "modules": [
         "pg:public.public.agent_profile_assignments.profile_id"
       ],
@@ -887,7 +917,7 @@
       "size": 1
     },
     {
-      "id": 74,
+      "id": 75,
       "modules": [
         "pg:public.public.agent_profiles"
       ],
@@ -897,7 +927,7 @@
       "size": 1
     },
     {
-      "id": 75,
+      "id": 76,
       "modules": [
         "pg:public.public.agent_profiles.agent_type"
       ],
@@ -907,7 +937,7 @@
       "size": 1
     },
     {
-      "id": 76,
+      "id": 77,
       "modules": [
         "pg:public.public.agent_profiles.allowed_operations"
       ],
@@ -917,7 +947,7 @@
       "size": 1
     },
     {
-      "id": 77,
+      "id": 78,
       "modules": [
         "pg:public.public.agent_profiles.blocked_operations"
       ],
@@ -927,7 +957,7 @@
       "size": 1
     },
     {
-      "id": 78,
+      "id": 79,
       "modules": [
         "pg:public.public.agent_profiles.created_at"
       ],
@@ -937,7 +967,7 @@
       "size": 1
     },
     {
-      "id": 79,
+      "id": 80,
       "modules": [
         "pg:public.public.agent_profiles.description"
       ],
@@ -947,7 +977,7 @@
       "size": 1
     },
     {
-      "id": 80,
+      "id": 81,
       "modules": [
         "pg:public.public.agent_profiles.enable"
       ],
@@ -957,7 +987,7 @@
       "size": 1
     },
     {
-      "id": 81,
+      "id": 82,
       "modules": [
         "pg:public.public.agent_profiles.enabled"
       ],
@@ -967,7 +997,7 @@
       "size": 1
     },
     {
-      "id": 82,
+      "id": 83,
       "modules": [
         "pg:public.public.agent_profiles.id"
       ],
@@ -977,7 +1007,7 @@
       "size": 1
     },
     {
-      "id": 83,
+      "id": 84,
       "modules": [
         "pg:public.public.agent_profiles.max_api_calls_per_hour"
       ],
@@ -987,7 +1017,7 @@
       "size": 1
     },
     {
-      "id": 84,
+      "id": 85,
       "modules": [
         "pg:public.public.agent_profiles.max_execution_time_seconds"
       ],
@@ -997,7 +1027,7 @@
       "size": 1
     },
     {
-      "id": 85,
+      "id": 86,
       "modules": [
         "pg:public.public.agent_profiles.max_file_modifications"
       ],
@@ -1007,7 +1037,7 @@
       "size": 1
     },
     {
-      "id": 86,
+      "id": 87,
       "modules": [
         "pg:public.public.agent_profiles.metadata"
       ],
@@ -1017,7 +1047,7 @@
       "size": 1
     },
     {
-      "id": 87,
+      "id": 88,
       "modules": [
         "pg:public.public.agent_profiles.name"
       ],
@@ -1027,7 +1057,7 @@
       "size": 1
     },
     {
-      "id": 88,
+      "id": 89,
       "modules": [
         "pg:public.public.agent_profiles.network_policy"
       ],
@@ -1037,7 +1067,7 @@
       "size": 1
     },
     {
-      "id": 89,
+      "id": 90,
       "modules": [
         "pg:public.public.agent_profiles.trust_level"
       ],
@@ -1047,7 +1077,7 @@
       "size": 1
     },
     {
-      "id": 90,
+      "id": 91,
       "modules": [
         "pg:public.public.agent_profiles.updated_at"
       ],
@@ -1057,7 +1087,7 @@
       "size": 1
     },
     {
-      "id": 91,
+      "id": 92,
       "modules": [
         "pg:public.public.agent_sessions"
       ],
@@ -1067,7 +1097,7 @@
       "size": 1
     },
     {
-      "id": 92,
+      "id": 93,
       "modules": [
         "pg:public.public.agent_sessions.agent_id"
       ],
@@ -1077,7 +1107,7 @@
       "size": 1
     },
     {
-      "id": 93,
+      "id": 94,
       "modules": [
         "pg:public.public.agent_sessions.agent_type"
       ],
@@ -1087,7 +1117,7 @@
       "size": 1
     },
     {
-      "id": 94,
+      "id": 95,
       "modules": [
         "pg:public.public.agent_sessions.capabilities"
       ],
@@ -1097,7 +1127,7 @@
       "size": 1
     },
     {
-      "id": 95,
+      "id": 96,
       "modules": [
         "pg:public.public.agent_sessions.current_task"
       ],
@@ -1107,7 +1137,7 @@
       "size": 1
     },
     {
-      "id": 96,
+      "id": 97,
       "modules": [
         "pg:public.public.agent_sessions.enable"
       ],
@@ -1117,7 +1147,7 @@
       "size": 1
     },
     {
-      "id": 97,
+      "id": 98,
       "modules": [
         "pg:public.public.agent_sessions.ended_at"
       ],
@@ -1127,7 +1157,7 @@
       "size": 1
     },
     {
-      "id": 98,
+      "id": 99,
       "modules": [
         "pg:public.public.agent_sessions.files_modified"
       ],
@@ -1137,7 +1167,7 @@
       "size": 1
     },
     {
-      "id": 99,
+      "id": 100,
       "modules": [
         "pg:public.public.agent_sessions.id"
       ],
@@ -1147,7 +1177,7 @@
       "size": 1
     },
     {
-      "id": 100,
+      "id": 101,
       "modules": [
         "pg:public.public.agent_sessions.last_heartbeat"
       ],
@@ -1157,7 +1187,7 @@
       "size": 1
     },
     {
-      "id": 101,
+      "id": 102,
       "modules": [
         "pg:public.public.agent_sessions.metadata"
       ],
@@ -1167,7 +1197,7 @@
       "size": 1
     },
     {
-      "id": 102,
+      "id": 103,
       "modules": [
         "pg:public.public.agent_sessions.started_at"
       ],
@@ -1177,7 +1207,7 @@
       "size": 1
     },
     {
-      "id": 103,
+      "id": 104,
       "modules": [
         "pg:public.public.agent_sessions.status"
       ],
@@ -1187,7 +1217,7 @@
       "size": 1
     },
     {
-      "id": 104,
+      "id": 105,
       "modules": [
         "pg:public.public.agent_sessions.task_description"
       ],
@@ -1197,7 +1227,7 @@
       "size": 1
     },
     {
-      "id": 105,
+      "id": 106,
       "modules": [
         "pg:public.public.agent_sessions.tasks_completed"
       ],
@@ -1207,7 +1237,7 @@
       "size": 1
     },
     {
-      "id": 106,
+      "id": 107,
       "modules": [
         "pg:public.public.approval_queue"
       ],
@@ -1217,7 +1247,7 @@
       "size": 1
     },
     {
-      "id": 107,
+      "id": 108,
       "modules": [
         "pg:public.public.approval_queue.changeset_id"
       ],
@@ -1227,7 +1257,7 @@
       "size": 1
     },
     {
-      "id": 108,
+      "id": 109,
       "modules": [
         "pg:public.public.approval_queue.created_at"
       ],
@@ -1237,7 +1267,7 @@
       "size": 1
     },
     {
-      "id": 109,
+      "id": 110,
       "modules": [
         "pg:public.public.approval_queue.enable"
       ],
@@ -1247,7 +1277,7 @@
       "size": 1
     },
     {
-      "id": 110,
+      "id": 111,
       "modules": [
         "pg:public.public.approval_queue.id"
       ],
@@ -1257,7 +1287,7 @@
       "size": 1
     },
     {
-      "id": 111,
+      "id": 112,
       "modules": [
         "pg:public.public.approval_queue.reason"
       ],
@@ -1267,7 +1297,7 @@
       "size": 1
     },
     {
-      "id": 112,
+      "id": 113,
       "modules": [
         "pg:public.public.approval_queue.requested_by"
       ],
@@ -1277,7 +1307,7 @@
       "size": 1
     },
     {
-      "id": 113,
+      "id": 114,
       "modules": [
         "pg:public.public.approval_queue.review_notes"
       ],
@@ -1287,7 +1317,7 @@
       "size": 1
     },
     {
-      "id": 114,
+      "id": 115,
       "modules": [
         "pg:public.public.approval_queue.reviewed_at"
       ],
@@ -1297,7 +1327,7 @@
       "size": 1
     },
     {
-      "id": 115,
+      "id": 116,
       "modules": [
         "pg:public.public.approval_queue.reviewed_by"
       ],
@@ -1307,7 +1337,7 @@
       "size": 1
     },
     {
-      "id": 116,
+      "id": 117,
       "modules": [
         "pg:public.public.approval_queue.status"
       ],
@@ -1317,7 +1347,7 @@
       "size": 1
     },
     {
-      "id": 117,
+      "id": 118,
       "modules": [
         "pg:public.public.approve_changeset"
       ],
@@ -1327,7 +1357,7 @@
       "size": 1
     },
     {
-      "id": 118,
+      "id": 119,
       "modules": [
         "pg:public.public.audit_log"
       ],
@@ -1337,7 +1367,7 @@
       "size": 1
     },
     {
-      "id": 119,
+      "id": 120,
       "modules": [
         "pg:public.public.audit_log.agent_id"
       ],
@@ -1347,7 +1377,7 @@
       "size": 1
     },
     {
-      "id": 120,
+      "id": 121,
       "modules": [
         "pg:public.public.audit_log.agent_type"
       ],
@@ -1357,7 +1387,7 @@
       "size": 1
     },
     {
-      "id": 121,
+      "id": 122,
       "modules": [
         "pg:public.public.audit_log.created_at"
       ],
@@ -1367,7 +1397,7 @@
       "size": 1
     },
     {
-      "id": 122,
+      "id": 123,
       "modules": [
         "pg:public.public.audit_log.duration_ms"
       ],
@@ -1377,7 +1407,7 @@
       "size": 1
     },
     {
-      "id": 123,
+      "id": 124,
       "modules": [
         "pg:public.public.audit_log.enable"
       ],
@@ -1387,7 +1417,7 @@
       "size": 1
     },
     {
-      "id": 124,
+      "id": 125,
       "modules": [
         "pg:public.public.audit_log.error_message"
       ],
@@ -1397,7 +1427,7 @@
       "size": 1
     },
     {
-      "id": 125,
+      "id": 126,
       "modules": [
         "pg:public.public.audit_log.id"
       ],
@@ -1407,7 +1437,7 @@
       "size": 1
     },
     {
-      "id": 126,
+      "id": 127,
       "modules": [
         "pg:public.public.audit_log.operation"
       ],
@@ -1417,7 +1447,7 @@
       "size": 1
     },
     {
-      "id": 127,
+      "id": 128,
       "modules": [
         "pg:public.public.audit_log.parameters"
       ],
@@ -1427,7 +1457,7 @@
       "size": 1
     },
     {
-      "id": 128,
+      "id": 129,
       "modules": [
         "pg:public.public.audit_log.result"
       ],
@@ -1437,7 +1467,7 @@
       "size": 1
     },
     {
-      "id": 129,
+      "id": 130,
       "modules": [
         "pg:public.public.audit_log.success"
       ],
@@ -1447,7 +1477,7 @@
       "size": 1
     },
     {
-      "id": 130,
+      "id": 131,
       "modules": [
         "pg:public.public.cedar_entities"
       ],
@@ -1457,7 +1487,7 @@
       "size": 1
     },
     {
-      "id": 131,
+      "id": 132,
       "modules": [
         "pg:public.public.cedar_entities.attributes"
       ],
@@ -1467,7 +1497,7 @@
       "size": 1
     },
     {
-      "id": 132,
+      "id": 133,
       "modules": [
         "pg:public.public.cedar_entities.created_at"
       ],
@@ -1477,7 +1507,7 @@
       "size": 1
     },
     {
-      "id": 133,
+      "id": 134,
       "modules": [
         "pg:public.public.cedar_entities.enable"
       ],
@@ -1487,7 +1517,7 @@
       "size": 1
     },
     {
-      "id": 134,
+      "id": 135,
       "modules": [
         "pg:public.public.cedar_entities.entity_id"
       ],
@@ -1497,7 +1527,7 @@
       "size": 1
     },
     {
-      "id": 135,
+      "id": 136,
       "modules": [
         "pg:public.public.cedar_entities.entity_type"
       ],
@@ -1507,7 +1537,7 @@
       "size": 1
     },
     {
-      "id": 136,
+      "id": 137,
       "modules": [
         "pg:public.public.cedar_entities.id"
       ],
@@ -1517,7 +1547,7 @@
       "size": 1
     },
     {
-      "id": 137,
+      "id": 138,
       "modules": [
         "pg:public.public.cedar_entities.parents"
       ],
@@ -1527,7 +1557,7 @@
       "size": 1
     },
     {
-      "id": 138,
+      "id": 139,
       "modules": [
         "pg:public.public.cedar_entities.updated_at"
       ],
@@ -1537,7 +1567,7 @@
       "size": 1
     },
     {
-      "id": 139,
+      "id": 140,
       "modules": [
         "pg:public.public.cedar_policies"
       ],
@@ -1547,7 +1577,7 @@
       "size": 1
     },
     {
-      "id": 140,
+      "id": 141,
       "modules": [
         "pg:public.public.cedar_policies.created_at"
       ],
@@ -1557,7 +1587,7 @@
       "size": 1
     },
     {
-      "id": 141,
+      "id": 142,
       "modules": [
         "pg:public.public.cedar_policies.description"
       ],
@@ -1567,7 +1597,7 @@
       "size": 1
     },
     {
-      "id": 142,
+      "id": 143,
       "modules": [
         "pg:public.public.cedar_policies.enable"
       ],
@@ -1577,7 +1607,7 @@
       "size": 1
     },
     {
-      "id": 143,
+      "id": 144,
       "modules": [
         "pg:public.public.cedar_policies.enabled"
       ],
@@ -1587,7 +1617,7 @@
       "size": 1
     },
     {
-      "id": 144,
+      "id": 145,
       "modules": [
         "pg:public.public.cedar_policies.id"
       ],
@@ -1597,7 +1627,7 @@
       "size": 1
     },
     {
-      "id": 145,
+      "id": 146,
       "modules": [
         "pg:public.public.cedar_policies.name"
       ],
@@ -1607,7 +1637,7 @@
       "size": 1
     },
     {
-      "id": 146,
+      "id": 147,
       "modules": [
         "pg:public.public.cedar_policies.policy_text"
       ],
@@ -1617,7 +1647,7 @@
       "size": 1
     },
     {
-      "id": 147,
+      "id": 148,
       "modules": [
         "pg:public.public.cedar_policies.priority"
       ],
@@ -1627,7 +1657,7 @@
       "size": 1
     },
     {
-      "id": 148,
+      "id": 149,
       "modules": [
         "pg:public.public.cedar_policies.updated_at"
       ],
@@ -1637,7 +1667,7 @@
       "size": 1
     },
     {
-      "id": 149,
+      "id": 150,
       "modules": [
         "pg:public.public.changesets"
       ],
@@ -1647,7 +1677,7 @@
       "size": 1
     },
     {
-      "id": 150,
+      "id": 151,
       "modules": [
         "pg:public.public.changesets.agent_id"
       ],
@@ -1657,7 +1687,7 @@
       "size": 1
     },
     {
-      "id": 151,
+      "id": 152,
       "modules": [
         "pg:public.public.changesets.branch_name"
       ],
@@ -1667,7 +1697,7 @@
       "size": 1
     },
     {
-      "id": 152,
+      "id": 153,
       "modules": [
         "pg:public.public.changesets.changed_files"
       ],
@@ -1677,7 +1707,7 @@
       "size": 1
     },
     {
-      "id": 153,
+      "id": 154,
       "modules": [
         "pg:public.public.changesets.commit_sha"
       ],
@@ -1687,7 +1717,7 @@
       "size": 1
     },
     {
-      "id": 154,
+      "id": 155,
       "modules": [
         "pg:public.public.changesets.created_at"
       ],
@@ -1697,7 +1727,7 @@
       "size": 1
     },
     {
-      "id": 155,
+      "id": 156,
       "modules": [
         "pg:public.public.changesets.description"
       ],
@@ -1707,7 +1737,7 @@
       "size": 1
     },
     {
-      "id": 156,
+      "id": 157,
       "modules": [
         "pg:public.public.changesets.enable"
       ],
@@ -1717,7 +1747,7 @@
       "size": 1
     },
     {
-      "id": 157,
+      "id": 158,
       "modules": [
         "pg:public.public.changesets.id"
       ],
@@ -1727,7 +1757,7 @@
       "size": 1
     },
     {
-      "id": 158,
+      "id": 159,
       "modules": [
         "pg:public.public.changesets.session_id"
       ],
@@ -1737,7 +1767,7 @@
       "size": 1
     },
     {
-      "id": 159,
+      "id": 160,
       "modules": [
         "pg:public.public.changesets.status"
       ],
@@ -1747,7 +1777,7 @@
       "size": 1
     },
     {
-      "id": 160,
+      "id": 161,
       "modules": [
         "pg:public.public.changesets.updated_at"
       ],
@@ -1757,7 +1787,7 @@
       "size": 1
     },
     {
-      "id": 161,
+      "id": 162,
       "modules": [
         "pg:public.public.check_guardrails"
       ],
@@ -1767,7 +1797,7 @@
       "size": 1
     },
     {
-      "id": 162,
+      "id": 163,
       "modules": [
         "pg:public.public.claim_task"
       ],
@@ -1777,7 +1807,7 @@
       "size": 1
     },
     {
-      "id": 163,
+      "id": 164,
       "modules": [
         "pg:public.public.cleanup_dead_agents"
       ],
@@ -1787,7 +1817,7 @@
       "size": 1
     },
     {
-      "id": 164,
+      "id": 165,
       "modules": [
         "pg:public.public.cleanup_old_audit_entries"
       ],
@@ -1797,7 +1827,7 @@
       "size": 1
     },
     {
-      "id": 165,
+      "id": 166,
       "modules": [
         "pg:public.public.complete_task"
       ],
@@ -1807,7 +1837,7 @@
       "size": 1
     },
     {
-      "id": 166,
+      "id": 167,
       "modules": [
         "pg:public.public.deregister_feature"
       ],
@@ -1817,7 +1847,7 @@
       "size": 1
     },
     {
-      "id": 167,
+      "id": 168,
       "modules": [
         "pg:public.public.discover_agents"
       ],
@@ -1827,7 +1857,7 @@
       "size": 1
     },
     {
-      "id": 168,
+      "id": 169,
       "modules": [
         "pg:public.public.feature_registry"
       ],
@@ -1837,7 +1867,7 @@
       "size": 1
     },
     {
-      "id": 169,
+      "id": 170,
       "modules": [
         "pg:public.public.feature_registry.branch_name"
       ],
@@ -1847,7 +1877,7 @@
       "size": 1
     },
     {
-      "id": 170,
+      "id": 171,
       "modules": [
         "pg:public.public.feature_registry.completed_at"
       ],
@@ -1857,7 +1887,7 @@
       "size": 1
     },
     {
-      "id": 171,
+      "id": 172,
       "modules": [
         "pg:public.public.feature_registry.feature_id"
       ],
@@ -1867,7 +1897,7 @@
       "size": 1
     },
     {
-      "id": 172,
+      "id": 173,
       "modules": [
         "pg:public.public.feature_registry.merge_priority"
       ],
@@ -1877,7 +1907,7 @@
       "size": 1
     },
     {
-      "id": 173,
+      "id": 174,
       "modules": [
         "pg:public.public.feature_registry.registered_at"
       ],
@@ -1887,7 +1917,7 @@
       "size": 1
     },
     {
-      "id": 174,
+      "id": 175,
       "modules": [
         "pg:public.public.feature_registry.registered_by"
       ],
@@ -1897,7 +1927,7 @@
       "size": 1
     },
     {
-      "id": 175,
+      "id": 176,
       "modules": [
         "pg:public.public.feature_registry.resource_claims"
       ],
@@ -1907,7 +1937,7 @@
       "size": 1
     },
     {
-      "id": 176,
+      "id": 177,
       "modules": [
         "pg:public.public.feature_registry.status"
       ],
@@ -1917,7 +1947,7 @@
       "size": 1
     },
     {
-      "id": 177,
+      "id": 178,
       "modules": [
         "pg:public.public.feature_registry.title"
       ],
@@ -1927,7 +1957,7 @@
       "size": 1
     },
     {
-      "id": 178,
+      "id": 179,
       "modules": [
         "pg:public.public.feature_registry.updated_at"
       ],
@@ -1937,7 +1967,7 @@
       "size": 1
     },
     {
-      "id": 179,
+      "id": 180,
       "modules": [
         "pg:public.public.file_locks"
       ],
@@ -1947,7 +1977,7 @@
       "size": 1
     },
     {
-      "id": 180,
+      "id": 181,
       "modules": [
         "pg:public.public.file_locks.agent_type"
       ],
@@ -1957,7 +1987,7 @@
       "size": 1
     },
     {
-      "id": 181,
+      "id": 182,
       "modules": [
         "pg:public.public.file_locks.enable"
       ],
@@ -1967,7 +1997,7 @@
       "size": 1
     },
     {
-      "id": 182,
+      "id": 183,
       "modules": [
         "pg:public.public.file_locks.expires_at"
       ],
@@ -1977,7 +2007,7 @@
       "size": 1
     },
     {
-      "id": 183,
+      "id": 184,
       "modules": [
         "pg:public.public.file_locks.file_path"
       ],
@@ -1987,7 +2017,7 @@
       "size": 1
     },
     {
-      "id": 184,
+      "id": 185,
       "modules": [
         "pg:public.public.file_locks.locked_at"
       ],
@@ -1997,7 +2027,7 @@
       "size": 1
     },
     {
-      "id": 185,
+      "id": 186,
       "modules": [
         "pg:public.public.file_locks.locked_by"
       ],
@@ -2007,7 +2037,7 @@
       "size": 1
     },
     {
-      "id": 186,
+      "id": 187,
       "modules": [
         "pg:public.public.file_locks.metadata"
       ],
@@ -2017,7 +2047,7 @@
       "size": 1
     },
     {
-      "id": 187,
+      "id": 188,
       "modules": [
         "pg:public.public.file_locks.reason"
       ],
@@ -2027,7 +2057,7 @@
       "size": 1
     },
     {
-      "id": 188,
+      "id": 189,
       "modules": [
         "pg:public.public.file_locks.session_id"
       ],
@@ -2037,7 +2067,7 @@
       "size": 1
     },
     {
-      "id": 189,
+      "id": 190,
       "modules": [
         "pg:public.public.get_agent_profile"
       ],
@@ -2047,7 +2077,7 @@
       "size": 1
     },
     {
-      "id": 190,
+      "id": 191,
       "modules": [
         "pg:public.public.get_pending_approvals"
       ],
@@ -2057,7 +2087,7 @@
       "size": 1
     },
     {
-      "id": 191,
+      "id": 192,
       "modules": [
         "pg:public.public.get_relevant_memories"
       ],
@@ -2067,7 +2097,7 @@
       "size": 1
     },
     {
-      "id": 192,
+      "id": 193,
       "modules": [
         "pg:public.public.guardrail_violations"
       ],
@@ -2077,7 +2107,7 @@
       "size": 1
     },
     {
-      "id": 193,
+      "id": 194,
       "modules": [
         "pg:public.public.guardrail_violations.agent_id"
       ],
@@ -2087,7 +2117,7 @@
       "size": 1
     },
     {
-      "id": 194,
+      "id": 195,
       "modules": [
         "pg:public.public.guardrail_violations.agent_type"
       ],
@@ -2097,7 +2127,7 @@
       "size": 1
     },
     {
-      "id": 195,
+      "id": 196,
       "modules": [
         "pg:public.public.guardrail_violations.blocked"
       ],
@@ -2107,7 +2137,7 @@
       "size": 1
     },
     {
-      "id": 196,
+      "id": 197,
       "modules": [
         "pg:public.public.guardrail_violations.category"
       ],
@@ -2117,7 +2147,7 @@
       "size": 1
     },
     {
-      "id": 197,
+      "id": 198,
       "modules": [
         "pg:public.public.guardrail_violations.context"
       ],
@@ -2127,7 +2157,7 @@
       "size": 1
     },
     {
-      "id": 198,
+      "id": 199,
       "modules": [
         "pg:public.public.guardrail_violations.created_at"
       ],
@@ -2137,7 +2167,7 @@
       "size": 1
     },
     {
-      "id": 199,
+      "id": 200,
       "modules": [
         "pg:public.public.guardrail_violations.enable"
       ],
@@ -2147,7 +2177,7 @@
       "size": 1
     },
     {
-      "id": 200,
+      "id": 201,
       "modules": [
         "pg:public.public.guardrail_violations.id"
       ],
@@ -2157,7 +2187,7 @@
       "size": 1
     },
     {
-      "id": 201,
+      "id": 202,
       "modules": [
         "pg:public.public.guardrail_violations.matched_text"
       ],
@@ -2167,7 +2197,7 @@
       "size": 1
     },
     {
-      "id": 202,
+      "id": 203,
       "modules": [
         "pg:public.public.guardrail_violations.operation_text"
       ],
@@ -2177,7 +2207,7 @@
       "size": 1
     },
     {
-      "id": 203,
+      "id": 204,
       "modules": [
         "pg:public.public.guardrail_violations.pattern_name"
       ],
@@ -2187,7 +2217,7 @@
       "size": 1
     },
     {
-      "id": 204,
+      "id": 205,
       "modules": [
         "pg:public.public.guardrail_violations.trust_level"
       ],
@@ -2197,7 +2227,7 @@
       "size": 1
     },
     {
-      "id": 205,
+      "id": 206,
       "modules": [
         "pg:public.public.handoff_documents"
       ],
@@ -2207,7 +2237,7 @@
       "size": 1
     },
     {
-      "id": 206,
+      "id": 207,
       "modules": [
         "pg:public.public.handoff_documents.agent_name"
       ],
@@ -2217,7 +2247,7 @@
       "size": 1
     },
     {
-      "id": 207,
+      "id": 208,
       "modules": [
         "pg:public.public.handoff_documents.completed_work"
       ],
@@ -2227,7 +2257,7 @@
       "size": 1
     },
     {
-      "id": 208,
+      "id": 209,
       "modules": [
         "pg:public.public.handoff_documents.created_at"
       ],
@@ -2237,7 +2267,7 @@
       "size": 1
     },
     {
-      "id": 209,
+      "id": 210,
       "modules": [
         "pg:public.public.handoff_documents.decisions"
       ],
@@ -2247,7 +2277,7 @@
       "size": 1
     },
     {
-      "id": 210,
+      "id": 211,
       "modules": [
         "pg:public.public.handoff_documents.enable"
       ],
@@ -2257,7 +2287,7 @@
       "size": 1
     },
     {
-      "id": 211,
+      "id": 212,
       "modules": [
         "pg:public.public.handoff_documents.id"
       ],
@@ -2267,7 +2297,7 @@
       "size": 1
     },
     {
-      "id": 212,
+      "id": 213,
       "modules": [
         "pg:public.public.handoff_documents.in_progress"
       ],
@@ -2277,7 +2307,7 @@
       "size": 1
     },
     {
-      "id": 213,
+      "id": 214,
       "modules": [
         "pg:public.public.handoff_documents.next_steps"
       ],
@@ -2287,7 +2317,7 @@
       "size": 1
     },
     {
-      "id": 214,
+      "id": 215,
       "modules": [
         "pg:public.public.handoff_documents.relevant_files"
       ],
@@ -2297,7 +2327,7 @@
       "size": 1
     },
     {
-      "id": 215,
+      "id": 216,
       "modules": [
         "pg:public.public.handoff_documents.session_id"
       ],
@@ -2307,7 +2337,7 @@
       "size": 1
     },
     {
-      "id": 216,
+      "id": 217,
       "modules": [
         "pg:public.public.handoff_documents.summary"
       ],
@@ -2317,7 +2347,7 @@
       "size": 1
     },
     {
-      "id": 217,
+      "id": 218,
       "modules": [
         "pg:public.public.is_domain_allowed"
       ],
@@ -2327,7 +2357,7 @@
       "size": 1
     },
     {
-      "id": 218,
+      "id": 219,
       "modules": [
         "pg:public.public.memory_episodic"
       ],
@@ -2337,7 +2367,7 @@
       "size": 1
     },
     {
-      "id": 219,
+      "id": 220,
       "modules": [
         "pg:public.public.memory_episodic.agent_id"
       ],
@@ -2347,7 +2377,7 @@
       "size": 1
     },
     {
-      "id": 220,
+      "id": 221,
       "modules": [
         "pg:public.public.memory_episodic.created_at"
       ],
@@ -2357,7 +2387,7 @@
       "size": 1
     },
     {
-      "id": 221,
+      "id": 222,
       "modules": [
         "pg:public.public.memory_episodic.details"
       ],
@@ -2367,7 +2397,7 @@
       "size": 1
     },
     {
-      "id": 222,
+      "id": 223,
       "modules": [
         "pg:public.public.memory_episodic.enable"
       ],
@@ -2377,7 +2407,7 @@
       "size": 1
     },
     {
-      "id": 223,
+      "id": 224,
       "modules": [
         "pg:public.public.memory_episodic.event_type"
       ],
@@ -2387,7 +2417,7 @@
       "size": 1
     },
     {
-      "id": 224,
+      "id": 225,
       "modules": [
         "pg:public.public.memory_episodic.id"
       ],
@@ -2397,7 +2427,7 @@
       "size": 1
     },
     {
-      "id": 225,
+      "id": 226,
       "modules": [
         "pg:public.public.memory_episodic.lessons"
       ],
@@ -2407,7 +2437,7 @@
       "size": 1
     },
     {
-      "id": 226,
+      "id": 227,
       "modules": [
         "pg:public.public.memory_episodic.outcome"
       ],
@@ -2417,7 +2447,7 @@
       "size": 1
     },
     {
-      "id": 227,
+      "id": 228,
       "modules": [
         "pg:public.public.memory_episodic.relevance_score"
       ],
@@ -2427,7 +2457,7 @@
       "size": 1
     },
     {
-      "id": 228,
+      "id": 229,
       "modules": [
         "pg:public.public.memory_episodic.session_id"
       ],
@@ -2437,7 +2467,7 @@
       "size": 1
     },
     {
-      "id": 229,
+      "id": 230,
       "modules": [
         "pg:public.public.memory_episodic.summary"
       ],
@@ -2447,7 +2477,7 @@
       "size": 1
     },
     {
-      "id": 230,
+      "id": 231,
       "modules": [
         "pg:public.public.memory_episodic.tags"
       ],
@@ -2457,7 +2487,7 @@
       "size": 1
     },
     {
-      "id": 231,
+      "id": 232,
       "modules": [
         "pg:public.public.memory_procedural"
       ],
@@ -2467,7 +2497,7 @@
       "size": 1
     },
     {
-      "id": 232,
+      "id": 233,
       "modules": [
         "pg:public.public.memory_procedural.created_at"
       ],
@@ -2477,7 +2507,7 @@
       "size": 1
     },
     {
-      "id": 233,
+      "id": 234,
       "modules": [
         "pg:public.public.memory_procedural.description"
       ],
@@ -2487,7 +2517,7 @@
       "size": 1
     },
     {
-      "id": 234,
+      "id": 235,
       "modules": [
         "pg:public.public.memory_procedural.enable"
       ],
@@ -2497,7 +2527,7 @@
       "size": 1
     },
     {
-      "id": 235,
+      "id": 236,
       "modules": [
         "pg:public.public.memory_procedural.failure_count"
       ],
@@ -2507,7 +2537,7 @@
       "size": 1
     },
     {
-      "id": 236,
+      "id": 237,
       "modules": [
         "pg:public.public.memory_procedural.id"
       ],
@@ -2517,7 +2547,7 @@
       "size": 1
     },
     {
-      "id": 237,
+      "id": 238,
       "modules": [
         "pg:public.public.memory_procedural.last_used"
       ],
@@ -2527,7 +2557,7 @@
       "size": 1
     },
     {
-      "id": 238,
+      "id": 239,
       "modules": [
         "pg:public.public.memory_procedural.prerequisites"
       ],
@@ -2537,7 +2567,7 @@
       "size": 1
     },
     {
-      "id": 239,
+      "id": 240,
       "modules": [
         "pg:public.public.memory_procedural.skill_name"
       ],
@@ -2547,7 +2577,7 @@
       "size": 1
     },
     {
-      "id": 240,
+      "id": 241,
       "modules": [
         "pg:public.public.memory_procedural.steps"
       ],
@@ -2557,7 +2587,7 @@
       "size": 1
     },
     {
-      "id": 241,
+      "id": 242,
       "modules": [
         "pg:public.public.memory_procedural.success_count"
       ],
@@ -2567,7 +2597,7 @@
       "size": 1
     },
     {
-      "id": 242,
+      "id": 243,
       "modules": [
         "pg:public.public.memory_procedural.updated_at"
       ],
@@ -2577,7 +2607,7 @@
       "size": 1
     },
     {
-      "id": 243,
+      "id": 244,
       "modules": [
         "pg:public.public.memory_working"
       ],
@@ -2587,7 +2617,7 @@
       "size": 1
     },
     {
-      "id": 244,
+      "id": 245,
       "modules": [
         "pg:public.public.memory_working.agent_id"
       ],
@@ -2597,7 +2627,7 @@
       "size": 1
     },
     {
-      "id": 245,
+      "id": 246,
       "modules": [
         "pg:public.public.memory_working.created_at"
       ],
@@ -2607,7 +2637,7 @@
       "size": 1
     },
     {
-      "id": 246,
+      "id": 247,
       "modules": [
         "pg:public.public.memory_working.enable"
       ],
@@ -2617,7 +2647,7 @@
       "size": 1
     },
     {
-      "id": 247,
+      "id": 248,
       "modules": [
         "pg:public.public.memory_working.expires_at"
       ],
@@ -2627,7 +2657,7 @@
       "size": 1
     },
     {
-      "id": 248,
+      "id": 249,
       "modules": [
         "pg:public.public.memory_working.id"
       ],
@@ -2637,7 +2667,7 @@
       "size": 1
     },
     {
-      "id": 249,
+      "id": 250,
       "modules": [
         "pg:public.public.memory_working.session_id"
       ],
@@ -2647,7 +2677,7 @@
       "size": 1
     },
     {
-      "id": 250,
+      "id": 251,
       "modules": [
         "pg:public.public.memory_working.updated_at"
       ],
@@ -2657,7 +2687,7 @@
       "size": 1
     },
     {
-      "id": 251,
+      "id": 252,
       "modules": [
         "pg:public.public.memory_working.value"
       ],
@@ -2667,7 +2697,7 @@
       "size": 1
     },
     {
-      "id": 252,
+      "id": 253,
       "modules": [
         "pg:public.public.network_access_log"
       ],
@@ -2677,7 +2707,7 @@
       "size": 1
     },
     {
-      "id": 253,
+      "id": 254,
       "modules": [
         "pg:public.public.network_access_log.agent_id"
       ],
@@ -2687,7 +2717,7 @@
       "size": 1
     },
     {
-      "id": 254,
+      "id": 255,
       "modules": [
         "pg:public.public.network_access_log.allowed"
       ],
@@ -2697,7 +2727,7 @@
       "size": 1
     },
     {
-      "id": 255,
+      "id": 256,
       "modules": [
         "pg:public.public.network_access_log.created_at"
       ],
@@ -2707,7 +2737,7 @@
       "size": 1
     },
     {
-      "id": 256,
+      "id": 257,
       "modules": [
         "pg:public.public.network_access_log.domain"
       ],
@@ -2717,7 +2747,7 @@
       "size": 1
     },
     {
-      "id": 257,
+      "id": 258,
       "modules": [
         "pg:public.public.network_access_log.enable"
       ],
@@ -2727,7 +2757,7 @@
       "size": 1
     },
     {
-      "id": 258,
+      "id": 259,
       "modules": [
         "pg:public.public.network_access_log.id"
       ],
@@ -2737,7 +2767,7 @@
       "size": 1
     },
     {
-      "id": 259,
+      "id": 260,
       "modules": [
         "pg:public.public.network_access_log.policy_id"
       ],
@@ -2747,7 +2777,7 @@
       "size": 1
     },
     {
-      "id": 260,
+      "id": 261,
       "modules": [
         "pg:public.public.network_access_log.reason"
       ],
@@ -2757,7 +2787,7 @@
       "size": 1
     },
     {
-      "id": 261,
+      "id": 262,
       "modules": [
         "pg:public.public.network_policies"
       ],
@@ -2767,7 +2797,7 @@
       "size": 1
     },
     {
-      "id": 262,
+      "id": 263,
       "modules": [
         "pg:public.public.network_policies.action"
       ],
@@ -2777,7 +2807,7 @@
       "size": 1
     },
     {
-      "id": 263,
+      "id": 264,
       "modules": [
         "pg:public.public.network_policies.created_at"
       ],
@@ -2787,7 +2817,7 @@
       "size": 1
     },
     {
-      "id": 264,
+      "id": 265,
       "modules": [
         "pg:public.public.network_policies.description"
       ],
@@ -2797,7 +2827,7 @@
       "size": 1
     },
     {
-      "id": 265,
+      "id": 266,
       "modules": [
         "pg:public.public.network_policies.domain_pattern"
       ],
@@ -2807,7 +2837,7 @@
       "size": 1
     },
     {
-      "id": 266,
+      "id": 267,
       "modules": [
         "pg:public.public.network_policies.enable"
       ],
@@ -2817,7 +2847,7 @@
       "size": 1
     },
     {
-      "id": 267,
+      "id": 268,
       "modules": [
         "pg:public.public.network_policies.enabled"
       ],
@@ -2827,7 +2857,7 @@
       "size": 1
     },
     {
-      "id": 268,
+      "id": 269,
       "modules": [
         "pg:public.public.network_policies.id"
       ],
@@ -2837,7 +2867,7 @@
       "size": 1
     },
     {
-      "id": 269,
+      "id": 270,
       "modules": [
         "pg:public.public.network_policies.priority"
       ],
@@ -2847,7 +2877,7 @@
       "size": 1
     },
     {
-      "id": 270,
+      "id": 271,
       "modules": [
         "pg:public.public.network_policies.profile_id"
       ],
@@ -2857,7 +2887,7 @@
       "size": 1
     },
     {
-      "id": 271,
+      "id": 272,
       "modules": [
         "pg:public.public.operation_guardrails"
       ],
@@ -2867,7 +2897,7 @@
       "size": 1
     },
     {
-      "id": 272,
+      "id": 273,
       "modules": [
         "pg:public.public.operation_guardrails.category"
       ],
@@ -2877,7 +2907,7 @@
       "size": 1
     },
     {
-      "id": 273,
+      "id": 274,
       "modules": [
         "pg:public.public.operation_guardrails.created_at"
       ],
@@ -2887,7 +2917,7 @@
       "size": 1
     },
     {
-      "id": 274,
+      "id": 275,
       "modules": [
         "pg:public.public.operation_guardrails.description"
       ],
@@ -2897,7 +2927,7 @@
       "size": 1
     },
     {
-      "id": 275,
+      "id": 276,
       "modules": [
         "pg:public.public.operation_guardrails.enable"
       ],
@@ -2907,7 +2937,7 @@
       "size": 1
     },
     {
-      "id": 276,
+      "id": 277,
       "modules": [
         "pg:public.public.operation_guardrails.enabled"
       ],
@@ -2917,7 +2947,7 @@
       "size": 1
     },
     {
-      "id": 277,
+      "id": 278,
       "modules": [
         "pg:public.public.operation_guardrails.id"
       ],
@@ -2927,7 +2957,7 @@
       "size": 1
     },
     {
-      "id": 278,
+      "id": 279,
       "modules": [
         "pg:public.public.operation_guardrails.min_trust_level"
       ],
@@ -2937,7 +2967,7 @@
       "size": 1
     },
     {
-      "id": 279,
+      "id": 280,
       "modules": [
         "pg:public.public.operation_guardrails.name"
       ],
@@ -2947,7 +2977,7 @@
       "size": 1
     },
     {
-      "id": 280,
+      "id": 281,
       "modules": [
         "pg:public.public.operation_guardrails.pattern"
       ],
@@ -2957,7 +2987,7 @@
       "size": 1
     },
     {
-      "id": 281,
+      "id": 282,
       "modules": [
         "pg:public.public.operation_guardrails.severity"
       ],
@@ -2967,7 +2997,7 @@
       "size": 1
     },
     {
-      "id": 282,
+      "id": 283,
       "modules": [
         "pg:public.public.raise_immutable_error"
       ],
@@ -2977,7 +3007,7 @@
       "size": 1
     },
     {
-      "id": 283,
+      "id": 284,
       "modules": [
         "pg:public.public.read_handoff"
       ],
@@ -2987,7 +3017,7 @@
       "size": 1
     },
     {
-      "id": 284,
+      "id": 285,
       "modules": [
         "pg:public.public.register_agent_session"
       ],
@@ -2997,7 +3027,7 @@
       "size": 1
     },
     {
-      "id": 285,
+      "id": 286,
       "modules": [
         "pg:public.public.register_feature"
       ],
@@ -3007,7 +3037,7 @@
       "size": 1
     },
     {
-      "id": 286,
+      "id": 287,
       "modules": [
         "pg:public.public.release_lock"
       ],
@@ -3017,7 +3047,7 @@
       "size": 1
     },
     {
-      "id": 287,
+      "id": 288,
       "modules": [
         "pg:public.public.store_episodic_memory"
       ],
@@ -3027,7 +3057,7 @@
       "size": 1
     },
     {
-      "id": 288,
+      "id": 289,
       "modules": [
         "pg:public.public.submit_task"
       ],
@@ -3037,7 +3067,7 @@
       "size": 1
     },
     {
-      "id": 289,
+      "id": 290,
       "modules": [
         "pg:public.public.update_cedar_policies_timestamp"
       ],
@@ -3047,7 +3077,7 @@
       "size": 1
     },
     {
-      "id": 290,
+      "id": 291,
       "modules": [
         "pg:public.public.verification_policies"
       ],
@@ -3057,7 +3087,7 @@
       "size": 1
     },
     {
-      "id": 291,
+      "id": 292,
       "modules": [
         "pg:public.public.verification_policies.config"
       ],
@@ -3067,7 +3097,7 @@
       "size": 1
     },
     {
-      "id": 292,
+      "id": 293,
       "modules": [
         "pg:public.public.verification_policies.created_at"
       ],
@@ -3077,7 +3107,7 @@
       "size": 1
     },
     {
-      "id": 293,
+      "id": 294,
       "modules": [
         "pg:public.public.verification_policies.description"
       ],
@@ -3087,7 +3117,7 @@
       "size": 1
     },
     {
-      "id": 294,
+      "id": 295,
       "modules": [
         "pg:public.public.verification_policies.enable"
       ],
@@ -3097,7 +3127,7 @@
       "size": 1
     },
     {
-      "id": 295,
+      "id": 296,
       "modules": [
         "pg:public.public.verification_policies.enabled"
       ],
@@ -3107,7 +3137,7 @@
       "size": 1
     },
     {
-      "id": 296,
+      "id": 297,
       "modules": [
         "pg:public.public.verification_policies.executor"
       ],
@@ -3117,7 +3147,7 @@
       "size": 1
     },
     {
-      "id": 297,
+      "id": 298,
       "modules": [
         "pg:public.public.verification_policies.file_pattern"
       ],
@@ -3127,7 +3157,7 @@
       "size": 1
     },
     {
-      "id": 298,
+      "id": 299,
       "modules": [
         "pg:public.public.verification_policies.id"
       ],
@@ -3137,7 +3167,7 @@
       "size": 1
     },
     {
-      "id": 299,
+      "id": 300,
       "modules": [
         "pg:public.public.verification_policies.name"
       ],
@@ -3147,7 +3177,7 @@
       "size": 1
     },
     {
-      "id": 300,
+      "id": 301,
       "modules": [
         "pg:public.public.verification_policies.priority"
       ],
@@ -3157,7 +3187,7 @@
       "size": 1
     },
     {
-      "id": 301,
+      "id": 302,
       "modules": [
         "pg:public.public.verification_policies.tier"
       ],
@@ -3167,7 +3197,7 @@
       "size": 1
     },
     {
-      "id": 302,
+      "id": 303,
       "modules": [
         "pg:public.public.verification_results"
       ],
@@ -3177,7 +3207,7 @@
       "size": 1
     },
     {
-      "id": 303,
+      "id": 304,
       "modules": [
         "pg:public.public.verification_results.changeset_id"
       ],
@@ -3187,7 +3217,7 @@
       "size": 1
     },
     {
-      "id": 304,
+      "id": 305,
       "modules": [
         "pg:public.public.verification_results.completed_at"
       ],
@@ -3197,7 +3227,7 @@
       "size": 1
     },
     {
-      "id": 305,
+      "id": 306,
       "modules": [
         "pg:public.public.verification_results.created_at"
       ],
@@ -3207,7 +3237,7 @@
       "size": 1
     },
     {
-      "id": 306,
+      "id": 307,
       "modules": [
         "pg:public.public.verification_results.duration_ms"
       ],
@@ -3217,7 +3247,7 @@
       "size": 1
     },
     {
-      "id": 307,
+      "id": 308,
       "modules": [
         "pg:public.public.verification_results.enable"
       ],
@@ -3227,7 +3257,7 @@
       "size": 1
     },
     {
-      "id": 308,
+      "id": 309,
       "modules": [
         "pg:public.public.verification_results.error_message"
       ],
@@ -3237,7 +3267,7 @@
       "size": 1
     },
     {
-      "id": 309,
+      "id": 310,
       "modules": [
         "pg:public.public.verification_results.executor"
       ],
@@ -3247,7 +3277,7 @@
       "size": 1
     },
     {
-      "id": 310,
+      "id": 311,
       "modules": [
         "pg:public.public.verification_results.id"
       ],
@@ -3257,7 +3287,7 @@
       "size": 1
     },
     {
-      "id": 311,
+      "id": 312,
       "modules": [
         "pg:public.public.verification_results.result"
       ],
@@ -3267,7 +3297,7 @@
       "size": 1
     },
     {
-      "id": 312,
+      "id": 313,
       "modules": [
         "pg:public.public.verification_results.started_at"
       ],
@@ -3277,7 +3307,7 @@
       "size": 1
     },
     {
-      "id": 313,
+      "id": 314,
       "modules": [
         "pg:public.public.verification_results.status"
       ],
@@ -3287,7 +3317,7 @@
       "size": 1
     },
     {
-      "id": 314,
+      "id": 315,
       "modules": [
         "pg:public.public.verification_results.tier"
       ],
@@ -3297,7 +3327,7 @@
       "size": 1
     },
     {
-      "id": 315,
+      "id": 316,
       "modules": [
         "pg:public.public.work_queue"
       ],
@@ -3307,7 +3337,7 @@
       "size": 1
     },
     {
-      "id": 316,
+      "id": 317,
       "modules": [
         "pg:public.public.work_queue.claimed_at"
       ],
@@ -3317,7 +3347,7 @@
       "size": 1
     },
     {
-      "id": 317,
+      "id": 318,
       "modules": [
         "pg:public.public.work_queue.claimed_by"
       ],
@@ -3327,7 +3357,7 @@
       "size": 1
     },
     {
-      "id": 318,
+      "id": 319,
       "modules": [
         "pg:public.public.work_queue.description"
       ],
@@ -3337,7 +3367,7 @@
       "size": 1
     },
     {
-      "id": 319,
+      "id": 320,
       "modules": [
         "pg:public.public.work_queue.enable"
       ],
@@ -3347,7 +3377,7 @@
       "size": 1
     },
     {
-      "id": 320,
+      "id": 321,
       "modules": [
         "pg:public.public.work_queue.id"
       ],
@@ -3357,7 +3387,7 @@
       "size": 1
     },
     {
-      "id": 321,
+      "id": 322,
       "modules": [
         "pg:public.public.work_queue.input_data"
       ],
@@ -3367,7 +3397,7 @@
       "size": 1
     },
     {
-      "id": 322,
+      "id": 323,
       "modules": [
         "pg:public.public.work_queue.priority"
       ],
@@ -3377,7 +3407,7 @@
       "size": 1
     },
     {
-      "id": 323,
+      "id": 324,
       "modules": [
         "pg:public.public.work_queue.task_type"
       ],
@@ -3387,7 +3417,7 @@
       "size": 1
     },
     {
-      "id": 324,
+      "id": 325,
       "modules": [
         "pg:public.public.write_handoff"
       ],
@@ -3397,7 +3427,7 @@
       "size": 1
     },
     {
-      "id": 325,
+      "id": 326,
       "modules": [
         "py:__init__"
       ],
@@ -3407,19 +3437,9 @@
       "size": 1
     },
     {
-      "id": 326,
-      "modules": [
-        "py:assurance"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
       "id": 327,
       "modules": [
-        "py:audit.AuditEntry"
+        "py:agents_config"
       ],
       "language_mix": [
         "python"
@@ -3429,7 +3449,7 @@
     {
       "id": 328,
       "modules": [
-        "py:audit.AuditEntry.from_dict"
+        "py:agents_config.AgentEntry"
       ],
       "language_mix": [
         "python"
@@ -3439,7 +3459,7 @@
     {
       "id": 329,
       "modules": [
-        "py:audit.AuditResult"
+        "py:agents_config.reset_agents_config"
       ],
       "language_mix": [
         "python"
@@ -3449,7 +3469,7 @@
     {
       "id": 330,
       "modules": [
-        "py:audit.AuditResult.from_dict"
+        "py:assurance"
       ],
       "language_mix": [
         "python"
@@ -3459,7 +3479,7 @@
     {
       "id": 331,
       "modules": [
-        "py:audit.AuditService"
+        "py:audit.AuditEntry"
       ],
       "language_mix": [
         "python"
@@ -3469,7 +3489,7 @@
     {
       "id": 332,
       "modules": [
-        "py:audit.AuditService.__init__"
+        "py:audit.AuditEntry.from_dict"
       ],
       "language_mix": [
         "python"
@@ -3479,7 +3499,7 @@
     {
       "id": 333,
       "modules": [
-        "py:audit.AuditService._insert_audit_entry"
+        "py:audit.AuditResult"
       ],
       "language_mix": [
         "python"
@@ -3489,7 +3509,7 @@
     {
       "id": 334,
       "modules": [
-        "py:audit.AuditService.query"
+        "py:audit.AuditResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -3499,7 +3519,7 @@
     {
       "id": 335,
       "modules": [
-        "py:audit.AuditService.timed"
+        "py:audit.AuditService"
       ],
       "language_mix": [
         "python"
@@ -3509,7 +3529,7 @@
     {
       "id": 336,
       "modules": [
-        "py:audit.AuditTimer"
+        "py:audit.AuditService.__init__"
       ],
       "language_mix": [
         "python"
@@ -3519,7 +3539,7 @@
     {
       "id": 337,
       "modules": [
-        "py:audit.AuditTimer.__aenter__"
+        "py:audit.AuditService._insert_audit_entry"
       ],
       "language_mix": [
         "python"
@@ -3529,7 +3549,7 @@
     {
       "id": 338,
       "modules": [
-        "py:audit.AuditTimer.__aexit__"
+        "py:audit.AuditService.query"
       ],
       "language_mix": [
         "python"
@@ -3539,7 +3559,7 @@
     {
       "id": 339,
       "modules": [
-        "py:audit.AuditTimer.__init__"
+        "py:audit.AuditService.timed"
       ],
       "language_mix": [
         "python"
@@ -3549,7 +3569,7 @@
     {
       "id": 340,
       "modules": [
-        "py:config.AgentConfig"
+        "py:audit.AuditTimer"
       ],
       "language_mix": [
         "python"
@@ -3559,7 +3579,7 @@
     {
       "id": 341,
       "modules": [
-        "py:config.AgentConfig.from_env"
+        "py:audit.AuditTimer.__aenter__"
       ],
       "language_mix": [
         "python"
@@ -3569,7 +3589,7 @@
     {
       "id": 342,
       "modules": [
-        "py:config.ApiConfig"
+        "py:audit.AuditTimer.__aexit__"
       ],
       "language_mix": [
         "python"
@@ -3579,7 +3599,7 @@
     {
       "id": 343,
       "modules": [
-        "py:config.ApiConfig.from_env"
+        "py:audit.AuditTimer.__init__"
       ],
       "language_mix": [
         "python"
@@ -3589,7 +3609,7 @@
     {
       "id": 344,
       "modules": [
-        "py:config.AuditConfig"
+        "py:config.AgentConfig"
       ],
       "language_mix": [
         "python"
@@ -3599,7 +3619,7 @@
     {
       "id": 345,
       "modules": [
-        "py:config.AuditConfig.from_env"
+        "py:config.AgentConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3609,7 +3629,7 @@
     {
       "id": 346,
       "modules": [
-        "py:config.Config"
+        "py:config.ApiConfig"
       ],
       "language_mix": [
         "python"
@@ -3619,7 +3639,7 @@
     {
       "id": 347,
       "modules": [
-        "py:config.Config.from_env"
+        "py:config.AuditConfig"
       ],
       "language_mix": [
         "python"
@@ -3629,7 +3649,7 @@
     {
       "id": 348,
       "modules": [
-        "py:config.DatabaseConfig"
+        "py:config.AuditConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3639,7 +3659,7 @@
     {
       "id": 349,
       "modules": [
-        "py:config.DatabaseConfig.from_env"
+        "py:config.Config"
       ],
       "language_mix": [
         "python"
@@ -3649,7 +3669,7 @@
     {
       "id": 350,
       "modules": [
-        "py:config.GuardrailsConfig"
+        "py:config.DatabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -3659,7 +3679,7 @@
     {
       "id": 351,
       "modules": [
-        "py:config.GuardrailsConfig.from_env"
+        "py:config.DatabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3669,7 +3689,7 @@
     {
       "id": 352,
       "modules": [
-        "py:config.LockConfig"
+        "py:config.GuardrailsConfig"
       ],
       "language_mix": [
         "python"
@@ -3679,7 +3699,7 @@
     {
       "id": 353,
       "modules": [
-        "py:config.LockConfig.from_env"
+        "py:config.GuardrailsConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3689,7 +3709,7 @@
     {
       "id": 354,
       "modules": [
-        "py:config.NetworkPolicyConfig"
+        "py:config.LockConfig"
       ],
       "language_mix": [
         "python"
@@ -3699,7 +3719,7 @@
     {
       "id": 355,
       "modules": [
-        "py:config.NetworkPolicyConfig.from_env"
+        "py:config.LockConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3709,7 +3729,7 @@
     {
       "id": 356,
       "modules": [
-        "py:config.PolicyEngineConfig"
+        "py:config.NetworkPolicyConfig"
       ],
       "language_mix": [
         "python"
@@ -3719,7 +3739,7 @@
     {
       "id": 357,
       "modules": [
-        "py:config.PolicyEngineConfig.from_env"
+        "py:config.NetworkPolicyConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3729,7 +3749,7 @@
     {
       "id": 358,
       "modules": [
-        "py:config.PortAllocatorConfig"
+        "py:config.PolicyEngineConfig"
       ],
       "language_mix": [
         "python"
@@ -3739,7 +3759,7 @@
     {
       "id": 359,
       "modules": [
-        "py:config.PortAllocatorConfig.from_env"
+        "py:config.PolicyEngineConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3749,7 +3769,7 @@
     {
       "id": 360,
       "modules": [
-        "py:config.PostgresConfig"
+        "py:config.PortAllocatorConfig"
       ],
       "language_mix": [
         "python"
@@ -3759,7 +3779,7 @@
     {
       "id": 361,
       "modules": [
-        "py:config.PostgresConfig.from_env"
+        "py:config.PortAllocatorConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3769,7 +3789,7 @@
     {
       "id": 362,
       "modules": [
-        "py:config.ProfilesConfig"
+        "py:config.PostgresConfig"
       ],
       "language_mix": [
         "python"
@@ -3779,7 +3799,7 @@
     {
       "id": 363,
       "modules": [
-        "py:config.ProfilesConfig.from_env"
+        "py:config.PostgresConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3789,7 +3809,7 @@
     {
       "id": 364,
       "modules": [
-        "py:config.SupabaseConfig"
+        "py:config.ProfilesConfig"
       ],
       "language_mix": [
         "python"
@@ -3799,7 +3819,7 @@
     {
       "id": 365,
       "modules": [
-        "py:config.SupabaseConfig.from_env"
+        "py:config.ProfilesConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3809,7 +3829,7 @@
     {
       "id": 366,
       "modules": [
-        "py:config.reset_config"
+        "py:config.SupabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -3819,7 +3839,7 @@
     {
       "id": 367,
       "modules": [
-        "py:coordination_api.AuditQueryParams"
+        "py:config.SupabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -3829,7 +3849,7 @@
     {
       "id": 368,
       "modules": [
-        "py:coordination_api.GuardrailsCheckRequest"
+        "py:config.reset_config"
       ],
       "language_mix": [
         "python"
@@ -3839,7 +3859,7 @@
     {
       "id": 369,
       "modules": [
-        "py:coordination_api.LockAcquireRequest"
+        "py:coordination_api.AuditQueryParams"
       ],
       "language_mix": [
         "python"
@@ -3849,7 +3869,7 @@
     {
       "id": 370,
       "modules": [
-        "py:coordination_api.LockReleaseRequest"
+        "py:coordination_api.GuardrailsCheckRequest"
       ],
       "language_mix": [
         "python"
@@ -3859,7 +3879,7 @@
     {
       "id": 371,
       "modules": [
-        "py:coordination_api.MemoryQueryRequest"
+        "py:coordination_api.LockAcquireRequest"
       ],
       "language_mix": [
         "python"
@@ -3869,7 +3889,7 @@
     {
       "id": 372,
       "modules": [
-        "py:coordination_api.MemoryStoreRequest"
+        "py:coordination_api.LockReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -3879,7 +3899,7 @@
     {
       "id": 373,
       "modules": [
-        "py:coordination_api.PortAllocateRequest"
+        "py:coordination_api.MemoryQueryRequest"
       ],
       "language_mix": [
         "python"
@@ -3889,7 +3909,7 @@
     {
       "id": 374,
       "modules": [
-        "py:coordination_api.PortReleaseRequest"
+        "py:coordination_api.MemoryStoreRequest"
       ],
       "language_mix": [
         "python"
@@ -3899,7 +3919,7 @@
     {
       "id": 375,
       "modules": [
-        "py:coordination_api.WorkClaimRequest"
+        "py:coordination_api.PortAllocateRequest"
       ],
       "language_mix": [
         "python"
@@ -3909,7 +3929,7 @@
     {
       "id": 376,
       "modules": [
-        "py:coordination_api.WorkCompleteRequest"
+        "py:coordination_api.PortReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -3919,7 +3939,7 @@
     {
       "id": 377,
       "modules": [
-        "py:coordination_api.WorkGetTaskRequest"
+        "py:coordination_api.WorkClaimRequest"
       ],
       "language_mix": [
         "python"
@@ -3929,7 +3949,7 @@
     {
       "id": 378,
       "modules": [
-        "py:coordination_api.WorkSubmitRequest"
+        "py:coordination_api.WorkCompleteRequest"
       ],
       "language_mix": [
         "python"
@@ -3939,7 +3959,7 @@
     {
       "id": 379,
       "modules": [
-        "py:coordination_mcp.coordinate_file_edit"
+        "py:coordination_api.WorkGetTaskRequest"
       ],
       "language_mix": [
         "python"
@@ -3949,7 +3969,7 @@
     {
       "id": 380,
       "modules": [
-        "py:coordination_mcp.main"
+        "py:coordination_api.WorkSubmitRequest"
       ],
       "language_mix": [
         "python"
@@ -3959,7 +3979,7 @@
     {
       "id": 381,
       "modules": [
-        "py:coordination_mcp.start_work_session"
+        "py:coordination_mcp.coordinate_file_edit"
       ],
       "language_mix": [
         "python"
@@ -3969,7 +3989,7 @@
     {
       "id": 382,
       "modules": [
-        "py:db.DatabaseClient"
+        "py:coordination_mcp.main"
       ],
       "language_mix": [
         "python"
@@ -3979,7 +3999,7 @@
     {
       "id": 383,
       "modules": [
-        "py:db.DatabaseClient.close"
+        "py:coordination_mcp.start_work_session"
       ],
       "language_mix": [
         "python"
@@ -3989,7 +4009,7 @@
     {
       "id": 384,
       "modules": [
-        "py:db.DatabaseClient.delete"
+        "py:db.DatabaseClient"
       ],
       "language_mix": [
         "python"
@@ -3999,7 +4019,7 @@
     {
       "id": 385,
       "modules": [
-        "py:db.DatabaseClient.insert"
+        "py:db.DatabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -4009,7 +4029,7 @@
     {
       "id": 386,
       "modules": [
-        "py:db.DatabaseClient.query"
+        "py:db.DatabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -4019,7 +4039,7 @@
     {
       "id": 387,
       "modules": [
-        "py:db.DatabaseClient.rpc"
+        "py:db.DatabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -4029,7 +4049,7 @@
     {
       "id": 388,
       "modules": [
-        "py:db.DatabaseClient.update"
+        "py:db.DatabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -4039,7 +4059,7 @@
     {
       "id": 389,
       "modules": [
-        "py:db.SupabaseClient"
+        "py:db.DatabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -4049,7 +4069,7 @@
     {
       "id": 390,
       "modules": [
-        "py:db.SupabaseClient.__init__"
+        "py:db.DatabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -4059,7 +4079,7 @@
     {
       "id": 391,
       "modules": [
-        "py:db.SupabaseClient._headers"
+        "py:db.SupabaseClient"
       ],
       "language_mix": [
         "python"
@@ -4069,7 +4089,7 @@
     {
       "id": 392,
       "modules": [
-        "py:db.SupabaseClient.client"
+        "py:db.SupabaseClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -4079,7 +4099,7 @@
     {
       "id": 393,
       "modules": [
-        "py:db.SupabaseClient.close"
+        "py:db.SupabaseClient._headers"
       ],
       "language_mix": [
         "python"
@@ -4089,7 +4109,7 @@
     {
       "id": 394,
       "modules": [
-        "py:db.SupabaseClient.delete"
+        "py:db.SupabaseClient.client"
       ],
       "language_mix": [
         "python"
@@ -4099,7 +4119,7 @@
     {
       "id": 395,
       "modules": [
-        "py:db.SupabaseClient.insert"
+        "py:db.SupabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -4109,7 +4129,7 @@
     {
       "id": 396,
       "modules": [
-        "py:db.SupabaseClient.query"
+        "py:db.SupabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -4119,7 +4139,7 @@
     {
       "id": 397,
       "modules": [
-        "py:db.SupabaseClient.rpc"
+        "py:db.SupabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -4129,7 +4149,7 @@
     {
       "id": 398,
       "modules": [
-        "py:db.SupabaseClient.update"
+        "py:db.SupabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -4139,7 +4159,7 @@
     {
       "id": 399,
       "modules": [
-        "py:db.close_db"
+        "py:db.SupabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -4149,7 +4169,7 @@
     {
       "id": 400,
       "modules": [
-        "py:db.reset_db"
+        "py:db.SupabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -4159,7 +4179,7 @@
     {
       "id": 401,
       "modules": [
-        "py:db_postgres.DirectPostgresClient"
+        "py:db.close_db"
       ],
       "language_mix": [
         "python"
@@ -4169,7 +4189,7 @@
     {
       "id": 402,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.__init__"
+        "py:db.reset_db"
       ],
       "language_mix": [
         "python"
@@ -4179,7 +4199,7 @@
     {
       "id": 403,
       "modules": [
-        "py:db_postgres.DirectPostgresClient._get_pool"
+        "py:db_postgres.DirectPostgresClient"
       ],
       "language_mix": [
         "python"
@@ -4189,7 +4209,7 @@
     {
       "id": 404,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.close"
+        "py:db_postgres.DirectPostgresClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -4199,7 +4219,7 @@
     {
       "id": 405,
       "modules": [
-        "py:discovery.AgentInfo"
+        "py:db_postgres.DirectPostgresClient._get_pool"
       ],
       "language_mix": [
         "python"
@@ -4209,7 +4229,7 @@
     {
       "id": 406,
       "modules": [
-        "py:discovery.CleanupResult"
+        "py:db_postgres.DirectPostgresClient.close"
       ],
       "language_mix": [
         "python"
@@ -4219,7 +4239,7 @@
     {
       "id": 407,
       "modules": [
-        "py:discovery.CleanupResult.from_dict"
+        "py:discovery.AgentInfo"
       ],
       "language_mix": [
         "python"
@@ -4229,7 +4249,7 @@
     {
       "id": 408,
       "modules": [
-        "py:discovery.DiscoverResult"
+        "py:discovery.CleanupResult"
       ],
       "language_mix": [
         "python"
@@ -4239,7 +4259,7 @@
     {
       "id": 409,
       "modules": [
-        "py:discovery.DiscoverResult.from_dict"
+        "py:discovery.CleanupResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4249,7 +4269,7 @@
     {
       "id": 410,
       "modules": [
-        "py:discovery.DiscoveryService"
+        "py:discovery.DiscoverResult"
       ],
       "language_mix": [
         "python"
@@ -4259,7 +4279,7 @@
     {
       "id": 411,
       "modules": [
-        "py:discovery.DiscoveryService.__init__"
+        "py:discovery.DiscoverResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4269,7 +4289,7 @@
     {
       "id": 412,
       "modules": [
-        "py:discovery.DiscoveryService.discover"
+        "py:discovery.DiscoveryService"
       ],
       "language_mix": [
         "python"
@@ -4279,7 +4299,7 @@
     {
       "id": 413,
       "modules": [
-        "py:discovery.HeartbeatResult"
+        "py:discovery.DiscoveryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4289,7 +4309,7 @@
     {
       "id": 414,
       "modules": [
-        "py:discovery.HeartbeatResult.from_dict"
+        "py:discovery.DiscoveryService.discover"
       ],
       "language_mix": [
         "python"
@@ -4299,7 +4319,7 @@
     {
       "id": 415,
       "modules": [
-        "py:discovery.RegisterResult"
+        "py:discovery.HeartbeatResult"
       ],
       "language_mix": [
         "python"
@@ -4309,7 +4329,7 @@
     {
       "id": 416,
       "modules": [
-        "py:discovery.RegisterResult.from_dict"
+        "py:discovery.HeartbeatResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4319,7 +4339,7 @@
     {
       "id": 417,
       "modules": [
-        "py:feature_registry.ConflictReport"
+        "py:discovery.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -4329,7 +4349,7 @@
     {
       "id": 418,
       "modules": [
-        "py:feature_registry.DeregisterResult"
+        "py:discovery.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4339,7 +4359,7 @@
     {
       "id": 419,
       "modules": [
-        "py:feature_registry.DeregisterResult.from_dict"
+        "py:docker_manager"
       ],
       "language_mix": [
         "python"
@@ -4349,7 +4369,7 @@
     {
       "id": 420,
       "modules": [
-        "py:feature_registry.Feasibility"
+        "py:docker_manager.wait_for_healthy"
       ],
       "language_mix": [
         "python"
@@ -4359,7 +4379,7 @@
     {
       "id": 421,
       "modules": [
-        "py:feature_registry.Feature"
+        "py:feature_registry.ConflictReport"
       ],
       "language_mix": [
         "python"
@@ -4369,7 +4389,7 @@
     {
       "id": 422,
       "modules": [
-        "py:feature_registry.Feature.from_dict.parse_dt"
+        "py:feature_registry.DeregisterResult"
       ],
       "language_mix": [
         "python"
@@ -4379,7 +4399,7 @@
     {
       "id": 423,
       "modules": [
-        "py:feature_registry.FeatureRegistryService"
+        "py:feature_registry.DeregisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4389,7 +4409,7 @@
     {
       "id": 424,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.__init__"
+        "py:feature_registry.Feasibility"
       ],
       "language_mix": [
         "python"
@@ -4399,7 +4419,7 @@
     {
       "id": 425,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.analyze_conflicts"
+        "py:feature_registry.Feature"
       ],
       "language_mix": [
         "python"
@@ -4409,7 +4429,7 @@
     {
       "id": 426,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.get_active_features"
+        "py:feature_registry.Feature.from_dict.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -4419,7 +4439,7 @@
     {
       "id": 427,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.get_feature"
+        "py:feature_registry.FeatureRegistryService"
       ],
       "language_mix": [
         "python"
@@ -4429,7 +4449,7 @@
     {
       "id": 428,
       "modules": [
-        "py:feature_registry.RegisterResult"
+        "py:feature_registry.FeatureRegistryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4439,7 +4459,7 @@
     {
       "id": 429,
       "modules": [
-        "py:feature_registry.RegisterResult.from_dict"
+        "py:feature_registry.FeatureRegistryService.analyze_conflicts"
       ],
       "language_mix": [
         "python"
@@ -4449,7 +4469,7 @@
     {
       "id": 430,
       "modules": [
-        "py:github_coordination.BranchInfo"
+        "py:feature_registry.FeatureRegistryService.get_active_features"
       ],
       "language_mix": [
         "python"
@@ -4459,7 +4479,7 @@
     {
       "id": 431,
       "modules": [
-        "py:github_coordination.BranchInfo.parse"
+        "py:feature_registry.FeatureRegistryService.get_feature"
       ],
       "language_mix": [
         "python"
@@ -4469,7 +4489,7 @@
     {
       "id": 432,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService"
+        "py:feature_registry.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -4479,7 +4499,7 @@
     {
       "id": 433,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.__init__"
+        "py:feature_registry.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4489,7 +4509,7 @@
     {
       "id": 434,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
+        "py:github_coordination.BranchInfo"
       ],
       "language_mix": [
         "python"
@@ -4499,7 +4519,7 @@
     {
       "id": 435,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
+        "py:github_coordination.BranchInfo.parse"
       ],
       "language_mix": [
         "python"
@@ -4509,7 +4529,7 @@
     {
       "id": 436,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_branch"
+        "py:github_coordination.GitHubCoordinationService"
       ],
       "language_mix": [
         "python"
@@ -4519,7 +4539,7 @@
     {
       "id": 437,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
+        "py:github_coordination.GitHubCoordinationService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4529,7 +4549,7 @@
     {
       "id": 438,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
+        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
       ],
       "language_mix": [
         "python"
@@ -4539,7 +4559,7 @@
     {
       "id": 439,
       "modules": [
-        "py:github_coordination.LabelLock"
+        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
       ],
       "language_mix": [
         "python"
@@ -4549,7 +4569,7 @@
     {
       "id": 440,
       "modules": [
-        "py:github_coordination.WebhookSyncResult"
+        "py:github_coordination.GitHubCoordinationService.parse_branch"
       ],
       "language_mix": [
         "python"
@@ -4559,7 +4579,7 @@
     {
       "id": 441,
       "modules": [
-        "py:github_coordination.WebhookSyncResult.from_dict"
+        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
       ],
       "language_mix": [
         "python"
@@ -4569,7 +4589,7 @@
     {
       "id": 442,
       "modules": [
-        "py:github_coordination.get_github_coordination_service"
+        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
       ],
       "language_mix": [
         "python"
@@ -4579,7 +4599,7 @@
     {
       "id": 443,
       "modules": [
-        "py:guardrails.GuardrailPattern"
+        "py:github_coordination.LabelLock"
       ],
       "language_mix": [
         "python"
@@ -4589,7 +4609,7 @@
     {
       "id": 444,
       "modules": [
-        "py:guardrails.GuardrailPattern.from_dict"
+        "py:github_coordination.WebhookSyncResult"
       ],
       "language_mix": [
         "python"
@@ -4599,7 +4619,7 @@
     {
       "id": 445,
       "modules": [
-        "py:guardrails.GuardrailResult"
+        "py:github_coordination.WebhookSyncResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4609,7 +4629,7 @@
     {
       "id": 446,
       "modules": [
-        "py:guardrails.GuardrailResult.from_dict"
+        "py:github_coordination.get_github_coordination_service"
       ],
       "language_mix": [
         "python"
@@ -4619,7 +4639,7 @@
     {
       "id": 447,
       "modules": [
-        "py:guardrails.GuardrailViolation"
+        "py:guardrails.GuardrailPattern"
       ],
       "language_mix": [
         "python"
@@ -4629,7 +4649,7 @@
     {
       "id": 448,
       "modules": [
-        "py:guardrails.GuardrailViolation.from_dict"
+        "py:guardrails.GuardrailPattern.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4639,7 +4659,7 @@
     {
       "id": 449,
       "modules": [
-        "py:guardrails.GuardrailsService"
+        "py:guardrails.GuardrailResult"
       ],
       "language_mix": [
         "python"
@@ -4649,7 +4669,7 @@
     {
       "id": 450,
       "modules": [
-        "py:guardrails.GuardrailsService.__init__"
+        "py:guardrails.GuardrailResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4659,7 +4679,7 @@
     {
       "id": 451,
       "modules": [
-        "py:handoffs.HandoffDocument"
+        "py:guardrails.GuardrailViolation"
       ],
       "language_mix": [
         "python"
@@ -4669,7 +4689,7 @@
     {
       "id": 452,
       "modules": [
-        "py:handoffs.HandoffDocument.from_dict"
+        "py:guardrails.GuardrailViolation.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4679,7 +4699,7 @@
     {
       "id": 453,
       "modules": [
-        "py:handoffs.HandoffService"
+        "py:guardrails.GuardrailsService"
       ],
       "language_mix": [
         "python"
@@ -4689,7 +4709,7 @@
     {
       "id": 454,
       "modules": [
-        "py:handoffs.HandoffService.__init__"
+        "py:guardrails.GuardrailsService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4699,7 +4719,7 @@
     {
       "id": 455,
       "modules": [
-        "py:handoffs.HandoffService.get_recent"
+        "py:handoffs.HandoffDocument"
       ],
       "language_mix": [
         "python"
@@ -4709,7 +4729,7 @@
     {
       "id": 456,
       "modules": [
-        "py:handoffs.ReadHandoffResult"
+        "py:handoffs.HandoffDocument.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4719,7 +4739,7 @@
     {
       "id": 457,
       "modules": [
-        "py:handoffs.ReadHandoffResult.from_dict"
+        "py:handoffs.HandoffService"
       ],
       "language_mix": [
         "python"
@@ -4729,7 +4749,7 @@
     {
       "id": 458,
       "modules": [
-        "py:handoffs.WriteHandoffResult"
+        "py:handoffs.HandoffService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4739,7 +4759,7 @@
     {
       "id": 459,
       "modules": [
-        "py:handoffs.WriteHandoffResult.from_dict"
+        "py:handoffs.HandoffService.get_recent"
       ],
       "language_mix": [
         "python"
@@ -4749,7 +4769,7 @@
     {
       "id": 460,
       "modules": [
-        "py:locks.Lock"
+        "py:handoffs.ReadHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -4759,7 +4779,7 @@
     {
       "id": 461,
       "modules": [
-        "py:locks.Lock.from_dict"
+        "py:handoffs.ReadHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4769,7 +4789,7 @@
     {
       "id": 462,
       "modules": [
-        "py:locks.LockResult"
+        "py:handoffs.WriteHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -4779,7 +4799,7 @@
     {
       "id": 463,
       "modules": [
-        "py:locks.LockResult.from_dict"
+        "py:handoffs.WriteHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4789,7 +4809,7 @@
     {
       "id": 464,
       "modules": [
-        "py:locks.LockService"
+        "py:locks.Lock"
       ],
       "language_mix": [
         "python"
@@ -4799,7 +4819,7 @@
     {
       "id": 465,
       "modules": [
-        "py:locks.LockService.__init__"
+        "py:locks.Lock.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4809,7 +4829,7 @@
     {
       "id": 466,
       "modules": [
-        "py:locks.LockService.check"
+        "py:locks.LockResult"
       ],
       "language_mix": [
         "python"
@@ -4819,7 +4839,7 @@
     {
       "id": 467,
       "modules": [
-        "py:locks.LockService.extend"
+        "py:locks.LockResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4829,7 +4849,7 @@
     {
       "id": 468,
       "modules": [
-        "py:locks.LockService.is_locked"
+        "py:locks.LockService"
       ],
       "language_mix": [
         "python"
@@ -4839,7 +4859,7 @@
     {
       "id": 469,
       "modules": [
-        "py:locks.is_valid_lock_key"
+        "py:locks.LockService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4849,7 +4869,7 @@
     {
       "id": 470,
       "modules": [
-        "py:memory.EpisodicMemory"
+        "py:locks.LockService.check"
       ],
       "language_mix": [
         "python"
@@ -4859,7 +4879,7 @@
     {
       "id": 471,
       "modules": [
-        "py:memory.EpisodicMemory.from_dict"
+        "py:locks.LockService.extend"
       ],
       "language_mix": [
         "python"
@@ -4869,7 +4889,7 @@
     {
       "id": 472,
       "modules": [
-        "py:memory.MemoryResult"
+        "py:locks.LockService.is_locked"
       ],
       "language_mix": [
         "python"
@@ -4879,7 +4899,7 @@
     {
       "id": 473,
       "modules": [
-        "py:memory.MemoryResult.from_dict"
+        "py:locks.is_valid_lock_key"
       ],
       "language_mix": [
         "python"
@@ -4889,7 +4909,7 @@
     {
       "id": 474,
       "modules": [
-        "py:memory.MemoryService"
+        "py:memory.EpisodicMemory"
       ],
       "language_mix": [
         "python"
@@ -4899,7 +4919,7 @@
     {
       "id": 475,
       "modules": [
-        "py:memory.MemoryService.__init__"
+        "py:memory.EpisodicMemory.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4909,7 +4929,7 @@
     {
       "id": 476,
       "modules": [
-        "py:memory.MemoryService.recall"
+        "py:memory.MemoryResult"
       ],
       "language_mix": [
         "python"
@@ -4919,7 +4939,7 @@
     {
       "id": 477,
       "modules": [
-        "py:memory.RecallResult"
+        "py:memory.MemoryResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4929,7 +4949,7 @@
     {
       "id": 478,
       "modules": [
-        "py:memory.RecallResult.from_dict"
+        "py:memory.MemoryService"
       ],
       "language_mix": [
         "python"
@@ -4939,7 +4959,7 @@
     {
       "id": 479,
       "modules": [
-        "py:merge_queue.MergeQueueEntry"
+        "py:memory.MemoryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -4949,7 +4969,7 @@
     {
       "id": 480,
       "modules": [
-        "py:merge_queue.MergeQueueEntry.from_feature"
+        "py:memory.MemoryService.recall"
       ],
       "language_mix": [
         "python"
@@ -4959,7 +4979,7 @@
     {
       "id": 481,
       "modules": [
-        "py:merge_queue.MergeQueueService"
+        "py:memory.RecallResult"
       ],
       "language_mix": [
         "python"
@@ -4969,7 +4989,7 @@
     {
       "id": 482,
       "modules": [
-        "py:merge_queue.MergeQueueService.__init__"
+        "py:memory.RecallResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -4979,7 +4999,7 @@
     {
       "id": 483,
       "modules": [
-        "py:merge_queue.MergeQueueService.get_next_to_merge"
+        "py:merge_queue.MergeQueueEntry"
       ],
       "language_mix": [
         "python"
@@ -4989,7 +5009,7 @@
     {
       "id": 484,
       "modules": [
-        "py:merge_queue.MergeQueueService.remove_from_queue"
+        "py:merge_queue.MergeQueueEntry.from_feature"
       ],
       "language_mix": [
         "python"
@@ -4999,7 +5019,7 @@
     {
       "id": 485,
       "modules": [
-        "py:merge_queue.MergeStatus"
+        "py:merge_queue.MergeQueueService"
       ],
       "language_mix": [
         "python"
@@ -5009,7 +5029,7 @@
     {
       "id": 486,
       "modules": [
-        "py:merge_queue.PreMergeCheckResult"
+        "py:merge_queue.MergeQueueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5019,7 +5039,7 @@
     {
       "id": 487,
       "modules": [
-        "py:merge_queue.get_merge_queue_service"
+        "py:merge_queue.MergeQueueService.get_next_to_merge"
       ],
       "language_mix": [
         "python"
@@ -5029,7 +5049,7 @@
     {
       "id": 488,
       "modules": [
-        "py:network_policies.AccessDecision"
+        "py:merge_queue.MergeQueueService.remove_from_queue"
       ],
       "language_mix": [
         "python"
@@ -5039,7 +5059,7 @@
     {
       "id": 489,
       "modules": [
-        "py:network_policies.AccessDecision.from_dict"
+        "py:merge_queue.MergeStatus"
       ],
       "language_mix": [
         "python"
@@ -5049,7 +5069,7 @@
     {
       "id": 490,
       "modules": [
-        "py:network_policies.NetworkPolicyService"
+        "py:merge_queue.PreMergeCheckResult"
       ],
       "language_mix": [
         "python"
@@ -5059,7 +5079,7 @@
     {
       "id": 491,
       "modules": [
-        "py:network_policies.NetworkPolicyService.__init__"
+        "py:merge_queue.get_merge_queue_service"
       ],
       "language_mix": [
         "python"
@@ -5069,7 +5089,7 @@
     {
       "id": 492,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine"
+        "py:network_policies.AccessDecision"
       ],
       "language_mix": [
         "python"
@@ -5079,7 +5099,7 @@
     {
       "id": 493,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.__init__"
+        "py:network_policies.AccessDecision.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5089,7 +5109,7 @@
     {
       "id": 494,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_entity"
+        "py:network_policies.NetworkPolicyService"
       ],
       "language_mix": [
         "python"
@@ -5099,7 +5119,7 @@
     {
       "id": 495,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
+        "py:network_policies.NetworkPolicyService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5109,7 +5129,7 @@
     {
       "id": 496,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
+        "py:policy_engine.CedarPolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -5119,7 +5139,7 @@
     {
       "id": 497,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._load_default_policies"
+        "py:policy_engine.CedarPolicyEngine.__init__"
       ],
       "language_mix": [
         "python"
@@ -5129,7 +5149,7 @@
     {
       "id": 498,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.check_network_access"
+        "py:policy_engine.CedarPolicyEngine._build_entity"
       ],
       "language_mix": [
         "python"
@@ -5139,7 +5159,7 @@
     {
       "id": 499,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.check_operation"
+        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
       ],
       "language_mix": [
         "python"
@@ -5149,7 +5169,7 @@
     {
       "id": 500,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
+        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
       ],
       "language_mix": [
         "python"
@@ -5159,7 +5179,7 @@
     {
       "id": 501,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.list_policies"
+        "py:policy_engine.CedarPolicyEngine._load_default_policies"
       ],
       "language_mix": [
         "python"
@@ -5169,7 +5189,7 @@
     {
       "id": 502,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.validate_policy"
+        "py:policy_engine.CedarPolicyEngine.check_network_access"
       ],
       "language_mix": [
         "python"
@@ -5179,7 +5199,7 @@
     {
       "id": 503,
       "modules": [
-        "py:policy_engine.NativePolicyEngine"
+        "py:policy_engine.CedarPolicyEngine.check_operation"
       ],
       "language_mix": [
         "python"
@@ -5189,7 +5209,7 @@
     {
       "id": 504,
       "modules": [
-        "py:policy_engine.NativePolicyEngine.__init__"
+        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
       ],
       "language_mix": [
         "python"
@@ -5199,7 +5219,7 @@
     {
       "id": 505,
       "modules": [
-        "py:policy_engine.PolicyDecision"
+        "py:policy_engine.CedarPolicyEngine.list_policies"
       ],
       "language_mix": [
         "python"
@@ -5209,7 +5229,7 @@
     {
       "id": 506,
       "modules": [
-        "py:policy_engine.PolicyDecision.allow"
+        "py:policy_engine.CedarPolicyEngine.validate_policy"
       ],
       "language_mix": [
         "python"
@@ -5219,7 +5239,7 @@
     {
       "id": 507,
       "modules": [
-        "py:policy_engine.PolicyDecision.deny"
+        "py:policy_engine.NativePolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -5229,7 +5249,7 @@
     {
       "id": 508,
       "modules": [
-        "py:policy_engine.ValidationResult"
+        "py:policy_engine.NativePolicyEngine.__init__"
       ],
       "language_mix": [
         "python"
@@ -5239,7 +5259,7 @@
     {
       "id": 509,
       "modules": [
-        "py:policy_engine.reset_policy_engine"
+        "py:policy_engine.PolicyDecision"
       ],
       "language_mix": [
         "python"
@@ -5249,7 +5269,7 @@
     {
       "id": 510,
       "modules": [
-        "py:port_allocator.PortAllocation"
+        "py:policy_engine.PolicyDecision.allow"
       ],
       "language_mix": [
         "python"
@@ -5259,7 +5279,7 @@
     {
       "id": 511,
       "modules": [
-        "py:port_allocator.PortAllocation.env_snippet"
+        "py:policy_engine.PolicyDecision.deny"
       ],
       "language_mix": [
         "python"
@@ -5269,7 +5289,7 @@
     {
       "id": 512,
       "modules": [
-        "py:port_allocator.PortAllocatorService"
+        "py:policy_engine.ValidationResult"
       ],
       "language_mix": [
         "python"
@@ -5279,7 +5299,7 @@
     {
       "id": 513,
       "modules": [
-        "py:port_allocator.PortAllocatorService.__init__"
+        "py:policy_engine.reset_policy_engine"
       ],
       "language_mix": [
         "python"
@@ -5289,7 +5309,7 @@
     {
       "id": 514,
       "modules": [
-        "py:port_allocator.PortAllocatorService._cleanup_expired"
+        "py:port_allocator.PortAllocation"
       ],
       "language_mix": [
         "python"
@@ -5299,7 +5319,7 @@
     {
       "id": 515,
       "modules": [
-        "py:port_allocator.PortAllocatorService.release"
+        "py:port_allocator.PortAllocation.env_snippet"
       ],
       "language_mix": [
         "python"
@@ -5309,7 +5329,7 @@
     {
       "id": 516,
       "modules": [
-        "py:port_allocator.PortAllocatorService.status"
+        "py:port_allocator.PortAllocatorService"
       ],
       "language_mix": [
         "python"
@@ -5319,7 +5339,7 @@
     {
       "id": 517,
       "modules": [
-        "py:port_allocator.reset_port_allocator"
+        "py:port_allocator.PortAllocatorService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5329,7 +5349,7 @@
     {
       "id": 518,
       "modules": [
-        "py:profiles.AgentProfile"
+        "py:port_allocator.PortAllocatorService._cleanup_expired"
       ],
       "language_mix": [
         "python"
@@ -5339,7 +5359,7 @@
     {
       "id": 519,
       "modules": [
-        "py:profiles.AgentProfile.from_dict"
+        "py:port_allocator.PortAllocatorService.release"
       ],
       "language_mix": [
         "python"
@@ -5349,7 +5369,7 @@
     {
       "id": 520,
       "modules": [
-        "py:profiles.OperationCheck"
+        "py:port_allocator.PortAllocatorService.status"
       ],
       "language_mix": [
         "python"
@@ -5359,7 +5379,7 @@
     {
       "id": 521,
       "modules": [
-        "py:profiles.OperationCheck.from_dict"
+        "py:port_allocator.reset_port_allocator"
       ],
       "language_mix": [
         "python"
@@ -5369,7 +5389,7 @@
     {
       "id": 522,
       "modules": [
-        "py:profiles.ProfileResult"
+        "py:profile_loader"
       ],
       "language_mix": [
         "python"
@@ -5379,7 +5399,7 @@
     {
       "id": 523,
       "modules": [
-        "py:profiles.ProfileResult.from_dict"
+        "py:profile_loader.interpolate._replace"
       ],
       "language_mix": [
         "python"
@@ -5389,7 +5409,7 @@
     {
       "id": 524,
       "modules": [
-        "py:profiles.ProfilesService"
+        "py:profiles.AgentProfile"
       ],
       "language_mix": [
         "python"
@@ -5399,7 +5419,7 @@
     {
       "id": 525,
       "modules": [
-        "py:profiles.ProfilesService.__init__"
+        "py:profiles.AgentProfile.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5409,7 +5429,7 @@
     {
       "id": 526,
       "modules": [
-        "py:teams"
+        "py:profiles.OperationCheck"
       ],
       "language_mix": [
         "python"
@@ -5419,7 +5439,7 @@
     {
       "id": 527,
       "modules": [
-        "py:teams.AgentDefinition"
+        "py:profiles.OperationCheck.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5429,7 +5449,7 @@
     {
       "id": 528,
       "modules": [
-        "py:teams.TeamsConfig"
+        "py:profiles.ProfileResult"
       ],
       "language_mix": [
         "python"
@@ -5439,7 +5459,7 @@
     {
       "id": 529,
       "modules": [
-        "py:teams.TeamsConfig.from_file"
+        "py:profiles.ProfileResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5449,7 +5469,7 @@
     {
       "id": 530,
       "modules": [
-        "py:teams.TeamsConfig.get_agent"
+        "py:profiles.ProfilesService"
       ],
       "language_mix": [
         "python"
@@ -5459,7 +5479,7 @@
     {
       "id": 531,
       "modules": [
-        "py:teams.TeamsConfig.get_agents_with_capability"
+        "py:profiles.ProfilesService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5469,7 +5489,7 @@
     {
       "id": 532,
       "modules": [
-        "py:teams.get_teams_config"
+        "py:teams"
       ],
       "language_mix": [
         "python"
@@ -5479,7 +5499,7 @@
     {
       "id": 533,
       "modules": [
-        "py:teams.reset_teams_config"
+        "py:teams.AgentDefinition"
       ],
       "language_mix": [
         "python"
@@ -5489,7 +5509,7 @@
     {
       "id": 534,
       "modules": [
-        "py:work_queue.ClaimResult"
+        "py:teams.TeamsConfig"
       ],
       "language_mix": [
         "python"
@@ -5499,7 +5519,7 @@
     {
       "id": 535,
       "modules": [
-        "py:work_queue.ClaimResult.from_dict"
+        "py:teams.TeamsConfig.from_file"
       ],
       "language_mix": [
         "python"
@@ -5509,7 +5529,7 @@
     {
       "id": 536,
       "modules": [
-        "py:work_queue.CompleteResult"
+        "py:teams.TeamsConfig.get_agent"
       ],
       "language_mix": [
         "python"
@@ -5519,7 +5539,7 @@
     {
       "id": 537,
       "modules": [
-        "py:work_queue.CompleteResult.from_dict"
+        "py:teams.TeamsConfig.get_agents_with_capability"
       ],
       "language_mix": [
         "python"
@@ -5529,7 +5549,7 @@
     {
       "id": 538,
       "modules": [
-        "py:work_queue.SubmitResult"
+        "py:teams.get_teams_config"
       ],
       "language_mix": [
         "python"
@@ -5539,7 +5559,7 @@
     {
       "id": 539,
       "modules": [
-        "py:work_queue.SubmitResult.from_dict"
+        "py:teams.reset_teams_config"
       ],
       "language_mix": [
         "python"
@@ -5549,7 +5569,7 @@
     {
       "id": 540,
       "modules": [
-        "py:work_queue.Task"
+        "py:work_queue.ClaimResult"
       ],
       "language_mix": [
         "python"
@@ -5559,7 +5579,7 @@
     {
       "id": 541,
       "modules": [
-        "py:work_queue.Task.from_dict.parse_dt"
+        "py:work_queue.ClaimResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5569,7 +5589,7 @@
     {
       "id": 542,
       "modules": [
-        "py:work_queue.WorkQueueService"
+        "py:work_queue.CompleteResult"
       ],
       "language_mix": [
         "python"
@@ -5579,7 +5599,7 @@
     {
       "id": 543,
       "modules": [
-        "py:work_queue.WorkQueueService.__init__"
+        "py:work_queue.CompleteResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5589,7 +5609,7 @@
     {
       "id": 544,
       "modules": [
-        "py:work_queue.WorkQueueService.cancel_task_convention"
+        "py:work_queue.SubmitResult"
       ],
       "language_mix": [
         "python"
@@ -5599,7 +5619,7 @@
     {
       "id": 545,
       "modules": [
-        "py:work_queue.WorkQueueService.get_pending"
+        "py:work_queue.SubmitResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5608,6 +5628,66 @@
     },
     {
       "id": 546,
+      "modules": [
+        "py:work_queue.Task"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 547,
+      "modules": [
+        "py:work_queue.Task.from_dict.parse_dt"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 548,
+      "modules": [
+        "py:work_queue.WorkQueueService"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 549,
+      "modules": [
+        "py:work_queue.WorkQueueService.__init__"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 550,
+      "modules": [
+        "py:work_queue.WorkQueueService.cancel_task_convention"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 551,
+      "modules": [
+        "py:work_queue.WorkQueueService.get_pending"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 1
+    },
+    {
+      "id": 552,
       "modules": [
         "py:work_queue.WorkQueueService.get_task"
       ],
@@ -7199,6 +7279,31 @@
       "file": "__init__.py"
     },
     {
+      "id": "py:agents_config",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.AgentEntry",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.get_agent_config",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.get_mcp_env",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.reset_agents_config",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
       "id": "py:assurance",
       "language": "python",
       "file": "assurance.py"
@@ -7974,6 +8079,21 @@
       "file": "discovery.py"
     },
     {
+      "id": "py:docker_manager",
+      "language": "python",
+      "file": "docker_manager.py"
+    },
+    {
+      "id": "py:docker_manager.start_container",
+      "language": "python",
+      "file": "docker_manager.py"
+    },
+    {
+      "id": "py:docker_manager.wait_for_healthy",
+      "language": "python",
+      "file": "docker_manager.py"
+    },
+    {
       "id": "py:feature_registry.ConflictReport",
       "language": "python",
       "file": "feature_registry.py"
@@ -8659,6 +8779,16 @@
       "file": "port_allocator.py"
     },
     {
+      "id": "py:profile_loader",
+      "language": "python",
+      "file": "profile_loader.py"
+    },
+    {
+      "id": "py:profile_loader.interpolate._replace",
+      "language": "python",
+      "file": "profile_loader.py"
+    },
+    {
       "id": "py:profiles.AgentProfile",
       "language": "python",
       "file": "profiles.py"
@@ -9130,13 +9260,30 @@
         "py:coordination_api.create_coordination_api.store_memory",
         "py:coordination_api.create_coordination_api.submit_work"
       ]
+    },
+    {
+      "id": "py:profile_loader.interpolate",
+      "dependent_count": 11,
+      "dependents": [
+        "py:agents_config.get_agent_config",
+        "py:agents_config.get_agents_config",
+        "py:agents_config.get_api_key_identities",
+        "py:agents_config.get_mcp_env",
+        "py:agents_config.load_agents_config",
+        "py:config.ApiConfig.from_env",
+        "py:config.Config.from_env",
+        "py:profile_loader._interpolate_tree",
+        "py:profile_loader._resolve_profile",
+        "py:profile_loader.apply_profile",
+        "py:profile_loader.load_profile"
+      ]
     }
   ],
   "summary": {
-    "total_modules": 692,
-    "total_groups": 547,
+    "total_modules": 718,
+    "total_groups": 553,
     "largest_group_size": 108,
-    "leaf_count": 649,
-    "high_impact_count": 10
+    "leaf_count": 659,
+    "high_impact_count": 11
   }
 }

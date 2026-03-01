@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-02-28T04:07:19.870046+00:00",
-      "git_sha": "cad2e2d62836157fdecb4f0a9452978ba72d84ad",
+      "generated_at": "2026-03-01T02:32:44.367470+00:00",
+      "git_sha": "3d405d4781825a443aeb59eb2e63d840a90485fd",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -16,6 +16,19 @@
       "language": "python",
       "name": "__init__",
       "file": "__init__.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config",
+      "kind": "module",
+      "language": "python",
+      "name": "agents_config",
+      "file": "agents_config.py",
       "span": {
         "start": 1,
         "end": 1
@@ -120,6 +133,19 @@
       "language": "python",
       "name": "discovery",
       "file": "discovery.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:docker_manager",
+      "kind": "module",
+      "language": "python",
+      "name": "docker_manager",
+      "file": "docker_manager.py",
       "span": {
         "start": 1,
         "end": 1
@@ -258,6 +284,19 @@
       "signatures": {}
     },
     {
+      "id": "py:profile_loader",
+      "kind": "module",
+      "language": "python",
+      "name": "profile_loader",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:profiles",
       "kind": "module",
       "language": "python",
@@ -292,6 +331,19 @@
       "span": {
         "start": 1,
         "end": 1
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.AgentEntry",
+      "kind": "class",
+      "language": "python",
+      "name": "AgentEntry",
+      "file": "agents_config.py",
+      "span": {
+        "start": 74,
+        "end": 84
       },
       "tags": [],
       "signatures": {}
@@ -355,8 +407,8 @@
       "name": "SupabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 42,
-        "end": 63
+        "start": 49,
+        "end": 70
       },
       "tags": [],
       "signatures": {}
@@ -368,8 +420,8 @@
       "name": "AgentConfig",
       "file": "config.py",
       "span": {
-        "start": 67,
-        "end": 87
+        "start": 74,
+        "end": 94
       },
       "tags": [],
       "signatures": {}
@@ -381,8 +433,8 @@
       "name": "LockConfig",
       "file": "config.py",
       "span": {
-        "start": 91,
-        "end": 101
+        "start": 98,
+        "end": 108
       },
       "tags": [],
       "signatures": {}
@@ -394,8 +446,8 @@
       "name": "PostgresConfig",
       "file": "config.py",
       "span": {
-        "start": 105,
-        "end": 118
+        "start": 112,
+        "end": 125
       },
       "tags": [],
       "signatures": {}
@@ -407,8 +459,8 @@
       "name": "DatabaseConfig",
       "file": "config.py",
       "span": {
-        "start": 122,
-        "end": 133
+        "start": 129,
+        "end": 140
       },
       "tags": [],
       "signatures": {}
@@ -420,8 +472,8 @@
       "name": "GuardrailsConfig",
       "file": "config.py",
       "span": {
-        "start": 137,
-        "end": 153
+        "start": 144,
+        "end": 160
       },
       "tags": [],
       "signatures": {}
@@ -433,8 +485,8 @@
       "name": "ProfilesConfig",
       "file": "config.py",
       "span": {
-        "start": 157,
-        "end": 177
+        "start": 164,
+        "end": 184
       },
       "tags": [],
       "signatures": {}
@@ -446,8 +498,8 @@
       "name": "AuditConfig",
       "file": "config.py",
       "span": {
-        "start": 181,
-        "end": 192
+        "start": 188,
+        "end": 199
       },
       "tags": [],
       "signatures": {}
@@ -459,8 +511,8 @@
       "name": "NetworkPolicyConfig",
       "file": "config.py",
       "span": {
-        "start": 196,
-        "end": 205
+        "start": 203,
+        "end": 212
       },
       "tags": [],
       "signatures": {}
@@ -472,8 +524,8 @@
       "name": "PolicyEngineConfig",
       "file": "config.py",
       "span": {
-        "start": 209,
-        "end": 229
+        "start": 216,
+        "end": 236
       },
       "tags": [],
       "signatures": {}
@@ -485,8 +537,8 @@
       "name": "PortAllocatorConfig",
       "file": "config.py",
       "span": {
-        "start": 233,
-        "end": 248
+        "start": 240,
+        "end": 255
       },
       "tags": [],
       "signatures": {}
@@ -498,8 +550,8 @@
       "name": "ApiConfig",
       "file": "config.py",
       "span": {
-        "start": 252,
-        "end": 283
+        "start": 259,
+        "end": 304
       },
       "tags": [],
       "signatures": {}
@@ -511,8 +563,8 @@
       "name": "Config",
       "file": "config.py",
       "span": {
-        "start": 287,
-        "end": 331
+        "start": 308,
+        "end": 380
       },
       "tags": [],
       "signatures": {}
@@ -1415,6 +1467,118 @@
       "signatures": {}
     },
     {
+      "id": "py:agents_config._default_agents_path",
+      "kind": "function",
+      "language": "python",
+      "name": "_default_agents_path",
+      "file": "agents_config.py",
+      "span": {
+        "start": 91,
+        "end": 92
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._default_secrets_path",
+      "kind": "function",
+      "language": "python",
+      "name": "_default_secrets_path",
+      "file": "agents_config.py",
+      "span": {
+        "start": 95,
+        "end": 96
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.load_agents_config",
+      "kind": "function",
+      "language": "python",
+      "name": "load_agents_config",
+      "file": "agents_config.py",
+      "span": {
+        "start": 99,
+        "end": 162
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.get_api_key_identities",
+      "kind": "function",
+      "language": "python",
+      "name": "get_api_key_identities",
+      "file": "agents_config.py",
+      "span": {
+        "start": 169,
+        "end": 197
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.get_mcp_env",
+      "kind": "function",
+      "language": "python",
+      "name": "get_mcp_env",
+      "file": "agents_config.py",
+      "span": {
+        "start": 204,
+        "end": 232
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.get_agents_config",
+      "kind": "function",
+      "language": "python",
+      "name": "get_agents_config",
+      "file": "agents_config.py",
+      "span": {
+        "start": 242,
+        "end": 255
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.get_agent_config",
+      "kind": "function",
+      "language": "python",
+      "name": "get_agent_config",
+      "file": "agents_config.py",
+      "span": {
+        "start": 258,
+        "end": 263
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.reset_agents_config",
+      "kind": "function",
+      "language": "python",
+      "name": "reset_agents_config",
+      "file": "agents_config.py",
+      "span": {
+        "start": 266,
+        "end": 269
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
       "id": "py:audit.AuditEntry.from_dict",
       "kind": "function",
       "language": "python",
@@ -1604,8 +1768,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 50,
-        "end": 63
+        "start": 57,
+        "end": 70
       },
       "tags": [
         "classmethod",
@@ -1620,8 +1784,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 75,
-        "end": 87
+        "start": 82,
+        "end": 94
       },
       "tags": [
         "classmethod",
@@ -1636,8 +1800,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 98,
-        "end": 101
+        "start": 105,
+        "end": 108
       },
       "tags": [
         "classmethod",
@@ -1652,8 +1816,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 113,
-        "end": 118
+        "start": 120,
+        "end": 125
       },
       "tags": [
         "classmethod",
@@ -1668,8 +1832,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 129,
-        "end": 133
+        "start": 136,
+        "end": 140
       },
       "tags": [
         "classmethod",
@@ -1684,8 +1848,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 144,
-        "end": 153
+        "start": 151,
+        "end": 160
       },
       "tags": [
         "classmethod",
@@ -1700,8 +1864,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 165,
-        "end": 177
+        "start": 172,
+        "end": 184
       },
       "tags": [
         "classmethod",
@@ -1716,8 +1880,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 188,
-        "end": 192
+        "start": 195,
+        "end": 199
       },
       "tags": [
         "classmethod",
@@ -1732,8 +1896,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 202,
-        "end": 205
+        "start": 209,
+        "end": 212
       },
       "tags": [
         "classmethod",
@@ -1748,8 +1912,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 218,
-        "end": 229
+        "start": 225,
+        "end": 236
       },
       "tags": [
         "classmethod",
@@ -1764,8 +1928,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 242,
-        "end": 248
+        "start": 249,
+        "end": 255
       },
       "tags": [
         "classmethod",
@@ -1780,8 +1944,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 264,
-        "end": 283
+        "start": 271,
+        "end": 304
       },
       "tags": [
         "classmethod",
@@ -1796,8 +1960,8 @@
       "name": "from_env",
       "file": "config.py",
       "span": {
-        "start": 309,
-        "end": 331
+        "start": 333,
+        "end": 380
       },
       "tags": [
         "classmethod",
@@ -1812,8 +1976,8 @@
       "name": "get_config",
       "file": "config.py",
       "span": {
-        "start": 338,
-        "end": 343
+        "start": 387,
+        "end": 392
       },
       "tags": [],
       "signatures": {}
@@ -1825,8 +1989,8 @@
       "name": "reset_config",
       "file": "config.py",
       "span": {
-        "start": 346,
-        "end": 349
+        "start": 395,
+        "end": 398
       },
       "tags": [],
       "signatures": {}
@@ -3401,6 +3565,60 @@
       "span": {
         "start": 267,
         "end": 272
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:docker_manager.detect_runtime",
+      "kind": "function",
+      "language": "python",
+      "name": "detect_runtime",
+      "file": "docker_manager.py",
+      "span": {
+        "start": 21,
+        "end": 53
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:docker_manager.is_container_running",
+      "kind": "function",
+      "language": "python",
+      "name": "is_container_running",
+      "file": "docker_manager.py",
+      "span": {
+        "start": 56,
+        "end": 67
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:docker_manager.start_container",
+      "kind": "function",
+      "language": "python",
+      "name": "start_container",
+      "file": "docker_manager.py",
+      "span": {
+        "start": 70,
+        "end": 125
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:docker_manager.wait_for_healthy",
+      "kind": "function",
+      "language": "python",
+      "name": "wait_for_healthy",
+      "file": "docker_manager.py",
+      "span": {
+        "start": 128,
+        "end": 166
       },
       "tags": [],
       "signatures": {}
@@ -5018,6 +5236,155 @@
       "span": {
         "start": 189,
         "end": 193
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader.deep_merge",
+      "kind": "function",
+      "language": "python",
+      "name": "deep_merge",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 64,
+        "end": 80
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader._load_secrets",
+      "kind": "function",
+      "language": "python",
+      "name": "_load_secrets",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 87,
+        "end": 111
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader.interpolate",
+      "kind": "function",
+      "language": "python",
+      "name": "interpolate",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 114,
+        "end": 140
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader.interpolate._replace",
+      "kind": "function",
+      "language": "python",
+      "name": "_replace",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 122,
+        "end": 135
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader._interpolate_tree",
+      "kind": "function",
+      "language": "python",
+      "name": "_interpolate_tree",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 143,
+        "end": 153
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader._resolve_profile",
+      "kind": "function",
+      "language": "python",
+      "name": "_resolve_profile",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 160,
+        "end": 187
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader._flatten",
+      "kind": "function",
+      "language": "python",
+      "name": "_flatten",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 194,
+        "end": 203
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader._inject_env",
+      "kind": "function",
+      "language": "python",
+      "name": "_inject_env",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 206,
+        "end": 215
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader.load_profile",
+      "kind": "function",
+      "language": "python",
+      "name": "load_profile",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 222,
+        "end": 252
+      },
+      "tags": [
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:profile_loader.apply_profile",
+      "kind": "function",
+      "language": "python",
+      "name": "apply_profile",
+      "file": "profile_loader.py",
+      "span": {
+        "start": 255,
+        "end": 288
       },
       "tags": [],
       "signatures": {}
@@ -10031,6 +10398,69 @@
   ],
   "edges": [
     {
+      "from": "py:agents_config.load_agents_config",
+      "to": "py:agents_config._default_agents_path",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_default_agents_path"
+    },
+    {
+      "from": "py:agents_config.load_agents_config",
+      "to": "py:agents_config._default_secrets_path",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_default_secrets_path"
+    },
+    {
+      "from": "py:agents_config.load_agents_config",
+      "to": "py:teams.TeamsConfig.validate",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:validate"
+    },
+    {
+      "from": "py:agents_config.load_agents_config",
+      "to": "py:profile_loader._load_secrets",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_load_secrets"
+    },
+    {
+      "from": "py:agents_config.load_agents_config",
+      "to": "py:profile_loader.interpolate",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:interpolate"
+    },
+    {
+      "from": "py:agents_config.get_api_key_identities",
+      "to": "py:agents_config.load_agents_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_agents_config"
+    },
+    {
+      "from": "py:agents_config.get_mcp_env",
+      "to": "py:agents_config.load_agents_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_agents_config"
+    },
+    {
+      "from": "py:agents_config.get_agents_config",
+      "to": "py:agents_config.load_agents_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_agents_config"
+    },
+    {
+      "from": "py:agents_config.get_agent_config",
+      "to": "py:agents_config.get_agents_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_agents_config"
+    },
+    {
       "from": "py:audit.AuditService.db",
       "to": "py:db.get_db",
       "type": "call",
@@ -10043,6 +10473,20 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_config"
+    },
+    {
+      "from": "py:config.ApiConfig.from_env",
+      "to": "py:agents_config.get_api_key_identities",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_api_key_identities"
+    },
+    {
+      "from": "py:config.Config.from_env",
+      "to": "py:profile_loader.apply_profile",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:apply_profile"
     },
     {
       "from": "py:coordination_api.verify_api_key",
@@ -10822,6 +11266,20 @@
       "evidence": "ast:call:get_audit_service"
     },
     {
+      "from": "py:docker_manager.start_container",
+      "to": "py:docker_manager.detect_runtime",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:detect_runtime"
+    },
+    {
+      "from": "py:docker_manager.start_container",
+      "to": "py:docker_manager.is_container_running",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:is_container_running"
+    },
+    {
       "from": "py:feature_registry.Feature.from_dict",
       "to": "py:discovery.AgentInfo.from_dict.parse_dt",
       "type": "call",
@@ -11142,6 +11600,62 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_compose_project_name"
+    },
+    {
+      "from": "py:profile_loader._interpolate_tree",
+      "to": "py:profile_loader.interpolate",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:interpolate"
+    },
+    {
+      "from": "py:profile_loader._resolve_profile",
+      "to": "py:profile_loader.deep_merge",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:deep_merge"
+    },
+    {
+      "from": "py:profile_loader._resolve_profile",
+      "to": "py:profile_loader._interpolate_tree",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_interpolate_tree"
+    },
+    {
+      "from": "py:profile_loader._inject_env",
+      "to": "py:profile_loader._flatten",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_flatten"
+    },
+    {
+      "from": "py:profile_loader.load_profile",
+      "to": "py:profile_loader._load_secrets",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_load_secrets"
+    },
+    {
+      "from": "py:profile_loader.load_profile",
+      "to": "py:profile_loader._resolve_profile",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_resolve_profile"
+    },
+    {
+      "from": "py:profile_loader.apply_profile",
+      "to": "py:profile_loader.load_profile",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_profile"
+    },
+    {
+      "from": "py:profile_loader.apply_profile",
+      "to": "py:profile_loader._inject_env",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_inject_env"
     },
     {
       "from": "py:profiles.ProfilesService.db",

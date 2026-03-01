@@ -1,5 +1,6 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
+    agents_config["agents_config (10 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
     config["config (29 symbols)"]
@@ -8,6 +9,7 @@ flowchart TB
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
+    docker_manager["docker_manager (5 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
     guardrails["guardrails (13 symbols)"]
@@ -18,11 +20,16 @@ flowchart TB
     network_policies["network_policies (8 symbols)"]
     policy_engine["policy_engine (28 symbols)"]
     port_allocator["port_allocator (12 symbols)"]
+    profile_loader["profile_loader (11 symbols)"]
     profiles["profiles (14 symbols)"]
     teams["teams (10 symbols)"]
     work_queue["work_queue (22 symbols)"]
+    agents_config -->|"call"| profile_loader
+    agents_config -->|"call"| teams
     audit -->|"call, import"| config
     audit -->|"call, import"| db
+    config -->|"call"| agents_config
+    config -->|"call"| profile_loader
     coordination_api -->|"call, import"| audit
     coordination_api -->|"call, import"| config
     coordination_api -->|"call, import"| guardrails

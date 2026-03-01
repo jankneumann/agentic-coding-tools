@@ -1,10 +1,190 @@
 {
-  "generated_at": "2026-02-28T04:07:20.022478+00:00",
+  "generated_at": "2026-03-01T02:32:44.528675+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 214,
+    "total": 265,
     "with_markers": 1,
     "items": [
+      {
+        "file": "agents_config.py",
+        "line": 23,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 24,
+        "text": "# JSON Schema for agents.yaml validation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 25,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 69,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 70,
+        "text": "# Data classes",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 71,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 87,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 88,
+        "text": "# Loading + validation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 89,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 145,
+        "text": "# If any ${VAR} token remains after interpolation, treat as unresolved.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.load_agents_config"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 165,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 166,
+        "text": "# API key identity generation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 167,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 200,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 201,
+        "text": "# MCP environment generation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 202,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 226,
+        "text": "# Include database connection settings from the current environment.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.get_mcp_env"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 235,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 236,
+        "text": "# Global config singleton (lazy)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 237,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
       {
         "file": "assurance.py",
         "line": 9,
@@ -43,7 +223,7 @@
       },
       {
         "file": "config.py",
-        "line": 47,
+        "line": 54,
         "text": "# Empty string for direct PostgREST connections",
         "language": "python",
         "type": "inline",
@@ -52,7 +232,7 @@
       },
       {
         "file": "config.py",
-        "line": 78,
+        "line": 85,
         "text": "# Generate a default agent ID from process info",
         "language": "python",
         "type": "inline",
@@ -61,7 +241,7 @@
       },
       {
         "file": "config.py",
-        "line": 95,
+        "line": 102,
         "text": "# 8 hours max",
         "language": "python",
         "type": "inline",
@@ -70,7 +250,7 @@
       },
       {
         "file": "config.py",
-        "line": 108,
+        "line": 115,
         "text": "# e.g., \"postgresql://user:pass@localhost:5432/coordinator\"",
         "language": "python",
         "type": "inline",
@@ -79,7 +259,7 @@
       },
       {
         "file": "config.py",
-        "line": 125,
+        "line": 132,
         "text": "# \"supabase\" or \"postgres\"",
         "language": "python",
         "type": "inline",
@@ -88,7 +268,7 @@
       },
       {
         "file": "config.py",
-        "line": 140,
+        "line": 147,
         "text": "# Refresh DB patterns every 5 min",
         "language": "python",
         "type": "inline",
@@ -97,7 +277,7 @@
       },
       {
         "file": "config.py",
-        "line": 141,
+        "line": 148,
         "text": "# Use hardcoded patterns if DB unavailable",
         "language": "python",
         "type": "inline",
@@ -106,7 +286,7 @@
       },
       {
         "file": "config.py",
-        "line": 160,
+        "line": 167,
         "text": "# Standard trust for unregistered agents",
         "language": "python",
         "type": "inline",
@@ -115,7 +295,7 @@
       },
       {
         "file": "config.py",
-        "line": 162,
+        "line": 169,
         "text": "# Profile cache TTL",
         "language": "python",
         "type": "inline",
@@ -124,7 +304,7 @@
       },
       {
         "file": "config.py",
-        "line": 185,
+        "line": 192,
         "text": "# Non-blocking audit inserts",
         "language": "python",
         "type": "inline",
@@ -133,7 +313,7 @@
       },
       {
         "file": "config.py",
-        "line": 199,
+        "line": 206,
         "text": "# \"deny\" or \"allow\" for unspecified domains",
         "language": "python",
         "type": "inline",
@@ -142,7 +322,7 @@
       },
       {
         "file": "config.py",
-        "line": 212,
+        "line": 219,
         "text": "# \"native\" or \"cedar\"",
         "language": "python",
         "type": "inline",
@@ -151,7 +331,7 @@
       },
       {
         "file": "config.py",
-        "line": 255,
+        "line": 262,
         "text": "# noqa: S104",
         "language": "python",
         "type": "inline",
@@ -160,7 +340,34 @@
       },
       {
         "file": "config.py",
-        "line": 334,
+        "line": 283,
+        "text": "# Auto-populate from agents.yaml when no explicit env var is set.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:config.ApiConfig.from_env"
+      },
+      {
+        "file": "config.py",
+        "line": 290,
+        "text": "# noqa: BLE001",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:config.ApiConfig.from_env"
+      },
+      {
+        "file": "config.py",
+        "line": 340,
+        "text": "# Apply deployment profile (injects defaults into os.environ).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:config.Config.from_env"
+      },
+      {
+        "file": "config.py",
+        "line": 383,
         "text": "# Global config instance (lazy-loaded)",
         "language": "python",
         "type": "inline",
@@ -504,15 +711,6 @@
         "file": "coordination_mcp.py",
         "line": 45,
         "text": "# Create the MCP server",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "coordination_mcp.py",
-        "line": 49,
-        "text": "# type: ignore[call-arg]",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1736,6 +1934,267 @@
         "enclosing_node": null
       },
       {
+        "file": "profile_loader.py",
+        "line": 21,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 22,
+        "text": "# Explicit mapping: YAML path \u2192 environment variable name.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 23,
+        "text": "# Only keys listed here are injected into os.environ.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 24,
+        "text": "# The ``docker`` and ``providers`` blocks are profile-only metadata.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 25,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 54,
+        "text": "# Regex: matches ${VAR} and ${VAR:-default}, but not $${\u2026} (escaped).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 60,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 61,
+        "text": "# Deep merge",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 62,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 83,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 84,
+        "text": "# Secret + env interpolation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 85,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 124,
+        "text": "# None when no ``:-`` clause",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.interpolate._replace"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 125,
+        "text": "# Secrets take priority; use explicit ``in`` check so empty strings",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.interpolate._replace"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 126,
+        "text": "# are honoured (``or`` would skip falsy values).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.interpolate._replace"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 134,
+        "text": "# Leave unresolvable as literal so downstream can surface a clear error.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.interpolate._replace"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 138,
+        "text": "# Un-escape $${\u2026} \u2192 ${\u2026}",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.interpolate"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 156,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 157,
+        "text": "# Profile loading with inheritance",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 158,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 187,
+        "text": "# type: ignore[no-any-return]",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader._resolve_profile"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 190,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 191,
+        "text": "# Flatten + inject",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 192,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 218,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 219,
+        "text": "# Public API",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 220,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 271,
+        "text": "# Only activate when the caller or the environment explicitly requests a",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.apply_profile"
+      },
+      {
+        "file": "profile_loader.py",
+        "line": 272,
+        "text": "# profile.  This keeps tests and legacy setups unaffected.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:profile_loader.apply_profile"
+      },
+      {
         "file": "profiles.py",
         "line": 58,
         "text": "# 'assignment', 'default', or None",
@@ -1941,8 +2400,13 @@
       "items": []
     },
     "broad_except": {
-      "count": 36,
+      "count": 37,
       "items": [
+        {
+          "file": "config.py",
+          "line": 290,
+          "enclosing_node": "py:config.ApiConfig.from_env"
+        },
         {
           "file": "coordination_api.py",
           "line": 186,
@@ -1960,13 +2424,13 @@
         },
         {
           "file": "discovery.py",
-          "line": 257,
-          "enclosing_node": "py:discovery.DiscoveryService.cleanup_dead_agents"
+          "line": 219,
+          "enclosing_node": "py:discovery.DiscoveryService.heartbeat"
         },
         {
           "file": "discovery.py",
-          "line": 219,
-          "enclosing_node": "py:discovery.DiscoveryService.heartbeat"
+          "line": 257,
+          "enclosing_node": "py:discovery.DiscoveryService.cleanup_dead_agents"
         },
         {
           "file": "feature_registry.py",
@@ -1985,7 +2449,7 @@
         },
         {
           "file": "guardrails.py",
-          "line": 259,
+          "line": 302,
           "enclosing_node": "py:guardrails.GuardrailsService.check_operation"
         },
         {
@@ -1995,7 +2459,7 @@
         },
         {
           "file": "guardrails.py",
-          "line": 302,
+          "line": 259,
           "enclosing_node": "py:guardrails.GuardrailsService.check_operation"
         },
         {
@@ -2055,8 +2519,8 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 401,
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
+          "line": 306,
+          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
@@ -2065,8 +2529,8 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 306,
-          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
+          "line": 401,
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
         },
         {
           "file": "policy_engine.py",
@@ -2090,12 +2554,7 @@
         },
         {
           "file": "work_queue.py",
-          "line": 290,
-          "enclosing_node": "py:work_queue.WorkQueueService.claim"
-        },
-        {
-          "file": "work_queue.py",
-          "line": 266,
+          "line": 276,
           "enclosing_node": "py:work_queue.WorkQueueService.claim"
         },
         {
@@ -2105,7 +2564,12 @@
         },
         {
           "file": "work_queue.py",
-          "line": 276,
+          "line": 266,
+          "enclosing_node": "py:work_queue.WorkQueueService.claim"
+        },
+        {
+          "file": "work_queue.py",
+          "line": 290,
           "enclosing_node": "py:work_queue.WorkQueueService.claim"
         },
         {
@@ -2126,8 +2590,13 @@
       ]
     },
     "context_managers": {
-      "count": 11,
+      "count": 14,
       "items": [
+        {
+          "file": "agents_config.py",
+          "line": 124,
+          "enclosing_node": "py:agents_config.load_agents_config"
+        },
         {
           "file": "db_postgres.py",
           "line": 114,
@@ -2165,8 +2634,8 @@
         },
         {
           "file": "port_allocator.py",
-          "line": 143,
-          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
+          "line": 181,
+          "enclosing_node": "py:port_allocator.get_port_allocator"
         },
         {
           "file": "port_allocator.py",
@@ -2175,8 +2644,18 @@
         },
         {
           "file": "port_allocator.py",
-          "line": 181,
-          "enclosing_node": "py:port_allocator.get_port_allocator"
+          "line": 143,
+          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 95,
+          "enclosing_node": "py:profile_loader._load_secrets"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 179,
+          "enclosing_node": "py:profile_loader._resolve_profile"
         },
         {
           "file": "teams.py",
@@ -2186,8 +2665,78 @@
       ]
     },
     "type_hints": {
-      "count": 439,
+      "count": 481,
       "items": [
+        {
+          "file": "agents_config.py",
+          "line": 91,
+          "function": "_default_agents_path",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._default_agents_path"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 99,
+          "function": "load_agents_config",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.load_agents_config"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 242,
+          "function": "get_agents_config",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.get_agents_config"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 258,
+          "function": "get_agent_config",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.get_agent_config"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 266,
+          "function": "reset_agents_config",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.reset_agents_config"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 169,
+          "function": "get_api_key_identities",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.get_api_key_identities"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 95,
+          "function": "_default_secrets_path",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._default_secrets_path"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 204,
+          "function": "get_mcp_env",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.get_mcp_env"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 205,
+          "parameter": "agent_id",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config.get_mcp_env"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 258,
+          "parameter": "agent_id",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config.get_agent_config"
+        },
         {
           "file": "audit.py",
           "line": 33,
@@ -2208,13 +2757,6 @@
           "function": "get_audit_service",
           "kind": "return_type",
           "enclosing_node": "py:audit.get_audit_service"
-        },
-        {
-          "file": "audit.py",
-          "line": 77,
-          "function": "db",
-          "kind": "return_type",
-          "enclosing_node": "py:audit.AuditService.db"
         },
         {
           "file": "audit.py",
@@ -2246,6 +2788,13 @@
         },
         {
           "file": "audit.py",
+          "line": 62,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:audit.AuditResult.from_dict"
+        },
+        {
+          "file": "audit.py",
           "line": 169,
           "function": "__aexit__",
           "kind": "return_type",
@@ -2253,10 +2802,38 @@
         },
         {
           "file": "audit.py",
-          "line": 62,
-          "function": "from_dict",
+          "line": 77,
+          "function": "db",
           "kind": "return_type",
-          "enclosing_node": "py:audit.AuditResult.from_dict"
+          "enclosing_node": "py:audit.AuditService.db"
+        },
+        {
+          "file": "audit.py",
+          "line": 160,
+          "parameter": "service",
+          "kind": "param_type",
+          "enclosing_node": "py:audit.AuditTimer.__init__"
+        },
+        {
+          "file": "audit.py",
+          "line": 120,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:audit.AuditService._insert_audit_entry"
+        },
+        {
+          "file": "audit.py",
+          "line": 152,
+          "parameter": "operation",
+          "kind": "param_type",
+          "enclosing_node": "py:audit.AuditService.timed"
+        },
+        {
+          "file": "audit.py",
+          "line": 173,
+          "parameter": "exc_tb",
+          "kind": "param_type",
+          "enclosing_node": "py:audit.AuditTimer.__aexit__"
         },
         {
           "file": "audit.py",
@@ -2294,214 +2871,144 @@
           "enclosing_node": "py:audit.AuditTimer.__aexit__"
         },
         {
-          "file": "audit.py",
-          "line": 160,
-          "parameter": "service",
-          "kind": "param_type",
-          "enclosing_node": "py:audit.AuditTimer.__init__"
-        },
-        {
-          "file": "audit.py",
-          "line": 152,
-          "parameter": "operation",
-          "kind": "param_type",
-          "enclosing_node": "py:audit.AuditService.timed"
-        },
-        {
-          "file": "audit.py",
-          "line": 120,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:audit.AuditService._insert_audit_entry"
-        },
-        {
-          "file": "audit.py",
-          "line": 173,
-          "parameter": "exc_tb",
-          "kind": "param_type",
-          "enclosing_node": "py:audit.AuditTimer.__aexit__"
-        },
-        {
           "file": "config.py",
-          "line": 338,
+          "line": 387,
           "function": "get_config",
           "kind": "return_type",
           "enclosing_node": "py:config.get_config"
         },
         {
           "file": "config.py",
-          "line": 50,
+          "line": 57,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.SupabaseConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 129,
+          "line": 136,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.DatabaseConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 113,
+          "line": 120,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.PostgresConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 144,
-          "function": "from_env",
-          "kind": "return_type",
-          "enclosing_node": "py:config.GuardrailsConfig.from_env"
-        },
-        {
-          "file": "config.py",
-          "line": 165,
+          "line": 172,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.ProfilesConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 202,
+          "line": 209,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.NetworkPolicyConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 98,
-          "function": "from_env",
-          "kind": "return_type",
-          "enclosing_node": "py:config.LockConfig.from_env"
-        },
-        {
-          "file": "config.py",
-          "line": 242,
+          "line": 249,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.PortAllocatorConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 264,
+          "line": 271,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.ApiConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 309,
+          "line": 151,
+          "function": "from_env",
+          "kind": "return_type",
+          "enclosing_node": "py:config.GuardrailsConfig.from_env"
+        },
+        {
+          "file": "config.py",
+          "line": 333,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.Config.from_env"
         },
         {
           "file": "config.py",
-          "line": 346,
-          "function": "reset_config",
-          "kind": "return_type",
-          "enclosing_node": "py:config.reset_config"
-        },
-        {
-          "file": "config.py",
-          "line": 218,
+          "line": 225,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.PolicyEngineConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 75,
+          "line": 82,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.AgentConfig.from_env"
         },
         {
           "file": "config.py",
-          "line": 188,
+          "line": 395,
+          "function": "reset_config",
+          "kind": "return_type",
+          "enclosing_node": "py:config.reset_config"
+        },
+        {
+          "file": "config.py",
+          "line": 105,
+          "function": "from_env",
+          "kind": "return_type",
+          "enclosing_node": "py:config.LockConfig.from_env"
+        },
+        {
+          "file": "config.py",
+          "line": 195,
           "function": "from_env",
           "kind": "return_type",
           "enclosing_node": "py:config.AuditConfig.from_env"
         },
         {
           "file": "coordination_api.py",
-          "line": 410,
-          "function": "complete_work",
+          "line": 124,
+          "function": "resolve_identity",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.complete_work"
+          "enclosing_node": "py:coordination_api.resolve_identity"
         },
         {
           "file": "coordination_api.py",
-          "line": 154,
-          "function": "authorize_operation",
+          "line": 661,
+          "function": "release_ports",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.authorize_operation"
+          "enclosing_node": "py:coordination_api.create_coordination_api.release_ports"
         },
         {
           "file": "coordination_api.py",
-          "line": 276,
-          "function": "check_lock_status",
+          "line": 247,
+          "function": "release_lock",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.check_lock_status"
+          "enclosing_node": "py:coordination_api.create_coordination_api.release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 569,
-          "function": "get_my_profile",
+          "line": 376,
+          "function": "claim_work",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.get_my_profile"
+          "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 670,
-          "function": "port_status",
+          "line": 523,
+          "function": "check_guardrails",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.port_status"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 196,
-          "function": "create_coordination_api",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 442,
-          "function": "submit_work",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 175,
-          "function": "resolve_trust_level",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.resolve_trust_level"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 301,
-          "function": "store_memory",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.store_memory"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 603,
-          "function": "query_audit",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.query_audit"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 693,
-          "function": "health",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.health"
+          "enclosing_node": "py:coordination_api.create_coordination_api.check_guardrails"
         },
         {
           "file": "coordination_api.py",
@@ -2547,38 +3054,108 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 124,
-          "function": "resolve_identity",
+          "line": 442,
+          "function": "submit_work",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.resolve_identity"
+          "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
         },
         {
           "file": "coordination_api.py",
-          "line": 661,
-          "function": "release_ports",
+          "line": 175,
+          "function": "resolve_trust_level",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.release_ports"
+          "enclosing_node": "py:coordination_api.resolve_trust_level"
         },
         {
           "file": "coordination_api.py",
-          "line": 247,
-          "function": "release_lock",
+          "line": 301,
+          "function": "store_memory",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.release_lock"
+          "enclosing_node": "py:coordination_api.create_coordination_api.store_memory"
         },
         {
           "file": "coordination_api.py",
-          "line": 376,
-          "function": "claim_work",
+          "line": 603,
+          "function": "query_audit",
           "kind": "return_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
+          "enclosing_node": "py:coordination_api.create_coordination_api.query_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 523,
-          "function": "check_guardrails",
+          "line": 693,
+          "function": "health",
           "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.health"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 154,
+          "function": "authorize_operation",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.authorize_operation"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 276,
+          "function": "check_lock_status",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.check_lock_status"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 569,
+          "function": "get_my_profile",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.get_my_profile"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 410,
+          "function": "complete_work",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.complete_work"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 670,
+          "function": "port_status",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.port_status"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 196,
+          "function": "create_coordination_api",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 156,
+          "parameter": "agent_type",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.authorize_operation"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 276,
+          "parameter": "file_path",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.check_lock_status"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 524,
+          "parameter": "request",
+          "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_guardrails"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 640,
+          "parameter": "request",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.allocate_ports"
         },
         {
           "file": "coordination_api.py",
@@ -2589,10 +3166,52 @@
         },
         {
           "file": "coordination_api.py",
+          "line": 175,
+          "parameter": "agent_type",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.resolve_trust_level"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 248,
+          "parameter": "request",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.release_lock"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 377,
+          "parameter": "request",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 443,
+          "parameter": "request",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 125,
+          "parameter": "principal",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.resolve_identity"
+        },
+        {
+          "file": "coordination_api.py",
           "line": 211,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.acquire_lock"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 126,
+          "parameter": "request_agent_id",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.resolve_identity"
         },
         {
           "file": "coordination_api.py",
@@ -2624,13 +3243,6 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 155,
-          "parameter": "agent_id",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.authorize_operation"
-        },
-        {
-          "file": "coordination_api.py",
           "line": 127,
           "parameter": "request_agent_type",
           "kind": "param_type",
@@ -2638,24 +3250,10 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 248,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.release_lock"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 156,
-          "parameter": "agent_type",
+          "line": 155,
+          "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.authorize_operation"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 126,
-          "parameter": "request_agent_id",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.resolve_identity"
         },
         {
           "file": "coordination_api.py",
@@ -2666,241 +3264,10 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 175,
-          "parameter": "agent_type",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.resolve_trust_level"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 276,
-          "parameter": "file_path",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.check_lock_status"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 377,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.claim_work"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 443,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.submit_work"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 125,
-          "parameter": "principal",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.resolve_identity"
-        },
-        {
-          "file": "coordination_api.py",
           "line": 334,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.query_memories"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 524,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.check_guardrails"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 640,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.allocate_ports"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 487,
-          "function": "register_session",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.register_session"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 122,
-          "function": "release_lock",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.release_lock"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 264,
-          "function": "submit_work",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.submit_work"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 628,
-          "function": "remember",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.remember"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 833,
-          "function": "query_audit",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.query_audit"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1012,
-          "function": "release_ports",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.release_ports"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1143,
-          "function": "get_pending_work",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_pending_work"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1262,
-          "function": "get_recent_audit",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_recent_audit"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 63,
-          "function": "get_agent_type",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_agent_type"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1316,
-          "function": "start_work_session",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.start_work_session"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 524,
-          "function": "discover_agents",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.discover_agents"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 148,
-          "function": "check_locks",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.check_locks"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 319,
-          "function": "get_task",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_task"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 674,
-          "function": "recall",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.recall"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 882,
-          "function": "check_policy",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.check_policy"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1037,
-          "function": "ports_status",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.ports_status"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1173,
-          "function": "get_recent_memories",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_recent_memories"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1294,
-          "function": "coordinate_file_edit",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.coordinate_file_edit"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 727,
-          "function": "check_guardrails",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.check_guardrails"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 74,
-          "function": "acquire_lock",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.acquire_lock"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 182,
-          "function": "get_work",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_work"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 373,
-          "function": "write_handoff",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.write_handoff"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 571,
-          "function": "heartbeat",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.heartbeat"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 965,
-          "function": "allocate_ports",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.allocate_ports"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1080,
-          "function": "get_current_locks",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_current_locks"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 1200,
-          "function": "get_guardrail_patterns",
-          "kind": "return_type",
-          "enclosing_node": "py:coordination_mcp.get_guardrail_patterns"
         },
         {
           "file": "coordination_mcp.py",
@@ -2967,66 +3334,185 @@
         },
         {
           "file": "coordination_mcp.py",
-          "line": 75,
-          "parameter": "file_path",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_mcp.acquire_lock"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 265,
-          "parameter": "task_type",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_mcp.submit_work"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 224,
-          "parameter": "task_id",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_mcp.complete_work"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 319,
-          "parameter": "task_id",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_mcp.get_task"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 374,
-          "parameter": "summary",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_mcp.write_handoff"
-        },
-        {
-          "file": "coordination_mcp.py",
-          "line": 728,
-          "parameter": "operation_text",
-          "kind": "param_type",
+          "line": 727,
+          "function": "check_guardrails",
+          "kind": "return_type",
           "enclosing_node": "py:coordination_mcp.check_guardrails"
         },
         {
           "file": "coordination_mcp.py",
+          "line": 74,
+          "function": "acquire_lock",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.acquire_lock"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 182,
+          "function": "get_work",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_work"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 373,
+          "function": "write_handoff",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.write_handoff"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 571,
+          "function": "heartbeat",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.heartbeat"
+        },
+        {
+          "file": "coordination_mcp.py",
           "line": 965,
-          "parameter": "session_id",
-          "kind": "param_type",
+          "function": "allocate_ports",
+          "kind": "return_type",
           "enclosing_node": "py:coordination_mcp.allocate_ports"
         },
         {
           "file": "coordination_mcp.py",
+          "line": 1080,
+          "function": "get_current_locks",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_current_locks"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1200,
+          "function": "get_guardrail_patterns",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_guardrail_patterns"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1316,
+          "function": "start_work_session",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.start_work_session"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 524,
+          "function": "discover_agents",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.discover_agents"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 148,
+          "function": "check_locks",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.check_locks"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 319,
+          "function": "get_task",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_task"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 674,
+          "function": "recall",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.recall"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 882,
+          "function": "check_policy",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.check_policy"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1037,
+          "function": "ports_status",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.ports_status"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1173,
+          "function": "get_recent_memories",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_recent_memories"
+        },
+        {
+          "file": "coordination_mcp.py",
           "line": 1294,
-          "parameter": "task",
-          "kind": "param_type",
+          "function": "coordinate_file_edit",
+          "kind": "return_type",
           "enclosing_node": "py:coordination_mcp.coordinate_file_edit"
         },
         {
           "file": "coordination_mcp.py",
           "line": 122,
-          "parameter": "file_path",
-          "kind": "param_type",
+          "function": "release_lock",
+          "kind": "return_type",
           "enclosing_node": "py:coordination_mcp.release_lock"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 264,
+          "function": "submit_work",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.submit_work"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 628,
+          "function": "remember",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.remember"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 487,
+          "function": "register_session",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.register_session"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 833,
+          "function": "query_audit",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.query_audit"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1012,
+          "function": "release_ports",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.release_ports"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1143,
+          "function": "get_pending_work",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_pending_work"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 1262,
+          "function": "get_recent_audit",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_recent_audit"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 63,
+          "function": "get_agent_type",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_mcp.get_agent_type"
         },
         {
           "file": "coordination_mcp.py",
@@ -3037,10 +3523,24 @@
         },
         {
           "file": "coordination_mcp.py",
+          "line": 122,
+          "parameter": "file_path",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.release_lock"
+        },
+        {
+          "file": "coordination_mcp.py",
           "line": 266,
           "parameter": "description",
           "kind": "param_type",
           "enclosing_node": "py:coordination_mcp.submit_work"
+        },
+        {
+          "file": "coordination_mcp.py",
+          "line": 374,
+          "parameter": "summary",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.write_handoff"
         },
         {
           "file": "coordination_mcp.py",
@@ -3071,109 +3571,53 @@
           "enclosing_node": "py:coordination_mcp.coordinate_file_edit"
         },
         {
-          "file": "db.py",
-          "line": 244,
-          "function": "create_db_client",
-          "kind": "return_type",
-          "enclosing_node": "py:db.create_db_client"
+          "file": "coordination_mcp.py",
+          "line": 75,
+          "parameter": "file_path",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.acquire_lock"
         },
         {
-          "file": "db.py",
-          "line": 184,
-          "function": "update",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.update"
+          "file": "coordination_mcp.py",
+          "line": 224,
+          "parameter": "task_id",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.complete_work"
         },
         {
-          "file": "db.py",
-          "line": 36,
-          "function": "query",
-          "kind": "return_type",
-          "enclosing_node": "py:db.DatabaseClient.query"
+          "file": "coordination_mcp.py",
+          "line": 265,
+          "parameter": "task_type",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.submit_work"
         },
         {
-          "file": "db.py",
-          "line": 68,
-          "function": "close",
-          "kind": "return_type",
-          "enclosing_node": "py:db.DatabaseClient.close"
+          "file": "coordination_mcp.py",
+          "line": 319,
+          "parameter": "task_id",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.get_task"
         },
         {
-          "file": "db.py",
-          "line": 96,
-          "function": "client",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.client"
+          "file": "coordination_mcp.py",
+          "line": 728,
+          "parameter": "operation_text",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.check_guardrails"
         },
         {
-          "file": "db.py",
-          "line": 287,
-          "function": "reset_db",
-          "kind": "return_type",
-          "enclosing_node": "py:db.reset_db"
+          "file": "coordination_mcp.py",
+          "line": 965,
+          "parameter": "session_id",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.allocate_ports"
         },
         {
-          "file": "db.py",
-          "line": 217,
-          "function": "delete",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.delete"
-        },
-        {
-          "file": "db.py",
-          "line": 45,
-          "function": "insert",
-          "kind": "return_type",
-          "enclosing_node": "py:db.DatabaseClient.insert"
-        },
-        {
-          "file": "db.py",
-          "line": 109,
-          "function": "rpc",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.rpc"
-        },
-        {
-          "file": "db.py",
-          "line": 271,
-          "function": "get_db",
-          "kind": "return_type",
-          "enclosing_node": "py:db.get_db"
-        },
-        {
-          "file": "db.py",
-          "line": 101,
-          "function": "_headers",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient._headers"
-        },
-        {
-          "file": "db.py",
-          "line": 32,
-          "function": "rpc",
-          "kind": "return_type",
-          "enclosing_node": "py:db.DatabaseClient.rpc"
-        },
-        {
-          "file": "db.py",
-          "line": 54,
-          "function": "update",
-          "kind": "return_type",
-          "enclosing_node": "py:db.DatabaseClient.update"
-        },
-        {
-          "file": "db.py",
-          "line": 130,
-          "function": "query",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.query"
-        },
-        {
-          "file": "db.py",
-          "line": 237,
-          "function": "close",
-          "kind": "return_type",
-          "enclosing_node": "py:db.SupabaseClient.close"
+          "file": "coordination_mcp.py",
+          "line": 1294,
+          "parameter": "task",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_mcp.coordinate_file_edit"
         },
         {
           "file": "db.py",
@@ -3206,6 +3650,132 @@
         {
           "file": "db.py",
           "line": 32,
+          "function": "rpc",
+          "kind": "return_type",
+          "enclosing_node": "py:db.DatabaseClient.rpc"
+        },
+        {
+          "file": "db.py",
+          "line": 54,
+          "function": "update",
+          "kind": "return_type",
+          "enclosing_node": "py:db.DatabaseClient.update"
+        },
+        {
+          "file": "db.py",
+          "line": 130,
+          "function": "query",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.query"
+        },
+        {
+          "file": "db.py",
+          "line": 237,
+          "function": "close",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.close"
+        },
+        {
+          "file": "db.py",
+          "line": 287,
+          "function": "reset_db",
+          "kind": "return_type",
+          "enclosing_node": "py:db.reset_db"
+        },
+        {
+          "file": "db.py",
+          "line": 217,
+          "function": "delete",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.delete"
+        },
+        {
+          "file": "db.py",
+          "line": 45,
+          "function": "insert",
+          "kind": "return_type",
+          "enclosing_node": "py:db.DatabaseClient.insert"
+        },
+        {
+          "file": "db.py",
+          "line": 109,
+          "function": "rpc",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.rpc"
+        },
+        {
+          "file": "db.py",
+          "line": 101,
+          "function": "_headers",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient._headers"
+        },
+        {
+          "file": "db.py",
+          "line": 271,
+          "function": "get_db",
+          "kind": "return_type",
+          "enclosing_node": "py:db.get_db"
+        },
+        {
+          "file": "db.py",
+          "line": 244,
+          "function": "create_db_client",
+          "kind": "return_type",
+          "enclosing_node": "py:db.create_db_client"
+        },
+        {
+          "file": "db.py",
+          "line": 36,
+          "function": "query",
+          "kind": "return_type",
+          "enclosing_node": "py:db.DatabaseClient.query"
+        },
+        {
+          "file": "db.py",
+          "line": 68,
+          "function": "close",
+          "kind": "return_type",
+          "enclosing_node": "py:db.DatabaseClient.close"
+        },
+        {
+          "file": "db.py",
+          "line": 184,
+          "function": "update",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.update"
+        },
+        {
+          "file": "db.py",
+          "line": 96,
+          "function": "client",
+          "kind": "return_type",
+          "enclosing_node": "py:db.SupabaseClient.client"
+        },
+        {
+          "file": "db.py",
+          "line": 64,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.DatabaseClient.delete"
+        },
+        {
+          "file": "db.py",
+          "line": 188,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.update"
+        },
+        {
+          "file": "db.py",
+          "line": 219,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.delete"
+        },
+        {
+          "file": "db.py",
+          "line": 32,
           "parameter": "params",
           "kind": "param_type",
           "enclosing_node": "py:db.DatabaseClient.rpc"
@@ -3233,8 +3803,64 @@
         },
         {
           "file": "db.py",
+          "line": 220,
+          "parameter": "match",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.delete"
+        },
+        {
+          "file": "db.py",
+          "line": 38,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.DatabaseClient.query"
+        },
+        {
+          "file": "db.py",
+          "line": 109,
+          "parameter": "params",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.rpc"
+        },
+        {
+          "file": "db.py",
           "line": 186,
           "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.update"
+        },
+        {
+          "file": "db.py",
+          "line": 47,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.DatabaseClient.insert"
+        },
+        {
+          "file": "db.py",
+          "line": 48,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:db.DatabaseClient.insert"
+        },
+        {
+          "file": "db.py",
+          "line": 56,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.DatabaseClient.update"
+        },
+        {
+          "file": "db.py",
+          "line": 156,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db.SupabaseClient.insert"
+        },
+        {
+          "file": "db.py",
+          "line": 187,
+          "parameter": "match",
           "kind": "param_type",
           "enclosing_node": "py:db.SupabaseClient.update"
         },
@@ -3265,83 +3891,6 @@
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:db.SupabaseClient.insert"
-        },
-        {
-          "file": "db.py",
-          "line": 64,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.DatabaseClient.delete"
-        },
-        {
-          "file": "db.py",
-          "line": 220,
-          "parameter": "match",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.delete"
-        },
-        {
-          "file": "db.py",
-          "line": 48,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:db.DatabaseClient.insert"
-        },
-        {
-          "file": "db.py",
-          "line": 56,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.DatabaseClient.update"
-        },
-        {
-          "file": "db.py",
-          "line": 156,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.insert"
-        },
-        {
-          "file": "db.py",
-          "line": 47,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.DatabaseClient.insert"
-        },
-        {
-          "file": "db.py",
-          "line": 219,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.delete"
-        },
-        {
-          "file": "db.py",
-          "line": 188,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.update"
-        },
-        {
-          "file": "db.py",
-          "line": 38,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db.DatabaseClient.query"
-        },
-        {
-          "file": "db.py",
-          "line": 109,
-          "parameter": "params",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.rpc"
-        },
-        {
-          "file": "db.py",
-          "line": 187,
-          "parameter": "match",
-          "kind": "param_type",
-          "enclosing_node": "py:db.SupabaseClient.update"
         },
         {
           "file": "db_postgres.py",
@@ -3422,10 +3971,31 @@
         },
         {
           "file": "db_postgres.py",
-          "line": 66,
-          "parameter": "value",
+          "line": 25,
+          "parameter": "val",
           "kind": "param_type",
-          "enclosing_node": "py:db_postgres._serialize_for_asyncpg"
+          "enclosing_node": "py:db_postgres._coerce_filter_value"
+        },
+        {
+          "file": "db_postgres.py",
+          "line": 54,
+          "parameter": "select",
+          "kind": "param_type",
+          "enclosing_node": "py:db_postgres._validate_select_clause"
+        },
+        {
+          "file": "db_postgres.py",
+          "line": 130,
+          "parameter": "table",
+          "kind": "param_type",
+          "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
+        },
+        {
+          "file": "db_postgres.py",
+          "line": 46,
+          "parameter": "identifier",
+          "kind": "param_type",
+          "enclosing_node": "py:db_postgres._validate_identifier"
         },
         {
           "file": "db_postgres.py",
@@ -3436,10 +4006,10 @@
         },
         {
           "file": "db_postgres.py",
-          "line": 46,
-          "parameter": "identifier",
+          "line": 66,
+          "parameter": "value",
           "kind": "param_type",
-          "enclosing_node": "py:db_postgres._validate_identifier"
+          "enclosing_node": "py:db_postgres._serialize_for_asyncpg"
         },
         {
           "file": "db_postgres.py",
@@ -3492,45 +4062,10 @@
         },
         {
           "file": "db_postgres.py",
-          "line": 25,
-          "parameter": "val",
-          "kind": "param_type",
-          "enclosing_node": "py:db_postgres._coerce_filter_value"
-        },
-        {
-          "file": "db_postgres.py",
-          "line": 54,
-          "parameter": "select",
-          "kind": "param_type",
-          "enclosing_node": "py:db_postgres._validate_select_clause"
-        },
-        {
-          "file": "db_postgres.py",
-          "line": 130,
-          "parameter": "table",
-          "kind": "param_type",
-          "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
-        },
-        {
-          "file": "db_postgres.py",
           "line": 279,
           "parameter": "match",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
-        },
-        {
-          "file": "discovery.py",
-          "line": 34,
-          "function": "parse_dt",
-          "kind": "return_type",
-          "enclosing_node": "py:discovery.AgentInfo.from_dict.parse_dt"
-        },
-        {
-          "file": "discovery.py",
-          "line": 89,
-          "function": "from_dict",
-          "kind": "return_type",
-          "enclosing_node": "py:discovery.HeartbeatResult.from_dict"
         },
         {
           "file": "discovery.py",
@@ -3541,10 +4076,24 @@
         },
         {
           "file": "discovery.py",
-          "line": 106,
+          "line": 89,
           "function": "from_dict",
           "kind": "return_type",
-          "enclosing_node": "py:discovery.CleanupResult.from_dict"
+          "enclosing_node": "py:discovery.HeartbeatResult.from_dict"
+        },
+        {
+          "file": "discovery.py",
+          "line": 34,
+          "function": "parse_dt",
+          "kind": "return_type",
+          "enclosing_node": "py:discovery.AgentInfo.from_dict.parse_dt"
+        },
+        {
+          "file": "discovery.py",
+          "line": 61,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:discovery.RegisterResult.from_dict"
         },
         {
           "file": "discovery.py",
@@ -3555,10 +4104,10 @@
         },
         {
           "file": "discovery.py",
-          "line": 61,
+          "line": 106,
           "function": "from_dict",
           "kind": "return_type",
-          "enclosing_node": "py:discovery.RegisterResult.from_dict"
+          "enclosing_node": "py:discovery.CleanupResult.from_dict"
         },
         {
           "file": "discovery.py",
@@ -3604,24 +4153,10 @@
         },
         {
           "file": "discovery.py",
-          "line": 33,
-          "parameter": "data",
+          "line": 34,
+          "parameter": "val",
           "kind": "param_type",
-          "enclosing_node": "py:discovery.AgentInfo.from_dict"
-        },
-        {
-          "file": "discovery.py",
-          "line": 75,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:discovery.DiscoverResult.from_dict"
-        },
-        {
-          "file": "discovery.py",
-          "line": 61,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:discovery.RegisterResult.from_dict"
+          "enclosing_node": "py:discovery.AgentInfo.from_dict.parse_dt"
         },
         {
           "file": "discovery.py",
@@ -3632,24 +4167,101 @@
         },
         {
           "file": "discovery.py",
-          "line": 34,
-          "parameter": "val",
-          "kind": "param_type",
-          "enclosing_node": "py:discovery.AgentInfo.from_dict.parse_dt"
-        },
-        {
-          "file": "discovery.py",
           "line": 106,
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:discovery.CleanupResult.from_dict"
         },
         {
-          "file": "feature_registry.py",
-          "line": 52,
-          "function": "parse_dt",
+          "file": "discovery.py",
+          "line": 33,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:discovery.AgentInfo.from_dict"
+        },
+        {
+          "file": "discovery.py",
+          "line": 61,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:discovery.RegisterResult.from_dict"
+        },
+        {
+          "file": "discovery.py",
+          "line": 75,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:discovery.DiscoverResult.from_dict"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 21,
+          "function": "detect_runtime",
           "kind": "return_type",
-          "enclosing_node": "py:feature_registry.Feature.from_dict.parse_dt"
+          "enclosing_node": "py:docker_manager.detect_runtime"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 70,
+          "function": "start_container",
+          "kind": "return_type",
+          "enclosing_node": "py:docker_manager.start_container"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 56,
+          "function": "is_container_running",
+          "kind": "return_type",
+          "enclosing_node": "py:docker_manager.is_container_running"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 128,
+          "function": "wait_for_healthy",
+          "kind": "return_type",
+          "enclosing_node": "py:docker_manager.wait_for_healthy"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 129,
+          "parameter": "runtime",
+          "kind": "param_type",
+          "enclosing_node": "py:docker_manager.wait_for_healthy"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 56,
+          "parameter": "container_name",
+          "kind": "param_type",
+          "enclosing_node": "py:docker_manager.is_container_running"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 56,
+          "parameter": "runtime",
+          "kind": "param_type",
+          "enclosing_node": "py:docker_manager.is_container_running"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 71,
+          "parameter": "docker_config",
+          "kind": "param_type",
+          "enclosing_node": "py:docker_manager.start_container"
+        },
+        {
+          "file": "docker_manager.py",
+          "line": 130,
+          "parameter": "container_name",
+          "kind": "param_type",
+          "enclosing_node": "py:docker_manager.wait_for_healthy"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 103,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:feature_registry.DeregisterResult.from_dict"
         },
         {
           "file": "feature_registry.py",
@@ -3660,10 +4272,10 @@
         },
         {
           "file": "feature_registry.py",
-          "line": 103,
-          "function": "from_dict",
+          "line": 52,
+          "function": "parse_dt",
           "kind": "return_type",
-          "enclosing_node": "py:feature_registry.DeregisterResult.from_dict"
+          "enclosing_node": "py:feature_registry.Feature.from_dict.parse_dt"
         },
         {
           "file": "feature_registry.py",
@@ -3723,48 +4335,6 @@
         },
         {
           "file": "feature_registry.py",
-          "line": 52,
-          "parameter": "val",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.Feature.from_dict.parse_dt"
-        },
-        {
-          "file": "feature_registry.py",
-          "line": 84,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.RegisterResult.from_dict"
-        },
-        {
-          "file": "feature_registry.py",
-          "line": 200,
-          "parameter": "feature_id",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.FeatureRegistryService.deregister"
-        },
-        {
-          "file": "feature_registry.py",
-          "line": 233,
-          "parameter": "feature_id",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.FeatureRegistryService.get_feature"
-        },
-        {
-          "file": "feature_registry.py",
-          "line": 262,
-          "parameter": "candidate_feature_id",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.FeatureRegistryService.analyze_conflicts"
-        },
-        {
-          "file": "feature_registry.py",
-          "line": 263,
-          "parameter": "candidate_claims",
-          "kind": "param_type",
-          "enclosing_node": "py:feature_registry.FeatureRegistryService.analyze_conflicts"
-        },
-        {
-          "file": "feature_registry.py",
           "line": 51,
           "parameter": "data",
           "kind": "param_type",
@@ -3792,6 +4362,48 @@
           "enclosing_node": "py:feature_registry.FeatureRegistryService.register"
         },
         {
+          "file": "feature_registry.py",
+          "line": 233,
+          "parameter": "feature_id",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.FeatureRegistryService.get_feature"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 262,
+          "parameter": "candidate_feature_id",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.FeatureRegistryService.analyze_conflicts"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 263,
+          "parameter": "candidate_claims",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.FeatureRegistryService.analyze_conflicts"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 84,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.RegisterResult.from_dict"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 52,
+          "parameter": "val",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.Feature.from_dict.parse_dt"
+        },
+        {
+          "file": "feature_registry.py",
+          "line": 200,
+          "parameter": "feature_id",
+          "kind": "param_type",
+          "enclosing_node": "py:feature_registry.FeatureRegistryService.deregister"
+        },
+        {
           "file": "github_coordination.py",
           "line": 39,
           "function": "parse",
@@ -3814,10 +4426,10 @@
         },
         {
           "file": "github_coordination.py",
-          "line": 96,
-          "function": "db",
+          "line": 121,
+          "function": "parse_branch",
           "kind": "return_type",
-          "enclosing_node": "py:github_coordination.GitHubCoordinationService.db"
+          "enclosing_node": "py:github_coordination.GitHubCoordinationService.parse_branch"
         },
         {
           "file": "github_coordination.py",
@@ -3856,45 +4468,10 @@
         },
         {
           "file": "github_coordination.py",
-          "line": 121,
-          "function": "parse_branch",
+          "line": 96,
+          "function": "db",
           "kind": "return_type",
-          "enclosing_node": "py:github_coordination.GitHubCoordinationService.parse_branch"
-        },
-        {
-          "file": "github_coordination.py",
-          "line": 134,
-          "parameter": "labels",
-          "kind": "param_type",
-          "enclosing_node": "py:github_coordination.GitHubCoordinationService.sync_label_locks"
-        },
-        {
-          "file": "github_coordination.py",
-          "line": 121,
-          "parameter": "branch_ref",
-          "kind": "param_type",
-          "enclosing_node": "py:github_coordination.GitHubCoordinationService.parse_branch"
-        },
-        {
-          "file": "github_coordination.py",
-          "line": 266,
-          "parameter": "payload",
-          "kind": "param_type",
-          "enclosing_node": "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
-        },
-        {
-          "file": "github_coordination.py",
-          "line": 39,
-          "parameter": "branch_ref",
-          "kind": "param_type",
-          "enclosing_node": "py:github_coordination.BranchInfo.parse"
-        },
-        {
-          "file": "github_coordination.py",
-          "line": 79,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:github_coordination.WebhookSyncResult.from_dict"
+          "enclosing_node": "py:github_coordination.GitHubCoordinationService.db"
         },
         {
           "file": "github_coordination.py",
@@ -3902,6 +4479,13 @@
           "parameter": "labels",
           "kind": "param_type",
           "enclosing_node": "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
+        },
+        {
+          "file": "github_coordination.py",
+          "line": 79,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:github_coordination.WebhookSyncResult.from_dict"
         },
         {
           "file": "github_coordination.py",
@@ -3923,6 +4507,34 @@
           "parameter": "payload",
           "kind": "param_type",
           "enclosing_node": "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
+        },
+        {
+          "file": "github_coordination.py",
+          "line": 39,
+          "parameter": "branch_ref",
+          "kind": "param_type",
+          "enclosing_node": "py:github_coordination.BranchInfo.parse"
+        },
+        {
+          "file": "github_coordination.py",
+          "line": 121,
+          "parameter": "branch_ref",
+          "kind": "param_type",
+          "enclosing_node": "py:github_coordination.GitHubCoordinationService.parse_branch"
+        },
+        {
+          "file": "github_coordination.py",
+          "line": 134,
+          "parameter": "labels",
+          "kind": "param_type",
+          "enclosing_node": "py:github_coordination.GitHubCoordinationService.sync_label_locks"
+        },
+        {
+          "file": "github_coordination.py",
+          "line": 266,
+          "parameter": "payload",
+          "kind": "param_type",
+          "enclosing_node": "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
         },
         {
           "file": "guardrails.py",
@@ -3982,6 +4594,13 @@
         },
         {
           "file": "guardrails.py",
+          "line": 154,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:guardrails.GuardrailResult.from_dict"
+        },
+        {
+          "file": "guardrails.py",
           "line": 136,
           "parameter": "data",
           "kind": "param_type",
@@ -3993,13 +4612,6 @@
           "parameter": "operation_text",
           "kind": "param_type",
           "enclosing_node": "py:guardrails.GuardrailsService.check_operation"
-        },
-        {
-          "file": "guardrails.py",
-          "line": 154,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:guardrails.GuardrailResult.from_dict"
         },
         {
           "file": "handoffs.py",
@@ -4066,6 +4678,13 @@
         },
         {
           "file": "handoffs.py",
+          "line": 85,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:handoffs.ReadHandoffResult.from_dict"
+        },
+        {
+          "file": "handoffs.py",
           "line": 66,
           "parameter": "data",
           "kind": "param_type",
@@ -4077,13 +4696,6 @@
           "parameter": "summary",
           "kind": "param_type",
           "enclosing_node": "py:handoffs.HandoffService.write"
-        },
-        {
-          "file": "handoffs.py",
-          "line": 85,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:handoffs.ReadHandoffResult.from_dict"
         },
         {
           "file": "locks.py",
@@ -4105,13 +4717,6 @@
           "function": "get_lock_service",
           "kind": "return_type",
           "enclosing_node": "py:locks.get_lock_service"
-        },
-        {
-          "file": "locks.py",
-          "line": 83,
-          "function": "from_dict",
-          "kind": "return_type",
-          "enclosing_node": "py:locks.LockResult.from_dict"
         },
         {
           "file": "locks.py",
@@ -4143,13 +4748,6 @@
         },
         {
           "file": "locks.py",
-          "line": 290,
-          "function": "is_locked",
-          "kind": "return_type",
-          "enclosing_node": "py:locks.LockService.is_locked"
-        },
-        {
-          "file": "locks.py",
           "line": 58,
           "function": "from_dict",
           "kind": "return_type",
@@ -4157,10 +4755,17 @@
         },
         {
           "file": "locks.py",
-          "line": 115,
-          "parameter": "file_path",
-          "kind": "param_type",
-          "enclosing_node": "py:locks.LockService.acquire"
+          "line": 290,
+          "function": "is_locked",
+          "kind": "return_type",
+          "enclosing_node": "py:locks.LockService.is_locked"
+        },
+        {
+          "file": "locks.py",
+          "line": 83,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:locks.LockResult.from_dict"
         },
         {
           "file": "locks.py",
@@ -4168,6 +4773,13 @@
           "parameter": "key",
           "kind": "param_type",
           "enclosing_node": "py:locks.is_valid_lock_key"
+        },
+        {
+          "file": "locks.py",
+          "line": 115,
+          "parameter": "file_path",
+          "kind": "param_type",
+          "enclosing_node": "py:locks.LockService.acquire"
         },
         {
           "file": "locks.py",
@@ -4227,13 +4839,6 @@
         },
         {
           "file": "memory.py",
-          "line": 81,
-          "function": "from_dict",
-          "kind": "return_type",
-          "enclosing_node": "py:memory.RecallResult.from_dict"
-        },
-        {
-          "file": "memory.py",
           "line": 101,
           "function": "remember",
           "kind": "return_type",
@@ -4252,6 +4857,13 @@
           "function": "from_dict",
           "kind": "return_type",
           "enclosing_node": "py:memory.MemoryResult.from_dict"
+        },
+        {
+          "file": "memory.py",
+          "line": 81,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:memory.RecallResult.from_dict"
         },
         {
           "file": "memory.py",
@@ -4297,13 +4909,6 @@
         },
         {
           "file": "merge_queue.py",
-          "line": 108,
-          "function": "registry",
-          "kind": "return_type",
-          "enclosing_node": "py:merge_queue.MergeQueueService.registry"
-        },
-        {
-          "file": "merge_queue.py",
           "line": 167,
           "function": "get_queue",
           "kind": "return_type",
@@ -4332,6 +4937,13 @@
         },
         {
           "file": "merge_queue.py",
+          "line": 102,
+          "function": "db",
+          "kind": "return_type",
+          "enclosing_node": "py:merge_queue.MergeQueueService.db"
+        },
+        {
+          "file": "merge_queue.py",
           "line": 306,
           "function": "mark_merged",
           "kind": "return_type",
@@ -4346,38 +4958,17 @@
         },
         {
           "file": "merge_queue.py",
-          "line": 102,
-          "function": "db",
+          "line": 108,
+          "function": "registry",
           "kind": "return_type",
-          "enclosing_node": "py:merge_queue.MergeQueueService.db"
+          "enclosing_node": "py:merge_queue.MergeQueueService.registry"
         },
         {
           "file": "merge_queue.py",
-          "line": 69,
-          "parameter": "feature",
-          "kind": "param_type",
-          "enclosing_node": "py:merge_queue.MergeQueueEntry.from_feature"
-        },
-        {
-          "file": "merge_queue.py",
-          "line": 306,
+          "line": 219,
           "parameter": "feature_id",
           "kind": "param_type",
-          "enclosing_node": "py:merge_queue.MergeQueueService.mark_merged"
-        },
-        {
-          "file": "merge_queue.py",
-          "line": 115,
-          "parameter": "feature_id",
-          "kind": "param_type",
-          "enclosing_node": "py:merge_queue.MergeQueueService.enqueue"
-        },
-        {
-          "file": "merge_queue.py",
-          "line": 361,
-          "parameter": "val",
-          "kind": "param_type",
-          "enclosing_node": "py:merge_queue._parse_dt"
+          "enclosing_node": "py:merge_queue.MergeQueueService.run_pre_merge_checks"
         },
         {
           "file": "merge_queue.py",
@@ -4388,10 +4979,31 @@
         },
         {
           "file": "merge_queue.py",
-          "line": 219,
+          "line": 69,
+          "parameter": "feature",
+          "kind": "param_type",
+          "enclosing_node": "py:merge_queue.MergeQueueEntry.from_feature"
+        },
+        {
+          "file": "merge_queue.py",
+          "line": 115,
           "parameter": "feature_id",
           "kind": "param_type",
-          "enclosing_node": "py:merge_queue.MergeQueueService.run_pre_merge_checks"
+          "enclosing_node": "py:merge_queue.MergeQueueService.enqueue"
+        },
+        {
+          "file": "merge_queue.py",
+          "line": 306,
+          "parameter": "feature_id",
+          "kind": "param_type",
+          "enclosing_node": "py:merge_queue.MergeQueueService.mark_merged"
+        },
+        {
+          "file": "merge_queue.py",
+          "line": 361,
+          "parameter": "val",
+          "kind": "param_type",
+          "enclosing_node": "py:merge_queue._parse_dt"
         },
         {
           "file": "network_policies.py",
@@ -4402,10 +5014,10 @@
         },
         {
           "file": "network_policies.py",
-          "line": 45,
-          "function": "check_domain",
+          "line": 85,
+          "function": "get_network_policy_service",
           "kind": "return_type",
-          "enclosing_node": "py:network_policies.NetworkPolicyService.check_domain"
+          "enclosing_node": "py:network_policies.get_network_policy_service"
         },
         {
           "file": "network_policies.py",
@@ -4416,10 +5028,10 @@
         },
         {
           "file": "network_policies.py",
-          "line": 85,
-          "function": "get_network_policy_service",
+          "line": 45,
+          "function": "check_domain",
           "kind": "return_type",
-          "enclosing_node": "py:network_policies.get_network_policy_service"
+          "enclosing_node": "py:network_policies.NetworkPolicyService.check_domain"
         },
         {
           "file": "network_policies.py",
@@ -4437,31 +5049,31 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 644,
-          "function": "invalidate_cache",
+          "line": 55,
+          "function": "allow",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.invalidate_cache"
+          "enclosing_node": "py:policy_engine.PolicyDecision.allow"
         },
         {
           "file": "policy_engine.py",
-          "line": 251,
-          "function": "check_network_access",
+          "line": 473,
+          "function": "_determine_resource_type",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_network_access"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._determine_resource_type"
         },
         {
           "file": "policy_engine.py",
-          "line": 649,
-          "function": "_log_policy_decision",
+          "line": 373,
+          "function": "_load_policies",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
         },
         {
           "file": "policy_engine.py",
-          "line": 604,
-          "function": "validate_policy",
+          "line": 625,
+          "function": "list_policies",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.validate_policy"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.list_policies"
         },
         {
           "file": "policy_engine.py",
@@ -4469,6 +5081,48 @@
           "function": "deny",
           "kind": "return_type",
           "enclosing_node": "py:policy_engine.PolicyDecision.deny"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 446,
+          "function": "_build_resource_entity",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_resource_entity"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 336,
+          "function": "db",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.db"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 87,
+          "function": "check_operation",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 274,
+          "function": "_log_policy_decision",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 585,
+          "function": "check_network_access",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_network_access"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 413,
+          "function": "_build_entity",
+          "kind": "return_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_entity"
         },
         {
           "file": "policy_engine.py",
@@ -4514,101 +5168,45 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 336,
-          "function": "db",
+          "line": 644,
+          "function": "invalidate_cache",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.db"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.invalidate_cache"
         },
         {
           "file": "policy_engine.py",
-          "line": 87,
-          "function": "check_operation",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 274,
-          "function": "_log_policy_decision",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 585,
+          "line": 251,
           "function": "check_network_access",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_network_access"
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_network_access"
         },
         {
           "file": "policy_engine.py",
-          "line": 413,
-          "function": "_build_entity",
+          "line": 649,
+          "function": "_log_policy_decision",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_entity"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
-          "line": 55,
-          "function": "allow",
+          "line": 604,
+          "function": "validate_policy",
           "kind": "return_type",
-          "enclosing_node": "py:policy_engine.PolicyDecision.allow"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.validate_policy"
         },
         {
           "file": "policy_engine.py",
-          "line": 473,
-          "function": "_determine_resource_type",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._determine_resource_type"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 373,
-          "function": "_load_policies",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 625,
-          "function": "list_policies",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.list_policies"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 446,
-          "function": "_build_resource_entity",
-          "kind": "return_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_resource_entity"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 280,
-          "parameter": "context",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 487,
+          "line": 253,
           "parameter": "agent_id",
           "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_operation"
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_network_access"
         },
         {
           "file": "policy_engine.py",
-          "line": 588,
-          "parameter": "domain",
+          "line": 278,
+          "parameter": "operation",
           "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_network_access"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 655,
-          "parameter": "context",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
+          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
@@ -4619,22 +5217,15 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 415,
-          "parameter": "agent_id",
+          "line": 417,
+          "parameter": "trust_level",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_entity"
         },
         {
           "file": "policy_engine.py",
-          "line": 488,
-          "parameter": "agent_type",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_operation"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 656,
-          "parameter": "decision",
+          "line": 651,
+          "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
         },
@@ -4647,8 +5238,36 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 277,
+          "line": 281,
+          "parameter": "decision",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 652,
           "parameter": "agent_type",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 653,
+          "parameter": "operation",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 89,
+          "parameter": "agent_id",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 280,
+          "parameter": "context",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
@@ -4668,8 +5287,15 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 278,
-          "parameter": "operation",
+          "line": 90,
+          "parameter": "agent_type",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 282,
+          "parameter": "engine",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
@@ -4696,50 +5322,57 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 652,
-          "parameter": "agent_type",
+          "line": 487,
+          "parameter": "agent_id",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_operation"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 588,
+          "parameter": "domain",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_network_access"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 655,
+          "parameter": "context",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
-          "line": 253,
-          "parameter": "agent_id",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_network_access"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 281,
-          "parameter": "decision",
+          "line": 277,
+          "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
-          "line": 653,
-          "parameter": "operation",
+          "line": 415,
+          "parameter": "agent_id",
           "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_entity"
         },
         {
           "file": "policy_engine.py",
-          "line": 89,
-          "parameter": "agent_id",
+          "line": 488,
+          "parameter": "agent_type",
           "kind": "param_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine.check_operation"
+        },
+        {
+          "file": "policy_engine.py",
+          "line": 656,
+          "parameter": "decision",
+          "kind": "param_type",
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
         },
         {
           "file": "policy_engine.py",
           "line": 276,
           "parameter": "agent_id",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 282,
-          "parameter": "engine",
           "kind": "param_type",
           "enclosing_node": "py:policy_engine.NativePolicyEngine._log_policy_decision"
         },
@@ -4772,39 +5405,11 @@
           "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
         },
         {
-          "file": "policy_engine.py",
-          "line": 90,
-          "parameter": "agent_type",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 417,
-          "parameter": "trust_level",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._build_entity"
-        },
-        {
-          "file": "policy_engine.py",
-          "line": 651,
-          "parameter": "agent_id",
-          "kind": "param_type",
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._log_policy_decision"
-        },
-        {
           "file": "port_allocator.py",
           "line": 37,
           "function": "env_snippet",
           "kind": "return_type",
           "enclosing_node": "py:port_allocator.PortAllocation.env_snippet"
-        },
-        {
-          "file": "port_allocator.py",
-          "line": 141,
-          "function": "status",
-          "kind": "return_type",
-          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
         },
         {
           "file": "port_allocator.py",
@@ -4815,17 +5420,17 @@
         },
         {
           "file": "port_allocator.py",
+          "line": 141,
+          "function": "status",
+          "kind": "return_type",
+          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
+        },
+        {
+          "file": "port_allocator.py",
           "line": 166,
           "function": "_compose_project_name",
           "kind": "return_type",
           "enclosing_node": "py:port_allocator._compose_project_name"
-        },
-        {
-          "file": "port_allocator.py",
-          "line": 189,
-          "function": "reset_port_allocator",
-          "kind": "return_type",
-          "enclosing_node": "py:port_allocator.reset_port_allocator"
         },
         {
           "file": "port_allocator.py",
@@ -4836,17 +5441,10 @@
         },
         {
           "file": "port_allocator.py",
-          "line": 55,
-          "function": "__init__",
+          "line": 189,
+          "function": "reset_port_allocator",
           "kind": "return_type",
-          "enclosing_node": "py:port_allocator.PortAllocatorService.__init__"
-        },
-        {
-          "file": "port_allocator.py",
-          "line": 151,
-          "function": "_cleanup_expired",
-          "kind": "return_type",
-          "enclosing_node": "py:port_allocator.PortAllocatorService._cleanup_expired"
+          "enclosing_node": "py:port_allocator.reset_port_allocator"
         },
         {
           "file": "port_allocator.py",
@@ -4857,10 +5455,31 @@
         },
         {
           "file": "port_allocator.py",
+          "line": 151,
+          "function": "_cleanup_expired",
+          "kind": "return_type",
+          "enclosing_node": "py:port_allocator.PortAllocatorService._cleanup_expired"
+        },
+        {
+          "file": "port_allocator.py",
+          "line": 55,
+          "function": "__init__",
+          "kind": "return_type",
+          "enclosing_node": "py:port_allocator.PortAllocatorService.__init__"
+        },
+        {
+          "file": "port_allocator.py",
           "line": 74,
           "parameter": "session_id",
           "kind": "param_type",
           "enclosing_node": "py:port_allocator.PortAllocatorService.allocate"
+        },
+        {
+          "file": "port_allocator.py",
+          "line": 132,
+          "parameter": "session_id",
+          "kind": "param_type",
+          "enclosing_node": "py:port_allocator.PortAllocatorService.release"
         },
         {
           "file": "port_allocator.py",
@@ -4870,11 +5489,165 @@
           "enclosing_node": "py:port_allocator._compose_project_name"
         },
         {
-          "file": "port_allocator.py",
-          "line": 132,
-          "parameter": "session_id",
+          "file": "profile_loader.py",
+          "line": 206,
+          "function": "_inject_env",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader._inject_env"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 114,
+          "function": "interpolate",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader.interpolate"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 87,
+          "function": "_load_secrets",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader._load_secrets"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 222,
+          "function": "load_profile",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader.load_profile"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 194,
+          "function": "_flatten",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader._flatten"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 122,
+          "function": "_replace",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader.interpolate._replace"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 160,
+          "function": "_resolve_profile",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader._resolve_profile"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 64,
+          "function": "deep_merge",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader.deep_merge"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 143,
+          "function": "_interpolate_tree",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader._interpolate_tree"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 255,
+          "function": "apply_profile",
+          "kind": "return_type",
+          "enclosing_node": "py:profile_loader.apply_profile"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 64,
+          "parameter": "base",
           "kind": "param_type",
-          "enclosing_node": "py:port_allocator.PortAllocatorService.release"
+          "enclosing_node": "py:profile_loader.deep_merge"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 114,
+          "parameter": "secrets",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader.interpolate"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 87,
+          "parameter": "secrets_path",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._load_secrets"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 114,
+          "parameter": "value",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader.interpolate"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 64,
+          "parameter": "override",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader.deep_merge"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 122,
+          "parameter": "match",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader.interpolate._replace"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 144,
+          "parameter": "secrets",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._interpolate_tree"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 161,
+          "parameter": "name",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._resolve_profile"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 194,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._flatten"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 206,
+          "parameter": "profile",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._inject_env"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 144,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._interpolate_tree"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 162,
+          "parameter": "profiles_dir",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._resolve_profile"
+        },
+        {
+          "file": "profile_loader.py",
+          "line": 163,
+          "parameter": "secrets",
+          "kind": "param_type",
+          "enclosing_node": "py:profile_loader._resolve_profile"
         },
         {
           "file": "profiles.py",
@@ -4896,13 +5669,6 @@
           "function": "get_profiles_service",
           "kind": "return_type",
           "enclosing_node": "py:profiles.get_profiles_service"
-        },
-        {
-          "file": "profiles.py",
-          "line": 82,
-          "function": "from_dict",
-          "kind": "return_type",
-          "enclosing_node": "py:profiles.OperationCheck.from_dict"
         },
         {
           "file": "profiles.py",
@@ -4934,31 +5700,10 @@
         },
         {
           "file": "profiles.py",
-          "line": 36,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:profiles.AgentProfile.from_dict"
-        },
-        {
-          "file": "profiles.py",
-          "line": 141,
-          "parameter": "operation",
-          "kind": "param_type",
-          "enclosing_node": "py:profiles.ProfilesService.check_operation"
-        },
-        {
-          "file": "profiles.py",
           "line": 82,
-          "parameter": "data",
-          "kind": "param_type",
+          "function": "from_dict",
+          "kind": "return_type",
           "enclosing_node": "py:profiles.OperationCheck.from_dict"
-        },
-        {
-          "file": "profiles.py",
-          "line": 204,
-          "parameter": "reason",
-          "kind": "param_type",
-          "enclosing_node": "py:profiles.ProfilesService._log_denial"
         },
         {
           "file": "profiles.py",
@@ -4966,6 +5711,13 @@
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:profiles.ProfileResult.from_dict"
+        },
+        {
+          "file": "profiles.py",
+          "line": 141,
+          "parameter": "operation",
+          "kind": "param_type",
+          "enclosing_node": "py:profiles.ProfilesService.check_operation"
         },
         {
           "file": "profiles.py",
@@ -4982,18 +5734,32 @@
           "enclosing_node": "py:profiles.ProfilesService._log_denial"
         },
         {
+          "file": "profiles.py",
+          "line": 36,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:profiles.AgentProfile.from_dict"
+        },
+        {
+          "file": "profiles.py",
+          "line": 82,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:profiles.OperationCheck.from_dict"
+        },
+        {
+          "file": "profiles.py",
+          "line": 204,
+          "parameter": "reason",
+          "kind": "param_type",
+          "enclosing_node": "py:profiles.ProfilesService._log_denial"
+        },
+        {
           "file": "teams.py",
           "line": 69,
           "function": "from_file",
           "kind": "return_type",
           "enclosing_node": "py:teams.TeamsConfig.from_file"
-        },
-        {
-          "file": "teams.py",
-          "line": 154,
-          "function": "validate",
-          "kind": "return_type",
-          "enclosing_node": "py:teams.TeamsConfig.validate"
         },
         {
           "file": "teams.py",
@@ -5008,6 +5774,13 @@
           "function": "get_agent",
           "kind": "return_type",
           "enclosing_node": "py:teams.TeamsConfig.get_agent"
+        },
+        {
+          "file": "teams.py",
+          "line": 154,
+          "function": "validate",
+          "kind": "return_type",
+          "enclosing_node": "py:teams.TeamsConfig.validate"
         },
         {
           "file": "teams.py",
@@ -5046,31 +5819,17 @@
         },
         {
           "file": "teams.py",
-          "line": 143,
-          "parameter": "capability",
-          "kind": "param_type",
-          "enclosing_node": "py:teams.TeamsConfig.get_agents_with_capability"
-        },
-        {
-          "file": "teams.py",
           "line": 93,
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:teams.TeamsConfig.from_dict"
         },
         {
-          "file": "work_queue.py",
-          "line": 43,
-          "function": "parse_dt",
-          "kind": "return_type",
-          "enclosing_node": "py:work_queue.Task.from_dict.parse_dt"
-        },
-        {
-          "file": "work_queue.py",
-          "line": 140,
-          "function": "from_dict",
-          "kind": "return_type",
-          "enclosing_node": "py:work_queue.SubmitResult.from_dict"
+          "file": "teams.py",
+          "line": 143,
+          "parameter": "capability",
+          "kind": "param_type",
+          "enclosing_node": "py:teams.TeamsConfig.get_agents_with_capability"
         },
         {
           "file": "work_queue.py",
@@ -5081,10 +5840,24 @@
         },
         {
           "file": "work_queue.py",
-          "line": 158,
-          "function": "db",
+          "line": 140,
+          "function": "from_dict",
           "kind": "return_type",
-          "enclosing_node": "py:work_queue.WorkQueueService.db"
+          "enclosing_node": "py:work_queue.SubmitResult.from_dict"
+        },
+        {
+          "file": "work_queue.py",
+          "line": 43,
+          "function": "parse_dt",
+          "kind": "return_type",
+          "enclosing_node": "py:work_queue.Task.from_dict.parse_dt"
+        },
+        {
+          "file": "work_queue.py",
+          "line": 86,
+          "function": "from_dict",
+          "kind": "return_type",
+          "enclosing_node": "py:work_queue.ClaimResult.from_dict"
         },
         {
           "file": "work_queue.py",
@@ -5095,10 +5868,10 @@
         },
         {
           "file": "work_queue.py",
-          "line": 86,
-          "function": "from_dict",
+          "line": 158,
+          "function": "db",
           "kind": "return_type",
-          "enclosing_node": "py:work_queue.ClaimResult.from_dict"
+          "enclosing_node": "py:work_queue.WorkQueueService.db"
         },
         {
           "file": "work_queue.py",
@@ -5165,22 +5938,22 @@
         },
         {
           "file": "work_queue.py",
-          "line": 43,
-          "parameter": "val",
+          "line": 42,
+          "parameter": "data",
           "kind": "param_type",
-          "enclosing_node": "py:work_queue.Task.from_dict.parse_dt"
+          "enclosing_node": "py:work_queue.Task.from_dict"
         },
         {
           "file": "work_queue.py",
-          "line": 140,
+          "line": 119,
           "parameter": "data",
           "kind": "param_type",
-          "enclosing_node": "py:work_queue.SubmitResult.from_dict"
+          "enclosing_node": "py:work_queue.CompleteResult.from_dict"
         },
         {
           "file": "work_queue.py",
           "line": 163,
-          "parameter": "agent_type",
+          "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:work_queue.WorkQueueService._resolve_trust_level"
         },
@@ -5207,17 +5980,10 @@
         },
         {
           "file": "work_queue.py",
-          "line": 567,
-          "parameter": "task_id",
+          "line": 43,
+          "parameter": "val",
           "kind": "param_type",
-          "enclosing_node": "py:work_queue.WorkQueueService.cancel_task_convention"
-        },
-        {
-          "file": "work_queue.py",
-          "line": 42,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:work_queue.Task.from_dict"
+          "enclosing_node": "py:work_queue.Task.from_dict.parse_dt"
         },
         {
           "file": "work_queue.py",
@@ -5228,15 +5994,15 @@
         },
         {
           "file": "work_queue.py",
-          "line": 119,
+          "line": 140,
           "parameter": "data",
           "kind": "param_type",
-          "enclosing_node": "py:work_queue.CompleteResult.from_dict"
+          "enclosing_node": "py:work_queue.SubmitResult.from_dict"
         },
         {
           "file": "work_queue.py",
           "line": 163,
-          "parameter": "agent_id",
+          "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:work_queue.WorkQueueService._resolve_trust_level"
         },
@@ -5253,6 +6019,13 @@
           "parameter": "description",
           "kind": "param_type",
           "enclosing_node": "py:work_queue.WorkQueueService.submit"
+        },
+        {
+          "file": "work_queue.py",
+          "line": 567,
+          "parameter": "task_id",
+          "kind": "param_type",
+          "enclosing_node": "py:work_queue.WorkQueueService.cancel_task_convention"
         },
         {
           "file": "work_queue.py",

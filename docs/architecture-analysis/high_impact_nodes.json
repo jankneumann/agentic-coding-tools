@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-02-28T04:07:19.889195+00:00",
+  "generated_at": "2026-03-01T02:32:44.390303+00:00",
   "threshold": 5,
-  "total_high_impact": 21,
+  "total_high_impact": 27,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -44,12 +44,20 @@
       "dependent_count": 11
     },
     {
+      "id": "py:profile_loader.interpolate",
+      "dependent_count": 11
+    },
+    {
       "id": "py:coordination_api.authorize_operation",
       "dependent_count": 10
     },
     {
       "id": "py:work_queue.get_work_queue_service",
       "dependent_count": 10
+    },
+    {
+      "id": "py:profile_loader._load_secrets",
+      "dependent_count": 9
     },
     {
       "id": "py:locks.get_lock_service",
@@ -76,7 +84,19 @@
       "dependent_count": 7
     },
     {
+      "id": "py:teams.TeamsConfig.validate",
+      "dependent_count": 7
+    },
+    {
       "id": "py:policy_engine",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:agents_config._default_agents_path",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:agents_config._default_secrets_path",
       "dependent_count": 6
     },
     {
@@ -86,6 +106,10 @@
     {
       "id": "py:memory.get_memory_service",
       "dependent_count": 6
+    },
+    {
+      "id": "py:agents_config.load_agents_config",
+      "dependent_count": 5
     }
   ]
 }

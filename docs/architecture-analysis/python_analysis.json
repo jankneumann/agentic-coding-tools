@@ -6,6 +6,21 @@
       "imports": []
     },
     {
+      "name": "agents_config",
+      "file": "agents_config.py",
+      "imports": [
+        "__future__",
+        "logging",
+        "os",
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "yaml",
+        "jsonschema",
+        "src.profile_loader"
+      ]
+    },
+    {
       "name": "assurance",
       "file": "assurance.py",
       "imports": [
@@ -29,10 +44,15 @@
       "name": "config",
       "file": "config.py",
       "imports": [
+        "__future__",
         "json",
+        "logging",
         "os",
         "dataclasses",
-        "uuid"
+        "typing",
+        "uuid",
+        "src.agents_config",
+        "src.profile_loader"
       ]
     },
     {
@@ -129,6 +149,19 @@
         "audit",
         "config",
         "db"
+      ]
+    },
+    {
+      "name": "docker_manager",
+      "file": "docker_manager.py",
+      "imports": [
+        "__future__",
+        "logging",
+        "shutil",
+        "subprocess",
+        "time",
+        "pathlib",
+        "typing"
       ]
     },
     {
@@ -270,6 +303,19 @@
       ]
     },
     {
+      "name": "profile_loader",
+      "file": "profile_loader.py",
+      "imports": [
+        "__future__",
+        "logging",
+        "os",
+        "re",
+        "pathlib",
+        "typing",
+        "yaml"
+      ]
+    },
+    {
       "name": "profiles",
       "file": "profiles.py",
       "imports": [
@@ -316,6 +362,173 @@
     }
   ],
   "functions": [
+    {
+      "name": "_default_agents_path",
+      "qualified_name": "agents_config._default_agents_path",
+      "file": "agents_config.py",
+      "line_start": 91,
+      "line_end": 92,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path.resolve",
+        "Path"
+      ],
+      "called_by": [
+        "agents_config.load_agents_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_default_secrets_path",
+      "qualified_name": "agents_config._default_secrets_path",
+      "file": "agents_config.py",
+      "line_start": 95,
+      "line_end": 96,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path.resolve",
+        "Path"
+      ],
+      "called_by": [
+        "agents_config.load_agents_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "load_agents_config",
+      "qualified_name": "agents_config.load_agents_config",
+      "file": "agents_config.py",
+      "line_start": 99,
+      "line_end": 162,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_default_agents_path",
+        "_default_secrets_path",
+        "open",
+        "yaml.safe_load",
+        "ValueError",
+        "validate",
+        "_load_secrets",
+        "set",
+        "raw.items",
+        "seen_names.add",
+        "agent_data.get",
+        "interpolate",
+        "_INTERPOLATION_RE.search",
+        "entries.append",
+        "AgentEntry"
+      ],
+      "called_by": [
+        "agents_config.get_api_key_identities",
+        "agents_config.get_mcp_env",
+        "agents_config.get_agents_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Load and validate ``agents.yaml``.\n\nArgs:\n    path: Path to agents YAML file.\n    secrets_path: Path to ``.secrets.yaml`` for ``${VAR}`` interpolation\n        in ``api_key`` fields.\n\nReturns:\n    List of validated :class:`AgentEntry` objects.\n\nRaises:\n    FileNotFoundError: If *path* does not exist.\n    jsonschema.ValidationError: If the data fails schema validation.\n    ValueError: On duplicate agent names."
+    },
+    {
+      "name": "get_api_key_identities",
+      "qualified_name": "agents_config.get_api_key_identities",
+      "file": "agents_config.py",
+      "line_start": 169,
+      "line_end": 197,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "load_agents_config",
+        "logger.warning"
+      ],
+      "called_by": [
+        "config.ApiConfig.from_env"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Generate ``COORDINATION_API_KEY_IDENTITIES`` from HTTP agents.\n\nReturns:\n    Dict mapping resolved API key values to\n    ``{\"agent_id\": ..., \"agent_type\": ...}``."
+    },
+    {
+      "name": "get_mcp_env",
+      "qualified_name": "agents_config.get_mcp_env",
+      "file": "agents_config.py",
+      "line_start": 204,
+      "line_end": 232,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "load_agents_config",
+        "next",
+        "ValueError",
+        "os.environ.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Generate env vars for MCP server registration of *agent_id*.\n\nReturns:\n    Dict of environment variables (``AGENT_ID``, ``AGENT_TYPE``, and\n    database settings from the current environment)."
+    },
+    {
+      "name": "get_agents_config",
+      "qualified_name": "agents_config.get_agents_config",
+      "file": "agents_config.py",
+      "line_start": 242,
+      "line_end": 255,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "load_agents_config",
+        "logger.debug"
+      ],
+      "called_by": [
+        "agents_config.get_agent_config"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Get the global agents configuration (lazy-loaded).\n\nReturns an empty list when ``agents.yaml`` does not exist (graceful\nfallback to env-var-based identity)."
+    },
+    {
+      "name": "get_agent_config",
+      "qualified_name": "agents_config.get_agent_config",
+      "file": "agents_config.py",
+      "line_start": 258,
+      "line_end": 263,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "get_agents_config"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Look up a single agent by name."
+    },
+    {
+      "name": "reset_agents_config",
+      "qualified_name": "agents_config.reset_agents_config",
+      "file": "agents_config.py",
+      "line_start": 266,
+      "line_end": 269,
+      "is_async": false,
+      "decorators": [],
+      "calls": [],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Reset the global agents config (for testing)."
+    },
     {
       "name": "from_dict",
       "qualified_name": "audit.AuditEntry.from_dict",
@@ -586,8 +799,8 @@
       "name": "from_env",
       "qualified_name": "config.SupabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 50,
-      "line_end": 63,
+      "line_start": 57,
+      "line_end": 70,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -611,8 +824,8 @@
       "name": "from_env",
       "qualified_name": "config.AgentConfig.from_env",
       "file": "config.py",
-      "line_start": 75,
-      "line_end": 87,
+      "line_start": 82,
+      "line_end": 94,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -636,8 +849,8 @@
       "name": "from_env",
       "qualified_name": "config.LockConfig.from_env",
       "file": "config.py",
-      "line_start": 98,
-      "line_end": 101,
+      "line_start": 105,
+      "line_end": 108,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -661,8 +874,8 @@
       "name": "from_env",
       "qualified_name": "config.PostgresConfig.from_env",
       "file": "config.py",
-      "line_start": 113,
-      "line_end": 118,
+      "line_start": 120,
+      "line_end": 125,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -686,8 +899,8 @@
       "name": "from_env",
       "qualified_name": "config.DatabaseConfig.from_env",
       "file": "config.py",
-      "line_start": 129,
-      "line_end": 133,
+      "line_start": 136,
+      "line_end": 140,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -711,8 +924,8 @@
       "name": "from_env",
       "qualified_name": "config.GuardrailsConfig.from_env",
       "file": "config.py",
-      "line_start": 144,
-      "line_end": 153,
+      "line_start": 151,
+      "line_end": 160,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -737,8 +950,8 @@
       "name": "from_env",
       "qualified_name": "config.ProfilesConfig.from_env",
       "file": "config.py",
-      "line_start": 165,
-      "line_end": 177,
+      "line_start": 172,
+      "line_end": 184,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -763,8 +976,8 @@
       "name": "from_env",
       "qualified_name": "config.AuditConfig.from_env",
       "file": "config.py",
-      "line_start": 188,
-      "line_end": 192,
+      "line_start": 195,
+      "line_end": 199,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -789,8 +1002,8 @@
       "name": "from_env",
       "qualified_name": "config.NetworkPolicyConfig.from_env",
       "file": "config.py",
-      "line_start": 202,
-      "line_end": 205,
+      "line_start": 209,
+      "line_end": 212,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -813,8 +1026,8 @@
       "name": "from_env",
       "qualified_name": "config.PolicyEngineConfig.from_env",
       "file": "config.py",
-      "line_start": 218,
-      "line_end": 229,
+      "line_start": 225,
+      "line_end": 236,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -839,8 +1052,8 @@
       "name": "from_env",
       "qualified_name": "config.PortAllocatorConfig.from_env",
       "file": "config.py",
-      "line_start": 242,
-      "line_end": 248,
+      "line_start": 249,
+      "line_end": 255,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -865,8 +1078,8 @@
       "name": "from_env",
       "qualified_name": "config.ApiConfig.from_env",
       "file": "config.py",
-      "line_start": 264,
-      "line_end": 283,
+      "line_start": 271,
+      "line_end": 304,
       "is_async": false,
       "decorators": [
         "classmethod"
@@ -876,6 +1089,9 @@
         "k.strip",
         "raw_keys.split",
         "json.loads",
+        "get_api_key_identities",
+        "logger.debug",
+        "logger.warning",
         "cls",
         "int",
         "os.environ.get.lower"
@@ -894,14 +1110,16 @@
       "name": "from_env",
       "qualified_name": "config.Config.from_env",
       "file": "config.py",
-      "line_start": 309,
-      "line_end": 331,
+      "line_start": 333,
+      "line_end": 380,
       "is_async": false,
       "decorators": [
         "classmethod"
       ],
       "calls": [
+        "apply_profile",
         "os.environ.get",
+        "RuntimeError",
         "SupabaseConfig.from_env",
         "cls",
         "AgentConfig.from_env",
@@ -923,14 +1141,14 @@
         "classmethod",
         "db_access"
       ],
-      "docstring": "Load complete configuration from environment variables."
+      "docstring": "Load complete configuration from environment variables.\n\nWhen a ``profiles/`` directory exists, loads the active deployment\nprofile first (injecting values into ``os.environ`` as defaults)\nbefore reading the individual config sections."
     },
     {
       "name": "get_config",
       "qualified_name": "config.get_config",
       "file": "config.py",
-      "line_start": 338,
-      "line_end": 343,
+      "line_start": 387,
+      "line_end": 392,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -979,8 +1197,8 @@
       "name": "reset_config",
       "qualified_name": "config.reset_config",
       "file": "config.py",
-      "line_start": 346,
-      "line_end": 349,
+      "line_start": 395,
+      "line_end": 398,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -3377,6 +3595,94 @@
       "docstring": "Get the global discovery service instance."
     },
     {
+      "name": "detect_runtime",
+      "qualified_name": "docker_manager.detect_runtime",
+      "file": "docker_manager.py",
+      "line_start": 21,
+      "line_end": 53,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "logger.warning",
+        "shutil.which",
+        "subprocess.run"
+      ],
+      "called_by": [
+        "docker_manager.start_container"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Detect an available container runtime.\n\nArgs:\n    preferred: ``\"auto\"`` (try docker then podman), ``\"docker\"``, or\n        ``\"podman\"``.\n\nReturns:\n    The runtime name (``\"docker\"`` or ``\"podman\"``), or ``None`` when\n    no usable runtime is found."
+    },
+    {
+      "name": "is_container_running",
+      "qualified_name": "docker_manager.is_container_running",
+      "file": "docker_manager.py",
+      "line_start": 56,
+      "line_end": 67,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "subprocess.run",
+        "result.stdout.strip.lower",
+        "result.stdout.strip"
+      ],
+      "called_by": [
+        "docker_manager.start_container"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Check whether *container_name* is currently running."
+    },
+    {
+      "name": "start_container",
+      "qualified_name": "docker_manager.start_container",
+      "file": "docker_manager.py",
+      "line_start": 70,
+      "line_end": 125,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "docker_config.get",
+        "Path.resolve",
+        "Path",
+        "detect_runtime",
+        "str",
+        "is_container_running",
+        "compose_file.resolve.relative_to",
+        "compose_file.resolve",
+        "base_dir.resolve",
+        "compose_file.is_file",
+        "subprocess.run",
+        "exc.stderr.strip"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Start the coordinator's database container.\n\nArgs:\n    docker_config: The ``docker`` block from a resolved profile.\n    base_dir: Working directory for compose commands (defaults to\n        ``agent-coordinator/``).\n\nReturns:\n    A status dict with keys like ``started``, ``already_running``,\n    ``runtime``, and ``error``."
+    },
+    {
+      "name": "wait_for_healthy",
+      "qualified_name": "docker_manager.wait_for_healthy",
+      "file": "docker_manager.py",
+      "line_start": 128,
+      "line_end": 166,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "time.monotonic",
+        "subprocess.run",
+        "result.stdout.strip",
+        "time.sleep"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Wait for *container_name* to report ``healthy``.\n\nArgs:\n    runtime: Container runtime (``docker`` or ``podman``).\n    container_name: Name of the container to check.\n    timeout: Maximum seconds to wait.\n    poll_interval: Seconds between polls.\n\nReturns:\n    ``True`` if the container became healthy within *timeout*."
+    },
+    {
       "name": "from_dict",
       "qualified_name": "feature_registry.Feature.from_dict",
       "file": "feature_registry.py",
@@ -5701,6 +6007,253 @@
       "docstring": "Reset the singleton (for testing)."
     },
     {
+      "name": "deep_merge",
+      "qualified_name": "profile_loader.deep_merge",
+      "file": "profile_loader.py",
+      "line_start": 64,
+      "line_end": 80,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "dict",
+        "override.items",
+        "isinstance",
+        "deep_merge"
+      ],
+      "called_by": [
+        "profile_loader.deep_merge",
+        "profile_loader._resolve_profile"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Recursively merge *override* into a copy of *base*.\n\n- Dict values are merged recursively (child keys override parent keys).\n- Scalars and lists in *override* replace *base* values entirely."
+    },
+    {
+      "name": "_load_secrets",
+      "qualified_name": "profile_loader._load_secrets",
+      "file": "profile_loader.py",
+      "line_start": 87,
+      "line_end": 111,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "secrets_path.is_file",
+        "open",
+        "yaml.safe_load",
+        "logger.debug",
+        "isinstance",
+        "logger.warning",
+        "data.items",
+        "type",
+        "str"
+      ],
+      "called_by": [
+        "agents_config.load_agents_config",
+        "profile_loader.load_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Load ``.secrets.yaml`` if it exists, returning a flat str→str dict.\n\nNon-string values (booleans, integers, nulls) are logged and skipped\nto prevent silent ``\"None\"`` or ``\"True\"`` interpolation."
+    },
+    {
+      "name": "interpolate",
+      "qualified_name": "profile_loader.interpolate",
+      "file": "profile_loader.py",
+      "line_start": 114,
+      "line_end": 140,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "match.group",
+        "os.environ.get",
+        "_INTERPOLATION_RE.sub",
+        "result.replace"
+      ],
+      "called_by": [
+        "agents_config.load_agents_config",
+        "profile_loader._interpolate_tree"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Resolve ``${VAR}`` and ``${VAR:-default}`` in *value*.\n\nResolution order: secrets dict → ``os.environ``.\n- ``$${VAR}`` produces the literal ``${VAR}`` (escape).\n- Unresolvable ``${VAR}`` (no default, not in secrets or env) is left as-is."
+    },
+    {
+      "name": "_replace",
+      "qualified_name": "profile_loader.interpolate._replace",
+      "file": "profile_loader.py",
+      "line_start": 122,
+      "line_end": 135,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "match.group",
+        "os.environ.get"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "_interpolate_tree",
+      "qualified_name": "profile_loader._interpolate_tree",
+      "file": "profile_loader.py",
+      "line_start": 143,
+      "line_end": 153,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "interpolate",
+        "_interpolate_tree",
+        "data.items"
+      ],
+      "called_by": [
+        "profile_loader._interpolate_tree",
+        "profile_loader._resolve_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Walk a nested dict/list and interpolate all string leaves."
+    },
+    {
+      "name": "_resolve_profile",
+      "qualified_name": "profile_loader._resolve_profile",
+      "file": "profile_loader.py",
+      "line_start": 160,
+      "line_end": 187,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "set",
+        "ValueError",
+        "join",
+        "seen.add",
+        "path.is_file",
+        "FileNotFoundError",
+        "open",
+        "yaml.safe_load",
+        "raw.pop",
+        "_resolve_profile",
+        "deep_merge",
+        "_interpolate_tree"
+      ],
+      "called_by": [
+        "profile_loader._resolve_profile",
+        "profile_loader.load_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Load *name*.yaml, recursively resolve ``extends:``, and interpolate."
+    },
+    {
+      "name": "_flatten",
+      "qualified_name": "profile_loader._flatten",
+      "file": "profile_loader.py",
+      "line_start": 194,
+      "line_end": 203,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "data.items",
+        "isinstance",
+        "flat.update",
+        "_flatten",
+        "str"
+      ],
+      "called_by": [
+        "profile_loader._flatten",
+        "profile_loader._inject_env"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Flatten a nested dict to dotted-path keys with string values."
+    },
+    {
+      "name": "_inject_env",
+      "qualified_name": "profile_loader._inject_env",
+      "file": "profile_loader.py",
+      "line_start": 206,
+      "line_end": 215,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_flatten",
+        "FIELD_ENV_MAP.items",
+        "logger.debug"
+      ],
+      "called_by": [
+        "profile_loader.apply_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Inject mapped profile values into ``os.environ`` as defaults.\n\nExisting env vars always take precedence (are not overwritten)."
+    },
+    {
+      "name": "load_profile",
+      "qualified_name": "profile_loader.load_profile",
+      "file": "profile_loader.py",
+      "line_start": 222,
+      "line_end": 252,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path.resolve",
+        "Path",
+        "os.environ.get",
+        "_load_secrets",
+        "_resolve_profile"
+      ],
+      "called_by": [
+        "profile_loader.apply_profile"
+      ],
+      "db_tables": [],
+      "tags": [
+        "db_access"
+      ],
+      "docstring": "Load and resolve a deployment profile.\n\nArgs:\n    profile_name: Profile to load. Falls back to ``COORDINATOR_PROFILE``\n        env var, then ``\"local\"``.\n    profiles_dir: Directory containing profile YAML files.\n    secrets_path: Path to ``.secrets.yaml``.\n\nReturns:\n    Fully resolved profile dict (with inheritance merged and variables\n    interpolated).\n\nRaises:\n    FileNotFoundError: If the profile YAML file doesn't exist.\n    ValueError: On circular inheritance."
+    },
+    {
+      "name": "apply_profile",
+      "qualified_name": "profile_loader.apply_profile",
+      "file": "profile_loader.py",
+      "line_start": 255,
+      "line_end": 288,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "Path.resolve",
+        "Path",
+        "profiles_dir.is_dir",
+        "logger.debug",
+        "load_profile",
+        "_inject_env"
+      ],
+      "called_by": [
+        "config.Config.from_env"
+      ],
+      "db_tables": [],
+      "tags": [],
+      "docstring": "Load a profile and inject its values into ``os.environ``.\n\nProfile loading only activates when *profile_name* is given explicitly\n**or** the ``COORDINATOR_PROFILE`` environment variable is set.  When\nneither is provided the function returns ``None`` immediately so that\nexisting env-var-only behaviour is preserved.\n\nReturns the resolved profile dict, or ``None`` when profiles are not\nactive."
+    },
+    {
       "name": "from_dict",
       "qualified_name": "profiles.AgentProfile.from_dict",
       "file": "profiles.py",
@@ -5991,6 +6544,7 @@
         "seen.add"
       ],
       "called_by": [
+        "agents_config.load_agents_config",
         "teams.TeamsConfig.from_dict"
       ],
       "db_tables": [],
@@ -6432,6 +6986,18 @@
   ],
   "classes": [
     {
+      "name": "AgentEntry",
+      "qualified_name": "agents_config.AgentEntry",
+      "file": "agents_config.py",
+      "line_start": 74,
+      "line_end": 84,
+      "bases": [],
+      "methods": [],
+      "decorators": [
+        "dataclass"
+      ]
+    },
+    {
       "name": "AuditEntry",
       "qualified_name": "audit.AuditEntry",
       "file": "audit.py",
@@ -6494,8 +7060,8 @@
       "name": "SupabaseConfig",
       "qualified_name": "config.SupabaseConfig",
       "file": "config.py",
-      "line_start": 42,
-      "line_end": 63,
+      "line_start": 49,
+      "line_end": 70,
       "bases": [],
       "methods": [
         "from_env"
@@ -6508,8 +7074,8 @@
       "name": "AgentConfig",
       "qualified_name": "config.AgentConfig",
       "file": "config.py",
-      "line_start": 67,
-      "line_end": 87,
+      "line_start": 74,
+      "line_end": 94,
       "bases": [],
       "methods": [
         "from_env"
@@ -6522,8 +7088,8 @@
       "name": "LockConfig",
       "qualified_name": "config.LockConfig",
       "file": "config.py",
-      "line_start": 91,
-      "line_end": 101,
+      "line_start": 98,
+      "line_end": 108,
       "bases": [],
       "methods": [
         "from_env"
@@ -6536,8 +7102,8 @@
       "name": "PostgresConfig",
       "qualified_name": "config.PostgresConfig",
       "file": "config.py",
-      "line_start": 105,
-      "line_end": 118,
+      "line_start": 112,
+      "line_end": 125,
       "bases": [],
       "methods": [
         "from_env"
@@ -6550,8 +7116,8 @@
       "name": "DatabaseConfig",
       "qualified_name": "config.DatabaseConfig",
       "file": "config.py",
-      "line_start": 122,
-      "line_end": 133,
+      "line_start": 129,
+      "line_end": 140,
       "bases": [],
       "methods": [
         "from_env"
@@ -6564,8 +7130,8 @@
       "name": "GuardrailsConfig",
       "qualified_name": "config.GuardrailsConfig",
       "file": "config.py",
-      "line_start": 137,
-      "line_end": 153,
+      "line_start": 144,
+      "line_end": 160,
       "bases": [],
       "methods": [
         "from_env"
@@ -6578,8 +7144,8 @@
       "name": "ProfilesConfig",
       "qualified_name": "config.ProfilesConfig",
       "file": "config.py",
-      "line_start": 157,
-      "line_end": 177,
+      "line_start": 164,
+      "line_end": 184,
       "bases": [],
       "methods": [
         "from_env"
@@ -6592,8 +7158,8 @@
       "name": "AuditConfig",
       "qualified_name": "config.AuditConfig",
       "file": "config.py",
-      "line_start": 181,
-      "line_end": 192,
+      "line_start": 188,
+      "line_end": 199,
       "bases": [],
       "methods": [
         "from_env"
@@ -6606,8 +7172,8 @@
       "name": "NetworkPolicyConfig",
       "qualified_name": "config.NetworkPolicyConfig",
       "file": "config.py",
-      "line_start": 196,
-      "line_end": 205,
+      "line_start": 203,
+      "line_end": 212,
       "bases": [],
       "methods": [
         "from_env"
@@ -6620,8 +7186,8 @@
       "name": "PolicyEngineConfig",
       "qualified_name": "config.PolicyEngineConfig",
       "file": "config.py",
-      "line_start": 209,
-      "line_end": 229,
+      "line_start": 216,
+      "line_end": 236,
       "bases": [],
       "methods": [
         "from_env"
@@ -6634,8 +7200,8 @@
       "name": "PortAllocatorConfig",
       "qualified_name": "config.PortAllocatorConfig",
       "file": "config.py",
-      "line_start": 233,
-      "line_end": 248,
+      "line_start": 240,
+      "line_end": 255,
       "bases": [],
       "methods": [
         "from_env"
@@ -6648,8 +7214,8 @@
       "name": "ApiConfig",
       "qualified_name": "config.ApiConfig",
       "file": "config.py",
-      "line_start": 252,
-      "line_end": 283,
+      "line_start": 259,
+      "line_end": 304,
       "bases": [],
       "methods": [
         "from_env"
@@ -6662,8 +7228,8 @@
       "name": "Config",
       "qualified_name": "config.Config",
       "file": "config.py",
-      "line_start": 287,
-      "line_end": 331,
+      "line_start": 308,
+      "line_end": 380,
       "bases": [],
       "methods": [
         "from_env"
@@ -7680,6 +8246,42 @@
   ],
   "import_graph": [
     {
+      "from": "agents_config",
+      "to": "__future__"
+    },
+    {
+      "from": "agents_config",
+      "to": "logging"
+    },
+    {
+      "from": "agents_config",
+      "to": "os"
+    },
+    {
+      "from": "agents_config",
+      "to": "dataclasses"
+    },
+    {
+      "from": "agents_config",
+      "to": "pathlib"
+    },
+    {
+      "from": "agents_config",
+      "to": "typing"
+    },
+    {
+      "from": "agents_config",
+      "to": "yaml"
+    },
+    {
+      "from": "agents_config",
+      "to": "jsonschema"
+    },
+    {
+      "from": "agents_config",
+      "to": "src.profile_loader"
+    },
+    {
       "from": "assurance",
       "to": "__future__"
     },
@@ -7713,7 +8315,15 @@
     },
     {
       "from": "config",
+      "to": "__future__"
+    },
+    {
+      "from": "config",
       "to": "json"
+    },
+    {
+      "from": "config",
+      "to": "logging"
     },
     {
       "from": "config",
@@ -7725,7 +8335,19 @@
     },
     {
       "from": "config",
+      "to": "typing"
+    },
+    {
+      "from": "config",
       "to": "uuid"
+    },
+    {
+      "from": "config",
+      "to": "src.agents_config"
+    },
+    {
+      "from": "config",
+      "to": "src.profile_loader"
     },
     {
       "from": "coordination_api",
@@ -7938,6 +8560,34 @@
     {
       "from": "discovery",
       "to": "db"
+    },
+    {
+      "from": "docker_manager",
+      "to": "__future__"
+    },
+    {
+      "from": "docker_manager",
+      "to": "logging"
+    },
+    {
+      "from": "docker_manager",
+      "to": "shutil"
+    },
+    {
+      "from": "docker_manager",
+      "to": "subprocess"
+    },
+    {
+      "from": "docker_manager",
+      "to": "time"
+    },
+    {
+      "from": "docker_manager",
+      "to": "pathlib"
+    },
+    {
+      "from": "docker_manager",
+      "to": "typing"
     },
     {
       "from": "feature_registry",
@@ -8242,6 +8892,34 @@
     {
       "from": "port_allocator",
       "to": "config"
+    },
+    {
+      "from": "profile_loader",
+      "to": "__future__"
+    },
+    {
+      "from": "profile_loader",
+      "to": "logging"
+    },
+    {
+      "from": "profile_loader",
+      "to": "os"
+    },
+    {
+      "from": "profile_loader",
+      "to": "re"
+    },
+    {
+      "from": "profile_loader",
+      "to": "pathlib"
+    },
+    {
+      "from": "profile_loader",
+      "to": "typing"
+    },
+    {
+      "from": "profile_loader",
+      "to": "yaml"
     },
     {
       "from": "profiles",
@@ -8628,6 +9306,16 @@
   ],
   "db_access": [
     {
+      "function": "agents_config.load_agents_config",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "agents_config.get_mcp_env",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "audit.AuditEntry.from_dict",
       "tables": [],
       "pattern": "orm"
@@ -8794,6 +9482,11 @@
     },
     {
       "function": "discovery.CleanupResult.from_dict",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "docker_manager.start_container",
       "tables": [],
       "pattern": "orm"
     },
@@ -8968,6 +9661,31 @@
       "pattern": "orm"
     },
     {
+      "function": "profile_loader.interpolate",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profile_loader.interpolate._replace",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profile_loader._resolve_profile",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profile_loader._flatten",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "profile_loader.load_profile",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "profiles.AgentProfile.from_dict",
       "tables": [],
       "pattern": "orm"
@@ -9029,12 +9747,15 @@
     }
   ],
   "summary": {
-    "total_functions": 269,
-    "total_classes": 86,
-    "total_modules": 22,
+    "total_functions": 291,
+    "total_classes": 87,
+    "total_modules": 25,
     "async_functions": 125,
     "entry_points": 48,
     "dead_code_candidates": [
+      "agents_config.get_mcp_env",
+      "agents_config.get_agent_config",
+      "agents_config.reset_agents_config",
       "audit.AuditResult.from_dict",
       "audit.AuditService.db",
       "audit.AuditService.log_operation",
@@ -9075,6 +9796,8 @@
       "discovery.DiscoveryService.discover",
       "discovery.DiscoveryService.heartbeat",
       "discovery.DiscoveryService.cleanup_dead_agents",
+      "docker_manager.start_container",
+      "docker_manager.wait_for_healthy",
       "feature_registry.FeatureRegistryService.db",
       "feature_registry.FeatureRegistryService.register",
       "feature_registry.FeatureRegistryService.deregister",
@@ -9143,6 +9866,7 @@
       "port_allocator.PortAllocatorService.status",
       "port_allocator.PortAllocatorService._cleanup_expired",
       "port_allocator.reset_port_allocator",
+      "profile_loader.interpolate._replace",
       "profiles.OperationCheck.from_dict",
       "profiles.ProfilesService.db",
       "profiles.ProfilesService.get_profile",

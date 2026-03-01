@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-02-28T04:07:20.056757+00:00",
+  "generated_at": "2026-03-01T02:32:44.561148+00:00",
   "summary": {
-    "total_comments": 214,
+    "total_comments": 265,
     "total_with_markers": 1,
     "marker_totals": {
       "WARN": 1
     },
-    "total_graph_nodes": 692,
-    "documented_nodes": 53,
-    "documentation_coverage": 0.077
+    "total_graph_nodes": 718,
+    "documented_nodes": 61,
+    "documentation_coverage": 0.085
   },
   "marker_hotspots": [
     {
@@ -29,6 +29,14 @@
   },
   "file_summaries": [
     {
+      "file": "agents_config.py",
+      "total_comments": 20,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
       "file": "assurance.py",
       "total_comments": 2,
       "with_markers": 0,
@@ -46,7 +54,7 @@
     },
     {
       "file": "config.py",
-      "total_comments": 14,
+      "total_comments": 17,
       "with_markers": 0,
       "languages": [
         "python"
@@ -62,7 +70,7 @@
     },
     {
       "file": "coordination_mcp.py",
-      "total_comments": 48,
+      "total_comments": 47,
       "with_markers": 0,
       "languages": [
         "python"
@@ -167,6 +175,14 @@
     {
       "file": "port_allocator.py",
       "total_comments": 15,
+      "with_markers": 0,
+      "languages": [
+        "python"
+      ]
+    },
+    {
+      "file": "profile_loader.py",
+      "total_comments": 29,
       "with_markers": 0,
       "languages": [
         "python"
