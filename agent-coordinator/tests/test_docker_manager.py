@@ -5,15 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from src.docker_manager import (
     detect_runtime,
     is_container_running,
     start_container,
     wait_for_healthy,
 )
-
 
 # ---------------------------------------------------------------------------
 # detect_runtime
@@ -122,14 +119,16 @@ class TestStartContainer:
     def test_already_running(self, tmp_path: Path) -> None:
         compose = tmp_path / "docker-compose.yml"
         compose.write_text("version: '3'\n")
+        cfg = {
+            "enabled": True,
+            "container_name": "paradedb",
+            "compose_file": "docker-compose.yml",
+        }
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=True),
         ):
-            result = start_container(
-                {"enabled": True, "container_name": "paradedb", "compose_file": "docker-compose.yml"},
-                base_dir=tmp_path,
-            )
+            result = start_container(cfg, base_dir=tmp_path)
             assert result["already_running"] is True
             assert result["started"] is False
 
@@ -154,16 +153,18 @@ class TestStartContainer:
     def test_successful_start(self, tmp_path: Path) -> None:
         compose = tmp_path / "docker-compose.yml"
         compose.write_text("version: '3'\n")
+        cfg = {
+            "enabled": True,
+            "container_name": "paradedb",
+            "compose_file": "docker-compose.yml",
+        }
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
             patch("subprocess.run") as mock_run,
         ):
             mock_run.return_value.returncode = 0
-            result = start_container(
-                {"enabled": True, "container_name": "paradedb", "compose_file": "docker-compose.yml"},
-                base_dir=tmp_path,
-            )
+            result = start_container(cfg, base_dir=tmp_path)
             assert result == {"started": True, "runtime": "docker"}
 
     def test_compose_up_fails(self, tmp_path: Path) -> None:
@@ -171,6 +172,11 @@ class TestStartContainer:
 
         compose = tmp_path / "docker-compose.yml"
         compose.write_text("version: '3'\n")
+        cfg = {
+            "enabled": True,
+            "container_name": "paradedb",
+            "compose_file": "docker-compose.yml",
+        }
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
@@ -179,10 +185,7 @@ class TestStartContainer:
                 side_effect=sp.CalledProcessError(1, "compose", stderr="image not found"),
             ),
         ):
-            result = start_container(
-                {"enabled": True, "container_name": "paradedb", "compose_file": "docker-compose.yml"},
-                base_dir=tmp_path,
-            )
+            result = start_container(cfg, base_dir=tmp_path)
             assert result["started"] is False
             assert "compose up failed" in result["error"]
 
@@ -191,6 +194,11 @@ class TestStartContainer:
 
         compose = tmp_path / "docker-compose.yml"
         compose.write_text("version: '3'\n")
+        cfg = {
+            "enabled": True,
+            "container_name": "paradedb",
+            "compose_file": "docker-compose.yml",
+        }
         with (
             patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
@@ -199,10 +207,7 @@ class TestStartContainer:
                 side_effect=sp.TimeoutExpired("compose", 120),
             ),
         ):
-            result = start_container(
-                {"enabled": True, "container_name": "paradedb", "compose_file": "docker-compose.yml"},
-                base_dir=tmp_path,
-            )
+            result = start_container(cfg, base_dir=tmp_path)
             assert result["started"] is False
             assert "timed out" in result["error"]
 
