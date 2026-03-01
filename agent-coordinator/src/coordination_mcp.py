@@ -46,7 +46,7 @@ from .work_queue import get_work_queue_service
 mcp = FastMCP(
     name="coordination",
     version="0.2.0",
-    description="Multi-agent coordination: file locks, work queue, handoffs, and discovery",  # type: ignore[call-arg]
+    instructions="Multi-agent coordination: file locks, work queue, handoffs, and discovery",
 )
 
 
