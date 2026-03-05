@@ -54,6 +54,25 @@ jobs:
       - name: Run scripts tests
         run: uv run pytest -v
 
+  test-skills:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+        working-directory: agent-coordinator
+
+      - name: Run skills tests
+        run: agent-coordinator/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v
+
   validate-specs:
     runs-on: ubuntu-latest
 
