@@ -228,3 +228,6 @@ node_modules/
 
 # Coordinator secrets (profile interpolation)
 .secrets.yaml
+
+# Coordinator dev logs/pids (make dev-bg)
+.logs/

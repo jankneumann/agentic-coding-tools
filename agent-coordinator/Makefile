@@ -14,6 +14,7 @@ MCP_SSE_PORT     ?= 8082
 COMPOSE          := docker compose
 UV               := uv
 UV_RUN           := $(UV) run
+LOG_DIR          := .logs
 
 # Activate the local deployment profile by default so the profile loader
 # sets DB_BACKEND=postgres and POSTGRES_DSN from profiles/local.yaml.
@@ -153,10 +154,27 @@ check: lint typecheck test ## Run lint + typecheck + test (CI parity)
 # ---------------------------------------------------------------------------
 
 .PHONY: dev
-dev: install db-up _wait-for-db api-serve ## Full dev setup: install + db + api server
+dev: install db-up _wait-for-db api-serve ## Full dev setup: install + db + api server (foreground)
+
+.PHONY: dev-bg
+dev-bg: install db-up _wait-for-db ## Full dev setup: install + db + api server (background)
+	@mkdir -p $(LOG_DIR)
+	@echo "Starting API server on :$(API_PORT) (log: $(LOG_DIR)/api.log)…"
+	@nohup $(UV_RUN) coordination-api --port=$(API_PORT) > $(LOG_DIR)/api.log 2>&1 & echo $$! > $(LOG_DIR)/api.pid
+	@echo "PID $$(cat $(LOG_DIR)/api.pid) — stop with: make stop"
 
 .PHONY: stop
-stop: db-down ## Stop all services
+stop: ## Stop all services (db + background API)
+	@if [ -f $(LOG_DIR)/api.pid ]; then \
+		pid=$$(cat $(LOG_DIR)/api.pid); \
+		if kill -0 $$pid 2>/dev/null; then \
+			kill $$pid && echo "Stopped API server (PID $$pid)"; \
+		else \
+			echo "API server (PID $$pid) not running"; \
+		fi; \
+		rm -f $(LOG_DIR)/api.pid; \
+	fi
+	$(COMPOSE) down
 
 # ---------------------------------------------------------------------------
 # Utility
