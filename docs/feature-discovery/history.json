@@ -1,23 +1,41 @@
 {
-  "updated_at": "2026-03-04T10:00:00Z",
+  "updated_at": "2026-03-05T15:00:00Z",
   "recommendations": [
+    {
+      "opportunity_id": "add-worktree-bootstrap",
+      "recommended_at": "2026-03-05T15:00:00Z",
+      "status": "recommended",
+      "reason": "Root cause of agents abandoning worktrees. Extends worktree.py with env copy, uv sync, and post-setup hooks. Small effort, high impact."
+    },
+    {
+      "opportunity_id": "add-git-parallel-config",
+      "recommended_at": "2026-03-05T15:00:00Z",
+      "status": "recommended",
+      "reason": "Config-only changes: rerere (shared conflict resolutions), zdiff3 (better conflict context), updateRefs (free stack management). Zero downside."
+    },
+    {
+      "opportunity_id": "add-github-merge-queue",
+      "recommended_at": "2026-03-05T15:00:00Z",
+      "status": "recommended",
+      "reason": "Prevents broken main from concurrent PR merges. Requires merge_group CI trigger + branch protection config."
+    },
     {
       "opportunity_id": "add-ci-skills-tests",
       "recommended_at": "2026-03-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "341 skills tests with zero CI coverage. ~10-line YAML fix for immediate regression detection. Highest-impact quick-win."
+      "status": "completed",
+      "reason": "OpenSpec change completed 2026-03-05."
     },
     {
       "opportunity_id": "close-near-complete-changes",
       "recommended_at": "2026-03-04T10:00:00Z",
       "status": "recommended",
-      "reason": "Two changes at 21/22 and 98/99 completion. Trivial final tasks to close them out and reduce active change count."
+      "reason": "Two changes at 21/22 and 98/99 completion. Trivial final tasks to close them out."
     },
     {
       "opportunity_id": "add-port-allocator-service",
       "recommended_at": "2026-02-21T10:00:00Z",
       "status": "completed",
-      "reason": "Implemented and archived 2026-02-22. Port allocator, hardcoded port fixes, env template, and compose isolation all shipped."
+      "reason": "Implemented and archived 2026-02-22."
     },
     {
       "opportunity_id": "add-security-review-skill-core",
