@@ -88,7 +88,7 @@
 
 ## 6. Validation
 
-- [ ] 6.1 Run end-to-end test: `/plan-feature` on a test change using agent-native-first flow with CLI fallback verification
+- [x] 6.1 Run end-to-end test: `/plan-feature` on a test change using agent-native-first flow with CLI fallback verification
   **Dependencies**: 4.1, 5.1, 5.4
   **Files**: None (workflow validation)
 

@@ -11,8 +11,8 @@ A multi-agent coordination system that enables local agents (Claude Code CLI, Co
 | Phase | Scope | Status |
 |-------|-------|--------|
 | **Phase 1 (MVP)** | File locking, work queue, MCP server, Supabase persistence | **Implemented** |
-| Phase 2 | HTTP API for cloud agents, episodic memory, GitHub-mediated coordination | Specified |
-| Phase 3 | Guardrails engine, verification gateway, agent profiles, approval queues | Specified |
+| **Phase 2** | HTTP API for cloud agents, episodic memory, GitHub-mediated coordination | **Implemented** |
+| **Phase 3** | Guardrails engine, agent profiles, network policies, audit trail, Cedar policy engine | **Implemented** |
 | Phase 4 | Multi-agent orchestration via Strands SDK, AgentCore integration | Specified |
 
 ### Phase 1 Implementation Details
@@ -1027,27 +1027,24 @@ The coordinator SHALL maintain a feature registry for cross-feature resource cla
 | `work_queue` | Task assignment queue | `001_core_schema.sql` |
 | `agent_sessions` | Agent work sessions | `001_core_schema.sql` |
 
-### Phase 2+ (Planned)
-| Table | Purpose |
-|-------|---------|
-| `changesets` | Records of agent-generated changes |
-| `verification_results` | Outcomes of verification runs |
-| `verification_policies` | Configurable routing rules |
-| `approval_queue` | Human review tracking |
-| `memory_episodic` | Experiences and their outcomes |
-| `memory_working` | Active context for current tasks |
-| `memory_procedural` | Learned skills and patterns |
+### Phase 2 (Implemented)
+| Table | Purpose | Migration |
+|-------|---------|-----------|
+| `memory_episodic` | Experiences and their outcomes | `004_memory_tables.sql` |
+| `memory_working` | Active context for current tasks | `004_memory_tables.sql` |
+| `memory_procedural` | Learned skills and patterns | `004_memory_tables.sql` |
+| `handoff_documents` | Session continuity between agents | `002_handoff_documents.sql` |
+| `agent_discovery` | Agent heartbeat and discovery | `003_agent_discovery.sql` |
 
-### Phase 3+ (Planned)
-| Table | Purpose |
-|-------|---------|
-| `agent_profiles` | Capability definitions with trust levels |
-| `agent_profile_assignments` | Maps agent_id to profile_id |
-| `network_policies` | Domain allowlists/denylists per profile |
-| `network_access_log` | Audit trail of network requests |
-| `operation_guardrails` | Destructive operation patterns and rules |
-| `guardrail_violations` | Log of blocked/approved destructive attempts |
-| `audit_log` | Immutable log of all coordination operations |
+### Phase 3 (Implemented)
+| Table | Purpose | Migration |
+|-------|---------|-----------|
+| `operation_guardrails` | Destructive operation patterns and rules | `006_guardrails.sql` |
+| `agent_profiles` | Capability definitions with trust levels | `007_profiles.sql` |
+| `network_policies` | Domain allowlists/denylists per profile | `008_network_policies.sql` |
+| `audit_log` | Immutable log of all coordination operations | `009_audit.sql` |
+| `cedar_policies` | Cedar policy-as-code storage (optional) | `010_cedar_policies.sql` |
+| `feature_registry` | Active feature tracking and resource claims | `011_feature_registry.sql` |
 
 ---
 

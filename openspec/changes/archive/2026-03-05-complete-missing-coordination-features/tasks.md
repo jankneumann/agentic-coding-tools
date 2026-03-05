@@ -293,7 +293,7 @@ Task 13 (Validation) ─── depends on: all tasks
   - Update database tables section with all Phase 2-3 tables
   - Update MCP tools table with new tools (remember, recall, check_guardrails, get_my_profile, query_audit)
   - Update architecture diagram to show Phase 2-3 components
-- [ ] 11.2 Update `openspec/specs/agent-coordinator/spec.md`:
+- [x] 11.2 Update `openspec/specs/agent-coordinator/spec.md`:
   - Update Implementation Status table
   - Update Database Tables section: move Phase 2+ and Phase 3+ tables to "Implemented"
 - [x] 11.3 Update `agent-coordinator/README.md`:
