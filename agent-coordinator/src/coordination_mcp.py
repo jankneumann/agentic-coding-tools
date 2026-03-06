@@ -7,20 +7,11 @@ This MCP server provides tools for:
 - Agent discovery and heartbeat monitoring
 
 Usage (Claude Code):
-    Add to ~/.claude/mcp.json:
-    {
-        "servers": {
-            "coordination": {
-                "command": "python",
-                "args": ["-m", "src.coordination_mcp"],
-                "cwd": "/path/to/agent-coordinator",
-                "env": {
-                    "SUPABASE_URL": "https://xxx.supabase.co",
-                    "SUPABASE_SERVICE_KEY": "your-key"
-                }
-            }
-        }
-    }
+    cd agent-coordinator && make claude-mcp-setup
+
+    Or manually:
+    claude mcp add-json --scope user coordination \
+        '{"type":"stdio","command":".venv/bin/python","args":["-m","src.coordination_mcp"],"cwd":"/path/to/agent-coordinator","env":{"DB_BACKEND":"postgres","POSTGRES_DSN":"postgresql://postgres:postgres@localhost:54322/postgres","AGENT_ID":"claude-code-1","AGENT_TYPE":"claude_code"}}'
 
 Usage (standalone for testing):
     python -m src.coordination_mcp --transport sse --port 8082

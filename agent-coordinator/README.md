@@ -81,25 +81,11 @@ cp .env.example .env
 
 ### 4. Configure Claude Code
 
-Add to `~/.claude/mcp.json`:
-
-```json
-{
-  "servers": {
-    "coordination": {
-      "command": "python",
-      "args": ["-m", "src.coordination_mcp"],
-      "cwd": "/path/to/agent-coordinator",
-      "env": {
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_SERVICE_KEY": "your-service-role-key",
-        "AGENT_ID": "claude-code-1",
-        "AGENT_TYPE": "claude_code"
-      }
-    }
-  }
-}
+```bash
+make claude-mcp-setup
 ```
+
+This registers the coordination MCP server with Claude Code (user scope). Restart Claude Code to activate.
 
 ### 5. Test the Integration
 

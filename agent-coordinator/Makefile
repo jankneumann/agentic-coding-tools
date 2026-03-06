@@ -94,25 +94,35 @@ api-serve: ## Run HTTP API server on :8081
 	$(UV_RUN) coordination-api --port=$(API_PORT)
 
 # ---------------------------------------------------------------------------
-# Phase: Claude Code Integration
+# Phase: MCP Integration
 # ---------------------------------------------------------------------------
 
+# Env vars shared across all MCP registrations
+MCP_ENV_FLAGS := --env DB_BACKEND=postgres \
+	--env "POSTGRES_DSN=postgresql://postgres:postgres@localhost:$(DB_PORT)/postgres" \
+	--env AGENT_ID=claude-code-1 \
+	--env AGENT_TYPE=claude_code
+
 .PHONY: claude-mcp-setup
-claude-mcp-setup: ## Print the mcp.json snippet for ~/.claude/mcp.json
-	@echo ""
-	@echo "Add the following to ~/.claude/mcp.json (or .claude/mcp.json in your project):"
-	@echo ""
-	@echo '{'
-	@echo '  "mcpServers": {'
-	@echo '    "coordination": {'
-	@echo '      "type": "stdio",'
-	@echo '      "command": "uv",'
-	@echo '      "args": ["run", "coordination-mcp"],'
-	@echo '      "cwd": "$(CURDIR)"'
-	@echo '    }'
-	@echo '  }'
-	@echo '}'
-	@echo ""
+claude-mcp-setup: ## Register coordination MCP server with Claude Code
+	claude mcp add-json --scope user coordination \
+		'{"type":"stdio","command":"$(CURDIR)/.venv/bin/python","args":["-m","src.coordination_mcp"],"cwd":"$(CURDIR)","env":{"DB_BACKEND":"postgres","POSTGRES_DSN":"postgresql://postgres:postgres@localhost:$(DB_PORT)/postgres","AGENT_ID":"claude-code-1","AGENT_TYPE":"claude_code"}}'
+	@echo "Coordination MCP server registered. Restart Claude Code to activate."
+
+.PHONY: codex-mcp-setup
+codex-mcp-setup: ## Register coordination MCP server with Codex CLI
+	codex mcp add $(MCP_ENV_FLAGS) \
+		coordination -- $(CURDIR)/.venv/bin/python -m src.coordination_mcp
+	@echo "Coordination MCP server registered. Restart Codex to activate."
+
+.PHONY: gemini-mcp-setup
+gemini-mcp-setup: ## Register coordination MCP server with Gemini CLI
+	gemini mcp add --scope user $(MCP_ENV_FLAGS) \
+		coordination $(CURDIR)/.venv/bin/python -m src.coordination_mcp
+	@echo "Coordination MCP server registered. Restart Gemini to activate."
+
+.PHONY: mcp-setup
+mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordination MCP server with all CLI agents
 
 # ---------------------------------------------------------------------------
 # Phase: Quality
