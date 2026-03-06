@@ -288,6 +288,7 @@ def _make_args(command: str, **kwargs: object) -> argparse.Namespace:
         "change_id": None,
         "branch": None,
         "prefix": None,
+        "no_bootstrap": True,
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
