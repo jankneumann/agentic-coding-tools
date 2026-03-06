@@ -20,12 +20,12 @@
 
 ## 4. Behavioral Verification Suite
 
-- [ ] 4.1 Add boundary integration tests validating denied mutations are blocked pre-side-effect.
-- [ ] 4.2 Add stateful/property tests for lock invariants under concurrent interleavings.
-- [ ] 4.3 Add stateful/property tests for work-queue invariants under concurrent interleavings.
-- [ ] 4.4 Extend Cedar-vs-native differential tests to full operation/resource matrix.
-- [ ] 4.5 Add migration-level RLS tests for service_role/anon behavior on sensitive tables.
-- [ ] 4.6 Add audit completeness tests ensuring each mutation emits immutable audit records.
+- [x] 4.1 Add boundary integration tests validating denied mutations are blocked pre-side-effect.
+- [x] 4.2 Add stateful/property tests for lock invariants under concurrent interleavings.
+- [x] 4.3 Add stateful/property tests for work-queue invariants under concurrent interleavings.
+- [x] 4.4 Extend Cedar-vs-native differential tests to full operation/resource matrix.
+- [x] 4.5 Add migration-level RLS tests for service_role/anon behavior on sensitive tables.
+- [x] 4.6 Add audit completeness tests ensuring each mutation emits immutable audit records.
 
 ## 5. Formal Verification Track
 
@@ -36,18 +36,18 @@
 
 ## 6. Validation and Rollout
 
-- [ ] 6.1 Run full test suite and report behavioral deltas caused by tightened enforcement.
-- [ ] 6.2 Add rollout notes for compatibility impact and mitigation (feature flags, profile updates).
-- [ ] 6.3 Update OpenSpec tasks/spec links in PR description for traceability.
+- [x] 6.1 Run full test suite and report behavioral deltas caused by tightened enforcement.
+- [x] 6.2 Add rollout notes for compatibility impact and mitigation (feature flags, profile updates).
+- [x] 6.3 Update OpenSpec tasks/spec links in PR description for traceability.
 - [x] 6.4 Confirm no duplicate implementation of dynamic-authorization features (delegation/approval/risk/policy-sync/versioning/session-grants) in this change.
 
 ## Dependency / Merge-Order Summary
 
-- [ ] D1 Merge-order prerequisite: `complete-missing-coordination-features` landed (or equivalent surfaces available) before starting `1.1+`.
-- [ ] D2 Ownership check: this change does not implement capabilities owned by `add-dynamic-authorization`.
-- [ ] D3 Internal order: complete `1.x` and `2.x` before `4.1`/`4.6`.
-- [ ] D4 Internal order: complete `3.x` before closing security verification for direct-postgres path.
-- [ ] D5 Internal order: complete `4.x` before making `5.3` formal verification CI gate blocking.
+- [x] D1 Merge-order prerequisite: `complete-missing-coordination-features` landed (or equivalent surfaces available) before starting `1.1+`.
+- [x] D2 Ownership check: this change does not implement capabilities owned by `add-dynamic-authorization`.
+- [x] D3 Internal order: complete `1.x` and `2.x` before `4.1`/`4.6`.
+- [x] D4 Internal order: complete `3.x` before closing security verification for direct-postgres path.
+- [x] D5 Internal order: complete `4.x` before making `5.3` formal verification CI gate blocking.
 
 ## Parallelization and File Scope
 
