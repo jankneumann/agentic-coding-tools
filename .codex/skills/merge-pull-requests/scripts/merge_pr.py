@@ -221,8 +221,31 @@ def validate_pr(pr_number: int) -> dict:
     }
 
 
+def _has_merge_queue() -> bool:
+    """Check if the repository has a merge queue enabled."""
+    try:
+        raw = run_gh([
+            "repo", "view", "--json", "mergeCommitAllowed",
+        ], timeout=GH_TIMEOUT)
+        # If the repo has branch protection with merge queue, gh pr merge
+        # without --merge-queue will fail. Proactively use --merge-queue.
+        # Unfortunately gh doesn't expose merge queue config directly,
+        # so we try with --merge-queue first and fall back if it fails.
+        return True  # Optimistically try merge queue; fallback handles errors
+    except (RuntimeError, subprocess.TimeoutExpired):
+        return False
+
+
 def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
     """Attempt the actual gh pr merge command, handling edge cases."""
+    # Try merge queue first if available
+    if _has_merge_queue():
+        result = _try_merge_queue(pr_number, strategy, is_fork)
+        if result.get("success"):
+            return result
+        # If merge queue attempt failed (e.g., queue not actually enabled),
+        # fall through to direct merge
+
     strategy_flag = f"--{strategy}"
     merge_args = ["pr", "merge", str(pr_number), strategy_flag]
 
