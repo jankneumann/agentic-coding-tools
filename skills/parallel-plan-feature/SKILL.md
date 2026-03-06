@@ -30,7 +30,13 @@ Create an OpenSpec proposal with contract-first artifacts and a `work-packages.y
 
 ## Coordinator Capability Check
 
-At skill start, detect coordinator capabilities:
+At skill start, run the coordinator detection script:
+
+```bash
+python3 agent-coordinator/scripts/check_coordinator.py --json
+```
+
+Parse the JSON output to set capability flags. Required capabilities:
 
 ```
 REQUIRED (hard failure without coordinator):
@@ -48,13 +54,13 @@ ENRICHING (degrades gracefully):
   CAN_AUDIT — query_audit() for audit trail
 ```
 
-If required capabilities are unavailable, degrade to `/linear-plan-feature` behavior and emit a warning.
+If `COORDINATOR_AVAILABLE` is `false` or required capabilities are unavailable, degrade to `/linear-plan-feature` behavior and emit a warning.
 
 ## Steps
 
 ### 0. Detect Coordinator and Read Handoff
 
-Run the coordination detection preamble from `docs/coordination-detection-template.md`.
+Run `python3 agent-coordinator/scripts/check_coordinator.py --json` and parse the result.
 
 If `CAN_HANDOFF=true`, read latest handoff context.
 If `CAN_MEMORY=true`, recall relevant planning memories.

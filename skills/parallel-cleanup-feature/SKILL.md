@@ -44,16 +44,15 @@ When coordinator is unavailable, degrades to `linear-cleanup-feature` behavior.
 
 ### 0. Detect Coordinator and Read Handoff
 
-At skill start, run the coordination detection preamble and set:
+At skill start, run the coordinator detection script:
 
-- `COORDINATOR_AVAILABLE`
-- `COORDINATION_TRANSPORT` (`mcp|http|none`)
-- `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
+```bash
+python3 agent-coordinator/scripts/check_coordinator.py --json
+```
 
-If `CAN_HANDOFF=true`, read latest handoff context:
+Parse the JSON output to set `COORDINATOR_AVAILABLE`, `COORDINATION_TRANSPORT`, and all `CAN_*` flags.
 
-- MCP path: `read_handoff`
-- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+If `CAN_HANDOFF=true`, read latest handoff context via MCP `read_handoff` tool.
 
 ### 1. Determine Change ID
 

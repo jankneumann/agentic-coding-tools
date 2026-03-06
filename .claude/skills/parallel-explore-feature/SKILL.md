@@ -30,6 +30,14 @@ Analyze the codebase and coordinator state to recommend features suitable for mu
 
 ## Coordinator Capability Check
 
+At skill start, run the coordinator detection script:
+
+```bash
+python3 agent-coordinator/scripts/check_coordinator.py --json
+```
+
+Parse the JSON output to set capability flags. Required capabilities:
+
 ```
 REQUIRED:
   CAN_DISCOVER  — discover_agents() for active feature and claim enumeration
@@ -45,13 +53,13 @@ ENRICHING:
   CAN_AUDIT    — log exploration decisions for traceability
 ```
 
-If coordinator is unavailable, degrade to `linear-explore-feature` behavior without resource analysis.
+If `COORDINATOR_AVAILABLE` is `false` or required capabilities are unavailable, degrade to `linear-explore-feature` behavior without resource analysis.
 
 ## Steps
 
 ### 0. Detect Coordinator
 
-Run the coordination detection preamble from `docs/coordination-detection-template.md`.
+Run `python3 agent-coordinator/scripts/check_coordinator.py --json` and parse the result.
 
 If `CAN_MEMORY=true`, recall relevant history:
 - Tags: `["feature-discovery", "<focus-area>"]`

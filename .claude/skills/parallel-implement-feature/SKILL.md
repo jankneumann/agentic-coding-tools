@@ -30,7 +30,13 @@ Implement an approved OpenSpec proposal using DAG-scheduled multi-agent parallel
 
 ## Coordinator Capability Check
 
-At skill start, detect coordinator capabilities:
+At skill start, run the coordinator detection script:
+
+```bash
+python3 agent-coordinator/scripts/check_coordinator.py --json
+```
+
+Parse the JSON output to set capability flags. Required capabilities:
 
 ```
 REQUIRED (hard failure without coordinator):
@@ -48,7 +54,7 @@ ENRICHING (degrades gracefully):
   CAN_AUDIT — query_audit() for execution summary generation
 ```
 
-If required capabilities are unavailable, degrade to `/linear-implement-feature` behavior and emit a warning.
+If `COORDINATOR_AVAILABLE` is `false` or required capabilities are unavailable, degrade to `/linear-implement-feature` behavior and emit a warning.
 
 ## Steps
 
