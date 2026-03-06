@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-01T02:32:44.528675+00:00",
+  "generated_at": "2026-03-06T01:24:31.107364+00:00",
   "treesitter_version": "unknown",
   "comments": {
     "total": 265,
@@ -2449,12 +2449,12 @@
         },
         {
           "file": "guardrails.py",
-          "line": 302,
+          "line": 276,
           "enclosing_node": "py:guardrails.GuardrailsService.check_operation"
         },
         {
           "file": "guardrails.py",
-          "line": 276,
+          "line": 302,
           "enclosing_node": "py:guardrails.GuardrailsService.check_operation"
         },
         {
@@ -2469,13 +2469,13 @@
         },
         {
           "file": "handoffs.py",
-          "line": 216,
-          "enclosing_node": "py:handoffs.HandoffService.read"
+          "line": 177,
+          "enclosing_node": "py:handoffs.HandoffService.write"
         },
         {
           "file": "handoffs.py",
-          "line": 177,
-          "enclosing_node": "py:handoffs.HandoffService.write"
+          "line": 216,
+          "enclosing_node": "py:handoffs.HandoffService.read"
         },
         {
           "file": "locks.py",
@@ -2499,13 +2499,13 @@
         },
         {
           "file": "merge_queue.py",
-          "line": 295,
-          "enclosing_node": "py:merge_queue.MergeQueueService.run_pre_merge_checks"
+          "line": 328,
+          "enclosing_node": "py:merge_queue.MergeQueueService.mark_merged"
         },
         {
           "file": "merge_queue.py",
-          "line": 328,
-          "enclosing_node": "py:merge_queue.MergeQueueService.mark_merged"
+          "line": 295,
+          "enclosing_node": "py:merge_queue.MergeQueueService.run_pre_merge_checks"
         },
         {
           "file": "network_policies.py",
@@ -2524,13 +2524,13 @@
         },
         {
           "file": "policy_engine.py",
-          "line": 238,
-          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
+          "line": 401,
+          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
         },
         {
           "file": "policy_engine.py",
-          "line": 401,
-          "enclosing_node": "py:policy_engine.CedarPolicyEngine._load_policies"
+          "line": 238,
+          "enclosing_node": "py:policy_engine.NativePolicyEngine.check_operation"
         },
         {
           "file": "policy_engine.py",
@@ -2554,13 +2554,13 @@
         },
         {
           "file": "work_queue.py",
-          "line": 276,
-          "enclosing_node": "py:work_queue.WorkQueueService.claim"
+          "line": 365,
+          "enclosing_node": "py:work_queue.WorkQueueService.complete"
         },
         {
           "file": "work_queue.py",
-          "line": 365,
-          "enclosing_node": "py:work_queue.WorkQueueService.complete"
+          "line": 276,
+          "enclosing_node": "py:work_queue.WorkQueueService.claim"
         },
         {
           "file": "work_queue.py",
@@ -2604,6 +2604,11 @@
         },
         {
           "file": "db_postgres.py",
+          "line": 268,
+          "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
+        },
+        {
+          "file": "db_postgres.py",
           "line": 202,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
         },
@@ -2611,11 +2616,6 @@
           "file": "db_postgres.py",
           "line": 295,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
-        },
-        {
-          "file": "db_postgres.py",
-          "line": 268,
-          "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
@@ -2629,8 +2629,8 @@
         },
         {
           "file": "port_allocator.py",
-          "line": 137,
-          "enclosing_node": "py:port_allocator.PortAllocatorService.release"
+          "line": 192,
+          "enclosing_node": "py:port_allocator.reset_port_allocator"
         },
         {
           "file": "port_allocator.py",
@@ -2639,13 +2639,13 @@
         },
         {
           "file": "port_allocator.py",
-          "line": 192,
-          "enclosing_node": "py:port_allocator.reset_port_allocator"
+          "line": 143,
+          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
         },
         {
           "file": "port_allocator.py",
-          "line": 143,
-          "enclosing_node": "py:port_allocator.PortAllocatorService.status"
+          "line": 137,
+          "enclosing_node": "py:port_allocator.PortAllocatorService.release"
         },
         {
           "file": "profile_loader.py",
@@ -3243,6 +3243,13 @@
         },
         {
           "file": "coordination_api.py",
+          "line": 334,
+          "parameter": "request",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.query_memories"
+        },
+        {
+          "file": "coordination_api.py",
           "line": 127,
           "parameter": "request_agent_type",
           "kind": "param_type",
@@ -3261,13 +3268,6 @@
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.resolve_trust_level"
-        },
-        {
-          "file": "coordination_api.py",
-          "line": 334,
-          "parameter": "request",
-          "kind": "param_type",
-          "enclosing_node": "py:coordination_api.create_coordination_api.query_memories"
         },
         {
           "file": "coordination_mcp.py",
@@ -5819,17 +5819,17 @@
         },
         {
           "file": "teams.py",
-          "line": 93,
-          "parameter": "data",
-          "kind": "param_type",
-          "enclosing_node": "py:teams.TeamsConfig.from_dict"
-        },
-        {
-          "file": "teams.py",
           "line": 143,
           "parameter": "capability",
           "kind": "param_type",
           "enclosing_node": "py:teams.TeamsConfig.get_agents_with_capability"
+        },
+        {
+          "file": "teams.py",
+          "line": 93,
+          "parameter": "data",
+          "kind": "param_type",
+          "enclosing_node": "py:teams.TeamsConfig.from_dict"
         },
         {
           "file": "work_queue.py",

@@ -1,7 +1,7 @@
 # Architecture Report
 
-Generated: 2026-03-01T02:32:44.390677+00:00  
-Git SHA: `3d405d4781825a443aeb59eb2e63d840a90485fd`
+Generated: 2026-03-06T01:24:30.908811+00:00  
+Git SHA: `2ea5afb033507806e5e9f80d929ff673e5c9fc5d`
 
 ## System Overview
 
@@ -198,10 +198,10 @@ Breakdown: 46 info, 2 warning.
 48 MCP routes have no frontend callers — expected for an MCP server (clients are AI agents, not browsers).
 
 - Backend route 'get_my_profile' has no frontend callers
-- Backend route 'allocate_ports' has no frontend callers
-- Backend route 'discover_agents' has no frontend callers
+- Backend route 'coordinate_file_edit' has no frontend callers
+- Backend route 'acquire_lock' has no frontend callers
 - Backend route 'health' has no frontend callers
-- Backend route 'get_task_endpoint' has no frontend callers
+- Backend route 'get_work' has no frontend callers
 - ... and 43 more
 
 ## High-Impact Nodes
