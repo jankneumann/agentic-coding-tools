@@ -71,7 +71,7 @@
   **Files**: `scripts/bao-seed.py`
   **Traces**: Bootstrap Seeding Script
 
-- [ ] 4.2 Add AppRole creation from `agents.yaml` to `bao-seed.py`
+- [ ] 4.2 Add AppRole creation from `agents.yaml` to `bao-seed.py` (HTTP-transport agents only)
   **Dependencies**: 4.1, 3.1
   **Files**: `scripts/bao-seed.py`
   **Traces**: Bootstrap Seeding Script

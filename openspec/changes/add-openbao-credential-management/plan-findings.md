@@ -23,3 +23,15 @@
 | 12 | feasibility | medium | Task 6.1 incorrectly depended on 4.3 (seeding script); dynamic DSN resolution only needs 2.2 | Fixed — corrected dependency to 2.2 only |
 | 13 | completeness | low | Task 2.3 test list didn't mention non-string filtering or missing credentials scenarios | Fixed — updated test description |
 | 14 | completeness | low | Modified API Key Identity Generation requirement has no OpenBao-specific scenario | Accepted — existing scenarios cover output format; source is transparent |
+
+## Iteration 3
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 15 | consistency | critical | Proposal says "trust 0–3" but `agents_config.py` schema uses `minimum: 1, maximum: 5` | Fixed — corrected to "trust 1–5" |
+| 16 | clarity | high | "configured session lifetime" undefined — no TTL parameter, no defaults | Fixed — added `BAO_TOKEN_TTL` (default 3600s) to config dataclass and agent-identity spec |
+| 17 | clarity | high | Renewal trigger "approaching expiry" undefined — no component, no threshold | Fixed — specified "less than 25% of TTL remaining", profile loader as responsible component |
+| 18 | consistency | high | Task 4.2 doesn't specify HTTP-transport filter, contradicting spec | Fixed — added "(HTTP-transport agents only)" qualifier |
+| 19 | consistency | medium | AppRole policy claims per-agent scoping but grants broad `secret/data/coordinator` read | Fixed — clarified shared path for MVP, per-agent sub-paths as future enhancement |
+| 20 | completeness | medium | Wrapped SecretID delivery underspecified but referenced in proposal/design | Fixed — moved to non-goals, simplified to direct `BAO_SECRET_ID` env var for MVP |
+| 21 | consistency | medium | Impact section missing `BAO_SECRET_PATH`, `BAO_TIMEOUT`, `BAO_TOKEN_TTL` parameters | Fixed — added all parameters to Impact list |

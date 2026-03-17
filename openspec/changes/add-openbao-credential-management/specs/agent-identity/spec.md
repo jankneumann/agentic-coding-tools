@@ -7,7 +7,8 @@ The agent identity system SHALL support mapping each agent declaration in `agent
 - Each agent entry in `agents.yaml` MAY declare an `openbao_role_id` field
 - When `openbao_role_id` is present and OpenBao is enabled, the agent SHALL authenticate to OpenBao using that AppRole
 - AppRole policies SHALL scope each agent's access to only the secrets it requires (e.g., an HTTP agent only reads its own API key)
-- Agent tokens obtained via AppRole auth SHALL have a TTL matching the configured session lifetime
+- Agent tokens obtained via AppRole auth SHALL have a TTL configured via `BAO_TOKEN_TTL` (default: 1 hour, max: 24 hours)
+- `BAO_TOKEN_TTL` SHALL be configurable per-agent via `agents.yaml` or globally via environment variable
 - When an agent session ends, its OpenBao token lease SHALL expire, automatically revoking any dynamic credentials it generated
 
 #### Scenario: Agent authenticates via AppRole
@@ -44,9 +45,9 @@ The agent identity system SHALL support per-agent dynamic PostgreSQL credentials
 - **AND** the credentials SHALL expire after the configured TTL
 
 #### Scenario: Dynamic credential renewal
-- **WHEN** an agent's database credential TTL is approaching expiry
+- **WHEN** an agent's database credential has less than 25% of its TTL remaining
 - **AND** the agent session is still active
-- **THEN** the credential lease SHALL be renewed up to the max renewal period
+- **THEN** the profile loader SHALL renew the credential lease up to the max renewal period
 - **AND** existing database connections using the credential SHALL remain valid during renewal
 
 #### Scenario: Dynamic credential renewal exceeds max TTL

@@ -50,7 +50,8 @@ The configuration system SHALL support OpenBao (Vault-compatible) as an alternat
 
 The config module SHALL include an `OpenBaoConfig` dataclass for centralizing OpenBao connection settings.
 
-- `OpenBaoConfig` SHALL be constructed from environment variables: `BAO_ADDR`, `BAO_ROLE_ID`, `BAO_SECRET_ID`, `BAO_MOUNT_PATH`, `BAO_SECRET_PATH`, `BAO_TIMEOUT`
+- `OpenBaoConfig` SHALL be constructed from environment variables: `BAO_ADDR`, `BAO_ROLE_ID`, `BAO_SECRET_ID`, `BAO_MOUNT_PATH`, `BAO_SECRET_PATH`, `BAO_TIMEOUT`, `BAO_TOKEN_TTL`
+- `BAO_TOKEN_TTL` SHALL default to `3600` (1 hour) and represent the token TTL in seconds
 - `OpenBaoConfig.is_enabled()` SHALL return `True` when `BAO_ADDR` is set and non-empty
 - `OpenBaoConfig` SHALL provide a `create_client()` method that returns an authenticated `hvac.Client`
 
@@ -93,7 +94,8 @@ A seeding script SHALL exist to populate OpenBao from `.secrets.yaml` and `agent
 #### Scenario: Seed AppRoles from agents.yaml
 - **WHEN** `agents.yaml` defines `codex-cloud` with `transport: http` and `api_key: ${CODEX_API_KEY}`
 - **THEN** `bao-seed.py` SHALL create an AppRole named `codex-cloud` in OpenBao
-- **AND** the AppRole policy SHALL grant read access only to `secret/data/coordinator`
+- **AND** the AppRole policy SHALL grant read access to `secret/data/coordinator` (shared path for MVP; per-agent sub-paths are a future enhancement)
+- **AND** the AppRole token SHALL have a max TTL matching `BAO_TOKEN_TTL`
 
 #### Scenario: Dry run previews without writing
 - **WHEN** `bao-seed.py --dry-run` is run

@@ -37,6 +37,8 @@ OpenBao (the Linux Foundation / OpenSSF fork of HashiCorp Vault, post-BSL licens
 - Multi-cluster OpenBao replication — single-instance is sufficient
 - UI/dashboard for OpenBao — CLI and API are sufficient
 - Replacing the profile inheritance system — only the secret source changes
+- Response-wrapping for SecretID delivery — a security hardening step for production; MVP uses direct `BAO_SECRET_ID` env var
+- Per-agent sub-path scoping in OpenBao policies — MVP uses a shared `secret/data/coordinator` read policy; granular per-secret scoping deferred
 
 ## Decisions
 
@@ -102,7 +104,7 @@ OpenBao (the Linux Foundation / OpenSSF fork of HashiCorp Vault, post-BSL licens
 | OpenBao dev server data loss on restart | Low | Dev mode is ephemeral by design; `bao-seed.py` re-populates in seconds. Production uses persistent storage. |
 | `hvac` library compatibility with OpenBao | Medium | OpenBao maintains Vault API compatibility. `hvac` works unchanged. Pin `hvac>=2.1.0` for KV v2 support. Test in CI against OpenBao container. |
 | Developers must install Docker for OpenBao testing | Low | OpenBao is opt-in (`BAO_ADDR`). Default path remains `.secrets.yaml` with no Docker dependency. |
-| AppRole secret_id leaks | Medium | Use response-wrapping (single-use tokens) for secret_id delivery. Tokens have short TTLs. Leaked secret_id is useless after first use. |
+| AppRole secret_id leaks | Medium | MVP: SecretIDs are passed via environment variables with short TTLs. Future enhancement: response-wrapping (single-use tokens) for production hardening. Rotate SecretIDs regularly. |
 | Database secrets engine generates many PostgreSQL roles | Low | Roles auto-expire after TTL. Add a cleanup cron or use max_ttl to bound accumulation. Dev mode: roles vanish on restart. |
 | Network dependency on OpenBao at startup | Medium | Fail-fast with clear error. No silent fallback to `.secrets.yaml` when `BAO_ADDR` is set — that would mask misconfiguration. |
 

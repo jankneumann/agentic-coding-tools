@@ -2,7 +2,7 @@
 
 ## Why
 
-Our current secrets management relies on static `.secrets.yaml` files copied or symlinked into each worktree (`scripts/worktree-bootstrap.sh:20-26`), with `profile_loader.py` interpolating `${VAR}` placeholders at startup. This approach has three scaling gaps: (1) no credential rotation without restarting services, (2) no revocation when an agent session ends or a key leaks — you must redeploy everything, and (3) no audit trail of which agent read which secret. For local single-developer use this is acceptable, but as the coordinator moves to cloud deployment with heterogeneous agents at different trust levels (`agents.yaml` already models trust 0–3), the static-file model becomes a liability. OpenBao (the open-source Vault fork under the Linux Foundation / OpenSSF) provides dynamic secrets with automatic lease expiry, per-identity scoping via AppRole auth, and a built-in audit log — directly addressing all three gaps without requiring a proprietary cloud secret manager.
+Our current secrets management relies on static `.secrets.yaml` files copied or symlinked into each worktree (`scripts/worktree-bootstrap.sh:20-26`), with `profile_loader.py` interpolating `${VAR}` placeholders at startup. This approach has three scaling gaps: (1) no credential rotation without restarting services, (2) no revocation when an agent session ends or a key leaks — you must redeploy everything, and (3) no audit trail of which agent read which secret. For local single-developer use this is acceptable, but as the coordinator moves to cloud deployment with heterogeneous agents at different trust levels (`agents.yaml` already models trust 1–5), the static-file model becomes a liability. OpenBao (the open-source Vault fork under the Linux Foundation / OpenSSF) provides dynamic secrets with automatic lease expiry, per-identity scoping via AppRole auth, and a built-in audit log — directly addressing all three gaps without requiring a proprietary cloud secret manager.
 
 ## What Changes
 
@@ -15,10 +15,10 @@ Our current secrets management relies on static `.secrets.yaml` files copied or 
 
 ### 2. AppRole Auth for Agent Identity
 
-- Each agent declared in `agents.yaml` maps to an OpenBao AppRole with a policy scoped to its required secrets
+- Each HTTP-transport agent declared in `agents.yaml` maps to an OpenBao AppRole with a policy granting read access to the coordinator secrets path (per-agent sub-path scoping is a future enhancement)
 - `agents_config.py` gains an `openbao_role_id` field per agent entry
 - On coordinator startup, `get_api_key_identities()` can resolve agent API keys from OpenBao instead of static `${CLAUDE_WEB_API_KEY}` interpolation
-- Agent sessions receive wrapped SecretIDs (single-use) that authenticate to OpenBao and obtain a scoped token with a TTL matching the session lifetime
+- Agent sessions receive SecretIDs (via environment variable) that authenticate to OpenBao and obtain a scoped token with a configurable TTL (`BAO_TOKEN_TTL`, default 1 hour)
 - When the session ends, the token lease expires and any dynamic credentials it generated are auto-revoked
 
 ### 3. Dynamic Database Credentials
@@ -57,7 +57,7 @@ Our current secrets management relies on static `.secrets.yaml` files copied or 
 - Affected code:
   - `agent-coordinator/src/profile_loader.py` — new `_load_secrets_openbao()` backend, conditional dispatch in `_load_secrets()`
   - `agent-coordinator/src/agents_config.py` — `openbao_role_id` field, dynamic key resolution
-  - `agent-coordinator/src/config.py` — new `OpenBaoConfig` dataclass (`BAO_ADDR`, `BAO_ROLE_ID`, `BAO_SECRET_ID`, `BAO_MOUNT_PATH`)
+  - `agent-coordinator/src/config.py` — new `OpenBaoConfig` dataclass (`BAO_ADDR`, `BAO_ROLE_ID`, `BAO_SECRET_ID`, `BAO_MOUNT_PATH`, `BAO_SECRET_PATH`, `BAO_TIMEOUT`, `BAO_TOKEN_TTL`)
   - `agent-coordinator/agents.yaml` — `openbao_role_id` per agent entry
   - `agent-coordinator/profiles/openbao.yaml` — new profile extending `local`
   - `agent-coordinator/docker-compose.yml` — OpenBao service definition
