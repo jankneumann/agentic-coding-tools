@@ -36,6 +36,15 @@
 | 20 | completeness | medium | Wrapped SecretID delivery underspecified but referenced in proposal/design | Fixed — moved to non-goals, simplified to direct `BAO_SECRET_ID` env var for MVP |
 | 21 | consistency | medium | Impact section missing `BAO_SECRET_PATH`, `BAO_TIMEOUT`, `BAO_TOKEN_TTL` parameters | Fixed — added all parameters to Impact list |
 
+## Post-Iteration Fix (critical findings from late-arriving analysis agent)
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 27 | clarity | critical | "Configured" database engine state undefined — no operational definition | Fixed — defined as database/ mount enabled + coordinator-agent role exists |
+| 28 | clarity | critical | Session lifecycle / token revocation mechanism undefined — who triggers it? | Fixed — clarified TTL-based expiry (no coordinator action required) |
+| 29 | consistency | high | Contradictory TTL model — proposal says single role, spec says per-agent | Fixed — clarified proposal: "coordinator-agent" is a role template generating per-agent creds |
+| 30 | consistency | high | AppRole policy scope in agent-identity spec still claimed per-secret scoping | Fixed — aligned with MVP shared-path policy |
+
 ## Remaining Findings (below threshold or deferred — max iterations reached)
 
 | # | Type | Criticality | Description | Status |

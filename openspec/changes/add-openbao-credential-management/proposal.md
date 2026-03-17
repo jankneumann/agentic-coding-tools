@@ -24,7 +24,7 @@ Our current secrets management relies on static `.secrets.yaml` files copied or 
 ### 3. Dynamic Database Credentials
 
 - Enable the OpenBao database secrets engine for PostgreSQL
-- Configure a role (`coordinator-agent`) that generates per-agent credentials with a 1-hour TTL and max 24-hour renewal
+- Configure an OpenBao database role template (`coordinator-agent`) that generates unique per-agent PostgreSQL credentials with a 1-hour TTL and max 24-hour renewal — each agent gets its own short-lived Postgres role from this template
 - `profile_loader.py` resolves `POSTGRES_DSN` dynamically via the database secrets engine instead of the static `${DB_PASSWORD}` interpolation
 - Each agent receives its own short-lived Postgres role — enabling per-agent audit in the database itself
 - Local dev: continues to use the static `postgres:postgres` default; no OpenBao dependency
