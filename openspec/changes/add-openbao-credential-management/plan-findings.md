@@ -35,3 +35,14 @@
 | 19 | consistency | medium | AppRole policy claims per-agent scoping but grants broad `secret/data/coordinator` read | Fixed — clarified shared path for MVP, per-agent sub-paths as future enhancement |
 | 20 | completeness | medium | Wrapped SecretID delivery underspecified but referenced in proposal/design | Fixed — moved to non-goals, simplified to direct `BAO_SECRET_ID` env var for MVP |
 | 21 | consistency | medium | Impact section missing `BAO_SECRET_PATH`, `BAO_TIMEOUT`, `BAO_TOKEN_TTL` parameters | Fixed — added all parameters to Impact list |
+
+## Remaining Findings (below threshold or deferred — max iterations reached)
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 14 | completeness | low | Modified API Key Identity Generation has no OpenBao-specific scenario | Accepted — existing scenarios cover output format |
+| 22 | completeness | medium | Missing bao-seed error scenarios (BAO_ADDR unreachable, BAO_TOKEN invalid during seeding) | Deferred — address during implementation |
+| 23 | testability | medium | No explicit scenario testing profile inheritance with OpenBao-sourced secrets | Deferred — task 7.2 covers regression testing |
+| 24 | testability | low | Dry-run output format unspecified | Deferred — implementation detail |
+| 25 | testability | low | Idempotency verification criteria vague | Deferred — implementation detail |
+| 26 | testability | low | No scenario for invalid KV mount path | Deferred — edge case for post-MVP |
