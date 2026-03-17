@@ -78,6 +78,31 @@ db-shell: ## Open psql shell to the running database
 	psql postgresql://postgres:postgres@localhost:$(DB_PORT)/postgres
 
 # ---------------------------------------------------------------------------
+# Phase: OpenBao
+# ---------------------------------------------------------------------------
+
+BAO_PORT         ?= $(or $(AGENT_COORDINATOR_BAO_PORT),8200)
+
+.PHONY: bao-dev
+bao-dev: ## Start OpenBao dev server + seed from .secrets.yaml
+	AGENT_COORDINATOR_BAO_PORT=$(BAO_PORT) $(COMPOSE) --profile openbao up -d openbao
+	@echo "Waiting for OpenBao on port $(BAO_PORT)…"
+	@for i in $$(seq 1 15); do \
+		curl -sf http://localhost:$(BAO_PORT)/v1/sys/health >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	@curl -sf http://localhost:$(BAO_PORT)/v1/sys/health >/dev/null 2>&1 \
+		&& echo "OpenBao is ready" \
+		|| (echo "ERROR: OpenBao did not become ready within 15s" && exit 1)
+	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
+		python ../scripts/bao_seed.py
+
+.PHONY: bao-seed
+bao-seed: ## Re-seed OpenBao from .secrets.yaml and agents.yaml
+	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
+		python ../scripts/bao_seed.py
+
+# ---------------------------------------------------------------------------
 # Phase: Services
 # ---------------------------------------------------------------------------
 

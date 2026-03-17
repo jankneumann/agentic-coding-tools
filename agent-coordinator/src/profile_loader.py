@@ -84,7 +84,7 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
 # Secret + env interpolation
 # ---------------------------------------------------------------------------
 
-def _load_secrets(secrets_path: Path) -> dict[str, str]:
+def _load_secrets_file(secrets_path: Path) -> dict[str, str]:
     """Load ``.secrets.yaml`` if it exists, returning a flat str→str dict.
 
     Non-string values (booleans, integers, nulls) are logged and skipped
@@ -109,6 +109,123 @@ def _load_secrets(secrets_path: Path) -> dict[str, str]:
             continue
         result[str(k)] = v
     return result
+
+
+def _load_secrets_openbao() -> dict[str, str]:
+    """Load secrets from OpenBao KV v2, returning a flat str→str dict.
+
+    Requires ``BAO_ADDR``, ``BAO_ROLE_ID``, and ``BAO_SECRET_ID`` environment
+    variables to be set.
+
+    Raises:
+        RuntimeError: On authentication failure.
+        ValueError: When required env vars are missing.
+        ConnectionError: When OpenBao is unreachable.
+    """
+    from src.config import OpenBaoConfig
+
+    bao_config = OpenBaoConfig.from_env()
+    client = bao_config.create_client()
+
+    try:
+        response = client.secrets.kv.v2.read_secret_version(
+            path=bao_config.secret_path,
+            mount_point=bao_config.mount_path,
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to read secrets from OpenBao at {bao_config.addr} "
+            f"(mount={bao_config.mount_path!r}, path={bao_config.secret_path!r}): {exc}"
+        ) from exc
+
+    data = response.get("data", {}).get("data", {})
+    if not isinstance(data, dict):
+        logger.warning("OpenBao secret data is not a mapping — returning empty dict")
+        return {}
+
+    result: dict[str, str] = {}
+    for k, v in data.items():
+        if not isinstance(v, str):
+            logger.warning(
+                "OpenBao secret '%s' has non-string type %s — skipped",
+                k,
+                type(v).__name__,
+            )
+            continue
+        result[str(k)] = v
+    return result
+
+
+def _load_secrets(secrets_path: Path) -> dict[str, str]:
+    """Load secrets from OpenBao (when ``BAO_ADDR`` is set) or ``.secrets.yaml``.
+
+    When ``BAO_ADDR`` is set in the environment, secrets are fetched from
+    OpenBao via AppRole auth. Otherwise, falls back to the file-based backend.
+    """
+    if os.environ.get("BAO_ADDR"):
+        logger.info("BAO_ADDR is set — loading secrets from OpenBao")
+        return _load_secrets_openbao()
+    return _load_secrets_file(secrets_path)
+
+
+def resolve_dynamic_dsn(agent_id: str | None = None) -> str | None:
+    """Resolve a dynamic PostgreSQL DSN from the OpenBao database secrets engine.
+
+    When the database secrets engine is configured in OpenBao (i.e., the
+    ``database/`` mount exists and a ``coordinator-agent`` role is available),
+    generates per-agent dynamic credentials. Otherwise returns ``None`` so the
+    caller falls back to static DSN interpolation.
+
+    Args:
+        agent_id: Agent identifier for credential scoping. Defaults to
+            ``AGENT_ID`` from the environment.
+
+    Returns:
+        A PostgreSQL DSN with dynamic credentials, or ``None`` if the database
+        engine is not configured.
+    """
+    from src.config import OpenBaoConfig
+
+    bao_config = OpenBaoConfig.from_env()
+    if not bao_config.is_enabled():
+        return None
+
+    try:
+        client = bao_config.create_client()
+        response = client.secrets.database.generate_credentials(
+            name="coordinator-agent",
+            mount_point="database",
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug(
+            "Database secrets engine not available — falling back to static DSN",
+            exc_info=True,
+        )
+        return None
+
+    creds = response.get("data", {})
+    username = creds.get("username", "")
+    password = creds.get("password", "")
+    if not username or not password:
+        logger.warning("Dynamic credentials empty — falling back to static DSN")
+        return None
+
+    # Lease info for renewal tracking
+    lease_id = response.get("lease_id", "")
+    lease_duration = response.get("lease_duration", 3600)
+    if lease_id:
+        logger.info(
+            "Dynamic DB credentials issued (lease=%s, ttl=%ds, agent=%s)",
+            lease_id,
+            lease_duration,
+            agent_id or os.environ.get("AGENT_ID", "unknown"),
+        )
+
+    # Build DSN using the default PostgreSQL connection parameters
+    db_host = os.environ.get("POSTGRES_HOST", "localhost")
+    db_port = os.environ.get("POSTGRES_PORT", "54322")
+    db_name = os.environ.get("POSTGRES_DB", "postgres")
+    return f"postgresql://{username}:{password}@{db_host}:{db_port}/{db_name}"
 
 
 def interpolate(value: str, secrets: dict[str, str]) -> str:

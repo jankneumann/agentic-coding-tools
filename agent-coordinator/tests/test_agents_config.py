@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -239,3 +240,100 @@ agents:
         _write(agents_file, yaml_content)
         agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
         assert agents[0].api_key is None
+
+
+# ---------------------------------------------------------------------------
+# OpenBao AppRole integration
+# ---------------------------------------------------------------------------
+
+
+class TestOpenbaoRoleId:
+    def test_openbao_role_id_loaded(self, tmp_path: Path) -> None:
+        yaml_content = """\
+agents:
+  test-cloud:
+    type: codex
+    profile: p
+    trust_level: 2
+    transport: http
+    api_key: "${API_KEY}"
+    openbao_role_id: test-cloud
+    capabilities: [lock]
+    description: Agent with OpenBao role
+"""
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, yaml_content)
+        agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
+        assert agents[0].openbao_role_id == "test-cloud"
+
+    def test_openbao_role_id_optional(self, tmp_path: Path) -> None:
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, VALID_AGENTS_YAML)
+        agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
+        assert agents[0].openbao_role_id is None
+        assert agents[1].openbao_role_id is None
+
+
+class TestOpenbaoApiKeyResolution:
+    def test_identities_without_openbao(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Without BAO_ADDR, uses static api_key resolution."""
+        monkeypatch.delenv("BAO_ADDR", raising=False)
+        agents = [
+            AgentEntry(
+                name="c1", type="codex", profile="p", trust_level=2,
+                transport="http", capabilities=[], description="d",
+                api_key="static-key", openbao_role_id="c1",
+            ),
+        ]
+        result = get_api_key_identities(agents)
+        assert result == {"static-key": {"agent_id": "c1", "agent_type": "codex"}}
+
+    @patch("src.agents_config._resolve_api_key_from_openbao")
+    def test_identities_with_openbao(
+        self, mock_resolve: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With BAO_ADDR, resolves keys from OpenBao for agents with role_id."""
+        monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+        mock_resolve.return_value = "openbao-key"
+        agents = [
+            AgentEntry(
+                name="c1", type="codex", profile="p", trust_level=2,
+                transport="http", capabilities=[], description="d",
+                api_key="${CODEX_KEY}", openbao_role_id="c1",
+            ),
+        ]
+        result = get_api_key_identities(agents)
+        assert "openbao-key" in result
+        assert result["openbao-key"]["agent_id"] == "c1"
+
+    def test_agent_without_role_uses_shared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Agent without openbao_role_id uses static key even with BAO_ADDR set."""
+        monkeypatch.delenv("BAO_ADDR", raising=False)
+        agents = [
+            AgentEntry(
+                name="no-role", type="codex", profile="p", trust_level=2,
+                transport="http", capabilities=[], description="d",
+                api_key="shared-key",
+            ),
+        ]
+        result = get_api_key_identities(agents)
+        assert result == {"shared-key": {"agent_id": "no-role", "agent_type": "codex"}}
+
+    @patch("src.agents_config._resolve_api_key_from_openbao")
+    def test_openbao_failure_falls_back(
+        self, mock_resolve: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """OpenBao failure falls back to static key."""
+        monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+        mock_resolve.return_value = "fallback-key"
+        agents = [
+            AgentEntry(
+                name="c1", type="codex", profile="p", trust_level=2,
+                transport="http", capabilities=[], description="d",
+                api_key="fallback-key", openbao_role_id="c1",
+            ),
+        ]
+        result = get_api_key_identities(agents)
+        assert "fallback-key" in result

@@ -20,6 +20,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # OpenBao secret manager (dev mode — auto-unsealed, ephemeral storage)
+  openbao:
+    image: quay.io/openbao/openbao:latest
+    container_name: agent-coordinator-bao
+    ports:
+      - "${AGENT_COORDINATOR_BAO_PORT:-8200}:8200"
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: dev-root-token
+      BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    command: server -dev
+    profiles:
+      - openbao
+
 volumes:
   postgres-data:
 

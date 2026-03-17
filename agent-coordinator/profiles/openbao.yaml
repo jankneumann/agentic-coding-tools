@@ -1,0 +1,5 @@
+# openbao.yaml — Local development with OpenBao secret management.
+extends: local
+
+settings:
+  bao_addr: "${BAO_ADDR:-http://localhost:8200}"
