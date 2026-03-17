@@ -14,3 +14,12 @@
 | 8 | parallelizability | medium | Independent tasks lacked parallel annotations | Fixed — added Parallel annotations to 1.1, 1.1b, 3.1, 5.1, 5.2, 7.1 |
 | 9 | testability | low | Renewal scenario used vague "SHALL not be interrupted" | Fixed — reworded to measurable "SHALL remain valid during renewal" |
 | 10 | clarity | low | `BAO_SECRET_PATH` default not mentioned in proposal section 1 | Fixed — added configurable paths to proposal |
+
+## Iteration 2
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 11 | completeness | medium | No scenario for `BAO_ADDR` set but `BAO_SECRET_ID` missing | Fixed — added missing credentials scenario |
+| 12 | feasibility | medium | Task 6.1 incorrectly depended on 4.3 (seeding script); dynamic DSN resolution only needs 2.2 | Fixed — corrected dependency to 2.2 only |
+| 13 | completeness | low | Task 2.3 test list didn't mention non-string filtering or missing credentials scenarios | Fixed — updated test description |
+| 14 | completeness | low | Modified API Key Identity Generation requirement has no OpenBao-specific scenario | Accepted — existing scenarios cover output format; source is transparent |

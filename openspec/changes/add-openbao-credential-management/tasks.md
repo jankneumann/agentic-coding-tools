@@ -36,7 +36,7 @@
   **Files**: `agent-coordinator/src/profile_loader.py`
   **Traces**: OpenBao Secret Backend
 
-- [ ] 2.3 Write unit tests for OpenBao secret loading (success, auth failure, unreachable, fallback)
+- [ ] 2.3 Write unit tests for OpenBao secret loading (success, auth failure, missing credentials, unreachable, fallback, non-string filtering)
   **Dependencies**: 2.2
   **Files**: `agent-coordinator/tests/test_profile_loader.py`
   **Traces**: OpenBao Secret Backend, Secret Interpolation (modified)
@@ -113,7 +113,7 @@
 ## 6. Dynamic Database Credentials
 
 - [ ] 6.1 Add dynamic DSN resolution to `profile_loader.py` when database engine is available
-  **Dependencies**: 2.2, 4.3
+  **Dependencies**: 2.2
   **Files**: `agent-coordinator/src/profile_loader.py`
   **Traces**: Dynamic Database Credentials per Agent
 

@@ -26,10 +26,15 @@ The configuration system SHALL support OpenBao (Vault-compatible) as an alternat
 - **THEN** `_load_secrets()` SHALL read from `.secrets.yaml` as before
 - **AND** no OpenBao connection SHALL be attempted
 
-#### Scenario: OpenBao authentication failure
+#### Scenario: OpenBao authentication failure (invalid credentials)
 - **WHEN** `BAO_ADDR` is set but `BAO_ROLE_ID` is invalid
 - **THEN** `_load_secrets()` SHALL raise a `RuntimeError` with message containing the BAO_ADDR and the authentication error
 - **AND** the coordinator SHALL not start with partial/missing secrets
+
+#### Scenario: OpenBao authentication failure (missing credentials)
+- **WHEN** `BAO_ADDR` is set but `BAO_ROLE_ID` or `BAO_SECRET_ID` is not set
+- **THEN** `_load_secrets()` SHALL raise a `ValueError` indicating which required environment variable is missing
+- **AND** the coordinator SHALL not start
 
 #### Scenario: OpenBao unreachable
 - **WHEN** `BAO_ADDR` is set but the server is unreachable
