@@ -45,6 +45,13 @@
 | 29 | consistency | high | Contradictory TTL model — proposal says single role, spec says per-agent | Fixed — clarified proposal: "coordinator-agent" is a role template generating per-agent creds |
 | 30 | consistency | high | AppRole policy scope in agent-identity spec still claimed per-secret scoping | Fixed — aligned with MVP shared-path policy |
 
+## Post-Iteration Fix 2 (completeness findings from late-arriving analysis agent)
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 31 | completeness | high | Missing bao-seed error scenario for BAO_TOKEN/BAO_ADDR not set | Fixed — added validation scenario |
+| 32 | completeness | medium | Missing bao-seed scenario for agents.yaml not found | Fixed — added graceful skip scenario |
+
 ## Remaining Findings (below threshold or deferred — max iterations reached)
 
 | # | Type | Criticality | Description | Status |

@@ -112,6 +112,16 @@ A seeding script SHALL exist to populate OpenBao from `.secrets.yaml` and `agent
 - **THEN** the script SHALL exit with a non-zero exit code
 - **AND** the error message SHALL indicate that `.secrets.yaml` is required as the source
 
+#### Scenario: Missing BAO_TOKEN or BAO_ADDR for seeding
+- **WHEN** `bao-seed.py` is run without `BAO_TOKEN` or `BAO_ADDR` set
+- **THEN** the script SHALL exit with a non-zero exit code
+- **AND** the error message SHALL indicate which required environment variable is missing
+
+#### Scenario: agents.yaml missing during seeding
+- **WHEN** `bao-seed.py` is run but `agents.yaml` does not exist
+- **THEN** the script SHALL seed secrets from `.secrets.yaml` successfully
+- **AND** AppRole creation SHALL be skipped with a warning message
+
 ### Requirement: Worktree Secret Handling
 
 The worktree bootstrap process SHALL conditionally skip `.secrets.yaml` file copying when OpenBao is enabled, allowing agents in worktrees to authenticate independently.
