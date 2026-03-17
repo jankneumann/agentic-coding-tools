@@ -47,7 +47,14 @@ The agent identity system SHALL support per-agent dynamic PostgreSQL credentials
 - **WHEN** an agent's database credential TTL is approaching expiry
 - **AND** the agent session is still active
 - **THEN** the credential lease SHALL be renewed up to the max renewal period
-- **AND** the agent's database connection SHALL not be interrupted
+- **AND** existing database connections using the credential SHALL remain valid during renewal
+
+#### Scenario: Dynamic credential renewal exceeds max TTL
+- **WHEN** an agent's database credential reaches the max renewal period (default: 24 hours)
+- **AND** the agent session is still active
+- **THEN** the lease renewal SHALL fail
+- **AND** the system SHALL generate new credentials via the database secrets engine
+- **AND** a warning SHALL be logged indicating credential rotation occurred
 
 #### Scenario: Database engine not configured (fallback)
 - **WHEN** OpenBao is enabled but the database secrets engine is not configured

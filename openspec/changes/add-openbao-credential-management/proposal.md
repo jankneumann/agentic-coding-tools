@@ -9,7 +9,7 @@ Our current secrets management relies on static `.secrets.yaml` files copied or 
 ### 1. OpenBao Client Integration in Profile Loader
 
 - Add an `openbao` secret backend to `profile_loader.py` alongside the existing `.secrets.yaml` backend
-- When `BAO_ADDR` is set in the environment, `_load_secrets()` authenticates to OpenBao (AppRole) and reads secrets from `secret/data/coordinator` (KV v2) instead of `.secrets.yaml`
+- When `BAO_ADDR` is set in the environment, `_load_secrets()` authenticates to OpenBao (AppRole) and reads secrets from KV v2 (mount path configurable via `BAO_MOUNT_PATH`, default `secret`; data path configurable via `BAO_SECRET_PATH`, default `coordinator`) instead of `.secrets.yaml`
 - The `${VAR}` interpolation layer, profile inheritance, and `FIELD_ENV_MAP` injection remain unchanged — only the secret **source** changes
 - Fallback: when `BAO_ADDR` is not set, behaviour is identical to today (`.secrets.yaml` file)
 
@@ -53,7 +53,7 @@ Our current secrets management relies on static `.secrets.yaml` files copied or 
 
 ## Impact
 
-- Affected specs: `agent-coordinator` (secret loading, agent identity, database access)
+- Affected specs: `configuration` (secret loading, interpolation, bootstrap seeding), `agent-identity` (AppRole per agent, dynamic database credentials, API key identity generation)
 - Affected code:
   - `agent-coordinator/src/profile_loader.py` — new `_load_secrets_openbao()` backend, conditional dispatch in `_load_secrets()`
   - `agent-coordinator/src/agents_config.py` — `openbao_role_id` field, dynamic key resolution

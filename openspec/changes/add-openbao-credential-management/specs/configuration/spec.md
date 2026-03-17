@@ -36,6 +36,11 @@ The configuration system SHALL support OpenBao (Vault-compatible) as an alternat
 - **THEN** `_load_secrets()` SHALL raise a `ConnectionError` after the configured timeout
 - **AND** the error message SHALL include `BAO_ADDR` for debugging
 
+#### Scenario: OpenBao returns non-string values
+- **WHEN** OpenBao KV v2 contains a key with a non-string value (e.g., integer, list, nested dict)
+- **THEN** `_load_secrets_openbao()` SHALL filter the value out and log a warning
+- **AND** the returned dict SHALL contain only string values, matching `.secrets.yaml` behavior
+
 ### Requirement: OpenBao Configuration Dataclass
 
 The config module SHALL include an `OpenBaoConfig` dataclass for centralizing OpenBao connection settings.
@@ -48,6 +53,13 @@ The config module SHALL include an `OpenBaoConfig` dataclass for centralizing Op
 - **WHEN** environment contains `BAO_ADDR=http://bao:8200`, `BAO_ROLE_ID=role-1`, `BAO_SECRET_ID=secret-1`
 - **THEN** `OpenBaoConfig.from_env()` SHALL populate all fields with defaults for unset optional values
 - **AND** `is_enabled()` SHALL return `True`
+
+#### Scenario: OpenBaoConfig creates authenticated client
+- **WHEN** `BAO_ADDR`, `BAO_ROLE_ID`, and `BAO_SECRET_ID` are set
+- **AND** `create_client()` is called
+- **THEN** the method SHALL return an `hvac.Client` connected to `BAO_ADDR`
+- **AND** the client SHALL be authenticated via AppRole using the provided role ID and secret ID
+- **AND** the client's `is_authenticated()` SHALL return `True`
 
 #### Scenario: OpenBaoConfig disabled
 - **WHEN** `BAO_ADDR` is not in the environment
@@ -87,6 +99,32 @@ A seeding script SHALL exist to populate OpenBao from `.secrets.yaml` and `agent
 - **WHEN** `bao-seed.py` is run twice with the same `.secrets.yaml`
 - **THEN** the second run SHALL update (not duplicate) existing secrets
 - **AND** existing AppRoles SHALL be updated, not recreated
+
+#### Scenario: Missing .secrets.yaml source file
+- **WHEN** `bao-seed.py` is run but `.secrets.yaml` does not exist
+- **THEN** the script SHALL exit with a non-zero exit code
+- **AND** the error message SHALL indicate that `.secrets.yaml` is required as the source
+
+### Requirement: Worktree Secret Handling
+
+The worktree bootstrap process SHALL conditionally skip `.secrets.yaml` file copying when OpenBao is enabled, allowing agents in worktrees to authenticate independently.
+
+- When `BAO_ADDR` is set, `worktree-bootstrap.sh` SHALL NOT copy or symlink `.secrets.yaml` into the worktree
+- When `BAO_ADDR` is not set, `worktree-bootstrap.sh` SHALL continue to copy `.secrets.yaml` as before (existing behavior)
+- Each worktree agent SHALL authenticate to OpenBao independently using its own AppRole credentials passed via environment variables
+
+#### Scenario: Worktree bootstrap with OpenBao enabled
+- **WHEN** `BAO_ADDR` is set in the environment
+- **AND** `worktree-bootstrap.sh` is executed for a new worktree
+- **THEN** the script SHALL NOT copy or symlink `.secrets.yaml` into the worktree
+- **AND** a log message SHALL indicate that OpenBao is being used for secrets
+
+#### Scenario: Worktree bootstrap without OpenBao (default)
+- **WHEN** `BAO_ADDR` is not set in the environment
+- **AND** `worktree-bootstrap.sh` is executed for a new worktree
+- **THEN** the script SHALL copy or symlink `.secrets.yaml` into the worktree as before
+
+---
 
 ## MODIFIED Requirements
 

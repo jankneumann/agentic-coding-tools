@@ -6,6 +6,13 @@
   **Dependencies**: None
   **Files**: `agent-coordinator/pyproject.toml`
   **Traces**: OpenBao Configuration Dataclass
+  **Parallel**: Can run in parallel with 1.1b, 3.1, 5.1, 5.2, 7.1
+
+- [ ] 1.1b Add `hvac` dependency to `scripts/pyproject.toml` for `bao-seed.py`
+  **Dependencies**: None
+  **Files**: `scripts/pyproject.toml`
+  **Traces**: Bootstrap Seeding Script
+  **Parallel**: Can run in parallel with 1.1, 3.1, 5.1, 5.2, 7.1
 
 - [ ] 1.2 Add `OpenBaoConfig` dataclass to `agent-coordinator/src/config.py`
   **Dependencies**: 1.1
@@ -40,6 +47,7 @@
   **Dependencies**: None
   **Files**: `agent-coordinator/src/agents_config.py`
   **Traces**: OpenBao AppRole per Agent
+  **Parallel**: Can run in parallel with 1.1, 1.1b, 5.1, 5.2, 7.1
 
 - [ ] 3.2 Update `agents.yaml` with `openbao_role_id` entries for HTTP-transport agents
   **Dependencies**: 3.1
@@ -59,7 +67,7 @@
 ## 4. Bootstrap Seeding Script
 
 - [ ] 4.1 Create `scripts/bao-seed.py` — read `.secrets.yaml`, write to OpenBao KV v2
-  **Dependencies**: 1.2
+  **Dependencies**: 1.1b, 1.2
   **Files**: `scripts/bao-seed.py`
   **Traces**: Bootstrap Seeding Script
 
@@ -89,11 +97,13 @@
   **Dependencies**: None
   **Files**: `agent-coordinator/docker-compose.yml`
   **Traces**: OpenBao Secret Backend
+  **Parallel**: Can run in parallel with 1.1, 1.1b, 3.1, 5.2, 7.1
 
 - [ ] 5.2 Create `agent-coordinator/profiles/openbao.yaml` extending `local.yaml` with `BAO_ADDR`
   **Dependencies**: None
   **Files**: `agent-coordinator/profiles/openbao.yaml`
   **Traces**: OpenBao Secret Backend
+  **Parallel**: Can run in parallel with 1.1, 1.1b, 3.1, 5.1, 7.1
 
 - [ ] 5.3 Add `bao-dev` and `bao-seed` targets to `agent-coordinator/Makefile`
   **Dependencies**: 5.1, 4.4
@@ -117,14 +127,15 @@
 - [ ] 7.1 Update `scripts/worktree-bootstrap.sh` to skip `.secrets.yaml` copy when `BAO_ADDR` is set
   **Dependencies**: None
   **Files**: `scripts/worktree-bootstrap.sh`
-  **Traces**: OpenBao Secret Backend
+  **Traces**: OpenBao Secret Backend, Worktree Secret Handling
+  **Parallel**: Can run in parallel with 1.1, 1.1b, 3.1, 5.1, 5.2
 
 - [ ] 7.2 Run full test suite and verify backward compatibility (all tests pass without `BAO_ADDR`)
   **Dependencies**: 2.3, 3.4, 4.5, 6.2
   **Files**: (all test files)
   **Traces**: All requirements — backward compatibility verification
 
-- [ ] 7.3 Add `hvac` to `scripts/pyproject.toml` for `bao-seed.py` dependency
-  **Dependencies**: 4.1
-  **Files**: `scripts/pyproject.toml`
-  **Traces**: Bootstrap Seeding Script
+- [ ] 7.3 Update `.secrets.yaml.example` with documentation for OpenBao environment variables
+  **Dependencies**: 1.2
+  **Files**: `agent-coordinator/.secrets.yaml.example`
+  **Traces**: OpenBao Configuration Dataclass
