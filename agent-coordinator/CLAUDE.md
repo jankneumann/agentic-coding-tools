@@ -117,6 +117,10 @@ All write endpoints require `X-API-Key` header.
 | `/work/complete` | POST | Yes | Complete task |
 | `/work/submit` | POST | Yes | Submit new task |
 | `/guardrails/check` | POST | Yes | Check operation safety |
+| `/handoffs/write` | POST | Yes | Write handoff document |
+| `/handoffs/read` | POST | Yes | Read handoff documents |
+| `/policy/check` | POST | Yes | Check policy authorization |
+| `/policy/validate` | POST | Yes | Validate Cedar policy text |
 | `/profiles/me` | GET | Yes | Get agent profile |
 | `/audit` | GET | Yes | Query audit trail |
 | `/health` | GET | No | Health check |

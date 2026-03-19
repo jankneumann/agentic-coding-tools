@@ -95,6 +95,35 @@ class AuditQueryParams(BaseModel):
     limit: int = 20
 
 
+class HandoffWriteRequest(BaseModel):
+    agent_id: str
+    agent_type: str
+    session_id: str | None = None
+    summary: str
+    completed_work: list[str] | None = None
+    in_progress: list[str] | None = None
+    decisions: list[str] | None = None
+    next_steps: list[str] | None = None
+    relevant_files: list[str] | None = None
+
+
+class HandoffReadRequest(BaseModel):
+    agent_name: str | None = None
+    limit: int = 1
+
+
+class PolicyCheckRequest(BaseModel):
+    agent_id: str
+    agent_type: str
+    operation: str
+    resource: str = ""
+    context: dict[str, Any] | None = None
+
+
+class PolicyValidateRequest(BaseModel):
+    policy_text: str
+
+
 class PortAllocateRequest(BaseModel):
     session_id: str
 
@@ -629,6 +658,126 @@ def create_coordination_api() -> FastAPI:
                 }
                 for e in entries
             ],
+        }
+
+    # --------------------------------------------------------------------- #
+    # HANDOFFS
+    # --------------------------------------------------------------------- #
+
+    @app.post("/handoffs/write")
+    async def write_handoff(
+        request: HandoffWriteRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Write a handoff document for session continuity."""
+        agent_id, _agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+
+        from .handoffs import get_handoff_service
+
+        result = await get_handoff_service().write(
+            summary=request.summary,
+            agent_name=agent_id,
+            session_id=request.session_id,
+            completed_work=request.completed_work,
+            in_progress=request.in_progress,
+            decisions=request.decisions,
+            next_steps=request.next_steps,
+            relevant_files=request.relevant_files,
+        )
+        return {
+            "success": result.success,
+            "handoff_id": str(result.handoff_id) if result.handoff_id else None,
+            "error": result.error,
+        }
+
+    @app.post("/handoffs/read")
+    async def read_handoff(
+        request: HandoffReadRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Read previous handoff documents for session continuity."""
+        from .handoffs import get_handoff_service
+
+        result = await get_handoff_service().read(
+            agent_name=request.agent_name,
+            limit=request.limit,
+        )
+        return {
+            "handoffs": [
+                {
+                    "id": str(h.id),
+                    "agent_name": h.agent_name,
+                    "session_id": h.session_id,
+                    "summary": h.summary,
+                    "completed_work": h.completed_work,
+                    "in_progress": h.in_progress,
+                    "decisions": h.decisions,
+                    "next_steps": h.next_steps,
+                    "relevant_files": h.relevant_files,
+                    "created_at": h.created_at.isoformat() if h.created_at else None,
+                }
+                for h in result.handoffs
+            ],
+        }
+
+    # --------------------------------------------------------------------- #
+    # POLICY
+    # --------------------------------------------------------------------- #
+
+    @app.post("/policy/check")
+    async def check_policy(
+        request: PolicyCheckRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Check if an operation is authorized by the policy engine."""
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+
+        from .policy_engine import get_policy_engine
+
+        engine = get_policy_engine()
+        result = await engine.check_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation=request.operation,
+            resource=request.resource,
+            context=request.context,
+        )
+        return {
+            "allowed": result.allowed,
+            "reason": result.reason,
+            "engine": type(engine).__name__,
+            "diagnostics": result.diagnostics,
+        }
+
+    @app.post("/policy/validate")
+    async def validate_cedar_policy(
+        request: PolicyValidateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Validate Cedar policy text against the schema."""
+        config = get_config()
+        if config.policy_engine.engine != "cedar":
+            return {
+                "valid": False,
+                "errors": ["Cedar engine not active. Set POLICY_ENGINE=cedar"],
+            }
+
+        from .policy_engine import get_policy_engine
+
+        engine = get_policy_engine()
+        if not hasattr(engine, "validate_policy"):
+            return {
+                "valid": False,
+                "errors": ["Current engine does not support policy validation"],
+            }
+        result = engine.validate_policy(request.policy_text)
+        return {
+            "valid": result.valid,
+            "errors": result.errors,
         }
 
     # --------------------------------------------------------------------- #

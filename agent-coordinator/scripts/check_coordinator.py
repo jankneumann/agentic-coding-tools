@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Check coordinator availability and detect capabilities.
 
-Probes the coordinator HTTP API health endpoint and derives CAN_* capability
-flags from the available endpoints.  Outputs JSON suitable for consumption by
-parallel workflow skills.
+Probes the coordinator via HTTP API first, then falls back to MCP tool
+detection for CLI environments where no HTTP server is running.  Outputs JSON
+suitable for consumption by parallel workflow skills.
 
 Usage:
     python3 agent-coordinator/scripts/check_coordinator.py [--url URL] [--json] [--quiet]
@@ -21,38 +21,41 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 DEFAULT_URL = "http://localhost:8081"
 
-# Endpoint groups that map to capability flags.
-# Each entry: CAN_* flag → list of (method, path) to probe.
-CAPABILITY_PROBES: dict[str, list[tuple[str, str]]] = {
-    "CAN_LOCK": [("GET", "/locks/status/__probe__")],
-    "CAN_QUEUE_WORK": [("GET", "/health")],  # work endpoints need auth; health implies they exist
-    "CAN_DISCOVER": [("GET", "/health")],
-    "CAN_GUARDRAILS": [("GET", "/health")],
-    "CAN_MEMORY": [("GET", "/health")],
-    "CAN_HANDOFF": [("GET", "/health")],
-    "CAN_POLICY": [("GET", "/health")],
-    "CAN_AUDIT": [("GET", "/health")],
-}
-
-# Endpoints that confirm a capability is *actually routed* (not just implied by
-# a healthy server).  We probe unauthenticated read-only endpoints where possible.
-# For write-only endpoints we accept the health check as sufficient evidence
-# because the API mounts all routes in create_coordination_api().
+# Endpoints that confirm a capability is *actually routed*.
+# We probe the real capability routes — a 401/403 proves the route exists
+# (auth required), 404 means not mounted, 2xx means available.
+# Capabilities with no dedicated HTTP route (handoff, policy) are MCP-only
+# and fall back to /health (presence of the server implies these features).
 ROUTE_PROBES: dict[str, str] = {
     "CAN_LOCK": "/locks/status/__probe__",
-    "CAN_QUEUE_WORK": "/health",
-    "CAN_GUARDRAILS": "/health",
-    "CAN_MEMORY": "/health",
-    "CAN_HANDOFF": "/health",
-    "CAN_DISCOVER": "/health",
-    "CAN_POLICY": "/health",
-    "CAN_AUDIT": "/health",
+    "CAN_QUEUE_WORK": "/work/get",
+    "CAN_GUARDRAILS": "/guardrails/check",
+    "CAN_MEMORY": "/memory/query",
+    "CAN_DISCOVER": "/profiles/me",
+    "CAN_HANDOFF": "/handoffs/read",
+    "CAN_POLICY": "/policy/check",
+    "CAN_AUDIT": "/audit",
+}
+
+# MCP tool names that map to each capability flag.
+# Used for fallback detection when no HTTP server is running.
+MCP_TOOL_PROBES: dict[str, str] = {
+    "CAN_LOCK": "mcp__coordination__acquire_lock",
+    "CAN_QUEUE_WORK": "mcp__coordination__get_work",
+    "CAN_GUARDRAILS": "mcp__coordination__check_guardrails",
+    "CAN_MEMORY": "mcp__coordination__remember",
+    "CAN_HANDOFF": "mcp__coordination__write_handoff",
+    "CAN_DISCOVER": "mcp__coordination__discover_agents",
+    "CAN_POLICY": "mcp__coordination__check_policy",
+    "CAN_AUDIT": "mcp__coordination__query_audit",
 }
 
 
@@ -89,6 +92,34 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
         return False
 
 
+def detect_mcp_tools() -> set[str]:
+    """Detect available MCP coordination tools via `claude mcp list-tools`.
+
+    Returns a set of tool names, or empty set if detection fails.
+    """
+    claude_bin = shutil.which("claude")
+    if not claude_bin:
+        return set()
+    try:
+        proc = subprocess.run(
+            [claude_bin, "mcp", "list-tools", "coordination"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode != 0:
+            return set()
+        # Each line contains a tool name (possibly with description after whitespace)
+        tools: set[str] = set()
+        for line in proc.stdout.strip().splitlines():
+            name = line.split()[0] if line.strip() else ""
+            if name:
+                tools.add(name)
+        return tools
+    except (OSError, subprocess.TimeoutExpired):
+        return set()
+
+
 def detect(base_url: str) -> dict:
     """Run full detection and return a result dict."""
     health = check_health(base_url)
@@ -108,16 +139,23 @@ def detect(base_url: str) -> dict:
         "CAN_AUDIT": False,
     }
 
-    if health is None:
+    if health is not None:
+        # HTTP transport available — probe individual capability routes
+        result["COORDINATOR_AVAILABLE"] = True
+        result["COORDINATION_TRANSPORT"] = "http"
+        result["health"] = health
+        for cap, path in ROUTE_PROBES.items():
+            result[cap] = probe_route(base_url, path)
         return result
 
-    result["COORDINATOR_AVAILABLE"] = True
-    result["COORDINATION_TRANSPORT"] = "http"
-    result["health"] = health
-
-    # Probe individual capabilities via their routes
-    for cap, path in ROUTE_PROBES.items():
-        result[cap] = probe_route(base_url, path)
+    # HTTP unavailable — fall back to MCP tool detection for CLI environments
+    mcp_tools = detect_mcp_tools()
+    if mcp_tools:
+        result["COORDINATOR_AVAILABLE"] = True
+        result["COORDINATION_TRANSPORT"] = "mcp"
+        for cap, tool_name in MCP_TOOL_PROBES.items():
+            result[cap] = tool_name in mcp_tools
+        return result
 
     return result
 
