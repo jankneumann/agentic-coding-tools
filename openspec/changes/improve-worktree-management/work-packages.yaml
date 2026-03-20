@@ -1,0 +1,438 @@
+schema_version: 1
+
+feature:
+  id: improve-worktree-management
+  title: "Agent-scoped worktree management with registry, pin, and GC"
+  plan_revision: 2
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "A"
+  min_trust_level: 2
+
+packages:
+  # --- Phase 1: Core worktree.py (sequential — single file) ---
+  - package_id: wp-core
+    title: "Core worktree.py: registry, agent-id, heartbeat, pin, gc, list"
+    task_type: implement
+    description: |
+      Implement all core changes to scripts/worktree.py:
+      - 1.1: JSON registry module (.git-worktrees/.registry.json)
+      - 1.2: --agent-id flag on setup with path/branch computation
+      - 1.3: --agent-id flag on teardown with registry removal
+      - 1.4: heartbeat subcommand
+      - 1.5: list subcommand with staleness + pin indicators
+      - 1.6: pin/unpin subcommands
+      - 1.7: gc subcommand (24h default, pin-aware, --force)
+      - 1.8: Remove legacy_worktree_path() and legacy fallback
+      - 1.9: Update status for --agent-id support
+      Contracts: contracts/cli/worktree-cli.yaml, contracts/schemas/registry.schema.json
+    role: python-engineer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "scripts/worktree.py"
+      keys:
+        - "feature:worktree-core"
+      ttl_minutes: 120
+      reason: "Core worktree.py refactor — all commands in single file"
+    scope:
+      write_allow:
+        - "scripts/worktree.py"
+      read_allow:
+        - "scripts/**"
+        - "openspec/changes/improve-worktree-management/**"
+        - "contracts/**"
+      deny:
+        - "skills/**"
+        - "docs/**"
+    worktree:
+      name: wp-core
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "type-check"
+          kind: command
+          command: "scripts/.venv/bin/python -m mypy scripts/worktree.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+        - name: "lint"
+          kind: command
+          command: "scripts/.venv/bin/python -m ruff check scripts/worktree.py"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "commands_added"
+
+  # --- Phase 2a: Tests (depends on core) ---
+  - package_id: wp-tests
+    title: "Test suite: registry, agent-id, heartbeat, pin, gc, list"
+    task_type: implement
+    description: |
+      Implement all test changes in scripts/tests/test_worktree.py:
+      - 2.1: Registry unit tests (CRUD, missing file, concurrent access)
+      - 2.2: Agent-id path computation tests
+      - 2.3: Heartbeat, list, pin/unpin, gc command tests
+      - 2.4: Remove legacy path tests, add legacy-removal error test
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "scripts/tests/test_worktree.py"
+      keys:
+        - "feature:worktree-tests"
+      ttl_minutes: 90
+      reason: "Worktree test suite updates"
+    scope:
+      write_allow:
+        - "scripts/tests/test_worktree.py"
+      read_allow:
+        - "scripts/**"
+        - "openspec/changes/improve-worktree-management/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-tests
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "run-tests"
+          kind: command
+          command: "scripts/.venv/bin/python -m pytest scripts/tests/test_worktree.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 2b: Bootstrap + config (parallel with tests) ---
+  - package_id: wp-config
+    title: "Bootstrap script and gitignore updates"
+    task_type: implement
+    description: |
+      - 4.1: Update scripts/worktree-bootstrap.sh to accept and propagate agent-id
+      - 4.2: Add .git-worktrees/.registry.json to .gitignore
+    role: devops-engineer
+    priority: 4
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "scripts/worktree-bootstrap.sh"
+        - ".gitignore"
+      keys:
+        - "feature:worktree-config"
+      ttl_minutes: 30
+      reason: "Bootstrap and config updates"
+    scope:
+      write_allow:
+        - "scripts/worktree-bootstrap.sh"
+        - ".gitignore"
+      read_allow:
+        - "scripts/**"
+        - "openspec/changes/improve-worktree-management/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-config
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "shellcheck"
+          kind: command
+          command: "bash -n scripts/worktree-bootstrap.sh"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["shellcheck_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 2c: Linear skill updates (parallel with tests, 4 files) ---
+  - package_id: wp-skills-linear
+    title: "Linear skill SKILL.md updates for agent-id and heartbeat"
+    task_type: implement
+    description: |
+      - 3.1: linear-implement-feature/SKILL.md — agent-id propagation + heartbeat
+      - 3.2: linear-cleanup-feature/SKILL.md — gc before teardown + agent-id
+      - 3.3: linear-iterate-on-implementation/SKILL.md — agent-id detection
+      - 3.4: linear-validate-feature/SKILL.md + start-worktree-api.sh — agent-id detection
+    role: skill-engineer
+    priority: 4
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "skills/linear-implement-feature/SKILL.md"
+        - "skills/linear-cleanup-feature/SKILL.md"
+        - "skills/linear-iterate-on-implementation/SKILL.md"
+        - "skills/linear-validate-feature/SKILL.md"
+        - "skills/linear-validate-feature/scripts/start-worktree-api.sh"
+      keys:
+        - "feature:worktree-skills-linear"
+      ttl_minutes: 60
+      reason: "Linear skill worktree updates"
+    scope:
+      write_allow:
+        - "skills/linear-implement-feature/SKILL.md"
+        - "skills/linear-cleanup-feature/SKILL.md"
+        - "skills/linear-iterate-on-implementation/SKILL.md"
+        - "skills/linear-validate-feature/SKILL.md"
+        - "skills/linear-validate-feature/scripts/start-worktree-api.sh"
+      read_allow:
+        - "skills/**"
+        - "scripts/worktree.py"
+        - "openspec/changes/improve-worktree-management/**"
+      deny:
+        - "scripts/worktree.py"
+        - "scripts/tests/**"
+    worktree:
+      name: wp-skills-linear
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "skill-syntax"
+          kind: command
+          command: "bash -c 'for f in skills/linear-*/SKILL.md; do test -s \"$f\" && echo \"OK: $f\"; done'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["files_verified"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 2d: Parallel skill updates (parallel with tests) ---
+  - package_id: wp-skills-parallel
+    title: "Parallel skill SKILL.md updates for agent-id enforcement and GC"
+    task_type: implement
+    description: |
+      - 3.5: parallel-implement-feature/SKILL.md — require agent-id per worker, integrator pattern
+      - 3.6: parallel-cleanup-feature/SKILL.md — gc across all agent worktrees
+    role: skill-engineer
+    priority: 4
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "skills/parallel-implement-feature/SKILL.md"
+        - "skills/parallel-cleanup-feature/SKILL.md"
+      keys:
+        - "feature:worktree-skills-parallel"
+      ttl_minutes: 45
+      reason: "Parallel skill worktree updates"
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/SKILL.md"
+        - "skills/parallel-cleanup-feature/SKILL.md"
+      read_allow:
+        - "skills/**"
+        - "scripts/worktree.py"
+        - "openspec/changes/improve-worktree-management/**"
+      deny:
+        - "scripts/worktree.py"
+        - "scripts/tests/**"
+    worktree:
+      name: wp-skills-parallel
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "skill-syntax"
+          kind: command
+          command: "bash -c 'for f in skills/parallel-*/SKILL.md; do test -s \"$f\" && echo \"OK: $f\"; done'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["files_verified"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 2e: Other skill updates (parallel with tests) ---
+  - package_id: wp-skills-other
+    title: "Fix-scrub and beads-worktree skill updates"
+    task_type: implement
+    description: |
+      - 3.7: fix-scrub/SKILL.md — agent-id with prefix
+      - 3.8: openspec-beads-worktree/SKILL.md — new naming scheme
+    role: skill-engineer
+    priority: 4
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "skills/fix-scrub/SKILL.md"
+        - "skills/openspec-beads-worktree/SKILL.md"
+      keys:
+        - "feature:worktree-skills-other"
+      ttl_minutes: 45
+      reason: "Fix-scrub and beads skill worktree updates"
+    scope:
+      write_allow:
+        - "skills/fix-scrub/SKILL.md"
+        - "skills/openspec-beads-worktree/SKILL.md"
+      read_allow:
+        - "skills/**"
+        - "scripts/worktree.py"
+        - "openspec/changes/improve-worktree-management/**"
+      deny:
+        - "scripts/worktree.py"
+        - "scripts/tests/**"
+    worktree:
+      name: wp-skills-other
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "skill-syntax"
+          kind: command
+          command: "bash -c 'for f in skills/fix-scrub/SKILL.md skills/openspec-beads-worktree/SKILL.md; do test -s \"$f\" && echo \"OK: $f\"; done'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["files_verified"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 2f: Documentation (parallel with tests) ---
+  - package_id: wp-docs
+    title: "Documentation updates for worktree management"
+    task_type: implement
+    description: |
+      - 5.1: Update CLAUDE.md worktree management section
+      - 5.2: Update docs/lessons-learned.md with parallel worktree best practices
+      - 5.3: Update docs/two-level-parallel-agentic-development.md worktree section
+    role: technical-writer
+    priority: 6
+    depends_on: [wp-core]
+    locks:
+      files:
+        - "CLAUDE.md"
+        - "docs/lessons-learned.md"
+        - "docs/two-level-parallel-agentic-development.md"
+      keys:
+        - "feature:worktree-docs"
+      ttl_minutes: 45
+      reason: "Documentation updates"
+    scope:
+      write_allow:
+        - "CLAUDE.md"
+        - "docs/lessons-learned.md"
+        - "docs/two-level-parallel-agentic-development.md"
+      read_allow:
+        - "scripts/worktree.py"
+        - "openspec/changes/improve-worktree-management/**"
+        - "docs/**"
+        - "CLAUDE.md"
+      deny:
+        - "scripts/worktree.py"
+        - "skills/**"
+    worktree:
+      name: wp-docs
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "files-exist"
+          kind: command
+          command: "bash -c 'test -s CLAUDE.md && test -s docs/lessons-learned.md && test -s docs/two-level-parallel-agentic-development.md && echo OK'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["docs_verified"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 3: Integration ---
+  - package_id: wp-integration
+    title: "Integration merge and full test suite"
+    task_type: integrate
+    description: "Merge all worktrees, run full test suite, openspec validate, and cross-package verification"
+    priority: 1
+    depends_on:
+      - wp-core
+      - wp-tests
+      - wp-config
+      - wp-skills-linear
+      - wp-skills-parallel
+      - wp-skills-other
+      - wp-docs
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow: ["**"]
+      read_allow: ["**"]
+    worktree:
+      name: wp-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full-test-suite"
+          kind: command
+          command: "scripts/.venv/bin/python -m pytest scripts/tests/test_worktree.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "openspec-validate"
+          kind: command
+          command: "openspec validate --all --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_status"]
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"

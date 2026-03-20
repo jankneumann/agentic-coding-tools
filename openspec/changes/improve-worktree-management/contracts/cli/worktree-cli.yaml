@@ -1,0 +1,168 @@
+# Worktree CLI Contract
+# Defines the interface for scripts/worktree.py commands, flags, and outputs
+# All commands output KEY=VALUE lines to stdout (for shell eval) and diagnostics to stderr
+
+version: 1
+binary: python3 scripts/worktree.py
+
+commands:
+  setup:
+    description: Create a worktree for the given change-id
+    args:
+      - name: change_id
+        required: true
+        description: Change ID or identifier
+    flags:
+      --agent-id:
+        type: string
+        required: false
+        description: Agent identifier for parallel disambiguation
+      --branch:
+        type: string
+        required: false
+        description: "Branch name (default: openspec/<change-id> or openspec/<change-id>/<agent-id>)"
+      --prefix:
+        type: string
+        required: false
+        description: Path prefix (e.g., fix-scrub)
+      --no-bootstrap:
+        type: boolean
+        required: false
+        description: Skip environment bootstrap
+    stdout_keys:
+      - WORKTREE_PATH
+      - BOOTSTRAPPED
+    stderr_keys:
+      - CREATED
+      - ALREADY_EXISTS
+      - BRANCH_CREATED
+    exit_codes:
+      0: Success (created or already exists)
+
+  teardown:
+    description: Remove a worktree for the given change-id
+    args:
+      - name: change_id
+        required: true
+    flags:
+      --agent-id:
+        type: string
+        required: false
+      --prefix:
+        type: string
+        required: false
+    stdout_keys:
+      - REMOVED
+      - REMOVED_PATH
+    exit_codes:
+      0: Worktree removed
+      1: Worktree not found
+
+  status:
+    description: Check worktree status
+    args:
+      - name: change_id
+        required: false
+        description: Specific change to check (omit for all)
+    flags:
+      --agent-id:
+        type: string
+        required: false
+    stdout_keys:
+      - EXISTS
+      - WORKTREE_PATH
+      - LOCATION
+    exit_codes:
+      0: Found / listed
+      1: Not found
+
+  detect:
+    description: Detect if running in a worktree and output context variables
+    stdout_keys:
+      - IN_WORKTREE
+      - MAIN_REPO
+      - OPENSPEC_PATH
+    exit_codes:
+      0: Always succeeds
+
+  heartbeat:
+    description: Update last_heartbeat timestamp for a registered worktree
+    args:
+      - name: change_id
+        required: true
+    flags:
+      --agent-id:
+        type: string
+        required: false
+    exit_codes:
+      0: Heartbeat recorded
+      1: Unknown worktree
+
+  list:
+    description: List all registered worktrees with staleness and pin indicators
+    stdout_format: tabular
+    columns:
+      - change_id
+      - agent_id
+      - branch
+      - worktree_path
+      - staleness
+      - pinned
+    exit_codes:
+      0: Always succeeds
+
+  pin:
+    description: Mark a worktree as protected from garbage collection
+    args:
+      - name: change_id
+        required: true
+    flags:
+      --agent-id:
+        type: string
+        required: false
+    exit_codes:
+      0: Pinned
+      1: Unknown worktree
+
+  unpin:
+    description: Remove garbage collection protection from a worktree
+    args:
+      - name: change_id
+        required: true
+    flags:
+      --agent-id:
+        type: string
+        required: false
+    exit_codes:
+      0: Unpinned
+      1: Unknown worktree
+
+  gc:
+    description: Remove stale worktrees based on heartbeat age and pin status
+    flags:
+      --stale-after:
+        type: string
+        required: false
+        default: "24h"
+        description: Duration threshold (e.g., 24h, 48h, 7d)
+      --force:
+        type: boolean
+        required: false
+        description: Remove pinned worktrees too
+    stdout_keys:
+      - REMOVED_COUNT
+      - REMOVED_PATHS
+    exit_codes:
+      0: GC completed (even if nothing removed)
+
+path_conventions:
+  single_agent: ".git-worktrees/<change-id>/"
+  multi_agent: ".git-worktrees/<change-id>/<agent-id>/"
+  with_prefix: ".git-worktrees/<prefix>/<change-id>/"
+  with_prefix_and_agent: ".git-worktrees/<prefix>/<change-id>/<agent-id>/"
+  registry: ".git-worktrees/.registry.json"
+
+branch_conventions:
+  single_agent: "openspec/<change-id>"
+  multi_agent: "openspec/<change-id>/<agent-id>"
+  with_prefix: "<prefix>/<change-id>"
