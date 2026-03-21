@@ -75,6 +75,8 @@ CHANGE_ID=${ARGUMENTS%% --*}  # Everything before first flag
 CHANGE_ID=${CHANGE_ID:-$(echo $BRANCH | sed 's/^openspec\///')}
 
 # Detect worktree context and resolve OpenSpec path
+# Note: detect auto-discovers context from the working directory;
+# agent-id information is available via the worktree registry if needed.
 eval "$(python3 scripts/worktree.py detect)"
 PROJECT_ROOT="${MAIN_REPO:-$(git rev-parse --show-toplevel)}"
 ```

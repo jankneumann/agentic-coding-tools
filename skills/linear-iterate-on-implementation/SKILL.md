@@ -76,6 +76,8 @@ MAX_ITERATIONS=5
 THRESHOLD="medium"  # critical > high > medium > low
 
 # Detect worktree context and resolve OpenSpec path
+# Note: detect auto-discovers context from the working directory;
+# agent-id information is available via the worktree registry if needed.
 eval "$(python3 scripts/worktree.py detect)"
 if [[ "$IN_WORKTREE" == "true" ]]; then
   echo "Running in worktree. OpenSpec path: $OPENSPEC_PATH"

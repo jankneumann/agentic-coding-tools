@@ -219,8 +219,17 @@ If `CAN_LOCK=true`, perform best-effort lock cleanup for files touched on the fe
 If a worktree was created for this feature, remove it:
 
 ```bash
+# Pass --agent-id if AGENT_ID env var is set
+AGENT_FLAG=""
+if [[ -n "${AGENT_ID:-}" ]]; then
+  AGENT_FLAG="--agent-id ${AGENT_ID}"
+fi
+
+# Garbage-collect stale peer worktrees before teardown
+python3 scripts/worktree.py gc
+
 # Remove worktree (checks both .git-worktrees/ and legacy locations)
-python3 scripts/worktree.py teardown "${CHANGE_ID}"
+python3 scripts/worktree.py teardown "${CHANGE_ID}" ${AGENT_FLAG}
 ```
 
 ### 9. Final Verification
