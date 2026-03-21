@@ -1,0 +1,60 @@
+// Dynamic Authorization: Cedar Schema Extensions
+// Extends the existing schema at agent-coordinator/cedar/schema.cedarschema
+
+// New entity type for delegating users (humans or parent agents)
+entity DelegatingUser;
+
+// Updated Agent entity with new attributes
+entity Agent in [AgentType] {
+    trust_level: Long,
+    agent_type: String,
+    session_id: String,
+    max_file_modifications: Long,
+    max_execution_time_seconds: Long,
+    // NEW: delegated identity
+    delegated_by: String,         // "" if self-authorized
+    // NEW: session-scoped grants
+    session_grants: Set<String>,  // set of granted operation names
+};
+
+// Existing entities (unchanged)
+entity AgentType;
+entity File { path: String };
+entity Domain { name: String };
+entity Task { task_type: String, priority: Long };
+
+// Context type extended with risk score
+type Context = {
+    risk_score: Decimal,  // 0.0 to 1.0
+};
+
+// New actions for approval and policy management
+action request_approval appliesTo {
+    principal: Agent,
+    resource: Task,
+    context: Context,
+};
+
+action check_approval appliesTo {
+    principal: Agent,
+    resource: Task,
+    context: Context,
+};
+
+action list_policy_versions appliesTo {
+    principal: Agent,
+    resource: File,
+    context: Context,
+};
+
+action rollback_policy appliesTo {
+    principal: Agent,
+    resource: File,
+    context: Context,
+};
+
+action request_permission appliesTo {
+    principal: Agent,
+    resource: Task,
+    context: Context,
+};

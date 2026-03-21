@@ -1,0 +1,632 @@
+schema_version: 1
+
+feature:
+  id: add-dynamic-authorization
+  title: "Add Dynamic Authorization Layer"
+  plan_revision: 2
+  created_by: claude-opus-4-6
+  created_at: "2026-03-20T12:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/add-dynamic-authorization/contracts/openapi/v1.yaml
+    files:
+      - openspec/changes/add-dynamic-authorization/contracts/openapi/v1.yaml
+      - openspec/changes/add-dynamic-authorization/contracts/db/schema.sql
+      - openspec/changes/add-dynamic-authorization/contracts/cedar/schema.cedarschema
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: A
+  min_trust_level: 2
+
+packages:
+  # ── Level 0: Database migrations (root) ──────────────────────────
+  - package_id: wp-migrations
+    title: "Database migrations for dynamic authorization"
+    task_type: migration
+    description: >
+      Create migration 013_dynamic_authorization.sql with:
+      (1) ALTER agent_sessions ADD delegated_from TEXT,
+      (2) CREATE approval_queue table,
+      (3) CREATE cedar_policies_history table,
+      (4) ALTER cedar_policies ADD policy_version INTEGER,
+      (5) capture_policy_history() trigger on cedar_policies,
+      (6) notify_policy_changed() trigger for LISTEN/NOTIFY,
+      (7) CREATE session_permission_grants table.
+      Use contracts/db/schema.sql as the reference.
+      Verify migration applies cleanly to a fresh ParadeDB instance.
+    role: database-engineer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - agent-coordinator/supabase/migrations/013_dynamic_authorization.sql
+      keys:
+        - "db:schema:agent_sessions"
+        - "db:schema:approval_queue"
+        - "db:schema:cedar_policies_history"
+        - "db:schema:cedar_policies"
+        - "db:schema:session_permission_grants"
+      ttl_minutes: 120
+      reason: "Database schema migration for dynamic authorization"
+    scope:
+      write_allow:
+        - "agent-coordinator/supabase/migrations/013_*"
+      read_allow:
+        - "agent-coordinator/supabase/migrations/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/db/**"
+      deny:
+        - "agent-coordinator/src/**"
+    worktree:
+      name: add-dynamic-authorization.wp-migrations
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Apply migration to test DB"
+          kind: command
+          command: >
+            docker compose -f agent-coordinator/docker-compose.yml exec -T postgres
+            psql -U postgres -d postgres -f /docker-entrypoint-initdb.d/013_dynamic_authorization.sql
+          evidence:
+            artifacts: []
+            result_keys: ["migration_applied"]
+    outputs:
+      result_keys: ["migration_applied", "tables_created", "triggers_created"]
+
+  # ── Level 1: New service files (parallel, no file overlap) ───────
+  - package_id: wp-config-cedar
+    title: "Config dataclasses and Cedar schema updates"
+    task_type: implementation
+    description: >
+      Update agent-coordinator/src/config.py to add:
+      (1) ApprovalConfig dataclass (enabled, default_timeout_seconds, auto_deny),
+      (2) PolicySyncConfig dataclass (enabled, reconnect_max_retries, reconnect_backoff_seconds),
+      (3) RiskScoringConfig dataclass (enabled, low_threshold, high_threshold, violation_window_seconds),
+      (4) SessionGrantsConfig dataclass (enabled, require_justification).
+      Update agent-coordinator/cedar/schema.cedarschema to add:
+      DelegatingUser entity, delegated_by and session_grants attributes on Agent,
+      risk_score in context, new actions (request_approval, check_approval,
+      list_policy_versions, rollback_policy, request_permission).
+      Update agent-coordinator/cedar/default_policies.cedar with:
+      risk-based forbid rules, delegation-aware conditions, session-grant permit rules.
+      Use contracts/cedar/schema.cedarschema as reference.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/config.py
+        - agent-coordinator/cedar/schema.cedarschema
+        - agent-coordinator/cedar/default_policies.cedar
+      keys:
+        - "feature:add-dynamic-authorization:config"
+        - "feature:add-dynamic-authorization:cedar"
+      ttl_minutes: 120
+      reason: "Config and Cedar schema for dynamic authorization"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/cedar/**"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+    worktree:
+      name: add-dynamic-authorization.wp-config-cedar
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Import check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -c 'from src.config import get_config; print(\"config OK\")'"
+          evidence:
+            artifacts: []
+            result_keys: ["config_importable"]
+    outputs:
+      result_keys: ["config_importable", "cedar_schema_updated", "cedar_policies_updated"]
+
+  - package_id: wp-approval-service
+    title: "Approval queue service + guardrails integration"
+    task_type: implementation
+    description: >
+      Create agent-coordinator/src/approval.py with ApprovalService class:
+      (1) submit_request(agent_id, agent_type, operation, resource, context, timeout) -> ApprovalRequest,
+      (2) check_request(request_id) -> ApprovalRequest,
+      (3) decide_request(request_id, decision, decided_by, reason) -> ApprovalRequest,
+      (4) expire_stale_requests() -> int (count expired),
+      (5) list_pending(agent_id?, limit?) -> list[ApprovalRequest].
+      Uses DatabaseClient for persistence to approval_queue table.
+      Update agent-coordinator/src/guardrails.py to:
+      (1) Add 'approval_required' to severity enum/validation,
+      (2) Route approval_required violations to ApprovalService.submit_request().
+      Write unit tests in agent-coordinator/tests/test_approval.py.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/approval.py
+        - agent-coordinator/src/guardrails.py
+        - agent-coordinator/tests/test_approval.py
+      keys:
+        - "feature:add-dynamic-authorization:approval"
+        - "feature:add-dynamic-authorization:guardrails"
+      ttl_minutes: 120
+      reason: "Approval service and guardrails integration"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/approval.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/tests/test_approval.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-approval-service
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_approval.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "approval_service_created"]
+
+  - package_id: wp-risk-scorer
+    title: "Contextual risk scoring service"
+    task_type: implementation
+    description: >
+      Create agent-coordinator/src/risk_scorer.py with RiskScorer class:
+      (1) compute_score(agent_id, agent_type, trust_level, operation, resource, session_age_seconds) -> float,
+      (2) get_violation_count(agent_id, window_seconds) -> int,
+      (3) _classify_operation_severity(operation) -> float,
+      (4) _classify_resource_sensitivity(resource) -> float.
+      Risk factors: trust_level (weight 0.3), operation_severity (0.25),
+      resource_sensitivity (0.2), violation_count (0.15), session_age (0.1).
+      Uses AuditService for violation counting (query guardrail_violations in sliding window).
+      Feature-flagged via RiskScoringConfig.enabled (default false, returns 0.0).
+      Write unit tests in agent-coordinator/tests/test_risk_scorer.py.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/risk_scorer.py
+        - agent-coordinator/tests/test_risk_scorer.py
+      keys:
+        - "feature:add-dynamic-authorization:risk"
+      ttl_minutes: 120
+      reason: "Risk scoring service"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/risk_scorer.py"
+        - "agent-coordinator/tests/test_risk_scorer.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-risk-scorer
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_risk_scorer.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "risk_scorer_created"]
+
+  - package_id: wp-policy-sync
+    title: "PostgreSQL LISTEN/NOTIFY policy sync service"
+    task_type: implementation
+    description: >
+      Create agent-coordinator/src/policy_sync.py with:
+      (1) PolicySyncService abstract base class (start, stop, on_policy_change interface),
+      (2) PgListenNotifyPolicySyncService implementation that:
+          - Acquires a dedicated asyncpg connection from the pool,
+          - Calls conn.add_listener('policy_changed', callback),
+          - On notification: calls CedarPolicyEngine.invalidate_cache(),
+          - Implements reconnection with exponential backoff on connection loss,
+          - Falls back to TTL-based polling when LISTEN unavailable.
+      Feature-flagged via PolicySyncConfig.enabled (default false).
+      Write unit tests in agent-coordinator/tests/test_policy_sync.py.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/policy_sync.py
+        - agent-coordinator/tests/test_policy_sync.py
+      keys:
+        - "feature:add-dynamic-authorization:sync"
+      ttl_minutes: 120
+      reason: "LISTEN/NOTIFY policy sync service"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/policy_sync.py"
+        - "agent-coordinator/tests/test_policy_sync.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-policy-sync
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_policy_sync.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "policy_sync_created"]
+
+  - package_id: wp-session-grants
+    title: "Session-scoped permission grants service"
+    task_type: implementation
+    description: >
+      Create agent-coordinator/src/session_grants.py with SessionGrantService class:
+      (1) request_grant(session_id, agent_id, operation, justification) -> Grant,
+      (2) get_active_grants(session_id) -> list[Grant],
+      (3) revoke_grants(session_id) -> int (count revoked),
+      (4) has_grant(session_id, operation) -> bool.
+      Uses DatabaseClient for persistence to session_permission_grants table.
+      Write unit tests in agent-coordinator/tests/test_session_grants.py.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/session_grants.py
+        - agent-coordinator/tests/test_session_grants.py
+      keys:
+        - "feature:add-dynamic-authorization:grants"
+      ttl_minutes: 120
+      reason: "Session-scoped permission grants"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/session_grants.py"
+        - "agent-coordinator/tests/test_session_grants.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-session-grants
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_session_grants.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "session_grants_created"]
+
+  - package_id: wp-delegated-identity
+    title: "Delegated identity in profiles, audit, and discovery"
+    task_type: implementation
+    description: >
+      Update existing service files for delegated identity support:
+      (1) agent-coordinator/src/profiles.py: Add delegated_from resolution in get_profile(),
+          pass delegated_from through profile context.
+      (2) agent-coordinator/src/audit.py: Add delegated_from field to AuditEntry dataclass,
+          record delegated_from in log_operation(), support filtering by delegated_from in query.
+      (3) agent-coordinator/src/discovery.py: Accept delegated_from in register(),
+          store in agent_sessions table, include in discover() results.
+      Write/update tests in agent-coordinator/tests/test_delegated_identity.py.
+    role: backend-engineer
+    priority: 2
+    depends_on:
+      - wp-migrations
+    locks:
+      files:
+        - agent-coordinator/src/profiles.py
+        - agent-coordinator/src/audit.py
+        - agent-coordinator/src/discovery.py
+        - agent-coordinator/tests/test_delegated_identity.py
+      keys:
+        - "feature:add-dynamic-authorization:delegation"
+      ttl_minutes: 120
+      reason: "Delegated identity in core services"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/tests/test_delegated_identity.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-delegated-identity
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_delegated_identity.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "delegated_identity_integrated"]
+
+  # ── Level 2: Integration into existing engines (parallel, non-overlapping) ──
+  - package_id: wp-policy-engine
+    title: "Policy engine integration (risk, sync, grants, delegation)"
+    task_type: implementation
+    description: >
+      Update agent-coordinator/src/policy_engine.py to integrate all new services:
+      (1) NativePolicyEngine.check_operation(): Accept and evaluate risk_score in context,
+          check session_grants for elevated permissions, pass delegated_from through.
+      (2) CedarPolicyEngine._build_entity(): Include delegated_by attribute,
+          include session_grants as Set<String>.
+      (3) CedarPolicyEngine.check_operation(): Pass risk_score in Cedar context,
+          integrate PolicySyncService lifecycle (start on init, stop on close).
+      (4) Add list_policy_versions() method querying cedar_policies_history.
+      (5) Add rollback_policy() method restoring from history.
+      Update agent-coordinator/tests/test_policy_engine.py with new test cases.
+    role: senior-backend-engineer
+    priority: 3
+    depends_on:
+      - wp-config-cedar
+      - wp-risk-scorer
+      - wp-policy-sync
+      - wp-session-grants
+      - wp-delegated-identity
+    locks:
+      files:
+        - agent-coordinator/src/policy_engine.py
+        - agent-coordinator/tests/test_policy_engine.py
+      keys:
+        - "feature:add-dynamic-authorization:engine"
+      ttl_minutes: 120
+      reason: "Policy engine integration for all authorization features"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/tests/test_policy_engine.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "agent-coordinator/cedar/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+    worktree:
+      name: add-dynamic-authorization.wp-policy-engine
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_policy_engine.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+        - name: "Type check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/policy_engine.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_clean"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "mypy_clean"]
+
+  - package_id: wp-transport
+    title: "MCP tools and HTTP API for new features"
+    task_type: implementation
+    description: >
+      Update agent-coordinator/src/coordination_mcp.py to add MCP tools:
+      (1) request_approval(operation, context, resource?) -> {request_id, status},
+      (2) check_approval(request_id) -> {request_id, status, decided_by?, reason?},
+      (3) list_policy_versions(policy_name, limit?) -> {versions: [...]},
+      (4) request_permission(operation, justification) -> {granted, grant_id?}.
+      Update register_session() to accept delegated_from parameter.
+      Update all write tools to pass on_behalf_of through to services.
+
+      Update agent-coordinator/src/coordination_api.py to add HTTP endpoints:
+      (1) GET /approvals/pending (with agent_id filter),
+      (2) POST /approvals/{request_id}/decide,
+      (3) GET /policies/{policy_name}/versions,
+      (4) POST /policies/{policy_name}/rollback.
+      Update existing endpoints to accept delegated_from in request body.
+      Use contracts/openapi/v1.yaml as the reference.
+      Write tests in agent-coordinator/tests/test_transport_auth.py.
+    role: senior-backend-engineer
+    priority: 3
+    depends_on:
+      - wp-config-cedar
+      - wp-approval-service
+      - wp-session-grants
+      - wp-delegated-identity
+      - wp-policy-engine
+    locks:
+      files:
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/tests/test_transport_auth.py
+      keys:
+        - "api:POST /approvals/decide"
+        - "api:GET /approvals/pending"
+        - "api:GET /policies/versions"
+        - "api:POST /policies/rollback"
+      ttl_minutes: 120
+      reason: "Transport layer for all new authorization features"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_transport_auth.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/changes/add-dynamic-authorization/contracts/**"
+      deny:
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-dynamic-authorization.wp-transport
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_transport_auth.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_passed", "test_count"]
+        - name: "Type check MCP"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/coordination_mcp.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_mcp_clean"]
+        - name: "Type check API"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/coordination_api.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_api_clean"]
+    outputs:
+      result_keys: ["tests_passed", "test_count", "mypy_mcp_clean", "mypy_api_clean"]
+
+  # ── Level 3: Integration testing and documentation ───────────────
+  - package_id: wp-integration
+    title: "Full integration testing and documentation"
+    task_type: integration
+    description: >
+      Merge all worktree branches into the feature branch.
+      Run full test suite: pytest, mypy --strict, ruff.
+      Verify backward compatibility: all existing tests pass with features disabled.
+      Update agent-coordinator/README.md with new features, environment variables.
+      Update default Cedar policies with delegation, risk, and approval conditions.
+      Run openspec validate add-dynamic-authorization --strict.
+    role: integration-engineer
+    priority: 4
+    depends_on:
+      - wp-policy-engine
+      - wp-transport
+    locks:
+      files: []
+      keys:
+        - "feature:add-dynamic-authorization:integration"
+      ttl_minutes: 120
+      reason: "Integration testing and documentation"
+    scope:
+      write_allow:
+        - "agent-coordinator/**"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: add-dynamic-authorization.wp-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full test suite"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys: ["all_tests_passed", "total_test_count"]
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/ --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_all_clean"]
+        - name: "Linting"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m ruff check src/ tests/"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    outputs:
+      result_keys: ["all_tests_passed", "total_test_count", "mypy_all_clean", "ruff_clean"]

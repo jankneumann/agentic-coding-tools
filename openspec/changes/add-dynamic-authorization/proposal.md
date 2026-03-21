@@ -2,7 +2,7 @@
 
 ## Why
 
-Our current authorization model uses static trust levels (0-3), cached for 300 seconds, with no mechanism for delegated identity, human-in-the-loop approval, real-time policy revocation, or contextual risk scoring. Analysis against Permit.io's Four-Perimeter Framework for securing AI agents revealed three high-priority gaps: (1) no binding between agent identity and the human who invoked it, (2) no blocking approval gate for destructive operations, and (3) no cryptographic agent identity verification. Separately, evaluation of OPAL for policy distribution concluded it is premature for our single-instance topology but identified immediate improvements: Supabase Realtime push-based cache invalidation, policy version history, and a preparatory abstraction for future OPAL adoption.
+Our current authorization model uses static trust levels (0-3), cached for 300 seconds, with no mechanism for delegated identity, human-in-the-loop approval, real-time policy revocation, or contextual risk scoring. Analysis against Permit.io's Four-Perimeter Framework for securing AI agents revealed three high-priority gaps: (1) no binding between agent identity and the human who invoked it, (2) no blocking approval gate for destructive operations, and (3) no cryptographic agent identity verification. Separately, evaluation of OPAL for policy distribution concluded it is premature for our single-instance topology but identified immediate improvements: PostgreSQL LISTEN/NOTIFY push-based cache invalidation, policy version history, and a preparatory abstraction for future OPAL adoption.
 
 ## What Changes
 
@@ -24,10 +24,10 @@ Our current authorization model uses static trust levels (0-3), cached for 300 s
 - Approval decisions are logged immutably in audit trail
 - Configurable auto-deny timeout (default: 1 hour) for unanswered requests
 
-### 3. Supabase Realtime Policy Sync (OPAL-Preparatory)
+### 3. PostgreSQL LISTEN/NOTIFY Policy Sync (OPAL-Preparatory)
 
-- Subscribe to Supabase Realtime channel on `cedar_policies` table for INSERT/UPDATE/DELETE events
-- On change event, immediately call `CedarPolicyEngine.invalidate_cache()` — reduces policy propagation from 300s TTL to sub-second
+- Add PostgreSQL trigger on `cedar_policies` table that sends `NOTIFY policy_changed, '<policy_name>'` on INSERT/UPDATE/DELETE
+- asyncpg listener calls `CedarPolicyEngine.invalidate_cache()` on notification — reduces policy propagation from 300s TTL to sub-second
 - Add `cedar_policies_history` table that captures every policy version via a PostgreSQL trigger (before-update/delete copies row to history)
 - Add `PolicySyncService` abstraction with `start()`, `stop()`, `on_policy_change()` interface — designed so an `OpalPolicySyncService` implementation can replace it when we scale to multiple instances
 - Add `policy_version` column to `cedar_policies` (auto-incrementing on update)
@@ -58,9 +58,9 @@ Our current authorization model uses static trust levels (0-3), cached for 300 s
   - `agent-coordinator/src/coordination_mcp.py` (new tools: `request_approval`, `check_approval`, `list_policy_versions`)
   - `agent-coordinator/src/approval.py` (new — approval queue service)
   - `agent-coordinator/src/risk_scorer.py` (new — contextual risk scoring)
-  - `agent-coordinator/src/policy_sync.py` (new — Realtime subscription service)
+  - `agent-coordinator/src/policy_sync.py` (new — LISTEN/NOTIFY subscription service)
   - `agent-coordinator/cedar/schema.cedarschema` (DelegatingUser entity, risk_score context)
   - `agent-coordinator/cedar/default_policies.cedar` (approval-gated policies, risk-based conditions)
   - `agent-coordinator/supabase/migrations/` (new migrations for approval_queue, cedar_policies_history, agent_sessions delegated_from)
-  - `agent-coordinator/verification_gateway/coordination_api.py` (approval endpoints, on_behalf_of parameter)
-- **BREAKING**: None. All changes are additive. Delegated identity defaults to `null` (self-acting). Approval gates only activate for new `approval_required` guardrail rules. Risk scoring defaults to pass-through (threshold 1.0). Realtime sync is opt-in via `POLICY_SYNC_ENABLED=true`.
+  - `agent-coordinator/src/coordination_api.py` (approval endpoints, on_behalf_of parameter, policy rollback)
+- **BREAKING**: None. All changes are additive. Delegated identity defaults to `null` (self-acting). Approval gates only activate for new `approval_required` guardrail rules. Risk scoring defaults to pass-through (threshold 1.0). LISTEN/NOTIFY sync is opt-in via `POLICY_SYNC_ENABLED=true`.

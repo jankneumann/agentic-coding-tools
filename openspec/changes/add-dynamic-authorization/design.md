@@ -1,6 +1,6 @@
 ## Context
 
-Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a Supabase `cedar_policies` table with TTL-based caching (300s). Analysis against Permit.io's Four-Perimeter Framework and evaluation of OPAL for policy distribution identified gaps in identity delegation, real-time policy sync, human approval workflows, and contextual authorization. This design bridges those gaps while preserving our single-instance architecture and preparing for future OPAL adoption.
+Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a PostgreSQL (ParadeDB) `cedar_policies` table with TTL-based caching (300s). Analysis against Permit.io's Four-Perimeter Framework and evaluation of OPAL for policy distribution identified gaps in identity delegation, real-time policy sync, human approval workflows, and contextual authorization. This design bridges those gaps while preserving our single-instance architecture and preparing for future OPAL adoption.
 
 ### Stakeholders
 - Agent developers (need delegated identity, approval workflows)
@@ -11,7 +11,7 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
 - Must not break existing Phase 1-3 agents (all changes additive)
 - Must work in single-instance MCP topology (no OPAL server required)
 - Cedar engine remains optional (`POLICY_ENGINE=cedar`); native engine gets equivalent features
-- Supabase Realtime requires an active WebSocket connection (not available in all deployment modes)
+- PostgreSQL LISTEN/NOTIFY requires an active asyncpg connection (available in all deployment modes using DB_BACKEND=postgres)
 
 ## Goals / Non-Goals
 
@@ -32,16 +32,16 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
 
 ## Decisions
 
-### Decision 1: Supabase Realtime over OPAL for policy sync
+### Decision 1: PostgreSQL LISTEN/NOTIFY for policy sync
 
-**Choice**: Use Supabase Realtime WebSocket subscription on `cedar_policies` table.
+**Choice**: Use PostgreSQL `LISTEN/NOTIFY` via asyncpg for push-based policy cache invalidation.
 
 **Alternatives considered**:
 - **OPAL Server + Cedar-Agent**: Production-proven at scale (Tesla, Walmart), but requires 3 new components (OPAL Server, OPAL Client, Cedar-Agent sidecar). Replaces our zero-latency in-process `cedarpy` with HTTP-based Cedar-Agent. Operational overhead unjustified for single-instance topology.
-- **PostgreSQL LISTEN/NOTIFY**: Lightweight, no new dependencies. But requires direct PostgreSQL connection (not available via Supabase PostgREST). Would work with `DirectPostgresClient` but not `SupabaseClient`.
+- **Supabase Realtime**: Would require WebSocket subscription and Supabase client. Not applicable — the project has migrated from Supabase to direct PostgreSQL (ParadeDB) for all database access.
 - **Short TTL (e.g., 5s)**: Simple but wasteful — polls every 5 seconds whether or not anything changed. Doesn't scale.
 
-**Rationale**: Supabase Realtime is already in our stack (listed in project.md), adds zero new infrastructure, and provides sub-second push notification. The `PolicySyncService` abstraction ensures we can swap to OPAL when scaling demands it.
+**Rationale**: PostgreSQL LISTEN/NOTIFY is native to our database (ParadeDB), requires zero new infrastructure, integrates directly with our existing asyncpg connection pool, and provides sub-second push notification. An after-trigger on `cedar_policies` sends `NOTIFY policy_changed, '<policy_name>'`, and the asyncpg listener in `PolicySyncService` calls `invalidate_cache()`. The `PolicySyncService` abstraction ensures we can swap to OPAL when scaling demands it.
 
 ### Decision 2: Approval queue in PostgreSQL, not external workflow engine
 
@@ -52,7 +52,7 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
 - **Temporal/Step Functions**: Production-grade workflow engines. Massive overkill for a state machine with 3 states and 1 transition.
 - **Slack/email integration**: Good UX for reviewers. But adds external dependencies and notification plumbing. Can be layered on top of the DB-based queue later.
 
-**Rationale**: PostgreSQL approval queue is simple, transactional, queryable via existing Supabase client, and composable with Realtime for push notifications to reviewers.
+**Rationale**: PostgreSQL approval queue is simple, transactional, queryable via existing database client, and composable with LISTEN/NOTIFY for push notifications to reviewers.
 
 ### Decision 3: Risk scoring as a Cedar context attribute, not a separate engine
 
@@ -78,7 +78,7 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
 
 ## Risks / Trade-offs
 
-- **Supabase Realtime availability**: If Realtime connection drops, we fall back to TTL-based polling (existing behavior). No degradation, just higher latency.
+- **PostgreSQL LISTEN/NOTIFY availability**: If the LISTEN connection drops, we fall back to TTL-based polling (existing behavior). No degradation, just higher latency.
   → Mitigation: `PolicySyncService` implements reconnection with exponential backoff and logs connection state.
 
 - **Approval queue blocking**: If no reviewer is available, operations hang until auto-deny timeout (1 hour default).
@@ -99,7 +99,7 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
    - Add `policy_version` column to `cedar_policies`
 
 2. **Code deployment** (feature-flagged):
-   - `POLICY_SYNC_ENABLED=false` (default) — Realtime sync off until operator enables
+   - `POLICY_SYNC_ENABLED=false` (default) — LISTEN/NOTIFY sync off until operator enables
    - `APPROVAL_GATES_ENABLED=false` (default) — approval queue inactive
    - `RISK_SCORING_ENABLED=false` (default) — risk scorer returns 0.0 (pass-through)
    - All features can be enabled independently
@@ -110,4 +110,4 @@ Our agent-coordinator uses Cedar for policy-as-code authorization, backed by a S
 
 - Should approval requests support escalation (auto-route to a different reviewer after N minutes)?
 - Should risk score history be persisted for trend analysis, or is in-memory sliding window sufficient?
-- When we adopt OPAL, should we run it alongside Supabase Realtime (belt-and-suspenders) or replace it entirely?
+- When we adopt OPAL, should we run it alongside PostgreSQL LISTEN/NOTIFY (belt-and-suspenders) or replace it entirely?

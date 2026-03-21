@@ -121,27 +121,28 @@ The system SHALL compute dynamic risk scores for operations based on contextual 
 
 The system SHALL support push-based policy cache invalidation to reduce policy propagation latency from TTL-based polling to sub-second updates.
 
-- The system SHALL subscribe to Supabase Realtime channel on the `cedar_policies` table
-- On INSERT, UPDATE, or DELETE events, the system SHALL immediately invalidate the Cedar policy cache
-- If Realtime connection is unavailable or drops, the system SHALL fall back to TTL-based polling (existing behavior)
+- The system SHALL use PostgreSQL `LISTEN/NOTIFY` via an after-trigger on the `cedar_policies` table to detect INSERT, UPDATE, and DELETE events
+- An asyncpg listener SHALL call `CedarPolicyEngine.invalidate_cache()` on receiving a `policy_changed` notification
+- If the LISTEN connection is unavailable or drops, the system SHALL fall back to TTL-based polling (existing behavior)
 - The `PolicySyncService` SHALL implement a pluggable interface (`start`, `stop`, `on_policy_change`) to allow future replacement with OPAL
 - Real-time sync SHALL be opt-in via `POLICY_SYNC_ENABLED` environment variable (default: false)
 
-#### Scenario: Policy updated with Realtime enabled
+#### Scenario: Policy updated with LISTEN/NOTIFY enabled
 - **WHEN** operator updates a row in `cedar_policies` table
 - **AND** `POLICY_SYNC_ENABLED=true`
-- **THEN** Supabase Realtime delivers change event to `PolicySyncService`
+- **THEN** PostgreSQL trigger sends `NOTIFY policy_changed` with the policy name as payload
+- **AND** asyncpg listener in `PolicySyncService` receives the notification
 - **AND** `CedarPolicyEngine.invalidate_cache()` is called within 1 second
 - **AND** next authorization check loads the updated policy
 
-#### Scenario: Policy updated with Realtime disabled
+#### Scenario: Policy updated with LISTEN/NOTIFY disabled
 - **WHEN** operator updates a row in `cedar_policies` table
 - **AND** `POLICY_SYNC_ENABLED=false`
 - **THEN** policy cache expires after TTL (default 300 seconds)
 - **AND** next authorization check after TTL expiry loads the updated policy
 
-#### Scenario: Realtime connection drops
-- **WHEN** Supabase Realtime WebSocket connection is lost
+#### Scenario: LISTEN connection drops
+- **WHEN** asyncpg LISTEN connection is lost
 - **THEN** `PolicySyncService` attempts reconnection with exponential backoff
 - **AND** falls back to TTL-based polling until connection is restored
 - **AND** logs connection state changes for operational visibility

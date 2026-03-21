@@ -43,13 +43,14 @@
 
 ## 5. Real-Time Policy Synchronization
 
-- [ ] 5.1 Create `src/policy_sync.py` with `PolicySyncService` interface and `SupabaseRealtimePolicySyncService` implementation
+- [ ] 5.1 Create `src/policy_sync.py` with `PolicySyncService` interface and `PgListenNotifyPolicySyncService` implementation
 - [ ] 5.2 Add `PolicySyncConfig` dataclass to `src/config.py` (enabled, reconnect_max_retries, reconnect_backoff)
-- [ ] 5.3 Implement Supabase Realtime channel subscription for `cedar_policies` table
+- [ ] 5.3 Implement asyncpg LISTEN on `policy_changed` channel using a dedicated connection from the pool
 - [ ] 5.4 Wire `on_policy_change` to `CedarPolicyEngine.invalidate_cache()`
-- [ ] 5.5 Implement reconnection with exponential backoff on WebSocket disconnect
-- [ ] 5.6 Add fallback to TTL-based polling when Realtime unavailable
-- [ ] 5.7 Write unit tests for policy sync lifecycle (connect, receive, invalidate, reconnect)
+- [ ] 5.5 Implement reconnection with exponential backoff on connection loss
+- [ ] 5.6 Add fallback to TTL-based polling when LISTEN/NOTIFY unavailable
+- [ ] 5.7 Add PostgreSQL trigger function `notify_policy_changed()` that sends `NOTIFY policy_changed, '<policy_name>'` on cedar_policies INSERT/UPDATE/DELETE (migration)
+- [ ] 5.8 Write unit tests for policy sync lifecycle (connect, receive, invalidate, reconnect)
 
 ## 6. Policy Version History
 

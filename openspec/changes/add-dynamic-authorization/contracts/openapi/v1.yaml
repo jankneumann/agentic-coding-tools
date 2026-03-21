@@ -1,0 +1,259 @@
+openapi: 3.1.0
+info:
+  title: Dynamic Authorization Extensions
+  version: 0.3.0
+  description: >
+    New HTTP endpoints for approval gates, policy versioning, and delegated identity.
+    Extends the existing coordination API at agent-coordinator/src/coordination_api.py.
+
+paths:
+  /approvals/pending:
+    get:
+      operationId: listPendingApprovals
+      summary: List pending approval requests
+      tags: [approvals]
+      parameters:
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+          description: Filter by requesting agent
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of pending approval requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [approvals]
+                properties:
+                  approvals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ApprovalRequest"
+              example:
+                approvals:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    agent_id: "claude-1"
+                    operation: "git push --force"
+                    resource: "main"
+                    context: { reason: "Fix broken deployment" }
+                    status: "pending"
+                    created_at: "2026-03-20T10:00:00Z"
+                    expires_at: "2026-03-20T11:00:00Z"
+
+  /approvals/{request_id}/decide:
+    post:
+      operationId: decideApproval
+      summary: Approve or deny a pending request
+      tags: [approvals]
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecision"
+            example:
+              decision: "approved"
+              reason: "Verified safe for deployment"
+              decided_by: "operator:jane"
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, request_id, status]
+                properties:
+                  success:
+                    type: boolean
+                  request_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [approved, denied]
+              example:
+                success: true
+                request_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: "approved"
+        "404":
+          description: Request not found or already decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /policies/{policy_name}/versions:
+    get:
+      operationId: listPolicyVersions
+      summary: List version history for a Cedar policy
+      tags: [policies]
+      parameters:
+        - name: policy_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Policy version history
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PolicyVersion"
+              example:
+                versions:
+                  - version: 3
+                    policy_text: "permit(principal, action == Action::\"acquire_lock\", resource) when { principal.trust_level >= 2 };"
+                    changed_by: "operator:jane"
+                    changed_at: "2026-03-20T09:00:00Z"
+                    change_type: "update"
+
+  /policies/{policy_name}/rollback:
+    post:
+      operationId: rollbackPolicy
+      summary: Rollback a Cedar policy to a previous version
+      tags: [policies]
+      parameters:
+        - name: policy_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version:
+                  type: integer
+                  minimum: 1
+            example:
+              version: 3
+      responses:
+        "200":
+          description: Policy rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, policy_name, restored_version]
+                properties:
+                  success:
+                    type: boolean
+                  policy_name:
+                    type: string
+                  restored_version:
+                    type: integer
+              example:
+                success: true
+                policy_name: "write-operations"
+                restored_version: 3
+        "404":
+          description: Policy or version not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ApprovalRequest:
+      type: object
+      required: [id, agent_id, operation, status, created_at, expires_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+        agent_type:
+          type: string
+        operation:
+          type: string
+        resource:
+          type: string
+        context:
+          type: object
+        status:
+          type: string
+          enum: [pending, approved, denied, expired]
+        decided_by:
+          type: string
+        decided_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    ApprovalDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approved, denied]
+        reason:
+          type: string
+        decided_by:
+          type: string
+
+    PolicyVersion:
+      type: object
+      required: [version, policy_text, changed_at, change_type]
+      properties:
+        version:
+          type: integer
+        policy_text:
+          type: string
+        changed_by:
+          type: string
+        changed_at:
+          type: string
+          format: date-time
+        change_type:
+          type: string
+          enum: [create, update, delete, rollback]
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
