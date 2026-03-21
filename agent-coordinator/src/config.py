@@ -305,6 +305,96 @@ class ApiConfig:
 
 
 @dataclass
+class ApprovalConfig:
+    """Approval gates configuration."""
+
+    enabled: bool = field(
+        default_factory=lambda: os.environ.get(
+            "APPROVAL_GATES_ENABLED", "false"
+        ).lower()
+        == "true"
+    )
+    default_timeout_seconds: int = field(
+        default_factory=lambda: int(
+            os.environ.get("APPROVAL_DEFAULT_TIMEOUT", "3600")
+        )
+    )
+    auto_deny: bool = field(
+        default_factory=lambda: os.environ.get(
+            "APPROVAL_AUTO_DENY", "true"
+        ).lower()
+        == "true"
+    )
+
+
+@dataclass
+class PolicySyncConfig:
+    """Policy sync configuration."""
+
+    enabled: bool = field(
+        default_factory=lambda: os.environ.get(
+            "POLICY_SYNC_ENABLED", "false"
+        ).lower()
+        == "true"
+    )
+    reconnect_max_retries: int = field(
+        default_factory=lambda: int(
+            os.environ.get("POLICY_SYNC_MAX_RETRIES", "5")
+        )
+    )
+    reconnect_backoff_seconds: float = field(
+        default_factory=lambda: float(
+            os.environ.get("POLICY_SYNC_BACKOFF", "1.0")
+        )
+    )
+
+
+@dataclass
+class RiskScoringConfig:
+    """Risk scoring configuration."""
+
+    enabled: bool = field(
+        default_factory=lambda: os.environ.get(
+            "RISK_SCORING_ENABLED", "false"
+        ).lower()
+        == "true"
+    )
+    low_threshold: float = field(
+        default_factory=lambda: float(
+            os.environ.get("RISK_LOW_THRESHOLD", "0.3")
+        )
+    )
+    high_threshold: float = field(
+        default_factory=lambda: float(
+            os.environ.get("RISK_HIGH_THRESHOLD", "0.7")
+        )
+    )
+    violation_window_seconds: int = field(
+        default_factory=lambda: int(
+            os.environ.get("RISK_VIOLATION_WINDOW", "3600")
+        )
+    )
+
+
+@dataclass
+class SessionGrantsConfig:
+    """Session grants configuration."""
+
+    enabled: bool = field(
+        default_factory=lambda: os.environ.get(
+            "SESSION_GRANTS_ENABLED", "false"
+        ).lower()
+        == "true"
+    )
+    require_justification: bool = field(
+        default_factory=lambda: os.environ.get(
+            "SESSION_GRANTS_REQUIRE_JUSTIFICATION", "true"
+        ).lower()
+        == "true"
+    )
+
+
+@dataclass
 class Config:
     """Complete configuration for Agent Coordinator."""
 
@@ -324,6 +414,12 @@ class Config:
     api: ApiConfig = field(default_factory=ApiConfig.from_env)
     port_allocator: PortAllocatorConfig = field(
         default_factory=PortAllocatorConfig.from_env
+    )
+    approval: ApprovalConfig = field(default_factory=ApprovalConfig)
+    policy_sync: PolicySyncConfig = field(default_factory=PolicySyncConfig)
+    risk_scoring: RiskScoringConfig = field(default_factory=RiskScoringConfig)
+    session_grants: SessionGrantsConfig = field(
+        default_factory=SessionGrantsConfig
     )
     active_profile: str | None = None
     transport: str = "none"

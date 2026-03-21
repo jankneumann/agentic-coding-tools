@@ -57,6 +57,7 @@ class ProfileResult:
     profile: AgentProfile | None = None
     source: str | None = None  # 'assignment', 'default', or None
     reason: str | None = None
+    delegated_from: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ProfileResult":
@@ -68,6 +69,7 @@ class ProfileResult:
             profile=profile,
             source=data.get("source"),
             reason=data.get("reason"),
+            delegated_from=data.get("delegated_from"),
         )
 
 
@@ -103,11 +105,17 @@ class ProfilesService:
         self,
         agent_id: str | None = None,
         agent_type: str | None = None,
+        delegated_from: str | None = None,
     ) -> ProfileResult:
         """Get the profile for an agent.
 
         Checks explicit assignment first, then falls back to default by agent_type.
         Results are cached with configurable TTL.
+
+        Args:
+            agent_id: Agent ID (default: from config)
+            agent_type: Agent type (default: from config)
+            delegated_from: Agent ID that delegated authority to this agent
         """
         config = get_config()
         agent_id = agent_id or config.agent.agent_id
@@ -118,7 +126,12 @@ class ProfilesService:
         if cache_key in self._cache:
             profile, cached_at = self._cache[cache_key]
             if time.monotonic() - cached_at < config.profiles.cache_ttl_seconds:
-                return ProfileResult(success=True, profile=profile, source="cache")
+                return ProfileResult(
+                    success=True,
+                    profile=profile,
+                    source="cache",
+                    delegated_from=delegated_from,
+                )
 
         result = await self.db.rpc(
             "get_agent_profile",
@@ -129,6 +142,7 @@ class ProfilesService:
         )
 
         profile_result = ProfileResult.from_dict(result)
+        profile_result.delegated_from = delegated_from
 
         # Cache successful lookups
         if profile_result.success and profile_result.profile:

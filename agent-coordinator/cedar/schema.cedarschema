@@ -7,12 +7,16 @@
 
 entity AgentType;
 
+entity DelegatingUser;
+
 entity Agent in [AgentType] {
     trust_level: Long,
     agent_type: String,
     session_id: String,
     max_file_modifications: Long,
     max_execution_time_seconds: Long,
+    delegated_by: String,
+    session_grants: Set<String>,
 };
 
 entity File {
@@ -107,6 +111,34 @@ action "delete_branch" appliesTo {
 };
 
 action "cleanup_agents" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+// Approval actions
+action "request_approval" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+action "check_approval" appliesTo {
+    principal: Agent,
+    resource: Task,
+};
+
+// Policy management actions
+action "list_policy_versions" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+action "rollback_policy" appliesTo {
+    principal: Agent,
+    resource: File,
+};
+
+// Session grant actions
+action "request_permission" appliesTo {
     principal: Agent,
     resource: Task,
 };

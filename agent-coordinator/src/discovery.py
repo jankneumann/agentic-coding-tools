@@ -28,6 +28,7 @@ class AgentInfo:
     current_task: str | None = None
     last_heartbeat: datetime | None = None
     started_at: datetime | None = None
+    delegated_from: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AgentInfo":
@@ -47,6 +48,7 @@ class AgentInfo:
             current_task=data.get("current_task"),
             last_heartbeat=parse_dt(data.get("last_heartbeat")),
             started_at=parse_dt(data.get("started_at")),
+            delegated_from=data.get("delegated_from"),
         )
 
 
@@ -130,6 +132,7 @@ class DiscoveryService:
         session_id: str | None = None,
         capabilities: list[str] | None = None,
         current_task: str | None = None,
+        delegated_from: str | None = None,
     ) -> RegisterResult:
         """Register an agent session for discovery.
 
@@ -139,6 +142,7 @@ class DiscoveryService:
             session_id: Session identifier (default: from config)
             capabilities: List of agent capabilities
             current_task: Description of current task
+            delegated_from: Agent ID that delegated authority to this agent
 
         Returns:
             RegisterResult with session_id
@@ -153,6 +157,7 @@ class DiscoveryService:
                 "p_session_id": session_id or config.agent.session_id,
                 "p_capabilities": capabilities or [],
                 "p_current_task": current_task,
+                "p_delegated_from": delegated_from,
             },
         )
 

@@ -108,7 +108,7 @@ class GuardrailPattern:
     name: str
     category: str
     pattern: str
-    severity: str = "block"  # 'block', 'warn', 'log'
+    severity: str = "block"  # 'block', 'warn', 'log', 'approval_required'
     min_trust_level: int = 3
 
     @classmethod
@@ -131,6 +131,7 @@ class GuardrailViolation:
     severity: str
     matched_text: str | None = None
     blocked: bool = True
+    approval_required: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "GuardrailViolation":
@@ -140,6 +141,7 @@ class GuardrailViolation:
             severity=data.get("severity", "block"),
             matched_text=data.get("matched_text"),
             blocked=data.get("blocked", True),
+            approval_required=data.get("approval_required", False),
         )
 
 
@@ -149,6 +151,7 @@ class GuardrailResult:
 
     safe: bool
     violations: list[GuardrailViolation] = field(default_factory=list)
+    approval_required: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "GuardrailResult":
@@ -158,6 +161,7 @@ class GuardrailResult:
         return cls(
             safe=data.get("safe", True),
             violations=violations,
+            approval_required=data.get("approval_required", False),
         )
 
 
@@ -229,12 +233,17 @@ class GuardrailsService:
         if file_paths:
             full_text += "\n" + "\n".join(file_paths)
 
+        needs_approval = False
+
         for pattern in patterns:
             match = re.search(pattern.pattern, full_text, re.IGNORECASE)
             if match and trust_level < pattern.min_trust_level:
                 blocked = pattern.severity == "block"
+                requires_approval = pattern.severity == "approval_required"
                 if blocked:
                     safe = False
+                if requires_approval:
+                    needs_approval = True
 
                 violations.append(
                     GuardrailViolation(
@@ -243,10 +252,13 @@ class GuardrailsService:
                         severity=pattern.severity,
                         matched_text=match.group(0)[:200],
                         blocked=blocked,
+                        approval_required=requires_approval,
                     )
                 )
 
-        result = GuardrailResult(safe=safe, violations=violations)
+        result = GuardrailResult(
+            safe=safe, violations=violations, approval_required=needs_approval,
+        )
 
         # Audit: log all violations
         if violations:

@@ -28,6 +28,7 @@ class AuditEntry:
     success: bool | None = None
     error_message: str | None = None
     created_at: datetime | None = None
+    delegated_from: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AuditEntry":
@@ -47,6 +48,7 @@ class AuditEntry:
             success=data.get("success"),
             error_message=data.get("error_message"),
             created_at=created_at,
+            delegated_from=data.get("delegated_from"),
         )
 
 
@@ -89,6 +91,7 @@ class AuditService:
         duration_ms: int | None = None,
         success: bool | None = None,
         error_message: str | None = None,
+        delegated_from: str | None = None,
     ) -> AuditResult:
         """Log a coordination operation to the audit trail.
 
@@ -108,6 +111,7 @@ class AuditService:
             "duration_ms": duration_ms,
             "success": success,
             "error_message": error_message,
+            "delegated_from": delegated_from,
         }
 
         if config.audit.async_logging:
@@ -132,6 +136,7 @@ class AuditService:
         since: datetime | None = None,
         until: datetime | None = None,
         limit: int = 50,
+        delegated_from: str | None = None,
     ) -> list[AuditEntry]:
         """Query audit log entries with optional filters."""
         query_parts = ["order=created_at.desc", f"limit={limit}"]
@@ -144,6 +149,8 @@ class AuditService:
             query_parts.append(f"created_at=gte.{since.isoformat()}")
         if until:
             query_parts.append(f"created_at=lte.{until.isoformat()}")
+        if delegated_from:
+            query_parts.append(f"delegated_from=eq.{delegated_from}")
 
         query = "&".join(query_parts)
         rows = await self.db.query("audit_log", query)

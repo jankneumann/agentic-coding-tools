@@ -137,6 +137,58 @@ permit(
 };
 
 // ============================================================
+// APPROVAL & POLICY READ — Permit for trust_level >= 1
+// ============================================================
+
+permit(
+    principal,
+    action == Action::"check_approval",
+    resource
+) when {
+    principal.trust_level >= 1
+};
+
+permit(
+    principal,
+    action == Action::"list_policy_versions",
+    resource
+) when {
+    principal.trust_level >= 1
+};
+
+// ============================================================
+// APPROVAL & PERMISSION WRITE — Permit for trust_level >= 2
+// ============================================================
+
+permit(
+    principal,
+    action == Action::"request_approval",
+    resource
+) when {
+    principal.trust_level >= 2
+};
+
+permit(
+    principal,
+    action == Action::"request_permission",
+    resource
+) when {
+    principal.trust_level >= 2
+};
+
+// ============================================================
+// POLICY ADMIN — Permit rollback for trust_level >= 3
+// ============================================================
+
+permit(
+    principal,
+    action == Action::"rollback_policy",
+    resource
+) when {
+    principal.trust_level >= 3
+};
+
+// ============================================================
 // SUSPENDED AGENTS — Forbid all for trust_level 0
 // ============================================================
 
