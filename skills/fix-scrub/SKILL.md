@@ -75,11 +75,21 @@ Create a worktree when `--worktree` is passed **or** when already inside a git w
 eval "$(python3 scripts/worktree.py detect)"
 
 if [[ "$IN_WORKTREE" == "true" ]] || [[ "<--worktree flag passed>" == "true" ]]; then
-  # Setup fix-scrub worktree (creates .git-worktrees/fix-scrub/<date>/)
-  eval "$(python3 scripts/worktree.py setup "${BRANCH_DATE}" --branch "${BRANCH_NAME}" --prefix fix-scrub)"
+  # Agent-id for worktree disambiguation
+  FIX_AGENT_ID="${AGENT_ID:-fix-$(date +%s)}"
+
+  # Setup fix-scrub worktree (creates .git-worktrees/fix-scrub/<agent-id>/)
+  eval "$(python3 scripts/worktree.py setup "${BRANCH_DATE}" --branch "${BRANCH_NAME}" --prefix fix-scrub --agent-id "${FIX_AGENT_ID}")"
   cd "$WORKTREE_PATH"
   echo "Working directory: $(pwd)"
 fi
+```
+
+After the fix-scrub is complete and changes are pushed, tear down the worktree:
+
+```bash
+# Teardown fix-scrub worktree
+python3 scripts/worktree.py teardown "${BRANCH_DATE}" --prefix fix-scrub --agent-id "${FIX_AGENT_ID}"
 ```
 
 ### 1. Load Report and Classify
