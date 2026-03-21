@@ -29,6 +29,13 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **No worktrees needed**: Task() agents are orchestrator-coordinated. The old worktree pattern was needed because external `claude -p` processes had no coordination. With Task(), logical file scoping via prompts replaces physical isolation via worktrees.
 
+### Parallel Worktree Best Practices
+- One agent, one worktree, one branch — never share checkouts
+- Use `--agent-id` with deterministic naming: `<change-id>/<package-id>` for path, same for branch
+- Pin worktrees when waiting on human input to prevent GC from cleaning them overnight
+- Run `gc` before cleanup to remove stale worktrees from failed agents
+- Integrator pattern: one integrator worktree + N worker worktrees, integrate via Git merge
+
 - **Result aggregation**: After parallel tasks complete, the orchestrator collects results via TaskOutput, verifies work, and commits. Don't let agents commit directly—the orchestrator should control the commit.
 
 ## OpenSpec Integration

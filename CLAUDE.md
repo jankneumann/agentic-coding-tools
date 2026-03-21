@@ -48,6 +48,16 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 - **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
+## Worktree Management
+
+- **Location**: `.git-worktrees/<change-id>/` for single-agent, `.git-worktrees/<change-id>/<agent-id>/` for parallel
+- **Registry**: `.git-worktrees/.registry.json` tracks owner, branch, heartbeat, pin status
+- **Commands**: `python3 scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
+- **Agent-id**: Pass `--agent-id` for parallel disambiguation. Omit for single-agent (backward compatible)
+- **Pin**: Use `pin` to protect worktrees from GC during overnight pauses or waiting on input
+- **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
+- **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
+
 ## Documentation
 
 - [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns

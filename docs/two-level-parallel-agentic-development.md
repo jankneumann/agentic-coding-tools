@@ -302,6 +302,10 @@ B5. Read dependency results
 
 B6. Code generation
     ├─ Create or switch to package's worktree (per worktree.name and worktree.mode)
+    │   ├─ Worker agents use `--agent-id <package_id>` → `.git-worktrees/<change-id>/<package_id>/`
+    │   ├─ Integrator uses `--agent-id integrator` → `.git-worktrees/<change-id>/integrator/`
+    │   ├─ Registry (`.git-worktrees/.registry.json`) provides advisory ownership tracking
+    │   └─ GC automatically cleans stale worktrees (default 24h threshold)
     ├─ Make changes ONLY within scope.write_allow, respecting scope.deny
     └─ Commit changes with structured commit message including package_id
 
@@ -959,7 +963,13 @@ Validate `work-packages.yaml` after YAML→JSON parsing. Each `packages[]` entry
           "maxLength": 80,
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"
         },
-        "mode": { "type": "string", "enum": ["isolated", "shared"], "default": "isolated" }
+        "mode": { "type": "string", "enum": ["isolated", "shared"], "default": "isolated" },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Agent identifier for parallel disambiguation. Workers use package_id; integrator uses 'integrator'. Omit for single-agent (backward compatible). Path: .git-worktrees/<change-id>/<agent_id>/"
+        }
       }
     },
     "VerificationStep": {
