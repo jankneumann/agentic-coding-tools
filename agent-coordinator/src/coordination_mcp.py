@@ -22,6 +22,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from .approval import get_approval_service
 from .audit import get_audit_service
 from .config import get_config
 from .discovery import get_discovery_service
@@ -31,6 +32,7 @@ from .locks import get_lock_service
 from .memory import get_memory_service
 from .port_allocator import get_port_allocator
 from .profiles import get_profiles_service
+from .session_grants import get_session_grant_service
 from .work_queue import get_work_queue_service
 
 # Create the MCP server
@@ -478,6 +480,7 @@ async def read_handoff(
 async def register_session(
     capabilities: list[str] | None = None,
     current_task: str | None = None,
+    delegated_from: str | None = None,
 ) -> dict[str, Any]:
     """
     Register this agent session for discovery by other agents.
@@ -488,6 +491,7 @@ async def register_session(
     Args:
         capabilities: What this agent can do (e.g., ['coding', 'testing', 'review'])
         current_task: Description of what you're currently working on
+        delegated_from: Agent ID of the delegating agent (for delegated identity)
 
     Returns:
         success: Whether registration succeeded
@@ -503,6 +507,7 @@ async def register_session(
     result = await service.register(
         capabilities=capabilities,
         current_task=current_task,
+        delegated_from=delegated_from,
     )
 
     return {
@@ -1060,6 +1065,99 @@ async def ports_status() -> list[dict[str, Any]]:
         }
         for alloc in allocations
     ]
+
+
+# =============================================================================
+# MCP TOOLS: Approval Gates
+# =============================================================================
+
+
+@mcp.tool()
+async def request_approval(
+    operation: str,
+    resource: str | None = None,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Request human approval for a high-risk operation."""
+    config = get_config()
+    if not config.approval.enabled:
+        return {"success": False, "error": "Approval gates are not enabled"}
+    service = get_approval_service()
+    request = await service.submit_request(
+        agent_id=config.agent.agent_id,
+        operation=operation,
+        resource=resource,
+        context=context,
+        timeout_seconds=config.approval.default_timeout_seconds,
+    )
+    return {
+        "success": True,
+        "request_id": request.id,
+        "status": request.status,
+        "expires_at": request.expires_at.isoformat(),
+    }
+
+
+@mcp.tool()
+async def check_approval(request_id: str) -> dict[str, Any]:
+    """Check the status of an approval request."""
+    service = get_approval_service()
+    request = await service.check_request(request_id)
+    if not request:
+        return {"success": False, "error": "Request not found"}
+    result: dict[str, Any] = {
+        "success": True,
+        "request_id": request.id,
+        "status": request.status,
+    }
+    if request.decided_by:
+        result["decided_by"] = request.decided_by
+    if request.reason:
+        result["reason"] = request.reason
+    return result
+
+
+# =============================================================================
+# MCP TOOLS: Policy Versioning
+# =============================================================================
+
+
+@mcp.tool()
+async def list_policy_versions(policy_name: str, limit: int = 20) -> dict[str, Any]:
+    """List version history for a Cedar policy."""
+    from .policy_engine import get_policy_engine
+
+    engine = get_policy_engine()
+    versions = await engine.list_policy_versions(policy_name, limit)
+    return {"versions": versions}
+
+
+# =============================================================================
+# MCP TOOLS: Session Grants
+# =============================================================================
+
+
+@mcp.tool()
+async def request_permission(
+    operation: str, justification: str | None = None
+) -> dict[str, Any]:
+    """Request a session-scoped permission grant."""
+    config = get_config()
+    if not config.session_grants.enabled:
+        return {"success": False, "error": "Session grants are not enabled"}
+    service = get_session_grant_service()
+    grant = await service.request_grant(
+        session_id=config.agent.agent_id,  # use agent_id as session_id for MCP
+        agent_id=config.agent.agent_id,
+        operation=operation,
+        justification=justification,
+    )
+    return {
+        "success": True,
+        "granted": True,
+        "grant_id": grant.id,
+        "operation": grant.operation,
+    }
 
 
 # =============================================================================

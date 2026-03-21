@@ -230,3 +230,106 @@ class TestActionCategories:
         assert not READ_ACTIONS & WRITE_ACTIONS
         assert not READ_ACTIONS & ADMIN_ACTIONS
         assert not WRITE_ACTIONS & ADMIN_ACTIONS
+
+    def test_new_read_operations(self):
+        """Test new read operations are in READ_ACTIONS."""
+        assert "check_approval" in READ_ACTIONS
+        assert "list_policy_versions" in READ_ACTIONS
+
+    def test_new_write_operations(self):
+        """Test new write operations are in WRITE_ACTIONS."""
+        assert "request_approval" in WRITE_ACTIONS
+        assert "request_permission" in WRITE_ACTIONS
+
+    def test_rollback_policy_admin(self):
+        """Test rollback_policy is an admin action requiring trust >= 3."""
+        assert "rollback_policy" in ADMIN_ACTIONS
+
+
+class TestNativeRiskScoreAndSessionGrants:
+    """Tests for risk scoring and session grants in NativePolicyEngine."""
+
+    @pytest.mark.asyncio
+    async def test_native_risk_score_high_denies(
+        self, mock_supabase, db_client
+    ):
+        """Verify risk_score > 0.7 denies write ops."""
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="acquire_lock",
+            context={"trust_level": 2, "risk_score": 0.85},
+        )
+        assert result.allowed is False
+        assert "risk_score_exceeded" in result.reason
+
+    @pytest.mark.asyncio
+    async def test_native_risk_score_low_allows(
+        self, mock_supabase, db_client
+    ):
+        """Verify risk_score < 0.3 doesn't affect normal authorization."""
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="acquire_lock",
+            context={"trust_level": 2, "risk_score": 0.2},
+        )
+        assert result.allowed is True
+
+    @pytest.mark.asyncio
+    async def test_native_risk_score_high_allows_read(
+        self, mock_supabase, db_client
+    ):
+        """Verify high risk_score does not block read operations."""
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="check_locks",
+            context={"trust_level": 1, "risk_score": 0.9},
+        )
+        assert result.allowed is True
+
+    @pytest.mark.asyncio
+    async def test_native_session_grants_elevate(
+        self, mock_supabase, db_client
+    ):
+        """Verify session_grants allows a normally-denied operation."""
+        engine = NativePolicyEngine(db_client)
+
+        # trust_level=1 would normally deny write operations
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="acquire_lock",
+            context={
+                "trust_level": 1,
+                "session_grants": ["acquire_lock", "release_lock"],
+            },
+        )
+        assert result.allowed is True
+        assert "session_grant_permitted" in result.reason
+
+    @pytest.mark.asyncio
+    async def test_native_session_grants_suspended(
+        self, mock_supabase, db_client
+    ):
+        """Verify trust 0 still denied even with session grants."""
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="acquire_lock",
+            context={
+                "trust_level": 0,
+                "session_grants": ["acquire_lock"],
+            },
+        )
+        assert result.allowed is False
+        assert "suspended" in result.reason

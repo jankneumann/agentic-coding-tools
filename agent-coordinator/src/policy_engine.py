@@ -22,17 +22,20 @@ logger = logging.getLogger(__name__)
 READ_ACTIONS = frozenset({
     "check_locks", "get_work", "recall", "discover_agents",
     "read_handoff", "query_audit",
+    "check_approval", "list_policy_versions",
 })
 
 # Write actions requiring trust_level >= 2
 WRITE_ACTIONS = frozenset({
     "acquire_lock", "release_lock", "complete_work", "submit_work",
     "remember", "write_handoff", "check_guardrails",
+    "request_approval", "request_permission",
 })
 
 # Admin actions requiring trust_level >= 3
 ADMIN_ACTIONS = frozenset({
     "force_push", "delete_branch", "cleanup_agents",
+    "rollback_policy",
 })
 
 # Known-allowed network domains (matches default Cedar policies)
@@ -127,6 +130,38 @@ class NativePolicyEngine:
         # Suspended agents (trust 0) are denied all operations
         if trust_level == 0:
             decision = PolicyDecision.deny("agent_suspended: trust_level=0")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
+
+        # Risk score check: high risk denies non-read operations
+        risk_score = ctx.get("risk_score")
+        if risk_score is not None and risk_score > 0.7 and operation not in READ_ACTIONS:
+            decision = PolicyDecision.deny("risk_score_exceeded")
+            await self._log_policy_decision(
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                resource=resource,
+                context=ctx,
+                decision=decision,
+                engine="native",
+            )
+            return decision
+
+        # Session grants: elevate access for granted operations
+        session_grants = ctx.get("session_grants")
+        if session_grants and operation in session_grants:
+            decision = PolicyDecision.allow(
+                f"session_grant_permitted: {operation}"
+            )
             await self._log_policy_decision(
                 agent_id=agent_id,
                 agent_type=agent_type,
@@ -270,6 +305,51 @@ class NativePolicyEngine:
             )
         except Exception as e:
             return PolicyDecision.deny(f"network_error: {e}")
+
+    async def list_policy_versions(
+        self, policy_name: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """List version history for a Cedar policy."""
+        rows = await self.db.query(
+            "cedar_policies_history",
+            f"policy_name=eq.{policy_name}&order=version.desc&limit={limit}",
+        )
+        return [
+            {
+                "version": r["version"],
+                "policy_text": r["policy_text"],
+                "changed_by": r.get("changed_by"),
+                "changed_at": str(r.get("changed_at", "")),
+                "change_type": r["change_type"],
+            }
+            for r in rows
+        ]
+
+    async def rollback_policy(
+        self, policy_name: str, version: int
+    ) -> dict[str, Any]:
+        """Rollback a Cedar policy to a previous version."""
+        history = await self.db.query(
+            "cedar_policies_history",
+            f"policy_name=eq.{policy_name}&version=eq.{version}",
+        )
+        if not history:
+            return {
+                "success": False,
+                "error": f"Version {version} not found for {policy_name}",
+            }
+
+        policy_text = history[0]["policy_text"]
+        await self.db.update(
+            "cedar_policies",
+            {"name": policy_name},
+            {"policy_text": policy_text},
+        )
+        return {
+            "success": True,
+            "policy_name": policy_name,
+            "restored_version": version,
+        }
 
     async def _log_policy_decision(
         self,
@@ -431,6 +511,10 @@ class CedarPolicyEngine:
                     ),
                     "max_execution_time_seconds": ctx.get(
                         "max_execution_time_seconds", 3600
+                    ),
+                    "delegated_by": ctx.get("delegated_from", ""),
+                    "session_grants": list(
+                        ctx.get("session_grants", [])
                     ),
                 },
                 "parents": [{"type": "AgentType", "id": agent_type}],
@@ -645,6 +729,52 @@ class CedarPolicyEngine:
         """Invalidate the policy cache, forcing reload on next check."""
         self._policies_cache = None
         self._policies_cache_time = 0.0
+
+    async def list_policy_versions(
+        self, policy_name: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """List version history for a Cedar policy."""
+        rows = await self.db.query(
+            "cedar_policies_history",
+            f"policy_name=eq.{policy_name}&order=version.desc&limit={limit}",
+        )
+        return [
+            {
+                "version": r["version"],
+                "policy_text": r["policy_text"],
+                "changed_by": r.get("changed_by"),
+                "changed_at": str(r.get("changed_at", "")),
+                "change_type": r["change_type"],
+            }
+            for r in rows
+        ]
+
+    async def rollback_policy(
+        self, policy_name: str, version: int
+    ) -> dict[str, Any]:
+        """Rollback a Cedar policy to a previous version."""
+        history = await self.db.query(
+            "cedar_policies_history",
+            f"policy_name=eq.{policy_name}&version=eq.{version}",
+        )
+        if not history:
+            return {
+                "success": False,
+                "error": f"Version {version} not found for {policy_name}",
+            }
+
+        policy_text = history[0]["policy_text"]
+        await self.db.update(
+            "cedar_policies",
+            {"name": policy_name},
+            {"policy_text": policy_text},
+        )
+        self.invalidate_cache()
+        return {
+            "success": True,
+            "policy_name": policy_name,
+            "restored_version": version,
+        }
 
     async def _log_policy_decision(
         self,

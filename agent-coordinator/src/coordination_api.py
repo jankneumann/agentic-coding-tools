@@ -18,6 +18,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+from .approval import get_approval_service
 from .config import get_config
 from .port_allocator import get_port_allocator
 
@@ -130,6 +131,16 @@ class PortAllocateRequest(BaseModel):
 
 class PortReleaseRequest(BaseModel):
     session_id: str
+
+
+class ApprovalDecisionRequest(BaseModel):
+    decision: str  # "approved" or "denied"
+    reason: str | None = None
+    decided_by: str | None = None
+
+
+class PolicyRollbackRequest(BaseModel):
+    version: int
 
 
 # =============================================================================
@@ -833,6 +844,93 @@ def create_coordination_api() -> FastAPI:
             }
             for alloc in allocations
         ]
+
+    # --------------------------------------------------------------------- #
+    # APPROVALS
+    # --------------------------------------------------------------------- #
+
+    def _approval_to_dict(r: object) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "id": r.id,  # type: ignore[attr-defined]
+            "agent_id": r.agent_id,  # type: ignore[attr-defined]
+            "operation": r.operation,  # type: ignore[attr-defined]
+            "status": r.status,  # type: ignore[attr-defined]
+            "created_at": r.created_at.isoformat(),  # type: ignore[attr-defined]
+            "expires_at": r.expires_at.isoformat(),  # type: ignore[attr-defined]
+        }
+        if r.resource:  # type: ignore[attr-defined]
+            d["resource"] = r.resource  # type: ignore[attr-defined]
+        if r.decided_by:  # type: ignore[attr-defined]
+            d["decided_by"] = r.decided_by  # type: ignore[attr-defined]
+        if r.reason:  # type: ignore[attr-defined]
+            d["reason"] = r.reason  # type: ignore[attr-defined]
+        return d
+
+    @app.get("/approvals/pending")
+    async def list_pending_approvals(
+        agent_id: str | None = None,
+        limit: int = 50,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List pending approval requests."""
+        service = get_approval_service()
+        requests = await service.list_pending(agent_id=agent_id, limit=limit)
+        return {"approvals": [_approval_to_dict(r) for r in requests]}
+
+    @app.post("/approvals/{request_id}/decide")
+    async def decide_approval(
+        request_id: str,
+        body: ApprovalDecisionRequest,
+        identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Approve or deny an approval request."""
+        service = get_approval_service()
+        decided_by = body.decided_by or identity.get("agent_id", "unknown")
+        result = await service.decide_request(
+            request_id,
+            body.decision,
+            decided_by=decided_by,
+            reason=body.reason,
+        )
+        if not result:
+            raise HTTPException(404, detail="Request not found or already decided")
+        return {
+            "success": True,
+            "request_id": result.id,
+            "status": result.status,
+        }
+
+    # --------------------------------------------------------------------- #
+    # POLICY VERSIONING
+    # --------------------------------------------------------------------- #
+
+    @app.get("/policies/{policy_name}/versions")
+    async def list_policy_versions_endpoint(
+        policy_name: str,
+        limit: int = 20,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List version history for a Cedar policy."""
+        from .policy_engine import get_policy_engine
+
+        engine = get_policy_engine()
+        versions = await engine.list_policy_versions(policy_name, limit)
+        return {"versions": versions}
+
+    @app.post("/policies/{policy_name}/rollback")
+    async def rollback_policy_endpoint(
+        policy_name: str,
+        body: PolicyRollbackRequest,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Rollback a Cedar policy to a previous version."""
+        from .policy_engine import get_policy_engine
+
+        engine = get_policy_engine()
+        result = await engine.rollback_policy(policy_name, body.version)
+        if not result.get("success"):
+            raise HTTPException(404, detail=result.get("error", "Rollback failed"))
+        return result
 
     # --------------------------------------------------------------------- #
     # HEALTH
