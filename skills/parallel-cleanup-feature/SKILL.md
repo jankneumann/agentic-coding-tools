@@ -200,10 +200,15 @@ If `CAN_LOCK=true`, release any locks held by this agent for the feature:
 - Best-effort release for all lock keys in the feature's resource claims
 - Treat release failures as warnings
 
-Remove worktree if one was created:
+Remove worktrees created during parallel implementation:
 
 ```bash
-python3 scripts/worktree.py teardown "${CHANGE_ID}"
+# GC stale worktrees first
+python3 scripts/worktree.py gc
+
+# List and tear down all agent worktrees for this change
+python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id integrator
+# Workers are already cleaned by GC or individual teardown
 ```
 
 ### 13. Final Verification

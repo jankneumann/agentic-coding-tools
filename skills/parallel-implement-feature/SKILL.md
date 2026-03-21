@@ -94,6 +94,28 @@ Each worker agent claiming a package via `get_work` MUST execute steps B1-B11 fr
 
 Key steps: session registration, pause-lock check, deadlock-safe lock acquisition, code generation within scope, deterministic scope check via git diff, verification steps, structured result publication.
 
+#### Agent Identity
+
+Each worker agent MUST have a unique agent-id. The orchestrator assigns agent-ids based on `package_id` (e.g., `wp-backend`, `wp-frontend`). The integrator uses agent-id `integrator`.
+
+#### Worktree Setup
+
+```bash
+# Worker agent setup (agent-id from package_id)
+eval "$(python3 scripts/worktree.py setup "${CHANGE_ID}" --agent-id "${PACKAGE_ID}")"
+
+# Integrator setup
+eval "$(python3 scripts/worktree.py setup "${CHANGE_ID}" --agent-id integrator)"
+```
+
+#### Heartbeat Requirement
+
+Workers MUST call heartbeat every 30 minutes during execution to prevent GC from reclaiming their worktree:
+
+```bash
+python3 scripts/worktree.py heartbeat "${CHANGE_ID}" --agent-id "${PACKAGE_ID}"
+```
+
 ### Phase C: Review + Integration Sequencing
 
 ```
