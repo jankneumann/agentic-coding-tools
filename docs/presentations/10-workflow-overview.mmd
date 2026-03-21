@@ -1,0 +1,20 @@
+---
+title: "Parallel Workflow (Multi-Agent + Coordinator)"
+---
+graph LR
+    PE["explore\n+ resource claims"] --> PP["plan\n+ contracts\n+ work-packages"]
+    PP --> PR["review-plan\n(vendor-diverse)"]
+    PR -->|feedback| PP
+    PP --> PI["implement\nDAG-scheduled\nmulti-agent"]
+    PI --> PRI["review-impl\n(per-package)"]
+    PRI -->|feedback| PI
+    PI --> PV["validate\nevidence\ncompleteness"]
+    PV --> PC["cleanup\nmerge queue\n+ rebase"]
+
+    style PE fill:#bbdefb,stroke:#1976D2,stroke-width:2px
+    style PP fill:#bbdefb,stroke:#1976D2,stroke-width:2px
+    style PR fill:#b3e5fc,stroke:#0288D1,stroke-width:2px
+    style PI fill:#90caf9,stroke:#1565C0,stroke-width:3px
+    style PRI fill:#b3e5fc,stroke:#0288D1,stroke-width:2px
+    style PV fill:#bbdefb,stroke:#1976D2,stroke-width:2px
+    style PC fill:#bbdefb,stroke:#1976D2,stroke-width:2px

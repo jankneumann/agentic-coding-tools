@@ -1,0 +1,34 @@
+---
+title: Contract-First Development
+---
+graph TB
+    SPEC["OpenAPI Spec (canonical contract)"]
+
+    PYDANTIC["Pydantic Models (Python)"]
+    TS["TypeScript Interfaces"]
+    PRISM["Prism Mocks (Stubs)"]
+
+    BACK["wp-backend"]
+    FRONT["wp-frontend"]
+
+    VERIFY["Contract Compliance: Schemathesis + Pact"]
+
+    SPEC --> PYDANTIC
+    SPEC --> TS
+    SPEC --> PRISM
+
+    PYDANTIC --> BACK
+    PRISM --> BACK
+    TS --> FRONT
+    PRISM --> FRONT
+
+    BACK --> VERIFY
+    FRONT --> VERIFY
+
+    style SPEC fill:#fff3e0,stroke:#FF9800,stroke-width:3px
+    style PYDANTIC fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style TS fill:#e3f2fd,stroke:#2196F3,stroke-width:2px
+    style PRISM fill:#f3e5f5,stroke:#9C27B0,stroke-width:2px
+    style BACK fill:#c5cae9,stroke:#3F51B5,stroke-width:2px
+    style FRONT fill:#c5cae9,stroke:#3F51B5,stroke-width:2px
+    style VERIFY fill:#ffcdd2,stroke:#F44336,stroke-width:2px

@@ -1,0 +1,51 @@
+---
+title: Parallel Implementation Lifecycle
+---
+sequenceDiagram
+    participant O as Orchestrator
+    participant C as Coordinator
+    participant A1 as Agent 1<br/>(wp-backend)
+    participant A2 as Agent 2<br/>(wp-frontend)
+    participant W1 as Worktree 1
+    participant W2 as Worktree 2
+
+    Note over O,W2: Phase A: Feature-Level Preflight
+    O->>C: register_session(orchestrator)
+    O->>C: submit_work(wp-contracts, priority=1)
+    O->>C: submit_work(wp-backend, depends_on=[contracts])
+    O->>C: submit_work(wp-frontend, depends_on=[contracts])
+
+    Note over O,W2: Phase B: DAG-Scheduled Package Execution
+    rect rgb(232, 245, 233)
+        Note over A1,A2: wp-contracts completes first (no deps)
+        A1->>C: get_work → wp-contracts
+        A1->>C: acquire_lock(contract:openapi/v1.yaml)
+        A1->>W1: generate OpenAPI spec + types
+        A1->>C: complete_work(result={openapi_path, types})
+    end
+
+    rect rgb(227, 242, 253)
+        Note over A1,A2: wp-backend + wp-frontend run in PARALLEL
+        par Backend Agent
+            A1->>C: get_work → wp-backend
+            A1->>C: acquire_lock(src/api/*, db:schema:*)
+            A1->>C: get_task(wp-contracts) → read dep result
+            A1->>W1: implement backend endpoints
+            A1->>A1: scope check (git diff vs write_allow)
+            A1->>A1: run verification tests
+            A1->>C: complete_work(result={files, evidence})
+        and Frontend Agent
+            A2->>C: get_work → wp-frontend
+            A2->>C: acquire_lock(src/ui/*)
+            A2->>C: get_task(wp-contracts) → read dep result
+            A2->>W2: implement UI components
+            A2->>A2: scope check + verification
+            A2->>C: complete_work(result={files, evidence})
+        end
+    end
+
+    Note over O,W2: Phase C: Integration & Review
+    O->>O: merge worktrees → integration branch
+    O->>O: run full test suite
+    O->>O: cross-package verification
+    O->>C: submit to merge queue

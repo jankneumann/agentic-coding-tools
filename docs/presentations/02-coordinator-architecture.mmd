@@ -1,0 +1,42 @@
+---
+title: Agent Coordinator Architecture
+---
+graph LR
+    subgraph AGENTS["AI Agents"]
+        direction TB
+        CC["Claude Code"]
+        CX["Codex"]
+        GM["Gemini"]
+        CW["Claude Web"]
+    end
+
+    subgraph TRANSPORT["Transport"]
+        direction TB
+        MCP["MCP Server\n(stdio)"]
+        HTTP["HTTP API\n(FastAPI)"]
+    end
+
+    subgraph SERVICES["Coordinator Services"]
+        direction TB
+        LOCKS["Locks"]
+        WQ["Work Queue"]
+        DISC["Discovery"]
+        HO["Handoffs"]
+        GUARD["Guardrails"]
+        PROF["Profiles"]
+        POL["Policy Engine"]
+        MEM["Memory"]
+    end
+
+    subgraph DB["PostgreSQL"]
+        TABLES["12 Tables\n17 PL/pgSQL\nFunctions"]
+    end
+
+    AGENTS --> TRANSPORT
+    TRANSPORT --> SERVICES
+    SERVICES --> DB
+
+    style AGENTS fill:#f3e5f5,stroke:#9C27B0,stroke-width:2px
+    style TRANSPORT fill:#e8eaf6,stroke:#3F51B5,stroke-width:2px
+    style SERVICES fill:#fff8e1,stroke:#FFC107,stroke-width:2px
+    style DB fill:#efebe9,stroke:#795548,stroke-width:2px

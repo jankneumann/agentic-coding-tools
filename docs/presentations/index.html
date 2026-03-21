@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Agentic Development & Agent Coordinator</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+    <style>
+        :root {
+            --r-heading-color: #1a237e;
+            --r-link-color: #1565c0;
+        }
+        .reveal h1 { font-size: 2.2em; }
+        .reveal h2 { font-size: 1.6em; color: #1a237e; }
+        .reveal h3 { font-size: 1.2em; color: #37474f; }
+        .reveal .subtitle { font-size: 0.9em; color: #546e7f; margin-top: -0.5em; }
+        .reveal .diagram-slide {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 80%;
+        }
+        .reveal .diagram-slide img {
+            max-height: 78vh;
+            max-width: 95vw;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        /* Diagram slides: smaller title, more room for image */
+        .reveal section:has(.diagram-slide) h2 {
+            font-size: 1.3em;
+            margin-bottom: 0.2em;
+        }
+        /* Wide diagrams: prioritize width over height */
+        .reveal .diagram-slide.wide img {
+            max-height: none;
+            width: 92vw;
+            max-width: 92vw;
+        }
+        .reveal .small { font-size: 0.7em; }
+        .reveal .medium { font-size: 0.85em; }
+        .reveal ul { text-align: left; }
+        .reveal li { margin-bottom: 0.4em; }
+        .reveal .highlight { color: #1565c0; font-weight: bold; }
+        .reveal .two-col {
+            display: flex;
+            gap: 2em;
+            align-items: flex-start;
+        }
+        .reveal .two-col > div { flex: 1; }
+        .reveal table { font-size: 0.72em; margin: 0 auto; }
+        .reveal th { background: #e8eaf6; color: #1a237e; }
+        .reveal td, .reveal th { padding: 0.3em 0.6em; border: 1px solid #ccc; }
+        .reveal .badge {
+            display: inline-block;
+            padding: 0.15em 0.5em;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: bold;
+            color: white;
+        }
+        .badge-green { background: #4CAF50; }
+        .badge-blue { background: #2196F3; }
+        .badge-orange { background: #FF9800; }
+        .badge-red { background: #F44336; }
+        .badge-purple { background: #9C27B0; }
+        .reveal .speaker-notes { display: none; }
+    </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+    <!-- Title Slide -->
+    <section>
+        <h1>Parallel Agentic Development</h1>
+        <h3>Multi-Agent Coordination for AI-Assisted Software Engineering</h3>
+        <p class="subtitle">Agent Coordinator Architecture & Implementation</p>
+        <aside class="notes">
+            Overview of the two-level parallel development system and the coordinator that makes it possible.
+        </aside>
+    </section>
+
+    <!-- Problem Statement -->
+    <section>
+        <h2>The Problem</h2>
+        <p>What happens when multiple AI agents work on the same codebase?</p>
+        <ul>
+            <li><strong>Concurrent edit conflicts</strong> &mdash; two agents modify the same file</li>
+            <li><strong>Context loss</strong> &mdash; sessions end, context disappears</li>
+            <li><strong>Task duplication</strong> &mdash; agents do redundant work</li>
+            <li><strong>Unsafe operations</strong> &mdash; destructive commands without oversight</li>
+            <li><strong>No visibility</strong> &mdash; who is doing what, where?</li>
+        </ul>
+        <aside class="notes">
+            These are real problems we hit as soon as you go beyond a single agent session.
+            The coordinator exists to solve all five.
+        </aside>
+    </section>
+
+    <!-- Two-Level Overview Diagram -->
+    <section>
+        <h2>Two-Level Parallelism</h2>
+        <div class="diagram-slide">
+            <img src="01-two-level-parallelism.svg" alt="Two-Level Parallel Architecture">
+        </div>
+        <aside class="notes">
+            Level 1: Multiple features develop in parallel, managed by feature registry and merge queue.
+            Level 2: Within a feature, work packages execute in parallel via DAG scheduling.
+            The coordinator provides the primitives both levels depend on.
+        </aside>
+    </section>
+
+    <!-- Level 1 Detail -->
+    <section>
+        <h2>Level 1: Cross-Feature Parallelism</h2>
+        <div class="two-col">
+            <div>
+                <h3>Feature Registry</h3>
+                <ul class="medium">
+                    <li>Features register <span class="highlight">resource claims</span> before implementation</li>
+                    <li>Conflict analysis detects overlaps</li>
+                    <li>Feasibility: <span class="badge badge-green">FULL</span> <span class="badge badge-orange">PARTIAL</span> <span class="badge badge-red">SEQUENTIAL</span></li>
+                </ul>
+            </div>
+            <div>
+                <h3>Merge Queue</h3>
+                <ul class="medium">
+                    <li>Priority-ordered merging</li>
+                    <li>Pre-merge conflict re-validation</li>
+                    <li>Automatic rebase coordination</li>
+                    <li>States: QUEUED &rarr; PRE_MERGE &rarr; READY &rarr; MERGED</li>
+                </ul>
+            </div>
+        </div>
+        <aside class="notes">
+            FULL = no overlapping claims, safe to parallelize completely.
+            PARTIAL = some overlap, needs coordination (e.g., shared DB schema).
+            SEQUENTIAL = >50% overlap, must serialize.
+        </aside>
+    </section>
+
+    <!-- Level 2 Detail -->
+    <section>
+        <h2>Level 2: Intra-Feature Parallelism</h2>
+        <div class="two-col">
+            <div>
+                <h3>Work Packages</h3>
+                <ul class="medium">
+                    <li>Feature decomposes by <span class="highlight">architectural boundary</span></li>
+                    <li>Each package: own agent, worktree, scope</li>
+                    <li>DAG dependencies between packages</li>
+                    <li>Contracts &rarr; Backend &rarr; Frontend</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Key Invariants</h3>
+                <ul class="medium">
+                    <li>One agent, one worktree, one branch</li>
+                    <li>Scope enforcement via <code>write_allow</code> / <code>deny</code> globs</li>
+                    <li>Deterministic scope check: <code>git diff</code> vs allowed files</li>
+                    <li>Deadlock-safe lock ordering</li>
+                </ul>
+            </div>
+        </div>
+        <aside class="notes">
+            "Inverse Conway Maneuver" — agents organized by architectural boundary, not lifecycle phase.
+            Scope enforcement is deterministic: git diff output is checked against globs after code generation.
+        </aside>
+    </section>
+
+    <!-- Coordinator Architecture -->
+    <section>
+        <h2>Coordinator Architecture</h2>
+        <div class="diagram-slide">
+            <img src="02-coordinator-architecture.svg" alt="Coordinator Architecture">
+        </div>
+        <aside class="notes">
+            12 services, 19 MCP tools, backed by PostgreSQL with PL/pgSQL atomic RPCs.
+            Two transport layers: MCP for CLI agents, HTTP for cloud agents.
+            All services follow: policy check → execute → audit pattern.
+        </aside>
+    </section>
+
+    <!-- Coordinator Services Table -->
+    <section>
+        <h2>Coordinator Services</h2>
+        <div class="two-col">
+            <div>
+                <table>
+                    <tr><th>Service</th><th>Purpose</th></tr>
+                    <tr><td><span class="badge badge-green">Locks</span></td><td>File + logical key locking, TTL</td></tr>
+                    <tr><td><span class="badge badge-green">Work Queue</span></td><td>DAG deps, atomic claiming</td></tr>
+                    <tr><td><span class="badge badge-blue">Discovery</span></td><td>Registration, heartbeat, cleanup</td></tr>
+                    <tr><td><span class="badge badge-blue">Handoffs</span></td><td>Session context preservation</td></tr>
+                    <tr><td><span class="badge badge-blue">Memory</span></td><td>Episodic + procedural recall</td></tr>
+                    <tr><td><span class="badge badge-orange">Audit</span></td><td>Immutable append-only log</td></tr>
+                </table>
+            </div>
+            <div>
+                <table>
+                    <tr><th>Service</th><th>Purpose</th></tr>
+                    <tr><td><span class="badge badge-red">Guardrails</span></td><td>Destructive op detection</td></tr>
+                    <tr><td><span class="badge badge-red">Profiles</span></td><td>Trust levels 0&ndash;4, limits</td></tr>
+                    <tr><td><span class="badge badge-red">Policy Engine</span></td><td>Native / Cedar authorization</td></tr>
+                    <tr><td><span class="badge badge-purple">Feature Registry</span></td><td>Resource claims, conflict analysis</td></tr>
+                    <tr><td><span class="badge badge-purple">Merge Queue</span></td><td>Priority merging, re-validation</td></tr>
+                    <tr><td><span class="badge badge-purple">Port Allocator</span></td><td>Conflict-free port blocks</td></tr>
+                </table>
+            </div>
+        </div>
+        <aside class="notes">
+            Green = core primitives (Phase 1), Blue = session management (Phase 2),
+            Red = safety (Phase 3), Purple = parallel coordination, Orange = observability.
+        </aside>
+    </section>
+
+    <!-- Workflow Overview -->
+    <section>
+        <h2>Parallel Workflow</h2>
+        <div class="diagram-slide">
+            <img src="10-workflow-overview.svg" alt="Parallel Workflow">
+        </div>
+        <aside class="notes">
+            7 parallel skills mirror the linear workflow but add: resource claim analysis, contracts,
+            work-packages.yaml, DAG scheduling, vendor-diverse reviews, merge queue.
+            Falls back to linear when coordinator is unavailable.
+        </aside>
+    </section>
+
+    <!-- Parallel Implementation: Phase A -->
+    <section>
+        <h2>Phase A: Feature-Level Preflight</h2>
+        <div class="diagram-slide">
+            <img src="03a-parallel-lifecycle-preflight.svg" alt="Phase A: Preflight">
+        </div>
+        <aside class="notes">
+            Orchestrator registers, then submits all work packages with dependency edges.
+            The DAG determines execution order — packages with no deps are immediately claimable.
+        </aside>
+    </section>
+
+    <!-- Parallel Implementation: Phase B -->
+    <section>
+        <h2>Phase B: Parallel Package Execution</h2>
+        <div class="diagram-slide">
+            <img src="03b-parallel-lifecycle-execution.svg" alt="Phase B: Execution">
+        </div>
+        <aside class="notes">
+            Contracts complete first (no deps). Then backend + frontend run truly in parallel.
+            Each agent: claim work, acquire locks, read dependency results, implement, scope check, verify, complete.
+            Phase C follows: merge worktrees, run integration suite, submit to merge queue.
+        </aside>
+    </section>
+
+    <!-- Lock Acquisition: Happy Path -->
+    <section>
+        <h2>Lock Acquisition: Happy Path</h2>
+        <div class="diagram-slide">
+            <img src="04a-lock-happy-path.svg" alt="Lock Acquisition Happy Path">
+        </div>
+        <aside class="notes">
+            Key insight: all agents sort locks in the same lexicographic order.
+            This guarantees no circular wait — the textbook deadlock prevention technique.
+        </aside>
+    </section>
+
+    <!-- Lock Acquisition: Conflict -->
+    <section>
+        <h2>Lock Conflict: Rollback + Retry</h2>
+        <div class="diagram-slide">
+            <img src="04b-lock-conflict.svg" alt="Lock Conflict Handling">
+        </div>
+        <aside class="notes">
+            On conflict: release ALL held locks in reverse order, backoff with jitter, retry (max 3).
+            After 3 failures: FAIL with LOCK_UNAVAILABLE, escalate to orchestrator.
+        </aside>
+    </section>
+
+    <!-- Lock Namespaces -->
+    <section>
+        <h2>Lock Key Namespaces</h2>
+        <table>
+            <tr><th>Prefix</th><th>Example</th><th>Purpose</th></tr>
+            <tr><td><em>(none)</em></td><td><code>src/api/users.py</code></td><td>File-level locking</td></tr>
+            <tr><td><code>api:</code></td><td><code>api:GET /v1/users</code></td><td>API endpoint ownership</td></tr>
+            <tr><td><code>db:migration-slot</code></td><td><em>literal</em></td><td>Migration sequencing</td></tr>
+            <tr><td><code>db:schema:</code></td><td><code>db:schema:users</code></td><td>Schema table ownership</td></tr>
+            <tr><td><code>event:</code></td><td><code>event:user.created</code></td><td>Pub/sub coordination</td></tr>
+            <tr><td><code>flag:</code></td><td><code>flag:billing/*</code></td><td>Feature flag ownership</td></tr>
+            <tr><td><code>contract:</code></td><td><code>contract:openapi/v1.yaml</code></td><td>Contract artifact protection</td></tr>
+            <tr><td><code>feature:</code></td><td><code>feature:FEAT-123:pause</code></td><td>Feature-level pause signal</td></tr>
+        </table>
+        <p class="small">All stored in a single <code>file_locks.file_path</code> column &mdash; coordinator treats keys as opaque strings.</p>
+        <aside class="notes">
+            Namespaces give semantic meaning to locks beyond just file paths.
+            The coordinator doesn't interpret prefixes — it's all opaque strings with lexicographic ordering.
+            The pause lock is the "stop-the-line" mechanism for the orchestrator.
+        </aside>
+    </section>
+
+    <!-- Merge Queue: Registration -->
+    <section>
+        <h2>Merge Queue: Registration</h2>
+        <div class="diagram-slide">
+            <img src="05a-merge-register.svg" alt="Merge Queue Registration">
+        </div>
+        <aside class="notes">
+            Features register resource claims before implementation.
+            Conflict analysis detects overlapping claims and assesses feasibility.
+            PARTIAL means features can run in parallel but need coordination during merge.
+        </aside>
+    </section>
+
+    <!-- Merge Queue: Execution -->
+    <section>
+        <h2>Merge Queue: Priority Merging</h2>
+        <div class="diagram-slide">
+            <img src="05b-merge-execute.svg" alt="Merge Queue Execution">
+        </div>
+        <aside class="notes">
+            Features merge in priority order with pre-merge re-validation.
+            Lower-priority features rebase automatically after each merge.
+        </aside>
+    </section>
+
+    <!-- Guardrails -->
+    <section>
+        <h2>Guardrails & Trust Model</h2>
+        <div class="diagram-slide">
+            <img src="06-guardrails-flow.svg" alt="Guardrails Flow">
+        </div>
+        <aside class="notes">
+            Every task claim passes through guardrails before dispatch.
+            Pattern matching detects: git force-push, rm -rf, DROP TABLE, env file access.
+            Trust levels gate operations: standard agents (level 2) can't run admin ops (level 3+).
+            All decisions are audit-logged immutably.
+        </aside>
+    </section>
+
+    <!-- Worker Protocol -->
+    <section>
+        <h2>11-Step Worker Protocol</h2>
+        <div class="diagram-slide">
+            <img src="07-worker-protocol.svg" alt="Worker Protocol">
+        </div>
+        <aside class="notes">
+            This is the contract every parallel worker follows. Key safety points:
+            - B2/B9: Pause checks let the orchestrator halt all workers instantly.
+            - B3: Lexicographic lock ordering prevents deadlocks.
+            - B7: Deterministic scope check ensures agents stay within their allowed files.
+            - B11: Cleanup is guaranteed — ports and locks are always released.
+        </aside>
+    </section>
+
+    <!-- Contract-First Development -->
+    <section>
+        <h2>Contract-First Development</h2>
+        <div class="diagram-slide">
+            <img src="08-contract-first.svg" alt="Contract-First Development">
+        </div>
+        <aside class="notes">
+            Contracts are the coordination boundary between parallel agents.
+            The contracts package runs first, generates types and mocks.
+            Backend and frontend agents can develop against mocks independently.
+            Integration verification catches mismatches via property-based and consumer-driven tests.
+        </aside>
+    </section>
+
+    <!-- Transport & Degradation -->
+    <section>
+        <h2>Transport & Graceful Degradation</h2>
+        <div class="diagram-slide">
+            <img src="09-transport-degradation.svg" alt="Transport Model">
+        </div>
+        <aside class="notes">
+            CLI agents use MCP (stdio) — zero network config needed.
+            Cloud agents use HTTP API with API-key auth.
+            Skills detect coordinator availability and degrade:
+            Full capabilities → parallel skills.
+            No coordinator → automatic fallback to linear single-agent workflow.
+        </aside>
+    </section>
+
+    <!-- Escalation Protocol -->
+    <section>
+        <h2>Escalation Protocol</h2>
+        <div class="two-col">
+            <div>
+                <h3><span class="badge badge-red">Blocking</span></h3>
+                <ul class="medium">
+                    <li><strong>CONTRACT_REVISION_REQUIRED</strong><br/>Bump revision, regenerate, resubmit</li>
+                    <li><strong>PLAN_REVISION_REQUIRED</strong><br/>Modify DAG, increment plan_revision</li>
+                    <li><strong>SCOPE_VIOLATION</strong><br/>Fail package, require plan revision</li>
+                    <li><strong>SECURITY_ESCALATION</strong><br/>Pause DAG, require human approval</li>
+                </ul>
+            </div>
+            <div>
+                <h3><span class="badge badge-orange">Non-Blocking</span></h3>
+                <ul class="medium">
+                    <li><strong>RESOURCE_CONFLICT</strong><br/>Retry with backoff</li>
+                    <li><strong>VERIFICATION_INFEASIBLE</strong><br/>Reassign or create follow-up</li>
+                    <li><strong>ENV_RESOURCE_CONFLICT</strong><br/>Fresh port allocation</li>
+                    <li><strong>FLAKY_TEST_QUARANTINE</strong><br/>Quarantine, re-run, don't block</li>
+                </ul>
+            </div>
+        </div>
+        <p class="small"><strong>Stop-the-Line:</strong> Orchestrator acquires <code>feature:&lt;id&gt;:pause</code> lock. Workers check at B2 and B9.</p>
+        <aside class="notes">
+            8 escalation types with deterministic decisions.
+            The pause-lock is the kill switch — instantly halts all workers on a feature.
+            Security escalations always require human approval.
+        </aside>
+    </section>
+
+    <!-- Numbers -->
+    <section>
+        <h2>By the Numbers</h2>
+        <div class="two-col">
+            <div>
+                <h3>Coordinator</h3>
+                <ul>
+                    <li><strong>12</strong> services</li>
+                    <li><strong>19</strong> MCP tools + 7 resources</li>
+                    <li><strong>17</strong> PL/pgSQL functions</li>
+                    <li><strong>12</strong> database tables</li>
+                    <li><strong>300+</strong> unit tests</li>
+                    <li><strong>~9,500</strong> lines of Python</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Skills</h3>
+                <ul>
+                    <li><strong>7</strong> parallel skills</li>
+                    <li><strong>7</strong> linear skills</li>
+                    <li><strong>341</strong> skill tests</li>
+                    <li><strong>2</strong> transport layers (MCP + HTTP)</li>
+                    <li><strong>3</strong> supported agents (Claude, Codex, Gemini)</li>
+                    <li><strong>11</strong>-step worker protocol</li>
+                </ul>
+            </div>
+        </div>
+        <aside class="notes">
+            All implemented, tested, and in production use.
+        </aside>
+    </section>
+
+    <!-- Closing -->
+    <section>
+        <h1>Thank You</h1>
+        <p>Key Takeaways:</p>
+        <ul>
+            <li><strong>Two-level parallelism</strong> &mdash; cross-feature + intra-feature</li>
+            <li><strong>Contract-first</strong> &mdash; agents coordinate through shared interfaces</li>
+            <li><strong>Safety by design</strong> &mdash; locks, scopes, guardrails, audit</li>
+            <li><strong>Graceful degradation</strong> &mdash; always falls back to single-agent</li>
+        </ul>
+    </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        showNotes: false,
+        transition: 'slide',
+        plugins: [RevealNotes],
+        width: 1280,
+        height: 720,
+    });
+</script>
+</body>
+</html>

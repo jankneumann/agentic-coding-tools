@@ -1,0 +1,36 @@
+---
+title: Transport Model and Graceful Degradation
+---
+graph TB
+    subgraph CLI["CLI Agents (Local)"]
+        CC["Claude Code"]
+        CX["Codex CLI"]
+        GM["Gemini CLI"]
+    end
+
+    subgraph CLOUD["Cloud Agents (Remote)"]
+        CW["Claude Web"]
+        CXC["Codex Cloud"]
+    end
+
+    CLI --> MCP["MCP Server\n(stdio transport)"]
+    CLOUD --> HTTP["HTTP API\n(FastAPI + API-key)"]
+
+    MCP --> COORD["Agent Coordinator\nPostgreSQL Backend"]
+    HTTP --> COORD
+
+    COORD --> CHECK{"check_coordinator.py\n--json"}
+
+    CHECK -->|"all caps"| FULL["Parallel Skills\n(full coordination)"]
+    CHECK -->|"some caps"| PARTIAL["Partial Coordination\n(selective features)"]
+    CHECK -->|"unavailable"| NONE["Linear Fallback\n(single-agent mode)"]
+
+    style CLI fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style CLOUD fill:#e3f2fd,stroke:#2196F3,stroke-width:2px
+    style MCP fill:#fff3e0,stroke:#FF9800,stroke-width:2px
+    style HTTP fill:#fff3e0,stroke:#FF9800,stroke-width:2px
+    style COORD fill:#f3e5f5,stroke:#9C27B0,stroke-width:3px
+    style CHECK fill:#fafafa,stroke:#616161,stroke-width:2px
+    style FULL fill:#c8e6c9,stroke:#43A047,stroke-width:2px
+    style PARTIAL fill:#fff9c4,stroke:#FDD835,stroke-width:2px
+    style NONE fill:#ffcdd2,stroke:#E53935,stroke-width:2px

@@ -1,0 +1,18 @@
+---
+title: "Merge Queue: Registration + Conflict Analysis"
+---
+sequenceDiagram
+    participant FA as Feature A
+    participant FB as Feature B
+    participant REG as Registry
+
+    FA->>REG: register(claims=[db:schema:users, api:/auth/*])
+    REG-->>FA: registered
+
+    FB->>REG: register(claims=[db:schema:users, api:/profile/*])
+    REG->>REG: analyze_conflicts
+    Note over REG: Overlap: db:schema:users
+    Note over REG: Feasibility: PARTIAL
+    REG-->>FB: registered (PARTIAL)
+
+    Note over FA,FB: Both features implement in parallel worktrees

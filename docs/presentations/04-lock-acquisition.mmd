@@ -1,0 +1,36 @@
+---
+title: Deadlock-Safe Lock Acquisition
+---
+sequenceDiagram
+    participant A as Agent
+    participant C as Coordinator
+    participant B as Agent B (holder)
+
+    Note over A,B: Locks sorted lexicographically to prevent deadlocks
+    A->>A: Sort: [api:/v1/users, db:schema:users, src/api/users.py]
+
+    A->>C: acquire_lock("api:/v1/users")
+    C-->>A: acquired
+
+    A->>C: acquire_lock("db:schema:users")
+    C-->>A: acquired
+
+    A->>C: acquire_lock("src/api/users.py")
+    C-->>A: CONFLICT (held by Agent B)
+
+    Note over A,C: Rollback ALL locks in reverse order
+    A->>C: release_lock("db:schema:users")
+    A->>C: release_lock("api:/v1/users")
+
+    Note over A: Exponential backoff + jitter (max 3 retries)
+    A->>A: wait 2s + random jitter
+
+    A->>C: acquire_lock("api:/v1/users")
+    C-->>A: acquired
+    A->>C: acquire_lock("db:schema:users")
+    C-->>A: acquired
+    A->>C: acquire_lock("src/api/users.py")
+    Note over B: Lock released
+    C-->>A: acquired
+
+    Note over A,C: All locks held - proceed with code generation

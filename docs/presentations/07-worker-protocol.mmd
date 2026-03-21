@@ -1,0 +1,45 @@
+---
+title: 11-Step Worker Execution Protocol (Phase B)
+---
+graph LR
+    B1["B1: Register\n+ Heartbeat"]
+    B2["B2: Pause\nCheck"]
+    B3["B3: Lock\nAcquire"]
+    B4["B4: Port\nAlloc"]
+    B5["B5: Read\nDeps"]
+    B6["B6: Code\nGen"]
+    B7["B7: Scope\nCheck"]
+    B8["B8: Verify\nTests"]
+    B9["B9: Pause\nRe-check"]
+    B10["B10: Publish\nResult"]
+    B11["B11: Cleanup"]
+
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 --> B5
+    B5 --> B6
+    B6 --> B7
+    B7 --> B8
+    B8 --> B9
+    B9 --> B10
+    B10 --> B11
+
+    B2 -- "PAUSED" --> WAIT["Wait"]
+    WAIT --> B2
+    B3 -- "FAIL" --> ESC["Escalate"]
+    B7 -- "SCOPE\nVIOLATION" --> ESC
+
+    style B1 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style B2 fill:#fff3e0,stroke:#FF9800,stroke-width:2px
+    style B3 fill:#e3f2fd,stroke:#2196F3,stroke-width:2px
+    style B4 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style B5 fill:#e3f2fd,stroke:#2196F3,stroke-width:2px
+    style B6 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style B7 fill:#ffebee,stroke:#F44336,stroke-width:2px
+    style B8 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style B9 fill:#fff3e0,stroke:#FF9800,stroke-width:2px
+    style B10 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style B11 fill:#efebe9,stroke:#795548,stroke-width:2px
+    style WAIT fill:#fff9c4,stroke:#FDD835,stroke-width:2px
+    style ESC fill:#ffcdd2,stroke:#E53935,stroke-width:2px

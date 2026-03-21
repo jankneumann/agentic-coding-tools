@@ -1,0 +1,36 @@
+---
+title: "Phase B: Parallel Package Execution"
+---
+sequenceDiagram
+    participant C as Coordinator
+    participant A1 as Agent 1
+    participant A2 as Agent 2
+
+    rect rgb(232, 245, 233)
+        Note over C,A2: wp-contracts runs first (no dependencies)
+        A1->>C: get_work → wp-contracts
+        A1->>C: acquire_lock(contract:openapi/v1.yaml)
+        A1->>A1: Generate OpenAPI spec + types
+        A1->>C: complete_work(result={openapi, types})
+    end
+
+    rect rgb(227, 242, 253)
+        Note over C,A2: Backend + Frontend run in PARALLEL
+        par
+            A1->>C: get_work → wp-backend
+            A1->>C: acquire_lock(src/api/*, db:schema:*)
+            A1->>C: get_task(wp-contracts) → read result
+            A1->>A1: Implement endpoints
+            A1->>A1: Scope check + verify
+            A1->>C: complete_work(backend result)
+        and
+            A2->>C: get_work → wp-frontend
+            A2->>C: acquire_lock(src/ui/*)
+            A2->>C: get_task(wp-contracts) → read result
+            A2->>A2: Implement UI components
+            A2->>A2: Scope check + verify
+            A2->>C: complete_work(frontend result)
+        end
+    end
+
+    Note over C,A2: Phase C: Merge worktrees → integration tests → merge queue

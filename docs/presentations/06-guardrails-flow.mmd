@@ -1,0 +1,26 @@
+---
+title: "Guardrails: Work Queue Claim with Safety Checks"
+---
+sequenceDiagram
+    participant A as Agent
+    participant C as Coordinator
+    participant G as Guardrails + Policy
+
+    A->>C: get_work(task_types=["implementation"])
+    C->>C: claim_task (atomic PL/pgSQL)
+    C->>G: check_operation(task description)
+    G->>G: Pattern match against destructive ops
+    G->>G: Check agent trust level
+
+    alt No violations — safe to proceed
+        G-->>C: safe=true, allowed=true
+        C->>C: audit_log(task_claimed)
+        C-->>A: Task dispatched
+        A->>A: Execute implementation
+    else Destructive op detected — blocked
+        G-->>C: safe=false (e.g. "DROP TABLE")
+        Note over G: min_trust=3, agent_trust=2 → BLOCKED
+        C->>C: Release task back to queue
+        C->>C: audit_log(guardrail_block)
+        C-->>A: Blocked (insufficient trust level)
+    end

@@ -1,0 +1,21 @@
+---
+title: "Merge Queue: Priority-Ordered Merging"
+---
+sequenceDiagram
+    participant FA as Feature A
+    participant FB as Feature B
+    participant MQ as Merge Queue
+
+    FA->>MQ: enqueue(priority=1)
+    FB->>MQ: enqueue(priority=2)
+
+    MQ->>MQ: pre_merge_checks(A)
+    MQ->>MQ: merge Feature A to main
+    MQ->>MQ: deregister(A)
+
+    MQ->>FB: rebase onto updated main
+    FB-->>MQ: rebased
+
+    MQ->>MQ: pre_merge_checks(B)
+    MQ->>MQ: merge Feature B to main
+    MQ->>MQ: deregister(B)

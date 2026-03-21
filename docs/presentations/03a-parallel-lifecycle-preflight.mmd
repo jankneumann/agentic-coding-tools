@@ -1,0 +1,16 @@
+---
+title: "Phase A: Feature-Level Preflight"
+---
+sequenceDiagram
+    participant O as Orchestrator
+    participant C as Coordinator
+
+    O->>C: register_session(orchestrator)
+    O->>C: submit_work(wp-contracts, priority=1)
+    O->>C: submit_work(wp-backend, depends_on=[contracts])
+    O->>C: submit_work(wp-frontend, depends_on=[contracts])
+    O->>C: submit_work(wp-migrations, depends_on=[])
+
+    Note over O,C: DAG created with dependency edges
+    Note over O,C: Contracts + Migrations: ready immediately
+    Note over O,C: Backend + Frontend: blocked until contracts complete

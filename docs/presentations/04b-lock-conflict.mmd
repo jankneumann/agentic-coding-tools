@@ -1,0 +1,24 @@
+---
+title: "Lock Conflict: Rollback + Retry"
+---
+sequenceDiagram
+    participant A as Agent
+    participant C as Coordinator
+
+    A->>C: acquire_lock("src/api/users.py")
+    C-->>A: CONFLICT (held by another agent)
+
+    Note over A,C: Rollback: release ALL held locks in reverse order
+    A->>C: release_lock("db:schema:users")
+    A->>C: release_lock("api:/v1/users")
+
+    Note over A: Exponential backoff + jitter (max 3 retries)
+
+    A->>C: acquire_lock("api:/v1/users")
+    C-->>A: acquired
+    A->>C: acquire_lock("db:schema:users")
+    C-->>A: acquired
+    A->>C: acquire_lock("src/api/users.py")
+    C-->>A: acquired
+
+    Note over A,C: All locks held — proceed

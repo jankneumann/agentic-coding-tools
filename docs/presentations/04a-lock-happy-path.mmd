@@ -1,0 +1,20 @@
+---
+title: "Lock Acquisition: Happy Path"
+---
+sequenceDiagram
+    participant A as Agent
+    participant C as Coordinator
+
+    Note over A,C: All agents sort locks in same lexicographic order
+    A->>A: Sort: [api:/v1/users, db:schema:users, src/api/users.py]
+
+    A->>C: acquire_lock("api:/v1/users")
+    C-->>A: acquired
+
+    A->>C: acquire_lock("db:schema:users")
+    C-->>A: acquired
+
+    A->>C: acquire_lock("src/api/users.py")
+    C-->>A: acquired
+
+    Note over A,C: All 3 locks held — proceed with code generation

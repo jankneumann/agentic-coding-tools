@@ -1,0 +1,57 @@
+---
+title: Two-Level Parallel Agentic Development
+---
+graph LR
+    subgraph L1["Level 1: Cross-Feature\n(Program Level)"]
+        direction TB
+        FA["Feature A\nauth-service"]
+        FB["Feature B\nbilling-api"]
+        FC["Feature C\ndashboard-ui"]
+        FR["Feature Registry\nResource Claims"]
+        MQ["Merge Queue\nPriority-Ordered"]
+        FA --> FR
+        FB --> FR
+        FC --> FR
+        FR --> MQ
+    end
+
+    subgraph COORD["Agent Coordinator"]
+        direction TB
+        LOCKS["Locks"]
+        WQ["Work Queue"]
+        DISC["Discovery"]
+        GUARD["Guardrails"]
+        AUDIT["Audit Log"]
+        MEM["Memory"]
+    end
+
+    subgraph L2["Level 2: Intra-Feature\n(Team Level)"]
+        direction TB
+        DS["DAG Scheduler"]
+        WP3["wp-contracts\nAgent 3"]
+        WP4["wp-migrations\nAgent 4"]
+        WP1["wp-backend\nAgent 1"]
+        WP2["wp-frontend\nAgent 2"]
+        DS --> WP3
+        DS --> WP4
+        WP3 --> WP1
+        WP3 --> WP2
+        WP4 --> WP1
+    end
+
+    L1 --- COORD
+    COORD --- L2
+
+    style L1 fill:#e8f4fd,stroke:#2196F3,stroke-width:2px
+    style L2 fill:#e8f5e9,stroke:#4CAF50,stroke-width:2px
+    style COORD fill:#fff3e0,stroke:#FF9800,stroke-width:2px
+    style FA fill:#bbdefb,stroke:#1976D2
+    style FB fill:#bbdefb,stroke:#1976D2
+    style FC fill:#bbdefb,stroke:#1976D2
+    style FR fill:#90caf9,stroke:#1565C0
+    style MQ fill:#90caf9,stroke:#1565C0
+    style DS fill:#a5d6a7,stroke:#388E3C
+    style WP1 fill:#c8e6c9,stroke:#43A047
+    style WP2 fill:#c8e6c9,stroke:#43A047
+    style WP3 fill:#c8e6c9,stroke:#43A047
+    style WP4 fill:#c8e6c9,stroke:#43A047

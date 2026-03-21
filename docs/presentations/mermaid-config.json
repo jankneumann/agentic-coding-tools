@@ -1,0 +1,18 @@
+{
+  "theme": "default",
+  "themeVariables": {
+    "fontSize": "24px"
+  },
+  "flowchart": {
+    "htmlLabels": true,
+    "curve": "basis"
+  },
+  "sequence": {
+    "actorFontSize": 24,
+    "messageFontSize": 22,
+    "noteFontSize": 20,
+    "actorMargin": 80,
+    "width": 250,
+    "height": 65
+  }
+}

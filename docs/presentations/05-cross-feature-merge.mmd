@@ -1,0 +1,30 @@
+---
+title: Cross-Feature Merge Queue
+---
+sequenceDiagram
+    participant FA as Feature A
+    participant FB as Feature B
+    participant REG as Registry
+    participant MQ as Merge Queue
+
+    FA->>REG: register(claims=[db:schema:users, api:/auth/*])
+    REG-->>FA: registered
+
+    FB->>REG: register(claims=[db:schema:users, api:/profile/*])
+    REG->>REG: analyze_conflicts → PARTIAL (db:schema:users overlap)
+    REG-->>FB: registered (PARTIAL feasibility)
+
+    Note over FA,MQ: Both features implement in parallel worktrees
+
+    FA->>MQ: enqueue(priority=1)
+    FB->>MQ: enqueue(priority=2)
+
+    MQ->>MQ: pre_merge_checks(Feature A)
+    MQ->>MQ: merge Feature A to main
+    MQ->>REG: deregister(Feature A)
+
+    MQ->>FB: rebase onto updated main
+    FB-->>MQ: rebased
+    MQ->>MQ: pre_merge_checks(Feature B)
+    MQ->>MQ: merge Feature B to main
+    MQ->>REG: deregister(Feature B)
