@@ -11,6 +11,11 @@ set -u
 WORKTREE_PATH="${1:?Usage: worktree-bootstrap.sh <worktree-path> <main-repo-path>}"
 MAIN_REPO="${2:?Usage: worktree-bootstrap.sh <worktree-path> <main-repo-path>}"
 
+# Log agent identity if provided (set by worktree.py setup --agent-id)
+if [ -n "${AGENT_ID:-}" ]; then
+    echo "Agent ID: $AGENT_ID"
+fi
+
 # Share uv cache across worktrees
 export UV_CACHE_DIR="${MAIN_REPO}/.uv-cache"
 

@@ -145,7 +145,36 @@ Each target registers the coordination MCP server with:
 
 Restart each CLI after registration to activate.
 
-#### 3b. Verify MCP capabilities
+#### 3b. Allow-list coordination tools in Claude Code permissions
+
+After MCP registration, ensure all coordination tools are allow-listed so they don't trigger permission prompts during workflow execution:
+
+```bash
+# Check if mcp__coordination__* is already in settings.local.json
+SETTINGS_FILE=".claude/settings.local.json"
+
+if ! grep -q 'mcp__coordination__\*' "$SETTINGS_FILE" 2>/dev/null; then
+  # Add the wildcard permission using python3 for safe JSON manipulation
+  python3 -c "
+import json, pathlib
+p = pathlib.Path('$SETTINGS_FILE')
+settings = json.loads(p.read_text()) if p.exists() else {}
+perms = settings.setdefault('permissions', {}).setdefault('allow', [])
+# Remove any individual mcp__coordination__ entries
+perms[:] = [e for e in perms if not e.startswith('mcp__coordination__') or e == 'mcp__coordination__*']
+perms.append('mcp__coordination__*')
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(json.dumps(settings, indent=2) + '\n')
+print('Added mcp__coordination__* to permissions allow-list')
+"
+else
+  echo "mcp__coordination__* already in permissions"
+fi
+```
+
+This replaces any individual coordination tool entries (e.g., `mcp__coordination__submit_work`) with the single wildcard `mcp__coordination__*`.
+
+#### 3c. Verify MCP capabilities
 
 Verify the MCP server is connected in each CLI:
 

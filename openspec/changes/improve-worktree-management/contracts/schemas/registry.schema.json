@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "worktree-registry",
+  "title": "Worktree Registry",
+  "description": "Schema for .git-worktrees/.registry.json — advisory registry of managed worktrees",
+  "type": "object",
+  "required": ["version", "entries"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for forward compatibility"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RegistryEntry"
+      }
+    }
+  },
+  "$defs": {
+    "RegistryEntry": {
+      "type": "object",
+      "required": ["change_id", "branch", "worktree_path", "created_at", "last_heartbeat", "pinned"],
+      "properties": {
+        "change_id": {
+          "type": "string",
+          "description": "OpenSpec change-id or identifier"
+        },
+        "agent_id": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Agent identifier for parallel disambiguation. Null for single-agent worktrees."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Git branch name checked out in this worktree"
+        },
+        "worktree_path": {
+          "type": "string",
+          "description": "Absolute path to the worktree directory"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp of worktree creation"
+        },
+        "last_heartbeat": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp of last heartbeat"
+        },
+        "pinned": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, worktree is exempt from garbage collection"
+        }
+      }
+    }
+  }
+}

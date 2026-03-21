@@ -1,0 +1,43 @@
+openapi: "3.1.0"
+info:
+  title: "Worktree Management CLI Contract"
+  version: "1.0.0"
+  description: |
+    This is a CLI tool, not an HTTP API. This OpenAPI stub satisfies the
+    work-packages schema requirement. The actual contract is defined in
+    contracts/cli/worktree-cli.yaml and contracts/schemas/registry.schema.json.
+paths: {}
+components:
+  schemas:
+    RegistryEntry:
+      type: object
+      required: [change_id, branch, worktree_path, created_at, last_heartbeat, pinned]
+      properties:
+        change_id:
+          type: string
+        agent_id:
+          type: [string, "null"]
+        branch:
+          type: string
+        worktree_path:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_heartbeat:
+          type: string
+          format: date-time
+        pinned:
+          type: boolean
+          default: false
+    Registry:
+      type: object
+      required: [version, entries]
+      properties:
+        version:
+          type: integer
+          enum: [1]
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistryEntry"

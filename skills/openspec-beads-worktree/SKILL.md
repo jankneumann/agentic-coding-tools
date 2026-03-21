@@ -272,21 +272,23 @@ create_task_worktree() {
     sed 's/--*/-/g' | \
     sed 's/^-//;s/-$//')
   
-  local worktree_path=".git-worktrees/${PROPOSAL_NAME}-${task_num}"
+  # Use agent-id for worktree disambiguation
+  local agent_id="task-${task_num}-${branch_name}"
   local branch="${FEATURE_BRANCH}-task-${task_num}-${branch_name}"
-  
-  # Create worktree
-  git worktree add -b "$branch" "$worktree_path" "$FEATURE_BRANCH"
-  
+
+  # Create worktree via scripts/worktree.py (creates .git-worktrees/<proposal>/<agent-id>/)
+  eval "$(python3 scripts/worktree.py setup "${PROPOSAL_NAME}" --branch "${branch}" --agent-id "${agent_id}")"
+
   # Store worktree info in Beads
   bd update "$task_id" --description "$(bd show $task_id --json | jq -r '.description')
 
-Worktree: $worktree_path
+Worktree: $WORKTREE_PATH
 Branch: $branch
+Agent-ID: $agent_id
 Base: $FEATURE_BRANCH"
-  
-  echo "Created worktree: $worktree_path"
-  echo "$task_id|$worktree_path|$branch" >> /tmp/worktree_map_$PROPOSAL_NAME.txt
+
+  echo "Created worktree: $WORKTREE_PATH"
+  echo "$task_id|$WORKTREE_PATH|$branch|$agent_id" >> /tmp/worktree_map_$PROPOSAL_NAME.txt
 }
 
 # Create worktrees for ready tasks
@@ -379,7 +381,7 @@ EOF
 }
 
 # Setup all worktrees
-while IFS='|' read -r task_id worktree_path branch; do
+while IFS='|' read -r task_id worktree_path branch agent_id; do
   setup_worktree_context "$worktree_path" "$task_id"
 done < /tmp/worktree_map_$PROPOSAL_NAME.txt
 ```
@@ -426,7 +428,7 @@ execute_task() {
 case "$STRATEGY" in
   single)
     echo "Sequential execution..."
-    while IFS='|' read -r task_id worktree_path branch; do
+    while IFS='|' read -r task_id worktree_path branch agent_id; do
       execute_task "$task_id" "$worktree_path" "$branch"
     done < "$MAP_FILE"
     ;;
@@ -554,14 +556,14 @@ merge_worktrees "$PROPOSAL_NAME" "$EPIC_ID"
 # Remove completed worktrees
 cleanup_worktrees() {
   local proposal=$1
-  
-  while IFS='|' read -r task_id worktree_path branch; do
+
+  while IFS='|' read -r task_id worktree_path branch agent_id; do
     # Check if task is merged
     if bd show $task_id --json | jq -e '.labels[] | select(. == "merged")' > /dev/null; then
-      echo "Removing worktree: $worktree_path"
-      git worktree remove "$worktree_path"
+      echo "Removing worktree: $worktree_path (agent-id: $agent_id)"
+      python3 scripts/worktree.py teardown "${proposal}" --agent-id "${agent_id}"
       git branch -d "$branch"
-      
+
       bd update $task_id --description "$(bd show $task_id --json | jq -r '.description')
 
 [Worktree cleaned up: $(date)]"

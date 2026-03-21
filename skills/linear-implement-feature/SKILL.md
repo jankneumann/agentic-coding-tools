@@ -75,8 +75,14 @@ Confirm the proposal is approved before proceeding.
 Create an isolated worktree for this feature to avoid conflicts with other CLI sessions:
 
 ```bash
+# Pass --agent-id if AGENT_ID env var is set
+AGENT_FLAG=""
+if [[ -n "${AGENT_ID:-}" ]]; then
+  AGENT_FLAG="--agent-id ${AGENT_ID}"
+fi
+
 # Setup worktree for feature isolation (creates .git-worktrees/<change-id>/)
-eval "$(python3 scripts/worktree.py setup "<change-id>")"
+eval "$(python3 scripts/worktree.py setup "<change-id>" ${AGENT_FLAG})"
 cd "$WORKTREE_PATH"
 echo "Working directory: $(pwd)"
 ```
@@ -116,6 +122,8 @@ Capability-gated coordinator hooks:
 - **Guardrails (`CAN_GUARDRAILS=true`)**: before running high-risk operations, run a guardrail pre-check and report violations informationally (phase 1 does not hard-block)
 - **File locking (`CAN_LOCK=true`)**: acquire locks before editing files and keep a local list of acquired locks for cleanup
 - **Work queue (`CAN_QUEUE_WORK=true`)**: for independent tasks, optionally submit/claim/complete via coordinator queue APIs; if unavailable or unclaimed, fall back to local `Task()` execution
+
+**Heartbeat:** During long-running implementation, periodically call `python3 scripts/worktree.py heartbeat "<change-id>" ${AGENT_FLAG}` to signal liveness to the worktree registry. This prevents stale-agent garbage collection from reclaiming the worktree.
 
 **TDD Approach:**
 - Write tests first that define expected behavior

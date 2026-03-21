@@ -211,6 +211,7 @@ __marimo__/
 
 # Git worktrees (used by OpenSpec skills for feature isolation)
 .git-worktrees/
+# Worktree registry is inside .git-worktrees/ and covered by the above pattern
 
 # TLA+ TLC model checker artifacts
 states/
