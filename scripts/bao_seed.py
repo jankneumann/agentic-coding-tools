@@ -188,16 +188,33 @@ def seed_db_engine(
         client.sys.enable_secrets_engine("database")
         print("Enabled database secrets engine")
 
-    # Configure PostgreSQL connection
+    # Configure PostgreSQL connection — parse the DSN properly to extract
+    # credentials and build a template URL with {{username}}/{{password}}
+    # placeholders for OpenBao's database secrets engine.
+    from urllib.parse import urlparse
+
+    parsed = urlparse(db_dsn)
+    db_username = parsed.username or "postgres"
+    db_password = parsed.password or "postgres"
+
+    if "{{username}}" in db_dsn:
+        # Already a template URL, use as-is
+        connection_url = db_dsn
+    else:
+        # Build template URL: strip existing credentials, insert placeholders
+        host_port = parsed.hostname or "localhost"
+        if parsed.port:
+            host_port = f"{host_port}:{parsed.port}"
+        db_name = parsed.path.lstrip("/") or "postgres"
+        connection_url = f"postgresql://{{{{username}}}}:{{{{password}}}}@{host_port}/{db_name}"
+
     client.secrets.database.configure(
         name="coordinator-postgres",
         plugin_name="postgresql-database-plugin",
-        connection_url=db_dsn.replace("postgresql://", "postgresql://{{username}}:{{password}}@", 1)
-        if "{{username}}" not in db_dsn
-        else db_dsn,
+        connection_url=connection_url,
         allowed_roles=["coordinator-agent"],
-        username=db_dsn.split("://")[1].split(":")[0] if "://" in db_dsn else "postgres",
-        password=db_dsn.split(":")[2].split("@")[0] if db_dsn.count(":") >= 2 else "postgres",
+        username=db_username,
+        password=db_password,
     )
     print("Configured PostgreSQL connection: coordinator-postgres")
 

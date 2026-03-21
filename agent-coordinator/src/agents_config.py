@@ -144,9 +144,9 @@ def load_agents_config(
         resolved_key: str | None = None
         if raw_key:
             resolved_key = interpolate(raw_key, secrets)
-            # If any ${VAR} token remains after interpolation, treat as unresolved.
-            if _INTERPOLATION_RE.search(resolved_key):
-                resolved_key = None
+            # Keep unresolved ${VAR} placeholders so that
+            # _resolve_api_key_from_openbao() can extract the variable
+            # name and fetch the secret from OpenBao at runtime.
 
         entries.append(
             AgentEntry(
@@ -187,7 +187,16 @@ def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
         return agent.api_key
 
     try:
-        client = bao_config.create_client()
+        import hvac
+
+        # Authenticate with the agent's own AppRole, not the global coordinator token.
+        # The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)
+        # while the role_id comes from the per-agent openbao_role_id field.
+        client = hvac.Client(url=bao_config.addr, timeout=bao_config.timeout)
+        client.auth.approle.login(
+            role_id=agent.openbao_role_id,
+            secret_id=bao_config.secret_id,
+        )
         response = client.secrets.kv.v2.read_secret_version(
             path=bao_config.secret_path,
             mount_point=bao_config.mount_path,
@@ -241,6 +250,11 @@ def get_api_key_identities(
                 key = resolved
 
         if not key:
+            continue
+
+        # Skip unresolved ${VAR} placeholders — they're not usable as
+        # identity keys unless resolved via OpenBao above.
+        if _INTERPOLATION_RE.search(key):
             continue
 
         if key in identities:

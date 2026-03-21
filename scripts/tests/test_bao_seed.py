@@ -183,6 +183,11 @@ class TestSeedDbEngine:
 
         client.sys.enable_secrets_engine.assert_called_once_with("database")
         client.secrets.database.configure.assert_called_once()
+        # Verify the connection URL is built correctly from the DSN
+        configure_call = client.secrets.database.configure.call_args
+        assert configure_call.kwargs["connection_url"] == "postgresql://{{username}}:{{password}}@host:5432/db"
+        assert configure_call.kwargs["username"] == "user"
+        assert configure_call.kwargs["password"] == "pass"
         client.secrets.database.create_role.assert_called_once()
         role_call = client.secrets.database.create_role.call_args
         assert role_call.kwargs["name"] == "coordinator-agent"

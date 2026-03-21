@@ -76,12 +76,13 @@ class TestLoadAgentsConfig:
         cloud = next(a for a in agents if a.name == "test-cloud")
         assert cloud.api_key == "secret123"
 
-    def test_unresolved_api_key_is_none(self, tmp_path: Path) -> None:
+    def test_unresolved_api_key_kept_as_placeholder(self, tmp_path: Path) -> None:
+        """Unresolved ${VAR} placeholders are preserved for OpenBao lookup."""
         agents_file = tmp_path / "agents.yaml"
         _write(agents_file, VALID_AGENTS_YAML)
         agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
         cloud = next(a for a in agents if a.name == "test-cloud")
-        assert cloud.api_key is None
+        assert cloud.api_key == "${TEST_API_KEY}"
 
     def test_file_not_found(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
@@ -223,8 +224,8 @@ class TestGetAgentConfig:
         assert result == []
         reset_agents_config()
 
-    def test_partial_interpolation_detected(self, tmp_path: Path) -> None:
-        """api_key with embedded unresolved ${VAR} treated as None."""
+    def test_partial_interpolation_preserved(self, tmp_path: Path) -> None:
+        """api_key with embedded unresolved ${VAR} is preserved for OpenBao."""
         yaml_content = """\
 agents:
   test-partial:
@@ -239,7 +240,7 @@ agents:
         agents_file = tmp_path / "agents.yaml"
         _write(agents_file, yaml_content)
         agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
-        assert agents[0].api_key is None
+        assert agents[0].api_key == "prefix-${UNRESOLVED_KEY}"
 
 
 # ---------------------------------------------------------------------------
@@ -320,6 +321,42 @@ class TestOpenbaoApiKeyResolution:
         ]
         result = get_api_key_identities(agents)
         assert result == {"shared-key": {"agent_id": "no-role", "agent_type": "codex"}}
+
+    def test_resolve_uses_agent_role_id(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """_resolve_api_key_from_openbao authenticates with the agent's own role_id."""
+        from src.agents_config import _resolve_api_key_from_openbao
+
+        mock_config = MagicMock()
+        mock_config.is_enabled.return_value = True
+        mock_config.addr = "http://localhost:8200"
+        mock_config.timeout = 5
+        mock_config.secret_id = "shared-secret"
+        mock_config.secret_path = "coordinator"
+        mock_config.mount_path = "secret"
+
+        mock_client = MagicMock()
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": {"MY_KEY": "resolved-value"}}
+        }
+
+        mock_hvac = MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        with patch("src.config.OpenBaoConfig.from_env", return_value=mock_config), \
+             patch.dict("sys.modules", {"hvac": mock_hvac}):
+            agent = AgentEntry(
+                name="c1", type="codex", profile="p", trust_level=2,
+                transport="http", capabilities=[], description="d",
+                api_key="${MY_KEY}", openbao_role_id="agent-c1-role",
+            )
+            result = _resolve_api_key_from_openbao(agent)
+            assert result == "resolved-value"
+            # Verify it used the agent's role_id, not the global one
+            mock_client.auth.approle.login.assert_called_once_with(
+                role_id="agent-c1-role", secret_id="shared-secret",
+            )
 
     @patch("src.agents_config._resolve_api_key_from_openbao")
     def test_openbao_failure_falls_back(
