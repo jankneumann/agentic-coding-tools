@@ -74,3 +74,15 @@ The agent identity system SHALL support per-agent dynamic PostgreSQL credentials
 - When OpenBao is enabled and an agent's `api_key` field references a `${VAR}` placeholder, the value SHALL be resolved from OpenBao instead of `.secrets.yaml`
 - The output format (`{key: {agent_id, agent_type}}` JSON dict) SHALL remain identical
 - When `COORDINATION_API_KEY_IDENTITIES` is set as an explicit env var, it SHALL still override agents.yaml (existing precedence preserved)
+
+#### Scenario: API key resolved from OpenBao
+- **WHEN** OpenBao is enabled (`BAO_ADDR` set)
+- **AND** an agent's `api_key` is `${CODEX_KEY}` with `openbao_role_id` set
+- **THEN** `get_api_key_identities()` SHALL resolve the key from OpenBao
+- **AND** the identity map SHALL contain the resolved key mapped to the agent
+
+#### Scenario: API key resolution falls back without OpenBao
+- **WHEN** OpenBao is not enabled
+- **AND** an agent's `api_key` is resolved from `.secrets.yaml`
+- **THEN** `get_api_key_identities()` SHALL use the statically resolved key
+- **AND** unresolved `${VAR}` placeholders SHALL be excluded from the identity map

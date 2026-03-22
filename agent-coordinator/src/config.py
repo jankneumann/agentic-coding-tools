@@ -292,7 +292,7 @@ class OpenBaoConfig:
                 "BAO_SECRET_ID environment variable is required when BAO_ADDR is set"
             )
 
-        import hvac  # type: ignore[import-untyped]
+        import hvac
 
         try:
             client = hvac.Client(url=self.addr, timeout=self.timeout)

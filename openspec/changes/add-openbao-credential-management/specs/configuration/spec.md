@@ -153,3 +153,13 @@ The worktree bootstrap process SHALL conditionally skip `.secrets.yaml` file cop
 - The `${VAR}` and `${VAR:-default}` syntax SHALL remain identical
 - The resolution order SHALL remain: secrets dict (now sourced from OpenBao or file) → `os.environ`
 - Escape syntax `$${VAR}` SHALL continue to produce literal `${VAR}`
+
+#### Scenario: Interpolation uses OpenBao secrets
+- **WHEN** `BAO_ADDR` is set and OpenBao contains `DB_PASSWORD: "vault-pass"`
+- **THEN** `${DB_PASSWORD}` in profile YAML SHALL resolve to `"vault-pass"`
+- **AND** the interpolation syntax and behavior SHALL be identical to file-based resolution
+
+#### Scenario: Interpolation uses .secrets.yaml when OpenBao is disabled
+- **WHEN** `BAO_ADDR` is not set
+- **AND** `.secrets.yaml` contains `DB_PASSWORD: "file-pass"`
+- **THEN** `${DB_PASSWORD}` SHALL resolve to `"file-pass"` as before
