@@ -375,6 +375,12 @@ class ApiConfig:
                     exc_info=True,
                 )
 
+        # When COORDINATION_API_KEYS is not set explicitly, derive the
+        # allowlist from the auto-populated identity map so that keys
+        # from agents.yaml are accepted without redundant env-var config.
+        if not api_keys and identities:
+            api_keys = list(identities.keys())
+
         return cls(
             host=os.environ.get("API_HOST", "0.0.0.0"),
             port=int(os.environ.get("API_PORT", "8081")),

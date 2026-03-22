@@ -374,3 +374,52 @@ class TestOpenbaoApiKeyResolution:
         ]
         result = get_api_key_identities(agents)
         assert "fallback-key" in result
+
+
+# ---------------------------------------------------------------------------
+# ApiConfig auto-population of api_keys from agents.yaml
+# ---------------------------------------------------------------------------
+
+
+class TestApiKeysAutoPopulation:
+    """Verify that api_keys list is derived from identity map when not set."""
+
+    def test_api_keys_derived_from_identities(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When COORDINATION_API_KEYS is empty, keys come from identities."""
+        from src.config import ApiConfig
+
+        monkeypatch.delenv("COORDINATION_API_KEYS", raising=False)
+        monkeypatch.delenv("COORDINATION_API_KEY_IDENTITIES", raising=False)
+        identities = {"key-a": {"agent_id": "a1", "agent_type": "codex"}}
+        with patch("src.agents_config.get_api_key_identities", return_value=identities):
+            config = ApiConfig.from_env()
+        assert "key-a" in config.api_keys
+        assert config.api_key_identities == identities
+
+    def test_explicit_keys_not_overridden(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When COORDINATION_API_KEYS is set explicitly, it is used as-is."""
+        from src.config import ApiConfig
+
+        monkeypatch.setenv("COORDINATION_API_KEYS", "explicit-key")
+        monkeypatch.delenv("COORDINATION_API_KEY_IDENTITIES", raising=False)
+        identities = {"other-key": {"agent_id": "a1", "agent_type": "codex"}}
+        with patch("src.agents_config.get_api_key_identities", return_value=identities):
+            config = ApiConfig.from_env()
+        assert config.api_keys == ["explicit-key"]
+
+    def test_empty_identities_no_keys(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When both env vars are empty and agents.yaml has no HTTP agents, keys stay empty."""
+        from src.config import ApiConfig
+
+        monkeypatch.delenv("COORDINATION_API_KEYS", raising=False)
+        monkeypatch.delenv("COORDINATION_API_KEY_IDENTITIES", raising=False)
+        with patch("src.agents_config.get_api_key_identities", return_value={}):
+            config = ApiConfig.from_env()
+        assert config.api_keys == []
+        assert config.api_key_identities == {}
