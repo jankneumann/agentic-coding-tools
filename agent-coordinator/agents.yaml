@@ -10,6 +10,7 @@ agents:
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Claude Code CLI agent with full coordination access
 
+
   claude-code-web:
     type: claude_code
     profile: claude_code_web_implementer
@@ -20,6 +21,14 @@ agents:
     capabilities: [lock, queue, memory, guardrails, handoff, discover]
     description: Claude Code web agent for cloud-based implementation
 
+  codex-local:
+    type: codex
+    profile: codex_local_worker
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    description: Local Codex worker with full coordination access
+
   codex-cloud:
     type: codex
     profile: codex_cloud_worker
@@ -29,6 +38,15 @@ agents:
     openbao_role_id: codex-cloud
     capabilities: [lock, queue, memory, guardrails]
     description: Codex cloud worker for parallel task execution
+
+  gemini-local:
+    type: gemini
+    profile: gemini_local_worker
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    description: Local Gemini worker with full coordination access
+
 
   gemini-cloud:
     type: gemini
