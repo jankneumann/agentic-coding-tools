@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.profile_loader import (
+    _load_secrets,
+    _load_secrets_file,
+    _load_secrets_openbao,
     apply_profile,
     deep_merge,
     interpolate,
     load_profile,
+    resolve_dynamic_dsn,
 )
 
 # ---------------------------------------------------------------------------
@@ -226,3 +231,185 @@ class TestApplyProfile:
         _write(secrets, "")
         result = load_profile("test", profiles_dir=profiles, secrets_path=secrets)
         assert result["settings"]["val"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# OpenBao secret loading
+# ---------------------------------------------------------------------------
+
+
+class TestLoadSecretsOpenbao:
+    def _mock_openbao(self, kv_data: dict, **config_overrides: str) -> MagicMock:
+        """Helper to create a mock OpenBaoConfig with KV v2 response."""
+        mock_config = MagicMock()
+        mock_config.addr = config_overrides.get("addr", "http://bao:8200")
+        mock_config.mount_path = config_overrides.get("mount_path", "secret")
+        mock_config.secret_path = config_overrides.get("secret_path", "coordinator")
+        mock_client = MagicMock()
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "data": {"data": kv_data}
+        }
+        mock_config.create_client.return_value = mock_client
+        return mock_config
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_success(self, mock_from_env: MagicMock) -> None:
+        """Successful secret load from OpenBao KV v2."""
+        mock_config = self._mock_openbao({"DB_PASSWORD": "vault-pass", "API_KEY": "key-123"})
+        mock_from_env.return_value = mock_config
+
+        result = _load_secrets_openbao()
+        assert result == {"DB_PASSWORD": "vault-pass", "API_KEY": "key-123"}
+        mock_config.create_client.return_value.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="coordinator", mount_point="secret"
+        )
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_non_string_values_filtered(self, mock_from_env: MagicMock) -> None:
+        """Non-string values in OpenBao are skipped with a warning."""
+        mock_from_env.return_value = self._mock_openbao(
+            {"GOOD": "value", "BAD_INT": 42, "BAD_LIST": [1, 2]}
+        )
+        result = _load_secrets_openbao()
+        assert result == {"GOOD": "value"}
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_auth_failure(self, mock_from_env: MagicMock) -> None:
+        """Authentication failure raises RuntimeError via create_client."""
+        mock_config = MagicMock()
+        mock_config.create_client.side_effect = RuntimeError("auth failed")
+        mock_from_env.return_value = mock_config
+
+        with pytest.raises(RuntimeError, match="auth failed"):
+            _load_secrets_openbao()
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_missing_credentials(self, mock_from_env: MagicMock) -> None:
+        """Missing BAO_ROLE_ID raises ValueError."""
+        mock_config = MagicMock()
+        mock_config.create_client.side_effect = ValueError("BAO_ROLE_ID required")
+        mock_from_env.return_value = mock_config
+
+        with pytest.raises(ValueError, match="BAO_ROLE_ID"):
+            _load_secrets_openbao()
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_unreachable(self, mock_from_env: MagicMock) -> None:
+        """Unreachable OpenBao raises ConnectionError."""
+        mock_config = MagicMock()
+        mock_config.create_client.side_effect = ConnectionError("unreachable")
+        mock_from_env.return_value = mock_config
+
+        with pytest.raises(ConnectionError, match="unreachable"):
+            _load_secrets_openbao()
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_read_failure(self, mock_from_env: MagicMock) -> None:
+        """KV read failure wraps into RuntimeError."""
+        mock_config = MagicMock()
+        mock_config.addr = "http://bao:8200"
+        mock_config.mount_path = "secret"
+        mock_config.secret_path = "coordinator"
+        mock_client = MagicMock()
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = Exception("403")
+        mock_config.create_client.return_value = mock_client
+        mock_from_env.return_value = mock_config
+
+        with pytest.raises(RuntimeError, match="Failed to read secrets"):
+            _load_secrets_openbao()
+
+
+class TestLoadSecretsDispatch:
+    def test_fallback_to_file_without_bao_addr(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without BAO_ADDR, _load_secrets uses .secrets.yaml file."""
+        monkeypatch.delenv("BAO_ADDR", raising=False)
+        secrets = tmp_path / ".secrets.yaml"
+        _write(secrets, "MY_SECRET: file-value\n")
+        result = _load_secrets(secrets)
+        assert result == {"MY_SECRET": "file-value"}
+
+    @patch("src.profile_loader._load_secrets_openbao")
+    def test_uses_openbao_when_bao_addr_set(
+        self,
+        mock_openbao: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With BAO_ADDR set, _load_secrets dispatches to OpenBao backend."""
+        monkeypatch.setenv("BAO_ADDR", "http://localhost:8200")
+        mock_openbao.return_value = {"KEY": "from-openbao"}
+        result = _load_secrets(tmp_path / ".secrets.yaml")
+        assert result == {"KEY": "from-openbao"}
+        mock_openbao.assert_called_once()
+
+    def test_file_backend_no_file(self, tmp_path: Path) -> None:
+        """_load_secrets_file returns empty dict when file doesn't exist."""
+        result = _load_secrets_file(tmp_path / "nonexistent.yaml")
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# Dynamic DSN resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveDynamicDsn:
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_returns_none_when_disabled(self, mock_from_env: MagicMock) -> None:
+        """No dynamic DSN when OpenBao is not enabled."""
+        mock_config = MagicMock()
+        mock_config.is_enabled.return_value = False
+        mock_from_env.return_value = mock_config
+
+        assert resolve_dynamic_dsn() is None
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_success(
+        self, mock_from_env: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Dynamic DSN generated from database secrets engine."""
+        monkeypatch.setenv("POSTGRES_HOST", "dbhost")
+        monkeypatch.setenv("POSTGRES_PORT", "5432")
+        monkeypatch.setenv("POSTGRES_DB", "mydb")
+
+        mock_config = MagicMock()
+        mock_config.is_enabled.return_value = True
+        mock_client = MagicMock()
+        mock_client.secrets.database.generate_credentials.return_value = {
+            "data": {"username": "v-agent-abc", "password": "dynamic-pass"},
+            "lease_id": "database/creds/coordinator-agent/abc",
+            "lease_duration": 3600,
+        }
+        mock_config.create_client.return_value = mock_client
+        mock_from_env.return_value = mock_config
+
+        result = resolve_dynamic_dsn("test-agent")
+        assert result == "postgresql://v-agent-abc:dynamic-pass@dbhost:5432/mydb"
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_engine_not_configured(self, mock_from_env: MagicMock) -> None:
+        """Returns None when database engine is not configured."""
+        mock_config = MagicMock()
+        mock_config.is_enabled.return_value = True
+        mock_client = MagicMock()
+        mock_client.secrets.database.generate_credentials.side_effect = Exception("no route")
+        mock_config.create_client.return_value = mock_client
+        mock_from_env.return_value = mock_config
+
+        assert resolve_dynamic_dsn() is None
+
+    @patch("src.config.OpenBaoConfig.from_env")
+    def test_empty_credentials_fallback(self, mock_from_env: MagicMock) -> None:
+        """Returns None when generated credentials are empty."""
+        mock_config = MagicMock()
+        mock_config.is_enabled.return_value = True
+        mock_client = MagicMock()
+        mock_client.secrets.database.generate_credentials.return_value = {
+            "data": {"username": "", "password": ""},
+        }
+        mock_config.create_client.return_value = mock_client
+        mock_from_env.return_value = mock_config
+
+        assert resolve_dynamic_dsn() is None

@@ -237,6 +237,88 @@ class PolicyEngineConfig:
 
 
 @dataclass
+class OpenBaoConfig:
+    """OpenBao (Vault-compatible) connection configuration.
+
+    Environment variables:
+        BAO_ADDR: OpenBao server URL (e.g., http://localhost:8200)
+        BAO_ROLE_ID: AppRole role ID for authentication
+        BAO_SECRET_ID: AppRole secret ID for authentication
+        BAO_MOUNT_PATH: KV v2 mount path (default: "secret")
+        BAO_SECRET_PATH: Secret data path (default: "coordinator")
+        BAO_TIMEOUT: Connection timeout in seconds (default: 5)
+        BAO_TOKEN_TTL: Token TTL in seconds (default: 3600)
+    """
+
+    addr: str = ""
+    role_id: str = ""
+    secret_id: str = ""
+    mount_path: str = "secret"
+    secret_path: str = "coordinator"
+    timeout: int = 5
+    token_ttl: int = 3600
+
+    @classmethod
+    def from_env(cls) -> OpenBaoConfig:
+        return cls(
+            addr=os.environ.get("BAO_ADDR", ""),
+            role_id=os.environ.get("BAO_ROLE_ID", ""),
+            secret_id=os.environ.get("BAO_SECRET_ID", ""),
+            mount_path=os.environ.get("BAO_MOUNT_PATH", "secret"),
+            secret_path=os.environ.get("BAO_SECRET_PATH", "coordinator"),
+            timeout=int(os.environ.get("BAO_TIMEOUT", "5")),
+            token_ttl=int(os.environ.get("BAO_TOKEN_TTL", "3600")),
+        )
+
+    def is_enabled(self) -> bool:
+        """Return True when BAO_ADDR is set and non-empty."""
+        return bool(self.addr)
+
+    def create_client(self) -> Any:
+        """Create an authenticated hvac.Client connected to OpenBao.
+
+        Raises:
+            RuntimeError: If OpenBao is not configured (BAO_ADDR not set).
+            ValueError: If BAO_ROLE_ID or BAO_SECRET_ID is missing.
+            ConnectionError: If the server is unreachable within the timeout.
+        """
+        if not self.is_enabled():
+            raise RuntimeError("OpenBao is not configured")
+
+        if not self.role_id:
+            raise ValueError("BAO_ROLE_ID environment variable is required when BAO_ADDR is set")
+        if not self.secret_id:
+            raise ValueError(
+                "BAO_SECRET_ID environment variable is required when BAO_ADDR is set"
+            )
+
+        import hvac
+
+        try:
+            client = hvac.Client(url=self.addr, timeout=self.timeout)
+            client.auth.approle.login(role_id=self.role_id, secret_id=self.secret_id)
+        except Exception as exc:
+            # Distinguish connection errors from auth errors
+            exc_str = str(exc)
+            if "connect" in exc_str.lower() or "timeout" in exc_str.lower():
+                raise ConnectionError(
+                    f"OpenBao unreachable at {self.addr}: {exc}"
+                ) from exc
+            raise RuntimeError(
+                f"OpenBao authentication failed at {self.addr} "
+                f"(role_id={self.role_id!r}): {exc}"
+            ) from exc
+
+        if not client.is_authenticated():
+            raise RuntimeError(
+                f"OpenBao authentication failed at {self.addr} "
+                f"(role_id={self.role_id!r}): client reports unauthenticated"
+            )
+
+        return client
+
+
+@dataclass
 class PortAllocatorConfig:
     """Port allocator configuration for parallel docker-compose stacks."""
 
@@ -421,6 +503,7 @@ class Config:
     session_grants: SessionGrantsConfig = field(
         default_factory=SessionGrantsConfig
     )
+    openbao: OpenBaoConfig = field(default_factory=OpenBaoConfig.from_env)
     active_profile: str | None = None
     transport: str = "none"
     _profile_data: dict[str, Any] = field(default_factory=dict)
@@ -470,6 +553,7 @@ class Config:
             policy_engine=PolicyEngineConfig.from_env(),
             api=ApiConfig.from_env(),
             port_allocator=PortAllocatorConfig.from_env(),
+            openbao=OpenBaoConfig.from_env(),
             active_profile=active_profile,
             transport=transport,
             _profile_data=profile_data or {},

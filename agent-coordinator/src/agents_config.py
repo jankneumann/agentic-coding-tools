@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 from jsonschema import validate
 
-from src.profile_loader import _INTERPOLATION_RE, _load_secrets, interpolate
+from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     "trust_level": {"type": "integer", "minimum": 1, "maximum": 5},
                     "transport": {"type": "string", "enum": list(VALID_TRANSPORTS)},
                     "api_key": {"type": "string"},
+                    "openbao_role_id": {"type": "string", "minLength": 1},
                     "capabilities": {
                         "type": "array",
                         "minItems": 1,
@@ -82,6 +83,7 @@ class AgentEntry:
     capabilities: list[str]
     description: str
     api_key: str | None = None
+    openbao_role_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +131,7 @@ def load_agents_config(
 
     validate(instance=raw, schema=AGENTS_SCHEMA)
 
-    secrets = _load_secrets(secrets_path)
+    secrets = _load_secrets_file(secrets_path)
     entries: list[AgentEntry] = []
     seen_names: set[str] = set()
 
@@ -142,9 +144,9 @@ def load_agents_config(
         resolved_key: str | None = None
         if raw_key:
             resolved_key = interpolate(raw_key, secrets)
-            # If any ${VAR} token remains after interpolation, treat as unresolved.
-            if _INTERPOLATION_RE.search(resolved_key):
-                resolved_key = None
+            # Keep unresolved ${VAR} placeholders so that
+            # _resolve_api_key_from_openbao() can extract the variable
+            # name and fetch the secret from OpenBao at runtime.
 
         entries.append(
             AgentEntry(
@@ -156,6 +158,7 @@ def load_agents_config(
                 capabilities=agent_data["capabilities"],
                 description=agent_data["description"],
                 api_key=resolved_key,
+                openbao_role_id=agent_data.get("openbao_role_id"),
             )
         )
 
@@ -166,10 +169,64 @@ def load_agents_config(
 # API key identity generation
 # ---------------------------------------------------------------------------
 
+def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
+    """Resolve an agent's API key from OpenBao using its AppRole.
+
+    When the agent has an ``openbao_role_id`` and OpenBao is enabled,
+    authenticates with the agent's AppRole and reads secrets. Falls back
+    to the coordinator's shared token when no per-agent role is configured.
+    """
+    from src.config import OpenBaoConfig
+
+    bao_config = OpenBaoConfig.from_env()
+    if not bao_config.is_enabled():
+        return None
+
+    if not agent.openbao_role_id:
+        # Use shared coordinator secrets — api_key already resolved from shared pool
+        return agent.api_key
+
+    try:
+        import hvac
+
+        # Authenticate with the agent's own AppRole, not the global coordinator token.
+        # The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)
+        # while the role_id comes from the per-agent openbao_role_id field.
+        client = hvac.Client(url=bao_config.addr, timeout=bao_config.timeout)
+        client.auth.approle.login(
+            role_id=agent.openbao_role_id,
+            secret_id=bao_config.secret_id,
+        )
+        response = client.secrets.kv.v2.read_secret_version(
+            path=bao_config.secret_path,
+            mount_point=bao_config.mount_path,
+        )
+        data = response.get("data", {}).get("data", {})
+        # Look for agent-specific key pattern or the interpolation source
+        raw_key = agent.api_key
+        if raw_key and _INTERPOLATION_RE.search(raw_key):
+            var_name = _INTERPOLATION_RE.search(raw_key).group(1)  # type: ignore[union-attr]
+            resolved = data.get(var_name)
+            if isinstance(resolved, str) and resolved:
+                return resolved
+        return agent.api_key
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "Failed to resolve API key from OpenBao for agent '%s' — "
+            "falling back to static resolution",
+            agent.name,
+            exc_info=True,
+        )
+        return agent.api_key
+
+
 def get_api_key_identities(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, dict[str, str]]:
     """Generate ``COORDINATION_API_KEY_IDENTITIES`` from HTTP agents.
+
+    When OpenBao is enabled, attempts to resolve API keys from OpenBao
+    for agents with ``openbao_role_id``. Falls back to static interpolation.
 
     Returns:
         Dict mapping resolved API key values to
@@ -178,22 +235,41 @@ def get_api_key_identities(
     if agents is None:
         agents = load_agents_config()
 
+    # Check if OpenBao is available for key resolution
+    openbao_enabled = bool(os.environ.get("BAO_ADDR"))
+
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
-        if agent.transport == "http" and agent.api_key:
-            if agent.api_key in identities:
-                existing = identities[agent.api_key]["agent_id"]
-                logger.warning(
-                    "Duplicate API key: agents '%s' and '%s' share the same key — "
-                    "'%s' will be used",
-                    existing,
-                    agent.name,
-                    agent.name,
-                )
-            identities[agent.api_key] = {
-                "agent_id": agent.name,
-                "agent_type": agent.type,
-            }
+        if agent.transport != "http":
+            continue
+
+        key = agent.api_key
+        if openbao_enabled and agent.openbao_role_id:
+            resolved = _resolve_api_key_from_openbao(agent)
+            if resolved:
+                key = resolved
+
+        if not key:
+            continue
+
+        # Skip unresolved ${VAR} placeholders — they're not usable as
+        # identity keys unless resolved via OpenBao above.
+        if _INTERPOLATION_RE.search(key):
+            continue
+
+        if key in identities:
+            existing = identities[key]["agent_id"]
+            logger.warning(
+                "Duplicate API key: agents '%s' and '%s' share the same key — "
+                "'%s' will be used",
+                existing,
+                agent.name,
+                agent.name,
+            )
+        identities[key] = {
+            "agent_id": agent.name,
+            "agent_type": agent.type,
+        }
     return identities
 
 

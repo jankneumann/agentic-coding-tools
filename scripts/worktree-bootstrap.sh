@@ -23,6 +23,11 @@ errors=0
 
 # --- Copy environment files ---
 for f in .env .secrets.yaml; do
+    # Skip .secrets.yaml when OpenBao is enabled — agents authenticate independently
+    if [ "${f}" = ".secrets.yaml" ] && [ -n "${BAO_ADDR:-}" ]; then
+        echo "Skipping ${f} (BAO_ADDR is set — using OpenBao for secrets)"
+        continue
+    fi
     if [ -f "${MAIN_REPO}/${f}" ]; then
         cp "${MAIN_REPO}/${f}" "${WORKTREE_PATH}/${f}" 2>/dev/null && \
             echo "Copied ${f}" || \
