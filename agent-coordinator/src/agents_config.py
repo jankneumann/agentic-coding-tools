@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 VALID_TRANSPORTS = {"mcp", "http"}
+VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
 }
@@ -47,6 +48,10 @@ AGENTS_SCHEMA: dict[str, Any] = {
                     "profile": {"type": "string", "minLength": 1},
                     "trust_level": {"type": "integer", "minimum": 1, "maximum": 5},
                     "transport": {"type": "string", "enum": list(VALID_TRANSPORTS)},
+                    "isolation": {
+                        "type": "string",
+                        "enum": sorted(VALID_ISOLATION_MODES),
+                    },
                     "api_key": {"type": "string"},
                     "openbao_role_id": {"type": "string", "minLength": 1},
                     "capabilities": {
@@ -82,6 +87,7 @@ class AgentEntry:
     transport: str
     capabilities: list[str]
     description: str
+    isolation: str = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
 
@@ -157,6 +163,7 @@ def load_agents_config(
                 transport=agent_data["transport"],
                 capabilities=agent_data["capabilities"],
                 description=agent_data["description"],
+                isolation=agent_data.get("isolation", "none"),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
             )
@@ -343,3 +350,19 @@ def reset_agents_config() -> None:
     """Reset the global agents config (for testing)."""
     global _agents
     _agents = None
+
+
+# ---------------------------------------------------------------------------
+# Isolation helpers
+# ---------------------------------------------------------------------------
+
+def get_agent_isolation(agent_type: str) -> str | None:
+    """Return the isolation mode for *agent_type*, or ``None`` if not found.
+
+    Searches through loaded agent entries and returns the ``isolation``
+    field of the first agent whose ``type`` matches *agent_type*.
+    """
+    for agent in get_agents_config():
+        if agent.type == agent_type:
+            return agent.isolation
+    return None

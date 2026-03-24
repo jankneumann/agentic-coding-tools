@@ -7,6 +7,7 @@ agents:
     profile: claude_code_cli
     trust_level: 3
     transport: mcp
+    isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Claude Code CLI agent with full coordination access
 
@@ -16,6 +17,7 @@ agents:
     profile: claude_code_web_implementer
     trust_level: 2
     transport: http
+    isolation: none
     api_key: "${CLAUDE_WEB_API_KEY}"
     openbao_role_id: claude-code-web
     capabilities: [lock, queue, memory, guardrails, handoff, discover]
@@ -26,6 +28,7 @@ agents:
     profile: codex_local_worker
     trust_level: 3
     transport: mcp
+    isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Codex worker with full coordination access
 
@@ -34,6 +37,7 @@ agents:
     profile: codex_cloud_worker
     trust_level: 2
     transport: http
+    isolation: sandbox
     api_key: "${CODEX_API_KEY}"
     openbao_role_id: codex-cloud
     capabilities: [lock, queue, memory, guardrails]
@@ -44,6 +48,7 @@ agents:
     profile: gemini_local_worker
     trust_level: 3
     transport: mcp
+    isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Gemini worker with full coordination access
 
@@ -53,6 +58,7 @@ agents:
     profile: gemini_cloud_worker
     trust_level: 2
     transport: http
+    isolation: none
     api_key: "${GEMINI_API_KEY}"
     openbao_role_id: gemini-cloud
     capabilities: [lock, queue, memory]
