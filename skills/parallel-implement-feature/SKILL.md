@@ -61,6 +61,8 @@ If `COORDINATOR_AVAILABLE` is `false` or required capabilities are unavailable, 
 
 ### Phase A: Feature-Level Preflight (Orchestrator)
 
+**Launcher Invariant**: The shared checkout is READ-ONLY. The orchestrator never modifies it directly. All work happens in worktrees.
+
 ```
 A1. Parse and validate work-packages.yaml
     - YAML parse + validate against work-packages.schema.json
@@ -77,13 +79,32 @@ A3. Compute DAG order
     - Detect cycles (validation error if found)
     - Topological sort for execution order
 
-A4. Submit work queue tasks
-    - For each package in topological order:
-      - Resolve depends_on package_ids to task_ids
-      - Build input_data envelope with context slice
-      - submit_work() with task_type, description, priority, depends_on
+A4. Create or reuse feature branch
+    - git branch openspec/<change-id> main (if not exists)
+    - If planning already created the branch, reuse it
 
-A5. Begin monitoring loop
+A5. Implement root packages (sequentially, each in own worktree)
+    - For each root package (depends_on == []):
+      - python3 scripts/worktree.py setup <change-id> --agent-id <package-id>
+      - Implement in worktree
+      - Commit + push on package branch
+      - Merge package branch into feature branch (git merge --no-ff)
+      - python3 scripts/worktree.py teardown <change-id> --agent-id <package-id>
+
+A6. Setup worktrees for parallel packages
+    - For each non-root package:
+      - python3 scripts/worktree.py setup <change-id> --agent-id <package-id>
+      - Worktrees branch from feature branch (includes root package work)
+    - Record WORKTREE_PATH and BRANCH in dispatch context per package
+    - Pin all worktrees (prevent GC during execution)
+
+A7. Dispatch parallel agents
+    - For each parallel package, dispatch Agent with:
+      - WORKTREE_PATH, BRANCH, CHANGE_ID, PACKAGE_ID in prompt
+      - isolation="worktree" if vendor supports it (check agents.yaml isolation field)
+      - Otherwise instruct agent to cd into WORKTREE_PATH
+
+A8. Begin monitoring loop
     - Poll discover_agents() for agent health
     - Poll get_task(task_id) for each in-flight package
     - On each completion: dispatch newly unblocked packages
@@ -99,15 +120,22 @@ Key steps: session registration, pause-lock check, deadlock-safe lock acquisitio
 
 Each worker agent MUST have a unique agent-id. The orchestrator assigns agent-ids based on `package_id` (e.g., `wp-backend`, `wp-frontend`). The integrator uses agent-id `integrator`.
 
-#### Worktree Setup
+#### Worktree Verification
+
+The orchestrator sets up worktrees in Phase A. Workers verify they are in the correct worktree:
 
 ```bash
-# Worker agent setup (agent-id from package_id)
-eval "$(python3 scripts/worktree.py setup "${CHANGE_ID}" --agent-id "${PACKAGE_ID}")"
+# Verify worktree path and branch (set by orchestrator in dispatch context)
+ACTUAL_ROOT=$(git rev-parse --show-toplevel)
+ACTUAL_BRANCH=$(git branch --show-current)
 
-# Integrator setup
-eval "$(python3 scripts/worktree.py setup "${CHANGE_ID}" --agent-id integrator)"
+if [ "$ACTUAL_ROOT" != "$WORKTREE_PATH" ] || [ "$ACTUAL_BRANCH" != "$BRANCH" ]; then
+    # Not in expected worktree — cd into it
+    cd "$WORKTREE_PATH"
+fi
 ```
+
+If the worker was dispatched with vendor `isolation: "worktree"`, it operates in its own git copy. The prompt instructs it to commit to the branch name from the dispatch context.
 
 #### Heartbeat Requirement
 
@@ -134,7 +162,10 @@ C4. Integration gate
     - Wait for all packages COMPLETED and reviewed
 
 C5. Integration merge (wp-integration package)
-    - Merge all worktrees into feature branch
+    - python3 scripts/worktree.py setup <change-id> --agent-id integrator
+    - cd into integrator worktree
+    - python3 scripts/merge_worktrees.py <change-id> <pkg1> <pkg2> ... --json
+    - If conflicts: report SCOPE_VIOLATION escalation, do NOT auto-resolve
     - Run full test suite and cross-package contract verification
 
 C6. Execution summary generation
@@ -147,6 +178,23 @@ After integration:
 1. Run quality checks (pytest, mypy, ruff, openspec validate)
 2. Create PR with execution summary attached
 3. Write handoff if CAN_HANDOFF=true
+
+### Teardown
+
+After PR creation (or on failure):
+
+```bash
+# Unpin all worktrees
+python3 scripts/worktree.py unpin "<change-id>"
+
+# Teardown each package worktree + integrator
+for pkg in <package-ids> integrator; do
+    python3 scripts/worktree.py teardown "<change-id>" --agent-id "$pkg"
+done
+
+# Optional: garbage collect stale worktrees from other features
+python3 scripts/worktree.py gc
+```
 
 ## Output
 

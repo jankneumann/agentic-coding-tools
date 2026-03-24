@@ -58,17 +58,22 @@ If `CAN_MEMORY=true`, recall relevant memories before planning:
 
 On handoff/memory failure, continue with standalone planning and log informationally.
 
-### 1. Verify Clean State
+### 1. Setup Planning Worktree (Launcher Invariant)
+
+The shared checkout is **read-only** — never commit or modify files there. All planning work happens in a feature-level worktree.
 
 ```bash
-# Pull latest from main
-git pull origin main
+# Derive change-id from feature description (e.g., "add-user-auth")
+python3 scripts/worktree.py setup "<change-id>"
+# Output: WORKTREE_PATH=...
+cd $WORKTREE_PATH
 
-# Ensure clean working directory
-git status
+# Verify you're in the worktree
+git rev-parse --show-toplevel  # Should match WORKTREE_PATH
+git branch --show-current       # Should be openspec/<change-id>
 ```
 
-Resolve any uncommitted changes before proceeding.
+If the worktree already exists (e.g., from a previous session), reuse it. All subsequent steps happen **inside the worktree**.
 
 ### 2. Review Existing Context (Parallel Exploration)
 
@@ -145,7 +150,23 @@ openspec show <change-id>
 
 Fix any validation errors before presenting for approval.
 
-### 5. Present for Approval
+### 5. Commit, Push, and Pin Worktree
+
+Commit all planning artifacts to the feature branch and push:
+
+```bash
+git add openspec/changes/<change-id>/
+git commit -m "plan: <change-id> — proposal, design, specs, tasks"
+git push -u origin openspec/<change-id>
+```
+
+Pin the worktree so it persists for implementation:
+
+```bash
+python3 scripts/worktree.py pin "<change-id>"
+```
+
+### 6. Present for Approval
 
 Share the proposal with stakeholders:
 - `openspec/changes/<change-id>/proposal.md` - What and why
