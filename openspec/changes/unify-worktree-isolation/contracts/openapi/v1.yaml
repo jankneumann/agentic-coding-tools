@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Worktree Isolation — Agent Profile Extension
+  version: 0.1.0
+  description: |
+    Schema extension for agents.yaml to declare per-agent isolation capabilities.
+    No new HTTP endpoints — this feature modifies skill prompts and orchestration logic.
+
+components:
+  schemas:
+    AgentProfile:
+      type: object
+      description: Extended agent profile with isolation capability
+      properties:
+        type:
+          type: string
+          enum: [claude_code, codex, gemini]
+        profile:
+          type: string
+        trust_level:
+          type: integer
+          minimum: 0
+          maximum: 4
+        transport:
+          type: string
+          enum: [mcp, http]
+        isolation:
+          type: string
+          enum: [worktree, sandbox, none]
+          default: none
+          description: |
+            Vendor-provided isolation capability.
+            - worktree: Agent tool supports isolation via git worktree (e.g., Claude Code)
+            - sandbox: Agent runs in a vendor sandbox (e.g., Codex cloud)
+            - none: No vendor isolation; rely on cd-into-worktree only
+      example:
+        type: claude_code
+        profile: claude_code_cli
+        trust_level: 3
+        transport: mcp
+        isolation: worktree
+
+    MergeWorktreesResult:
+      type: object
+      description: Result of merging package worktree branches into feature branch
+      required: [success, merged, conflicts]
+      properties:
+        success:
+          type: boolean
+        merged:
+          type: array
+          items:
+            type: string
+          description: Package branches successfully merged
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              package:
+                type: string
+              files:
+                type: array
+                items:
+                  type: string
+              error:
+                type: string
+          description: Merge conflicts encountered (treated as scope violations)
+      example:
+        success: true
+        merged:
+          - openspec/add-auth/wp-backend
+          - openspec/add-auth/wp-frontend
+        conflicts: []

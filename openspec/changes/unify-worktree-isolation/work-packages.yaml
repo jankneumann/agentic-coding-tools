@@ -1,0 +1,328 @@
+schema_version: 1
+
+feature:
+  id: unify-worktree-isolation
+  title: "Unify worktree isolation for parallel agents — two-layer model with vendor compatibility"
+  plan_revision: 1
+  created_by: claude-code-1
+  created_at: "2026-03-24T06:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/unify-worktree-isolation/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/unify-worktree-isolation/contracts/openapi/v1.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: A
+  min_trust_level: 2
+
+packages:
+  # === ROOT: Agent profile isolation config ===
+  - package_id: wp-agent-profiles
+    title: "Add isolation capability to agent profiles"
+    task_type: implement
+    description: |
+      Extend agents.yaml schema and agents_config.py to support per-agent isolation mode.
+      1. Add optional `isolation` field to agent profiles in agents.yaml (worktree|sandbox|none)
+      2. Update agents_config.py to parse the isolation field
+      3. Add get_agent_isolation(agent_type) helper function
+      4. Write unit tests for config parsing
+    role: backend
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "feature:unify-worktree-isolation:profiles"
+      ttl_minutes: 120
+      reason: "Agent profile isolation config"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_agents_config*.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/unify-worktree-isolation/**"
+      deny:
+        - ".claude/skills/**"
+        - "scripts/worktree.py"
+        - "scripts/merge_worktrees.py"
+    worktree:
+      name: unify-worktree-isolation.wp-agent-profiles
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_agents_config.py"
+            result_keys:
+              - "test_agents_config_pass"
+        - name: type-check
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/agents_config.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_pass"
+    outputs:
+      result_keys:
+        - "isolation_field_added"
+        - "helper_function_created"
+      artifacts:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+
+  # === ROOT: Merge protocol ===
+  - package_id: wp-merge-protocol
+    title: "Integration merge protocol for worktree branches"
+    task_type: implement
+    description: |
+      Create scripts/merge_worktrees.py to merge per-package branches into the feature branch.
+      1. Accept change-id and list of package-ids
+      2. For each package: git merge --no-ff openspec/<change-id>/<package-id>
+      3. Detect merge conflicts and map conflicting files to packages
+      4. Report scope violations when conflicts occur
+      5. Support --dry-run mode for preflight check
+      6. Output structured JSON result (MergeWorktreesResult schema)
+      7. Write unit tests with mocked git operations
+    role: backend
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "scripts/merge_worktrees.py"
+      keys:
+        - "feature:unify-worktree-isolation:merge"
+      ttl_minutes: 120
+      reason: "Integration merge protocol"
+    scope:
+      write_allow:
+        - "scripts/merge_worktrees.py"
+        - "scripts/tests/test_merge_worktrees.py"
+      read_allow:
+        - "scripts/**"
+        - "openspec/changes/unify-worktree-isolation/**"
+      deny:
+        - "agent-coordinator/**"
+        - ".claude/skills/**"
+    worktree:
+      name: unify-worktree-isolation.wp-merge-protocol
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "scripts/.venv/bin/python -m pytest scripts/tests/test_merge_worktrees.py -v"
+          evidence:
+            artifacts:
+              - "scripts/tests/test_merge_worktrees.py"
+            result_keys:
+              - "test_merge_pass"
+    outputs:
+      result_keys:
+        - "merge_script_created"
+        - "dry_run_mode"
+        - "conflict_detection"
+      artifacts:
+        - "scripts/merge_worktrees.py"
+        - "scripts/tests/test_merge_worktrees.py"
+
+  # === DEPENDS ON BOTH ROOTS: Skill prompt updates ===
+  - package_id: wp-skill-update
+    title: "Update all write-capable skill prompts with launcher invariant"
+    task_type: implement
+    description: |
+      Apply the launcher invariant (shared checkout is read-only) to all skills that
+      modify git state. Source files are in skills/, NOT .claude/skills/.
+
+      Planning skills:
+      1. Update skills/parallel-plan-feature/SKILL.md — add worktree setup as first step,
+         commit artifacts to feature branch, pin worktree for reuse by implementation
+      2. Update skills/linear-plan-feature/SKILL.md — same pattern
+
+      Implementation skills:
+      3. Update skills/parallel-implement-feature/SKILL.md:
+         - Phase A: Root packages in own worktrees (not shared checkout)
+         - Phase A: Parallel packages branched from updated feature branch
+         - Phase B: Worktree verification, vendor isolation when available
+         - Phase C: Integration merge using merge_worktrees.py
+         - Teardown step for all worktrees
+      4. Update skills/parallel-implement-feature/scripts/ helper dispatch functions
+      5. Verify skills/linear-implement-feature/SKILL.md already compliant (no change expected)
+
+      Cleanup skills:
+      6. Update skills/parallel-cleanup-feature/SKILL.md — worktree for merge/archive, GC at end
+      7. Update skills/linear-cleanup-feature/SKILL.md — same pattern
+
+      Documentation:
+      8. Update docs/two-level-parallel-agentic-development.md with launcher invariant
+      9. Update CLAUDE.md worktree section
+    role: documentation
+    priority: 3
+    depends_on:
+      - wp-agent-profiles
+      - wp-merge-protocol
+    locks:
+      files:
+        - "skills/parallel-implement-feature/SKILL.md"
+        - "skills/parallel-plan-feature/SKILL.md"
+        - "skills/parallel-cleanup-feature/SKILL.md"
+        - "skills/linear-plan-feature/SKILL.md"
+        - "skills/linear-cleanup-feature/SKILL.md"
+      keys:
+        - "feature:unify-worktree-isolation:skills"
+      ttl_minutes: 120
+      reason: "Skill prompt updates for all write-capable skills"
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/**"
+        - "skills/parallel-plan-feature/SKILL.md"
+        - "skills/parallel-cleanup-feature/SKILL.md"
+        - "skills/linear-plan-feature/SKILL.md"
+        - "skills/linear-cleanup-feature/SKILL.md"
+        - "docs/two-level-parallel-agentic-development.md"
+        - "CLAUDE.md"
+      read_allow:
+        - "skills/**"
+        - "scripts/**"
+        - "agent-coordinator/agents.yaml"
+        - "openspec/changes/unify-worktree-isolation/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "scripts/worktree.py"
+        - "scripts/merge_worktrees.py"
+    worktree:
+      name: unify-worktree-isolation.wp-skill-update
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: openspec-validate
+          kind: command
+          command: "openspec validate --all --strict"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    outputs:
+      result_keys:
+        - "planning_skills_updated"
+        - "implementation_skills_updated"
+        - "cleanup_skills_updated"
+        - "docs_updated"
+      artifacts:
+        - "skills/parallel-implement-feature/SKILL.md"
+        - "skills/parallel-plan-feature/SKILL.md"
+        - "skills/parallel-cleanup-feature/SKILL.md"
+        - "skills/linear-plan-feature/SKILL.md"
+        - "skills/linear-cleanup-feature/SKILL.md"
+        - "docs/two-level-parallel-agentic-development.md"
+
+  # === LEAF: Integration testing ===
+  - package_id: wp-integration
+    title: "Integration testing and validation"
+    task_type: verify
+    description: |
+      Validate the full worktree isolation flow end-to-end.
+      1. Test worktree setup → dispatch context → merge → teardown lifecycle
+      2. Test vendor isolation flag propagation from agents.yaml
+      3. Test merge conflict detection and scope violation reporting
+      4. Test degraded mode (no vendor isolation, cd-only)
+      5. Verify existing worktree tests still pass (43 tests)
+      6. Verify existing agents_config tests still pass
+      7. Run openspec validate --strict on all changes
+      8. Run mypy --strict and ruff check on modified files
+    role: integration
+    priority: 8
+    depends_on:
+      - wp-skill-update
+    locks:
+      files: []
+      keys:
+        - "feature:unify-worktree-isolation:integration"
+      ttl_minutes: 120
+      reason: "Integration testing"
+    scope:
+      write_allow:
+        - "scripts/tests/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "scripts/**"
+        - "agent-coordinator/**"
+        - ".claude/skills/**"
+        - "openspec/changes/unify-worktree-isolation/**"
+      deny: []
+    worktree:
+      name: unify-worktree-isolation.wp-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: worktree-tests
+          kind: command
+          command: "scripts/.venv/bin/python -m pytest scripts/tests/test_worktree.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "worktree_tests_pass"
+        - name: merge-tests
+          kind: command
+          command: "scripts/.venv/bin/python -m pytest scripts/tests/test_merge_worktrees.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "merge_tests_pass"
+        - name: agents-config-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "agents_config_tests_pass"
+        - name: type-check
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/agents_config.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_pass"
+        - name: openspec-validate
+          kind: command
+          command: "openspec validate --all --strict"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    outputs:
+      result_keys:
+        - "all_tests_pass"
+        - "openspec_valid"
+      artifacts: []
