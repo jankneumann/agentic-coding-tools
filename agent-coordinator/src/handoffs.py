@@ -4,6 +4,7 @@ Provides session continuity by persisting structured handoff documents
 that agents can write at session end and read at session start.
 """
 
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -151,14 +152,15 @@ class HandoffService:
                     "p_agent_name": resolved_agent_name,
                     "p_session_id": session_id or config.agent.session_id,
                     "p_summary": summary,
-                    "p_completed_work": completed_work or [],
-                    "p_in_progress": in_progress or [],
-                    "p_decisions": decisions or [],
-                    "p_next_steps": next_steps or [],
-                    "p_relevant_files": relevant_files or [],
+                    "p_completed_work": json.dumps(completed_work or []),
+                    "p_in_progress": json.dumps(in_progress or []),
+                    "p_decisions": json.dumps(decisions or []),
+                    "p_next_steps": json.dumps(next_steps or []),
+                    "p_relevant_files": json.dumps(relevant_files or []),
                 },
             )
         except Exception:
+            logger.exception("write_handoff RPC failed")
             return WriteHandoffResult(success=False, error="database_unavailable")
 
         write_result = WriteHandoffResult.from_dict(result)
