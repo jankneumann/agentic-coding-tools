@@ -90,19 +90,25 @@ def default_branch(
 ) -> str:
     """Compute the default branch name.
 
+    Uses '--' separator between change-id and agent-id to avoid a git
+    ref storage limitation: git cannot have both ``refs/heads/a/b`` (a
+    branch) and ``refs/heads/a/b/c`` (a sub-path) simultaneously.
+    Using '/' would make the feature branch ``openspec/<change-id>``
+    conflict with agent branches ``openspec/<change-id>/<agent-id>``.
+
     Patterns:
-      openspec/<change-id>                  (no agent, no prefix)
-      openspec/<change-id>/<agent-id>       (agent, no prefix)
-      <prefix>/<change-id>                  (no agent, prefix)
-      <prefix>/<change-id>/<agent-id>       (agent, prefix)
+      openspec/<change-id>                   (no agent, no prefix)
+      openspec/<change-id>--<agent-id>       (agent, no prefix)
+      <prefix>/<change-id>                   (no agent, prefix)
+      <prefix>/<change-id>--<agent-id>       (agent, prefix)
     """
     if prefix:
-        parts = [prefix, change_id]
+        base = f"{prefix}/{change_id}"
     else:
-        parts = ["openspec", change_id]
+        base = f"openspec/{change_id}"
     if agent_id:
-        parts.append(agent_id)
-    return "/".join(parts)
+        return f"{base}--{agent_id}"
+    return base
 
 
 # ---------------------------------------------------------------------------

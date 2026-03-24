@@ -58,6 +58,7 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 - **Agent-id**: Pass `--agent-id` for parallel disambiguation. Omit for single-agent (backward compatible)
 - **Pin**: Use `pin` to protect worktrees from GC during overnight pauses or waiting on input
 - **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
+- **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
 - **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
 
 ## Documentation

@@ -120,13 +120,13 @@ class TestDefaultBranch:
         assert default_branch("change") == "openspec/change"
 
     def test_with_agent_id(self) -> None:
-        assert default_branch("change", agent_id="w1") == "openspec/change/w1"
+        assert default_branch("change", agent_id="w1") == "openspec/change--w1"
 
     def test_with_prefix(self) -> None:
         assert default_branch("change", prefix="fix") == "fix/change"
 
     def test_with_agent_id_and_prefix(self) -> None:
-        assert default_branch("change", agent_id="w1", prefix="fix") == "fix/change/w1"
+        assert default_branch("change", agent_id="w1", prefix="fix") == "fix/change--w1"
 
 
 class TestRegistry:
