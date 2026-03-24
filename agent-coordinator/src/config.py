@@ -319,6 +319,23 @@ class OpenBaoConfig:
 
 
 @dataclass
+class ObservabilityConfig:
+    """OpenTelemetry observability configuration."""
+
+    metrics_enabled: bool = False
+    traces_enabled: bool = False
+    prometheus_enabled: bool = False
+
+    @classmethod
+    def from_env(cls) -> ObservabilityConfig:
+        return cls(
+            metrics_enabled=os.environ.get("OTEL_METRICS_ENABLED", "false").lower() == "true",
+            traces_enabled=os.environ.get("OTEL_TRACES_ENABLED", "false").lower() == "true",
+            prometheus_enabled=os.environ.get("PROMETHEUS_ENABLED", "false").lower() == "true",
+        )
+
+
+@dataclass
 class PortAllocatorConfig:
     """Port allocator configuration for parallel docker-compose stacks."""
 
@@ -508,6 +525,9 @@ class Config:
     risk_scoring: RiskScoringConfig = field(default_factory=RiskScoringConfig)
     session_grants: SessionGrantsConfig = field(
         default_factory=SessionGrantsConfig
+    )
+    observability: ObservabilityConfig = field(
+        default_factory=ObservabilityConfig.from_env
     )
     openbao: OpenBaoConfig = field(default_factory=OpenBaoConfig.from_env)
     active_profile: str | None = None

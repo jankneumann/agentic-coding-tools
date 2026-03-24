@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: Agent Coordinator - Observability Extension
+  version: 0.1.0
+  description: |
+    Prometheus metrics endpoint added by the OTel observability feature.
+    Metric names and labels are documented here as the contract between
+    the coordinator and monitoring infrastructure.
+
+paths:
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Prometheus metrics endpoint
+      description: |
+        Returns all coordinator metrics in Prometheus text exposition format.
+        No authentication required. Does not expose sensitive data.
+      security: []
+      responses:
+        "200":
+          description: Prometheus text format metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP lock_acquire_duration_ms Time to acquire a lock
+                # TYPE lock_acquire_duration_ms histogram
+                lock_acquire_duration_ms_bucket{outcome="acquired",agent_type="claude_code",le="10"} 42
+                lock_acquire_duration_ms_bucket{outcome="acquired",agent_type="claude_code",le="50"} 58
+                lock_acquire_duration_ms_sum{outcome="acquired",agent_type="claude_code"} 1234.5
+                lock_acquire_duration_ms_count{outcome="acquired",agent_type="claude_code"} 60
+
+                # HELP lock_contention_total Lock acquire denials due to existing holder
+                # TYPE lock_contention_total counter
+                lock_contention_total{holder_type="codex",requester_type="claude_code"} 3
+
+                # HELP queue_claim_duration_ms Time to claim a task from the queue
+                # TYPE queue_claim_duration_ms histogram
+                queue_claim_duration_ms_bucket{task_type="verify",outcome="claimed",le="50"} 12
+
+                # HELP policy_evaluate_duration_ms Policy evaluation latency
+                # TYPE policy_evaluate_duration_ms histogram
+                policy_evaluate_duration_ms_bucket{engine="native",operation="acquire_lock",decision="allow",le="5"} 100
+
+components:
+  schemas:
+    MetricLabels:
+      type: object
+      description: Canonical label sets for each metric family
+      properties:
+        lock_outcome:
+          type: string
+          enum: [acquired, refreshed, denied, error]
+        queue_claim_outcome:
+          type: string
+          enum: [claimed, empty, error]
+        queue_task_outcome:
+          type: string
+          enum: [completed, failed]
+        policy_decision:
+          type: string
+          enum: [allow, deny]
+        cache_result:
+          type: string
+          enum: [hit, miss]
+        guardrail_severity:
+          type: string
+          enum: [block, warn, log]

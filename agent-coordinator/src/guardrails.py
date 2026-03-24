@@ -13,8 +13,43 @@ from typing import Any
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+from .telemetry import get_policy_meter, start_span
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Lazy metric instruments — initialised on first use, None when OTel disabled
+# ---------------------------------------------------------------------------
+
+_guardrail_instruments: tuple[Any, Any] | None = None
+
+
+def _ensure_guardrail_instruments() -> tuple[Any, Any]:
+    global _guardrail_instruments
+    if _guardrail_instruments is None:
+        meter = get_policy_meter()
+        if meter is None:
+            _guardrail_instruments = (None, None)
+        else:
+            _guardrail_instruments = (
+                meter.create_histogram(
+                    "guardrail.check.duration_ms",
+                    unit="ms",
+                    description="Guardrail check latency",
+                ),
+                meter.create_counter(
+                    "guardrail.violation.total",
+                    unit="1",
+                    description="Guardrail violations detected",
+                ),
+            )
+    return _guardrail_instruments
+
+
+def reset_guardrail_instruments() -> None:
+    """Reset cached metric instruments (for testing)."""
+    global _guardrail_instruments
+    _guardrail_instruments = None
 
 # =============================================================================
 # Hardcoded fallback patterns (used when database is unavailable)
@@ -224,41 +259,58 @@ class GuardrailsService:
         Returns:
             GuardrailResult indicating whether the operation is safe
         """
-        patterns = await self._load_patterns()
-        violations: list[GuardrailViolation] = []
-        safe = True
+        t0 = time.monotonic()
+        with start_span("guardrail.check"):
+            patterns = await self._load_patterns()
+            violations: list[GuardrailViolation] = []
+            safe = True
 
-        # Combine operation text and file paths for matching
-        full_text = operation_text
-        if file_paths:
-            full_text += "\n" + "\n".join(file_paths)
+            # Combine operation text and file paths for matching
+            full_text = operation_text
+            if file_paths:
+                full_text += "\n" + "\n".join(file_paths)
 
-        needs_approval = False
+            needs_approval = False
 
-        for pattern in patterns:
-            match = re.search(pattern.pattern, full_text, re.IGNORECASE)
-            if match and trust_level < pattern.min_trust_level:
-                blocked = pattern.severity == "block"
-                requires_approval = pattern.severity == "approval_required"
-                if blocked:
-                    safe = False
-                if requires_approval:
-                    needs_approval = True
+            for pattern in patterns:
+                match = re.search(pattern.pattern, full_text, re.IGNORECASE)
+                if match and trust_level < pattern.min_trust_level:
+                    blocked = pattern.severity == "block"
+                    requires_approval = pattern.severity == "approval_required"
+                    if blocked:
+                        safe = False
+                    if requires_approval:
+                        needs_approval = True
 
-                violations.append(
-                    GuardrailViolation(
-                        pattern_name=pattern.name,
-                        category=pattern.category,
-                        severity=pattern.severity,
-                        matched_text=match.group(0)[:200],
-                        blocked=blocked,
-                        approval_required=requires_approval,
+                    violations.append(
+                        GuardrailViolation(
+                            pattern_name=pattern.name,
+                            category=pattern.category,
+                            severity=pattern.severity,
+                            matched_text=match.group(0)[:200],
+                            blocked=blocked,
+                            approval_required=requires_approval,
+                        )
                     )
-                )
 
-        result = GuardrailResult(
-            safe=safe, violations=violations, approval_required=needs_approval,
-        )
+            result = GuardrailResult(
+                safe=safe, violations=violations, approval_required=needs_approval,
+            )
+
+        # Record metrics (best-effort)
+        try:
+            duration_hist, violation_counter = _ensure_guardrail_instruments()
+            outcome = "safe" if result.safe else "violation"
+            if duration_hist is not None:
+                duration_ms = (time.monotonic() - t0) * 1000
+                duration_hist.record(duration_ms, {"outcome": outcome})
+            if violation_counter is not None:
+                for v in violations:
+                    violation_counter.add(
+                        1, {"pattern": v.pattern_name, "severity": v.severity}
+                    )
+        except Exception:
+            logger.debug("Failed to record guardrail metrics", exc_info=True)
 
         # Audit: log all violations
         if violations:

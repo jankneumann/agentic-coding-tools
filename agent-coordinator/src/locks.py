@@ -9,6 +9,7 @@ See docs/lock-key-namespaces.md for the full namespace reference.
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -16,8 +17,50 @@ from typing import Any
 from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
+from .telemetry import get_lock_meter, start_span
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lazy metric instruments
+# ---------------------------------------------------------------------------
+
+def _get_instruments() -> tuple[Any, Any, Any, Any]:
+    """Lazy-init metric instruments. Returns None tuple when disabled."""
+    meter = get_lock_meter()
+    if meter is None:
+        return None, None, None, None
+    return (
+        meter.create_histogram(
+            "lock.acquire.duration_ms", unit="ms",
+            description="Lock acquisition latency",
+        ),
+        meter.create_counter(
+            "lock.contention.total", unit="1",
+            description="Lock contention events",
+        ),
+        meter.create_up_down_counter(
+            "lock.active", unit="1",
+            description="Currently held locks",
+        ),
+        meter.create_histogram(
+            "lock.ttl_seconds", unit="s",
+            description="Requested lock TTL",
+        ),
+    )
+
+
+# Cache instruments
+_instruments: tuple[Any, Any, Any, Any] | None = None
+
+
+def _ensure_instruments() -> tuple[Any, Any, Any, Any]:
+    global _instruments
+    if _instruments is None:
+        _instruments = _get_instruments()
+    return _instruments
+
 
 # Permitted logical lock key namespace prefixes.
 # Keys matching these prefixes are treated as logical resource locks
@@ -141,50 +184,93 @@ class LockService:
         resolved_agent_id = agent_id or config.agent.agent_id
         resolved_agent_type = agent_type or config.agent.agent_type
 
-        # Authorization boundary for write operations.
-        from .policy_engine import get_policy_engine
+        span_attrs = {"file_path": file_path, "agent_type": resolved_agent_type}
+        with start_span("lock.acquire", span_attrs) as span:
+            # Authorization boundary for write operations.
+            from .policy_engine import get_policy_engine
 
-        decision = await get_policy_engine().check_operation(
-            agent_id=resolved_agent_id,
-            agent_type=resolved_agent_type,
-            operation="acquire_lock",
-            resource=file_path,
-            context={"reason": reason},
-        )
-        if not decision.allowed:
-            return LockResult(
-                success=False,
-                file_path=file_path,
-                reason=decision.reason or "operation_not_permitted",
-            )
-
-        result = await self.db.rpc(
-            "acquire_lock",
-            {
-                "p_file_path": file_path,
-                "p_agent_id": resolved_agent_id,
-                "p_agent_type": resolved_agent_type,
-                "p_session_id": session_id or config.agent.session_id,
-                "p_reason": reason,
-                "p_ttl_minutes": ttl_minutes or config.lock.default_ttl_minutes,
-            },
-        )
-
-        lock_result = LockResult.from_dict(result)
-
-        try:
-            await get_audit_service().log_operation(
+            decision = await get_policy_engine().check_operation(
                 agent_id=resolved_agent_id,
                 agent_type=resolved_agent_type,
                 operation="acquire_lock",
-                parameters={"file_path": file_path, "reason": reason},
-                result={"action": lock_result.action},
-                success=lock_result.success,
+                resource=file_path,
+                context={"reason": reason},
             )
-        except Exception:
-            logger.warning("Audit log failed for acquire_lock", exc_info=True)
+            if not decision.allowed:
+                return LockResult(
+                    success=False,
+                    file_path=file_path,
+                    reason=decision.reason or "operation_not_permitted",
+                )
 
-        return lock_result
+            resolved_ttl = ttl_minutes or config.lock.default_ttl_minutes
+
+            t0 = time.monotonic()
+            result = await self.db.rpc(
+                "acquire_lock",
+                {
+                    "p_file_path": file_path,
+                    "p_agent_id": resolved_agent_id,
+                    "p_agent_type": resolved_agent_type,
+                    "p_session_id": session_id or config.agent.session_id,
+                    "p_reason": reason,
+                    "p_ttl_minutes": resolved_ttl,
+                },
+            )
+            duration_ms = (time.monotonic() - t0) * 1000
+
+            lock_result = LockResult.from_dict(result)
+
+            # --- Record metrics (best-effort) ---
+            try:
+                duration_hist, contention_counter, active_gauge, ttl_hist = _ensure_instruments()
+                if duration_hist is not None:
+                    # Determine outcome label
+                    if lock_result.success:
+                        outcome = lock_result.action or "acquired"
+                    elif lock_result.locked_by:
+                        outcome = "denied"
+                    else:
+                        outcome = "error"
+
+                    labels = {"outcome": outcome, "agent_type": resolved_agent_type}
+                    duration_hist.record(duration_ms, labels)
+
+                    # Contention: denied because someone else holds the lock
+                    if outcome == "denied" and lock_result.locked_by:
+                        contention_counter.add(
+                            1,
+                            {
+                                "holder_type": "unknown",
+                                "requester_type": resolved_agent_type,
+                            },
+                        )
+
+                    # Active gauge: increment on acquire or refresh
+                    if lock_result.success and lock_result.action in ("acquired", "refreshed"):
+                        active_gauge.add(1)
+
+                    # TTL histogram
+                    ttl_hist.record(resolved_ttl * 60, {"agent_type": resolved_agent_type})
+
+                    span.set_attribute("lock.outcome", outcome)
+                    span.set_attribute("lock.duration_ms", duration_ms)
+            except Exception:
+                logger.debug("Metric recording failed for lock.acquire", exc_info=True)
+
+            try:
+                await get_audit_service().log_operation(
+                    agent_id=resolved_agent_id,
+                    agent_type=resolved_agent_type,
+                    operation="acquire_lock",
+                    parameters={"file_path": file_path, "reason": reason},
+                    result={"action": lock_result.action},
+                    success=lock_result.success,
+                )
+            except Exception:
+                logger.warning("Audit log failed for acquire_lock", exc_info=True)
+
+            return lock_result
 
     async def release(
         self,
@@ -204,42 +290,52 @@ class LockService:
         resolved_agent_id = agent_id or config.agent.agent_id
         resolved_agent_type = config.agent.agent_type
 
-        from .policy_engine import get_policy_engine
+        with start_span("lock.release", {"file_path": file_path}) as span:
+            from .policy_engine import get_policy_engine
 
-        decision = await get_policy_engine().check_operation(
-            agent_id=resolved_agent_id,
-            agent_type=resolved_agent_type,
-            operation="release_lock",
-            resource=file_path,
-        )
-        if not decision.allowed:
-            return LockResult(
-                success=False,
-                file_path=file_path,
-                reason=decision.reason or "operation_not_permitted",
-            )
-
-        result = await self.db.rpc(
-            "release_lock",
-            {
-                "p_file_path": file_path,
-                "p_agent_id": resolved_agent_id,
-            },
-        )
-
-        lock_result = LockResult.from_dict(result)
-
-        try:
-            await get_audit_service().log_operation(
+            decision = await get_policy_engine().check_operation(
                 agent_id=resolved_agent_id,
+                agent_type=resolved_agent_type,
                 operation="release_lock",
-                parameters={"file_path": file_path},
-                success=lock_result.success,
+                resource=file_path,
             )
-        except Exception:
-            logger.warning("Audit log failed for release_lock", exc_info=True)
+            if not decision.allowed:
+                return LockResult(
+                    success=False,
+                    file_path=file_path,
+                    reason=decision.reason or "operation_not_permitted",
+                )
 
-        return lock_result
+            result = await self.db.rpc(
+                "release_lock",
+                {
+                    "p_file_path": file_path,
+                    "p_agent_id": resolved_agent_id,
+                },
+            )
+
+            lock_result = LockResult.from_dict(result)
+
+            # --- Record metrics (best-effort) ---
+            try:
+                _, _, active_gauge, _ = _ensure_instruments()
+                if active_gauge is not None and lock_result.success:
+                    active_gauge.add(-1)
+                    span.set_attribute("lock.released", True)
+            except Exception:
+                logger.debug("Metric recording failed for lock.release", exc_info=True)
+
+            try:
+                await get_audit_service().log_operation(
+                    agent_id=resolved_agent_id,
+                    operation="release_lock",
+                    parameters={"file_path": file_path},
+                    success=lock_result.success,
+                )
+            except Exception:
+                logger.warning("Audit log failed for release_lock", exc_info=True)
+
+            return lock_result
 
     async def check(
         self,

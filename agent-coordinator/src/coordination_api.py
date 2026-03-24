@@ -260,12 +260,20 @@ async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
 
 def create_coordination_api() -> FastAPI:
     """Create the coordination HTTP API application."""
+    from .telemetry import get_prometheus_app, init_telemetry
+
+    init_telemetry()
 
     app = FastAPI(
         title="Agent Coordination API",
         description="Write operations for multi-agent coordination",
         version="0.2.0",
     )
+
+    # Mount Prometheus /metrics endpoint if enabled
+    prometheus_app = get_prometheus_app()
+    if prometheus_app is not None:
+        app.mount("/metrics", prometheus_app)
 
     # --------------------------------------------------------------------- #
     # FILE LOCKS

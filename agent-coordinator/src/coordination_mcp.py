@@ -1831,6 +1831,10 @@ After completing work, I'll release locks and mark tasks as done.
 
 def main() -> None:
     """Entry point for the MCP server."""
+    from .telemetry import init_telemetry
+
+    init_telemetry()
+
     # Default to stdio transport (for Claude Code integration)
     transport = "stdio"
     port = 8082

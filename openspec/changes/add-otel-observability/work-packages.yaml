@@ -1,0 +1,427 @@
+schema_version: 1
+
+feature:
+  id: add-otel-observability
+  title: "Add OpenTelemetry observability metrics for lock contention, queue latency, and policy evaluation"
+  plan_revision: 1
+  created_by: claude-code-1
+  created_at: "2026-03-23T21:52:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-otel-observability/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-otel-observability/contracts/openapi/v1.yaml"
+  generated:
+    pydantic_dir: "openspec/changes/add-otel-observability/contracts/generated"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: A
+  min_trust_level: 2
+
+packages:
+  # === ROOT: Core OTel infrastructure ===
+  - package_id: wp-otel-core
+    title: "Core OpenTelemetry infrastructure and configuration"
+    task_type: implement
+    description: |
+      Create the telemetry module and wire it into the coordinator.
+      1. Add opentelemetry-* packages to pyproject.toml under [observability] extras
+      2. Create src/telemetry.py: init_telemetry(), named meters, tracer provider, no-op fallback
+      3. Add ObservabilityConfig dataclass to src/config.py
+      4. Wire init_telemetry() into coordination_mcp.py and coordination_api.py startup
+      5. Add Prometheus exporter and /metrics route to HTTP API
+      6. Write unit tests for telemetry init, no-op mode, config parsing
+    role: backend-infra
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/pyproject.toml"
+      keys:
+        - "feature:add-otel-observability:infra"
+      ttl_minutes: 120
+      reason: "Core OTel infrastructure setup"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/tests/test_telemetry.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/add-otel-observability/**"
+      deny:
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/guardrails.py"
+    worktree:
+      name: add-otel-observability.wp-otel-core
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_telemetry.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_telemetry.py"
+            result_keys:
+              - "test_telemetry_pass"
+        - name: type-check
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/telemetry.py agent-coordinator/src/config.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_telemetry_pass"
+        - name: lint
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/telemetry.py agent-coordinator/src/config.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ruff_telemetry_pass"
+    outputs:
+      result_keys:
+        - "telemetry_module_created"
+        - "config_updated"
+        - "startup_wired"
+        - "prometheus_endpoint_added"
+      artifacts:
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/tests/test_telemetry.py"
+
+  # === PARALLEL: Lock metrics ===
+  - package_id: wp-lock-metrics
+    title: "Lock contention metrics instrumentation"
+    task_type: implement
+    description: |
+      Instrument LockService with OTel metrics and traces.
+      1. Import meters from telemetry module
+      2. Add lock.acquire.duration_ms histogram to acquire()
+      3. Add lock.contention.total counter for denied acquisitions
+      4. Add lock.active UpDownCounter on acquire/release
+      5. Add lock.ttl_seconds histogram
+      6. Add tracing spans to acquire() and release()
+      7. Write unit tests with in-memory exporter
+    role: backend
+    priority: 3
+    depends_on:
+      - wp-otel-core
+    locks:
+      files:
+        - "agent-coordinator/src/locks.py"
+      keys:
+        - "feature:add-otel-observability:locks"
+      ttl_minutes: 120
+      reason: "Lock service OTel instrumentation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/tests/test_lock_metrics.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/add-otel-observability/**"
+      deny:
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-otel-observability.wp-lock-metrics
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_lock_metrics.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_lock_metrics.py"
+            result_keys:
+              - "test_lock_metrics_pass"
+        - name: existing-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -m 'not e2e and not integration' -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "existing_tests_pass"
+    outputs:
+      result_keys:
+        - "lock_duration_histogram"
+        - "lock_contention_counter"
+        - "lock_active_gauge"
+        - "lock_spans"
+      artifacts:
+        - "agent-coordinator/tests/test_lock_metrics.py"
+
+  # === PARALLEL: Queue metrics ===
+  - package_id: wp-queue-metrics
+    title: "Queue latency metrics instrumentation"
+    task_type: implement
+    description: |
+      Instrument WorkQueueService with OTel metrics and traces.
+      1. Import meters from telemetry module
+      2. Add queue.claim.duration_ms histogram to claim()
+      3. Add queue.wait_time_ms histogram (created_at → claimed_at)
+      4. Add queue.task.duration_ms histogram to complete()
+      5. Add queue.submit.total counter to submit()
+      6. Add queue.guardrail_block.total counter
+      7. Add tracing spans to claim/complete/submit
+      8. Write unit tests with in-memory exporter
+    role: backend
+    priority: 3
+    depends_on:
+      - wp-otel-core
+    locks:
+      files:
+        - "agent-coordinator/src/work_queue.py"
+      keys:
+        - "feature:add-otel-observability:queue"
+      ttl_minutes: 120
+      reason: "Work queue OTel instrumentation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/tests/test_queue_metrics.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/add-otel-observability/**"
+      deny:
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-otel-observability.wp-queue-metrics
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_queue_metrics.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_queue_metrics.py"
+            result_keys:
+              - "test_queue_metrics_pass"
+        - name: existing-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -m 'not e2e and not integration' -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "existing_tests_pass"
+    outputs:
+      result_keys:
+        - "queue_claim_histogram"
+        - "queue_wait_histogram"
+        - "queue_task_histogram"
+        - "queue_submit_counter"
+        - "queue_guardrail_counter"
+        - "queue_spans"
+      artifacts:
+        - "agent-coordinator/tests/test_queue_metrics.py"
+
+  # === PARALLEL: Policy metrics ===
+  - package_id: wp-policy-metrics
+    title: "Policy evaluation metrics instrumentation"
+    task_type: implement
+    description: |
+      Instrument PolicyEngine and GuardrailsService with OTel metrics and traces.
+      1. Import meters from telemetry module
+      2. Add policy.evaluate.duration_ms histogram to both NativePolicyEngine and CedarPolicyEngine
+      3. Add policy.decision.total counter (allow/deny by engine and operation)
+      4. Add policy.cache.total counter for Cedar cache hits/misses
+      5. Add guardrail.check.duration_ms histogram
+      6. Add guardrail.violation.total counter by pattern and severity
+      7. Add tracing spans to policy evaluate and guardrail check
+      8. Write unit tests with in-memory exporter
+    role: backend
+    priority: 3
+    depends_on:
+      - wp-otel-core
+    locks:
+      files:
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/guardrails.py"
+      keys:
+        - "feature:add-otel-observability:policy"
+      ttl_minutes: 120
+      reason: "Policy and guardrails OTel instrumentation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/policy_engine.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/tests/test_policy_metrics.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/changes/add-otel-observability/**"
+      deny:
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/src/config.py"
+    worktree:
+      name: add-otel-observability.wp-policy-metrics
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_policy_metrics.py -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_policy_metrics.py"
+            result_keys:
+              - "test_policy_metrics_pass"
+        - name: existing-tests
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -m 'not e2e and not integration' -v"
+          cwd: "agent-coordinator"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "existing_tests_pass"
+    outputs:
+      result_keys:
+        - "policy_duration_histogram"
+        - "policy_decision_counter"
+        - "policy_cache_counter"
+        - "guardrail_duration_histogram"
+        - "guardrail_violation_counter"
+        - "policy_spans"
+      artifacts:
+        - "agent-coordinator/tests/test_policy_metrics.py"
+
+  # === LEAF: Integration ===
+  - package_id: wp-integration
+    title: "Integration testing and CI validation"
+    task_type: verify
+    description: |
+      Merge all instrumented services and validate end-to-end.
+      1. Merge worktrees from all implementation packages
+      2. Run full test suite with OTel disabled (no-op) — verify no regressions
+      3. Run full test suite with OTel enabled (in-memory exporter) — verify metrics flow
+      4. Test /metrics Prometheus endpoint returns expected metric families
+      5. Run mypy --strict and ruff check on all modified files
+      6. Update CI workflow to include [observability] extras
+    role: integration
+    priority: 8
+    depends_on:
+      - wp-lock-metrics
+      - wp-queue-metrics
+      - wp-policy-metrics
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys:
+        - "feature:add-otel-observability:integration"
+      ttl_minutes: 120
+      reason: "Integration testing and CI update"
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/**"
+        - ".github/workflows/ci.yml"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/changes/add-otel-observability/**"
+      deny: []
+    worktree:
+      name: add-otel-observability.wp-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: full-test-suite-noop
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -m 'not e2e and not integration' -v"
+          cwd: "agent-coordinator"
+          env:
+            OTEL_METRICS_ENABLED: "false"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "full_tests_noop_pass"
+        - name: full-test-suite-enabled
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -m 'not e2e and not integration' -v"
+          cwd: "agent-coordinator"
+          env:
+            OTEL_METRICS_ENABLED: "true"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "full_tests_enabled_pass"
+        - name: type-check-all
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_all_pass"
+        - name: lint-all
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ruff_all_pass"
+        - name: ci-validation
+          kind: ci
+          ci:
+            provider: github
+            workflow: ci.yml
+            required_checks:
+              - "lint"
+              - "typecheck"
+              - "test"
+          evidence:
+            artifacts:
+              - ".github/workflows/ci.yml"
+            result_keys:
+              - "ci_green"
+    outputs:
+      result_keys:
+        - "integration_validated"
+        - "ci_updated"
+      artifacts:
+        - ".github/workflows/ci.yml"

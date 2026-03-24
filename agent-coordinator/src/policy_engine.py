@@ -15,8 +15,42 @@ from typing import Any
 
 from .config import get_config
 from .db import DatabaseClient, get_db
+from .telemetry import get_policy_meter, start_span
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Lazy metric instruments — initialised on first use, None when OTel disabled
+# ---------------------------------------------------------------------------
+
+_policy_instruments: tuple[Any, Any, Any] | None = None
+
+
+def _ensure_policy_instruments() -> tuple[Any, Any, Any]:
+    global _policy_instruments
+    if _policy_instruments is None:
+        meter = get_policy_meter()
+        if meter is None:
+            _policy_instruments = (None, None, None)
+        else:
+            _policy_instruments = (
+                meter.create_histogram(
+                    "policy.evaluate.duration_ms",
+                    unit="ms",
+                    description="Policy evaluation latency",
+                ),
+                meter.create_counter(
+                    "policy.decision.total",
+                    unit="1",
+                    description="Policy decisions",
+                ),
+                meter.create_counter(
+                    "policy.cache.total",
+                    unit="1",
+                    description="Policy cache hits/misses",
+                ),
+            )
+    return _policy_instruments
 
 # Read actions that all agents can perform
 READ_ACTIONS = frozenset({
@@ -107,6 +141,36 @@ class NativePolicyEngine:
         Returns:
             PolicyDecision indicating allowed/denied
         """
+        t0 = time.monotonic()
+        with start_span("policy.evaluate", {"engine": "native", "operation": operation}):
+            decision = await self._do_check_operation(
+                agent_id, agent_type, operation, resource, context,
+            )
+
+        # Record metrics (best-effort)
+        try:
+            duration_hist, decision_counter, _ = _ensure_policy_instruments()
+            decision_label = "allow" if decision.allowed else "deny"
+            labels = {"engine": "native", "operation": operation, "decision": decision_label}
+            if duration_hist is not None:
+                duration_ms = (time.monotonic() - t0) * 1000
+                duration_hist.record(duration_ms, labels)
+            if decision_counter is not None:
+                decision_counter.add(1, labels)
+        except Exception:
+            logger.debug("Failed to record policy metrics", exc_info=True)
+
+        return decision
+
+    async def _do_check_operation(
+        self,
+        agent_id: str,
+        agent_type: str,
+        operation: str,
+        resource: str = "",
+        context: dict[str, Any] | None = None,
+    ) -> PolicyDecision:
+        """Internal check_operation logic (no metrics)."""
         from .profiles import get_profiles_service
 
         profiles = get_profiles_service()
@@ -463,7 +527,22 @@ class CedarPolicyEngine:
             self._policies_cache is not None
             and (now - self._policies_cache_time) < ttl
         ):
+            # Record cache hit
+            try:
+                _, _, cache_counter = _ensure_policy_instruments()
+                if cache_counter is not None:
+                    cache_counter.add(1, {"result": "hit"})
+            except Exception:
+                pass
             return self._policies_cache
+
+        # Record cache miss
+        try:
+            _, _, cache_counter = _ensure_policy_instruments()
+            if cache_counter is not None:
+                cache_counter.add(1, {"result": "miss"})
+        except Exception:
+            pass
 
         # Try loading from database
         try:
@@ -586,6 +665,36 @@ class CedarPolicyEngine:
         Returns:
             PolicyDecision from Cedar evaluation
         """
+        t0 = time.monotonic()
+        with start_span("policy.evaluate", {"engine": "cedar", "operation": operation}):
+            decision = await self._do_check_operation(
+                agent_id, agent_type, operation, resource, context,
+            )
+
+        # Record metrics (best-effort)
+        try:
+            duration_hist, decision_counter, _ = _ensure_policy_instruments()
+            decision_label = "allow" if decision.allowed else "deny"
+            labels = {"engine": "cedar", "operation": operation, "decision": decision_label}
+            if duration_hist is not None:
+                duration_ms = (time.monotonic() - t0) * 1000
+                duration_hist.record(duration_ms, labels)
+            if decision_counter is not None:
+                decision_counter.add(1, labels)
+        except Exception:
+            logger.debug("Failed to record policy metrics", exc_info=True)
+
+        return decision
+
+    async def _do_check_operation(
+        self,
+        agent_id: str,
+        agent_type: str,
+        operation: str,
+        resource: str = "",
+        context: dict[str, Any] | None = None,
+    ) -> PolicyDecision:
+        """Internal check_operation logic (no metrics)."""
         ctx = context or {}
         trust_level = ctx.get("trust_level", 1)
 
@@ -837,3 +946,9 @@ def reset_policy_engine() -> None:
     """Reset the global policy engine (for testing)."""
     global _policy_engine
     _policy_engine = None
+
+
+def reset_policy_instruments() -> None:
+    """Reset cached metric instruments (for testing)."""
+    global _policy_instruments
+    _policy_instruments = None
