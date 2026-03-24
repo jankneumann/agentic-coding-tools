@@ -143,8 +143,8 @@ jobs:
         env:
           POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
 
-      - name: Run integration and E2E tests
-        run: cd agent-coordinator && uv run pytest -m "integration or e2e" -v
+      - name: Run integration and E2E tests (DirectPostgresClient)
+        run: cd agent-coordinator && uv run pytest tests/integration/postgres/ tests/e2e/postgres/ -v
         env:
           DB_BACKEND: postgres
           POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
