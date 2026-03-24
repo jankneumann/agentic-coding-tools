@@ -56,12 +56,17 @@ class Lock:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Lock":
+        def _parse_dt(val: Any) -> datetime:
+            if isinstance(val, datetime):
+                return val
+            return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+
         return cls(
             file_path=data["file_path"],
             locked_by=data["locked_by"],
             agent_type=data["agent_type"],
-            locked_at=datetime.fromisoformat(data["locked_at"].replace("Z", "+00:00")),
-            expires_at=datetime.fromisoformat(data["expires_at"].replace("Z", "+00:00")),
+            locked_at=_parse_dt(data["locked_at"]),
+            expires_at=_parse_dt(data["expires_at"]),
             reason=data.get("reason"),
             session_id=data.get("session_id"),
         )

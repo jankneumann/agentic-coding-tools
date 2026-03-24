@@ -1,0 +1,189 @@
+schema_version: 1
+
+feature:
+  id: "add-e2e-integration-ci"
+  title: "Add Docker-based E2E integration test infrastructure runnable in CI"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  # No API contracts — this feature adds test infrastructure only
+
+packages:
+  - package_id: "wp-ci-infra"
+    title: "CI infrastructure — ParadeDB service and readiness script"
+    task_type: "implement"
+    description: "Add test-integration job to ci.yml with ParadeDB service container and DB readiness wait script"
+    role: "devops-engineer"
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys:
+        - "flag:ci-integration-job"
+      ttl_minutes: 120
+      reason: "CI infrastructure setup"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        - "agent-coordinator/scripts/wait_for_db.py"
+      read_allow:
+        - "agent-coordinator/docker-compose.yml"
+        - "agent-coordinator/supabase/migrations/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/**"
+    worktree:
+      name: "wp-ci-infra"
+      mode: "isolated"
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "yaml-valid"
+          kind: "command"
+          command: "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))\""
+          expect_exit_code: 0
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  - package_id: "wp-postgres-fixtures"
+    title: "DirectPostgresClient integration test fixtures"
+    task_type: "implement"
+    description: "Create asyncpg-based test fixtures with transaction rollback isolation and DirectPostgresClient integration tests for locks, work queue, and memory"
+    role: "backend-engineer"
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/tests/integration/conftest_postgres.py"
+        - "agent-coordinator/tests/integration/test_locks_postgres.py"
+        - "agent-coordinator/tests/integration/test_work_queue_postgres.py"
+        - "agent-coordinator/tests/integration/test_memory_postgres.py"
+      keys:
+        - "flag:postgres-integration-fixtures"
+      ttl_minutes: 120
+      reason: "DirectPostgresClient integration test fixtures"
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/integration/**"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/conftest.py"
+        - "agent-coordinator/supabase/migrations/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - ".github/**"
+    worktree:
+      name: "wp-postgres-fixtures"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "integration-tests"
+          kind: "command"
+          command: "cd agent-coordinator && uv run pytest tests/integration/ -m integration -v"
+          expect_exit_code: 0
+          evidence:
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-e2e-coverage"
+    title: "E2E test coverage for uncovered services"
+    task_type: "implement"
+    description: "Add E2E tests for memory, handoffs, work queue, and audit endpoints against live database via FastAPI TestClient"
+    role: "backend-engineer"
+    priority: 3
+    depends_on: ["wp-postgres-fixtures"]
+    locks:
+      files:
+        - "agent-coordinator/tests/e2e/test_memory_live.py"
+        - "agent-coordinator/tests/e2e/test_handoffs_live.py"
+        - "agent-coordinator/tests/e2e/test_work_queue_live.py"
+        - "agent-coordinator/tests/e2e/test_audit_live.py"
+        - "agent-coordinator/tests/e2e/conftest.py"
+      keys:
+        - "flag:e2e-coverage-extension"
+      ttl_minutes: 120
+      reason: "E2E test coverage extension"
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/e2e/**"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/tests/integration/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - ".github/**"
+    worktree:
+      name: "wp-e2e-coverage"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "e2e-tests"
+          kind: "command"
+          command: "cd agent-coordinator && uv run pytest tests/e2e/ -m e2e -v"
+          expect_exit_code: 0
+          evidence:
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-integration"
+    title: "Integration merge and full validation"
+    task_type: "integrate"
+    description: "Merge all work packages, run full test suite, verify CI pipeline green including new integration job"
+    priority: 1
+    depends_on: ["wp-ci-infra", "wp-postgres-fixtures", "wp-e2e-coverage"]
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow: ["**"]
+      read_allow: ["**"]
+    worktree:
+      name: "wp-integration"
+      mode: "shared"
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full-test-suite"
+          kind: "command"
+          command: "cd agent-coordinator && uv run pytest --tb=short"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-integration/pytest.xml"
+            result_keys:
+              - "test_count"
+        - name: "lint-and-types"
+          kind: "command"
+          command: "cd agent-coordinator && uv run ruff check . && uv run mypy src/"
+          expect_exit_code: 0
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"

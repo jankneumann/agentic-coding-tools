@@ -101,3 +101,53 @@ jobs:
 
       - name: Run TLA+ model checks (non-blocking)
         run: .github/scripts/run_tlc.sh
+
+  test-integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: paradedb/paradedb:v0.22.2
+        ports:
+          - 54322:5432
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: cd agent-coordinator && uv sync --all-extras
+
+      - name: Apply database migrations
+        run: |
+          sudo apt-get install -y postgresql-client
+          for f in agent-coordinator/supabase/migrations/*.sql; do
+            PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f "$f"
+          done
+
+      - name: Wait for DB readiness
+        run: cd agent-coordinator && uv run python scripts/wait_for_db.py
+        env:
+          POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
+
+      - name: Run integration and E2E tests
+        run: cd agent-coordinator && uv run pytest -m "integration or e2e" -v
+        env:
+          DB_BACKEND: postgres
+          POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
+          AGENT_ID: ci-test-agent
+          AGENT_TYPE: test_agent
+          COORDINATOR_PROFILE: local
