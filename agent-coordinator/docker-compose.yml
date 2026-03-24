@@ -4,7 +4,7 @@
 services:
   # PostgreSQL database with ParadeDB extensions
   postgres:
-    image: paradedb/paradedb:latest
+    image: paradedb/paradedb:v0.22.2
     container_name: agent-coordinator-db
     ports:
       - "${AGENT_COORDINATOR_DB_PORT:-54322}:5432"
