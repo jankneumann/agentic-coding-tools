@@ -1,0 +1,183 @@
+schema_version: "1.0"
+change_id: expose-coordinator-apis
+
+packages:
+  - id: wp-bridge-fix
+    title: Fix coordination bridge + add new capability flags
+    priority: 1
+    depends_on: []
+    tasks: [T1, T2, T3, T4, T5, T6, T7, T8]
+    scope:
+      write_allow:
+        - "scripts/coordination_bridge.py"
+        - "scripts/tests/test_coordination_bridge*.py"
+        - "skills/parallel-*/scripts/check_coordinator.py"
+      read_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/feature_registry.py"
+        - "agent-coordinator/src/merge_queue.py"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+    locks:
+      files:
+        - "scripts/coordination_bridge.py"
+      keys:
+        - "bridge:capability_probes"
+        - "bridge:handoff_endpoints"
+      ttl_minutes: 120
+      reason: "Fix stale bridge endpoints and add new capability flags"
+    verification:
+      tier: A
+      commands:
+        - "scripts/.venv/bin/python -m pytest scripts/tests/test_coordination_bridge*.py -v"
+
+  - id: wp-mcp-tools
+    title: Add feature registry + merge queue MCP tools
+    priority: 1
+    depends_on: []
+    tasks: [T9, T10, T11, T12]
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/tests/test_mcp_feature_registry.py"
+        - "agent-coordinator/tests/test_mcp_merge_queue.py"
+      read_allow:
+        - "agent-coordinator/src/feature_registry.py"
+        - "agent-coordinator/src/merge_queue.py"
+        - "agent-coordinator/src/config.py"
+      deny:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_cli.py"
+        - "scripts/coordination_bridge.py"
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_mcp.py"
+      keys:
+        - "mcp:feature_registry_tools"
+        - "mcp:merge_queue_tools"
+      ttl_minutes: 120
+      reason: "Add MCP tools for feature registry and merge queue"
+    verification:
+      tier: A
+      commands:
+        - "cd agent-coordinator && source .venv/bin/activate && python -m pytest tests/test_mcp_feature_registry.py tests/test_mcp_merge_queue.py -v"
+
+  - id: wp-http-endpoints
+    title: Add feature registry + merge queue HTTP endpoints
+    priority: 1
+    depends_on: []
+    tasks: [T13, T14, T15, T16, T17]
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_api_feature_registry.py"
+        - "agent-coordinator/tests/test_api_merge_queue.py"
+      read_allow:
+        - "agent-coordinator/src/feature_registry.py"
+        - "agent-coordinator/src/merge_queue.py"
+        - "agent-coordinator/src/config.py"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_cli.py"
+        - "scripts/coordination_bridge.py"
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:POST /features/register"
+        - "api:POST /features/deregister"
+        - "api:GET /features/active"
+        - "api:POST /merge-queue/enqueue"
+        - "api:GET /merge-queue"
+      ttl_minutes: 120
+      reason: "Add HTTP endpoints for feature registry and merge queue"
+    verification:
+      tier: A
+      commands:
+        - "cd agent-coordinator && source .venv/bin/activate && python -m pytest tests/test_api_feature_registry.py tests/test_api_merge_queue.py -v"
+
+  - id: wp-cli
+    title: Add coordination-cli entry point
+    priority: 2
+    depends_on: []
+    tasks: [T18, T19, T20, T21, T22, T23, T24]
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_cli.py"
+        - "agent-coordinator/tests/test_coordination_cli.py"
+        - "agent-coordinator/pyproject.toml"
+      read_allow:
+        - "agent-coordinator/src/*.py"
+      deny:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "scripts/coordination_bridge.py"
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_cli.py"
+        - "agent-coordinator/pyproject.toml"
+      keys:
+        - "cli:coordination-cli"
+      ttl_minutes: 180
+      reason: "New CLI entry point — largest package, all subcommand groups"
+    verification:
+      tier: A
+      commands:
+        - "cd agent-coordinator && source .venv/bin/activate && python -m pytest tests/test_coordination_cli.py -v"
+
+  - id: wp-skill-update
+    title: Update parallel-cleanup-feature skill
+    priority: 3
+    depends_on: [wp-mcp-tools, wp-http-endpoints]
+    tasks: [T25, T26, T27]
+    scope:
+      write_allow:
+        - "skills/parallel-cleanup-feature/SKILL.md"
+      read_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "skills/parallel-*/scripts/check_coordinator.py"
+      deny:
+        - "agent-coordinator/src/*.py"
+        - "scripts/coordination_bridge.py"
+    locks:
+      files:
+        - "skills/parallel-cleanup-feature/SKILL.md"
+      keys:
+        - "skill:parallel-cleanup-feature"
+      ttl_minutes: 60
+      reason: "Update skill to reference real API calls"
+    verification:
+      tier: C
+      commands:
+        - "openspec validate expose-coordinator-apis --strict"
+
+  - id: wp-integration
+    title: Integration validation
+    priority: 4
+    depends_on: [wp-bridge-fix, wp-mcp-tools, wp-http-endpoints, wp-cli, wp-skill-update]
+    tasks: [T28, T29, T30]
+    scope:
+      write_allow: []
+      read_allow:
+        - "**"
+      deny: []
+    locks:
+      files: []
+      keys: []
+      ttl_minutes: 30
+      reason: "Read-only integration validation"
+    verification:
+      tier: A
+      commands:
+        - "cd agent-coordinator && source .venv/bin/activate && python -m pytest -v"
+        - "cd agent-coordinator && source .venv/bin/activate && python -m mypy src/ --strict"
+        - "cd agent-coordinator && source .venv/bin/activate && python -m ruff check src/"
+        - "openspec validate expose-coordinator-apis --strict"
+
+dag_visualization: |
+  wp-bridge-fix ──────────────────────────┐
+  wp-mcp-tools ─────┬── wp-skill-update ──┤
+  wp-http-endpoints ┘                     ├── wp-integration
+  wp-cli ─────────────────────────────────┘
