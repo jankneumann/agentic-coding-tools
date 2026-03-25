@@ -104,9 +104,7 @@ The `/iterate-on-implementation` skill SHALL update `change-context.md` when ite
 - **THEN** the Files Changed and Test(s) columns SHALL be updated accordingly
 - **AND** the Coverage Summary SHALL be updated with new counts
 
-## MODIFIED Requirements
-
-### Requirement: Implement Feature Skill Step Structure (MODIFIED)
+### Requirement: Implement Feature Skill Step Structure
 
 The `/implement-feature` skill SHALL include a new step 3a "Generate Change Context & Test Plan" inserted before the existing "Implement Tasks" step.
 
@@ -116,7 +114,7 @@ The `/implement-feature` skill SHALL include a new step 3a "Generate Change Cont
 - **AND** step 3a SHALL produce `change-context.md` with the traceability skeleton and failing tests
 - **AND** step 3 SHALL reference tests from step 3a as the behavioral specification
 
-### Requirement: PR Body Includes Change Context Link (MODIFIED)
+### Requirement: PR Body Includes Change Context Link
 
 The PR creation step SHALL include a link to `change-context.md` alongside the existing proposal link.
 
