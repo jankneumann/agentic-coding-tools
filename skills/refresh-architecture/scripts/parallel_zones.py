@@ -20,7 +20,12 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR))
+# Sibling skill for validate_work_packages imports
+_VALIDATE_PACKAGES_DIR = _SCRIPT_DIR.parent.parent / "validate-packages" / "scripts"
+if str(_VALIDATE_PACKAGES_DIR) not in sys.path:
+    sys.path.insert(0, str(_VALIDATE_PACKAGES_DIR))
 from arch_utils.constants import DEPENDENCY_EDGE_TYPES  # noqa: E402
 from arch_utils.graph_io import load_graph  # noqa: E402
 from arch_utils.traversal import reachable_from  # noqa: E402

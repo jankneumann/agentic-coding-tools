@@ -3,40 +3,6 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
-name = "architecture-scripts"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "hvac" },
-    { name = "jsonschema" },
-    { name = "pyyaml" },
-    { name = "tree-sitter" },
-    { name = "tree-sitter-python" },
-    { name = "tree-sitter-sql" },
-    { name = "tree-sitter-typescript" },
-]
-
-[package.optional-dependencies]
-test = [
-    { name = "pytest" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "hvac", specifier = ">=2.1.0" },
-    { name = "jsonschema", specifier = ">=4.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "pyyaml", marker = "extra == 'test'", specifier = ">=6.0" },
-    { name = "tree-sitter", specifier = ">=0.23,<1.0" },
-    { name = "tree-sitter-python", specifier = ">=0.23,<1.0" },
-    { name = "tree-sitter-sql", specifier = ">=0.3,<1.0" },
-    { name = "tree-sitter-typescript", specifier = ">=0.23,<1.0" },
-]
-provides-extras = ["test"]
-
-[[package]]
 name = "attrs"
 version = "25.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -391,6 +357,40 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/20/53/7c7e784abfa500a2b6b583b147ee4bb5a2b3747a9166bab52fec4b5b5e7d/rpds_py-0.30.0-cp314-cp314t-win32.whl", hash = "sha256:dc824125c72246d924f7f796b4f63c1e9dc810c7d9e2355864b3c3a73d59ade0", size = 211570, upload-time = "2025-11-30T20:24:12.735Z" },
     { url = "https://files.pythonhosted.org/packages/d0/02/fa464cdfbe6b26e0600b62c528b72d8608f5cc49f96b8d6e38c95d60c676/rpds_py-0.30.0-cp314-cp314t-win_amd64.whl", hash = "sha256:27f4b0e92de5bfbc6f86e43959e6edd1425c33b5e69aab0984a72047f2bcf1e3", size = 226532, upload-time = "2025-11-30T20:24:14.634Z" },
 ]
+
+[[package]]
+name = "skill-scripts"
+version = "0.2.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "hvac" },
+    { name = "jsonschema" },
+    { name = "pyyaml" },
+    { name = "tree-sitter" },
+    { name = "tree-sitter-python" },
+    { name = "tree-sitter-sql" },
+    { name = "tree-sitter-typescript" },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "hvac", specifier = ">=2.1.0" },
+    { name = "jsonschema", specifier = ">=4.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "pyyaml", marker = "extra == 'test'", specifier = ">=6.0" },
+    { name = "tree-sitter", specifier = ">=0.23,<1.0" },
+    { name = "tree-sitter-python", specifier = ">=0.23,<1.0" },
+    { name = "tree-sitter-sql", specifier = ">=0.3,<1.0" },
+    { name = "tree-sitter-typescript", specifier = ">=0.23,<1.0" },
+]
+provides-extras = ["test"]
 
 [[package]]
 name = "tree-sitter"

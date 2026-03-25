@@ -23,8 +23,27 @@ try:
 except ImportError:
     sys.exit("jsonschema is required: pip install jsonschema")
 
+def _find_repo_root() -> Path:
+    """Find the git repository root."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        )
+        return Path(result.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback: walk up from this file looking for .git
+        p = Path(__file__).resolve().parent
+        while p != p.parent:
+            if (p / ".git").exists() or (p / "openspec").exists():
+                return p
+            p = p.parent
+        return Path(__file__).resolve().parent.parent
+
+
 SCHEMA_PATH = (
-    Path(__file__).resolve().parent.parent
+    _find_repo_root()
     / "openspec"
     / "schemas"
     / "work-queue-result.schema.json"

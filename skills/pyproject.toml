@@ -1,7 +1,7 @@
 [project]
-name = "architecture-scripts"
-version = "0.1.0"
-description = "Architecture analysis scripts with tree-sitter enrichment"
+name = "skill-scripts"
+version = "0.2.0"
+description = "Shared Python dependencies for infrastructure skills"
 requires-python = ">=3.12"
 dependencies = [
     "tree-sitter>=0.23,<1.0",
@@ -20,7 +20,14 @@ test = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+    "worktree/scripts/tests",
+    "coordination-bridge/scripts/tests",
+    "validate-packages/scripts/tests",
+    "validate-flows/scripts/tests",
+    "refresh-architecture/scripts/tests",
+    "bao-vault/scripts/tests",
+]
 
 [tool.ruff]
 target-version = "py312"
