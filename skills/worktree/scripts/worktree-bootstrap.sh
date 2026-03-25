@@ -42,10 +42,10 @@ if [ -f "${WORKTREE_PATH}/agent-coordinator/pyproject.toml" ]; then
         { echo "Warning: uv sync failed in agent-coordinator" >&2; errors=$((errors + 1)); }
 fi
 
-if [ -f "${WORKTREE_PATH}/scripts/pyproject.toml" ]; then
-    echo "Installing scripts dependencies..."
-    (cd "${WORKTREE_PATH}/scripts" && uv sync 2>&1) || \
-        { echo "Warning: uv sync failed in scripts" >&2; errors=$((errors + 1)); }
+if [ -f "${WORKTREE_PATH}/skills/pyproject.toml" ]; then
+    echo "Installing skills dependencies..."
+    (cd "${WORKTREE_PATH}/skills" && uv sync --all-extras 2>&1) || \
+        { echo "Warning: uv sync failed in skills" >&2; errors=$((errors + 1)); }
 fi
 
 # --- Sync skills ---

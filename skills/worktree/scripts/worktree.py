@@ -265,7 +265,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     # Bootstrap the worktree (copy .env, install deps, sync skills)
     bootstrapped = False
     if not args.no_bootstrap and not already_exists:
-        bootstrap_script = main_repo / "scripts" / "worktree-bootstrap.sh"
+        bootstrap_script = main_repo / "skills" / "worktree" / "scripts" / "worktree-bootstrap.sh"
         if bootstrap_script.is_file():
             print("Bootstrapping worktree...", file=sys.stderr)
             env = os.environ.copy()
