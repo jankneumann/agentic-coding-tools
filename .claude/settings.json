@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:127.0.0.1)",
+      "WebFetch(domain:*.railway.app)",
+      "WebFetch(domain:*.up.railway.app)",
+      "WebFetch(domain:rotkohl.ai)",
+      "WebFetch(domain:*.rotkohl.ai)",
+      "WebFetch(domain:api.anthropic.com)",
+      "WebFetch(domain:*.supabase.co)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "ask": [
+      "Bash(alembic *)",
+      "Bash(psql *)",
+      "Bash(railway *)",
+      "Bash(env *)"
+    ],
+    "deny": [
+      "Bash(curl *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -r -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(git stash drop *)",
+      "Bash(git stash clear *)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/**)",
+      "Read(**/.env.*)"
+    ]
+  }
+}
