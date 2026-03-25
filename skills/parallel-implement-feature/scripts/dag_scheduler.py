@@ -23,11 +23,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-# Import validation functions from scripts/validate_work_packages.py
-# The scripts/ directory is two levels up from this file
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
+# Import validation functions from sibling skill: validate-packages
+_VALIDATE_PKG_DIR = Path(__file__).resolve().parent.parent.parent / "validate-packages" / "scripts"
+if str(_VALIDATE_PKG_DIR) not in sys.path:
+    sys.path.insert(0, str(_VALIDATE_PKG_DIR))
 
 from validate_work_packages import (
     detect_cycles,
