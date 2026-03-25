@@ -79,6 +79,17 @@ A3. Compute DAG order
     - Detect cycles (validation error if found)
     - Topological sort for execution order
 
+A3.5. Generate Change Context & Test Plan (Phase 1 — TDD RED)
+    - Read spec delta files from openspec/changes/<change-id>/specs/
+    - For each SHALL/MUST clause, create a row in the Requirement Traceability Matrix
+      with Req ID, Spec Source, Description, and planned Test(s)
+    - Files Changed = "---", Evidence = "---"
+    - If design.md exists, populate Design Decision Trace (Implementation = "---")
+    - Write failing tests (RED) for each row in the matrix
+    - Each work package's input_data context slice includes the relevant
+      change-context.md rows so workers know which tests to make pass
+    - Write change-context.md to openspec/changes/<change-id>/
+
 A4. Create or reuse feature branch
     - git branch openspec/<change-id> main (if not exists)
     - If planning already created the branch, reuse it
@@ -167,6 +178,15 @@ C5. Integration merge (wp-integration package)
     - python3 scripts/merge_worktrees.py <change-id> <pkg1> <pkg2> ... --json
     - If conflicts: report SCOPE_VIOLATION escalation, do NOT auto-resolve
     - Run full test suite and cross-package contract verification
+
+C5.5. Finalize Change Context (Phase 2 completion)
+    - Update Files Changed column by cross-referencing files_modified from
+      artifacts/<package-id>/work-queue-result.json per package
+    - Update Design Decision Trace Implementation column if design.md exists
+    - Synthesize Review Findings Summary from all review-findings.json files:
+      include findings with disposition fix, escalate, or regenerate;
+      for accept, include only medium+ criticality
+    - Update Coverage Summary with exact counts from integrated result
 
 C6. Execution summary generation
     - DAG timeline, contract compliance, review findings

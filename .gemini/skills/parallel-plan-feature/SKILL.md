@@ -67,14 +67,27 @@ If `CAN_HANDOFF=true`, read latest handoff context.
 If `CAN_MEMORY=true`, recall relevant planning memories.
 If coordinator is unavailable, delegate to `/linear-plan-feature $ARGUMENTS`.
 
-### 1. Verify Clean State
+### 1. Setup Planning Worktree (Launcher Invariant)
+
+The shared checkout is **read-only** — never commit or modify files there. All planning work happens in a feature-level worktree.
 
 ```bash
-git pull origin main
-git status
+# Derive change-id from feature description (e.g., "add-user-auth")
+python3 scripts/worktree.py setup "<change-id>"
+# Output: WORKTREE_PATH=...
+cd $WORKTREE_PATH
+
+# Verify you're in the worktree
+git rev-parse --show-toplevel  # Should match WORKTREE_PATH
+git branch --show-current       # Should be openspec/<change-id>
 ```
 
-Resolve any uncommitted changes before proceeding.
+If the worktree already exists (e.g., from a previous planning session), reuse it:
+```bash
+python3 scripts/worktree.py status "<change-id>"
+```
+
+All subsequent steps happen **inside the worktree**.
 
 ### 2. Gather Context (Parallel Exploration)
 
@@ -247,7 +260,23 @@ For each package in work-packages.yaml:
 
 Use `ttl_minutes=0` for planning claims — they signal intent without expiring.
 
-### 8. Present for Approval
+### 8. Commit, Push, and Pin Worktree
+
+Commit all planning artifacts to the feature branch and push:
+
+```bash
+git add openspec/changes/<change-id>/
+git commit -m "plan: <change-id> — proposal, design, specs, contracts, work-packages"
+git push -u origin openspec/<change-id>
+```
+
+Pin the worktree so it persists for implementation (prevents GC):
+
+```bash
+python3 scripts/worktree.py pin "<change-id>"
+```
+
+### 9. Present for Approval
 
 Share the full proposal with stakeholders:
 - `proposal.md` — What and why

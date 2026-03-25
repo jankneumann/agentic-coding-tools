@@ -359,45 +359,37 @@ fi
 
 Report architecture diagnostics including broken flows, missing test coverage, orphaned code, and disconnected endpoints.
 
-### 7. Spec Compliance Phase
+### 7. Spec Compliance Phase (via Change Context)
 
 **Phase name:** `spec`
 **Criticality:** Non-critical (continues on failure)
 
-Read OpenSpec spec deltas for the change and verify each scenario against the live system:
+Use the `change-context.md` traceability matrix as the spec compliance artifact:
 
-1. Read `$OPENSPEC_PATH/changes/<change-id>/specs/` to find all spec delta files
-2. For each delta file, extract `#### Scenario:` blocks
-3. For each scenario, interpret the WHEN/THEN/AND clauses and verify against the live system:
+1. **Read `change-context.md`** from the change directory (`$OPENSPEC_PATH/changes/<change-id>/change-context.md`).
+   - If it does not exist (pre-existing change implemented before this artifact was introduced), generate the skeleton now: read spec delta files from `specs/`, extract SHALL/MUST clauses, and create rows with Req ID, Spec Source, Description, and Test(s) derived from `git diff --name-only main..HEAD`.
+
+2. **For each row in the Requirement Traceability Matrix**, verify the requirement against the live system:
    - **API scenarios**: Make HTTP requests to the running service and verify responses
    - **MCP tool scenarios**: Invoke MCP tools via the Python module and check results
    - **Database scenarios**: Query PostgreSQL directly and verify state
    - **Configuration scenarios**: Check file existence, content, or environment variables
-4. Record pass/fail per scenario with details on any mismatches
 
-**Example verification pattern:**
+3. **Update the Evidence column** for each row:
+   - `pass <short-SHA>` — requirement verified successfully against the live system
+   - `fail <short-SHA>` — requirement verification failed (include brief reason)
+   - `deferred <reason>` — cannot verify in this environment (e.g., requires production)
 
-```python
-# For a scenario like:
-# WHEN agent calls discover_agents(capability?, status?)
-# THEN system returns array of {agent_id, agent_type, capabilities, status, ...}
+4. **Update Coverage Summary** with final counts: requirements traced, tests mapped, evidence collected, gaps, and deferred items.
 
-import httpx
-rest_port = os.environ.get("AGENT_COORDINATOR_REST_PORT", "3000")
-response = httpx.get(f"http://localhost:{rest_port}/agent_sessions?status=eq.active")
-assert response.status_code == 200
-data = response.json()
-# Verify response shape matches scenario expectations
-```
-
-Report results in a structured table:
+Report results sourced from the updated change-context.md:
 
 ```
-Spec Compliance Results:
-  ✓ Session Continuity > Agent writes handoff document
-  ✓ Session Continuity > Agent reads previous handoff
-  ✗ Agent Discovery > No matching agents: Expected empty array, got 500
-  ✓ Heartbeat > Agent heartbeat updates timestamp
+Spec Compliance Results (from change-context.md):
+  ✓ skill-workflow.1: Change context artifact generated during implementation
+  ✓ skill-workflow.2: 3-phase incremental generation
+  ✗ skill-workflow.3: TDD enforcement — test written after implementation
+  ✓ skill-workflow.4: Validation report references change-context.md
 ```
 
 ### 8. Log Analysis Phase
@@ -534,7 +526,7 @@ Produce a structured summary of all phases:
   - test_login_flow: TimeoutError on /api/auth
   - test_dashboard_load: Element not found: #stats-panel
 ✓ Architecture: No broken flows (2 warnings: orphaned functions)
-✓ Spec Compliance: 8/8 scenarios verified
+✓ Spec Compliance: 8/8 requirements verified (see change-context.md)
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)
 ✓ CI/CD: All checks passing

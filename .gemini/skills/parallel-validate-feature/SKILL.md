@@ -76,6 +76,19 @@ Check for consistency across packages:
 - [ ] All packages used the same `contracts_revision`
 - [ ] All packages used the same `plan_revision`
 
+### 4.5. Populate Change Context Evidence (Phase 3)
+
+Fill the Evidence column of `change-context.md` using work-queue results:
+
+1. Read `openspec/changes/<change-id>/change-context.md` (generated during `/parallel-implement-feature`)
+2. For each row in the Requirement Traceability Matrix:
+   - Cross-reference with work-queue result verification evidence per package
+   - If a package's `verification.passed` is `true` and its scope covers the requirement's files, set Evidence to `pass <SHA>`
+   - If verification failed for the relevant package, set Evidence to `fail <SHA>`
+   - If no package covers this requirement, set Evidence to `deferred (no package coverage)`
+3. Update Coverage Summary with final counts
+4. Verify Review Findings Summary section is complete (all `review-findings.json` files synthesized)
+
 ### 5. Produce Validation Report
 
 Generate a structured validation report:
@@ -91,7 +104,8 @@ Generate a structured validation report:
     "revision_consistency": {"passed": true},
     "scope_compliance": {"passed": true},
     "verification_evidence": {"passed": true},
-    "cross_package_consistency": {"passed": true}
+    "cross_package_consistency": {"passed": true},
+    "change_context": {"requirements_verified": "8/8", "gaps": 0, "deferred": 0}
   },
   "issues": []
 }

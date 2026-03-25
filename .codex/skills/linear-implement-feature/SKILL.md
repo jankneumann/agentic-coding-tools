@@ -99,7 +99,33 @@ git branch --show-current  # Should show openspec/<change-id>
 git checkout openspec/<change-id>
 ```
 
-### 3. Implement Tasks
+### 3a. Generate Change Context & Test Plan (Phase 1 — TDD RED)
+
+Before implementing any tasks, create the traceability skeleton and write failing tests:
+
+1. **Read spec delta files** from `openspec/changes/<change-id>/specs/`. For each SHALL/MUST clause, create a row in the Requirement Traceability Matrix:
+   - **Req ID**: `<capability>.<N>` — sequential number per capability
+   - **Spec Source**: relative path (e.g., `specs/session-continuity/spec.md`)
+   - **Description**: one-line summary of the requirement
+   - **Test(s)**: planned test function name derived from the spec scenario (e.g., `test_worktree_isolation` from scenario "Worktree provides isolation")
+   - **Files Changed**: `---` (not yet implemented)
+   - **Evidence**: `---` (not yet validated)
+
+2. **Design Decision Trace**: If `design.md` exists, populate with each decision. Rationale column filled from design.md, Implementation column = `---`.
+
+3. **Review Findings Summary**: Omit for linear workflow.
+
+4. **Coverage Summary**: Set preliminary counts — requirements traced = N, tests mapped = N, evidence = 0/N.
+
+5. **Write failing tests (RED)**: For each row in the matrix, create the test function listed in the Test(s) column. Tests should encode the spec scenario's WHEN/THEN/AND clauses as assertions. Tests MUST fail at this point (no implementation yet).
+   - For scenarios requiring live services, use `@pytest.mark.integration` or `@pytest.mark.e2e` markers as test stubs.
+   - Tests that reference implementation types/interfaces may fail to import — this is expected in the RED phase and validates that tests precede code.
+
+Use template from `openspec/schemas/feature-workflow/templates/change-context.md`. Write the file to `openspec/changes/<change-id>/change-context.md`.
+
+### 3b. Implement Tasks (Phase 2 — TDD GREEN)
+
+Tests from step 3a define expected behavior. Implement code to make them pass.
 
 Preferred path:
 - Use the runtime-native apply workflow (`opsx:apply` equivalent for the active agent) to execute tasks.
@@ -117,6 +143,11 @@ Execution expectations:
 - Keep edits minimal and focused
 - Mark completed tasks in `tasks.md` (`- [ ]` -> `- [x]`)
 
+After task completion, **update `change-context.md`**:
+- Fill the **Files Changed** column with actual source files modified per requirement (from `git diff --name-only main..HEAD` cross-referenced with task file scopes)
+- Update **Design Decision Trace** Implementation column if design.md exists
+- Update **Coverage Summary** counts
+
 Capability-gated coordinator hooks:
 
 - **Guardrails (`CAN_GUARDRAILS=true`)**: before running high-risk operations, run a guardrail pre-check and report violations informationally (phase 1 does not hard-block)
@@ -124,11 +155,6 @@ Capability-gated coordinator hooks:
 - **Work queue (`CAN_QUEUE_WORK=true`)**: for independent tasks, optionally submit/claim/complete via coordinator queue APIs; if unavailable or unclaimed, fall back to local `Task()` execution
 
 **Heartbeat:** During long-running implementation, periodically call `python3 scripts/worktree.py heartbeat "<change-id>" ${AGENT_FLAG}` to signal liveness to the worktree registry. This prevents stale-agent garbage collection from reclaiming the worktree.
-
-**TDD Approach:**
-- Write tests first that define expected behavior
-- Implement code to make tests pass
-- Don't proceed until tests pass
 
 #### Parallel Implementation (for independent tasks)
 
@@ -278,6 +304,7 @@ gh pr create --title "feat(<scope>): <title from proposal>" --body "$(cat <<'EOF
 Implements OpenSpec proposal: `<change-id>`
 
 **Proposal**: `openspec/changes/<change-id>/proposal.md`
+**Change Context**: `openspec/changes/<change-id>/change-context.md`
 
 ### Changes
 - <bullet points summarizing changes>

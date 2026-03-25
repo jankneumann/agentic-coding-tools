@@ -90,10 +90,10 @@ Architecture refresh callout:
 | `/refresh-architecture` | Codebase sources + existing `docs/architecture-analysis/*` | Updated architecture artifacts: `architecture.summary.json`, `architecture.graph.json`, `architecture.diagnostics.json`, `parallel_zones.json`, `architecture.report.md`, `views/*.mmd` |
 | `/plan-feature` | Existing specs/changes, architecture context, runtime-native OpenSpec assets or CLI fallback | `openspec/changes/<id>/proposal.md`, `openspec/changes/<id>/specs/**/spec.md`, `openspec/changes/<id>/tasks.md`, optional `openspec/changes/<id>/design.md` |
 | `/iterate-on-plan` | Proposal/design/tasks/spec deltas | Updated planning artifacts + `openspec/changes/<id>/plan-findings.md` |
-| `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, feature branch/PR |
-| `/iterate-on-implementation` | Implementation branch + OpenSpec artifacts | Fix commits + `openspec/changes/<id>/impl-findings.md` (+ spec/proposal/design corrections if drift found) |
+| `/implement-feature` | Proposal/spec/design/tasks context | Code changes, updated `tasks.md`, `openspec/changes/<id>/change-context.md` (traceability skeleton + tests), feature branch/PR |
+| `/iterate-on-implementation` | Implementation branch + OpenSpec artifacts | Fix commits + `openspec/changes/<id>/impl-findings.md` (+ spec/proposal/design/change-context corrections if drift found) |
 | `/security-review` (standalone) | Repository source + optional target URL/spec + scanner prerequisites | Security scanner outputs (`docs/security-review/*`) and optional `openspec/changes/<id>/security-review-report.md` |
-| `/validate-feature` | Running system + spec scenarios + changed files | `openspec/changes/<id>/validation-report.md`, `openspec/changes/<id>/architecture-impact.md`, security scanner outputs (`docs/security-review/*`) |
+| `/validate-feature` | Running system + spec scenarios + changed files + `openspec/changes/<id>/change-context.md` | `openspec/changes/<id>/validation-report.md` (references change-context.md for spec compliance), `openspec/changes/<id>/change-context.md` (evidence populated), `openspec/changes/<id>/architecture-impact.md`, security scanner outputs (`docs/security-review/*`) |
 | `/cleanup-feature` | PR state + `tasks.md` completion | Archived change (`openspec/changes/archive/...`), updated `openspec/specs/`, optional `openspec/changes/<id>/deferred-tasks.md` prior to archive |
 
 ## OpenSpec 1.0 Integration
@@ -273,9 +273,9 @@ Refines an OpenSpec proposal through structured iteration. Each iteration review
 
 ### `/implement-feature`
 
-Implements an approved proposal. Works through tasks sequentially or in parallel (for independent tasks with no file overlap), runs quality checks (pytest, mypy, ruff, openspec validate), and creates a PR. Uses runtime-native apply guidance first and `openspec instructions apply` as fallback.
+Implements an approved proposal using a test-driven approach. First generates a `change-context.md` traceability matrix mapping spec requirements to planned tests (Phase 1 — TDD RED), then implements code to make tests pass (Phase 2 — TDD GREEN). Works through tasks sequentially or in parallel (for independent tasks with no file overlap), runs quality checks (pytest, mypy, ruff, openspec validate), and creates a PR. Uses runtime-native apply guidance first and `openspec instructions apply` as fallback.
 
-**Produces**: Feature branch `openspec/<change-id>`, passing tests, and a PR ready for review.
+**Produces**: Feature branch `openspec/<change-id>`, `change-context.md` (traceability skeleton with code mapping), passing tests, and a PR ready for review.
 
 **Gate**: PR review — the human reviews the implementation before merge.
 
@@ -296,12 +296,12 @@ Deploys the feature locally with DEBUG logging and runs seven validation phases:
 3. **Security** — Runs OWASP Dependency-Check and ZAP against the live deployment (non-critical; degrades gracefully if prerequisites missing)
 4. **E2E** — Runs Playwright end-to-end tests (if available)
 5. **Architecture** — Validates architecture flows against changed files
-6. **Spec Compliance** — Verifies each OpenSpec scenario against the live system
+6. **Spec Compliance** — Populates evidence in `change-context.md` by verifying each requirement against the live system (Phase 3 of the traceability matrix)
 7. **Log Analysis** — Scans logs for warnings, errors, stack traces, and deprecation notices
 
-Also checks CI/CD status via GitHub CLI. Produces a structured validation report, security scanner outputs, and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
+Also checks CI/CD status via GitHub CLI. Produces a structured validation report (which references `change-context.md` for spec compliance details), security scanner outputs, and architecture-impact artifact, persists them to the change directory, and posts report results to the PR.
 
-**Produces**: `openspec/changes/<change-id>/validation-report.md`, `openspec/changes/<change-id>/architecture-impact.md`, and a PR comment.
+**Produces**: `openspec/changes/<change-id>/validation-report.md`, `openspec/changes/<change-id>/change-context.md` (evidence populated), `openspec/changes/<change-id>/architecture-impact.md`, and a PR comment.
 
 **Gate**: Validation results — the human decides whether to proceed to cleanup or address findings.
 

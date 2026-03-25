@@ -22,13 +22,14 @@
 | Logs | <!-- pass/warn/skip --> | <!-- error count, warning count, deprecations, stack traces --> |
 | CI/CD | <!-- pass/fail/skip --> | <!-- GitHub Actions check status --> |
 
-## Spec Compliance Details
+## Spec Compliance
 
-<!-- One row per scenario from the change's spec deltas -->
+<!-- Full requirement traceability is in change-context.md.
+     Report only summary counts here. -->
 
-| Scenario | Result | Notes |
-|----------|--------|-------|
-|          |        |       |
+See [change-context.md](./change-context.md) for the full requirement traceability matrix.
+
+**Summary**: <!-- N/M requirements verified, N gaps, N deferred -->
 
 ## Log Analysis
 

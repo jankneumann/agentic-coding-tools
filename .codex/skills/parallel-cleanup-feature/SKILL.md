@@ -55,13 +55,21 @@ Parse the JSON output to set `COORDINATOR_AVAILABLE`, `COORDINATION_TRANSPORT`, 
 
 If `CAN_HANDOFF=true`, read latest handoff context via MCP `read_handoff` tool.
 
-### 1. Determine Change ID
+### 1. Determine Change ID and Setup Cleanup Worktree
 
 ```bash
-BRANCH=$(git branch --show-current)
-CHANGE_ID=$(echo $BRANCH | sed 's/^openspec\///')
-# Or from argument: CHANGE_ID=$ARGUMENTS
+# Get change-id from argument or current branch
+CHANGE_ID=$ARGUMENTS
+# Or: CHANGE_ID=$(git branch --show-current | sed 's/^openspec\///')
+
 openspec show $CHANGE_ID
+```
+
+**Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
+
+```bash
+python3 scripts/worktree.py setup "$CHANGE_ID" --agent-id cleanup
+cd $WORKTREE_PATH
 ```
 
 ### 2. Verify PR is Approved
@@ -122,13 +130,9 @@ If this feature is not next in line, inform the user which feature should merge 
 If other features have merged since this feature branched:
 
 ```bash
-# Update main
-git checkout main
-git pull origin main
-
-# Rebase feature branch onto updated main
-git checkout openspec/<change-id>
-git rebase main
+# Inside the cleanup worktree (already on feature branch)
+git fetch origin main
+git rebase origin/main
 ```
 
 If rebase conflicts occur:
@@ -201,15 +205,18 @@ If `CAN_LOCK=true`, release any locks held by this agent for the feature:
 - Best-effort release for all lock keys in the feature's resource claims
 - Treat release failures as warnings
 
-Remove worktrees created during parallel implementation:
+Remove all worktrees for this feature (including the cleanup worktree itself):
 
 ```bash
-# GC stale worktrees first
-python3 scripts/worktree.py gc
+# Return to the shared checkout first (cleanup worktree is about to be removed)
+cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
-# List and tear down all agent worktrees for this change
+# Teardown all remaining agent worktrees for this change
+python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id cleanup
 python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id integrator
-# Workers are already cleaned by GC or individual teardown
+
+# GC any stale worktrees
+python3 scripts/worktree.py gc
 ```
 
 ### 13. Final Verification

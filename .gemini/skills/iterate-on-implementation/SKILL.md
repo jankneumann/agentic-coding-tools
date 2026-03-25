@@ -263,6 +263,7 @@ Review whether the current OpenSpec documents accurately reflect the refined imp
 - **`openspec/changes/<change-id>/proposal.md`** — if the proposal's described behavior no longer matches reality
 - **`openspec/changes/<change-id>/design.md`** — if design decisions or trade-offs changed during refinement
 - **Spec deltas in `openspec/changes/<change-id>/specs/`** — if requirements or scenarios need correction
+- **`openspec/changes/<change-id>/change-context.md`** — if this iteration added new files, tests, or changed requirement mappings, update the Requirement Traceability Matrix rows (Files Changed, Test(s) columns). Update Coverage Summary if new tests were added or requirements were discovered. If a finding reveals a missing spec requirement, add a new row to the matrix and write the corresponding test before fixing.
 
 **Do NOT make unnecessary changes** if the OpenSpec documents are still accurate after this iteration's fixes.
 

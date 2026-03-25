@@ -83,6 +83,18 @@ rules:
     - "Record per-scenario pass/fail for spec compliance phase"
     - "Include overall PASS/FAIL determination with next-step guidance"
 
+  change-context:
+    - "3-phase incremental: test plan (pre-impl) -> code mapping (impl) -> evidence (validation)"
+    - "Phase 1: Derive Test(s) from spec scenarios BEFORE writing implementation code (TDD RED)"
+    - "Phase 2: Write code to make tests pass (TDD GREEN), update Files Changed column"
+    - "Phase 3: Fill Evidence column during /validate-feature with pass/fail per requirement"
+    - "One row per SHALL/MUST requirement from specs/<capability>/spec.md"
+    - "Req ID format: <capability>.<N> where N is ordinal position in spec file"
+    - "Evidence values: 'pass <short-SHA>', 'fail <short-SHA>', 'deferred <reason>', or '---' (pending)"
+    - "Design Decision Trace section only present when design.md exists"
+    - "Review Findings Summary section only present for parallel workflow"
+    - "Coverage Summary uses exact counts, not estimates"
+
   deferred-tasks:
     - Reference original change-id and task number for traceability
     - Include migration target (Beads issue ID or follow-up proposal change-id)

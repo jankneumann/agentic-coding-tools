@@ -60,18 +60,22 @@ If `CAN_HANDOFF=true`, read latest handoff context before merge/archive actions:
 
 On handoff failure/unavailability, continue with standalone cleanup and log informationally.
 
-### 1. Determine Change ID
+### 1. Determine Change ID and Setup Cleanup Worktree
 
 ```bash
-# From current branch
-BRANCH=$(git branch --show-current)
-CHANGE_ID=$(echo $BRANCH | sed 's/^openspec\///')
-
-# Or from argument
+# From argument or current branch
 CHANGE_ID=$ARGUMENTS
+# Or: CHANGE_ID=$(git branch --show-current | sed 's/^openspec\///')
 
 # Verify
 openspec show $CHANGE_ID
+```
+
+**Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
+
+```bash
+python3 scripts/worktree.py setup "$CHANGE_ID" --agent-id cleanup
+cd $WORKTREE_PATH
 ```
 
 ### 2. Verify PR is Approved
@@ -99,11 +103,8 @@ gh pr merge openspec/<change-id> --merge --delete-branch
 ### 4. Update Local Repository
 
 ```bash
-# Switch to main
-git checkout main
-
-# Pull merged changes
-git pull origin main
+# From the cleanup worktree, fetch the merged main
+git fetch origin main
 ```
 
 After merge, refresh project-global architecture artifacts:
@@ -214,22 +215,26 @@ If `CAN_LOCK=true`, perform best-effort lock cleanup for files touched on the fe
 - Attempt release for each lock owned by this agent/session
 - Treat release failures as warnings (do not block cleanup)
 
-### 8.5. Remove Worktree
+### 8.5. Remove Worktrees
 
-If a worktree was created for this feature, remove it:
+Remove all worktrees for this feature (including the cleanup worktree):
 
 ```bash
-# Pass --agent-id if AGENT_ID env var is set
+# Return to shared checkout first (cleanup worktree is about to be removed)
+cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
+
+# Remove cleanup worktree
+python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id cleanup
+
+# Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
 if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
-
-# Garbage-collect stale peer worktrees before teardown
-python3 scripts/worktree.py gc
-
-# Remove worktree (checks both .git-worktrees/ and legacy locations)
 python3 scripts/worktree.py teardown "${CHANGE_ID}" ${AGENT_FLAG}
+
+# Garbage-collect stale worktrees
+python3 scripts/worktree.py gc
 ```
 
 ### 9. Final Verification

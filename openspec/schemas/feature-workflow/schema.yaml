@@ -145,7 +145,22 @@ artifacts:
       Run validation phases (Deploy, Smoke, E2E, Architecture, Spec Compliance, Logs,
       CI/CD) and record per-phase pass/fail/warn/skip results. Include commit SHA,
       branch, timestamp, per-scenario spec compliance, and overall PASS/FAIL determination.
+      Spec compliance details are in change-context.md; include only a summary count here.
     requires: [tasks]
+
+  - id: change-context
+    generates: change-context.md
+    template: change-context.md
+    description: Structured traceability matrix mapping requirements to code, tests, and evidence
+    instruction: >
+      Phase 1 (pre-implementation): Populate Req ID, Spec Source, Description, and planned
+      Test(s) from specs/ scenarios. Files Changed = "---". Write failing tests (RED).
+      Phase 2 (implementation): Update Files Changed column after code is written. Tests
+      should now pass (GREEN). Phase 3 (validation): Fill Evidence column with "pass <SHA>"
+      or "fail <SHA>" or "deferred <reason>". Design Decision Trace from design.md if present.
+      For parallel workflow, synthesize Review Findings Summary from review-findings.json.
+      Populate Coverage Summary with exact counts.
+    requires: [specs, tasks]
 
   - id: deferred-tasks
     generates: deferred-tasks.md
