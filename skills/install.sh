@@ -40,8 +40,7 @@ USAGE
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TARGET_ROOT="$REPO_ROOT"
+TARGET_ROOT="$(pwd)"
 AGENTS="claude,codex,gemini"
 MODE="rsync"
 FORCE=0
