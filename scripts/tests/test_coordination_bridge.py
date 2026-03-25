@@ -18,6 +18,8 @@ def _state(**overrides: Any) -> dict[str, Any]:
         "CAN_HANDOFF": False,
         "CAN_MEMORY": False,
         "CAN_GUARDRAILS": False,
+        "CAN_FEATURE_REGISTRY": False,
+        "CAN_MERGE_QUEUE": False,
     }
     base.update(overrides)
     return base
@@ -89,15 +91,15 @@ def test_detect_coordination_partial_capabilities(monkeypatch) -> None:
 
     def fake_http_request(*, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         del method, kwargs
-        responses = {
+        responses: dict[str, dict[str, Any]] = {
             "/health": {"status_code": 200, "data": {"status": "ok"}, "error": None},
             "/locks/acquire": {"status_code": 422, "data": {}, "error": "validation"},
             "/work/claim": {"status_code": 404, "data": {}, "error": "not found"},
             "/memory/query": {"status_code": 422, "data": {}, "error": "validation"},
             "/guardrails/check": {"status_code": 401, "data": {}, "error": "unauthorized"},
-            "/handoff/write": {"status_code": 404, "data": {}, "error": "not found"},
             "/handoffs/write": {"status_code": 404, "data": {}, "error": "not found"},
-            "/handoffs/latest": {"status_code": 404, "data": {}, "error": "not found"},
+            "/features/active": {"status_code": 404, "data": {}, "error": "not found"},
+            "/merge-queue": {"status_code": 404, "data": {}, "error": "not found"},
         }
         return responses[path]
 
@@ -113,6 +115,8 @@ def test_detect_coordination_partial_capabilities(monkeypatch) -> None:
     assert result["CAN_QUEUE_WORK"] is False
     assert result["CAN_HANDOFF"] is False
     assert result["CAN_GUARDRAILS"] is False
+    assert result["CAN_FEATURE_REGISTRY"] is False
+    assert result["CAN_MERGE_QUEUE"] is False
 
 
 def test_try_lock_skips_when_capability_missing(monkeypatch) -> None:
