@@ -37,8 +37,8 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 
 - **uv for all Python environments**: Use `uv` (not pip, pipenv, or poetry) for dependency management and virtual environments across all Python projects. CI uses `astral-sh/setup-uv@v5`.
 - **agent-coordinator**: `cd agent-coordinator && uv sync --all-extras` to install. Venv at `agent-coordinator/.venv`.
-- **scripts**: `cd scripts && uv sync` to install. Venv at `scripts/.venv`.
-- **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `scripts/.venv/bin/python -m pytest`).
+- **skills (infrastructure)**: `cd skills && uv sync --all-extras` to install. Venv at `skills/.venv`. Covers worktree, validation, architecture, and other infrastructure skill scripts.
+- **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `skills/.venv/bin/python -m pytest`).
 
 ## Git Conventions
 
@@ -53,8 +53,8 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 - **Launcher invariant**: The shared checkout is **read-only**. Every skill that modifies git state (plan, implement, cleanup) MUST work in a worktree, never the shared checkout. This prevents conflicts when multiple agents run from the same directory.
 - **Location**: `.git-worktrees/<change-id>/` for single-agent, `.git-worktrees/<change-id>/<agent-id>/` for parallel
 - **Registry**: `.git-worktrees/.registry.json` tracks owner, branch, heartbeat, pin status
-- **Commands**: `python3 scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
-- **Merge**: `python3 scripts/merge_worktrees.py <change-id> <pkg-id>...` merges package branches into feature branch
+- **Commands**: `python3 skills/worktree/scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
+- **Merge**: `python3 skills/worktree/scripts/merge_worktrees.py <change-id> <pkg-id>...` merges package branches into feature branch
 - **Agent-id**: Pass `--agent-id` for parallel disambiguation. Omit for single-agent (backward compatible)
 - **Pin**: Use `pin` to protect worktrees from GC during overnight pauses or waiting on input
 - **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`

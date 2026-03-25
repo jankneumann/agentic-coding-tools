@@ -49,12 +49,12 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_HANDOFF=true`, read recent handoff context:
 
 - MCP path: `read_handoff`
-- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_handoff_read(...)`
 
 If `CAN_MEMORY=true`, recall relevant memories before planning:
 
 - MCP path: `recall`
-- HTTP path: `scripts/coordination_bridge.py` `try_recall(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_recall(...)`
 
 On handoff/memory failure, continue with standalone planning and log informationally.
 
@@ -64,7 +64,7 @@ The shared checkout is **read-only** — never commit or modify files there. All
 
 ```bash
 # Derive change-id from feature description (e.g., "add-user-auth")
-python3 scripts/worktree.py setup "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>"
 # Output: WORKTREE_PATH=...
 cd $WORKTREE_PATH
 
@@ -163,7 +163,7 @@ git push -u origin openspec/<change-id>
 Pin the worktree so it persists for implementation:
 
 ```bash
-python3 scripts/worktree.py pin "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
 ```
 
 ### 6. Present for Approval

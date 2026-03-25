@@ -47,7 +47,7 @@ Read the execution artifacts:
 For each work package, validate its result against `work-queue-result.schema.json`:
 
 ```bash
-scripts/.venv/bin/python scripts/validate_work_result.py artifacts/<package-id>/result.json
+skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_result.py" artifacts/<package-id>/result.json
 ```
 
 #### Checks per package:

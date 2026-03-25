@@ -112,7 +112,7 @@ curl -s "http://localhost:${API_PORT:-8081}/health"
 curl -s "$COORDINATION_API_URL/health"
 
 # Bridge-level detection (HTTP contract)
-python scripts/coordination_bridge.py detect
+python3 "<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py" detect
 ```
 
 If health fails, fix runtime first (start `docker compose up -d` in `agent-coordinator/` for ParadeDB Postgres, then run the API with `DB_BACKEND=postgres`).
@@ -226,7 +226,7 @@ Verify detection and capability flags:
 curl -s "$COORDINATION_API_URL/health"
 # Expected: {"status": "ok", "db": "connected", "version": "0.2.0"}
 
-python scripts/coordination_bridge.py detect \
+python3 "<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py" detect \
   --http-url "$COORDINATION_API_URL" \
   --api-key "$COORDINATION_API_KEY"
 ```

@@ -72,7 +72,7 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_GUARDRAILS=true`, run an informational guardrail pre-check before scanners:
 
 - MCP path: `check_guardrails`
-- HTTP path: `scripts/coordination_bridge.py` `try_check_guardrails(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_check_guardrails(...)`
 
 Pre-check target text should summarize intended scan commands and any write actions (report generation paths, temp outputs).
 

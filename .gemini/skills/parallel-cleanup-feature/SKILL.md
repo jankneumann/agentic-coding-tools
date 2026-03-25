@@ -68,7 +68,7 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-python3 scripts/worktree.py setup "$CHANGE_ID" --agent-id cleanup
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup
 cd $WORKTREE_PATH
 ```
 
@@ -212,11 +212,11 @@ Remove all worktrees for this feature (including the cleanup worktree itself):
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
 # Teardown all remaining agent worktrees for this change
-python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id cleanup
-python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id integrator
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id integrator
 
 # GC any stale worktrees
-python3 scripts/worktree.py gc
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
 ```
 
 ### 13. Final Verification

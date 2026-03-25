@@ -56,7 +56,7 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_HANDOFF=true`, read latest handoff context before merge/archive actions:
 
 - MCP path: `read_handoff`
-- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_handoff_read(...)`
 
 On handoff failure/unavailability, continue with standalone cleanup and log informationally.
 
@@ -74,7 +74,7 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-python3 scripts/worktree.py setup "$CHANGE_ID" --agent-id cleanup
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup
 cd $WORKTREE_PATH
 ```
 
@@ -224,17 +224,17 @@ Remove all worktrees for this feature (including the cleanup worktree):
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
 # Remove cleanup worktree
-python3 scripts/worktree.py teardown "${CHANGE_ID}" --agent-id cleanup
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
 
 # Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
 if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
-python3 scripts/worktree.py teardown "${CHANGE_ID}" ${AGENT_FLAG}
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" ${AGENT_FLAG}
 
 # Garbage-collect stale worktrees
-python3 scripts/worktree.py gc
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
 ```
 
 ### 9. Final Verification

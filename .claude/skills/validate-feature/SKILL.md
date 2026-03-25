@@ -62,7 +62,7 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_MEMORY=true`, recall relevant validation history:
 
 - MCP path: `recall`
-- HTTP path: `scripts/coordination_bridge.py` `try_recall(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_recall(...)`
 
 On recall failure/unavailability, continue with validation and log informationally.
 
@@ -77,7 +77,7 @@ CHANGE_ID=${CHANGE_ID:-$(echo $BRANCH | sed 's/^openspec\///')}
 # Detect worktree context and resolve OpenSpec path
 # Note: detect auto-discovers context from the working directory;
 # agent-id information is available via the worktree registry if needed.
-eval "$(python3 scripts/worktree.py detect)"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" detect)"
 PROJECT_ROOT="${MAIN_REPO:-$(git rev-parse --show-toplevel)}"
 ```
 
@@ -330,9 +330,9 @@ Run architecture flow validation against the changed files:
 # Get changed files relative to main
 CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
 
-if [ -f "scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
+if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture validation on changed files..."
-  python scripts/validate_flows.py \
+  python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
     --graph docs/architecture-analysis/architecture.graph.json \
     --output docs/architecture-analysis/architecture.diagnostics.json \
     --files "$CHANGED_FILES" 2>&1
@@ -635,7 +635,7 @@ Present the validation report and let the user decide the next step.
 If `CAN_MEMORY=true`, remember validation outcomes (phase pass/fail, key regressions, and next actions):
 
 - MCP path: `remember`
-- HTTP path: `scripts/coordination_bridge.py` `try_remember(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_remember(...)`
 
 ## Next Step
 

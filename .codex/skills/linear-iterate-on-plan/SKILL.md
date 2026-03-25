@@ -55,12 +55,12 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_HANDOFF=true`, read recent handoff context:
 
 - MCP path: `read_handoff`
-- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_handoff_read(...)`
 
 If `CAN_MEMORY=true`, recall relevant plan-iteration memories:
 
 - MCP path: `recall`
-- HTTP path: `scripts/coordination_bridge.py` `try_recall(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_recall(...)`
 
 On recall/handoff failure, continue with standalone iteration and log informationally.
 
@@ -276,7 +276,7 @@ Present a summary of all iterations:
 If `CAN_MEMORY=true`, remember iteration outcomes (for example findings counts, key fixes, and residual risks):
 
 - MCP path: `remember`
-- HTTP path: `scripts/coordination_bridge.py` `try_remember(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_remember(...)`
 
 If `CAN_HANDOFF=true`, write a completion handoff containing:
 
