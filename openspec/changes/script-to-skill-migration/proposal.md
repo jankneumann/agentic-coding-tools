@@ -1,4 +1,4 @@
-# Proposal: Migrate Shared Scripts to Infrastructure Skills
+# Proposal: Migrate All Scripts to Skills — Eliminate scripts/ Directory
 
 ## Change ID
 `script-to-skill-migration`
@@ -22,52 +22,55 @@ The skill packaging model treats skills as self-contained directories but allows
 
 ## Solution
 
-Convert shared scripts into **infrastructure skills** — lightweight skill directories that bundle the scripts and are synced alongside SDLC skills by `install.sh`.
+**Move all scripts into their relevant skill directories and delete `scripts/` entirely.** Each script becomes the single source of truth inside its skill — no duplication, no sync step.
 
 ### Key Design Decisions
 
-1. **Infrastructure skills** have a minimal `SKILL.md` that documents the script's API but are not user-invocable — they serve as dependency packages for other skills
-2. **Sibling-relative paths** — consuming skills reference scripts via `<skill-base-dir>/../<infra-skill>/scripts/<script>.py` instead of `scripts/<script>.py`
-3. **install.sh requires no changes** — it already syncs all directories under `skills/` that contain a `SKILL.md`
-4. **Existing tests remain** in `scripts/tests/` and continue to run against `scripts/` during CI — the infrastructure skills contain copies synced by `install.sh`
-5. **Grouping by domain** — related scripts are bundled together (e.g., `worktree.py` + `merge_worktrees.py` → `skills/worktree/`)
+1. **Single source of truth** — scripts live in skill directories, not copied from elsewhere
+2. **`scripts/` is fully eliminated** — no residual directory, no two-place maintenance
+3. **`pyproject.toml` moves to `skills/`** — becomes the shared Python dependency manifest for infrastructure skills, referenced by `install.sh` during `--deps` step
+4. **Tests move with their scripts** — each infra skill gets `scripts/tests/` with the relevant test files
+5. **CI updates** — points at `skills/*/scripts/tests/` instead of `scripts/tests/`
+6. **Sibling-relative paths** — consuming skills reference scripts via `<skill-base-dir>/../<infra-skill>/scripts/<script>.py`
 
-### Migration Plan
+### Complete Migration Map
 
-| Priority | New Skill | Bundled Scripts | Dependent Skills |
-|----------|-----------|----------------|-----------------|
-| P0 | `worktree` | `worktree.py`, `merge_worktrees.py` | 21 skills |
-| P0 | `coordination-bridge` | `coordination_bridge.py` | 12 skills |
-| P1 | `validate-packages` | `validate_work_packages.py`, `parallel_zones.py`, `validate_work_result.py` | 4 skills |
-| P1 | `validate-flows` | `validate_flows.py` | 2 skills |
-| P2 | `refresh-architecture` | _(already a skill — just bundle `refresh_architecture.sh`)_ | 1 skill |
+| Destination Skill | Scripts Moved | Tests Moved |
+|-------------------|--------------|-------------|
+| `skills/worktree/` (new) | `worktree.py`, `merge_worktrees.py`, `git-parallel-setup.sh` | `test_worktree.py`, `test_merge_worktrees.py` |
+| `skills/coordination-bridge/` (new) | `coordination_bridge.py` | `test_coordination_bridge.py` |
+| `skills/validate-packages/` (new) | `validate_work_packages.py`, `parallel_zones.py`, `validate_work_result.py`, `validate_schema.py`, `architecture_schema.json` | `test_validate_work_packages.py`, `test_parallel_zones_packages.py`, `test_validate_work_result.py` |
+| `skills/validate-flows/` (new) | `validate_flows.py` | `test_flow_tracer.py` |
+| `skills/refresh-architecture/` (exists) | `analyze_python.py`, `analyze_postgres.py`, `analyze_sql_treesitter.py`, `analyze_typescript.ts`, `compile_architecture_graph.py`, `diff_architecture.py`, `enrich_with_treesitter.py`, `generate_views.py`, `run_architecture.py`, `refresh_architecture.sh`, `treesitter_queries/`, `insights/`, `reports/` | `test_analyze_sql_treesitter.py`, `test_comment_linker.py`, `test_cross_layer_linker.py`, `test_enrich_with_treesitter.py`, `test_flow_tracer.py`, `test_graph_builder.py`, `test_impact_ranker.py`, `test_pattern_reporter.py`, `test_pipeline_integration.py`, `test_run_architecture.py`, `test_summary_builder.py`, `conftest.py`, `fixtures/` |
+| `skills/bao-vault/` (new) | `bao_seed.py` | `test_bao_seed.py` |
+
+### Shared Test Infrastructure
+
+- `scripts/tests/conftest.py` and `scripts/tests/fixtures/` move to `skills/refresh-architecture/scripts/tests/` (largest consumer) and are referenced via conftest path configuration where needed by other skills
+- `scripts/tests/__init__.py` is recreated in each skill's test directory
 
 ### What Changes
 
-- **New skill directories**: `skills/worktree/`, `skills/coordination-bridge/`, `skills/validate-packages/`, `skills/validate-flows/`
-- **Updated SKILL.md in 21+ skills**: Path references change from `scripts/X.py` to sibling-relative `<skill-base-dir>/../worktree/scripts/X.py`
-- **Updated sys.path imports**: `parallel-implement-feature/scripts/dag_scheduler.py` and `scope_checker.py` use sibling-relative imports
-- **New documentation**: `docs/script-skill-dependencies.md` (dependency report with Mermaid graph)
-
-### What Doesn't Change
-
-- `scripts/` directory stays in the source repo — it's the development home and CI test target
-- `install.sh` logic is unchanged
-- Test suites remain in `scripts/tests/`
-- Existing skill-local scripts (bug-scrub, fix-scrub, security-review, etc.) are unaffected
+- **6 skill directories** created or updated with scripts as source of truth
+- **`scripts/` deleted entirely** — including `.venv`, `.pytest_cache`, `__pycache__`
+- **`skills/pyproject.toml`** — shared dependency manifest (tree-sitter, jsonschema, pyyaml, hvac)
+- **21+ SKILL.md files** — path references updated to sibling-relative
+- **CI workflow** — test paths updated from `scripts/tests/` to `skills/*/scripts/tests/`
+- **CLAUDE.md** — worktree commands, Python environment section updated
 
 ## Risks
 
 | Risk | Mitigation |
 |------|-----------|
-| Path resolution complexity | Use `<skill-base-dir>` variable already available in SKILL.md prompts |
-| Script duplication (source vs skill copy) | `install.sh --mode rsync` keeps copies in sync; CI tests against `scripts/` source |
-| Breaking existing workflows | Backward-compatible — old paths still work in source repo; new paths work everywhere |
-| Large number of SKILL.md edits | Well-scoped find-and-replace; each skill has at most 2-3 path references to update |
+| Large number of file moves | Git tracks renames; atomic commit per work package |
+| CI breakage | Update CI in same PR; test paths are straightforward |
+| Shared test fixtures | conftest.py path configuration handles cross-skill test deps |
+| Breaking developer muscle memory | CLAUDE.md updated; old paths produce clear "not found" errors |
 
 ## Success Criteria
 
-1. All skills work when synced to a fresh repo with no `scripts/` directory
-2. `install.sh` syncs infrastructure skills alongside SDLC skills
-3. CI tests continue to pass against `scripts/` source
-4. No functional changes to skill behavior
+1. `scripts/` directory no longer exists
+2. All skills work when synced to a fresh repo with no `scripts/` directory
+3. All existing tests pass from their new locations
+4. CI is green
+5. `install.sh` installs Python dependencies from `skills/pyproject.toml`

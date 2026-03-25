@@ -2,8 +2,8 @@ schema_version: 1
 
 feature:
   id: script-to-skill-migration
-  title: "Migrate shared scripts to infrastructure skills for cross-repo portability"
-  plan_revision: 1
+  title: "Migrate all scripts to skills and eliminate scripts/ directory"
+  plan_revision: 2
   created_by: claude-code
   created_at: "2026-03-25T13:20:00Z"
 
@@ -15,18 +15,20 @@ contracts:
       - openspec/changes/script-to-skill-migration/contracts/infra-skill-schema.yaml
 
 packages:
-  # ─── Root: Create infrastructure skill scaffolds ───
+  # ─── Root: Create infra skills and move scripts ───
   - package_id: wp-infra-skills
-    title: "Create infrastructure skill directories and SKILL.md files"
+    title: "Create infrastructure skills, move scripts and tests"
     task_type: scaffolding
     description: |
-      Create 4 new infrastructure skill directories under skills/:
-      - skills/worktree/ (worktree.py + merge_worktrees.py)
-      - skills/coordination-bridge/ (coordination_bridge.py)
-      - skills/validate-packages/ (validate_work_packages.py + parallel_zones.py + validate_work_result.py)
-      - skills/validate-flows/ (validate_flows.py)
-      Each gets a SKILL.md (user_invocable: false) documenting the script API,
-      and a scripts/ subdirectory with copies of the source scripts.
+      Create 5 new infrastructure skill directories and move scripts+tests into them:
+      - skills/worktree/ ← worktree.py, merge_worktrees.py, git-parallel-setup.sh + tests
+      - skills/coordination-bridge/ ← coordination_bridge.py + tests
+      - skills/validate-packages/ ← validate_work_packages.py, parallel_zones.py,
+        validate_work_result.py, validate_schema.py, architecture_schema.json + tests
+      - skills/validate-flows/ ← validate_flows.py + tests
+      - skills/bao-vault/ ← bao_seed.py + tests
+      Each gets a SKILL.md (user_invocable: false) documenting the script API.
+      Move scripts/pyproject.toml and scripts/uv.lock to skills/.
     role: infrastructure
     priority: 1
     depends_on: []
@@ -36,25 +38,31 @@ packages:
         - skills/coordination-bridge/SKILL.md
         - skills/validate-packages/SKILL.md
         - skills/validate-flows/SKILL.md
+        - skills/bao-vault/SKILL.md
+        - skills/pyproject.toml
       keys:
         - "feature:script-to-skill-migration:scaffold"
       ttl_minutes: 120
-      reason: "Creating new infrastructure skill directories"
+      reason: "Creating new infrastructure skill directories and moving scripts"
     scope:
       write_allow:
         - "skills/worktree/**"
         - "skills/coordination-bridge/**"
         - "skills/validate-packages/**"
         - "skills/validate-flows/**"
+        - "skills/bao-vault/**"
+        - "skills/pyproject.toml"
+        - "skills/uv.lock"
       read_allow:
         - "scripts/**"
         - "skills/**"
       deny:
         - "skills/linear-*/**"
         - "skills/parallel-*/**"
+        - "skills/refresh-architecture/**"
     worktree:
       name: wp-infra-skills
-    timeout_minutes: 60
+    timeout_minutes: 90
     retry_budget: 1
     min_trust_level: 2
     verification:
@@ -62,16 +70,22 @@ packages:
       steps:
         - name: validate-skill-md
           kind: command
-          command: "for d in worktree coordination-bridge validate-packages validate-flows; do test -f skills/$d/SKILL.md || exit 1; done"
+          command: "for d in worktree coordination-bridge validate-packages validate-flows bao-vault; do test -f skills/$d/SKILL.md || exit 1; done"
           evidence:
             artifacts: []
             result_keys: ["skill_md_present"]
-        - name: validate-scripts-present
+        - name: validate-scripts-moved
           kind: command
-          command: "test -f skills/worktree/scripts/worktree.py && test -f skills/coordination-bridge/scripts/coordination_bridge.py && test -f skills/validate-packages/scripts/validate_work_packages.py && test -f skills/validate-flows/scripts/validate_flows.py"
+          command: "test -f skills/worktree/scripts/worktree.py && test -f skills/coordination-bridge/scripts/coordination_bridge.py && test -f skills/validate-packages/scripts/validate_work_packages.py && test -f skills/validate-flows/scripts/validate_flows.py && test -f skills/bao-vault/scripts/bao_seed.py"
           evidence:
             artifacts: []
-            result_keys: ["scripts_present"]
+            result_keys: ["scripts_moved"]
+        - name: run-infra-tests
+          kind: command
+          command: "for d in worktree coordination-bridge validate-packages validate-flows bao-vault; do skills/.venv/bin/python -m pytest skills/$d/scripts/tests/ --tb=short || exit 1; done"
+          evidence:
+            artifacts: []
+            result_keys: ["infra_tests_pass"]
     outputs:
       result_keys: ["infra_skills_created"]
       artifacts:
@@ -79,6 +93,64 @@ packages:
         - skills/coordination-bridge/SKILL.md
         - skills/validate-packages/SKILL.md
         - skills/validate-flows/SKILL.md
+        - skills/bao-vault/SKILL.md
+        - skills/pyproject.toml
+
+  # ─── Root (parallel): Move architecture scripts to refresh-architecture ───
+  - package_id: wp-arch-scripts
+    title: "Move architecture analysis scripts to refresh-architecture skill"
+    task_type: scaffolding
+    description: |
+      Move all architecture analysis scripts, insights/, reports/, treesitter_queries/,
+      and their tests into skills/refresh-architecture/scripts/.
+      Update refresh-architecture/SKILL.md with full script inventory.
+      Update internal imports within insights/ modules.
+    role: infrastructure
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - skills/refresh-architecture/SKILL.md
+        - skills/refresh-architecture/scripts/analyze_python.py
+      keys:
+        - "feature:script-to-skill-migration:arch"
+      ttl_minutes: 120
+      reason: "Moving architecture scripts to refresh-architecture skill"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/**"
+      read_allow:
+        - "scripts/**"
+        - "skills/**"
+      deny:
+        - "skills/worktree/**"
+        - "skills/coordination-bridge/**"
+        - "skills/linear-*/**"
+        - "skills/parallel-*/**"
+    worktree:
+      name: wp-arch-scripts
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: validate-scripts-moved
+          kind: command
+          command: "test -f skills/refresh-architecture/scripts/analyze_python.py && test -f skills/refresh-architecture/scripts/run_architecture.py && test -d skills/refresh-architecture/scripts/insights && test -d skills/refresh-architecture/scripts/treesitter_queries"
+          evidence:
+            artifacts: []
+            result_keys: ["arch_scripts_moved"]
+        - name: run-arch-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/ --tb=short -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys: ["arch_tests_pass"]
+    outputs:
+      result_keys: ["arch_scripts_moved"]
+      artifacts:
+        - skills/refresh-architecture/SKILL.md
 
   # ─── Parallel: Update linear skill path references ───
   - package_id: wp-linear-skill-refs
@@ -126,7 +198,7 @@ packages:
       steps:
         - name: no-repo-root-refs
           kind: command
-          command: "! grep -r 'scripts/worktree\\.py\\|scripts/coordination_bridge\\.py\\|scripts/validate_flows\\.py' skills/linear-*/SKILL.md"
+          command: "! grep -rn 'python3 scripts/' skills/linear-*/SKILL.md"
           evidence:
             artifacts: []
             result_keys: ["no_repo_root_refs"]
@@ -134,23 +206,17 @@ packages:
       result_keys: ["linear_refs_updated"]
       artifacts:
         - skills/linear-plan-feature/SKILL.md
-        - skills/linear-implement-feature/SKILL.md
 
   # ─── Parallel: Update parallel skill path references ───
   - package_id: wp-parallel-skill-refs
-    title: "Update path references in parallel workflow skills"
+    title: "Update path references in parallel workflow skills and sys.path imports"
     task_type: refactoring
     description: |
-      Update all SKILL.md files in parallel workflow skills to use sibling-relative paths:
-      - scripts/worktree.py → <skill-base-dir>/../worktree/scripts/worktree.py
-      - scripts/validate_work_packages.py → <skill-base-dir>/../validate-packages/scripts/validate_work_packages.py
-      - scripts/parallel_zones.py → <skill-base-dir>/../validate-packages/scripts/parallel_zones.py
-      - scripts/validate_work_result.py → <skill-base-dir>/../validate-packages/scripts/validate_work_result.py
-      - scripts/merge_worktrees.py → <skill-base-dir>/../worktree/scripts/merge_worktrees.py
-      Also update sys.path imports in parallel-implement-feature/scripts/dag_scheduler.py
-      and scope_checker.py.
-      Affects: parallel-plan-feature, parallel-implement-feature, parallel-validate-feature,
-      parallel-cleanup-feature
+      Update SKILL.md and Python sys.path imports in parallel workflow skills:
+      - SKILL.md path refs to sibling-relative
+      - dag_scheduler.py and scope_checker.py sys.path to sibling-relative
+      Affects: parallel-plan-feature, parallel-implement-feature,
+      parallel-validate-feature, parallel-cleanup-feature
     role: refactoring
     priority: 2
     depends_on:
@@ -186,7 +252,7 @@ packages:
       steps:
         - name: no-repo-root-refs
           kind: command
-          command: "! grep -r 'scripts/worktree\\.py\\|scripts/validate_work_packages\\.py\\|scripts/parallel_zones\\.py\\|scripts/merge_worktrees\\.py\\|scripts/validate_work_result\\.py' skills/parallel-*/SKILL.md"
+          command: "! grep -rn 'python3 scripts/' skills/parallel-*/SKILL.md"
           evidence:
             artifacts: []
             result_keys: ["no_repo_root_refs"]
@@ -194,7 +260,6 @@ packages:
       result_keys: ["parallel_refs_updated"]
       artifacts:
         - skills/parallel-plan-feature/SKILL.md
-        - skills/parallel-implement-feature/scripts/dag_scheduler.py
 
   # ─── Parallel: Update alias and utility skill path references ───
   - package_id: wp-alias-skill-refs
@@ -250,7 +315,7 @@ packages:
       steps:
         - name: no-repo-root-refs
           kind: command
-          command: "! grep -r 'scripts/worktree\\.py\\|scripts/coordination_bridge\\.py' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/fix-scrub/SKILL.md"
+          command: "! grep -rn 'python3 scripts/' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/fix-scrub/SKILL.md"
           evidence:
             artifacts: []
             result_keys: ["no_repo_root_refs"]
@@ -258,100 +323,112 @@ packages:
       result_keys: ["alias_refs_updated"]
       artifacts:
         - skills/plan-feature/SKILL.md
-        - skills/fix-scrub/SKILL.md
 
-  # ─── Sequential: Update install.sh ───
-  - package_id: wp-install-sh
-    title: "Add source-to-infra-skill script sync step to install.sh"
+  # ─── Sequential: Update install.sh and CI ───
+  - package_id: wp-install-ci
+    title: "Update install.sh for skills/pyproject.toml and update CI test paths"
     task_type: enhancement
     description: |
-      Add a pre-sync step to install.sh that copies source scripts from scripts/
-      into infrastructure skill directories before syncing to agent runtimes.
-      Define the mapping: worktree→worktree.py+merge_worktrees.py,
-      coordination-bridge→coordination_bridge.py, etc.
-      Ensure rsync preserves existing skill-local files.
+      - Update install.sh --deps to read skills/pyproject.toml and create .skills-venv
+      - Remove any references to scripts/ venv
+      - Update .github/workflows/ci.yml test paths to skills/*/scripts/tests/
+      - Update CLAUDE.md Python environment section
     role: infrastructure
     priority: 3
     depends_on:
       - wp-infra-skills
+      - wp-arch-scripts
     locks:
       files:
         - skills/install.sh
+        - .github/workflows/ci.yml
+        - CLAUDE.md
       keys:
         - "feature:script-to-skill-migration:install"
       ttl_minutes: 60
-      reason: "Enhancing install.sh with infra skill sync"
+      reason: "Updating install.sh and CI for new skill layout"
     scope:
       write_allow:
         - "skills/install.sh"
+        - ".github/workflows/ci.yml"
+        - "CLAUDE.md"
       read_allow:
         - "skills/**"
-        - "scripts/**"
     worktree:
-      name: wp-install-sh
-    timeout_minutes: 45
+      name: wp-install-ci
+    timeout_minutes: 60
     retry_budget: 1
     min_trust_level: 2
     verification:
       tier_required: A
       steps:
-        - name: install-sh-dry-run
+        - name: install-sh-works
           kind: command
           command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none 2>&1 | grep -c 'sync.*worktree'"
           evidence:
             artifacts: []
             result_keys: ["install_syncs_infra"]
     outputs:
-      result_keys: ["install_sh_updated"]
+      result_keys: ["install_ci_updated"]
       artifacts:
         - skills/install.sh
+        - .github/workflows/ci.yml
 
-  # ─── Sequential: Documentation ───
-  - package_id: wp-docs
-    title: "Update documentation with infrastructure skill conventions"
-    task_type: documentation
+  # ─── Sequential: Delete scripts/ and update docs ───
+  - package_id: wp-cleanup-docs
+    title: "Delete scripts/ directory and update all documentation"
+    task_type: cleanup
     description: |
-      - Add docs/script-skill-dependencies.md (already drafted)
-      - Update CLAUDE.md with infrastructure skill conventions
+      - Verify no remaining references to scripts/ in any file
+      - Delete scripts/ directory entirely
+      - Update docs/script-skill-dependencies.md to reflect completed migration
       - Update docs/skills-workflow.md with infrastructure skill section
+      - Update docs/architecture-artifacts.md with new refresh commands
+      - Update docs/lessons-learned.md with migration patterns
     role: documentation
     priority: 4
     depends_on:
-      - wp-infra-skills
+      - wp-linear-skill-refs
+      - wp-parallel-skill-refs
+      - wp-alias-skill-refs
+      - wp-install-ci
     locks:
       files:
         - docs/script-skill-dependencies.md
         - docs/skills-workflow.md
       keys:
-        - "feature:script-to-skill-migration:docs"
+        - "feature:script-to-skill-migration:cleanup"
       ttl_minutes: 60
-      reason: "Documenting infrastructure skill conventions"
+      reason: "Deleting scripts/ and updating documentation"
     scope:
       write_allow:
         - "docs/**"
-        - "CLAUDE.md"
+        - "scripts/**"
       read_allow:
         - "skills/**"
         - "docs/**"
-      deny:
-        - "scripts/**"
     worktree:
-      name: wp-docs
-    timeout_minutes: 30
+      name: wp-cleanup-docs
+    timeout_minutes: 45
     retry_budget: 0
-    min_trust_level: 1
+    min_trust_level: 2
     verification:
-      tier_required: C
+      tier_required: A
       steps:
-        - name: docs-exist
+        - name: scripts-dir-gone
           kind: command
-          command: "test -f docs/script-skill-dependencies.md && test -f docs/skills-workflow.md"
+          command: "test ! -d scripts"
           evidence:
-            artifacts:
-              - docs/script-skill-dependencies.md
-            result_keys: ["docs_present"]
+            artifacts: []
+            result_keys: ["scripts_deleted"]
+        - name: no-stale-refs
+          kind: command
+          command: "! grep -rn 'scripts/worktree\\.py\\|scripts/coordination_bridge\\.py\\|scripts/validate_work' skills/*/SKILL.md CLAUDE.md"
+          evidence:
+            artifacts: []
+            result_keys: ["no_stale_refs"]
     outputs:
-      result_keys: ["docs_updated"]
+      result_keys: ["cleanup_complete"]
       artifacts:
         - docs/script-skill-dependencies.md
         - docs/skills-workflow.md
@@ -365,22 +442,18 @@ packages:
       Run full validation suite:
       - openspec validate
       - install.sh sync to temp dir and verify infra skills present
-      - Existing scripts/tests/ pass
-      - Skill tests (bug-scrub, fix-scrub) pass
-      - Verify a skill can resolve worktree.py from synced location
+      - All skill tests pass from new locations
+      - scripts/ directory does not exist
+      - No SKILL.md references scripts/ as a repo-root path
     role: integration
     priority: 5
     depends_on:
-      - wp-linear-skill-refs
-      - wp-parallel-skill-refs
-      - wp-alias-skill-refs
-      - wp-install-sh
-      - wp-docs
+      - wp-cleanup-docs
     locks:
       files: []
       keys:
         - "feature:script-to-skill-migration:integration"
-      ttl_minutes: 60
+      ttl_minutes: 90
       reason: "Integration merge and validation"
     scope:
       write_allow:
@@ -401,18 +474,24 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["openspec_valid"]
-        - name: scripts-tests
+        - name: all-infra-tests
           kind: command
-          command: "scripts/.venv/bin/python -m pytest scripts/tests/ -m 'not e2e and not integration' --tb=short"
+          command: "for d in worktree coordination-bridge validate-packages validate-flows refresh-architecture bao-vault; do skills/.venv/bin/python -m pytest skills/$d/scripts/tests/ --tb=short -m 'not e2e and not integration' || exit 1; done"
           evidence:
             artifacts: []
-            result_keys: ["scripts_tests_pass"]
-        - name: install-sync-test
+            result_keys: ["all_tests_pass"]
+        - name: scripts-dir-gone
           kind: command
-          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -f .claude/skills/worktree/scripts/worktree.py"
+          command: "test ! -d scripts"
           evidence:
             artifacts: []
-            result_keys: ["install_syncs_infra_skills"]
+            result_keys: ["scripts_deleted"]
+        - name: install-portability
+          kind: command
+          command: "bash skills/install.sh --mode rsync --force --deps none --python-tools none && test -f .claude/skills/worktree/scripts/worktree.py && test -f .claude/skills/refresh-architecture/scripts/analyze_python.py"
+          evidence:
+            artifacts: []
+            result_keys: ["install_portable"]
     outputs:
       result_keys: ["integration_complete"]
       artifacts: []

@@ -201,17 +201,17 @@ graph TD
     OBW --> WT
 ```
 
-## Migration Priority
+## Migration Plan: Full Elimination of scripts/
 
-Based on usage count and criticality:
+All scripts move into skill directories as the single source of truth. The `scripts/` directory is deleted entirely.
 
-| Priority | Script | Dependents | Proposed Skill Name |
-|----------|--------|-----------|-------------------|
-| P0 | worktree.py | 21 | `worktree` |
-| P0 | coordination_bridge.py | 12 | `coordination-bridge` |
-| P1 | merge_worktrees.py | 2 | (bundle into `worktree` skill) |
-| P1 | validate_work_packages.py | 2 | `validate-packages` |
-| P1 | parallel_zones.py | 2 | (bundle into `validate-packages`) |
-| P1 | validate_flows.py | 2 | `validate-flows` |
-| P2 | validate_work_result.py | 1 | (bundle into `validate-packages`) |
-| P2 | refresh_architecture.sh | 1 | `refresh-architecture` (already exists, just needs script bundled) |
+| Destination Skill | Scripts | Tests | Type |
+|-------------------|---------|-------|------|
+| `skills/worktree/` | `worktree.py`, `merge_worktrees.py`, `git-parallel-setup.sh` | `test_worktree.py`, `test_merge_worktrees.py` | New infra |
+| `skills/coordination-bridge/` | `coordination_bridge.py` | `test_coordination_bridge.py` | New infra |
+| `skills/validate-packages/` | `validate_work_packages.py`, `parallel_zones.py`, `validate_work_result.py`, `validate_schema.py`, `architecture_schema.json` | `test_validate_work_packages.py`, `test_parallel_zones_packages.py`, `test_validate_work_result.py` | New infra |
+| `skills/validate-flows/` | `validate_flows.py` | `test_flow_tracer.py` | New infra |
+| `skills/refresh-architecture/` | All `analyze_*.py`, `compile_architecture_graph.py`, `diff_architecture.py`, `enrich_with_treesitter.py`, `generate_views.py`, `run_architecture.py`, `refresh_architecture.sh`, `treesitter_queries/`, `insights/`, `reports/` | All architecture tests + `conftest.py` + `fixtures/` | Existing (expanded) |
+| `skills/bao-vault/` | `bao_seed.py` | `test_bao_seed.py` | New infra |
+
+`scripts/pyproject.toml` and `scripts/uv.lock` move to `skills/` as the shared Python dependency manifest.
