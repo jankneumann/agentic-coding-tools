@@ -41,8 +41,16 @@ def run_git(*args: str, cwd: str | None = None, check: bool = True) -> str:
         cwd=cwd,
         capture_output=True,
         text=True,
-        check=check,
+        check=False,
     )
+    if check and result.returncode != 0:
+        # Include git's stderr in the exception so the caller sees the real error
+        msg = f"git {' '.join(args)} failed (exit {result.returncode})"
+        if result.stderr.strip():
+            msg += f": {result.stderr.strip()}"
+        raise subprocess.CalledProcessError(
+            result.returncode, result.args, result.stdout, result.stderr,
+        )
     return result.stdout.strip()
 
 
@@ -235,13 +243,22 @@ def cmd_setup(args: argparse.Namespace) -> int:
         run_git("branch", branch, "main", cwd=str(main_repo))
         print(f"BRANCH_CREATED={branch}", file=sys.stderr)
 
+    # Prune stale worktree entries (e.g., directory was deleted but git still tracks it)
+    run_git("worktree", "prune", cwd=str(main_repo), check=False)
+
     # Create worktree (or reuse)
     already_exists = False
     if wt_path.is_dir():
         already_exists = True
         print("ALREADY_EXISTS=true", file=sys.stderr)
     else:
-        run_git("worktree", "add", str(wt_path), branch, cwd=str(main_repo))
+        try:
+            run_git("worktree", "add", str(wt_path), branch, cwd=str(main_repo))
+        except subprocess.CalledProcessError as exc:
+            # Surface git's actual error message for diagnosis
+            stderr = exc.stderr.strip() if exc.stderr else ""
+            print(f"ERROR: git worktree add failed: {stderr}", file=sys.stderr)
+            raise
         print("CREATED=true", file=sys.stderr)
 
     # Update registry
@@ -644,4 +661,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.strip() if exc.stderr else ""
+        cmd_str = " ".join(str(a) for a in exc.cmd) if isinstance(exc.cmd, list) else str(exc.cmd)
+        print(f"Error: {cmd_str} failed (exit {exc.returncode})", file=sys.stderr)
+        if stderr:
+            print(f"  {stderr}", file=sys.stderr)
+        sys.exit(exc.returncode)
