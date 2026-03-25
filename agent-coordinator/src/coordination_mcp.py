@@ -1161,6 +1161,341 @@ async def request_permission(
 
 
 # =============================================================================
+# MCP TOOLS: Feature Registry
+# =============================================================================
+
+
+@mcp.tool()
+async def register_feature(
+    feature_id: str,
+    resource_claims: list[str],
+    title: str | None = None,
+    branch_name: str | None = None,
+    merge_priority: int = 5,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Register a feature with its resource claims for cross-feature coordination.
+
+    Call this before implementation to declare which files/keys this feature
+    will modify. The registry detects overlaps with other active features.
+
+    Args:
+        feature_id: Unique feature identifier (e.g., OpenSpec change-id)
+        resource_claims: Lock keys this feature will use (file paths, logical keys)
+        title: Human-readable feature title
+        branch_name: Git branch for this feature
+        merge_priority: Merge priority (1=highest, 10=lowest, default 5)
+        metadata: Additional metadata
+
+    Returns:
+        success: Whether registration succeeded
+        feature_id: The registered feature ID
+        action: 'registered' or 'updated'
+    """
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    result = await service.register(
+        feature_id=feature_id,
+        resource_claims=resource_claims,
+        title=title,
+        agent_id=get_agent_id(),
+        branch_name=branch_name,
+        merge_priority=merge_priority,
+        metadata=metadata,
+    )
+    return {
+        "success": result.success,
+        "feature_id": result.feature_id,
+        "action": result.action,
+        "reason": result.reason,
+    }
+
+
+@mcp.tool()
+async def deregister_feature(
+    feature_id: str,
+    status: str = "completed",
+) -> dict[str, Any]:
+    """Deregister a feature (mark as completed or cancelled).
+
+    Call this after a feature is merged or abandoned to free its resource claims.
+
+    Args:
+        feature_id: Feature to deregister
+        status: Target status ('completed' or 'cancelled')
+
+    Returns:
+        success: Whether deregistration succeeded
+        feature_id: The deregistered feature ID
+        status: Final status
+    """
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    result = await service.deregister(feature_id=feature_id, status=status)
+    return {
+        "success": result.success,
+        "feature_id": result.feature_id,
+        "status": result.status,
+        "reason": result.reason,
+    }
+
+
+@mcp.tool()
+async def get_feature(feature_id: str) -> dict[str, Any]:
+    """Get details of a specific registered feature.
+
+    Args:
+        feature_id: Feature ID to look up
+
+    Returns:
+        Feature details including status, resource claims, and merge priority
+    """
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    feature = await service.get_feature(feature_id)
+    if feature is None:
+        return {"success": False, "reason": "feature_not_found"}
+    return {
+        "success": True,
+        "feature": {
+            "feature_id": feature.feature_id,
+            "title": feature.title,
+            "status": feature.status,
+            "registered_by": feature.registered_by,
+            "resource_claims": feature.resource_claims,
+            "branch_name": feature.branch_name,
+            "merge_priority": feature.merge_priority,
+            "metadata": feature.metadata,
+            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
+        },
+    }
+
+
+@mcp.tool()
+async def list_active_features() -> dict[str, Any]:
+    """List all active features ordered by merge priority.
+
+    Returns:
+        List of active features with their resource claims and priorities
+    """
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    features = await service.get_active_features()
+    return {
+        "features": [
+            {
+                "feature_id": f.feature_id,
+                "title": f.title,
+                "status": f.status,
+                "registered_by": f.registered_by,
+                "resource_claims": f.resource_claims,
+                "branch_name": f.branch_name,
+                "merge_priority": f.merge_priority,
+                "registered_at": f.registered_at.isoformat() if f.registered_at else None,
+            }
+            for f in features
+        ],
+    }
+
+
+@mcp.tool()
+async def analyze_feature_conflicts(
+    candidate_feature_id: str,
+    candidate_claims: list[str],
+) -> dict[str, Any]:
+    """Analyze resource conflicts between a candidate and active features.
+
+    Use before registration to check if a feature's resource claims
+    overlap with other active features.
+
+    Args:
+        candidate_feature_id: Feature being analyzed
+        candidate_claims: Lock keys the candidate intends to use
+
+    Returns:
+        feasibility: FULL (no conflicts), PARTIAL (some), or SEQUENTIAL (too many)
+        conflicts: List of conflicting features and overlapping keys
+    """
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    report = await service.analyze_conflicts(candidate_feature_id, candidate_claims)
+    return {
+        "candidate_feature_id": report.candidate_feature_id,
+        "feasibility": report.feasibility.value,
+        "total_candidate_claims": report.total_candidate_claims,
+        "total_conflicting_claims": report.total_conflicting_claims,
+        "conflicts": report.conflicts,
+    }
+
+
+# =============================================================================
+# MCP TOOLS: Merge Queue
+# =============================================================================
+
+
+@mcp.tool()
+async def enqueue_merge(
+    feature_id: str,
+    pr_url: str | None = None,
+) -> dict[str, Any]:
+    """Add a feature to the merge queue for ordered merging.
+
+    The feature must be active in the registry. Call this when a
+    feature's PR is ready for merge.
+
+    Args:
+        feature_id: Feature to enqueue
+        pr_url: URL of the pull request
+
+    Returns:
+        success: Whether enqueue succeeded
+        entry: Queue entry with status and priority
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    entry = await service.enqueue(feature_id=feature_id, pr_url=pr_url)
+    if entry is None:
+        return {"success": False, "reason": "feature_not_found_or_not_active"}
+    return {
+        "success": True,
+        "entry": {
+            "feature_id": entry.feature_id,
+            "branch_name": entry.branch_name,
+            "merge_priority": entry.merge_priority,
+            "merge_status": entry.merge_status.value,
+            "pr_url": entry.pr_url,
+        },
+    }
+
+
+@mcp.tool()
+async def get_merge_queue() -> dict[str, Any]:
+    """Get all features in the merge queue, ordered by priority.
+
+    Returns:
+        List of queued features with their merge status and priority
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    entries = await service.get_queue()
+    return {
+        "entries": [
+            {
+                "feature_id": e.feature_id,
+                "branch_name": e.branch_name,
+                "merge_priority": e.merge_priority,
+                "merge_status": e.merge_status.value,
+                "pr_url": e.pr_url,
+                "queued_at": e.queued_at.isoformat() if e.queued_at else None,
+                "checked_at": e.checked_at.isoformat() if e.checked_at else None,
+            }
+            for e in entries
+        ],
+    }
+
+
+@mcp.tool()
+async def get_next_merge() -> dict[str, Any]:
+    """Get the highest-priority feature ready to merge.
+
+    Returns the first entry with status READY, or indicates none are ready.
+
+    Returns:
+        entry: Next feature to merge, or null if none ready
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    entry = await service.get_next_to_merge()
+    if entry is None:
+        return {"success": True, "entry": None, "reason": "no_features_ready"}
+    return {
+        "success": True,
+        "entry": {
+            "feature_id": entry.feature_id,
+            "branch_name": entry.branch_name,
+            "merge_priority": entry.merge_priority,
+            "merge_status": entry.merge_status.value,
+            "pr_url": entry.pr_url,
+        },
+    }
+
+
+@mcp.tool()
+async def run_pre_merge_checks(feature_id: str) -> dict[str, Any]:
+    """Run pre-merge validation checks on a feature.
+
+    Checks: feature is active, no new resource conflicts, feature is in queue.
+    Updates merge status to READY or BLOCKED based on results.
+
+    Args:
+        feature_id: Feature to validate
+
+    Returns:
+        passed: Whether all checks passed
+        checks: Individual check results
+        issues: List of issues found
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    result = await service.run_pre_merge_checks(feature_id)
+    return {
+        "feature_id": result.feature_id,
+        "passed": result.passed,
+        "checks": result.checks,
+        "issues": result.issues,
+        "conflicts": result.conflicts,
+    }
+
+
+@mcp.tool()
+async def mark_merged(feature_id: str) -> dict[str, Any]:
+    """Mark a feature as merged and deregister it from the registry.
+
+    Call this after successfully merging the feature's PR to main.
+    Frees the feature's resource claims for other features.
+
+    Args:
+        feature_id: Feature that was merged
+
+    Returns:
+        success: Whether the operation succeeded
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    success = await service.mark_merged(feature_id)
+    return {"success": success, "feature_id": feature_id}
+
+
+@mcp.tool()
+async def remove_from_merge_queue(feature_id: str) -> dict[str, Any]:
+    """Remove a feature from the merge queue without merging.
+
+    Clears merge queue metadata but keeps the feature active in the registry.
+
+    Args:
+        feature_id: Feature to remove from queue
+
+    Returns:
+        success: Whether the feature was removed
+    """
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    success = await service.remove_from_queue(feature_id)
+    return {"success": success, "feature_id": feature_id}
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 
@@ -1369,6 +1704,59 @@ async def get_recent_audit() -> str:
             lines.append(f"  - {e.created_at.isoformat()}")
         if e.error_message:
             lines.append(f"  - Error: {e.error_message}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("features://active")
+async def get_active_features_resource() -> str:
+    """Active features in the registry with their resource claims and priorities."""
+    from .feature_registry import get_feature_registry_service
+
+    service = get_feature_registry_service()
+    features = await service.get_active_features()
+
+    if not features:
+        return "No active features registered."
+
+    lines = ["# Active Features\n"]
+    for f in features:
+        lines.append(f"## {f.feature_id}")
+        if f.title:
+            lines.append(f"**{f.title}**\n")
+        lines.append(f"- Priority: {f.merge_priority}")
+        lines.append(f"- Status: {f.status}")
+        lines.append(f"- Registered by: {f.registered_by}")
+        if f.branch_name:
+            lines.append(f"- Branch: {f.branch_name}")
+        if f.resource_claims:
+            lines.append(f"- Claims: {', '.join(f.resource_claims[:10])}")
+            if len(f.resource_claims) > 10:
+                lines.append(f"  ... and {len(f.resource_claims) - 10} more")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+@mcp.resource("merge-queue://pending")
+async def get_merge_queue_resource() -> str:
+    """Features queued for merge with their status and priority."""
+    from .merge_queue import get_merge_queue_service
+
+    service = get_merge_queue_service()
+    entries = await service.get_queue()
+
+    if not entries:
+        return "No features in the merge queue."
+
+    lines = ["# Merge Queue\n"]
+    for e in entries:
+        lines.append(f"- **{e.feature_id}** [{e.merge_status.value}] priority={e.merge_priority}")
+        if e.pr_url:
+            lines.append(f"  - PR: {e.pr_url}")
+        if e.queued_at:
+            lines.append(f"  - Queued: {e.queued_at.isoformat()}")
         lines.append("")
 
     return "\n".join(lines)

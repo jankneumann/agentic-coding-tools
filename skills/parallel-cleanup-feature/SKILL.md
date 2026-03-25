@@ -9,7 +9,7 @@ triggers:
   - "parallel finish feature"
 requires:
   coordinator:
-    required: []
+    required: [CAN_MERGE_QUEUE, CAN_FEATURE_REGISTRY]
     safety: [CAN_GUARDRAILS]
     enriching: [CAN_HANDOFF, CAN_MEMORY, CAN_AUDIT, CAN_LOCK]
 ---
@@ -31,12 +31,17 @@ Extends `linear-cleanup-feature` with cross-feature coordination: merge queue in
 
 ## Coordinator Integration
 
-Uses coordinator merge queue primitives when available:
+Uses coordinator tools when available (MCP or HTTP, detected at startup):
 
-- `register_feature` / `deregister_feature` — feature registry lifecycle
-- `merge_queue.enqueue` / `merge_queue.run_pre_merge_checks` — merge ordering
-- `merge_queue.mark_merged` — post-merge deregistration
-- `acquire_lock` / `release_lock` — file lock cleanup
+| Operation | MCP Tool | HTTP Endpoint | CLI Command |
+|-----------|----------|---------------|-------------|
+| Register feature | `register_feature` | `POST /features/register` | `coordination-cli feature register` |
+| Deregister feature | `deregister_feature` | `POST /features/deregister` | `coordination-cli feature deregister` |
+| Enqueue for merge | `enqueue_merge` | `POST /merge-queue/enqueue` | `coordination-cli merge-queue enqueue` |
+| Pre-merge checks | `run_pre_merge_checks` | `POST /merge-queue/check/{id}` | `coordination-cli merge-queue check` |
+| Next to merge | `get_next_merge` | `GET /merge-queue/next` | `coordination-cli merge-queue next` |
+| Mark merged | `mark_merged` | `POST /merge-queue/merged/{id}` | `coordination-cli merge-queue merged` |
+| Acquire/release lock | `acquire_lock` / `release_lock` | `POST /locks/acquire` / `POST /locks/release` | `coordination-cli lock acquire/release` |
 
 When coordinator is unavailable, degrades to `linear-cleanup-feature` behavior.
 
@@ -51,7 +56,7 @@ At skill start, run the coordinator detection script:
 python3 "<skill-base-dir>/scripts/check_coordinator.py" --json
 ```
 
-Parse the JSON output to set `COORDINATOR_AVAILABLE`, `COORDINATION_TRANSPORT`, and all `CAN_*` flags.
+Parse the JSON output to set `COORDINATOR_AVAILABLE`, `COORDINATION_TRANSPORT`, and all `CAN_*` flags (including `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY`).
 
 If `CAN_HANDOFF=true`, read latest handoff context via MCP `read_handoff` tool.
 
@@ -82,14 +87,17 @@ Confirm PR is approved and CI is passing before proceeding.
 
 ### 3. Enqueue in Merge Queue (Coordinator)
 
-If coordinator is available, enqueue the feature for ordered merging:
+If `CAN_MERGE_QUEUE=true`, enqueue the feature for ordered merging:
 
-```python
-# Enqueue this feature's PR
-merge_queue.enqueue(
-    feature_id="<change-id>",
-    pr_url="<pr-url>"
-)
+**MCP path:**
+```
+enqueue_merge(feature_id="<change-id>", pr_url="<pr-url>")
+```
+
+**HTTP path:**
+```
+POST /merge-queue/enqueue
+{"feature_id": "<change-id>", "pr_url": "<pr-url>"}
 ```
 
 This registers the feature in the merge queue with its priority from the feature registry.
@@ -98,8 +106,14 @@ This registers the feature in the merge queue with its priority from the feature
 
 Before merging, run pre-merge validation:
 
-```python
-result = merge_queue.run_pre_merge_checks("<change-id>")
+**MCP path:**
+```
+run_pre_merge_checks(feature_id="<change-id>")
+```
+
+**HTTP path:**
+```
+POST /merge-queue/check/<change-id>
 ```
 
 Pre-merge checks verify:
@@ -116,11 +130,16 @@ If checks fail:
 
 If other features have higher merge priority:
 
-```python
-next_to_merge = merge_queue.get_next_to_merge()
-if next_to_merge.feature_id != "<change-id>":
-    # Another feature should merge first
-    # Inform the user and wait
+**MCP path:**
+```
+result = get_next_merge()
+if result["entry"] and result["entry"]["feature_id"] != "<change-id>":
+    # Another feature should merge first — inform user
+```
+
+**HTTP path:**
+```
+GET /merge-queue/next
 ```
 
 If this feature is not next in line, inform the user which feature should merge first and why (priority ordering). The user can override by proceeding manually.
@@ -153,10 +172,16 @@ gh pr merge openspec/<change-id> --squash --delete-branch --merge-queue
 
 ### 8. Mark Merged in Registry
 
-After successful merge, deregister the feature:
+After successful merge, if `CAN_MERGE_QUEUE=true`, deregister the feature:
 
-```python
-merge_queue.mark_merged("<change-id>")
+**MCP path:**
+```
+mark_merged(feature_id="<change-id>")
+```
+
+**HTTP path:**
+```
+POST /merge-queue/merged/<change-id>
 ```
 
 This:
@@ -228,14 +253,18 @@ pytest
 
 ### 14. Notify Dependent Features
 
-If other features were waiting on this feature's merge (PARTIAL feasibility):
+If `CAN_FEATURE_REGISTRY=true` and other features were waiting on this feature's merge (PARTIAL feasibility):
 
-```python
-# Re-run feasibility for features that had conflicts with this one
-for feature in active_features:
-    if feature had conflicts with <change-id>:
-        new_report = analyze_conflicts(feature.feature_id, feature.resource_claims)
-        # Report updated feasibility to user
+**MCP path:**
+```
+# List active features and re-analyze conflicts for each
+features = list_active_features()
+for feature in features["features"]:
+    report = analyze_feature_conflicts(
+        candidate_feature_id=feature["feature_id"],
+        candidate_claims=feature["resource_claims"]
+    )
+    # Report updated feasibility to user
 ```
 
 This allows features that were PARTIAL or SEQUENTIAL to potentially upgrade to FULL feasibility now that this feature's claims are freed.

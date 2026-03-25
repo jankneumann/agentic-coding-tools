@@ -43,6 +43,8 @@ ROUTE_PROBES: dict[str, str] = {
     "CAN_HANDOFF": "/handoffs/read",
     "CAN_POLICY": "/policy/check",
     "CAN_AUDIT": "/audit",
+    "CAN_FEATURE_REGISTRY": "/features/active",
+    "CAN_MERGE_QUEUE": "/merge-queue",
 }
 
 # MCP tool names that map to each capability flag.
@@ -56,6 +58,8 @@ MCP_TOOL_PROBES: dict[str, str] = {
     "CAN_DISCOVER": "mcp__coordination__discover_agents",
     "CAN_POLICY": "mcp__coordination__check_policy",
     "CAN_AUDIT": "mcp__coordination__query_audit",
+    "CAN_FEATURE_REGISTRY": "mcp__coordination__list_active_features",
+    "CAN_MERGE_QUEUE": "mcp__coordination__get_merge_queue",
 }
 
 

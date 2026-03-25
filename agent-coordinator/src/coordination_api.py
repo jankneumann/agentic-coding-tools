@@ -143,6 +143,31 @@ class PolicyRollbackRequest(BaseModel):
     version: int
 
 
+class FeatureRegisterRequest(BaseModel):
+    feature_id: str
+    resource_claims: list[str]
+    title: str | None = None
+    agent_id: str | None = None
+    branch_name: str | None = None
+    merge_priority: int = 5
+    metadata: dict[str, Any] | None = None
+
+
+class FeatureDeregisterRequest(BaseModel):
+    feature_id: str
+    status: str = "completed"
+
+
+class FeatureConflictsRequest(BaseModel):
+    candidate_feature_id: str
+    candidate_claims: list[str]
+
+
+class MergeQueueEnqueueRequest(BaseModel):
+    feature_id: str
+    pr_url: str | None = None
+
+
 # =============================================================================
 # Auth helpers
 # =============================================================================
@@ -931,6 +956,283 @@ def create_coordination_api() -> FastAPI:
         if not result.get("success"):
             raise HTTPException(404, detail=result.get("error", "Rollback failed"))
         return result
+
+    # --------------------------------------------------------------------- #
+    # FEATURE REGISTRY
+    # --------------------------------------------------------------------- #
+
+    @app.post("/features/register")
+    async def register_feature_endpoint(
+        request: FeatureRegisterRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Register a feature with resource claims."""
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, None
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="register_feature",
+            resource=request.feature_id,
+        )
+
+        from .feature_registry import get_feature_registry_service
+
+        result = await get_feature_registry_service().register(
+            feature_id=request.feature_id,
+            resource_claims=request.resource_claims,
+            title=request.title,
+            agent_id=agent_id,
+            branch_name=request.branch_name,
+            merge_priority=request.merge_priority,
+            metadata=request.metadata,
+        )
+        return {
+            "success": result.success,
+            "feature_id": result.feature_id,
+            "action": result.action,
+            "reason": result.reason,
+        }
+
+    @app.post("/features/deregister")
+    async def deregister_feature_endpoint(
+        request: FeatureDeregisterRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Deregister a feature (mark completed/cancelled)."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="deregister_feature",
+            resource=request.feature_id,
+        )
+
+        from .feature_registry import get_feature_registry_service
+
+        result = await get_feature_registry_service().deregister(
+            feature_id=request.feature_id,
+            status=request.status,
+        )
+        return {
+            "success": result.success,
+            "feature_id": result.feature_id,
+            "status": result.status,
+            "reason": result.reason,
+        }
+
+    @app.get("/features/{feature_id}")
+    async def get_feature_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get details of a specific feature."""
+        from .feature_registry import get_feature_registry_service
+
+        feature = await get_feature_registry_service().get_feature(feature_id)
+        if feature is None:
+            raise HTTPException(404, detail="Feature not found")
+        return {
+            "feature_id": feature.feature_id,
+            "title": feature.title,
+            "status": feature.status,
+            "registered_by": feature.registered_by,
+            "resource_claims": feature.resource_claims,
+            "branch_name": feature.branch_name,
+            "merge_priority": feature.merge_priority,
+            "metadata": feature.metadata,
+            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
+            "updated_at": feature.updated_at.isoformat() if feature.updated_at else None,
+        }
+
+    @app.get("/features/active")
+    async def list_active_features_endpoint(
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List all active features ordered by merge priority."""
+        from .feature_registry import get_feature_registry_service
+
+        features = await get_feature_registry_service().get_active_features()
+        return {
+            "features": [
+                {
+                    "feature_id": f.feature_id,
+                    "title": f.title,
+                    "status": f.status,
+                    "registered_by": f.registered_by,
+                    "resource_claims": f.resource_claims,
+                    "branch_name": f.branch_name,
+                    "merge_priority": f.merge_priority,
+                    "registered_at": f.registered_at.isoformat() if f.registered_at else None,
+                }
+                for f in features
+            ],
+        }
+
+    @app.post("/features/conflicts")
+    async def analyze_feature_conflicts_endpoint(
+        request: FeatureConflictsRequest,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Analyze resource conflicts between a candidate and active features."""
+        from .feature_registry import get_feature_registry_service
+
+        report = await get_feature_registry_service().analyze_conflicts(
+            request.candidate_feature_id,
+            request.candidate_claims,
+        )
+        return {
+            "candidate_feature_id": report.candidate_feature_id,
+            "feasibility": report.feasibility.value,
+            "total_candidate_claims": report.total_candidate_claims,
+            "total_conflicting_claims": report.total_conflicting_claims,
+            "conflicts": report.conflicts,
+        }
+
+    # --------------------------------------------------------------------- #
+    # MERGE QUEUE
+    # --------------------------------------------------------------------- #
+
+    @app.post("/merge-queue/enqueue")
+    async def enqueue_merge_endpoint(
+        request: MergeQueueEnqueueRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Add a feature to the merge queue."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="enqueue_merge",
+            resource=request.feature_id,
+        )
+
+        from .merge_queue import get_merge_queue_service
+
+        entry = await get_merge_queue_service().enqueue(
+            feature_id=request.feature_id,
+            pr_url=request.pr_url,
+        )
+        if entry is None:
+            return {"success": False, "reason": "feature_not_found_or_not_active"}
+        return {
+            "success": True,
+            "entry": {
+                "feature_id": entry.feature_id,
+                "branch_name": entry.branch_name,
+                "merge_priority": entry.merge_priority,
+                "merge_status": entry.merge_status.value,
+                "pr_url": entry.pr_url,
+            },
+        }
+
+    @app.get("/merge-queue")
+    async def get_merge_queue_endpoint(
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get all features in the merge queue."""
+        from .merge_queue import get_merge_queue_service
+
+        entries = await get_merge_queue_service().get_queue()
+        return {
+            "entries": [
+                {
+                    "feature_id": e.feature_id,
+                    "branch_name": e.branch_name,
+                    "merge_priority": e.merge_priority,
+                    "merge_status": e.merge_status.value,
+                    "pr_url": e.pr_url,
+                    "queued_at": e.queued_at.isoformat() if e.queued_at else None,
+                    "checked_at": e.checked_at.isoformat() if e.checked_at else None,
+                }
+                for e in entries
+            ],
+        }
+
+    @app.get("/merge-queue/next")
+    async def get_next_merge_endpoint(
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get the highest-priority feature ready to merge."""
+        from .merge_queue import get_merge_queue_service
+
+        entry = await get_merge_queue_service().get_next_to_merge()
+        if entry is None:
+            return {"success": True, "entry": None, "reason": "no_features_ready"}
+        return {
+            "success": True,
+            "entry": {
+                "feature_id": entry.feature_id,
+                "branch_name": entry.branch_name,
+                "merge_priority": entry.merge_priority,
+                "merge_status": entry.merge_status.value,
+                "pr_url": entry.pr_url,
+            },
+        }
+
+    @app.post("/merge-queue/check/{feature_id}")
+    async def run_pre_merge_checks_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Run pre-merge validation checks on a feature."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="run_pre_merge_checks",
+            resource=feature_id,
+        )
+
+        from .merge_queue import get_merge_queue_service
+
+        result = await get_merge_queue_service().run_pre_merge_checks(feature_id)
+        return {
+            "feature_id": result.feature_id,
+            "passed": result.passed,
+            "checks": result.checks,
+            "issues": result.issues,
+            "conflicts": result.conflicts,
+        }
+
+    @app.post("/merge-queue/merged/{feature_id}")
+    async def mark_merged_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Mark a feature as merged and deregister it."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="mark_merged",
+            resource=feature_id,
+        )
+
+        from .merge_queue import get_merge_queue_service
+
+        success = await get_merge_queue_service().mark_merged(feature_id)
+        return {"success": success, "feature_id": feature_id}
+
+    @app.delete("/merge-queue/{feature_id}")
+    async def remove_from_merge_queue_endpoint(
+        feature_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Remove a feature from the merge queue without merging."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="remove_from_merge_queue",
+            resource=feature_id,
+        )
+
+        from .merge_queue import get_merge_queue_service
+
+        success = await get_merge_queue_service().remove_from_queue(feature_id)
+        return {"success": success, "feature_id": feature_id}
 
     # --------------------------------------------------------------------- #
     # HEALTH
