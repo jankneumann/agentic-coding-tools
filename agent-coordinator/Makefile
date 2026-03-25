@@ -198,8 +198,8 @@ dev-bg: install db-up _wait-for-db ## Full dev setup: install + db + api server 
 	@nohup $(UV_RUN) coordination-api --port=$(API_PORT) > $(LOG_DIR)/api.log 2>&1 & echo $$! > $(LOG_DIR)/api.pid
 	@echo "PID $$(cat $(LOG_DIR)/api.pid) — stop with: make stop"
 
-.PHONY: stop
-stop: ## Stop all services (db + background API)
+.PHONY: api-stop
+api-stop: ## Stop background API server (keeps DB running)
 	@if [ -f $(LOG_DIR)/api.pid ]; then \
 		pid=$$(cat $(LOG_DIR)/api.pid); \
 		if kill -0 $$pid 2>/dev/null; then \
@@ -208,7 +208,22 @@ stop: ## Stop all services (db + background API)
 			echo "API server (PID $$pid) not running"; \
 		fi; \
 		rm -f $(LOG_DIR)/api.pid; \
+	else \
+		echo "No API pid file found"; \
 	fi
+
+.PHONY: api-start
+api-start: ## Start API server in background (assumes DB already running)
+	@mkdir -p $(LOG_DIR)
+	@echo "Starting API server on :$(API_PORT) (log: $(LOG_DIR)/api.log)…"
+	@nohup $(UV_RUN) coordination-api --port=$(API_PORT) > $(LOG_DIR)/api.log 2>&1 & echo $$! > $(LOG_DIR)/api.pid
+	@echo "PID $$(cat $(LOG_DIR)/api.pid) — stop with: make api-stop"
+
+.PHONY: api-restart
+api-restart: api-stop api-start ## Restart API server (keeps DB running)
+
+.PHONY: stop
+stop: api-stop ## Stop all services (db + background API)
 	$(COMPOSE) down
 
 # ---------------------------------------------------------------------------
