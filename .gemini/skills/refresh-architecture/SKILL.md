@@ -80,7 +80,7 @@ Run the complete 3-layer pipeline:
 make architecture
 ```
 
-This calls `scripts/refresh_architecture.sh` which runs all layers in sequence. Expect output showing each stage completing.
+This calls `"<skill-base-dir>/scripts/refresh_architecture.sh"` which runs all layers in sequence. Expect output showing each stage completing.
 
 **When to use:** After significant code changes, before planning a new feature, or when artifacts are stale/missing.
 

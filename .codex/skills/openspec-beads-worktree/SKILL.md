@@ -276,8 +276,8 @@ create_task_worktree() {
   local agent_id="task-${task_num}-${branch_name}"
   local branch="${FEATURE_BRANCH}-task-${task_num}-${branch_name}"
 
-  # Create worktree via scripts/worktree.py (creates .git-worktrees/<proposal>/<agent-id>/)
-  eval "$(python3 scripts/worktree.py setup "${PROPOSAL_NAME}" --branch "${branch}" --agent-id "${agent_id}")"
+  # Create worktree via worktree skill (creates .git-worktrees/<proposal>/<agent-id>/)
+  eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "${PROPOSAL_NAME}" --branch "${branch}" --agent-id "${agent_id}")"
 
   # Store worktree info in Beads
   bd update "$task_id" --description "$(bd show $task_id --json | jq -r '.description')
@@ -561,7 +561,7 @@ cleanup_worktrees() {
     # Check if task is merged
     if bd show $task_id --json | jq -e '.labels[] | select(. == "merged")' > /dev/null; then
       echo "Removing worktree: $worktree_path (agent-id: $agent_id)"
-      python3 scripts/worktree.py teardown "${proposal}" --agent-id "${agent_id}"
+      python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${proposal}" --agent-id "${agent_id}"
       git branch -d "$branch"
 
       bd update $task_id --description "$(bd show $task_id --json | jq -r '.description')

@@ -48,7 +48,7 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_MEMORY=true`, recall relevant history before analysis:
 
 - MCP path: call `recall` with tags like `["feature-discovery", "<focus-area>"]`
-- HTTP path: use `scripts/coordination_bridge.py` `try_recall(...)`
+- HTTP path: use `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_recall(...)`
 
 On recall failure/unavailability, continue normally and log informationally.
 

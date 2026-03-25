@@ -54,7 +54,7 @@ At skill start, run the coordination detection preamble and set:
 If `CAN_HANDOFF=true`, read recent handoff context before implementation:
 
 - MCP path: `read_handoff`
-- HTTP path: `scripts/coordination_bridge.py` `try_handoff_read(...)`
+- HTTP path: `"<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py"` `try_handoff_read(...)`
 
 On handoff failure/unavailability, continue with standalone implementation and log informationally.
 
@@ -82,7 +82,7 @@ if [[ -n "${AGENT_ID:-}" ]]; then
 fi
 
 # Setup worktree for feature isolation (creates .git-worktrees/<change-id>/)
-eval "$(python3 scripts/worktree.py setup "<change-id>" ${AGENT_FLAG})"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>" ${AGENT_FLAG})"
 cd "$WORKTREE_PATH"
 echo "Working directory: $(pwd)"
 ```
@@ -154,7 +154,7 @@ Capability-gated coordinator hooks:
 - **File locking (`CAN_LOCK=true`)**: acquire locks before editing files and keep a local list of acquired locks for cleanup
 - **Work queue (`CAN_QUEUE_WORK=true`)**: for independent tasks, optionally submit/claim/complete via coordinator queue APIs; if unavailable or unclaimed, fall back to local `Task()` execution
 
-**Heartbeat:** During long-running implementation, periodically call `python3 scripts/worktree.py heartbeat "<change-id>" ${AGENT_FLAG}` to signal liveness to the worktree registry. This prevents stale-agent garbage collection from reclaiming the worktree.
+**Heartbeat:** During long-running implementation, periodically call `python3 "<skill-base-dir>/../worktree/scripts/worktree.py" heartbeat "<change-id>" ${AGENT_FLAG}` to signal liveness to the worktree registry. This prevents stale-agent garbage collection from reclaiming the worktree.
 
 #### Parallel Implementation (for independent tasks)
 
@@ -239,7 +239,7 @@ Task(subagent_type="Bash", prompt="Run pytest and report pass/fail with summary"
 Task(subagent_type="Bash", prompt="Run mypy src/ and report any type errors", run_in_background=true)
 Task(subagent_type="Bash", prompt="Run ruff check . and report any linting issues", run_in_background=true)
 Task(subagent_type="Bash", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run 'python scripts/validate_flows.py --diff main...HEAD' from the project root and report any architecture diagnostics (broken flows, missing tests, orphaned code). If the script is not available or docs/architecture-analysis/architecture.graph.json doesn't exist, report that architecture validation was skipped.", run_in_background=true)
+Task(subagent_type="Bash", prompt="Run 'python3 \"<skill-base-dir>/../validate-flows/scripts/validate_flows.py\" --diff main...HEAD' from the project root and report any architecture diagnostics (broken flows, missing tests, orphaned code). If the script is not available or docs/architecture-analysis/architecture.graph.json doesn't exist, report that architecture validation was skipped.", run_in_background=true)
 ```
 
 **Result Aggregation:**

@@ -73,7 +73,7 @@ The shared checkout is **read-only** — never commit or modify files there. All
 
 ```bash
 # Derive change-id from feature description (e.g., "add-user-auth")
-python3 scripts/worktree.py setup "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>"
 # Output: WORKTREE_PATH=...
 cd $WORKTREE_PATH
 
@@ -84,7 +84,7 @@ git branch --show-current       # Should be openspec/<change-id>
 
 If the worktree already exists (e.g., from a previous planning session), reuse it:
 ```bash
-python3 scripts/worktree.py status "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" status "<change-id>"
 ```
 
 All subsequent steps happen **inside the worktree**.
@@ -236,11 +236,11 @@ Assign verification tier per package:
 openspec validate <change-id> --strict
 
 # Validate work-packages.yaml against schema
-scripts/.venv/bin/python scripts/validate_work_packages.py \
+skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_packages.py" \
   openspec/changes/<change-id>/work-packages.yaml
 
 # Validate parallel safety (scope + lock non-overlap)
-scripts/.venv/bin/python scripts/parallel_zones.py \
+skills/.venv/bin/python "<skill-base-dir>/../refresh-architecture/scripts/parallel_zones.py" \
   --validate-packages openspec/changes/<change-id>/work-packages.yaml --json
 ```
 
@@ -273,7 +273,7 @@ git push -u origin openspec/<change-id>
 Pin the worktree so it persists for implementation (prevents GC):
 
 ```bash
-python3 scripts/worktree.py pin "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
 ```
 
 ### 9. Present for Approval

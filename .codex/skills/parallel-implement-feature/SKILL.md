@@ -96,15 +96,15 @@ A4. Create or reuse feature branch
 
 A5. Implement root packages (sequentially, each in own worktree)
     - For each root package (depends_on == []):
-      - python3 scripts/worktree.py setup <change-id> --agent-id <package-id>
+      - python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup <change-id> --agent-id <package-id>
       - Implement in worktree
       - Commit + push on package branch
       - Merge package branch into feature branch (git merge --no-ff)
-      - python3 scripts/worktree.py teardown <change-id> --agent-id <package-id>
+      - python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown <change-id> --agent-id <package-id>
 
 A6. Setup worktrees for parallel packages
     - For each non-root package:
-      - python3 scripts/worktree.py setup <change-id> --agent-id <package-id>
+      - python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup <change-id> --agent-id <package-id>
       - Worktrees branch from feature branch (includes root package work)
     - Record WORKTREE_PATH and BRANCH in dispatch context per package
     - Pin all worktrees (prevent GC during execution)
@@ -153,7 +153,7 @@ If the worker was dispatched with vendor `isolation: "worktree"`, it operates in
 Workers MUST call heartbeat every 30 minutes during execution to prevent GC from reclaiming their worktree:
 
 ```bash
-python3 scripts/worktree.py heartbeat "${CHANGE_ID}" --agent-id "${PACKAGE_ID}"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" heartbeat "${CHANGE_ID}" --agent-id "${PACKAGE_ID}"
 ```
 
 ### Phase C: Review + Integration Sequencing
@@ -173,9 +173,9 @@ C4. Integration gate
     - Wait for all packages COMPLETED and reviewed
 
 C5. Integration merge (wp-integration package)
-    - python3 scripts/worktree.py setup <change-id> --agent-id integrator
+    - python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup <change-id> --agent-id integrator
     - cd into integrator worktree
-    - python3 scripts/merge_worktrees.py <change-id> <pkg1> <pkg2> ... --json
+    - python3 "<skill-base-dir>/../worktree/scripts/merge_worktrees.py" <change-id> <pkg1> <pkg2> ... --json
     - If conflicts: report SCOPE_VIOLATION escalation, do NOT auto-resolve
     - Run full test suite and cross-package contract verification
 
@@ -205,15 +205,15 @@ After PR creation (or on failure):
 
 ```bash
 # Unpin all worktrees
-python3 scripts/worktree.py unpin "<change-id>"
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" unpin "<change-id>"
 
 # Teardown each package worktree + integrator
 for pkg in <package-ids> integrator; do
-    python3 scripts/worktree.py teardown "<change-id>" --agent-id "$pkg"
+    python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "<change-id>" --agent-id "$pkg"
 done
 
 # Optional: garbage collect stale worktrees from other features
-python3 scripts/worktree.py gc
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
 ```
 
 ## Output
