@@ -1,0 +1,70 @@
+# Infrastructure Skill SKILL.md Contract
+#
+# This is not an OpenAPI spec — it defines the convention for infrastructure
+# skill SKILL.md frontmatter that distinguishes infra skills from user-invocable skills.
+#
+# Infrastructure skills:
+# - Exist to be synced as dependencies for other skills
+# - Are NOT triggered by user commands
+# - Bundle scripts from scripts/ that multiple skills depend on
+#
+# This file satisfies the work-packages.yaml contracts.openapi.primary requirement.
+# For a pure tooling/refactor feature, the "contract" is the infrastructure skill convention.
+
+openapi: "3.1.0"
+info:
+  title: "Infrastructure Skill Convention"
+  version: "1.0.0"
+  description: |
+    Defines the interface contract for infrastructure skills.
+    Infrastructure skills are non-user-invocable skill packages that bundle
+    shared scripts for cross-repo portability.
+
+paths: {}
+
+components:
+  schemas:
+    InfraSkillFrontmatter:
+      type: object
+      required:
+        - name
+        - description
+        - category
+        - user_invocable
+      properties:
+        name:
+          type: string
+          description: "Skill name matching the directory name"
+        description:
+          type: string
+          description: "One-line description of bundled scripts"
+        category:
+          type: string
+          enum: ["Infrastructure"]
+          description: "Must be 'Infrastructure' for infra skills"
+        tags:
+          type: array
+          items:
+            type: string
+        user_invocable:
+          type: boolean
+          enum: [false]
+          description: "Must be false for infrastructure skills"
+
+    InfraSkillDirectory:
+      type: object
+      required:
+        - skill_md
+        - scripts_dir
+      properties:
+        skill_md:
+          type: string
+          description: "SKILL.md documenting script API"
+        scripts_dir:
+          type: string
+          description: "scripts/ subdirectory containing bundled Python/Bash scripts"
+
+    SiblingRelativePath:
+      type: string
+      pattern: '<skill-base-dir>/\.\./[a-z-]+/scripts/[a-z_]+\.(py|sh)'
+      description: "Path pattern for referencing infrastructure skill scripts from consuming skills"
