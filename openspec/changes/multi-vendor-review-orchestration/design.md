@@ -83,6 +83,41 @@ class ReviewDispatcher(Protocol):
 3. Select vendors that are different from the implementing agent's vendor (vendor diversity)
 4. If only one vendor available, proceed with single-vendor review + warning
 
+### AD-6: Dispatch Mode with Per-Vendor Flag Profiles
+
+**Decision**: Introduce a `DispatchMode` enum (`review`, `alternative_plan`, `alternative_impl`) that maps to vendor-specific CLI flags for non-interactive execution, sandbox permissions, and output format.
+
+Each mode determines three things per vendor:
+1. **Non-interactive invocation** — how to suppress user prompts
+2. **Permission scope** — read-only vs write access
+3. **Output handling** — how to capture structured findings
+
+**Flag profiles per vendor and mode**:
+
+| Mode | Codex | Gemini | Claude |
+|------|-------|--------|--------|
+| `review` | `exec -s read-only` | `--approval-mode default -o json` | `--print --allowedTools 'Read,Grep,Glob'` |
+| `alternative_plan` | `exec -s workspace-write` | `--approval-mode auto_edit -o json` | `--print --allowedTools 'Read,Grep,Glob,Write,Edit'` |
+| `alternative_impl` | `exec -s workspace-write` | `--approval-mode yolo -o json` | `--print --allowedTools 'Read,Grep,Glob,Write,Edit,Bash'` |
+
+**Rationale**:
+- **Codex** `exec` is inherently non-interactive (headless). Sandbox mode (`-s`) controls write access: `read-only` for reviews, `workspace-write` for implementations.
+- **Gemini** uses `--approval-mode` to control tool approval: `default` (prompts, but read-only tools auto-approve), `auto_edit` (auto-approve edits), `yolo` (auto-approve everything). `-o json` for structured output.
+- **Claude** uses `--print` for non-interactive output. `--allowedTools` restricts which tools the agent can use.
+
+**Trade-off**: Flag profiles are hardcoded per vendor, not user-configurable. This is intentional — wrong flags could cause agents to hang waiting for input or write outside their scope. If vendors change their CLI, we update the adapter.
+
+### AD-7: Non-Interactive Guarantee
+
+**Decision**: Every vendor adapter MUST guarantee that subprocess invocation never blocks on user input. If the CLI lacks a reliable non-interactive mode, the adapter MUST NOT dispatch to that vendor.
+
+**Verification**: Each adapter implements a `can_dispatch()` check that verifies the CLI binary exists and supports headless mode. For example:
+- Codex: presence of `exec` subcommand (always non-interactive)
+- Gemini: presence of `--approval-mode` flag (verified via `--help` output parsing or known minimum version)
+- Claude: presence of `--print` flag
+
+**Timeout as safety net**: Even with non-interactive flags, the dispatcher enforces a hard timeout. If a process doesn't produce output within the timeout, it's killed — this catches cases where a vendor update introduces an unexpected prompt.
+
 ## Component Design
 
 ### 1. Review Dispatcher (`scripts/review_dispatcher.py`)
@@ -185,36 +220,66 @@ def check_integration_gate(self) -> IntegrationGateStatus:
 
 ### 5. Vendor CLI Adapters
 
-Each adapter implements the `ReviewDispatcher` protocol:
+Each adapter implements the `ReviewDispatcher` protocol. The exact flags vary by dispatch mode (see AD-6).
 
-**CodexAdapter**:
+**CodexAdapter** (review mode):
 ```bash
 codex exec \
-  --prompt "$(cat review-prompt.md)" \
-  --context-dir "$ARTIFACTS_PATH" \
-  --output "$OUTPUT_PATH/findings-codex.json" \
-  --timeout 300
+  -s read-only \
+  "$REVIEW_PROMPT"
+# Prompt includes instructions to write findings JSON to stdout
+# Output captured from stdout, parsed as JSON
 ```
 
-**GeminiAdapter**:
+**CodexAdapter** (alternative implementation mode):
 ```bash
-gemini code \
-  --prompt "$(cat review-prompt.md)" \
-  --context-dir "$ARTIFACTS_PATH" \
-  --output "$OUTPUT_PATH/findings-gemini.json" \
-  --timeout 300
+codex exec \
+  -s workspace-write \
+  "$IMPLEMENTATION_PROMPT"
+# Working directory set to worktree path
+# Writes files directly, commits result
 ```
 
-**ClaudeAdapter** (for self-review or when Claude is the secondary reviewer):
+**GeminiAdapter** (review mode):
 ```bash
-claude code \
-  --prompt "$(cat review-prompt.md)" \
-  --context-dir "$ARTIFACTS_PATH" \
-  --output "$OUTPUT_PATH/findings-claude.json" \
-  --timeout 300
+gemini \
+  --approval-mode default \
+  -o json \
+  "$REVIEW_PROMPT"
+# --approval-mode default: read-only tools auto-approved, writes prompt
+# -o json: structured output for parsing
 ```
 
-Note: Exact CLI flags will vary as these tools evolve. Adapters isolate this.
+**GeminiAdapter** (alternative implementation mode):
+```bash
+gemini \
+  --approval-mode yolo \
+  "$IMPLEMENTATION_PROMPT"
+# --approval-mode yolo: all tool use auto-approved
+# Working directory set to worktree path
+```
+
+**ClaudeAdapter** (review mode — self-review or secondary reviewer):
+```bash
+claude \
+  --print \
+  --allowedTools "Read,Grep,Glob" \
+  "$REVIEW_PROMPT"
+# --print: non-interactive, output to stdout
+# --allowedTools: restrict to read-only tools for reviews
+```
+
+**ClaudeAdapter** (alternative implementation mode):
+```bash
+claude \
+  --print \
+  --allowedTools "Read,Grep,Glob,Write,Edit,Bash" \
+  "$IMPLEMENTATION_PROMPT"
+# Full tool access for implementation work
+# Working directory set to worktree path
+```
+
+Note: Exact CLI flags evolve as these tools update. Adapters isolate this — updating a flag is a one-line change in the adapter, not a workflow change.
 
 ## Data Flow
 

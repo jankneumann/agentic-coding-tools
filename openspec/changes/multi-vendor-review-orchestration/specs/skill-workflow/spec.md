@@ -214,3 +214,52 @@ If all vendor dispatches fail, the system SHALL emit a warning and require manua
 - WHEN results are collected
 - THEN the system emits a warning requiring manual review
 - AND the integration gate returns BLOCKED_ESCALATE
+
+### Requirement: Dispatch Mode Flag Profiles
+
+Each vendor adapter SHALL support dispatch modes (`review`, `alternative_plan`, `alternative_impl`) with mode-specific CLI flags that control non-interactive execution, permission scope, and output format.
+
+#### Scenario: Review mode uses read-only sandbox
+
+- GIVEN the dispatch mode is `review`
+- WHEN the Codex adapter constructs the CLI command
+- THEN it includes `-s read-only` to restrict the agent to read-only access
+- AND the Gemini adapter includes `--approval-mode default`
+- AND the Claude adapter includes `--allowedTools "Read,Grep,Glob"`
+
+#### Scenario: Alternative implementation mode uses write access
+
+- GIVEN the dispatch mode is `alternative_impl`
+- WHEN the Codex adapter constructs the CLI command
+- THEN it includes `-s workspace-write` to allow file modifications
+- AND the Gemini adapter includes `--approval-mode yolo`
+- AND the Claude adapter includes `--allowedTools "Read,Grep,Glob,Write,Edit,Bash"`
+
+### Requirement: Non-Interactive Execution Guarantee
+
+Every vendor adapter SHALL guarantee that subprocess invocation never blocks on user input. The adapter SHALL use vendor-specific non-interactive flags (Codex `exec`, Gemini `--approval-mode`, Claude `--print`).
+
+#### Scenario: Codex exec is non-interactive
+
+- GIVEN the Codex adapter dispatches a review
+- WHEN it invokes `codex exec`
+- THEN the process runs to completion without prompting for user input
+- AND produces output on stdout/stderr only
+
+#### Scenario: Timeout kills hung process
+
+- GIVEN a vendor process is dispatched with a 300-second timeout
+- WHEN the process does not complete within 300 seconds
+- THEN the dispatcher kills the process
+- AND marks the result as timed out
+
+### Requirement: Adapter Capability Check
+
+Each vendor adapter SHALL implement a `can_dispatch()` method that verifies the CLI binary exists and supports the required non-interactive mode before attempting dispatch.
+
+#### Scenario: Missing CLI binary detected
+
+- GIVEN the `codex` binary is not on PATH
+- WHEN the Codex adapter's `can_dispatch()` is called
+- THEN it returns False
+- AND the dispatcher skips Codex and proceeds with other available vendors
