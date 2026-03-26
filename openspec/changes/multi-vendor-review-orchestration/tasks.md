@@ -7,19 +7,18 @@
 
 Create `skills/parallel-implement-feature/scripts/review_dispatcher.py`:
 
-- [ ] `ReviewDispatcher` protocol definition
-- [ ] `ReviewerInfo`, `DispatchResult`, `ReviewResult` data classes
-- [ ] `discover_reviewers()` — query coordinator discovery, fallback to `which` detection
-- [ ] `CodexAdapter` — subprocess dispatch via `codex exec`
-- [ ] `GeminiAdapter` — subprocess dispatch via `gemini code`
-- [ ] `ClaudeAdapter` — subprocess dispatch via `claude code`
-- [ ] `dispatch_all_reviews()` — parallel subprocess spawn
-- [ ] `wait_for_results()` — collect results with timeout handling
-- [ ] `write_review_manifest()` — emit `reviews/review-manifest.json` with vendor metadata, timing, quorum status
-- [ ] Model fallback on 429/capacity errors (retry with fallback model before giving up)
+- [ ] `CliConfig`, `ModeConfig` data classes (parsed from agents.yaml `cli` section)
+- [ ] `CliVendorAdapter` — single generic class, config-driven (no per-vendor subclasses)
+- [ ] `CliVendorAdapter.build_command(mode, prompt, model)` — construct CLI args from config
+- [ ] `CliVendorAdapter.can_dispatch(mode)` — verify binary exists and mode is configured
+- [ ] `ReviewOrchestrator` with `discover_reviewers()`, `dispatch_all_reviews()`, `wait_for_results()`
+- [ ] `ReviewOrchestrator.classify_error(stderr)` — detect capacity/auth/transient/unknown errors
+- [ ] `discover_reviewers()` — load agents.yaml, filter agents with `cli` section, check coordinator discovery
+- [ ] Model fallback on capacity errors (retry with `cli.model_fallbacks` chain)
 - [ ] Auth error detection and user-facing re-login messages
+- [ ] `write_review_manifest()` — emit `reviews/review-manifest.json` with vendor metadata, timing, models attempted
 - [ ] CLI entry point for standalone testing
-- [ ] Unit tests for adapter CLI construction, result parsing, error classification
+- [ ] Unit tests for command construction, error classification, model fallback, manifest generation
 
 ## Task 2: Consensus Synthesizer Script
 
@@ -91,12 +90,13 @@ Update parallel workflow skills to use review dispatcher:
 **Status**: planned
 **Depends on**: —
 
-Extend `agents.yaml` and `agents_config.py` with model fallback fields:
+Extend `agents.yaml` and `agents_config.py` with `cli` configuration section:
 
-- [ ] Add `model: str | None` and `model_fallbacks: list[str]` to `AgentEntry` dataclass
-- [ ] Add model/model_fallbacks to all 6 agent entries in `agents.yaml`
-- [ ] Update `load_agents_config()` to parse new fields (backward-compatible defaults)
-- [ ] Unit tests for loading agents.yaml with model fields
+- [ ] Add `CliConfig` dataclass: `command`, `dispatch_modes`, `model_flag`, `model`, `model_fallbacks`
+- [ ] Add optional `cli: CliConfig | None` to `AgentEntry` dataclass
+- [ ] Add `cli` sections to all 6 agent entries in `agents.yaml` with dispatch modes, model flags, and fallbacks
+- [ ] Update `load_agents_config()` to parse `cli` section (backward-compatible: missing `cli` = None)
+- [ ] Unit tests for loading agents.yaml with and without cli sections
 
 ## Task 8: Spec Updates
 

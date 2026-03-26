@@ -14,27 +14,76 @@
 
 **Trade-off**: Synchronous — orchestrator blocks while waiting. Acceptable for reviews (minutes, not hours). Work queue dispatch is a future enhancement for cloud agents.
 
-### AD-2: Vendor Adapter Pattern
+### AD-2: Config-Driven Generic Adapter
 
-**Decision**: Abstract vendor-specific CLI invocation behind a `ReviewDispatcher` protocol with per-vendor adapters.
+**Decision**: Use a single `CliVendorAdapter` class parameterized by CLI configuration from `agents.yaml`, rather than per-vendor adapter subclasses.
 
-```python
-class ReviewDispatcher(Protocol):
-    def dispatch_review(
-        self,
-        review_type: Literal["plan", "implementation"],
-        artifacts_path: Path,
-        output_path: Path,
-        timeout_seconds: int = 300,
-    ) -> DispatchResult: ...
+All vendor-specific CLI details — command binary, per-mode args, model flag syntax — are declared in `agents.yaml` under a `cli` key. The adapter reads this config and constructs the subprocess command at dispatch time.
+
+```yaml
+# agents.yaml — CLI configuration per agent
+agents:
+  codex-local:
+    type: codex
+    cli:
+      command: codex
+      dispatch_modes:
+        review:
+          args: [exec, -s, read-only]
+        alternative_plan:
+          args: [exec, -s, workspace-write]
+        alternative_impl:
+          args: [exec, -s, workspace-write]
+      model_flag: -m
+      model: null                        # null = CLI default
+      model_fallbacks: [o3, gpt-4.1]
+
+  gemini-local:
+    type: gemini
+    cli:
+      command: gemini
+      dispatch_modes:
+        review:
+          args: [--approval-mode, default, -o, json]
+        alternative_plan:
+          args: [--approval-mode, auto_edit, -o, json]
+        alternative_impl:
+          args: [--approval-mode, yolo]
+      model_flag: -m
+      model: null
+      model_fallbacks: [gemini-2.5-pro, gemini-2.5-flash]
+
+  claude-code-local:
+    type: claude_code
+    cli:
+      command: claude
+      dispatch_modes:
+        review:
+          args: [--print, --allowedTools, "Read,Grep,Glob"]
+        alternative_plan:
+          args: [--print, --allowedTools, "Read,Grep,Glob,Write,Edit"]
+        alternative_impl:
+          args: [--print, --allowedTools, "Read,Grep,Glob,Write,Edit,Bash"]
+      model_flag: --model
+      model: null
+      model_fallbacks: [claude-sonnet-4-6]
 ```
 
-**Adapters**:
-- `ClaudeCodeDispatcher` — `claude code --skill review-plan --input <path> --output <path>`
-- `CodexDispatcher` — `codex exec --prompt <review-prompt> --context <artifacts>`
-- `GeminiDispatcher` — `gemini code --prompt <review-prompt> --context <artifacts>`
+**Command construction** (generic, works for any vendor):
+```python
+cmd = [cli.command, *cli.dispatch_modes[mode].args]
+if model:
+    cmd.extend([cli.model_flag, model])
+cmd.append(prompt)  # prompt is always the last positional arg
+```
 
-**Rationale**: CLI interfaces evolve independently. Adapters isolate change. Adding a new vendor means adding one adapter file.
+**Rationale**:
+- No vendor-specific adapter code — one class handles all vendors
+- CLI flag changes are YAML edits, not code changes
+- Adding a new vendor means adding an entry to agents.yaml, not a new Python class
+- Model flag syntax (`-m` vs `--model`) varies per vendor — config handles this
+
+**Trade-off**: Less validation at the code level — a bad YAML entry could produce an invalid command. Mitigated by the `can_dispatch()` check which verifies the binary exists and runs a smoke test.
 
 ### AD-3: File-Based Handoff
 
@@ -83,40 +132,40 @@ class ReviewDispatcher(Protocol):
 3. Select vendors that are different from the implementing agent's vendor (vendor diversity)
 4. If only one vendor available, proceed with single-vendor review + warning
 
-### AD-6: Dispatch Mode with Per-Vendor Flag Profiles
+### AD-6: Dispatch Modes as Config, Not Code
 
-**Decision**: Introduce a `DispatchMode` enum (`review`, `alternative_plan`, `alternative_impl`) that maps to vendor-specific CLI flags for non-interactive execution, sandbox permissions, and output format.
+**Decision**: Dispatch modes (`review`, `alternative_plan`, `alternative_impl`) and their per-vendor CLI flags are declared in `agents.yaml` under `cli.dispatch_modes`, not hardcoded in adapter code. See AD-2 for the full YAML schema.
 
-Each mode determines three things per vendor:
-1. **Non-interactive invocation** — how to suppress user prompts
+Each mode's `args` list determines:
+1. **Non-interactive invocation** — flags that suppress user prompts
 2. **Permission scope** — read-only vs write access
-3. **Output handling** — how to capture structured findings
+3. **Output handling** — structured output format flags
 
-**Flag profiles per vendor and mode**:
+**Default dispatch_modes shipped in agents.yaml**:
 
-| Mode | Codex | Gemini | Claude |
-|------|-------|--------|--------|
-| `review` | `exec -s read-only` | `--approval-mode default -o json` | `--print --allowedTools 'Read,Grep,Glob'` |
-| `alternative_plan` | `exec -s workspace-write` | `--approval-mode auto_edit -o json` | `--print --allowedTools 'Read,Grep,Glob,Write,Edit'` |
-| `alternative_impl` | `exec -s workspace-write` | `--approval-mode yolo -o json` | `--print --allowedTools 'Read,Grep,Glob,Write,Edit,Bash'` |
+| Mode | Codex args | Gemini args | Claude args |
+|------|-----------|------------|------------|
+| `review` | `[exec, -s, read-only]` | `[--approval-mode, default, -o, json]` | `[--print, --allowedTools, "Read,Grep,Glob"]` |
+| `alternative_plan` | `[exec, -s, workspace-write]` | `[--approval-mode, auto_edit, -o, json]` | `[--print, --allowedTools, "Read,Grep,Glob,Write,Edit"]` |
+| `alternative_impl` | `[exec, -s, workspace-write]` | `[--approval-mode, yolo]` | `[--print, --allowedTools, "Read,Grep,Glob,Write,Edit,Bash"]` |
 
-**Rationale**:
-- **Codex** `exec` is inherently non-interactive (headless). Sandbox mode (`-s`) controls write access: `read-only` for reviews, `workspace-write` for implementations.
-- **Gemini** uses `--approval-mode` to control tool approval: `default` (prompts, but read-only tools auto-approve), `auto_edit` (auto-approve edits), `yolo` (auto-approve everything). `-o json` for structured output.
-- **Claude** uses `--print` for non-interactive output. `--allowedTools` restricts which tools the agent can use.
+**Rationale**: CLI flags change as vendor tools evolve. Making them config means updating flags is a YAML edit, not a code change and release cycle. The adapter doesn't need to know vendor-specific flag semantics — it just reads the args list and appends the prompt.
 
-**Trade-off**: Flag profiles are hardcoded per vendor, not user-configurable. This is intentional — wrong flags could cause agents to hang waiting for input or write outside their scope. If vendors change their CLI, we update the adapter.
+**Safety**: Wrong dispatch_modes config could cause an agent to hang or write outside scope. Mitigated by:
+- `can_dispatch()` smoke test on adapter initialization
+- Hard timeout on every subprocess (kills hung processes)
+- Worktree isolation for write modes (limits blast radius)
 
 ### AD-7: Non-Interactive Guarantee
 
-**Decision**: Every vendor adapter MUST guarantee that subprocess invocation never blocks on user input. If the CLI lacks a reliable non-interactive mode, the adapter MUST NOT dispatch to that vendor.
+**Decision**: Every vendor dispatch MUST guarantee that subprocess invocation never blocks on user input. The `cli.dispatch_modes` config MUST include non-interactive flags for each mode.
 
-**Verification**: Each adapter implements a `can_dispatch()` check that verifies the CLI binary exists and supports headless mode. For example:
-- Codex: presence of `exec` subcommand (always non-interactive)
-- Gemini: presence of `--approval-mode` flag (verified via `--help` output parsing or known minimum version)
-- Claude: presence of `--print` flag
+**Verification**: The `can_dispatch()` check verifies:
+1. The CLI binary (`cli.command`) exists on PATH
+2. The binary is executable
+3. The requested dispatch mode exists in `cli.dispatch_modes`
 
-**Timeout as safety net**: Even with non-interactive flags, the dispatcher enforces a hard timeout. If a process doesn't produce output within the timeout, it's killed — this catches cases where a vendor update introduces an unexpected prompt.
+**Timeout as safety net**: Even with non-interactive flags, the dispatcher enforces a hard timeout. If a process doesn't produce output within the timeout, it's killed — this catches cases where a vendor update introduces an unexpected prompt or a config error omits a non-interactive flag.
 
 ## Component Design
 
@@ -124,30 +173,45 @@ Each mode determines three things per vendor:
 
 New script in `skills/parallel-implement-feature/scripts/`.
 
-Two layers: **VendorAdapter** (per-vendor protocol) and **ReviewOrchestrator** (multi-vendor coordination).
+Two layers: **CliVendorAdapter** (generic, config-driven) and **ReviewOrchestrator** (multi-vendor coordination).
 
 ```
-VendorAdapter (Protocol — one per vendor)
-├── vendor: str  (e.g., "codex")
-├── can_dispatch() → bool
+CliVendorAdapter (single class, parameterized by agents.yaml config)
+├── agent_id: str
+├── vendor: str  (from agent entry type)
+├── cli_config: CliConfig  (from agents.yaml cli section)
+├── can_dispatch(mode: DispatchMode) → bool
 ├── dispatch_review(
 │       review_type: Literal["plan", "implementation"],
 │       dispatch_mode: DispatchMode,
-│       artifacts_path: Path,
-│       output_path: Path,
+│       prompt: str,
+│       cwd: Path,
 │       timeout_seconds: int = 300,
+│       model_override: str | None = None,
 │   ) → DispatchResult
-└── Concrete: CodexAdapter, GeminiAdapter, ClaudeAdapter
+└── build_command(mode, prompt, model) → list[str]
 
-ReviewOrchestrator (uses VendorAdapters)
+CliConfig (parsed from agents.yaml cli section)
+├── command: str               # CLI binary (codex, gemini, claude)
+├── dispatch_modes: dict[str, ModeConfig]  # per-mode args
+├── model_flag: str            # -m or --model
+├── model: str | None          # primary model (None = CLI default)
+└── model_fallbacks: list[str] # ordered fallback chain
+
+ModeConfig
+└── args: list[str]            # CLI args for this mode
+
+ReviewOrchestrator (uses CliVendorAdapters)
+├── adapters: dict[str, CliVendorAdapter]  # keyed by agent_id
 ├── discover_reviewers() → list[ReviewerInfo]
 ├── dispatch_all_reviews(review_type, dispatch_mode, artifacts_path) → list[DispatchResult]
-└── wait_for_results(dispatches, timeout) → list[ReviewResult]
+├── wait_for_results(dispatches, timeout) → list[ReviewResult]
+└── classify_error(stderr: str) → ErrorClass  # capacity | auth | transient | unknown
 
 ReviewerInfo
-├── vendor: str ("claude" | "codex" | "gemini")
+├── vendor: str ("claude_code" | "codex" | "gemini")
 ├── agent_id: str
-├── transport: str ("cli" | "mcp" | "http")
+├── cli_config: CliConfig | None  # None if agent has no cli section
 └── available: bool
 
 DispatchResult
@@ -162,11 +226,27 @@ ReviewResult
 ├── success: bool
 ├── findings_path: Path | None
 ├── findings: dict | None  (parsed JSON)
+├── model_used: str | None     # which model actually produced the result
+├── models_attempted: list[str] # all models tried (for manifest)
 ├── elapsed_seconds: float
 └── error: str | None
 ```
 
-The `VendorAdapter` protocol defines the per-vendor interface. The `ReviewOrchestrator` handles discovery, vendor selection, parallel dispatch, and result collection — it owns the mapping from vendor names to adapter instances.
+The `CliVendorAdapter` is a single generic class — one instance per agent, parameterized by `CliConfig` from `agents.yaml`. The `ReviewOrchestrator` loads all agent configs, creates adapters for agents with a `cli` section, and manages discovery, selection, parallel dispatch, and result collection.
+
+**Generic command construction** (no vendor-specific code):
+```python
+def build_command(self, mode: DispatchMode, prompt: str, model: str | None = None) -> list[str]:
+    mode_config = self.cli_config.dispatch_modes[mode.value]
+    cmd = [self.cli_config.command, *mode_config.args]
+    effective_model = model or self.cli_config.model
+    if effective_model:
+        cmd.extend([self.cli_config.model_flag, effective_model])
+    cmd.append(prompt)
+    return cmd
+```
+
+**Adding a new vendor** requires only a new entry in `agents.yaml` — zero Python code changes.
 
 ### 2. Consensus Synthesizer (`scripts/consensus_synthesizer.py`)
 
@@ -233,68 +313,34 @@ def check_integration_gate(self) -> IntegrationGateStatus:
     # Disagreements → BLOCKED_ESCALATE
 ```
 
-### 5. Vendor CLI Adapters
+### 5. Generic CLI Dispatch (Config-Driven)
 
-Each adapter implements the `ReviewDispatcher` protocol. The exact flags vary by dispatch mode (see AD-6).
+There are no per-vendor adapter classes. The `CliVendorAdapter` builds the command from `agents.yaml` config:
 
-**CodexAdapter** (review mode):
+**Example: Codex review dispatch** (from config `codex-local.cli.dispatch_modes.review.args = [exec, -s, read-only]`):
 ```bash
-codex exec \
-  -s read-only \
-  "$REVIEW_PROMPT"
-# Prompt includes instructions to write findings JSON to stdout
-# Output captured from stdout, parsed as JSON
+# build_command(mode="review", prompt="<prompt>", model=None)
+codex exec -s read-only "<prompt>"
+
+# build_command(mode="review", prompt="<prompt>", model="o3")  # fallback
+codex exec -s read-only -m o3 "<prompt>"
 ```
 
-**CodexAdapter** (alternative implementation mode):
+**Example: Gemini review dispatch** (from config `gemini-local.cli.dispatch_modes.review.args = [--approval-mode, default, -o, json]`):
 ```bash
-codex exec \
-  -s workspace-write \
-  "$IMPLEMENTATION_PROMPT"
-# Working directory set to worktree path
-# Writes files directly, commits result
+# build_command(mode="review", prompt="<prompt>", model=None)
+gemini --approval-mode default -o json "<prompt>"
+
+# build_command(mode="review", prompt="<prompt>", model="gemini-2.5-pro")  # fallback
+gemini --approval-mode default -o json -m gemini-2.5-pro "<prompt>"
 ```
 
-**GeminiAdapter** (review mode):
+**Example: Claude alternative_impl dispatch** (from config `claude-code-local.cli.dispatch_modes.alternative_impl.args = [--print, --allowedTools, "Read,Grep,Glob,Write,Edit,Bash"]`):
 ```bash
-gemini \
-  --approval-mode default \
-  -o json \
-  "$REVIEW_PROMPT"
-# --approval-mode default: read-only tools auto-approved, writes prompt
-# -o json: structured output for parsing
+claude --print --allowedTools "Read,Grep,Glob,Write,Edit,Bash" "<prompt>"
 ```
 
-**GeminiAdapter** (alternative implementation mode):
-```bash
-gemini \
-  --approval-mode yolo \
-  "$IMPLEMENTATION_PROMPT"
-# --approval-mode yolo: all tool use auto-approved
-# Working directory set to worktree path
-```
-
-**ClaudeAdapter** (review mode — self-review or secondary reviewer):
-```bash
-claude \
-  --print \
-  --allowedTools "Read,Grep,Glob" \
-  "$REVIEW_PROMPT"
-# --print: non-interactive, output to stdout
-# --allowedTools: restrict to read-only tools for reviews
-```
-
-**ClaudeAdapter** (alternative implementation mode):
-```bash
-claude \
-  --print \
-  --allowedTools "Read,Grep,Glob,Write,Edit,Bash" \
-  "$IMPLEMENTATION_PROMPT"
-# Full tool access for implementation work
-# Working directory set to worktree path
-```
-
-Note: Exact CLI flags evolve as these tools update. Adapters isolate this — updating a flag is a one-line change in the adapter, not a workflow change.
+All examples above are generated by the same `build_command()` method — no vendor-specific logic. Updating CLI flags is a YAML edit in `agents.yaml`.
 
 ## Data Flow
 
@@ -366,68 +412,17 @@ The `record_review_findings()` method remains backward-compatible: if `vendor` i
 
 ### AD-8: Model Fallback on Capacity Errors
 
-**Decision**: When a vendor returns a 429 / `MODEL_CAPACITY_EXHAUSTED` error, the adapter SHALL retry with a fallback model before giving up. Model fallback chains are **configured in `agents.yaml`**, not hardcoded, since models change frequently.
+**Decision**: When a vendor returns a 429 / `MODEL_CAPACITY_EXHAUSTED` error, the adapter SHALL retry with fallback models from `cli.model_fallbacks` before giving up.
 
-**Observed behavior** (live test, 2026-03-26): Gemini CLI failed with `MODEL_CAPACITY_EXHAUSTED` on `gemini-3-pro-preview` after 10 internal retries. The CLI's own retry loop doesn't try a different model — it retries the same model with backoff. Our adapter should catch this and retry with `-m <fallback-model>`.
+**Observed behavior** (live test, 2026-03-26): Gemini CLI failed with `MODEL_CAPACITY_EXHAUSTED` on `gemini-3-pro-preview` after 10 internal retries. The CLI's own retry loop doesn't try a different model — it retries the same model with backoff. Our adapter catches this and retries with `cli.model_flag <fallback>`.
 
-**Configuration in `agents.yaml`**: Extend the agent entry schema with `model` and `model_fallbacks`:
+**Implementation**: On first attempt, the adapter uses `cli.model` (or omits the flag if null, using CLI default). If the process exits non-zero and stderr matches a capacity error pattern, it retries with each model in `cli.model_fallbacks` in order. Max retries = len(model_fallbacks).
 
-```yaml
-agents:
-  codex-local:
-    type: codex
-    profile: codex_local_worker
-    trust_level: 3
-    transport: mcp
-    isolation: worktree
-    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    model: null                          # null = use CLI default
-    model_fallbacks: [o3, gpt-4.1]      # ordered fallback chain
-    description: "Local Codex agent"
-
-  gemini-local:
-    type: gemini
-    profile: gemini_local_worker
-    trust_level: 3
-    transport: mcp
-    isolation: worktree
-    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    model: null                          # null = gemini-3-pro-preview (CLI default)
-    model_fallbacks: [gemini-2.5-pro, gemini-2.5-flash]
-    description: "Local Gemini agent"
-
-  claude-code-local:
-    type: claude_code
-    profile: claude_code_cli
-    trust_level: 4
-    transport: mcp
-    isolation: worktree
-    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    model: null                          # null = claude-opus-4-6 (CLI default)
-    model_fallbacks: [claude-sonnet-4-6]
-    description: "Local Claude Code agent"
-```
-
-**Schema extension** in `agents_config.py`:
-```python
-@dataclass
-class AgentEntry:
-    ...
-    model: str | None = None             # primary model (None = CLI default)
-    model_fallbacks: list[str] = field(default_factory=list)  # ordered fallbacks
-```
-
-**Implementation**: The adapter reads the agent's `model` and `model_fallbacks` from the loaded agents config. On first attempt, it uses `model` (or omits the flag if None). If the process exits non-zero and stderr matches a capacity error pattern, it retries with each fallback in order. Max retries = len(model_fallbacks).
-
-**Stderr parsing**: Each adapter parses vendor-specific error patterns:
-- **Gemini**: JSON on stderr with `"code": 429` and `"reason": "MODEL_CAPACITY_EXHAUSTED"`
-- **Codex**: Exit code + stderr text containing rate limit messages
-- **Claude**: Exit code + stderr error messages
-
-**Model flag per vendor**:
-- Codex: `-m <model>`
-- Gemini: `-m <model>`
-- Claude: `--model <model>`
+**Error classification** (`classify_error()` in ReviewOrchestrator): Parses stderr to detect error class. Patterns are vendor-agnostic where possible:
+- `429`, `RESOURCE_EXHAUSTED`, `capacity`, `rate limit` → `ErrorClass.CAPACITY`
+- `401`, `UNAUTHENTICATED`, `token expired`, `login required` → `ErrorClass.AUTH`
+- `500`, `503`, `UNAVAILABLE` → `ErrorClass.TRANSIENT`
+- Everything else → `ErrorClass.UNKNOWN`
 
 ### AD-9: Surfacing Auth Errors to the User
 

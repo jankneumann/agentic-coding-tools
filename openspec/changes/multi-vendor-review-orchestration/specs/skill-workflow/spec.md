@@ -57,15 +57,16 @@ The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent subp
 - THEN both vendor subprocesses are started concurrently
 - AND results are collected as each completes
 
-### Requirement: Vendor Adapter Protocol
+### Requirement: Config-Driven Generic Adapter
 
-Each vendor adapter SHALL implement a common `ReviewDispatcher` protocol with `dispatch_review()` returning structured `DispatchResult`.
+A single `CliVendorAdapter` class SHALL handle all vendors, parameterized by CLI configuration from `agents.yaml`. There SHALL NOT be per-vendor adapter subclasses.
 
-#### Scenario: Adapter conformance
+#### Scenario: Adapter constructed from config
 
-- GIVEN a vendor adapter (Codex, Gemini, or Claude)
-- WHEN `dispatch_review()` is called
-- THEN it returns a `DispatchResult` with vendor, process handle, output path, and timing
+- GIVEN agents.yaml contains a `cli` section for `codex-local` with `command: codex` and dispatch modes
+- WHEN the ReviewOrchestrator loads agent config
+- THEN it creates a `CliVendorAdapter` instance for `codex-local` using the config
+- AND `dispatch_review()` returns a `DispatchResult` with vendor, process handle, output path, and timing
 
 ### Requirement: Vendor Timeout Enforcement
 
@@ -215,36 +216,36 @@ If all vendor dispatches fail, the system SHALL emit a warning and require manua
 - THEN the system emits a warning requiring manual review
 - AND the integration gate returns BLOCKED_ESCALATE
 
-### Requirement: Dispatch Mode Flag Profiles
+### Requirement: Dispatch Modes from Config
 
-Each vendor adapter SHALL support dispatch modes (`review`, `alternative_plan`, `alternative_impl`) with mode-specific CLI flags that control non-interactive execution, permission scope, and output format.
+Dispatch modes and their CLI args SHALL be read from `agents.yaml` under `cli.dispatch_modes`. The adapter SHALL NOT hardcode CLI flags for any vendor.
 
-#### Scenario: Review mode uses read-only sandbox
+#### Scenario: Review mode reads args from config
 
-- GIVEN the dispatch mode is `review`
-- WHEN the Codex adapter constructs the CLI command
-- THEN it includes `-s read-only` to restrict the agent to read-only access
-- AND the Gemini adapter includes `--approval-mode default`
-- AND the Claude adapter includes `--allowedTools "Read,Grep,Glob"`
+- GIVEN agents.yaml contains `codex-local.cli.dispatch_modes.review.args: [exec, -s, read-only]`
+- WHEN the adapter builds the command for review mode
+- THEN the command is `["codex", "exec", "-s", "read-only", "<prompt>"]`
 
-#### Scenario: Alternative implementation mode uses write access
+#### Scenario: Alternative impl mode reads args from config
 
-- GIVEN the dispatch mode is `alternative_impl`
-- WHEN the Codex adapter constructs the CLI command
-- THEN it includes `-s workspace-write` to allow file modifications
-- AND the Gemini adapter includes `--approval-mode yolo`
-- AND the Claude adapter includes `--allowedTools "Read,Grep,Glob,Write,Edit,Bash"`
+- GIVEN agents.yaml contains `gemini-local.cli.dispatch_modes.alternative_impl.args: [--approval-mode, yolo]`
+- WHEN the adapter builds the command for alternative_impl mode
+- THEN the command is `["gemini", "--approval-mode", "yolo", "<prompt>"]`
+
+### Requirement: CLI Configuration Schema
+
+Each agent entry in `agents.yaml` SHALL support an optional `cli` section with: `command` (binary name), `dispatch_modes` (map of mode name to args list), `model_flag` (flag syntax for model override), `model` (primary model or null), and `model_fallbacks` (ordered fallback list).
+
+#### Scenario: Agent with no cli section
+
+- GIVEN an agent entry in agents.yaml without a `cli` section
+- WHEN the ReviewOrchestrator loads agent config
+- THEN no adapter is created for that agent
+- AND the agent is excluded from CLI dispatch (may still be available via other transports)
 
 ### Requirement: Non-Interactive Execution Guarantee
 
-Every vendor adapter SHALL guarantee that subprocess invocation never blocks on user input. The adapter SHALL use vendor-specific non-interactive flags (Codex `exec`, Gemini `--approval-mode`, Claude `--print`).
-
-#### Scenario: Codex exec is non-interactive
-
-- GIVEN the Codex adapter dispatches a review
-- WHEN it invokes `codex exec`
-- THEN the process runs to completion without prompting for user input
-- AND produces output on stdout/stderr only
+The `cli.dispatch_modes` config for each agent SHALL include non-interactive flags. The adapter enforces a hard timeout on every subprocess to catch misconfigured modes.
 
 #### Scenario: Timeout kills hung process
 
@@ -255,14 +256,20 @@ Every vendor adapter SHALL guarantee that subprocess invocation never blocks on 
 
 ### Requirement: Adapter Capability Check
 
-Each vendor adapter SHALL implement a `can_dispatch()` method that verifies the CLI binary exists and supports the required non-interactive mode before attempting dispatch.
+The `CliVendorAdapter` SHALL implement a `can_dispatch(mode)` method that verifies: (1) the CLI binary exists on PATH, (2) the requested dispatch mode exists in `cli.dispatch_modes`.
 
 #### Scenario: Missing CLI binary detected
 
 - GIVEN the `codex` binary is not on PATH
-- WHEN the Codex adapter's `can_dispatch()` is called
+- WHEN the adapter's `can_dispatch("review")` is called
 - THEN it returns False
-- AND the dispatcher skips Codex and proceeds with other available vendors
+- AND the dispatcher skips this agent and proceeds with others
+
+#### Scenario: Missing dispatch mode
+
+- GIVEN an agent's cli config has no `alternative_impl` dispatch mode
+- WHEN `can_dispatch("alternative_impl")` is called
+- THEN it returns False
 
 ### Requirement: Model Fallback on Capacity Errors
 
