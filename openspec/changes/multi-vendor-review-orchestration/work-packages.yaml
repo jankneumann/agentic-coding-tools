@@ -1,0 +1,213 @@
+schema_version: 1
+
+feature:
+  id: multi-vendor-review-orchestration
+  title: Multi-Vendor Review Orchestration
+  plan_revision: 1
+  created_by: claude-code-1
+  created_at: "2026-03-26T10:15:00Z"
+
+contracts:
+  revision: 1
+  schemas:
+    consensus_report: contracts/consensus-report.schema.json
+
+packages:
+  - package_id: wp-contracts
+    task_type: contracts
+    description: >
+      Create consensus-report.schema.json and copy to openspec/schemas/.
+      Validate against JSON Schema meta-schema.
+    priority: 1
+    depends_on: []
+    scope:
+      write_allow:
+        - "openspec/schemas/consensus-report.schema.json"
+        - "openspec/changes/multi-vendor-review-orchestration/contracts/**"
+      read_allow:
+        - "openspec/schemas/**"
+      deny:
+        - "skills/**"
+        - "agent-coordinator/**"
+    locks:
+      keys:
+        - "contract:consensus-report.schema.json"
+      ttl_minutes: 60
+      reason: "Consensus report schema definition"
+    verification:
+      tier_required: C
+      test_count_minimum: 0
+    outputs:
+      result_keys:
+        - consensus_report_schema_path
+
+  - package_id: wp-review-dispatcher
+    task_type: implementation
+    description: >
+      Create review_dispatcher.py with ReviewDispatcher protocol, vendor
+      adapters (Claude, Codex, Gemini), discovery integration, parallel
+      dispatch, and timeout handling. Include unit tests.
+    priority: 2
+    depends_on:
+      - wp-contracts
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+        - "skills/parallel-implement-feature/scripts/tests/test_review_dispatcher.py"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/evaluation/backends/**"
+        - "openspec/schemas/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/parallel-implement-feature/scripts/integration_orchestrator.py"
+        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
+    locks:
+      files:
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+      keys:
+        - "feature:multi-vendor-review:dispatcher"
+      ttl_minutes: 120
+      reason: "Review dispatcher implementation"
+    verification:
+      tier_required: A
+      test_count_minimum: 10
+    outputs:
+      result_keys:
+        - review_dispatcher_path
+        - test_count
+
+  - package_id: wp-consensus-synthesizer
+    task_type: implementation
+    description: >
+      Create consensus_synthesizer.py with finding matching algorithm,
+      consensus computation, and report generation. Include unit tests
+      with fixture findings from multiple vendors.
+    priority: 2
+    depends_on:
+      - wp-contracts
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
+        - "skills/parallel-implement-feature/scripts/tests/test_consensus_synthesizer.py"
+        - "skills/parallel-implement-feature/scripts/tests/fixtures/**"
+      read_allow:
+        - "openspec/schemas/**"
+        - "skills/parallel-implement-feature/scripts/**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+        - "skills/parallel-implement-feature/scripts/integration_orchestrator.py"
+    locks:
+      files:
+        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
+      keys:
+        - "feature:multi-vendor-review:consensus"
+      ttl_minutes: 120
+      reason: "Consensus synthesizer implementation"
+    verification:
+      tier_required: A
+      test_count_minimum: 10
+    outputs:
+      result_keys:
+        - consensus_synthesizer_path
+        - test_count
+
+  - package_id: wp-orchestrator-update
+    task_type: implementation
+    description: >
+      Update integration_orchestrator.py to support multi-vendor findings,
+      consensus reports, and enhanced integration gate logic. Update
+      existing tests for backward compatibility.
+    priority: 3
+    depends_on:
+      - wp-review-dispatcher
+      - wp-consensus-synthesizer
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/scripts/integration_orchestrator.py"
+        - "skills/parallel-implement-feature/scripts/tests/test_integration_orchestrator.py"
+      read_allow:
+        - "skills/parallel-implement-feature/scripts/**"
+        - "openspec/schemas/**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
+    locks:
+      files:
+        - "skills/parallel-implement-feature/scripts/integration_orchestrator.py"
+      keys:
+        - "feature:multi-vendor-review:orchestrator"
+      ttl_minutes: 120
+      reason: "Orchestrator multi-vendor enhancement"
+    verification:
+      tier_required: A
+      test_count_minimum: 5
+    outputs:
+      result_keys:
+        - orchestrator_updated
+        - test_count
+
+  - package_id: wp-skill-docs
+    task_type: documentation
+    description: >
+      Update SKILL.md files for parallel-implement-feature,
+      parallel-review-plan, and parallel-review-implementation to document
+      multi-vendor dispatch usage. Update design doc.
+    priority: 3
+    depends_on:
+      - wp-review-dispatcher
+      - wp-consensus-synthesizer
+    scope:
+      write_allow:
+        - "skills/parallel-implement-feature/SKILL.md"
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "docs/two-level-parallel-agentic-development.md"
+      read_allow:
+        - "skills/**"
+        - "docs/**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/parallel-implement-feature/scripts/**"
+    locks:
+      keys:
+        - "feature:multi-vendor-review:docs"
+      ttl_minutes: 60
+      reason: "Skill documentation updates"
+    verification:
+      tier_required: C
+      test_count_minimum: 0
+    outputs:
+      result_keys:
+        - docs_updated
+
+  - package_id: wp-integration
+    task_type: integration
+    description: >
+      Merge all package worktrees, run full test suite, validate
+      scope compliance, and produce integration report.
+    priority: 10
+    depends_on:
+      - wp-orchestrator-update
+      - wp-skill-docs
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny: []
+    locks:
+      keys:
+        - "feature:multi-vendor-review:integration"
+      ttl_minutes: 60
+      reason: "Integration merge and validation"
+    verification:
+      tier_required: A
+      test_count_minimum: 0
+    outputs:
+      result_keys:
+        - integration_result
+        - test_summary
