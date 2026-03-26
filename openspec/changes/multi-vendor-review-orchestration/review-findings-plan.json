@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "multi-vendor-review-orchestration",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The review-findings.schema.json lacks a 'file_path' or 'location' field on individual findings. The consensus synthesizer's matching algorithm (design.md §3) relies on 'file path + line range' for cross-vendor matching, but the existing schema has no such field. Without it, the matching algorithm cannot perform exact location matching — only description similarity remains, which is unreliable.",
+      "resolution": "Either (a) add optional 'file_path' and 'line_range' fields to review-findings.schema.json findings items, or (b) revise the matching algorithm to work without location data (e.g., description + type only). Option (a) is a schema change marked out-of-scope in the proposal — reconsider this boundary.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The consensus-report.schema.json references 'primary_finding_ref' as '<vendor>-<finding_id>' (e.g., 'codex-3'), but the review-findings.schema.json uses integer IDs that are only unique per-vendor. Two vendors could both produce finding id=3 with completely different meanings. The ref format assumes vendors use globally unique or vendor-prefixed IDs, but the schema doesn't enforce this.",
+      "resolution": "Define the ref format explicitly: the consensus synthesizer should construct refs as '<vendor>-<id>' during synthesis, not expect vendors to produce them. Document this as a synthesizer responsibility, not an input contract.",
+      "disposition": "accept"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The proposal lists 'reviews/findings-<vendor>.json' and 'reviews/consensus-report.json' as output artifacts, but the existing skill convention writes to 'openspec/changes/<change-id>/review-findings-plan.json'. The design doesn't specify where in the change directory the per-vendor findings and consensus report live, or how they coexist with the existing single-vendor findings file. The integration orchestrator also stores findings per-package (keyed by package_id), not per-vendor — the storage model needs updating.",
+      "resolution": "Define the output path convention explicitly: (a) per-vendor findings at 'openspec/changes/<change-id>/reviews/findings-<vendor>-<review_type>.json', (b) consensus at 'openspec/changes/<change-id>/reviews/consensus-<review_type>.json'. Update the orchestrator's _review_findings dict from Dict[package_id, findings] to Dict[package_id, Dict[vendor, findings]] to support multi-vendor storage.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The 'Dispatch Mode Flag Profiles' requirement (spec.md) tests vendor-specific flags (Codex '-s read-only', Gemini '--approval-mode default') in the same scenario. This couples the test to all three vendor implementations simultaneously. If one vendor changes flags, the scenario fails even if the others are correct.",
+      "resolution": "Split into per-vendor scenarios: one for Codex review mode flags, one for Gemini review mode flags, one for Claude review mode flags. Each scenario tests one adapter independently.",
+      "disposition": "accept"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The ReviewDispatcher protocol (design.md) defines dispatch_review() as synchronous (returns DispatchResult with subprocess.Popen), but dispatch_all_reviews() spawns parallel subprocesses. The protocol doesn't distinguish sync vs async dispatch. Also, 'dispatch_review' takes 'vendor' as first arg but the protocol signature takes review_type/artifacts_path/output_path — these don't match.",
+      "resolution": "Clarify the protocol: (a) the protocol defines the per-adapter interface (dispatch_review), (b) a separate Orchestrator class manages multi-adapter dispatch and parallelism. The protocol shouldn't expose vendor selection — the orchestrator maps vendors to adapters.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The design describes work queue dispatch as 'future, requires agent polling' (AD-1) and the proposal puts HTTP API dispatch out of scope, but no requirement captures when or how to migrate from CLI subprocess to work queue dispatch. The specs have no extensibility requirement for adding new dispatch transports.",
+      "resolution": "Add a requirement: 'The ReviewDispatcher protocol SHALL support multiple transport backends (CLI subprocess, work queue) through the adapter pattern, with CLI subprocess as the initial implementation.' This makes the extension point explicit without implementing it now.",
+      "disposition": "accept"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The wp-orchestrator-update package has deny rules that prevent reading review_dispatcher.py and consensus_synthesizer.py, but the orchestrator update needs to import from or call these modules. The deny scope blocks the very dependencies this package needs to integrate.",
+      "resolution": "Move review_dispatcher.py and consensus_synthesizer.py from deny to read_allow for wp-orchestrator-update. The deny list should only prevent writes to files owned by other packages, not reads.",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The consensus-report.schema.json 'summary' object is not required, and its properties lack 'required' constraints. A valid consensus report could have an empty summary object, making it unreliable for gate decisions or display.",
+      "resolution": "Add 'summary' to the top-level required array and add a 'required' constraint to the summary object for at least 'total_unique_findings', 'confirmed_count', and 'blocking_count'.",
+      "disposition": "accept"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "medium",
+      "description": "CLI subprocess dispatch passes the review prompt as a command-line argument ($REVIEW_PROMPT). If the prompt contains shell metacharacters or is very long, this could cause command injection or argument length limits. The evaluation backends use asyncio.create_subprocess_exec (no shell), but the design examples show shell-style invocation.",
+      "resolution": "Clarify in the design that adapters MUST use subprocess.run() or asyncio.create_subprocess_exec() with list arguments (no shell=True). The design examples are illustrative — add a note that actual invocation avoids shell interpolation.",
+      "disposition": "fix"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The finding matching algorithm uses Jaccard similarity on tokens for semantic matching, but has no mention of handling findings that reference the same logical concern at different abstraction levels (e.g., one vendor says 'missing input validation on /api/users' and another says 'XSS vulnerability in user display name'). These are related but won't match on tokens or location.",
+      "resolution": "Acknowledge this limitation in the design. Token-based matching is a reasonable v1 — more sophisticated matching (embeddings, LLM-assisted) can be a future enhancement. Document the known false-negative case.",
+      "disposition": "accept"
+    }
+  ]
+}
