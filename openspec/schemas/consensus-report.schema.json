@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Multi-Vendor Review Consensus Report",
+  "description": "Synthesized consensus from multiple vendor review findings",
+  "type": "object",
+  "required": ["schema_version", "review_type", "target", "reviewers", "quorum_met", "consensus_findings", "summary"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "review_type": {
+      "type": "string",
+      "enum": ["plan", "implementation"]
+    },
+    "target": {
+      "type": "string",
+      "description": "Feature ID or package ID being reviewed"
+    },
+    "reviewers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["vendor", "agent_id", "success", "elapsed_seconds"],
+        "properties": {
+          "vendor": {
+            "type": "string",
+            "enum": ["claude", "codex", "gemini"]
+          },
+          "agent_id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "findings_count": {
+            "type": "integer"
+          },
+          "elapsed_seconds": {
+            "type": "number"
+          },
+          "error": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    },
+    "quorum_met": {
+      "type": "boolean",
+      "description": "True if minimum reviewer count threshold was met"
+    },
+    "quorum_requested": {
+      "type": "integer",
+      "description": "Number of reviewers requested"
+    },
+    "quorum_received": {
+      "type": "integer",
+      "description": "Number of reviewers that returned valid findings"
+    },
+    "consensus_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "primary_vendor", "primary_finding_id", "agreed_type", "agreed_criticality", "recommended_disposition"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["confirmed", "unconfirmed", "disagreement"],
+            "description": "confirmed=2+ vendors agree, unconfirmed=single vendor, disagreement=vendors disagree on disposition"
+          },
+          "primary_vendor": {
+            "type": "string",
+            "description": "Vendor that reported the primary finding"
+          },
+          "primary_finding_id": {
+            "type": "integer",
+            "description": "Finding ID within the primary vendor's findings array"
+          },
+          "matched_findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["vendor", "finding_id"],
+              "properties": {
+                "vendor": { "type": "string" },
+                "finding_id": { "type": "integer" }
+              }
+            },
+            "description": "Matching findings from other vendors"
+          },
+          "match_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Confidence of the cross-vendor match"
+          },
+          "agreed_type": {
+            "type": "string",
+            "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness"]
+          },
+          "agreed_criticality": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "recommended_disposition": {
+            "type": "string",
+            "enum": ["fix", "regenerate", "accept", "escalate"]
+          },
+          "description": {
+            "type": "string",
+            "description": "Synthesized description combining vendor perspectives"
+          },
+          "vendor_dispositions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["fix", "regenerate", "accept", "escalate"]
+            },
+            "description": "Per-vendor disposition map, present when status=disagreement"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total_unique_findings", "confirmed_count", "unconfirmed_count", "disagreement_count", "blocking_count"],
+      "properties": {
+        "total_unique_findings": { "type": "integer" },
+        "confirmed_count": { "type": "integer" },
+        "unconfirmed_count": { "type": "integer" },
+        "disagreement_count": { "type": "integer" },
+        "blocking_count": { "type": "integer", "description": "Findings that will block integration" }
+      }
+    }
+  }
+}
