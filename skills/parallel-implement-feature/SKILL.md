@@ -166,11 +166,22 @@ C1. Result validation (on each package completion)
 C2. Escalation processing
     - Execute escalation protocol for any escalations
 
-C3. Per-package review
-    - Dispatch /parallel-review-implementation on each package diff
+C3. Per-package multi-vendor review
+    - Use ReviewOrchestrator (from review_dispatcher.py) to dispatch
+      /parallel-review-implementation to multiple vendor CLIs
+    - Vendor adapters read CLI config from agents.yaml `cli` section
+    - Model fallback: on 429/capacity errors, retry with cli.model_fallbacks
+    - Auth errors: surface re-login command to user, skip vendor
+    - Collect per-vendor findings, then synthesize consensus via
+      ConsensusSynthesizer (from consensus_synthesizer.py)
+    - Write review-manifest.json with dispatch metadata
+    - Single-vendor fallback: if only one vendor available, use raw findings
 
-C4. Integration gate
+C4. Integration gate (consensus-aware)
     - Wait for all packages COMPLETED and reviewed
+    - When consensus exists: confirmed fix → BLOCKED_FIX,
+      disagreement → BLOCKED_ESCALATE, unconfirmed → warnings (pass)
+    - When no consensus: fall back to single-vendor finding dispositions
 
 C5. Integration merge (wp-integration package)
     - python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup <change-id> --agent-id integrator

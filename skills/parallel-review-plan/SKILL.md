@@ -154,3 +154,15 @@ This skill is intentionally simple and self-contained so it can be dispatched to
 - No side effects (no git commits, no lock acquisition)
 
 The orchestrator may dispatch this skill to a different vendor (e.g., GPT-4, Gemini) for independent review diversity.
+
+## Multi-Vendor Dispatch
+
+When used via the `ReviewOrchestrator` (from `review_dispatcher.py`), this skill is dispatched to multiple vendor CLIs simultaneously:
+
+1. **Dispatch**: `ReviewOrchestrator.dispatch_and_wait()` invokes each vendor's CLI with the review prompt
+2. **Vendor config**: CLI flags per vendor are read from `agents.yaml` `cli.dispatch_modes.review` section
+3. **Model fallback**: On 429/capacity errors, the adapter retries with `cli.model_fallbacks`
+4. **Output**: Per-vendor findings written to `reviews/findings-<vendor>-plan.json`
+5. **Consensus**: `ConsensusSynthesizer` matches findings across vendors and produces `reviews/consensus-plan.json`
+
+The skill itself does not need to know about multi-vendor dispatch — it just reads artifacts and produces findings JSON. The orchestrator handles dispatch, collection, and synthesis.

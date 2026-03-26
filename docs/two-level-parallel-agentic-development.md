@@ -728,6 +728,37 @@ Validation is redistributed from a monolithic post-implementation phase:
 
 **Findings dispositions**: `fix` (orchestrator applies), `regenerate` (re-run with improved constraints), `accept` (acknowledged, not actionable), `escalate` (requires human decision).
 
+### 2.12.1 Multi-Vendor Review Orchestration
+
+The review dispatch layer enables multiple AI vendors to independently review the same artifacts, producing a consensus report that drives the integration gate.
+
+**Components**:
+- `review_dispatcher.py` — Config-driven `CliVendorAdapter` (single class for all vendors) + `ReviewOrchestrator` for discovery, dispatch, and collection
+- `consensus_synthesizer.py` — Cross-vendor finding matching (location, type, description similarity) + consensus classification (confirmed/unconfirmed/disagreement)
+- `consensus-report.schema.json` — Schema for synthesized multi-vendor consensus
+
+**CLI configuration** in `agents.yaml`:
+```yaml
+cli:
+  command: codex              # CLI binary
+  dispatch_modes:
+    review: { args: [exec, -s, read-only] }
+  model_flag: -m
+  model: null                 # null = CLI default
+  model_fallbacks: [o3, gpt-4.1]
+```
+
+**Error handling**:
+- Model fallback on 429/capacity errors (retry with `model_fallbacks` chain)
+- Auth error surfacing (print re-login command, skip vendor)
+- Timeout enforcement (kill hung processes)
+- Graceful degradation (proceed with available vendors)
+
+**Consensus model**:
+- Confirmed (2+ vendors agree): blocks gate if disposition=fix
+- Unconfirmed (single vendor): warnings only, does not block
+- Disagreement (disposition conflict): escalates to human
+
 ### 2.13 Feature Registry and Cross-Feature Coordination
 
 The coordinator maintains a feature registry. Each registered feature declares resource claims using the same lock key namespace. Conflict analysis produces a parallel feasibility assessment (`FULL`, `PARTIAL`, or `SEQUENTIAL`) and a recommended merge order. Cross-feature resource collisions are handled via the `RESOURCE_CONFLICT` escalation type (§2.6).
