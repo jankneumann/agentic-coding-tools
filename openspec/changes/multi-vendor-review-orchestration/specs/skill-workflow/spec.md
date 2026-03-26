@@ -263,3 +263,51 @@ Each vendor adapter SHALL implement a `can_dispatch()` method that verifies the 
 - WHEN the Codex adapter's `can_dispatch()` is called
 - THEN it returns False
 - AND the dispatcher skips Codex and proceeds with other available vendors
+
+### Requirement: Model Fallback on Capacity Errors
+
+When a vendor returns a 429 / MODEL_CAPACITY_EXHAUSTED error, the adapter SHALL retry with a fallback model before marking the vendor as failed.
+
+#### Scenario: Primary model exhausted, fallback succeeds
+
+- GIVEN Gemini's default model (gemini-3-pro-preview) returns 429 RESOURCE_EXHAUSTED
+- WHEN the adapter detects the capacity error in stderr
+- THEN it retries with `-m gemini-2.5-pro` as the fallback model
+- AND if the fallback succeeds, the findings are used normally
+
+#### Scenario: All models exhausted
+
+- GIVEN both primary and fallback models return 429
+- WHEN the adapter exhausts the fallback chain
+- THEN the vendor is marked as failed with error details
+- AND the dispatcher proceeds with other available vendors
+
+### Requirement: Auth Error Surfacing
+
+When a vendor fails due to authentication issues (expired token, missing login), the adapter SHALL surface a clear, actionable error message to the user with the vendor-specific re-login command.
+
+#### Scenario: Gemini auth expired
+
+- GIVEN Gemini returns a 401 UNAUTHENTICATED error
+- WHEN the adapter parses the stderr
+- THEN it prints a user-facing warning: "Gemini auth expired. Run: gemini login"
+- AND the vendor is marked as failed (no retry, no fallback)
+
+#### Scenario: Codex login required
+
+- GIVEN Codex returns a login-required error
+- WHEN the adapter parses the stderr
+- THEN it prints a user-facing warning: "Codex login required. Run: codex login"
+- AND the vendor is marked as failed (no retry, no fallback)
+
+### Requirement: Review Manifest Generation
+
+The review dispatcher SHALL produce a `reviews/review-manifest.json` file capturing dispatch metadata: which vendors were requested, which responded, timing, model used, quorum status, and error summaries for failed vendors.
+
+#### Scenario: Manifest after mixed success
+
+- GIVEN Codex review succeeded and Gemini review failed with 429
+- WHEN the dispatcher completes
+- THEN `reviews/review-manifest.json` contains entries for both vendors
+- AND the Codex entry shows success=true with findings_count and elapsed_seconds
+- AND the Gemini entry shows success=false with error_class="capacity_exhausted" and the models attempted

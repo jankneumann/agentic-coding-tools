@@ -3,7 +3,7 @@
   "title": "Multi-Vendor Review Consensus Report",
   "description": "Synthesized consensus from multiple vendor review findings",
   "type": "object",
-  "required": ["schema_version", "review_type", "target", "reviewers", "quorum_met", "consensus_findings"],
+  "required": ["schema_version", "review_type", "target", "reviewers", "quorum_met", "consensus_findings", "summary"],
   "properties": {
     "schema_version": {
       "type": "integer",
@@ -61,7 +61,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "status", "primary_finding_ref", "agreed_type", "agreed_criticality", "recommended_disposition"],
+        "required": ["id", "status", "primary_vendor", "primary_finding_id", "agreed_type", "agreed_criticality", "recommended_disposition"],
         "properties": {
           "id": {
             "type": "integer"
@@ -71,14 +71,25 @@
             "enum": ["confirmed", "unconfirmed", "disagreement"],
             "description": "confirmed=2+ vendors agree, unconfirmed=single vendor, disagreement=vendors disagree on disposition"
           },
-          "primary_finding_ref": {
+          "primary_vendor": {
             "type": "string",
-            "description": "Reference to the primary finding: <vendor>-<finding_id>"
+            "description": "Vendor that reported the primary finding"
           },
-          "matched_finding_refs": {
+          "primary_finding_id": {
+            "type": "integer",
+            "description": "Finding ID within the primary vendor's findings array"
+          },
+          "matched_findings": {
             "type": "array",
-            "items": { "type": "string" },
-            "description": "References to matching findings from other vendors"
+            "items": {
+              "type": "object",
+              "required": ["vendor", "finding_id"],
+              "properties": {
+                "vendor": { "type": "string" },
+                "finding_id": { "type": "integer" }
+              }
+            },
+            "description": "Matching findings from other vendors"
           },
           "match_score": {
             "type": "number",
@@ -115,6 +126,7 @@
     },
     "summary": {
       "type": "object",
+      "required": ["total_unique_findings", "confirmed_count", "unconfirmed_count", "disagreement_count", "blocking_count"],
       "properties": {
         "total_unique_findings": { "type": "integer" },
         "confirmed_count": { "type": "integer" },

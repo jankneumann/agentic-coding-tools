@@ -15,8 +15,11 @@ Create `skills/parallel-implement-feature/scripts/review_dispatcher.py`:
 - [ ] `ClaudeAdapter` — subprocess dispatch via `claude code`
 - [ ] `dispatch_all_reviews()` — parallel subprocess spawn
 - [ ] `wait_for_results()` — collect results with timeout handling
+- [ ] `write_review_manifest()` — emit `reviews/review-manifest.json` with vendor metadata, timing, quorum status
+- [ ] Model fallback on 429/capacity errors (retry with fallback model before giving up)
+- [ ] Auth error detection and user-facing re-login messages
 - [ ] CLI entry point for standalone testing
-- [ ] Unit tests for adapter CLI construction and result parsing
+- [ ] Unit tests for adapter CLI construction, result parsing, error classification
 
 ## Task 2: Consensus Synthesizer Script
 

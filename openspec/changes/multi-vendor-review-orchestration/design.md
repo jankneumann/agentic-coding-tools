@@ -361,6 +361,57 @@ The `record_review_findings()` method remains backward-compatible: if `vendor` i
 | No vendors available | Fall back to self-review (orchestrating agent reviews its own work) |
 | All vendors fail | Emit warning, proceed without review (human must review manually) |
 | Quorum not met (< 2 responses) | Proceed with warning in consensus report |
+| Model capacity exhausted (429) | Retry with fallback model, then skip vendor if all models fail |
+| Auth expired / login required | Surface error to user with vendor-specific re-login command |
+
+### AD-8: Model Fallback on Capacity Errors
+
+**Decision**: When a vendor returns a 429 / `MODEL_CAPACITY_EXHAUSTED` error, the adapter SHALL retry with a fallback model before giving up.
+
+**Observed behavior** (live test, 2026-03-26): Gemini CLI failed with `MODEL_CAPACITY_EXHAUSTED` on `gemini-3-pro-preview` after 10 internal retries. The CLI's own retry loop doesn't try a different model — it retries the same model with backoff. Our adapter should catch this and retry with `-m <fallback-model>`.
+
+**Fallback chains per vendor**:
+
+| Vendor | Primary model | Fallback model(s) |
+|--------|--------------|-------------------|
+| Gemini | (default = gemini-3-pro-preview) | `-m gemini-2.5-pro`, then `-m gemini-2.5-flash` |
+| Codex | (default = gpt-5.4) | `-m o3`, then `-m gpt-4.1` |
+| Claude | (default = claude-opus-4-6) | `--model claude-sonnet-4-6` |
+
+**Implementation**: The adapter first attempts with the default model (no `-m` flag). If the process exits non-zero and stderr contains `429`, `RESOURCE_EXHAUSTED`, `capacity`, or `rate limit`, the adapter retries with the next model in the fallback chain. Max 1 fallback retry per vendor to avoid compounding delays.
+
+**Stderr parsing**: Each adapter parses vendor-specific error patterns:
+- **Gemini**: JSON on stderr with `"code": 429` and `"reason": "MODEL_CAPACITY_EXHAUSTED"`
+- **Codex**: Exit code + stderr text containing rate limit messages
+- **Claude**: Exit code + stderr error messages
+
+### AD-9: Surfacing Auth Errors to the User
+
+**Decision**: When a vendor fails due to authentication issues (expired token, missing login), the adapter SHALL surface a clear, actionable error message to the user with the vendor-specific re-login command.
+
+**Rationale**: Auth failures are not transient — retrying or falling back to another model won't help. The user needs to take action. These errors should NOT be silently swallowed like capacity errors.
+
+**Error classification**: The adapter parses stderr to distinguish:
+
+| Error class | Detection pattern | Adapter behavior |
+|------------|-------------------|-----------------|
+| **Auth expired** | `401`, `UNAUTHENTICATED`, `token expired`, `login required` | Surface to user: "Gemini auth expired. Run `gemini login` to re-authenticate." |
+| **Capacity exhausted** | `429`, `RESOURCE_EXHAUSTED`, `capacity` | Retry with fallback model |
+| **Other transient** | `500`, `503`, `UNAVAILABLE` | Retry once, then skip |
+| **Unknown** | Any other non-zero exit | Log stderr, skip vendor |
+
+**User-facing messages**:
+```
+[WARN] Gemini review failed: auth expired.
+       Run: gemini login
+       Then retry: /parallel-review-plan <change-id>
+
+[WARN] Codex review failed: login required.
+       Run: codex login
+       Then retry: /parallel-review-plan <change-id>
+```
+
+These messages are printed to stderr by the orchestrator, making them visible regardless of output capture.
 
 ## Security: Subprocess Invocation
 
