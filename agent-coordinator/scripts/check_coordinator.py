@@ -92,32 +92,28 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
         return False
 
 
-def detect_mcp_tools() -> set[str]:
-    """Detect available MCP coordination tools via `claude mcp list-tools`.
+def detect_mcp_server() -> bool:
+    """Detect whether the coordination MCP server is configured and connected.
 
-    Returns a set of tool names, or empty set if detection fails.
+    Uses ``claude mcp get coordination`` to check registration and status.
+    Returns True if the server is connected, False otherwise.
     """
     claude_bin = shutil.which("claude")
     if not claude_bin:
-        return set()
+        return False
     try:
         proc = subprocess.run(
-            [claude_bin, "mcp", "list-tools", "coordination"],
+            [claude_bin, "mcp", "get", "coordination"],
             capture_output=True,
             text=True,
             timeout=10,
         )
         if proc.returncode != 0:
-            return set()
-        # Each line contains a tool name (possibly with description after whitespace)
-        tools: set[str] = set()
-        for line in proc.stdout.strip().splitlines():
-            name = line.split()[0] if line.strip() else ""
-            if name:
-                tools.add(name)
-        return tools
+            return False
+        # Output contains "Status: ✓ Connected" when the server is up
+        return "Connected" in proc.stdout
     except (OSError, subprocess.TimeoutExpired):
-        return set()
+        return False
 
 
 def detect(base_url: str) -> dict:
@@ -148,13 +144,15 @@ def detect(base_url: str) -> dict:
             result[cap] = probe_route(base_url, path)
         return result
 
-    # HTTP unavailable — fall back to MCP tool detection for CLI environments
-    mcp_tools = detect_mcp_tools()
-    if mcp_tools:
+    # HTTP unavailable — fall back to MCP server detection for CLI environments.
+    # `claude mcp get coordination` tells us if the server is registered and
+    # connected.  When connected, all coordination tools are available since
+    # they ship as a single MCP server.
+    if detect_mcp_server():
         result["COORDINATOR_AVAILABLE"] = True
         result["COORDINATION_TRANSPORT"] = "mcp"
-        for cap, tool_name in MCP_TOOL_PROBES.items():
-            result[cap] = tool_name in mcp_tools
+        for cap in MCP_TOOL_PROBES:
+            result[cap] = True
         return result
 
     return result
