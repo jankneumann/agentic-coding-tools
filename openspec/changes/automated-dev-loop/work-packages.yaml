@@ -1,0 +1,358 @@
+schema_version: 1
+
+feature:
+  id: automated-dev-loop
+  plan_revision: 1
+  created_by: claude-opus-4-6
+  created_at: "2026-03-26T19:15:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/schemas/convergence-state.schema.json"
+    files:
+      - "openspec/schemas/convergence-state.schema.json"
+
+defaults:
+  priority: 2
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: A
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-schema
+    task_type: implement
+    description: >
+      Create convergence-state.schema.json defining the serializable loop state.
+      Includes phase enum, iteration tracking, findings trend array, vendor
+      availability map, package status map, implementation strategy map,
+      memory/handoff references, and timestamps.
+    priority: 1
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "openspec/schemas/convergence-state.schema.json"
+      read_allow:
+        - "openspec/schemas/**"
+    locks:
+      files:
+        - "openspec/schemas/convergence-state.schema.json"
+      keys:
+        - "contract:convergence-state.schema.json"
+    worktree:
+      name: automated-dev-loop--wp-schema
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: schema-valid
+          kind: command
+          command: "openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys:
+              - schema_validation_passed
+    outputs:
+      result_keys:
+        - schema_file_path
+
+  - package_id: wp-convergence-engine
+    task_type: implement
+    description: >
+      Implement convergence_loop.py — the reusable review-fix convergence engine.
+      Dispatches multi-vendor reviews, synthesizes consensus, checks exit conditions
+      (no medium+ blocking findings), tracks finding trends, dispatches fixes,
+      and writes coordinator memory at each round. Writes loop-state.json as
+      primary state store and mirrors to coordinator for cross-agent visibility.
+    priority: 1
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+        - "skills/auto-dev-loop/scripts/__init__.py"
+        - "skills/auto-dev-loop/scripts/tests/test_convergence_loop.py"
+      read_allow:
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
+        - "openspec/schemas/**"
+        - "agent-coordinator/agents.yaml"
+    locks:
+      files:
+        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+      keys: []
+    worktree:
+      name: automated-dev-loop--wp-convergence-engine
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/scripts/tests/test_convergence_loop.py -v"
+          evidence:
+            artifacts:
+              - "skills/auto-dev-loop/scripts/tests/test_convergence_loop.py"
+            result_keys:
+              - tests_passed
+              - test_count
+        - name: lint
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/auto-dev-loop/scripts/convergence_loop.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - lint_passed
+    outputs:
+      result_keys:
+        - convergence_loop_implemented
+        - test_count
+
+  - package_id: wp-strategy-selector
+    task_type: implement
+    description: >
+      Implement implementation_strategy_selector.py — per-package decision logic
+      for choosing between alternatives+synthesis and lead+review strategies.
+      Scores based on LOC estimate, design alternatives, package type, vendor count.
+      Recalls vendor effectiveness from coordinator memory.
+    priority: 1
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/scripts/implementation_strategy_selector.py"
+        - "skills/auto-dev-loop/scripts/tests/test_implementation_strategy_selector.py"
+      read_allow:
+        - "skills/parallel-implement-feature/scripts/**"
+        - "openspec/schemas/work-packages.schema.json"
+    locks:
+      files:
+        - "skills/auto-dev-loop/scripts/implementation_strategy_selector.py"
+      keys: []
+    worktree:
+      name: automated-dev-loop--wp-strategy-selector
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/scripts/tests/test_implementation_strategy_selector.py -v"
+          evidence:
+            artifacts:
+              - "skills/auto-dev-loop/scripts/tests/test_implementation_strategy_selector.py"
+            result_keys:
+              - tests_passed
+              - test_count
+    outputs:
+      result_keys:
+        - strategy_selector_implemented
+        - test_count
+
+  - package_id: wp-complexity-gate
+    task_type: implement
+    description: >
+      Implement complexity_gate.py — entry assessment that determines if a feature
+      is suitable for full automation. Checks LOC, package count, external deps,
+      database migrations, and security-sensitive paths.
+    priority: 1
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/scripts/complexity_gate.py"
+        - "skills/auto-dev-loop/scripts/tests/test_complexity_gate.py"
+      read_allow:
+        - "openspec/schemas/**"
+    locks:
+      files:
+        - "skills/auto-dev-loop/scripts/complexity_gate.py"
+      keys: []
+    worktree:
+      name: automated-dev-loop--wp-complexity-gate
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/scripts/tests/test_complexity_gate.py -v"
+          evidence:
+            artifacts:
+              - "skills/auto-dev-loop/scripts/tests/test_complexity_gate.py"
+            result_keys:
+              - tests_passed
+              - test_count
+    outputs:
+      result_keys:
+        - complexity_gate_implemented
+        - test_count
+
+  - package_id: wp-conductor
+    task_type: implement
+    description: >
+      Implement auto_dev_loop.py — the state machine conductor that orchestrates
+      the full lifecycle. Loads/saves LoopState to loop-state.json (primary) and
+      mirrors to coordinator memory (secondary). Implements state transitions,
+      delegates to convergence_loop, dag_scheduler, strategy_selector, and
+      complexity_gate. Handles ESCALATE state with diagnostic handoff.
+    priority: 2
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on:
+      - wp-schema
+      - wp-convergence-engine
+      - wp-strategy-selector
+      - wp-complexity-gate
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/scripts/auto_dev_loop.py"
+        - "skills/auto-dev-loop/scripts/tests/test_auto_dev_loop.py"
+      read_allow:
+        - "skills/auto-dev-loop/scripts/**"
+        - "skills/parallel-implement-feature/scripts/**"
+        - "openspec/schemas/**"
+    locks:
+      files:
+        - "skills/auto-dev-loop/scripts/auto_dev_loop.py"
+      keys: []
+    worktree:
+      name: automated-dev-loop--wp-conductor
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/scripts/tests/test_auto_dev_loop.py -v"
+          evidence:
+            artifacts:
+              - "skills/auto-dev-loop/scripts/tests/test_auto_dev_loop.py"
+            result_keys:
+              - tests_passed
+              - test_count
+        - name: lint
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/auto-dev-loop/scripts/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - lint_passed
+    outputs:
+      result_keys:
+        - conductor_implemented
+        - test_count
+
+  - package_id: wp-skill-prompt
+    task_type: implement
+    description: >
+      Write SKILL.md for the /auto-dev-loop skill. Covers argument parsing,
+      coordinator detection, complexity gate, state machine invocation,
+      progress reporting, and resume behavior.
+    priority: 2
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on:
+      - wp-conductor
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/SKILL.md"
+      read_allow:
+        - "skills/auto-dev-loop/scripts/**"
+        - "skills/parallel-plan-feature/SKILL.md"
+        - "skills/parallel-implement-feature/SKILL.md"
+    locks:
+      files:
+        - "skills/auto-dev-loop/SKILL.md"
+      keys: []
+    worktree:
+      name: automated-dev-loop--wp-skill-prompt
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: skill-exists
+          kind: command
+          command: "test -f skills/auto-dev-loop/SKILL.md"
+          evidence:
+            artifacts:
+              - "skills/auto-dev-loop/SKILL.md"
+            result_keys:
+              - skill_file_exists
+    outputs:
+      result_keys:
+        - skill_prompt_written
+
+  - package_id: wp-integration
+    task_type: integrate
+    description: >
+      Merge all package worktrees into the feature branch. Run full test suite,
+      validate schema, verify skill installation, and create PR.
+    priority: 3
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on:
+      - wp-conductor
+      - wp-skill-prompt
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    locks:
+      files: []
+      keys:
+        - "feature:automated-dev-loop:integration"
+    worktree:
+      name: automated-dev-loop--integration
+      mode: shared
+    verification:
+      tier_required: A
+      steps:
+        - name: merge-worktrees
+          kind: command
+          command: "python3 skills/worktree/scripts/merge_worktrees.py automated-dev-loop wp-schema wp-convergence-engine wp-strategy-selector wp-complexity-gate wp-conductor wp-skill-prompt"
+          evidence:
+            artifacts: []
+            result_keys:
+              - merge_success
+        - name: full-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/scripts/tests/ -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - tests_passed
+              - test_count
+        - name: schema-validation
+          kind: command
+          command: "openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys:
+              - schema_validation_passed
+        - name: lint
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/auto-dev-loop/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - lint_passed
+    outputs:
+      result_keys:
+        - integration_success
+        - pr_url
