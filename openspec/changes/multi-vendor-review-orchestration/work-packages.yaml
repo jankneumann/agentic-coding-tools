@@ -133,8 +133,6 @@ packages:
         - "openspec/schemas/**"
       deny:
         - "agent-coordinator/**"
-        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
-        - "skills/parallel-implement-feature/scripts/consensus_synthesizer.py"
     locks:
       files:
         - "skills/parallel-implement-feature/scripts/integration_orchestrator.py"

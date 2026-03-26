@@ -122,13 +122,26 @@ Each mode determines three things per vendor:
 
 ### 1. Review Dispatcher (`scripts/review_dispatcher.py`)
 
-New script in `skills/parallel-implement-feature/scripts/`:
+New script in `skills/parallel-implement-feature/scripts/`.
+
+Two layers: **VendorAdapter** (per-vendor protocol) and **ReviewOrchestrator** (multi-vendor coordination).
 
 ```
-ReviewDispatcher
+VendorAdapter (Protocol — one per vendor)
+├── vendor: str  (e.g., "codex")
+├── can_dispatch() → bool
+├── dispatch_review(
+│       review_type: Literal["plan", "implementation"],
+│       dispatch_mode: DispatchMode,
+│       artifacts_path: Path,
+│       output_path: Path,
+│       timeout_seconds: int = 300,
+│   ) → DispatchResult
+└── Concrete: CodexAdapter, GeminiAdapter, ClaudeAdapter
+
+ReviewOrchestrator (uses VendorAdapters)
 ├── discover_reviewers() → list[ReviewerInfo]
-├── dispatch_review(vendor, type, artifacts, output) → DispatchResult
-├── dispatch_all_reviews(type, artifacts) → list[DispatchResult]
+├── dispatch_all_reviews(review_type, dispatch_mode, artifacts_path) → list[DispatchResult]
 └── wait_for_results(dispatches, timeout) → list[ReviewResult]
 
 ReviewerInfo
@@ -152,6 +165,8 @@ ReviewResult
 ├── elapsed_seconds: float
 └── error: str | None
 ```
+
+The `VendorAdapter` protocol defines the per-vendor interface. The `ReviewOrchestrator` handles discovery, vendor selection, parallel dispatch, and result collection — it owns the mapping from vendor names to adapter instances.
 
 ### 2. Consensus Synthesizer (`scripts/consensus_synthesizer.py`)
 
@@ -300,6 +315,42 @@ Note: Exact CLI flags evolve as these tools update. Adapters isolate this — up
    → Uses consensus (confirmed findings block, unconfirmed warn)
 ```
 
+## Output Path Convention
+
+Per-vendor findings and consensus reports live under a `reviews/` subdirectory within the change:
+
+```
+openspec/changes/<change-id>/
+├── reviews/
+│   ├── findings-codex-plan.json        # Per-vendor findings (plan review)
+│   ├── findings-gemini-plan.json
+│   ├── findings-codex-impl-wp-backend.json  # Per-vendor findings (impl review, per package)
+│   ├── findings-gemini-impl-wp-backend.json
+│   ├── consensus-plan.json             # Consensus report (plan review)
+│   ├── consensus-impl-wp-backend.json  # Consensus report (impl review, per package)
+│   └── review-prompt.md                # Prompt template used for dispatch
+├── review-findings-plan.json           # Legacy single-vendor path (backward compat)
+└── ...
+```
+
+**Naming pattern**: `findings-<vendor>-<review_type>[-<package_id>].json`
+
+### Orchestrator Storage Model
+
+The orchestrator's internal storage changes from single-vendor to multi-vendor:
+
+```python
+# Before: Dict[package_id, findings_dict]
+self._review_findings: dict[str, dict[str, Any]] = {}
+
+# After: Dict[package_id, Dict[vendor, findings_dict]]
+self._vendor_findings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+# Plus consensus keyed by package_id
+self._consensus: dict[str, dict[str, Any]] = {}
+```
+
+The `record_review_findings()` method remains backward-compatible: if `vendor` is None, it stores under the key `"_default"`.
+
 ## Error Handling
 
 | Scenario | Behavior |
@@ -310,6 +361,23 @@ Note: Exact CLI flags evolve as these tools update. Adapters isolate this — up
 | No vendors available | Fall back to self-review (orchestrating agent reviews its own work) |
 | All vendors fail | Emit warning, proceed without review (human must review manually) |
 | Quorum not met (< 2 responses) | Proceed with warning in consensus report |
+
+## Security: Subprocess Invocation
+
+**All vendor adapters MUST use `subprocess.run()` or `asyncio.create_subprocess_exec()` with list arguments.** Shell invocation (`shell=True`) is prohibited — prompts and paths may contain metacharacters.
+
+```python
+# CORRECT — list args, no shell
+subprocess.run(
+    ["codex", "exec", "-s", "read-only", prompt],
+    capture_output=True, text=True, timeout=timeout,
+)
+
+# WRONG — shell injection risk
+subprocess.run(f'codex exec -s read-only "{prompt}"', shell=True)
+```
+
+The design examples use shell-style notation (`$REVIEW_PROMPT`) for readability — actual implementation uses list form.
 
 ## Testing Strategy
 
