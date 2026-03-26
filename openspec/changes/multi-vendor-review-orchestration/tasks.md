@@ -86,7 +86,19 @@ Update parallel workflow skills to use review dispatcher:
 - [ ] Missing CLI binary tests (graceful degradation)
 - [ ] Discovery fallback tests (coordinator unavailable → `which` detection)
 
-## Task 7: Spec Updates
+## Task 7: Agent Config Schema Extension
+
+**Status**: planned
+**Depends on**: —
+
+Extend `agents.yaml` and `agents_config.py` with model fallback fields:
+
+- [ ] Add `model: str | None` and `model_fallbacks: list[str]` to `AgentEntry` dataclass
+- [ ] Add model/model_fallbacks to all 6 agent entries in `agents.yaml`
+- [ ] Update `load_agents_config()` to parse new fields (backward-compatible defaults)
+- [ ] Unit tests for loading agents.yaml with model fields
+
+## Task 8: Spec Updates
 
 **Status**: planned
 **Depends on**: Task 4, Task 5

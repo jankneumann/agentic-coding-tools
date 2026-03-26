@@ -41,15 +41,50 @@ packages:
       result_keys:
         - consensus_report_schema_path
 
+  - package_id: wp-agent-config
+    task_type: implementation
+    description: >
+      Extend agents.yaml and AgentEntry dataclass with model and
+      model_fallbacks fields. Add fallback model entries for all 6
+      agents. Update load_agents_config() with backward-compatible
+      defaults. Unit tests.
+    priority: 1
+    depends_on: []
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+      read_allow:
+        - "agent-coordinator/**"
+      deny:
+        - "skills/**"
+    locks:
+      files:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "feature:multi-vendor-review:agent-config"
+      ttl_minutes: 60
+      reason: "Agent config model fallback extension"
+    verification:
+      tier_required: A
+      test_count_minimum: 3
+    outputs:
+      result_keys:
+        - agents_config_updated
+
   - package_id: wp-review-dispatcher
     task_type: implementation
     description: >
       Create review_dispatcher.py with ReviewDispatcher protocol, vendor
       adapters (Claude, Codex, Gemini), discovery integration, parallel
-      dispatch, and timeout handling. Include unit tests.
+      dispatch, model fallback, auth error surfacing, and timeout handling.
+      Include unit tests.
     priority: 2
     depends_on:
       - wp-contracts
+      - wp-agent-config
     scope:
       write_allow:
         - "skills/parallel-implement-feature/scripts/review_dispatcher.py"

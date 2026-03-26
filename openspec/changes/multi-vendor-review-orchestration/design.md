@@ -366,24 +366,68 @@ The `record_review_findings()` method remains backward-compatible: if `vendor` i
 
 ### AD-8: Model Fallback on Capacity Errors
 
-**Decision**: When a vendor returns a 429 / `MODEL_CAPACITY_EXHAUSTED` error, the adapter SHALL retry with a fallback model before giving up.
+**Decision**: When a vendor returns a 429 / `MODEL_CAPACITY_EXHAUSTED` error, the adapter SHALL retry with a fallback model before giving up. Model fallback chains are **configured in `agents.yaml`**, not hardcoded, since models change frequently.
 
 **Observed behavior** (live test, 2026-03-26): Gemini CLI failed with `MODEL_CAPACITY_EXHAUSTED` on `gemini-3-pro-preview` after 10 internal retries. The CLI's own retry loop doesn't try a different model — it retries the same model with backoff. Our adapter should catch this and retry with `-m <fallback-model>`.
 
-**Fallback chains per vendor**:
+**Configuration in `agents.yaml`**: Extend the agent entry schema with `model` and `model_fallbacks`:
 
-| Vendor | Primary model | Fallback model(s) |
-|--------|--------------|-------------------|
-| Gemini | (default = gemini-3-pro-preview) | `-m gemini-2.5-pro`, then `-m gemini-2.5-flash` |
-| Codex | (default = gpt-5.4) | `-m o3`, then `-m gpt-4.1` |
-| Claude | (default = claude-opus-4-6) | `--model claude-sonnet-4-6` |
+```yaml
+agents:
+  codex-local:
+    type: codex
+    profile: codex_local_worker
+    trust_level: 3
+    transport: mcp
+    isolation: worktree
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    model: null                          # null = use CLI default
+    model_fallbacks: [o3, gpt-4.1]      # ordered fallback chain
+    description: "Local Codex agent"
 
-**Implementation**: The adapter first attempts with the default model (no `-m` flag). If the process exits non-zero and stderr contains `429`, `RESOURCE_EXHAUSTED`, `capacity`, or `rate limit`, the adapter retries with the next model in the fallback chain. Max 1 fallback retry per vendor to avoid compounding delays.
+  gemini-local:
+    type: gemini
+    profile: gemini_local_worker
+    trust_level: 3
+    transport: mcp
+    isolation: worktree
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    model: null                          # null = gemini-3-pro-preview (CLI default)
+    model_fallbacks: [gemini-2.5-pro, gemini-2.5-flash]
+    description: "Local Gemini agent"
+
+  claude-code-local:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 4
+    transport: mcp
+    isolation: worktree
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
+    model: null                          # null = claude-opus-4-6 (CLI default)
+    model_fallbacks: [claude-sonnet-4-6]
+    description: "Local Claude Code agent"
+```
+
+**Schema extension** in `agents_config.py`:
+```python
+@dataclass
+class AgentEntry:
+    ...
+    model: str | None = None             # primary model (None = CLI default)
+    model_fallbacks: list[str] = field(default_factory=list)  # ordered fallbacks
+```
+
+**Implementation**: The adapter reads the agent's `model` and `model_fallbacks` from the loaded agents config. On first attempt, it uses `model` (or omits the flag if None). If the process exits non-zero and stderr matches a capacity error pattern, it retries with each fallback in order. Max retries = len(model_fallbacks).
 
 **Stderr parsing**: Each adapter parses vendor-specific error patterns:
 - **Gemini**: JSON on stderr with `"code": 429` and `"reason": "MODEL_CAPACITY_EXHAUSTED"`
 - **Codex**: Exit code + stderr text containing rate limit messages
 - **Claude**: Exit code + stderr error messages
+
+**Model flag per vendor**:
+- Codex: `-m <model>`
+- Gemini: `-m <model>`
+- Claude: `--model <model>`
 
 ### AD-9: Surfacing Auth Errors to the User
 

@@ -266,21 +266,39 @@ Each vendor adapter SHALL implement a `can_dispatch()` method that verifies the 
 
 ### Requirement: Model Fallback on Capacity Errors
 
-When a vendor returns a 429 / MODEL_CAPACITY_EXHAUSTED error, the adapter SHALL retry with a fallback model before marking the vendor as failed.
+When a vendor returns a 429 / MODEL_CAPACITY_EXHAUSTED error, the adapter SHALL retry with fallback models from the agent's `model_fallbacks` list in `agents.yaml` before marking the vendor as failed.
 
 #### Scenario: Primary model exhausted, fallback succeeds
 
-- GIVEN Gemini's default model (gemini-3-pro-preview) returns 429 RESOURCE_EXHAUSTED
+- GIVEN Gemini's configured model_fallbacks are `[gemini-2.5-pro, gemini-2.5-flash]`
+- AND the primary model returns 429 RESOURCE_EXHAUSTED
 - WHEN the adapter detects the capacity error in stderr
-- THEN it retries with `-m gemini-2.5-pro` as the fallback model
+- THEN it retries with `-m gemini-2.5-pro` as the first fallback
 - AND if the fallback succeeds, the findings are used normally
 
 #### Scenario: All models exhausted
 
-- GIVEN both primary and fallback models return 429
+- GIVEN both primary and all fallback models return 429
 - WHEN the adapter exhausts the fallback chain
-- THEN the vendor is marked as failed with error details
+- THEN the vendor is marked as failed with error details listing all models attempted
 - AND the dispatcher proceeds with other available vendors
+
+#### Scenario: No fallbacks configured
+
+- GIVEN an agent entry with an empty `model_fallbacks` list
+- WHEN the primary model returns 429
+- THEN the vendor is marked as failed immediately (no retry)
+
+### Requirement: Configurable Model Fallback Chains
+
+Model fallback chains SHALL be configured per-agent in `agents.yaml` via `model` (primary, null for CLI default) and `model_fallbacks` (ordered list of fallback model names) fields. The adapter SHALL NOT hardcode model names.
+
+#### Scenario: Read fallback config from agents.yaml
+
+- GIVEN agents.yaml contains `model_fallbacks: [gemini-2.5-pro, gemini-2.5-flash]` for gemini-local
+- WHEN the Gemini adapter initializes
+- THEN it loads the fallback chain from the agent configuration
+- AND uses these models in order when the primary model fails
 
 ### Requirement: Auth Error Surfacing
 
