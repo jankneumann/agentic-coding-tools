@@ -9,6 +9,8 @@ import pytest
 
 from src.agents_config import (
     AgentEntry,
+    CliConfig,
+    ModeConfig,
     get_agent_config,
     get_api_key_identities,
     get_mcp_env,
@@ -423,3 +425,123 @@ class TestApiKeysAutoPopulation:
             config = ApiConfig.from_env()
         assert config.api_keys == []
         assert config.api_key_identities == {}
+
+
+# ---------------------------------------------------------------------------
+# CLI config tests
+# ---------------------------------------------------------------------------
+
+AGENTS_WITH_CLI_YAML = """\
+agents:
+  test-with-cli:
+    type: codex
+    profile: codex_local_worker
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue]
+    description: Agent with CLI config
+    cli:
+      command: codex
+      dispatch_modes:
+        review:
+          args: ["exec", "-s", "read-only"]
+        alternative_impl:
+          args: ["exec", "-s", "workspace-write"]
+      model_flag: "-m"
+      model: null
+      model_fallbacks: ["o3", "gpt-4.1"]
+
+  test-without-cli:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue]
+    description: Agent without CLI config
+"""
+
+
+class TestCliConfig:
+    """Tests for CLI dispatch configuration in agents.yaml."""
+
+    def test_load_agent_with_cli_section(self, tmp_path: Path) -> None:
+        """Agent with cli section parses CliConfig correctly."""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(AGENTS_WITH_CLI_YAML)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+
+        with_cli = next(e for e in entries if e.name == "test-with-cli")
+        assert with_cli.cli is not None
+        assert with_cli.cli.command == "codex"
+        assert with_cli.cli.model_flag == "-m"
+        assert with_cli.cli.model is None
+        assert with_cli.cli.model_fallbacks == ["o3", "gpt-4.1"]
+
+    def test_cli_dispatch_modes_parsed(self, tmp_path: Path) -> None:
+        """Dispatch modes are parsed as ModeConfig with args lists."""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(AGENTS_WITH_CLI_YAML)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+
+        with_cli = next(e for e in entries if e.name == "test-with-cli")
+        assert with_cli.cli is not None
+        assert "review" in with_cli.cli.dispatch_modes
+        assert "alternative_impl" in with_cli.cli.dispatch_modes
+        assert with_cli.cli.dispatch_modes["review"].args == ["exec", "-s", "read-only"]
+        assert with_cli.cli.dispatch_modes["alternative_impl"].args == ["exec", "-s", "workspace-write"]
+
+    def test_agent_without_cli_section_has_none(self, tmp_path: Path) -> None:
+        """Agent without cli section has cli=None."""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(AGENTS_WITH_CLI_YAML)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+
+        without_cli = next(e for e in entries if e.name == "test-without-cli")
+        assert without_cli.cli is None
+
+    def test_real_agents_yaml_loads_cli(self) -> None:
+        """The real agents.yaml loads with CLI sections for local agents."""
+        entries = load_agents_config()
+        local_with_cli = [e for e in entries if e.cli is not None]
+        assert len(local_with_cli) >= 3, "Expected at least 3 agents with CLI config"
+        vendors = {e.type for e in local_with_cli}
+        assert vendors == {"claude_code", "codex", "gemini"}
+
+    def test_cli_model_with_explicit_value(self, tmp_path: Path) -> None:
+        """Agent with explicit model value (not null) parses correctly."""
+        yaml_content = """\
+agents:
+  test-explicit-model:
+    type: codex
+    profile: codex_local_worker
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue]
+    description: Agent with explicit model
+    cli:
+      command: codex
+      dispatch_modes:
+        review:
+          args: ["exec", "-s", "read-only"]
+      model_flag: "-m"
+      model: "o3"
+      model_fallbacks: []
+"""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(yaml_content)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+        assert entries[0].cli is not None
+        assert entries[0].cli.model == "o3"
+        assert entries[0].cli.model_fallbacks == []

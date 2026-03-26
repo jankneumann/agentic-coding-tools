@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +63,36 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         },
                     },
                     "description": {"type": "string", "minLength": 1},
+                    "cli": {
+                        "type": "object",
+                        "required": ["command", "dispatch_modes", "model_flag"],
+                        "properties": {
+                            "command": {"type": "string", "minLength": 1},
+                            "dispatch_modes": {
+                                "type": "object",
+                                "minProperties": 1,
+                                "additionalProperties": {
+                                    "type": "object",
+                                    "required": ["args"],
+                                    "properties": {
+                                        "args": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "minItems": 1,
+                                        },
+                                    },
+                                    "additionalProperties": False,
+                                },
+                            },
+                            "model_flag": {"type": "string", "minLength": 1},
+                            "model": {"type": ["string", "null"]},
+                            "model_fallbacks": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
                 },
                 "additionalProperties": False,
             },
@@ -75,6 +105,27 @@ AGENTS_SCHEMA: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
+@dataclass
+class ModeConfig:
+    """CLI args for a single dispatch mode."""
+
+    args: list[str]
+
+
+@dataclass
+class CliConfig:
+    """CLI dispatch configuration for an agent.
+
+    Parsed from the ``cli`` section of an agent entry in ``agents.yaml``.
+    """
+
+    command: str
+    dispatch_modes: dict[str, ModeConfig]
+    model_flag: str
+    model: str | None = None
+    model_fallbacks: list[str] = field(default_factory=list)
+
 
 @dataclass
 class AgentEntry:
@@ -90,6 +141,7 @@ class AgentEntry:
     isolation: str = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
+    cli: CliConfig | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +206,20 @@ def load_agents_config(
             # _resolve_api_key_from_openbao() can extract the variable
             # name and fetch the secret from OpenBao at runtime.
 
+        cli_config: CliConfig | None = None
+        raw_cli = agent_data.get("cli")
+        if raw_cli:
+            cli_config = CliConfig(
+                command=raw_cli["command"],
+                dispatch_modes={
+                    mode_name: ModeConfig(args=mode_data["args"])
+                    for mode_name, mode_data in raw_cli["dispatch_modes"].items()
+                },
+                model_flag=raw_cli["model_flag"],
+                model=raw_cli.get("model"),
+                model_fallbacks=raw_cli.get("model_fallbacks", []),
+            )
+
         entries.append(
             AgentEntry(
                 name=name,
@@ -166,6 +232,7 @@ def load_agents_config(
                 isolation=agent_data.get("isolation", "none"),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
+                cli=cli_config,
             )
         )
 

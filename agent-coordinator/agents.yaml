@@ -1,5 +1,9 @@
 # agents.yaml — Single source of truth for agent identity and permissions.
 # Referenced by profile_loader and setup-coordinator skill.
+#
+# The optional `cli` section configures vendor dispatch for multi-vendor
+# review orchestration.  Only agents with a `cli` section can be targets
+# for CLI subprocess dispatch (review, alternative plan/impl).
 
 agents:
   claude-code-local:
@@ -10,6 +14,18 @@ agents:
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Claude Code CLI agent with full coordination access
+    cli:
+      command: claude
+      dispatch_modes:
+        review:
+          args: ["--print", "--allowedTools", "Read,Grep,Glob"]
+        alternative_plan:
+          args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit"]
+        alternative_impl:
+          args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
+      model_flag: "--model"
+      model: null
+      model_fallbacks: ["claude-sonnet-4-6"]
 
 
   claude-code-web:
@@ -31,6 +47,18 @@ agents:
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Codex worker with full coordination access
+    cli:
+      command: codex
+      dispatch_modes:
+        review:
+          args: ["exec", "-s", "read-only"]
+        alternative_plan:
+          args: ["exec", "-s", "workspace-write"]
+        alternative_impl:
+          args: ["exec", "-s", "workspace-write"]
+      model_flag: "-m"
+      model: null
+      model_fallbacks: ["o3", "gpt-4.1"]
 
   codex-cloud:
     type: codex
@@ -51,6 +79,18 @@ agents:
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     description: Local Gemini worker with full coordination access
+    cli:
+      command: gemini
+      dispatch_modes:
+        review:
+          args: ["--approval-mode", "default", "-o", "json"]
+        alternative_plan:
+          args: ["--approval-mode", "auto_edit", "-o", "json"]
+        alternative_impl:
+          args: ["--approval-mode", "yolo"]
+      model_flag: "-m"
+      model: null
+      model_fallbacks: ["gemini-2.5-pro", "gemini-2.5-flash"]
 
 
   gemini-cloud:
