@@ -26,6 +26,7 @@ agents:
       model_flag: "--model"
       model: null
       model_fallbacks: ["claude-sonnet-4-6"]
+      prompt_via_stdin: true
 
 
   claude-code-web:

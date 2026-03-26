@@ -90,6 +90,7 @@ AGENTS_SCHEMA: dict[str, Any] = {
                                 "type": "array",
                                 "items": {"type": "string"},
                             },
+                            "prompt_via_stdin": {"type": "boolean"},
                         },
                         "additionalProperties": False,
                     },
@@ -125,6 +126,7 @@ class CliConfig:
     model_flag: str
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
+    prompt_via_stdin: bool = False
 
 
 @dataclass
@@ -218,6 +220,7 @@ def load_agents_config(
                 model_flag=raw_cli["model_flag"],
                 model=raw_cli.get("model"),
                 model_fallbacks=raw_cli.get("model_fallbacks", []),
+                prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
             )
 
         entries.append(

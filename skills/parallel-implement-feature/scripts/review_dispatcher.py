@@ -88,6 +88,7 @@ class CliConfig:
     model_flag: str
     model: str | None = None
     model_fallbacks: list[str] = field(default_factory=list)
+    prompt_via_stdin: bool = False
 
 
 @dataclass
@@ -138,13 +139,18 @@ class CliVendorAdapter:
         prompt: str,
         model: str | None = None,
     ) -> list[str]:
-        """Build subprocess command from config."""
+        """Build subprocess command from config.
+
+        When ``cli_config.prompt_via_stdin`` is True, the prompt is NOT
+        appended to the command — it will be passed via stdin instead.
+        """
         mode_config = self.cli_config.dispatch_modes[mode]
         cmd = [self.cli_config.command, *mode_config.args]
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
-        cmd.append(prompt)
+        if not self.cli_config.prompt_via_stdin:
+            cmd.append(prompt)
         return cmd
 
     def dispatch(
@@ -171,11 +177,13 @@ class CliVendorAdapter:
             models_attempted.append(model_name)
 
             cmd = self.build_command(mode, prompt, model)
+            stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
             try:
                 result = subprocess.run(
                     cmd,
+                    input=stdin_text,
                     capture_output=True,
                     text=True,
                     timeout=timeout_seconds,
@@ -314,6 +322,7 @@ class ReviewOrchestrator:
                         model_flag=entry.cli.model_flag,
                         model=entry.cli.model,
                         model_fallbacks=entry.cli.model_fallbacks,
+                        prompt_via_stdin=entry.cli.prompt_via_stdin,
                     ),
                 )
         return cls(adapters)
