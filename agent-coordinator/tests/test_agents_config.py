@@ -9,8 +9,6 @@ import pytest
 
 from src.agents_config import (
     AgentEntry,
-    CliConfig,
-    ModeConfig,
     get_agent_config,
     get_api_key_identities,
     get_mcp_env,
@@ -493,8 +491,10 @@ class TestCliConfig:
         assert with_cli.cli is not None
         assert "review" in with_cli.cli.dispatch_modes
         assert "alternative_impl" in with_cli.cli.dispatch_modes
-        assert with_cli.cli.dispatch_modes["review"].args == ["exec", "-s", "read-only"]
-        assert with_cli.cli.dispatch_modes["alternative_impl"].args == ["exec", "-s", "workspace-write"]
+        review_args = with_cli.cli.dispatch_modes["review"].args
+        assert review_args == ["exec", "-s", "read-only"]
+        impl_args = with_cli.cli.dispatch_modes["alternative_impl"].args
+        assert impl_args == ["exec", "-s", "workspace-write"]
 
     def test_agent_without_cli_section_has_none(self, tmp_path: Path) -> None:
         """Agent without cli section has cli=None."""
