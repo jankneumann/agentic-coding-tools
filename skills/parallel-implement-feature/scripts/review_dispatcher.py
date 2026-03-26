@@ -402,3 +402,118 @@ class ReviewOrchestrator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
             json.dump(manifest, f, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+def main() -> int:
+    """Dispatch reviews to vendor CLIs and collect results.
+
+    Usage:
+        python review_dispatcher.py \\
+            --review-type plan --mode review \\
+            --prompt-file review-prompt.md \\
+            --cwd /path/to/worktree \\
+            --output-dir reviews/ \\
+            --exclude-vendor claude_code
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Dispatch multi-vendor review via CLI",
+    )
+    parser.add_argument(
+        "--review-type", required=True,
+        choices=["plan", "implementation"],
+    )
+    parser.add_argument(
+        "--mode", default="review",
+        help="Dispatch mode (review, alternative_plan, alternative_impl)",
+    )
+    parser.add_argument(
+        "--prompt", help="Review prompt text (inline)",
+    )
+    parser.add_argument(
+        "--prompt-file", help="Read prompt from file",
+    )
+    parser.add_argument(
+        "--cwd", default=".", help="Working directory for vendor CLIs",
+    )
+    parser.add_argument(
+        "--output-dir", default="reviews",
+        help="Directory for per-vendor findings and manifest",
+    )
+    parser.add_argument(
+        "--exclude-vendor", help="Exclude this vendor type from dispatch",
+    )
+    parser.add_argument(
+        "--timeout", type=int, default=300,
+        help="Per-vendor timeout in seconds",
+    )
+    parser.add_argument(
+        "--agents-yaml", help="Path to agents.yaml (default: auto-detect)",
+    )
+    args = parser.parse_args()
+
+    # Load prompt
+    if args.prompt_file:
+        prompt = Path(args.prompt_file).read_text()
+    elif args.prompt:
+        prompt = args.prompt
+    else:
+        print("Error: --prompt or --prompt-file required", file=sys.stderr)
+        return 1
+
+    # Create orchestrator
+    agents_path = Path(args.agents_yaml) if args.agents_yaml else None
+    orch = ReviewOrchestrator.from_agents_yaml(agents_path)
+
+    # Discover
+    reviewers = orch.discover_reviewers(exclude_vendor=args.exclude_vendor)
+    available = [r for r in reviewers if r.available]
+    print(f"Available reviewers: {[r.agent_id for r in available]}")
+
+    if not available:
+        print("No vendor CLIs available", file=sys.stderr)
+        return 1
+
+    # Dispatch
+    cwd = Path(args.cwd)
+    results = orch.dispatch_and_wait(
+        review_type=args.review_type,
+        dispatch_mode=args.mode,
+        prompt=prompt,
+        cwd=cwd,
+        timeout_seconds=args.timeout,
+        exclude_vendor=args.exclude_vendor,
+    )
+
+    # Write results
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for result in results:
+        if result.success and result.findings:
+            fpath = output_dir / f"findings-{result.vendor}-{args.review_type}.json"
+            with open(fpath, "w") as f:
+                json.dump(result.findings, f, indent=2)
+            print(f"[OK] {result.vendor}: {len(result.findings.get('findings', []))} findings"
+                  f" (model: {result.model_used}, {result.elapsed_seconds:.1f}s)")
+        else:
+            print(f"[FAIL] {result.vendor}: {result.error}"
+                  f" (models tried: {result.models_attempted})")
+
+    # Write manifest
+    manifest_path = output_dir / "review-manifest.json"
+    orch.write_manifest(results, manifest_path, args.review_type, "cli-dispatch")
+    print(f"\nManifest: {manifest_path}")
+
+    succeeded = sum(1 for r in results if r.success)
+    print(f"Results: {succeeded}/{len(results)} vendors succeeded")
+    return 0 if succeeded > 0 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

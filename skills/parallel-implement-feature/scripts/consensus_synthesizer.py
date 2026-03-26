@@ -416,3 +416,83 @@ class ConsensusSynthesizer:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
             json.dump(self.to_dict(report), f, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
+
+def main() -> int:
+    """Synthesize consensus from per-vendor findings files.
+
+    Usage:
+        python consensus_synthesizer.py \\
+            --review-type plan --target my-feature \\
+            --findings findings-codex.json findings-gemini.json \\
+            --output consensus.json
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Synthesize multi-vendor review consensus",
+    )
+    parser.add_argument(
+        "--review-type", required=True,
+        choices=["plan", "implementation"],
+    )
+    parser.add_argument("--target", required=True, help="Feature or package ID")
+    parser.add_argument(
+        "--findings", nargs="+", required=True,
+        help="Per-vendor findings JSON files",
+    )
+    parser.add_argument("--output", required=True, help="Output consensus JSON path")
+    parser.add_argument("--quorum", type=int, default=2, help="Minimum reviewers")
+    parser.add_argument(
+        "--threshold", type=float, default=MATCH_THRESHOLD,
+        help="Match score threshold for confirmed status",
+    )
+    args = parser.parse_args()
+
+    # Load per-vendor findings
+    vendor_results: list[VendorResult] = []
+    for fpath in args.findings:
+        p = Path(fpath)
+        if not p.exists():
+            print(f"Warning: {fpath} not found, skipping", file=__import__("sys").stderr)
+            vendor_results.append(VendorResult(
+                vendor=p.stem, findings=[], success=False,
+                error=f"File not found: {fpath}",
+            ))
+            continue
+        data = json.loads(p.read_text())
+        vendor = data.get("reviewer_vendor", p.stem.split("-")[-1])
+        findings = [
+            Finding.from_dict(f, vendor=vendor)
+            for f in data.get("findings", [])
+        ]
+        vendor_results.append(VendorResult(vendor=vendor, findings=findings))
+
+    synth = ConsensusSynthesizer(
+        match_threshold=args.threshold, quorum=args.quorum,
+    )
+    report = synth.synthesize(
+        review_type=args.review_type,
+        target=args.target,
+        vendor_results=vendor_results,
+    )
+    synth.write_report(report, Path(args.output))
+
+    # Print summary
+    print(f"Consensus: {report.total_unique} findings "
+          f"({report.confirmed_count} confirmed, "
+          f"{report.unconfirmed_count} unconfirmed, "
+          f"{report.disagreement_count} disagreement)")
+    print(f"Blocking: {report.blocking_count}")
+    print(f"Quorum: {'met' if report.quorum_met else 'NOT met'} "
+          f"({report.quorum_received}/{report.quorum_requested})")
+    print(f"Written to: {args.output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
