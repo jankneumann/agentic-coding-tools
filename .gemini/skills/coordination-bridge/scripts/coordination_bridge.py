@@ -34,6 +34,8 @@ _CAPABILITY_FLAGS = (
     "CAN_HANDOFF",
     "CAN_MEMORY",
     "CAN_GUARDRAILS",
+    "CAN_FEATURE_REGISTRY",
+    "CAN_MERGE_QUEUE",
 )
 
 _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
@@ -41,24 +43,18 @@ _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
     # creating side effects during detection.
     "CAN_LOCK": [("POST", "/locks/acquire", {})],
     "CAN_QUEUE_WORK": [("POST", "/work/claim", {})],
-    "CAN_HANDOFF": [
-        ("POST", "/handoff/write", {}),
-        ("POST", "/handoffs/write", {}),
-        ("GET", "/handoffs/latest", None),
-    ],
+    "CAN_HANDOFF": [("POST", "/handoffs/write", {})],
     "CAN_MEMORY": [("POST", "/memory/query", {})],
     "CAN_GUARDRAILS": [("POST", "/guardrails/check", {})],
+    "CAN_FEATURE_REGISTRY": [("GET", "/features/active", None)],
+    "CAN_MERGE_QUEUE": [("GET", "/merge-queue", None)],
 }
 
 _HANDOFF_WRITE_ENDPOINTS: list[tuple[str, str]] = [
-    ("POST", "/handoff/write"),
     ("POST", "/handoffs/write"),
-    ("POST", "/handoffs"),
 ]
 _HANDOFF_READ_ENDPOINTS: list[tuple[str, str]] = [
-    ("POST", "/handoff/read"),
     ("POST", "/handoffs/read"),
-    ("GET", "/handoffs/latest"),
 ]
 
 
@@ -134,6 +130,8 @@ def _coordinator_state(
         "handoff": response["CAN_HANDOFF"],
         "memory": response["CAN_MEMORY"],
         "guardrails": response["CAN_GUARDRAILS"],
+        "feature_registry": response["CAN_FEATURE_REGISTRY"],
+        "merge_queue": response["CAN_MERGE_QUEUE"],
     }
     return response
 
@@ -733,6 +731,118 @@ def try_check_guardrails(
             "operation_text": operation_text,
             "file_paths": file_paths,
         },
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_register_feature(
+    *,
+    feature_id: str,
+    resource_claims: list[str],
+    title: str | None = None,
+    agent_id: str | None = None,
+    branch_name: str | None = None,
+    merge_priority: int = 5,
+    metadata: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Register a feature with resource claims via HTTP."""
+    return _execute_single_endpoint_operation(
+        operation="try_register_feature",
+        capability_flag="CAN_FEATURE_REGISTRY",
+        method="POST",
+        path="/features/register",
+        payload={
+            "feature_id": feature_id,
+            "resource_claims": resource_claims,
+            "title": title,
+            "agent_id": agent_id,
+            "branch_name": branch_name,
+            "merge_priority": merge_priority,
+            "metadata": metadata,
+        },
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_deregister_feature(
+    *,
+    feature_id: str,
+    status: str = "completed",
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Deregister a feature (mark completed/cancelled) via HTTP."""
+    return _execute_single_endpoint_operation(
+        operation="try_deregister_feature",
+        capability_flag="CAN_FEATURE_REGISTRY",
+        method="POST",
+        path="/features/deregister",
+        payload={
+            "feature_id": feature_id,
+            "status": status,
+        },
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_enqueue_merge(
+    *,
+    feature_id: str,
+    pr_url: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Enqueue a feature for merge ordering via HTTP."""
+    return _execute_single_endpoint_operation(
+        operation="try_enqueue_merge",
+        capability_flag="CAN_MERGE_QUEUE",
+        method="POST",
+        path="/merge-queue/enqueue",
+        payload={
+            "feature_id": feature_id,
+            "pr_url": pr_url,
+        },
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_pre_merge_checks(
+    *,
+    feature_id: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Run pre-merge validation checks via HTTP."""
+    return _execute_single_endpoint_operation(
+        operation="try_pre_merge_checks",
+        capability_flag="CAN_MERGE_QUEUE",
+        method="POST",
+        path=f"/merge-queue/check/{feature_id}",
+        payload=None,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_mark_merged(
+    *,
+    feature_id: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Mark a feature as merged and deregister via HTTP."""
+    return _execute_single_endpoint_operation(
+        operation="try_mark_merged",
+        capability_flag="CAN_MERGE_QUEUE",
+        method="POST",
+        path=f"/merge-queue/merged/{feature_id}",
+        payload=None,
         http_url=http_url,
         api_key=api_key,
     )

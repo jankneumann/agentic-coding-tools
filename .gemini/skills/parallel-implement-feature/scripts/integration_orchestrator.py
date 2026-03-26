@@ -58,7 +58,12 @@ class IntegrationOrchestrator:
         self.feature_id = feature_id
         self.packages = {p["package_id"]: p for p in packages}
         self._results: dict[str, dict[str, Any]] = {}
+        # Legacy single-vendor storage (backward compat)
         self._review_findings: dict[str, dict[str, Any]] = {}
+        # Multi-vendor storage: package_id → vendor → findings
+        self._vendor_findings: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        # Consensus reports: package_id → consensus dict
+        self._consensus: dict[str, dict[str, Any]] = {}
         self._integration_result: dict[str, Any] | None = None
 
     @property
@@ -84,14 +89,32 @@ class IntegrationOrchestrator:
         self._results[package_id] = result
 
     def record_review_findings(
-        self, package_id: str, findings: dict[str, Any]
+        self,
+        package_id: str,
+        findings: dict[str, Any],
+        vendor: str | None = None,
     ) -> None:
         """Record review findings for a package.
 
         Args:
             findings: Dict conforming to review-findings.schema.json
+            vendor: Vendor name (e.g., "codex"). If None, stores as
+                single-vendor finding for backward compatibility.
         """
+        if vendor:
+            self._vendor_findings[package_id][vendor] = findings
+        # Always update legacy storage (gate uses this as primary)
         self._review_findings[package_id] = findings
+
+    def record_consensus(
+        self, package_id: str, consensus: dict[str, Any]
+    ) -> None:
+        """Record a multi-vendor consensus report for a package.
+
+        Args:
+            consensus: Dict conforming to consensus-report.schema.json
+        """
+        self._consensus[package_id] = consensus
 
     def get_packages_pending_review(self) -> list[str]:
         """Return package IDs that have results but no review findings."""
@@ -132,27 +155,51 @@ class IntegrationOrchestrator:
                 "missing_reviews": missing_reviews,
             }
 
-        # Check for blocking findings
+        # Check for blocking findings — use consensus when available,
+        # fall back to raw findings for single-vendor reviews.
         blocking: list[dict[str, str]] = []
         escalations: list[dict[str, str]] = []
+        warnings: list[dict[str, str]] = []
 
-        for pid, findings in self._review_findings.items():
-            for finding in findings.get("findings", []):
-                disposition = finding.get("disposition", "")
-                if disposition == ReviewDisposition.FIX.value:
-                    blocking.append({
+        for pid in impl_pkgs:
+            if pid in self._consensus:
+                # Multi-vendor: use consensus findings
+                consensus = self._consensus[pid]
+                for cf in consensus.get("consensus_findings", []):
+                    status = cf.get("status", "")
+                    disposition = cf.get("recommended_disposition", "")
+                    entry = {
                         "package_id": pid,
-                        "finding_id": str(finding.get("id", "")),
-                        "description": finding.get("description", ""),
+                        "finding_id": str(cf.get("id", "")),
+                        "description": cf.get("description", ""),
                         "disposition": disposition,
-                    })
-                elif disposition == ReviewDisposition.ESCALATE.value:
-                    escalations.append({
-                        "package_id": pid,
-                        "finding_id": str(finding.get("id", "")),
-                        "description": finding.get("description", ""),
-                        "disposition": disposition,
-                    })
+                        "consensus_status": status,
+                    }
+                    if status == "confirmed" and disposition == ReviewDisposition.FIX.value:
+                        blocking.append(entry)
+                    elif status == "disagreement":
+                        escalations.append(entry)
+                    elif status == "unconfirmed":
+                        warnings.append(entry)
+            elif pid in self._review_findings:
+                # Single-vendor fallback
+                findings = self._review_findings[pid]
+                for finding in findings.get("findings", []):
+                    disposition = finding.get("disposition", "")
+                    if disposition == ReviewDisposition.FIX.value:
+                        blocking.append({
+                            "package_id": pid,
+                            "finding_id": str(finding.get("id", "")),
+                            "description": finding.get("description", ""),
+                            "disposition": disposition,
+                        })
+                    elif disposition == ReviewDisposition.ESCALATE.value:
+                        escalations.append({
+                            "package_id": pid,
+                            "finding_id": str(finding.get("id", "")),
+                            "description": finding.get("description", ""),
+                            "disposition": disposition,
+                        })
 
         if escalations:
             return {
@@ -175,6 +222,7 @@ class IntegrationOrchestrator:
             "reason": "All packages completed and reviewed with no blocking findings",
             "blocking_findings": [],
             "missing_reviews": [],
+            "warnings": warnings,
         }
 
     def record_integration_result(self, result: dict[str, Any]) -> None:
@@ -219,6 +267,27 @@ class IntegrationOrchestrator:
 
         review_summary["total_findings"] = total_findings
         review_summary["findings_by_disposition"] = dict(disposition_counts)
+
+        # Multi-vendor review info
+        if self._consensus:
+            consensus_summary: dict[str, Any] = {
+                "packages_with_consensus": len(self._consensus),
+                "confirmed": 0,
+                "unconfirmed": 0,
+                "disagreement": 0,
+            }
+            for consensus in self._consensus.values():
+                summary = consensus.get("summary", {})
+                consensus_summary["confirmed"] += summary.get("confirmed_count", 0)
+                consensus_summary["unconfirmed"] += summary.get("unconfirmed_count", 0)
+                consensus_summary["disagreement"] += summary.get("disagreement_count", 0)
+            review_summary["consensus"] = consensus_summary
+
+        if self._vendor_findings:
+            vendors_used: set[str] = set()
+            for vendor_map in self._vendor_findings.values():
+                vendors_used.update(vendor_map.keys())
+            review_summary["vendors"] = sorted(vendors_used)
 
         # Integration outcome
         integration: dict[str, Any] = {"status": "not_started"}

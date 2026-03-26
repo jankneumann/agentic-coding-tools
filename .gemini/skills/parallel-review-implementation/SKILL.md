@@ -168,8 +168,9 @@ The orchestrator dispatches this skill once per completed work package:
 3. Orchestrator dispatches review skill with package context
 4. Review findings feed into integration gate decision
 
-**Integration Gate Logic** (orchestrator-side):
-- All packages reviewed with no `fix` or `escalate` findings → proceed to integration
+**Integration Gate Logic** (orchestrator-side, consensus-aware):
+- When consensus exists: confirmed fix → BLOCKED_FIX, disagreement → BLOCKED_ESCALATE, unconfirmed → warnings (pass)
+- When no consensus: fall back to single-vendor finding dispositions
 - Any `fix` finding → return to package agent for remediation
 - Any `escalate` finding → trigger escalation protocol
 
@@ -181,3 +182,14 @@ Like `parallel-review-plan`, this skill is self-contained:
 - Output is a single JSON file with a well-defined schema
 - No side effects
 - Can be dispatched to any LLM vendor for independent review
+
+## Multi-Vendor Dispatch
+
+When used via the `ReviewOrchestrator`, this skill is dispatched to multiple vendors per package:
+
+1. **Dispatch**: Each vendor CLI runs the review in read-only mode
+2. **Config**: CLI flags from `agents.yaml` `cli.dispatch_modes.review`
+3. **Model fallback**: On capacity errors, retries with `cli.model_fallbacks`
+4. **Output**: Per-vendor findings at `reviews/findings-<vendor>-impl-<package-id>.json`
+5. **Consensus**: Findings matched across vendors, classified as confirmed/unconfirmed/disagreement
+6. **Gate**: Consensus report drives integration gate decisions

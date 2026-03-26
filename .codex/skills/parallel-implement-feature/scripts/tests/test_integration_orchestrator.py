@@ -245,3 +245,107 @@ class TestExecutionSummary:
         timeline_statuses = {e["package_id"]: e["status"] for e in summary["timeline"]}
         assert timeline_statuses["wp-backend"] == "completed"
         assert timeline_statuses["wp-frontend"] == "not_started"
+
+
+# ---------------------------------------------------------------------------
+# Multi-vendor review tests
+# ---------------------------------------------------------------------------
+
+class TestMultiVendorReview:
+    """Tests for multi-vendor consensus-based integration gate."""
+
+    @pytest.fixture()
+    def orch(self) -> IntegrationOrchestrator:
+        return IntegrationOrchestrator(
+            feature_id="test-mvr",
+            packages=[
+                {"package_id": "wp-backend", "task_type": "implementation"},
+            ],
+        )
+
+    def test_record_vendor_findings(self, orch: IntegrationOrchestrator) -> None:
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="codex")
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="gemini")
+        assert "codex" in orch._vendor_findings["wp-backend"]
+        assert "gemini" in orch._vendor_findings["wp-backend"]
+
+    def test_record_consensus(self, orch: IntegrationOrchestrator) -> None:
+        consensus = {"consensus_findings": [], "summary": {}}
+        orch.record_consensus("wp-backend", consensus)
+        assert "wp-backend" in orch._consensus
+
+    def test_consensus_confirmed_fix_blocks(self, orch: IntegrationOrchestrator) -> None:
+        """Confirmed fix findings in consensus block the gate."""
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_review_findings("wp-backend", {"findings": []})
+        orch.record_consensus("wp-backend", {
+            "consensus_findings": [{
+                "id": 1, "status": "confirmed",
+                "recommended_disposition": "fix",
+                "description": "Security issue",
+            }],
+            "summary": {"confirmed_count": 1, "unconfirmed_count": 0, "disagreement_count": 0},
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_FIX.value
+
+    def test_consensus_disagreement_escalates(self, orch: IntegrationOrchestrator) -> None:
+        """Disagreement findings trigger escalation."""
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_review_findings("wp-backend", {"findings": []})
+        orch.record_consensus("wp-backend", {
+            "consensus_findings": [{
+                "id": 1, "status": "disagreement",
+                "recommended_disposition": "escalate",
+                "description": "Vendors disagree",
+            }],
+            "summary": {"confirmed_count": 0, "unconfirmed_count": 0, "disagreement_count": 1},
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.BLOCKED_ESCALATE.value
+
+    def test_consensus_unconfirmed_passes_with_warnings(self, orch: IntegrationOrchestrator) -> None:
+        """Unconfirmed findings pass gate but produce warnings."""
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_review_findings("wp-backend", {"findings": []})
+        orch.record_consensus("wp-backend", {
+            "consensus_findings": [{
+                "id": 1, "status": "unconfirmed",
+                "recommended_disposition": "accept",
+                "description": "Minor concern",
+            }],
+            "summary": {"confirmed_count": 0, "unconfirmed_count": 1, "disagreement_count": 0},
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.PASS.value
+        assert len(gate["warnings"]) == 1
+
+    def test_consensus_confirmed_accept_passes(self, orch: IntegrationOrchestrator) -> None:
+        """Confirmed accept findings pass gate."""
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_review_findings("wp-backend", {"findings": []})
+        orch.record_consensus("wp-backend", {
+            "consensus_findings": [{
+                "id": 1, "status": "confirmed",
+                "recommended_disposition": "accept",
+                "description": "Minor style issue",
+            }],
+            "summary": {"confirmed_count": 1, "unconfirmed_count": 0, "disagreement_count": 0},
+        })
+        gate = orch.check_integration_gate()
+        assert gate["status"] == IntegrationGateStatus.PASS.value
+
+    def test_summary_includes_consensus_info(self, orch: IntegrationOrchestrator) -> None:
+        """Execution summary includes consensus and vendor info."""
+        orch.record_package_result("wp-backend", _make_result("wp-backend"))
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="codex")
+        orch.record_review_findings("wp-backend", {"findings": []}, vendor="gemini")
+        orch.record_consensus("wp-backend", {
+            "consensus_findings": [],
+            "summary": {"confirmed_count": 0, "unconfirmed_count": 0, "disagreement_count": 0},
+        })
+        summary = orch.generate_execution_summary()
+        assert "consensus" in summary["review"]
+        assert summary["review"]["consensus"]["packages_with_consensus"] == 1
+        assert "vendors" in summary["review"]
+        assert set(summary["review"]["vendors"]) == {"codex", "gemini"}
