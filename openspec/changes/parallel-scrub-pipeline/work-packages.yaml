@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: parallel-scrub-pipeline
   title: "Parallel & Multi-Vendor Scrub Pipeline"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-opus
   created_at: "2026-03-26T12:00:00Z"
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
     files:
@@ -39,7 +39,7 @@ packages:
       files:
         - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
       keys:
-        - "contract:parallel-scrub-pipeline:internal-api"
+        - "contract:parallel-scrub-pipeline:api"
       ttl_minutes: 60
       reason: "Contract definition — must complete before implementation"
     scope:
@@ -61,7 +61,7 @@ packages:
       steps:
         - name: validate-contracts
           kind: manual
-          manual_instructions: "Review contract signatures match existing data models"
+          manual_instructions: "Review contract signatures match existing data models (SourceResult, FixGroup, VerificationResult, verify() original_failures type)"
           evidence:
             artifacts:
               - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
@@ -78,10 +78,11 @@ packages:
     title: "Bug-scrub parallel collector execution"
     task_type: implementation
     description: >
-      Create parallel_runner.py with ProcessPoolExecutor-based collector
-      execution. Modify main.py to add --parallel and --max-workers CLI
-      flags. Create test_parallel_runner.py with unit tests and
-      sequential/parallel equivalence tests. Tasks: T1.1-T1.5.
+      Create parallel_runner.py with ThreadPoolExecutor-based collector
+      execution. Create test_parallel_runner.py with unit tests,
+      error handling, timeout tests, and normalized equivalence tests
+      (strip timestamp/duration_ms before comparison). Tasks: T1.1, T1.4, T1.5.
+      NOTE: main.py integration happens in wp-orchestrator-update.
     role: backend-developer
     priority: 2
     depends_on:
@@ -89,7 +90,6 @@ packages:
     locks:
       files:
         - "skills/bug-scrub/scripts/parallel_runner.py"
-        - "skills/bug-scrub/scripts/main.py"
         - "skills/bug-scrub/tests/test_parallel_runner.py"
       keys:
         - "feature:parallel-scrub-pipeline:collectors"
@@ -98,7 +98,6 @@ packages:
     scope:
       write_allow:
         - "skills/bug-scrub/scripts/parallel_runner.py"
-        - "skills/bug-scrub/scripts/main.py"
         - "skills/bug-scrub/tests/test_parallel_runner.py"
       read_allow:
         - "skills/bug-scrub/**"
@@ -122,16 +121,9 @@ packages:
               - "skills/bug-scrub/tests/test_parallel_runner.py"
             result_keys:
               - "parallel_runner_tests_passed"
-        - name: existing-tests
-          kind: command
-          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests/ -v -m 'not e2e and not integration'"
-          evidence:
-            artifacts: []
-            result_keys:
-              - "bug_scrub_regression_clean"
         - name: lint
           kind: command
-          command: "ruff check skills/bug-scrub/scripts/parallel_runner.py skills/bug-scrub/scripts/main.py"
+          command: "ruff check skills/bug-scrub/scripts/parallel_runner.py"
           evidence:
             artifacts: []
             result_keys:
@@ -139,7 +131,6 @@ packages:
     outputs:
       result_keys:
         - "parallel_runner_tests_passed"
-        - "bug_scrub_regression_clean"
         - "lint_clean"
       artifacts:
         - "skills/bug-scrub/scripts/parallel_runner.py"
@@ -152,8 +143,8 @@ packages:
     description: >
       Create parallel_auto.py with ThreadPoolExecutor-based auto-fix
       group execution. Add file-group overlap assertion to plan_fixes.py.
-      Modify main.py to add --parallel flag for auto-fix path. Create
-      test_parallel_auto.py. Tasks: T2.1-T2.5.
+      Create test_parallel_auto.py. Tasks: T2.1, T2.2, T2.5.
+      NOTE: main.py integration happens in wp-orchestrator-update.
     role: backend-developer
     priority: 2
     depends_on:
@@ -176,9 +167,7 @@ packages:
         - "skills/fix-scrub/**"
         - "skills/bug-scrub/scripts/models.py"
         - "openspec/changes/parallel-scrub-pipeline/contracts/**"
-      deny:
-        - "skills/bug-scrub/scripts/**"
-        - "skills/bug-scrub/tests/**"
+      deny: []
     worktree:
       name: wp-parallel-autofix
       mode: isolated
@@ -225,9 +214,10 @@ packages:
     task_type: implementation
     description: >
       Create parallel_verify.py with ThreadPoolExecutor-based quality
-      checks (pytest, mypy, ruff, openspec). Integrate into main.py
-      verify path. Create test_parallel_verify.py with equivalence
-      tests. Tasks: T3.1-T3.4.
+      checks (pytest, mypy, ruff, openspec). Must match existing verify()
+      signature: original_failures is dict[str, set[str]] | None.
+      Create test_parallel_verify.py with equivalence tests. Tasks: T3.1, T3.3, T3.4.
+      NOTE: main.py integration happens in wp-orchestrator-update.
     role: backend-developer
     priority: 2
     depends_on:
@@ -247,8 +237,7 @@ packages:
       read_allow:
         - "skills/fix-scrub/**"
         - "openspec/changes/parallel-scrub-pipeline/contracts/**"
-      deny:
-        - "skills/bug-scrub/**"
+      deny: []
     worktree:
       name: wp-parallel-verify
       mode: isolated
@@ -286,10 +275,13 @@ packages:
     title: "Multi-vendor agent dispatch for fix-scrub"
     task_type: implementation
     description: >
-      Create vendor_dispatch.py with category-to-vendor routing logic.
-      Create vendor_dispatch_config.yaml with default category-vendor
-      mappings. Add --vendors CLI flag to main.py. Generate per-vendor
-      prompt files. Create test_vendor_dispatch.py. Tasks: T4.1-T4.6.
+      Create vendor_dispatch.py with per-file-group round-robin vendor
+      assignment (not per-category). Uses ReviewOrchestrator from
+      skills/parallel-implement-feature/scripts/review_dispatcher.py
+      for vendor discovery. Create test_vendor_dispatch.py with routing
+      logic, exclusive file ownership, and unavailable vendor tests.
+      Tasks: T4.1, T4.5.
+      NOTE: main.py integration happens in wp-orchestrator-update.
     role: backend-developer
     priority: 2
     depends_on:
@@ -297,7 +289,6 @@ packages:
     locks:
       files:
         - "skills/fix-scrub/scripts/vendor_dispatch.py"
-        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
         - "skills/fix-scrub/tests/test_vendor_dispatch.py"
       keys:
         - "feature:parallel-scrub-pipeline:dispatch"
@@ -306,14 +297,13 @@ packages:
     scope:
       write_allow:
         - "skills/fix-scrub/scripts/vendor_dispatch.py"
-        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
         - "skills/fix-scrub/tests/test_vendor_dispatch.py"
       read_allow:
         - "skills/fix-scrub/**"
-        - "skills/mvro/**"
+        - "skills/parallel-implement-feature/scripts/review_dispatcher.py"
+        - "agent-coordinator/agents.yaml"
         - "openspec/changes/parallel-scrub-pipeline/contracts/**"
-      deny:
-        - "skills/bug-scrub/**"
+      deny: []
     worktree:
       name: wp-vendor-dispatch
       mode: isolated
@@ -344,7 +334,6 @@ packages:
         - "lint_clean"
       artifacts:
         - "skills/fix-scrub/scripts/vendor_dispatch.py"
-        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
         - "skills/fix-scrub/tests/test_vendor_dispatch.py"
 
   # ── WP-ORCHESTRATOR-UPDATE ───────────────────────────────────
@@ -353,9 +342,10 @@ packages:
     task_type: implementation
     description: >
       Wire all parallel modules into bug-scrub main.py and fix-scrub
-      main.py. Add --parallel and --vendors CLI flags. Ensure conditional
-      dispatch: sequential by default, parallel when opted in. Update
-      SKILL.md files with new flag documentation.
+      main.py. Add --parallel, --max-workers, and --vendors CLI flags.
+      Ensure conditional dispatch: sequential by default, parallel when
+      opted in. This is the SOLE package that modifies main.py for
+      either skill. Tasks: T1.2, T1.3, T2.3, T2.4, T3.2, T4.3.
     role: backend-developer
     priority: 3
     depends_on:
@@ -418,7 +408,7 @@ packages:
     description: >
       Update bug-scrub SKILL.md with --parallel usage. Update fix-scrub
       SKILL.md with --parallel and --vendors usage. Include multi-vendor
-      dispatch examples and configuration reference.
+      dispatch examples and round-robin assignment documentation.
     role: technical-writer
     priority: 3
     depends_on:
@@ -471,7 +461,7 @@ packages:
     description: >
       Merge all package branches into the feature branch. Run full CI
       validation (ruff, mypy strict, pytest). Verify sequential/parallel
-      equivalence end-to-end. Run openspec validate --strict.
+      normalized equivalence end-to-end. Run openspec validate --strict.
     role: integrator
     priority: 10
     depends_on:

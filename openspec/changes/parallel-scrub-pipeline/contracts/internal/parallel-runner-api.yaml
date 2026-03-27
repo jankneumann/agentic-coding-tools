@@ -3,7 +3,7 @@
 # Contracts define the interface between work packages.
 
 parallel_runner:
-  module: skills.bug-scrub.scripts.parallel_runner
+  path: skills/bug-scrub/scripts/parallel_runner.py
   functions:
     - name: run_collectors_parallel
       signature: |
@@ -14,19 +14,19 @@ parallel_runner:
             timeout_per_collector: int = 300,
         ) -> list[SourceResult]
       description: >
-        Run signal collectors concurrently via ProcessPoolExecutor.
+        Run signal collectors concurrently via ThreadPoolExecutor.
         Returns results in submission order. Failed collectors return
         SourceResult(status="error") instead of raising.
       inputs:
         - collectors: dict mapping source name to collector function
         - project_dir: absolute path to project root
-        - max_workers: max concurrent processes (default 8)
+        - max_workers: max concurrent threads (default 8)
         - timeout_per_collector: per-collector timeout in seconds
       outputs:
         - list[SourceResult] in same order as collectors dict
 
 parallel_auto:
-  module: skills.fix-scrub.scripts.parallel_auto
+  path: skills/fix-scrub/scripts/parallel_auto.py
   functions:
     - name: execute_auto_fixes_parallel
       signature: |
@@ -46,43 +46,45 @@ parallel_auto:
         - tuple of (resolved_findings, persisting_findings)
 
 parallel_verify:
-  module: skills.fix-scrub.scripts.parallel_verify
+  path: skills/fix-scrub/scripts/parallel_verify.py
   functions:
     - name: verify_parallel
       signature: |
         def verify_parallel(
             project_dir: str,
-            original_failures: list[str] | None = None,
+            original_failures: dict[str, set[str]] | None = None,
         ) -> VerificationResult
       description: >
         Run quality checks (pytest, mypy, ruff, openspec) concurrently.
-        Returns unified VerificationResult.
+        Returns unified VerificationResult. Matches existing verify()
+        signature including original_failures type for regression detection.
 
 vendor_dispatch:
-  module: skills.fix-scrub.scripts.vendor_dispatch
+  path: skills/fix-scrub/scripts/vendor_dispatch.py
   functions:
     - name: route_prompts_to_vendors
       signature: |
         def route_prompts_to_vendors(
-            agent_prompts: list[dict[str, str]],
-            vendor_config: VendorDispatchConfig,
-            available_vendors: list[str] | None = None,
+            agent_prompts: list[tuple[str, str]],
+            available_vendors: list[str],
         ) -> dict[str, list[dict[str, str]]]
       description: >
-        Route agent-fix prompts to vendors based on finding category.
-        Returns dict mapping vendor name to list of prompts for that vendor.
+        Route agent-fix prompts to vendors per file-group using
+        round-robin distribution. Maintains exclusive file ownership —
+        each file-group goes to exactly one vendor.
+        Returns dict mapping vendor name to list of {"file": str, "prompt": str}.
       inputs:
-        - agent_prompts: list of {"file": str, "prompt": str, "category": str}
-        - vendor_config: loaded dispatch config with category-to-vendor mapping
-        - available_vendors: optional filter (None = all configured vendors)
+        - agent_prompts: list of (file_path, prompt_text) tuples from generate_prompts()
+        - available_vendors: list of vendor names to distribute across
       outputs:
-        - dict[vendor_name, list[prompt_dict]]
+        - dict[vendor_name, list[{"file": str, "prompt": str}]]
 
-    - name: load_vendor_config
+    - name: discover_vendors
       signature: |
-        def load_vendor_config(
-            config_path: str | None = None,
-        ) -> VendorDispatchConfig
+        def discover_vendors(
+            requested_vendors: list[str] | None = None,
+        ) -> list[str]
       description: >
-        Load vendor dispatch config from YAML file.
-        Falls back to default config if path is None.
+        Discover available vendors via ReviewOrchestrator.from_coordinator()
+        with fallback to from_agents_yaml(). If requested_vendors is provided,
+        filter to only those vendors. Emits warning for unavailable vendors.
