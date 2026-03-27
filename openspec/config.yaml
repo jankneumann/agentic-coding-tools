@@ -100,3 +100,13 @@ rules:
     - Include migration target (Beads issue ID or follow-up proposal change-id)
     - Preserve original file scope and dependency context from tasks.md
     - Record migration date and reason for deferral
+
+  session-log:
+    - "Focus on decision rationale, trade-offs, and alternatives — never replicate code diffs"
+    - "Extract from session transcript (tier 1), handoff documents (tier 2), or agent self-summary (tier 3)"
+    - "Sanitize all content before committing: remove API keys, tokens, passwords, connection strings, private keys"
+    - "Redact high-entropy strings (>4.5 bits/char, >20 chars) unless they are UUIDs, git SHAs, or change-ids"
+    - "Normalize environment-specific paths (home dirs → ~/..., hostnames → [HOST])"
+    - "Limit total length to 500 lines — summarize, do not transcribe"
+    - "Session Metadata section must include agent type, session ID(s), date range, and content source"
+    - "Artifact is optional — missing session-log.md does not fail validation or block archive"

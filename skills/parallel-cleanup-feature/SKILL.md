@@ -209,6 +209,46 @@ Same as `linear-cleanup-feature` Step 5:
 - Migrate to beads issues or follow-up OpenSpec proposal
 - Annotate original `tasks.md` with migration notes
 
+### 10b. Generate Session Log (Consolidated)
+
+Capture agent session context from all contributing agents into a single `session-log.md`.
+
+For parallel workflows, collect handoff documents from all agent worktrees:
+
+```bash
+# Collect handoff documents from all agent sessions for this change-id
+# If CAN_HANDOFF=true, query coordinator for all handoffs mentioning the change-id
+# Otherwise, check for handoff files in agent worktree directories
+
+# Step 1: Extract — consolidate from all agent sessions
+python3 "<skill-base-dir>/../session-log/scripts/extract_session_log.py" \
+  --change-id "<change-id>" \
+  --agent-type claude \
+  --handoff-source "<consolidated-handoffs.json>" \
+  --output "openspec/changes/<change-id>/session-log.raw.md"
+
+# If no transcript/handoffs available (exit code 2), agent self-summarizes
+# from its context window using the structured prompt output
+
+# Step 2: Sanitize
+if [ -f "openspec/changes/<change-id>/session-log.raw.md" ]; then
+  python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+    "openspec/changes/<change-id>/session-log.raw.md" \
+    "openspec/changes/<change-id>/session-log.md"
+
+  if [ $? -eq 0 ]; then
+    rm "openspec/changes/<change-id>/session-log.raw.md"
+    git add "openspec/changes/<change-id>/session-log.md"
+  else
+    echo "WARNING: Session log sanitization failed — skipping"
+    rm -f "openspec/changes/<change-id>/session-log.raw.md"
+    rm -f "openspec/changes/<change-id>/session-log.md"
+  fi
+fi
+```
+
+The consolidated session log should identify which agent contributed each decision when multiple agents were involved. If generation fails, proceed to archive without the session log (non-blocking).
+
 ### 11. Archive OpenSpec Proposal
 
 ```bash

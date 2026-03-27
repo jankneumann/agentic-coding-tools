@@ -172,6 +172,43 @@ Open tasks migrated to [beads issues labeled `openspec:<change-id>`] | [follow-u
 
 This annotation is preserved in the archive for traceability.
 
+### 5b. Generate Session Log
+
+Capture agent session context as a structured `session-log.md` artifact before archiving. This preserves decision rationale, trade-offs, and alternatives alongside the change.
+
+```bash
+# Step 1: Extract session context (3-tier: transcript → handoffs → self-summary)
+EXTRACT_EXIT=0
+python3 "<skill-base-dir>/../session-log/scripts/extract_session_log.py" \
+  --change-id "<change-id>" \
+  --agent-type claude \
+  --output "openspec/changes/<change-id>/session-log.raw.md" || EXTRACT_EXIT=$?
+
+if [ "$EXTRACT_EXIT" -eq 2 ]; then
+  # Tier 3: No transcript or handoffs found — agent should self-summarize
+  # The extraction script outputs a structured prompt; use it to generate the log
+  # (The agent reads the prompt and writes session-log.raw.md from its context window)
+fi
+
+# Step 2: Sanitize to remove secrets before committing
+if [ -f "openspec/changes/<change-id>/session-log.raw.md" ]; then
+  python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+    "openspec/changes/<change-id>/session-log.raw.md" \
+    "openspec/changes/<change-id>/session-log.md"
+
+  if [ $? -eq 0 ]; then
+    rm "openspec/changes/<change-id>/session-log.raw.md"
+    git add "openspec/changes/<change-id>/session-log.md"
+  else
+    echo "WARNING: Session log sanitization failed — skipping session log"
+    rm -f "openspec/changes/<change-id>/session-log.raw.md"
+    rm -f "openspec/changes/<change-id>/session-log.md"
+  fi
+fi
+```
+
+If extraction or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
+
 ### 6. Archive OpenSpec Proposal
 
 Preferred path:

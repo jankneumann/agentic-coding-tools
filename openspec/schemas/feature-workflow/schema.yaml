@@ -172,6 +172,21 @@ artifacts:
       for deferral. Preserve traceability to the original change-id.
     requires: [tasks]
 
+  # Cleanup-phase artifact: conversation context preservation
+  - id: session-log
+    generates: session-log.md
+    template: session-log.md
+    description: Sanitized summary of agent session history capturing decision rationale
+    instruction: >
+      Generate a structured summary of the agent conversation capturing key decisions,
+      alternatives considered, trade-offs accepted, and open questions. Extract from
+      agent session transcript (preferred), handoff document history (fallback), or
+      agent self-summary (last resort). Sanitize all content to remove secrets, API keys,
+      tokens, and sensitive paths before committing. Focus on the "why" behind decisions,
+      not code diffs. Limit to 500 lines.
+    requires: [tasks]
+    optional: true
+
 apply:
   requires: [proposal, specs, tasks]
   tracks: tasks.md
