@@ -287,6 +287,28 @@
         "retry_budget": { "type": "integer", "minimum": 0 },
         "min_trust_level": { "type": "integer", "minimum": 0, "maximum": 4 },
         "verification": { "$ref": "#/$defs/Verification" },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Optional structured hints for strategy selection and automation.",
+          "properties": {
+            "loc_estimate": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Estimated lines of code for this package."
+            },
+            "alternatives_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of design alternatives noted for this package."
+            },
+            "package_kind": {
+              "type": "string",
+              "enum": ["algorithm", "data_model", "crud", "config", "migration", "integration"],
+              "description": "Classification of the package's work type."
+            }
+          }
+        },
         "inputs": { "type": "object", "additionalProperties": true },
         "outputs": {
           "type": "object",
