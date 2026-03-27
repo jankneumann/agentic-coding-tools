@@ -1,0 +1,47 @@
+{
+  "review_type": "plan",
+  "target": "parallel-scrub-pipeline",
+  "reviewer_vendor": "gpt-5-codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The multi-vendor portion of the plan is built on infrastructure that does not match this repository. The proposal/design/work-packages reference `skills/mvro/`, `agent-dispatch-configs.yaml`, `get_dispatch_configs()`, and `dispatch_review()`, but the actual code is `skills/parallel-implement-feature/scripts/review_dispatcher.py`, loaded through `ReviewOrchestrator.from_coordinator()` or `from_agents_yaml()`. That dispatcher is also review-oriented: `agent-coordinator/agents.yaml` only defines `review` and `alternative` modes, and `dispatch_and_wait()` treats stdout as review-findings JSON. As written, there is no working path from `--vendors` to actual multi-vendor fix execution.",
+      "resolution": "Regenerate the vendor-dispatch design around the real dispatcher surface. Either reduce the change to vendor-specific prompt partitioning only, or explicitly add plan/tasks/scopes for `skills/parallel-implement-feature/scripts/review_dispatcher.py` and `agent-coordinator/agents.yaml` so a true fix-dispatch mode and non-review result handling exist.",
+      "disposition": "regenerate"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Category-based routing conflicts with the current fix-scrub unit of work. `plan_fixes.py` groups agent findings by file, and `generate_prompts.py` emits one prompt per file as `list[tuple[file, prompt]]` with no category metadata. A single file can contain mixed `type-error`, `code-marker`, and `deferred-issue` findings, so the spec's 'route by finding category' rule is undefined for existing prompts. If implementation splits one file across vendors by category, it creates concurrent writes to the same file and breaks the current file-scope isolation model.",
+      "resolution": "Define one routing unit that preserves exclusive file ownership. Either choose one vendor per file-group via an explicit deterministic rule, or redesign planning/prompt generation so category routing is represented without allowing multiple vendors to edit the same file concurrently. Update `generate_prompts.py`, its tests, and the work-package scopes accordingly.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The equivalence requirement for bug-scrub is not testable as written. The spec/tasks require sequential and parallel runs to produce identical `bug-scrub-report.json` output and identical `SourceResult` lists, but the current report model includes a fresh `timestamp` and per-source `duration_ms`, so literal equality will fail even when the findings are semantically identical.",
+      "resolution": "Rewrite the requirement and tests to compare normalized output only: source ordering, statuses, findings, and messages. Exclude or freeze transient fields such as `timestamp` and `duration_ms` when asserting sequential/parallel equivalence.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The `parallel_verify` contract/design do not match the existing verification interface. The plan specifies `verify_parallel(project_dir, original_failures: list[str] | None)`, but the current `verify()` implementation expects `original_failures: dict[str, set[str]] | None` so regressions can be computed per tool. Implementing the new contract verbatim would either drop current regression-delta behavior or require an undocumented adapter layer.",
+      "resolution": "Align the contract with the existing `verify()` shape, or explicitly change the regression model in the spec/design/tasks and update callers/tests to match the new behavior.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The work-package decomposition is internally inconsistent and weakens the 'non-overlapping parallel packages' claim. `T2.3/T2.4`, `T3.2`, and `T4.3/T4.4` all imply changes to `skills/fix-scrub/scripts/main.py` or the prompt-generation path, but those implementation packages do not own `main.py` or `generate_prompts.py`. At the same time, `wp-parallel-collectors` and `wp-orchestrator-update` both claim `skills/bug-scrub/scripts/main.py`. `wp-vendor-dispatch` also grants read access to nonexistent `skills/mvro/**` instead of the actual dispatcher location.",
+      "resolution": "Rebalance package ownership so each changed file is owned by exactly one implementation package or by the final orchestrator package. Remove `main.py` work from earlier package descriptions if orchestration is intentionally centralized, add missing ownership for `generate_prompts.py` if routing depends on it, and update scopes/locks to the real dispatcher paths.",
+      "disposition": "fix"
+    }
+  ]
+}

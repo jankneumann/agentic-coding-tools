@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 442.2648349999945,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 4.766724375003832,
+      "error": "Error: environment '${CODEX_CLOUD_ENV}' not found; run `codex cloud` to list available environments\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "gemini",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 600.0272856670053,
+      "error": "Timeout after 600s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "gemini",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 0.0,
+      "error": "Timeout submitting async task",
+      "error_class": "transient"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 1
+}

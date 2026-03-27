@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "parallel-scrub-pipeline",
+  "reviewers": [
+    {
+      "vendor": "claude-opus-4-6",
+      "agent_id": "claude-opus-4-6",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gpt-5-codex",
+      "agent_id": "gpt-5-codex",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "ProcessPoolExecutor with spawn start method will fail. Python 3.14 on macOS uses 'spawn' by default. Collector functions are imported via sys.path.insert(0, ...) in main.py. Worker processes spawned by ProcessPoolExecutor don't inherit this path manipulation, so they can't unpickle the collector function references (ImportError when deserializing)."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Proposal references 'MVRO dispatch infrastructure (skills/mvro/scripts/)' and 'agent_dispatch_configs.py' but neither exists. The actual dispatch code is at skills/parallel-implement-feature/scripts/review_dispatcher.py, and config is loaded via coordinator MCP (get_agent_dispatch_configs) or agents.yaml, not from a standalone module."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Contract defines function name 'route_prompts_to_vendors' but design.md describes 'dispatch_agent_fixes_multivendor'. These should match to avoid confusion during implementation."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "generate_prompts() currently returns list[tuple[str, str]] (file, prompt) with no category field. The vendor_dispatch contract requires prompts with a 'category' field for routing. No spec requirement or task covers enriching prompt output with category metadata."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "wp-parallel-autofix scope has 'deny: [skills/bug-scrub/scripts/**, skills/bug-scrub/tests/**]' but 'read_allow: [skills/bug-scrub/scripts/models.py]'. The deny list uses glob 'skills/bug-scrub/scripts/**' which would block reading models.py. If deny takes priority, the package can't import Finding/SourceResult types."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "wp-parallel-collectors and wp-orchestrator-update both claim write locks on 'skills/bug-scrub/scripts/main.py'. While the packages are sequential (orchestrator depends_on collectors), the split is ambiguous: should the collector package add the --parallel flag to main.py, or should orchestrator-update do all main.py integration? Tasks T1.2-T1.3 (in wp-parallel-collectors) modify main.py, AND wp-orchestrator-update also modifies main.py."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Parallel verification (pytest, mypy, ruff running concurrently in the same project directory) may cause file lock contention. Ruff and mypy both scan the same files; pytest writes to .pytest_cache. While they don't write to the same output files, mypy's cache (.mypy_cache) and ruff's cache (.ruff_cache) could have minor contention."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "No spec requirement covers the timeout_per_collector parameter in the parallel_runner contract. The contract defines it (default 300s) but no requirement specifies timeout behavior for parallel mode."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The contract file describes 'module: skills.bug-scrub.scripts.parallel_runner' using dot notation, but these aren't Python package imports \u2014 they're relative file paths. This could mislead implementers."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "No requirement specifies behavior when --parallel and --vendors are combined vs used independently. The design assumes they're orthogonal, but this should be explicit."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The multi-vendor portion of the plan is built on infrastructure that does not match this repository. The proposal/design/work-packages reference `skills/mvro/`, `agent-dispatch-configs.yaml`, `get_dispatch_configs()`, and `dispatch_review()`, but the actual code is `skills/parallel-implement-feature/scripts/review_dispatcher.py`, loaded through `ReviewOrchestrator.from_coordinator()` or `from_agents_yaml()`. That dispatcher is also review-oriented: `agent-coordinator/agents.yaml` only defines `review` and `alternative` modes, and `dispatch_and_wait()` treats stdout as review-findings JSON. As written, there is no working path from `--vendors` to actual multi-vendor fix execution."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Category-based routing conflicts with the current fix-scrub unit of work. `plan_fixes.py` groups agent findings by file, and `generate_prompts.py` emits one prompt per file as `list[tuple[file, prompt]]` with no category metadata. A single file can contain mixed `type-error`, `code-marker`, and `deferred-issue` findings, so the spec's 'route by finding category' rule is undefined for existing prompts. If implementation splits one file across vendors by category, it creates concurrent writes to the same file and breaks the current file-scope isolation model."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The equivalence requirement for bug-scrub is not testable as written. The spec/tasks require sequential and parallel runs to produce identical `bug-scrub-report.json` output and identical `SourceResult` lists, but the current report model includes a fresh `timestamp` and per-source `duration_ms`, so literal equality will fail even when the findings are semantically identical."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The `parallel_verify` contract/design do not match the existing verification interface. The plan specifies `verify_parallel(project_dir, original_failures: list[str] | None)`, but the current `verify()` implementation expects `original_failures: dict[str, set[str]] | None` so regressions can be computed per tool. Implementing the new contract verbatim would either drop current regression-delta behavior or require an undocumented adapter layer."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The work-package decomposition is internally inconsistent and weakens the 'non-overlapping parallel packages' claim. `T2.3/T2.4`, `T3.2`, and `T4.3/T4.4` all imply changes to `skills/fix-scrub/scripts/main.py` or the prompt-generation path, but those implementation packages do not own `main.py` or `generate_prompts.py`. At the same time, `wp-parallel-collectors` and `wp-orchestrator-update` both claim `skills/bug-scrub/scripts/main.py`. `wp-vendor-dispatch` also grants read access to nonexistent `skills/mvro/**` instead of the actual dispatcher location."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 15,
+    "confirmed_count": 0,
+    "unconfirmed_count": 15,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

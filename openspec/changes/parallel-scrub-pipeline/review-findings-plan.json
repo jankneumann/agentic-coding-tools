@@ -1,0 +1,94 @@
+{
+  "review_type": "plan",
+  "target": "parallel-scrub-pipeline",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "ProcessPoolExecutor with spawn start method will fail. Python 3.14 on macOS uses 'spawn' by default. Collector functions are imported via sys.path.insert(0, ...) in main.py. Worker processes spawned by ProcessPoolExecutor don't inherit this path manipulation, so they can't unpickle the collector function references (ImportError when deserializing).",
+      "resolution": "Switch D1 from ProcessPoolExecutor to ThreadPoolExecutor for bug-scrub collectors. The work is subprocess-bound (pytest, ruff, mypy invoke external processes), so GIL contention is irrelevant. ThreadPoolExecutor inherits the parent's sys.path and module state. Update the design, contract, and spec accordingly.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/design.md"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Proposal references 'MVRO dispatch infrastructure (skills/mvro/scripts/)' and 'agent_dispatch_configs.py' but neither exists. The actual dispatch code is at skills/parallel-implement-feature/scripts/review_dispatcher.py, and config is loaded via coordinator MCP (get_agent_dispatch_configs) or agents.yaml, not from a standalone module.",
+      "resolution": "Update all references from 'skills/mvro/scripts/' to 'skills/parallel-implement-feature/scripts/'. Update the vendor_dispatch.py contract to use ReviewOrchestrator.from_coordinator() or from_agents_yaml() for vendor discovery, not a non-existent 'agent-dispatch-configs.yaml'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/proposal.md"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Contract defines function name 'route_prompts_to_vendors' but design.md describes 'dispatch_agent_fixes_multivendor'. These should match to avoid confusion during implementation.",
+      "resolution": "Align on one name. Recommend 'route_prompts_to_vendors' (contract takes precedence).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "generate_prompts() currently returns list[tuple[str, str]] (file, prompt) with no category field. The vendor_dispatch contract requires prompts with a 'category' field for routing. No spec requirement or task covers enriching prompt output with category metadata.",
+      "resolution": "Add a task to modify generate_prompts() to include finding category in its output (either change return type to list[dict] or add category as third tuple element). Add this to wp-vendor-dispatch scope.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/tasks.md"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "wp-parallel-autofix scope has 'deny: [skills/bug-scrub/scripts/**, skills/bug-scrub/tests/**]' but 'read_allow: [skills/bug-scrub/scripts/models.py]'. The deny list uses glob 'skills/bug-scrub/scripts/**' which would block reading models.py. If deny takes priority, the package can't import Finding/SourceResult types.",
+      "resolution": "Remove 'skills/bug-scrub/scripts/**' from deny list since it conflicts with the explicit read_allow for models.py, or change deny to only cover write access (which is already handled by write_allow).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/work-packages.yaml"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "wp-parallel-collectors and wp-orchestrator-update both claim write locks on 'skills/bug-scrub/scripts/main.py'. While the packages are sequential (orchestrator depends_on collectors), the split is ambiguous: should the collector package add the --parallel flag to main.py, or should orchestrator-update do all main.py integration? Tasks T1.2-T1.3 (in wp-parallel-collectors) modify main.py, AND wp-orchestrator-update also modifies main.py.",
+      "resolution": "Clarify the split: wp-parallel-collectors creates parallel_runner.py and its tests only. Remove main.py from wp-parallel-collectors write_allow and locks. wp-orchestrator-update handles all main.py changes (CLI flags + integration) for both skills. This eliminates the double-touch pattern and keeps main.py modification in a single package.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/work-packages.yaml"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Parallel verification (pytest, mypy, ruff running concurrently in the same project directory) may cause file lock contention. Ruff and mypy both scan the same files; pytest writes to .pytest_cache. While they don't write to the same output files, mypy's cache (.mypy_cache) and ruff's cache (.ruff_cache) could have minor contention.",
+      "resolution": "Document this as a known low-risk in design.md. Each tool uses its own cache directory. In practice, concurrent reads are safe. Consider adding --cache-dir isolation if issues are observed.",
+      "disposition": "accept"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "No spec requirement covers the timeout_per_collector parameter in the parallel_runner contract. The contract defines it (default 300s) but no requirement specifies timeout behavior for parallel mode.",
+      "resolution": "Add a scenario to REQ bug-scrub parallel: 'GIVEN a collector exceeds timeout_per_collector, WHEN parallel mode is active, THEN the collector returns SourceResult(status=\"error\") and others continue'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/parallel-scrub-pipeline/specs/skill-workflow/spec.md"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "The contract file describes 'module: skills.bug-scrub.scripts.parallel_runner' using dot notation, but these aren't Python package imports — they're relative file paths. This could mislead implementers.",
+      "resolution": "Change to file path notation: 'path: skills/bug-scrub/scripts/parallel_runner.py' for clarity, since the scripts directory is not a Python package (no __init__.py).",
+      "disposition": "accept"
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "No requirement specifies behavior when --parallel and --vendors are combined vs used independently. The design assumes they're orthogonal, but this should be explicit.",
+      "resolution": "Add a scenario: 'GIVEN fix-scrub is invoked with --parallel --vendors claude,codex, WHEN execution runs, THEN parallel auto-fixes execute concurrently AND agent prompts are routed to specified vendors'. Clarify that the flags are orthogonal.",
+      "disposition": "accept"
+    }
+  ]
+}
