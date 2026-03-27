@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -255,7 +254,10 @@ def run_loop(
     # ---- Load or create state ----
     if state_path.exists():
         state = load_state(state_path)
-        logger.info("Resumed loop state at phase=%s iteration=%d", state.current_phase, state.total_iterations)
+        logger.info(
+            "Resumed loop state at phase=%s iteration=%d",
+            state.current_phase, state.total_iterations,
+        )
     else:
         state = LoopState(
             change_id=change_id,

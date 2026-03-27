@@ -5,11 +5,10 @@ All tests use mocks — no real file I/O or external dependencies.
 
 from __future__ import annotations
 
-import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,7 +18,6 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from auto_dev_loop import (
-    TRANSITIONS,
     LoopState,
     check_escalation_resolved,
     enter_escalate,
@@ -214,7 +212,9 @@ def test_full_happy_path(tmp_path: Path) -> None:
     assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
 
     # Convergence: always converges immediately
-    converge_mock = MagicMock(return_value={"converged": True, "findings_count": 0, "blocking_findings": []})
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
 
     result = run_loop(
         "happy-1",
@@ -307,7 +307,9 @@ def test_complexity_gate_enables_val_review(tmp_path: Path) -> None:
     })
 
     # Need convergence to work for all review phases
-    converge_mock = MagicMock(return_value={"converged": True, "findings_count": 0, "blocking_findings": []})
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
 
     result = run_loop(
         "val-review-1",

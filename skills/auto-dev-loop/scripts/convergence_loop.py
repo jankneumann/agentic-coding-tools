@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -40,13 +40,10 @@ if _PARALLEL_IMPL_DIR not in sys.path:
     sys.path.insert(0, _PARALLEL_IMPL_DIR)
 
 from review_dispatcher import (  # noqa: E402
-    CliVendorAdapter,
     ReviewOrchestrator,
     ReviewResult,
 )
 from consensus_synthesizer import (  # noqa: E402
-    ConsensusFinding,
-    ConsensusReport,
     ConsensusSynthesizer,
     Finding,
     VendorResult,

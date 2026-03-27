@@ -5,13 +5,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 # Import the module under test
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from complexity_gate import (
-    GateResult,
     assess_complexity,
 )
 
