@@ -79,12 +79,17 @@ The convergence loop SHALL dispatch reviews to all available vendors via `Review
 
 The convergence loop SHALL track finding counts per round and escalate if findings are not decreasing over a 3-round sliding window (i.e., count at round N >= count at round N-2). Unconfirmed findings (single-vendor, medium+) SHALL block in rounds 1 through N-1 but SHALL NOT block in the final round. Findings with `disagreement` status SHALL always trigger escalation.
 
-#### Scenario: Stalled convergence (3-point window)
+#### Scenario: Decreasing trend continues (no stall)
 
 - **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 6
 - **WHEN** trend analysis runs after round 3
-- **THEN** the system SHALL escalate because round 3 count (6) >= round 1 count (10) is false, so it continues
-- **BUT** if round 1=5, round 2=5, round 3=5, the system SHALL escalate because round 3 (5) >= round 1 (5)
+- **THEN** the system SHALL NOT escalate because round 3 count (6) < round 1 count (10)
+
+#### Scenario: Flat trend triggers stall
+
+- **GIVEN** round 1 has 5 blocking findings, round 2 has 5, and round 3 has 5
+- **WHEN** trend analysis runs after round 3
+- **THEN** the system SHALL escalate because round 3 count (5) >= round 1 count (5)
 
 #### Scenario: Unconfirmed finding in final round
 

@@ -17,9 +17,9 @@ T7 (integration test) ───────────────────�
 
 ## Tasks
 
-### T1: Create convergence-state schema
+### T1: Create convergence-state schema + extend work-packages schema
 **Priority**: 1 (no dependencies)
-**Files**: `openspec/schemas/convergence-state.schema.json`
+**Files**: `openspec/schemas/convergence-state.schema.json`, `openspec/schemas/work-packages.schema.json`
 
 Define JSON Schema for the serializable loop state including:
 - Phase enum (INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR, DONE, ESCALATE)
@@ -32,7 +32,12 @@ Define JSON Schema for the serializable loop state including:
 - `previous_phase` and `escalation_reason` for ESCALATE state
 - Timestamps, error field
 
-**Acceptance**: `openspec validate --strict` passes with new schema.
+Also add optional `metadata` object to WorkPackage in `work-packages.schema.json`:
+- `loc_estimate` (integer, optional) — estimated lines of code
+- `alternatives_count` (integer, optional) — design alternatives noted
+- `package_kind` (string enum, optional) — algorithm, data_model, crud, config, migration, integration
+
+**Acceptance**: `openspec validate --strict` passes with both schema changes. Existing work-packages.yaml files remain valid (metadata is optional).
 
 ---
 

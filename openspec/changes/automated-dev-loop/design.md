@@ -144,18 +144,18 @@ This matches the existing pattern used by other cross-skill scripts (e.g., `inte
 
 #### Algorithm
 
-```
-function converge(review_type, artifacts, max_rounds=3, min_quorum=2):
-    for round in 1..max_rounds:
+```python
+def converge(review_type, artifacts, max_rounds=3, min_quorum=2):
+    orchestrator = ReviewOrchestrator.from_agents_yaml(agents_path)
+    trend = []
+
+    for round in range(1, max_rounds + 1):
         # 1. Dispatch reviews via ReviewOrchestrator
-        orchestrator = ReviewOrchestrator.from_agents_yaml(agents_path)
-        results = orchestrator.dispatch_and_wait(
+        results: list[ReviewResult] = orchestrator.dispatch_and_wait(
             review_type=review_type,
             dispatch_mode="review",
             prompt=build_review_prompt(artifacts, round),
             cwd=worktree_path,
-            output_dir=artifacts_dir / "reviews" / f"round-{round}",
-            timeout=600
         )
 
         # 1b. Check quorum BEFORE evaluating findings
@@ -163,27 +163,41 @@ function converge(review_type, artifacts, max_rounds=3, min_quorum=2):
         if len(successful) < min_quorum:
             return ConvergenceResult(converged=False, reason="quorum_lost", rounds=round)
 
-        # 2. Synthesize consensus via ConsensusSynthesizer
+        # 2. Convert ReviewResult → VendorResult, then synthesize
+        # ReviewResult.findings is a parsed JSON dict; extract into Finding objects
+        vendor_results = []
+        for r in successful:
+            findings = [Finding(**f) for f in (r.findings or {}).get("findings", [])]
+            vendor_results.append(VendorResult(vendor=r.vendor, findings=findings))
+
         synthesizer = ConsensusSynthesizer(quorum=min_quorum)
-        vendor_results = [VendorResult(vendor=r.vendor, findings=r.findings)
-                          for r in successful]
-        consensus = synthesizer.synthesize(
+        consensus: ConsensusReport = synthesizer.synthesize(
             review_type=review_type,
             target=change_id,
-            vendor_results=vendor_results
+            vendor_results=vendor_results,
         )
 
-        # 3. Check exit condition
-        blocking = [f for f in consensus.consensus_findings
+        # 3. Convert to dict for inspection
+        report = consensus.to_dict()
+
+        # 3a. Check for disagreement → immediate ESCALATE
+        disagreements = [f for f in report["consensus_findings"]
+                         if f["status"] == "disagreement"]
+        if disagreements:
+            return ConvergenceResult(converged=False, reason="disagreement",
+                                     rounds=round, escalate_findings=disagreements)
+
+        # 3b. Check exit condition (medium+ confirmed/unconfirmed)
+        blocking = [f for f in report["consensus_findings"]
                     if f["agreed_criticality"] in ("medium", "high", "critical")
                     and f["status"] in ("confirmed", "unconfirmed")]
 
-        # 3b. Relax unconfirmed in final round
+        # 3c. Relax unconfirmed in final round
         if round == max_rounds:
             blocking = [f for f in blocking if f["status"] != "unconfirmed"]
 
         if not blocking:
-            return ConvergenceResult(converged=True, rounds=round, consensus=consensus)
+            return ConvergenceResult(converged=True, rounds=round, consensus=report)
 
         # 4. Check trend — escalate if findings not decreasing over 3 consecutive rounds
         trend.append(len(blocking))
@@ -203,10 +217,10 @@ function converge(review_type, artifacts, max_rounds=3, min_quorum=2):
                 "round": round,
                 "findings_count": len(blocking),
                 "fix_success_rate": fix_results.success_rate,
-                "vendor_agreement": consensus.summary["confirmed_count"] /
-                    max(consensus.summary["total_unique_findings"], 1)
+                "vendor_agreement": report["summary"]["confirmed_count"] /
+                    max(report["summary"]["total_unique_findings"], 1),
             },
-            tags=["convergence", change_id, review_type]
+            tags=["convergence", change_id, review_type],
         )
 
     return ConvergenceResult(converged=False, reason="max_rounds", rounds=max_rounds)
@@ -246,7 +260,7 @@ Fix dispatch differs by phase:
 2. The original package scope (write_allow, read_allow)
 3. The package's worktree path
 
-The dispatcher uses `--include-vendor` (not broadcast) to target the specific vendor. Fix dispatch is scoped: the worktree is the package's isolated worktree, and post-fix verification checks that `files_modified ⊆ write_allow`.
+Targeted dispatch uses `CliVendorAdapter.dispatch()` directly (not the orchestrator's broadcast `dispatch_and_wait()`). The adapter is looked up from `ReviewOrchestrator.adapters` by the vendor name stored in `package_authors`. This bypasses broadcast and sends the fix to exactly one vendor. Fix dispatch is scoped: the worktree is the package's isolated worktree, and post-fix verification checks that `files_modified ⊆ write_allow`.
 
 **VAL_FIX (inline or targeted)**: Validation fixes are applied inline if they're configuration/test changes, or targeted to the relevant package's author if they require code changes.
 
@@ -478,7 +492,7 @@ openspec/
 | `integration_orchestrator.py` | Exists | No changes needed |
 | `dag_scheduler.py` | Exists | No changes needed |
 | `agents.yaml` | Exists | No changes needed |
-| `work-packages.schema.json` | Exists | Add optional `metadata` field to package schema |
+| `work-packages.schema.json` | Exists | wp-schema adds optional `metadata` field to WorkPackage |
 | `review-findings.schema.json` | Exists | No changes needed |
 | `consensus-report.schema.json` | Exists | No changes needed |
 | Coordinator MCP (memory, handoffs) | Exists | Use episodic `remember()` API, not key-value |

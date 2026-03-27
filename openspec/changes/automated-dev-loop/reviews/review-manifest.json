@@ -9,7 +9,7 @@
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 489.59942937499727,
+      "elapsed_seconds": 458.33161095799005,
       "error": null,
       "error_class": null
     },
@@ -20,7 +20,7 @@
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 1.383241999996244,
+      "elapsed_seconds": 2.5622860840085195,
       "error": "Error: environment '${CODEX_CLOUD_ENV}' not found; run `codex cloud` to list available environments\n",
       "error_class": "unknown"
     },
@@ -31,7 +31,7 @@
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 68.70307208299346,
+      "elapsed_seconds": 102.57841479199124,
       "error": "Invalid JSON output",
       "error_class": null
     },

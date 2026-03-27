@@ -28,7 +28,9 @@ packages:
       Create convergence-state.schema.json defining the serializable loop state.
       Includes phase enum, iteration tracking, findings trend array, vendor
       availability map, package status map, implementation strategy map,
-      memory/handoff references, and timestamps.
+      memory/handoff references, and timestamps. Also add optional 'metadata'
+      field to WorkPackage in work-packages.schema.json (loc_estimate,
+      alternatives_count, package_kind) for strategy selector input.
     priority: 1
     timeout_minutes: 30
     retry_budget: 1
@@ -37,13 +39,16 @@ packages:
     scope:
       write_allow:
         - "openspec/schemas/convergence-state.schema.json"
+        - "openspec/schemas/work-packages.schema.json"
       read_allow:
         - "openspec/schemas/**"
     locks:
       files:
         - "openspec/schemas/convergence-state.schema.json"
+        - "openspec/schemas/work-packages.schema.json"
       keys:
         - "contract:convergence-state.schema.json"
+        - "contract:work-packages.schema.json"
     worktree:
       name: automated-dev-loop--wp-schema
       mode: isolated

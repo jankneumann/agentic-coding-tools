@@ -1,6 +1,16 @@
-# Plan Review: automated-dev-loop
+# Plan Review Round 2: automated-dev-loop
 
-You are reviewing an OpenSpec proposal for the `automated-dev-loop` feature. Read all artifacts below and produce structured findings.
+You are reviewing an OpenSpec proposal for the `automated-dev-loop` feature. This is **round 2** — the artifacts have been updated to address 14 findings from round 1 (Claude + Codex). Focus on verifying the fixes are complete and finding any remaining issues.
+
+## Key Changes Since Round 1
+- ESCALATE state now has full re-entry protocol (previous_phase, re-evaluation)
+- Plan fixes applied inline by conductor (not via CLI subprocess)
+- 3-point stall detection (was 2-point)
+- Quorum gate before convergence declaration
+- VAL_REVIEW is now optional (enabled by complexity gate or --val-review)
+- Memory API uses episodic remember() with tags (not key-value)
+- Strategy selector reads structured metadata from work-packages.yaml
+- wp-integration has explicit deps on all leaf packages
 
 ## Artifacts to Review
 
@@ -11,24 +21,13 @@ Read these files in the current working directory:
 - `openspec/changes/automated-dev-loop/tasks.md` — Task decomposition
 - `openspec/changes/automated-dev-loop/work-packages.yaml` — Work package DAG
 
-Also review these existing dependencies to verify interface assumptions:
+Also verify interface assumptions against:
 - `skills/parallel-implement-feature/scripts/review_dispatcher.py` — Review dispatch interface
 - `skills/parallel-implement-feature/scripts/consensus_synthesizer.py` — Consensus synthesis interface
-- `openspec/schemas/review-findings.schema.json` — Finding schema
-- `openspec/schemas/consensus-report.schema.json` — Consensus schema
-
-## Review Dimensions
-
-1. **Specification completeness** — Are requirements testable? Any gaps?
-2. **Contract consistency** — Do schemas and interfaces match?
-3. **Architecture alignment** — Does the design follow existing codebase patterns?
-4. **Security** — Any vulnerabilities in the automated dispatch model?
-5. **Work package validity** — DAG correctness, scope overlaps, dependency completeness?
-6. **Correctness** — Logic errors in convergence algorithm, state machine, strategy selector?
 
 ## Output Format
 
-Output ONLY valid JSON conforming to the review-findings schema. No markdown, no explanation — just the JSON object:
+Output ONLY valid JSON conforming to the review-findings schema:
 
 ```json
 {
@@ -43,11 +42,10 @@ Output ONLY valid JSON conforming to the review-findings schema. No markdown, no
       "description": "What the issue is",
       "resolution": "How to fix it",
       "disposition": "fix|regenerate|accept|escalate",
-      "file_path": "path/to/relevant/file (optional)",
-      "line_range": {"start": 1, "end": 10}
+      "file_path": "path/to/relevant/file (optional)"
     }
   ]
 }
 ```
 
-Be thorough. Focus on medium+ severity issues. Include file_path when applicable for cross-vendor matching.
+If all round 1 findings are properly addressed and no new issues found, return an empty findings array.

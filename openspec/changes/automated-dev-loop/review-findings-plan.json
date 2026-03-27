@@ -5,87 +5,50 @@
   "findings": [
     {
       "id": 1,
-      "type": "architecture",
+      "type": "contract_mismatch",
       "criticality": "medium",
-      "description": "The convergence_loop.py is listed as importing review_dispatcher.dispatch_and_wait() and consensus_synthesizer.synthesize(), but these are currently tightly coupled to the parallel-implement-feature skill's scripts directory. No import path or packaging strategy is specified for cross-skill Python imports. The design says 'No changes needed' to these dependencies, but convergence_loop.py needs to import them from a different skill's scripts/ directory.",
-      "resolution": "Either (a) add skills/parallel-implement-feature/scripts to sys.path in convergence_loop.py, (b) extract shared modules to a common package under skills/, or (c) use the skills venv with proper package structure. Option (b) is cleanest — create skills/shared/ or similar. Specify the chosen approach in design.md.",
+      "description": "The design references '--include-vendor' for targeted fix dispatch to a specific vendor (IMPL_FIX section), but ReviewOrchestrator.dispatch_and_wait() only supports 'exclude_vendor' parameter, not include. There is no mechanism to dispatch to a single specific vendor — the dispatcher broadcasts to all available vendors minus the excluded one.",
+      "resolution": "For targeted dispatch, either (a) add an 'include_vendor' parameter to dispatch_and_wait() (new code in review_dispatcher.py), (b) use the CliVendorAdapter.dispatch() method directly for single-vendor targeted dispatch (bypasses the orchestrator), or (c) use exclude_vendor to exclude all vendors except the target. Option (b) is simplest and doesn't require changes to existing code.",
       "disposition": "fix",
-      "file_path": "openspec/changes/automated-dev-loop/design.md"
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {"start": 244, "end": 249}
     },
     {
       "id": 2,
-      "type": "spec_gap",
+      "type": "contract_mismatch",
       "criticality": "medium",
-      "description": "The ESCALATE state transition table shows {\"resolved\": \"<previous_state>\", \"abandoned\": \"DONE\"} but the spec and design don't define how ESCALATE resolution works. Who resolves it? How does the system know the human has resolved it? There's no mechanism for re-entry after escalation — the state machine can't poll for human input.",
-      "resolution": "Define ESCALATE resolution protocol: (1) system writes diagnostic to loop-state.json + handoff, (2) system exits/pauses, (3) human re-invokes /auto-dev-loop with same change-id, (4) system detects ESCALATE state + checks if blocking findings are resolved, (5) transitions to previous state. Add a scenario to the spec covering this flow.",
+      "description": "The design says strategy selector reads 'metadata.loc_estimate', 'metadata.alternatives_count', 'metadata.package_kind' from work-packages.yaml, and the dependencies table notes 'Add optional metadata field to package schema'. However, this schema change is not listed as a task or work package. The current work-packages.schema.json has additionalProperties: false on WorkPackage, so adding 'metadata' would fail schema validation until the schema is updated.",
+      "resolution": "Add the metadata schema change to wp-schema package scope (it already owns convergence-state.schema.json and could also update work-packages.schema.json), or create a separate prerequisite task. The metadata field should be optional with additionalProperties to allow flexible per-package hints.",
       "disposition": "fix",
-      "file_path": "openspec/changes/automated-dev-loop/specs/skill-workflow/spec.md"
+      "file_path": "openspec/changes/automated-dev-loop/work-packages.yaml",
+      "line_range": {"start": 25, "end": 62}
     },
     {
       "id": 3,
-      "type": "architecture",
-      "criticality": "medium",
-      "description": "The design calls dispatch_fixes() to 'the authoring agent' in alternative mode, but for plan artifacts (proposal.md, design.md, specs, work-packages.yaml) the authoring agent is the conductor itself (Claude). Fix dispatch would require Claude to invoke itself via CLI subprocess, which is circular. The MVRO review_dispatcher is designed for dispatching to OTHER vendors, not self-invocation.",
-      "resolution": "For plan fix dispatch, the conductor should apply fixes directly (it already has the context) rather than dispatching via CLI. Reserve CLI dispatch for implementation fixes where the authoring vendor may differ. Update the convergence_loop.py design to distinguish plan-fix (inline) from impl-fix (dispatched).",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The spec scenario for 3-point stall detection has confusing phrasing: 'the system SHALL escalate because round 3 count (6) >= round 1 count (10) is false, so it continues'. This reads as 'SHALL escalate' followed by 'so it continues' — contradictory. The scenario should clearly state the expected outcome.",
+      "resolution": "Rewrite as two separate sub-scenarios: one where stall is NOT detected (10, 5, 6 → continues because 6 < 10) and one where stall IS detected (5, 5, 5 → escalates because 5 >= 5).",
       "disposition": "fix",
-      "file_path": "openspec/changes/automated-dev-loop/design.md"
+      "file_path": "openspec/changes/automated-dev-loop/specs/skill-workflow/spec.md",
+      "line_range": {"start": 82, "end": 87}
     },
     {
       "id": 4,
-      "type": "spec_gap",
+      "type": "architecture",
       "criticality": "low",
-      "description": "The complexity gate thresholds (LOC > 500, packages > 4, external deps > 2) are hardcoded in the spec. These are reasonable defaults but there's no mechanism to override them per-project or per-invocation beyond --force (which bypasses all checks).",
-      "resolution": "Add a configuration mechanism — e.g., read thresholds from a config section in work-packages.yaml defaults or from a project-level .auto-dev-loop.yaml. This allows projects with higher complexity baselines to use the feature without --force.",
-      "disposition": "accept"
+      "description": "The design's diagram still shows VAL_REVIEW as always-present in the flow (VALIDATE → VAL_REVIEW → VAL_FIX), but the text and spec make it optional. The diagram should visually indicate the optional nature (e.g., dashed box or [brackets]).",
+      "resolution": "Minor: update the ASCII diagram to show VAL_REVIEW with brackets or a dashed indicator to match the optional semantics described in the text.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {"start": 25, "end": 31}
     },
     {
       "id": 5,
-      "type": "correctness",
-      "criticality": "medium",
-      "description": "The convergence algorithm's stall detection (trend[-1] >= trend[-2]) triggers after just 2 data points. In practice, round 1 might find 10 issues, fixes address 8 but introduce 3 new ones (net: 5). Round 2 finds 5 — this is not a stall, it's normal churn. But if round 3 finds 4, the trend [10, 5, 4] would NOT trigger stall detection, while [10, 5, 5] would — despite being only 1 finding different. The 2-point stall detection is too sensitive.",
-      "resolution": "Use a 3-point window for stall detection: escalate only if findings haven't decreased over 3 consecutive rounds, or if the rate of decrease falls below a threshold (e.g., < 20% reduction per round). This gives the fix cycle more room to work while still catching genuine stalls.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/automated-dev-loop/design.md"
-    },
-    {
-      "id": 6,
-      "type": "architecture",
-      "criticality": "low",
-      "description": "The alternatives+synthesis flow (step 3-4) says 'Synthesis agent reviews all 3, picks best approach. Merge selected implementation, cherry-pick individual improvements from others.' Cherry-picking across 3 independent implementations that modify the same files is extremely difficult to automate reliably. Git cherry-pick would fail on most non-trivial changes.",
-      "resolution": "Simplify: the synthesis agent selects ONE implementation as the winner and may make targeted edits to incorporate specific improvements from others. Don't attempt automated cherry-pick across divergent branches.",
-      "disposition": "accept"
-    },
-    {
-      "id": 7,
       "type": "spec_gap",
       "criticality": "low",
-      "description": "No requirement or scenario covers what happens when the proposal itself needs to be created (user passes a description instead of a change-id). The spec says 'create a new proposal from the description' but doesn't specify which skill does this — /parallel-plan-feature? /linear-plan-feature? Does the proposal itself go through the convergence loop, or does it start at PLAN_REVIEW assuming the proposal is already adequate?",
-      "resolution": "Add a PLAN phase before PLAN_REVIEW that delegates to /parallel-plan-feature or /linear-plan-feature, then transitions to PLAN_REVIEW. Or document that description-based invocation creates a minimal proposal and PLAN_REVIEW convergence handles quality.",
-      "disposition": "accept"
-    },
-    {
-      "id": 8,
-      "type": "correctness",
-      "criticality": "high",
-      "description": "The work-packages.yaml has wp-integration depending on wp-conductor and wp-skill-prompt, but NOT on wp-schema, wp-convergence-engine, wp-strategy-selector, or wp-complexity-gate. Since wp-conductor depends on all four leaf packages, this is transitively correct — but the integration merge step (merge_worktrees.py) needs to merge ALL package branches, including the leaf ones. If integration only waits for wp-conductor and wp-skill-prompt, the leaf package branches may not be ready for merge.",
-      "resolution": "Add all leaf packages (wp-schema, wp-convergence-engine, wp-strategy-selector, wp-complexity-gate) to wp-integration's depends_on list explicitly. The DAG scheduler should not rely on transitive dependencies for merge readiness — the integration package should directly depend on everything it merges.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/automated-dev-loop/work-packages.yaml"
-    },
-    {
-      "id": 9,
-      "type": "spec_gap",
-      "criticality": "low",
-      "description": "The tasks.md lists T7 (unit tests) as a separate task depending on T2-T5, but the work-packages.yaml bundles tests with their respective packages (each package's write_allow includes its test file). This is inconsistent — are tests written by the package agent or by a separate test agent?",
-      "resolution": "Align tasks.md with work-packages.yaml: each package writes its own tests. Remove T7 as a standalone task or redefine it as 'cross-package test infrastructure' (shared fixtures, conftest.py) if needed.",
-      "disposition": "accept"
-    },
-    {
-      "id": 10,
-      "type": "security",
-      "criticality": "low",
-      "description": "The automated loop dispatches vendor CLIs with write access (alternative mode) for fix dispatch. If a vendor CLI is compromised or produces malicious output, the fix could introduce vulnerabilities. The scope constraints in work-packages.yaml limit file access, but the fix dispatch during convergence operates outside the work-package scope model.",
-      "resolution": "Document that fix dispatch during PLAN_FIX operates on plan artifacts only (proposal.md, design.md, specs, work-packages.yaml) and cannot modify code files. During IMPL_FIX, fixes must respect the original package's write_allow scope. Add scope enforcement to the fix dispatch path.",
+      "description": "The dispatch_and_wait() method currently dispatches sequentially per the code comment ('Currently dispatches sequentially. Future: parallel subprocess.'). For 3 vendors with 600s timeout each, worst case is 1800s (30 min) per convergence round. The proposal's success criterion of '< 30 minutes' for the full lifecycle would be impossible to meet if all 3 vendors hit timeout in any single round.",
+      "resolution": "Document this constraint: the 30-minute target assumes vendors respond within ~2-3 minutes each. If sequential dispatch becomes a bottleneck, parallel subprocess dispatch is the mitigation (already noted as future work in the dispatcher code).",
       "disposition": "accept"
     }
   ]
