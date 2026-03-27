@@ -7,7 +7,10 @@ no per-vendor subclasses needed.
 Usage:
     from review_dispatcher import ReviewOrchestrator
 
-    orch = ReviewOrchestrator.from_agents_yaml(Path("agents.yaml"))
+    # Preferred: query coordinator MCP server (works in any repo)
+    orch = ReviewOrchestrator.from_coordinator()
+    # Fallback: load from agents.yaml on disk (only in agentic-coding-tools repo)
+    orch = ReviewOrchestrator.from_agents_yaml()
     results = orch.dispatch_and_wait(
         review_type="plan",
         dispatch_mode="review",
@@ -530,43 +533,130 @@ class ReviewOrchestrator:
         self.adapters = adapters
 
     @classmethod
+    def from_config_dict(cls, data: dict[str, Any]) -> "ReviewOrchestrator":
+        """Create orchestrator from a config dict (as returned by coordinator).
+
+        The dict should have an ``agents`` key containing a list of agent
+        config dicts, each with ``agent_id``, ``type``, and ``cli``.
+        """
+        adapters: dict[str, CliVendorAdapter] = {}
+        for agent in data.get("agents", []):
+            cli = agent.get("cli")
+            if not cli:
+                continue
+            dispatch_modes: dict[str, ModeConfig] = {}
+            for mode_name, mode_data in cli.get("dispatch_modes", {}).items():
+                poll_data = mode_data.get("poll")
+                poll_cfg = PollConfig(
+                    command_template=poll_data["command_template"],
+                    task_id_pattern=poll_data["task_id_pattern"],
+                    success_pattern=poll_data["success_pattern"],
+                    failure_pattern=poll_data.get("failure_pattern", "failed|error"),
+                    interval_seconds=poll_data.get("interval_seconds", 30),
+                    timeout_seconds=poll_data.get("timeout_seconds", 600),
+                ) if poll_data else None
+                dispatch_modes[mode_name] = ModeConfig(
+                    args=mode_data["args"],
+                    async_dispatch=mode_data.get("async", False),
+                    poll=poll_cfg,
+                )
+            adapters[agent["agent_id"]] = CliVendorAdapter(
+                agent_id=agent["agent_id"],
+                vendor=agent["type"],
+                cli_config=CliConfig(
+                    command=cli["command"],
+                    dispatch_modes=dispatch_modes,
+                    model_flag=cli.get("model_flag", "-m"),
+                    model=cli.get("model"),
+                    model_fallbacks=cli.get("model_fallbacks", []),
+                    prompt_via_stdin=cli.get("prompt_via_stdin", False),
+                ),
+            )
+        return cls(adapters)
+
+    @classmethod
+    def from_coordinator(cls) -> "ReviewOrchestrator":
+        """Create orchestrator by querying the coordinator MCP server.
+
+        Uses ``claude mcp call`` to invoke ``get_agent_dispatch_configs``
+        on the coordination MCP server.  Falls back to empty if coordinator
+        is unavailable.
+        """
+        claude_bin = shutil.which("claude")
+        if not claude_bin:
+            logger.warning("claude binary not found — cannot query coordinator")
+            return cls({})
+
+        try:
+            result = subprocess.run(
+                [claude_bin, "mcp", "call", "coordination",
+                 "get_agent_dispatch_configs", "{}"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    "Coordinator query failed: %s", result.stderr[:200],
+                )
+                return cls({})
+            data = json.loads(result.stdout)
+            return cls.from_config_dict(data)
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
+            logger.warning("Coordinator query error: %s", exc)
+            return cls({})
+
+    @classmethod
     def from_agents_yaml(cls, path: Path | None = None) -> "ReviewOrchestrator":
-        """Create orchestrator from agents.yaml config."""
-        # Import here to avoid circular dependency when used standalone
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "agent-coordinator"))
-        from src.agents_config import load_agents_config
+        """Create orchestrator from agents.yaml on disk (legacy/testing).
+
+        Only works in repos that have agent-coordinator/ on disk.
+        Prefer ``from_coordinator()`` for cross-repo use.
+        """
+        try:
+            sys.path.insert(
+                0,
+                str(Path(__file__).resolve().parent.parent.parent.parent
+                    / "agent-coordinator"),
+            )
+            from src.agents_config import load_agents_config
+        except (ImportError, ModuleNotFoundError):
+            logger.warning(
+                "agent-coordinator not found on disk — "
+                "use from_coordinator() instead",
+            )
+            return cls({})
 
         entries = load_agents_config(path)
-        adapters: dict[str, CliVendorAdapter] = {}
+        agents_list: list[dict[str, Any]] = []
         for entry in entries:
-            if entry.cli is not None:
-                adapters[entry.name] = CliVendorAdapter(
-                    agent_id=entry.name,
-                    vendor=entry.type,
-                    cli_config=CliConfig(
-                        command=entry.cli.command,
-                        dispatch_modes={
-                            name: ModeConfig(
-                                args=mc.args,
-                                async_dispatch=mc.async_dispatch,
-                                poll=PollConfig(
-                                    command_template=mc.poll.command_template,
-                                    task_id_pattern=mc.poll.task_id_pattern,
-                                    success_pattern=mc.poll.success_pattern,
-                                    failure_pattern=mc.poll.failure_pattern,
-                                    interval_seconds=mc.poll.interval_seconds,
-                                    timeout_seconds=mc.poll.timeout_seconds,
-                                ) if mc.poll else None,
-                            )
-                            for name, mc in entry.cli.dispatch_modes.items()
-                        },
-                        model_flag=entry.cli.model_flag,
-                        model=entry.cli.model,
-                        model_fallbacks=entry.cli.model_fallbacks,
-                        prompt_via_stdin=entry.cli.prompt_via_stdin,
-                    ),
-                )
-        return cls(adapters)
+            if entry.cli is None:
+                continue
+            agents_list.append({
+                "agent_id": entry.name,
+                "type": entry.type,
+                "cli": {
+                    "command": entry.cli.command,
+                    "dispatch_modes": {
+                        name: {
+                            "args": mc.args,
+                            "async": mc.async_dispatch,
+                            **({"poll": {
+                                "command_template": mc.poll.command_template,
+                                "task_id_pattern": mc.poll.task_id_pattern,
+                                "success_pattern": mc.poll.success_pattern,
+                                "failure_pattern": mc.poll.failure_pattern,
+                                "interval_seconds": mc.poll.interval_seconds,
+                                "timeout_seconds": mc.poll.timeout_seconds,
+                            }} if mc.poll else {}),
+                        }
+                        for name, mc in entry.cli.dispatch_modes.items()
+                    },
+                    "model_flag": entry.cli.model_flag,
+                    "model": entry.cli.model,
+                    "model_fallbacks": entry.cli.model_fallbacks,
+                    "prompt_via_stdin": entry.cli.prompt_via_stdin,
+                },
+            })
+        return cls.from_config_dict({"agents": agents_list})
 
     def discover_reviewers(self, exclude_vendor: str | None = None) -> list[ReviewerInfo]:
         """Discover available reviewers, optionally excluding the primary vendor."""
@@ -697,7 +787,11 @@ def main() -> int:
         description="Dispatch multi-vendor review via CLI",
     )
     parser.add_argument(
-        "--review-type", required=True,
+        "--list-agents", action="store_true",
+        help="List available agents with CLI dispatch configs and exit",
+    )
+    parser.add_argument(
+        "--review-type",
         choices=["plan", "implementation"],
     )
     parser.add_argument(
@@ -729,6 +823,34 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # --list-agents: show available agents and exit
+    if args.list_agents:
+        if args.agents_yaml:
+            orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
+        else:
+            orch = ReviewOrchestrator.from_coordinator()
+            if not orch.adapters:
+                orch = ReviewOrchestrator.from_agents_yaml()
+        if not orch.adapters:
+            print("No agents with CLI dispatch configs found")
+            return 1
+        print(f"{'Agent':<20} {'Vendor':<15} {'Command':<10} {'Modes':<30} {'Stdin':<6} {'Fallbacks'}")
+        print("-" * 100)
+        for agent_id, adapter in orch.adapters.items():
+            c = adapter.cli_config
+            modes = ", ".join(
+                f"{m}{'*' if c.dispatch_modes[m].async_dispatch else ''}"
+                for m in c.dispatch_modes
+            )
+            fb = ", ".join(c.model_fallbacks) or "(none)"
+            print(f"{agent_id:<20} {adapter.vendor:<15} {c.command:<10} {modes:<30} {'yes' if c.prompt_via_stdin else 'no':<6} {fb}")
+        print(f"\n* = async dispatch (submit + poll)")
+        return 0
+
+    if not args.review_type:
+        print("Error: --review-type required (or use --list-agents)", file=sys.stderr)
+        return 1
+
     # Load prompt
     if args.prompt_file:
         prompt = Path(args.prompt_file).read_text()
@@ -738,9 +860,14 @@ def main() -> int:
         print("Error: --prompt or --prompt-file required", file=sys.stderr)
         return 1
 
-    # Create orchestrator
-    agents_path = Path(args.agents_yaml) if args.agents_yaml else None
-    orch = ReviewOrchestrator.from_agents_yaml(agents_path)
+    # Create orchestrator — try coordinator first, fall back to agents.yaml
+    if args.agents_yaml:
+        orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
+    else:
+        orch = ReviewOrchestrator.from_coordinator()
+        if not orch.adapters:
+            logger.info("Coordinator unavailable, trying agents.yaml on disk")
+            orch = ReviewOrchestrator.from_agents_yaml()
 
     # Discover
     reviewers = orch.discover_reviewers(exclude_vendor=args.exclude_vendor)

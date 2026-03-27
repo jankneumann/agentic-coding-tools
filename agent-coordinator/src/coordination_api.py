@@ -660,6 +660,16 @@ def create_coordination_api() -> FastAPI:
             "reason": result.reason,
         }
 
+    @app.get("/agents/dispatch-configs")
+    async def get_agent_dispatch_configs() -> dict[str, Any]:
+        """Get CLI dispatch configs for agents with cli sections.
+
+        No auth required — dispatch configs are not sensitive.
+        """
+        from .agents_config import get_dispatch_configs
+
+        return get_dispatch_configs()
+
     # --------------------------------------------------------------------- #
     # AUDIT
     # --------------------------------------------------------------------- #

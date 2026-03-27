@@ -820,6 +820,23 @@ async def get_my_profile() -> dict[str, Any]:
     }
 
 
+@mcp.tool()
+async def get_agent_dispatch_configs() -> dict[str, Any]:
+    """
+    Get CLI dispatch configurations for all agents with a `cli` section.
+
+    Returns agent CLI configs needed by the review dispatcher to
+    invoke vendor CLIs.  Only agents with a `cli` section in
+    ``agents.yaml`` are included.
+
+    Returns:
+        agents: List of agent dispatch configs with cli details
+    """
+    from .agents_config import get_dispatch_configs
+
+    return get_dispatch_configs()
+
+
 # =============================================================================
 # MCP TOOLS: Audit (Phase 3)
 # =============================================================================
