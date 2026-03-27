@@ -1,0 +1,543 @@
+schema_version: 1
+
+feature:
+  id: parallel-scrub-pipeline
+  title: "Parallel & Multi-Vendor Scrub Pipeline"
+  plan_revision: 1
+  created_by: claude-opus
+  created_at: "2026-03-26T12:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+    files:
+      - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "A"
+  min_trust_level: 2
+
+packages:
+  # ── WP-CONTRACTS ──────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Define internal API contracts"
+    task_type: contracts
+    description: >
+      Create and validate the internal Python function contracts for
+      parallel_runner, parallel_auto, parallel_verify, and vendor_dispatch
+      modules. These contracts define the interface boundary between
+      work packages.
+    role: architect
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+      keys:
+        - "contract:parallel-scrub-pipeline:internal-api"
+      ttl_minutes: 60
+      reason: "Contract definition — must complete before implementation"
+    scope:
+      write_allow:
+        - "openspec/changes/parallel-scrub-pipeline/contracts/**"
+      read_allow:
+        - "skills/bug-scrub/scripts/**"
+        - "skills/fix-scrub/scripts/**"
+        - "openspec/changes/parallel-scrub-pipeline/**"
+      deny: []
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "C"
+      steps:
+        - name: validate-contracts
+          kind: manual
+          manual_instructions: "Review contract signatures match existing data models"
+          evidence:
+            artifacts:
+              - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+            result_keys:
+              - "contracts_validated"
+    outputs:
+      result_keys:
+        - "contracts_validated"
+      artifacts:
+        - "openspec/changes/parallel-scrub-pipeline/contracts/internal/parallel-runner-api.yaml"
+
+  # ── WP-PARALLEL-COLLECTORS ────────────────────────────────────
+  - package_id: wp-parallel-collectors
+    title: "Bug-scrub parallel collector execution"
+    task_type: implementation
+    description: >
+      Create parallel_runner.py with ProcessPoolExecutor-based collector
+      execution. Modify main.py to add --parallel and --max-workers CLI
+      flags. Create test_parallel_runner.py with unit tests and
+      sequential/parallel equivalence tests. Tasks: T1.1-T1.5.
+    role: backend-developer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/bug-scrub/scripts/parallel_runner.py"
+        - "skills/bug-scrub/scripts/main.py"
+        - "skills/bug-scrub/tests/test_parallel_runner.py"
+      keys:
+        - "feature:parallel-scrub-pipeline:collectors"
+      ttl_minutes: 120
+      reason: "Bug-scrub parallel collector implementation"
+    scope:
+      write_allow:
+        - "skills/bug-scrub/scripts/parallel_runner.py"
+        - "skills/bug-scrub/scripts/main.py"
+        - "skills/bug-scrub/tests/test_parallel_runner.py"
+      read_allow:
+        - "skills/bug-scrub/**"
+        - "openspec/changes/parallel-scrub-pipeline/contracts/**"
+      deny:
+        - "skills/fix-scrub/**"
+    worktree:
+      name: wp-parallel-collectors
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests/test_parallel_runner.py -v"
+          evidence:
+            artifacts:
+              - "skills/bug-scrub/tests/test_parallel_runner.py"
+            result_keys:
+              - "parallel_runner_tests_passed"
+        - name: existing-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "bug_scrub_regression_clean"
+        - name: lint
+          kind: command
+          command: "ruff check skills/bug-scrub/scripts/parallel_runner.py skills/bug-scrub/scripts/main.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "lint_clean"
+    outputs:
+      result_keys:
+        - "parallel_runner_tests_passed"
+        - "bug_scrub_regression_clean"
+        - "lint_clean"
+      artifacts:
+        - "skills/bug-scrub/scripts/parallel_runner.py"
+        - "skills/bug-scrub/tests/test_parallel_runner.py"
+
+  # ── WP-PARALLEL-AUTOFIX ──────────────────────────────────────
+  - package_id: wp-parallel-autofix
+    title: "Fix-scrub parallel auto-fix execution"
+    task_type: implementation
+    description: >
+      Create parallel_auto.py with ThreadPoolExecutor-based auto-fix
+      group execution. Add file-group overlap assertion to plan_fixes.py.
+      Modify main.py to add --parallel flag for auto-fix path. Create
+      test_parallel_auto.py. Tasks: T2.1-T2.5.
+    role: backend-developer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/fix-scrub/scripts/parallel_auto.py"
+        - "skills/fix-scrub/scripts/plan_fixes.py"
+        - "skills/fix-scrub/tests/test_parallel_auto.py"
+      keys:
+        - "feature:parallel-scrub-pipeline:autofix"
+      ttl_minutes: 120
+      reason: "Fix-scrub parallel auto-fix implementation"
+    scope:
+      write_allow:
+        - "skills/fix-scrub/scripts/parallel_auto.py"
+        - "skills/fix-scrub/scripts/plan_fixes.py"
+        - "skills/fix-scrub/tests/test_parallel_auto.py"
+      read_allow:
+        - "skills/fix-scrub/**"
+        - "skills/bug-scrub/scripts/models.py"
+        - "openspec/changes/parallel-scrub-pipeline/contracts/**"
+      deny:
+        - "skills/bug-scrub/scripts/**"
+        - "skills/bug-scrub/tests/**"
+    worktree:
+      name: wp-parallel-autofix
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/fix-scrub/tests/test_parallel_auto.py -v"
+          evidence:
+            artifacts:
+              - "skills/fix-scrub/tests/test_parallel_auto.py"
+            result_keys:
+              - "parallel_auto_tests_passed"
+        - name: existing-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/fix-scrub/tests/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "fix_scrub_regression_clean"
+        - name: lint
+          kind: command
+          command: "ruff check skills/fix-scrub/scripts/parallel_auto.py skills/fix-scrub/scripts/plan_fixes.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "lint_clean"
+    outputs:
+      result_keys:
+        - "parallel_auto_tests_passed"
+        - "fix_scrub_regression_clean"
+        - "lint_clean"
+      artifacts:
+        - "skills/fix-scrub/scripts/parallel_auto.py"
+        - "skills/fix-scrub/tests/test_parallel_auto.py"
+
+  # ── WP-PARALLEL-VERIFY ───────────────────────────────────────
+  - package_id: wp-parallel-verify
+    title: "Fix-scrub parallel verification"
+    task_type: implementation
+    description: >
+      Create parallel_verify.py with ThreadPoolExecutor-based quality
+      checks (pytest, mypy, ruff, openspec). Integrate into main.py
+      verify path. Create test_parallel_verify.py with equivalence
+      tests. Tasks: T3.1-T3.4.
+    role: backend-developer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/fix-scrub/scripts/parallel_verify.py"
+        - "skills/fix-scrub/tests/test_parallel_verify.py"
+      keys:
+        - "feature:parallel-scrub-pipeline:verify"
+      ttl_minutes: 120
+      reason: "Fix-scrub parallel verification implementation"
+    scope:
+      write_allow:
+        - "skills/fix-scrub/scripts/parallel_verify.py"
+        - "skills/fix-scrub/tests/test_parallel_verify.py"
+      read_allow:
+        - "skills/fix-scrub/**"
+        - "openspec/changes/parallel-scrub-pipeline/contracts/**"
+      deny:
+        - "skills/bug-scrub/**"
+    worktree:
+      name: wp-parallel-verify
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/fix-scrub/tests/test_parallel_verify.py -v"
+          evidence:
+            artifacts:
+              - "skills/fix-scrub/tests/test_parallel_verify.py"
+            result_keys:
+              - "parallel_verify_tests_passed"
+        - name: lint
+          kind: command
+          command: "ruff check skills/fix-scrub/scripts/parallel_verify.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "lint_clean"
+    outputs:
+      result_keys:
+        - "parallel_verify_tests_passed"
+        - "lint_clean"
+      artifacts:
+        - "skills/fix-scrub/scripts/parallel_verify.py"
+        - "skills/fix-scrub/tests/test_parallel_verify.py"
+
+  # ── WP-VENDOR-DISPATCH ───────────────────────────────────────
+  - package_id: wp-vendor-dispatch
+    title: "Multi-vendor agent dispatch for fix-scrub"
+    task_type: implementation
+    description: >
+      Create vendor_dispatch.py with category-to-vendor routing logic.
+      Create vendor_dispatch_config.yaml with default category-vendor
+      mappings. Add --vendors CLI flag to main.py. Generate per-vendor
+      prompt files. Create test_vendor_dispatch.py. Tasks: T4.1-T4.6.
+    role: backend-developer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/fix-scrub/scripts/vendor_dispatch.py"
+        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
+        - "skills/fix-scrub/tests/test_vendor_dispatch.py"
+      keys:
+        - "feature:parallel-scrub-pipeline:dispatch"
+      ttl_minutes: 120
+      reason: "Multi-vendor dispatch implementation"
+    scope:
+      write_allow:
+        - "skills/fix-scrub/scripts/vendor_dispatch.py"
+        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
+        - "skills/fix-scrub/tests/test_vendor_dispatch.py"
+      read_allow:
+        - "skills/fix-scrub/**"
+        - "skills/mvro/**"
+        - "openspec/changes/parallel-scrub-pipeline/contracts/**"
+      deny:
+        - "skills/bug-scrub/**"
+    worktree:
+      name: wp-vendor-dispatch
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: unit-tests
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/fix-scrub/tests/test_vendor_dispatch.py -v"
+          evidence:
+            artifacts:
+              - "skills/fix-scrub/tests/test_vendor_dispatch.py"
+            result_keys:
+              - "vendor_dispatch_tests_passed"
+        - name: lint
+          kind: command
+          command: "ruff check skills/fix-scrub/scripts/vendor_dispatch.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "lint_clean"
+    outputs:
+      result_keys:
+        - "vendor_dispatch_tests_passed"
+        - "lint_clean"
+      artifacts:
+        - "skills/fix-scrub/scripts/vendor_dispatch.py"
+        - "skills/fix-scrub/scripts/vendor_dispatch_config.yaml"
+        - "skills/fix-scrub/tests/test_vendor_dispatch.py"
+
+  # ── WP-ORCHESTRATOR-UPDATE ───────────────────────────────────
+  - package_id: wp-orchestrator-update
+    title: "Integrate parallel paths into both orchestrators"
+    task_type: implementation
+    description: >
+      Wire all parallel modules into bug-scrub main.py and fix-scrub
+      main.py. Add --parallel and --vendors CLI flags. Ensure conditional
+      dispatch: sequential by default, parallel when opted in. Update
+      SKILL.md files with new flag documentation.
+    role: backend-developer
+    priority: 3
+    depends_on:
+      - wp-parallel-collectors
+      - wp-parallel-autofix
+      - wp-parallel-verify
+      - wp-vendor-dispatch
+    locks:
+      files:
+        - "skills/bug-scrub/scripts/main.py"
+        - "skills/fix-scrub/scripts/main.py"
+      keys:
+        - "feature:parallel-scrub-pipeline:orchestrator"
+      ttl_minutes: 120
+      reason: "Final orchestrator integration — depends on all implementation packages"
+    scope:
+      write_allow:
+        - "skills/bug-scrub/scripts/main.py"
+        - "skills/fix-scrub/scripts/main.py"
+      read_allow:
+        - "skills/bug-scrub/**"
+        - "skills/fix-scrub/**"
+        - "openspec/changes/parallel-scrub-pipeline/**"
+      deny: []
+    worktree:
+      name: wp-orchestrator-update
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: full-test-suite
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "full_test_suite_passed"
+        - name: lint-all
+          kind: command
+          command: "ruff check skills/bug-scrub/scripts/ skills/fix-scrub/scripts/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "lint_all_clean"
+    outputs:
+      result_keys:
+        - "full_test_suite_passed"
+        - "lint_all_clean"
+      artifacts:
+        - "skills/bug-scrub/scripts/main.py"
+        - "skills/fix-scrub/scripts/main.py"
+
+  # ── WP-SKILL-DOCS ───────────────────────────────────────────
+  - package_id: wp-skill-docs
+    title: "Update SKILL.md documentation"
+    task_type: documentation
+    description: >
+      Update bug-scrub SKILL.md with --parallel usage. Update fix-scrub
+      SKILL.md with --parallel and --vendors usage. Include multi-vendor
+      dispatch examples and configuration reference.
+    role: technical-writer
+    priority: 3
+    depends_on:
+      - wp-parallel-collectors
+      - wp-vendor-dispatch
+    locks:
+      files: []
+      keys:
+        - "feature:parallel-scrub-pipeline:docs"
+      ttl_minutes: 60
+      reason: "Documentation update"
+    scope:
+      write_allow:
+        - "skills/bug-scrub/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+      read_allow:
+        - "skills/bug-scrub/**"
+        - "skills/fix-scrub/**"
+        - "openspec/changes/parallel-scrub-pipeline/**"
+      deny: []
+    worktree:
+      name: wp-skill-docs
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 0
+    min_trust_level: 1
+    verification:
+      tier_required: "C"
+      steps:
+        - name: doc-review
+          kind: manual
+          manual_instructions: "Verify SKILL.md updates match implemented CLI flags"
+          evidence:
+            artifacts:
+              - "skills/bug-scrub/SKILL.md"
+              - "skills/fix-scrub/SKILL.md"
+            result_keys:
+              - "docs_reviewed"
+    outputs:
+      result_keys:
+        - "docs_reviewed"
+      artifacts:
+        - "skills/bug-scrub/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+
+  # ── WP-INTEGRATION ──────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Merge worktrees and run full validation"
+    task_type: integration
+    description: >
+      Merge all package branches into the feature branch. Run full CI
+      validation (ruff, mypy strict, pytest). Verify sequential/parallel
+      equivalence end-to-end. Run openspec validate --strict.
+    role: integrator
+    priority: 10
+    depends_on:
+      - wp-orchestrator-update
+      - wp-skill-docs
+    locks:
+      files: []
+      keys:
+        - "feature:parallel-scrub-pipeline:integration"
+      ttl_minutes: 60
+      reason: "Final integration and validation gate"
+    scope:
+      write_allow:
+        - "skills/bug-scrub/**"
+        - "skills/fix-scrub/**"
+        - "openspec/changes/parallel-scrub-pipeline/**"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: wp-integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: "A"
+      steps:
+        - name: full-test-suite
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests/ skills/fix-scrub/tests/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "integration_tests_passed"
+        - name: lint
+          kind: command
+          command: "ruff check skills/bug-scrub/ skills/fix-scrub/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "integration_lint_clean"
+        - name: openspec-validate
+          kind: command
+          command: "openspec validate parallel-scrub-pipeline --strict"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+        - name: ci-checks
+          kind: ci
+          ci:
+            provider: github
+            workflow: "ci.yml"
+            required_checks:
+              - "lint"
+              - "typecheck"
+              - "test"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ci_green"
+    outputs:
+      result_keys:
+        - "integration_tests_passed"
+        - "integration_lint_clean"
+        - "openspec_valid"
+        - "ci_green"
+      artifacts: []

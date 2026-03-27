@@ -1,0 +1,88 @@
+# Internal API Contract: Parallel Runner
+# These are Python function signatures — not HTTP APIs.
+# Contracts define the interface between work packages.
+
+parallel_runner:
+  module: skills.bug-scrub.scripts.parallel_runner
+  functions:
+    - name: run_collectors_parallel
+      signature: |
+        def run_collectors_parallel(
+            collectors: dict[str, Callable[[str], SourceResult]],
+            project_dir: str,
+            max_workers: int = 8,
+            timeout_per_collector: int = 300,
+        ) -> list[SourceResult]
+      description: >
+        Run signal collectors concurrently via ProcessPoolExecutor.
+        Returns results in submission order. Failed collectors return
+        SourceResult(status="error") instead of raising.
+      inputs:
+        - collectors: dict mapping source name to collector function
+        - project_dir: absolute path to project root
+        - max_workers: max concurrent processes (default 8)
+        - timeout_per_collector: per-collector timeout in seconds
+      outputs:
+        - list[SourceResult] in same order as collectors dict
+
+parallel_auto:
+  module: skills.fix-scrub.scripts.parallel_auto
+  functions:
+    - name: execute_auto_fixes_parallel
+      signature: |
+        def execute_auto_fixes_parallel(
+            auto_groups: list[FixGroup],
+            project_dir: str,
+            max_workers: int = 4,
+        ) -> tuple[list[ClassifiedFinding], list[ClassifiedFinding]]
+      description: >
+        Run ruff --fix on non-overlapping file groups concurrently.
+        Returns (resolved, persisting) findings.
+      inputs:
+        - auto_groups: file-grouped classified findings
+        - project_dir: project root
+        - max_workers: max concurrent threads
+      outputs:
+        - tuple of (resolved_findings, persisting_findings)
+
+parallel_verify:
+  module: skills.fix-scrub.scripts.parallel_verify
+  functions:
+    - name: verify_parallel
+      signature: |
+        def verify_parallel(
+            project_dir: str,
+            original_failures: list[str] | None = None,
+        ) -> VerificationResult
+      description: >
+        Run quality checks (pytest, mypy, ruff, openspec) concurrently.
+        Returns unified VerificationResult.
+
+vendor_dispatch:
+  module: skills.fix-scrub.scripts.vendor_dispatch
+  functions:
+    - name: route_prompts_to_vendors
+      signature: |
+        def route_prompts_to_vendors(
+            agent_prompts: list[dict[str, str]],
+            vendor_config: VendorDispatchConfig,
+            available_vendors: list[str] | None = None,
+        ) -> dict[str, list[dict[str, str]]]
+      description: >
+        Route agent-fix prompts to vendors based on finding category.
+        Returns dict mapping vendor name to list of prompts for that vendor.
+      inputs:
+        - agent_prompts: list of {"file": str, "prompt": str, "category": str}
+        - vendor_config: loaded dispatch config with category-to-vendor mapping
+        - available_vendors: optional filter (None = all configured vendors)
+      outputs:
+        - dict[vendor_name, list[prompt_dict]]
+
+    - name: load_vendor_config
+      signature: |
+        def load_vendor_config(
+            config_path: str | None = None,
+        ) -> VendorDispatchConfig
+      description: >
+        Load vendor dispatch config from YAML file.
+        Falls back to default config if path is None.
