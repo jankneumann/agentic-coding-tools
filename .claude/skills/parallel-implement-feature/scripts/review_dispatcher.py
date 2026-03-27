@@ -787,7 +787,11 @@ def main() -> int:
         description="Dispatch multi-vendor review via CLI",
     )
     parser.add_argument(
-        "--review-type", required=True,
+        "--list-agents", action="store_true",
+        help="List available agents with CLI dispatch configs and exit",
+    )
+    parser.add_argument(
+        "--review-type",
         choices=["plan", "implementation"],
     )
     parser.add_argument(
@@ -818,6 +822,34 @@ def main() -> int:
         "--agents-yaml", help="Path to agents.yaml (default: auto-detect)",
     )
     args = parser.parse_args()
+
+    # --list-agents: show available agents and exit
+    if args.list_agents:
+        if args.agents_yaml:
+            orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
+        else:
+            orch = ReviewOrchestrator.from_coordinator()
+            if not orch.adapters:
+                orch = ReviewOrchestrator.from_agents_yaml()
+        if not orch.adapters:
+            print("No agents with CLI dispatch configs found")
+            return 1
+        print(f"{'Agent':<20} {'Vendor':<15} {'Command':<10} {'Modes':<30} {'Stdin':<6} {'Fallbacks'}")
+        print("-" * 100)
+        for agent_id, adapter in orch.adapters.items():
+            c = adapter.cli_config
+            modes = ", ".join(
+                f"{m}{'*' if c.dispatch_modes[m].async_dispatch else ''}"
+                for m in c.dispatch_modes
+            )
+            fb = ", ".join(c.model_fallbacks) or "(none)"
+            print(f"{agent_id:<20} {adapter.vendor:<15} {c.command:<10} {modes:<30} {'yes' if c.prompt_via_stdin else 'no':<6} {fb}")
+        print(f"\n* = async dispatch (submit + poll)")
+        return 0
+
+    if not args.review_type:
+        print("Error: --review-type required (or use --list-agents)", file=sys.stderr)
+        return 1
 
     # Load prompt
     if args.prompt_file:

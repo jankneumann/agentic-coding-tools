@@ -832,41 +832,9 @@ async def get_agent_dispatch_configs() -> dict[str, Any]:
     Returns:
         agents: List of agent dispatch configs with cli details
     """
-    from .agents_config import get_agents_config
+    from .agents_config import get_dispatch_configs
 
-    entries = get_agents_config()
-    agents_out: list[dict[str, Any]] = []
-    for entry in entries:
-        if entry.cli is None:
-            continue
-        agents_out.append({
-            "agent_id": entry.name,
-            "type": entry.type,
-            "cli": {
-                "command": entry.cli.command,
-                "dispatch_modes": {
-                    name: {
-                        "args": mc.args,
-                        "async": mc.async_dispatch,
-                        **({"poll": {
-                            "command_template": mc.poll.command_template,
-                            "task_id_pattern": mc.poll.task_id_pattern,
-                            "success_pattern": mc.poll.success_pattern,
-                            "failure_pattern": mc.poll.failure_pattern,
-                            "interval_seconds": mc.poll.interval_seconds,
-                            "timeout_seconds": mc.poll.timeout_seconds,
-                        }} if mc.poll else {}),
-                    }
-                    for name, mc in entry.cli.dispatch_modes.items()
-                },
-                "model_flag": entry.cli.model_flag,
-                "model": entry.cli.model,
-                "model_fallbacks": entry.cli.model_fallbacks,
-                "prompt_via_stdin": entry.cli.prompt_via_stdin,
-            },
-        })
-
-    return {"agents": agents_out}
+    return get_dispatch_configs()
 
 
 # =============================================================================
