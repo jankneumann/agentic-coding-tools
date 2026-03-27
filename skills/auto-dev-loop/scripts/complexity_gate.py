@@ -78,10 +78,10 @@ def _count_impl_packages(packages: list[dict[str, Any]]) -> int:
     """Count implementation packages, excluding wp-integration type."""
     count = 0
     for pkg in packages:
-        pkg_type = pkg.get("type", "")
-        pkg_id = pkg.get("id", "")
+        pkg_type = pkg.get("task_type", pkg.get("type", ""))
+        pkg_id = pkg.get("package_id", pkg.get("id", ""))
         # Exclude integration packages by type or id pattern
-        if pkg_type == "integration" or pkg_id == "wp-integration":
+        if pkg_type in ("integration", "integrate") or pkg_id == "wp-integration":
             continue
         count += 1
     return count
@@ -113,9 +113,17 @@ def _check_signals(
         description = pkg.get("description", "")
         if isinstance(description, str) and _text_contains_signal(description, signals):
             return True
-        # Check lock keys
-        locks = pkg.get("locks", [])
-        if isinstance(locks, list):
+        # Check lock keys — locks is an object {files: [], keys: []} in the schema
+        locks = pkg.get("locks", {})
+        if isinstance(locks, dict):
+            for key in locks.get("keys", []):
+                if isinstance(key, str) and _text_contains_signal(key, signals):
+                    return True
+            for fp in locks.get("files", []):
+                if isinstance(fp, str) and _text_contains_signal(fp, signals):
+                    return True
+        elif isinstance(locks, list):
+            # Backward compat: treat as flat list of strings
             for lock in locks:
                 lock_str = str(lock) if not isinstance(lock, str) else lock
                 if _text_contains_signal(lock_str, signals):

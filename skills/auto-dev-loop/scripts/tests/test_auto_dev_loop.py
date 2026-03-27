@@ -322,4 +322,3 @@ def test_complexity_gate_enables_val_review(tmp_path: Path) -> None:
 
     assert result.val_review_enabled is True
     assert result.current_phase == "DONE"
-    assert result.implementation_strategy == {"default": "parallel"}

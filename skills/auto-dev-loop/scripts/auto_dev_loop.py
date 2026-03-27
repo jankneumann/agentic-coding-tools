@@ -401,13 +401,30 @@ def _phase_init(
     state.phase_started_at = _now_iso()
 
     if assess_complexity_fn is not None:
-        result = assess_complexity_fn(change_dir=str(change_dir))
-        if isinstance(result, dict):
-            if result.get("force_required"):
-                enter_escalate(state, "Complexity gate: force_required")
-                return "next"  # will be overridden by escalate
-            state.val_review_enabled = bool(result.get("val_review_enabled", False))
-            state.implementation_strategy = result.get("strategies", {})
+        wp_path = change_dir / "work-packages.yaml"
+        proposal_path = change_dir / "proposal.md"
+        result = assess_complexity_fn(
+            work_packages_path=wp_path,
+            proposal_path=proposal_path if proposal_path.exists() else None,
+        )
+        # Support both GateResult dataclass and dict
+        force_required = getattr(result, "force_required", None)
+        if force_required is None and isinstance(result, dict):
+            force_required = result.get("force_required", False)
+        val_review = getattr(result, "val_review_enabled", None)
+        if val_review is None and isinstance(result, dict):
+            val_review = result.get("val_review_enabled", False)
+
+        if force_required:
+            warnings = getattr(result, "warnings", [])
+            if isinstance(result, dict):
+                warnings = result.get("warnings", [])
+            enter_escalate(
+                state,
+                f"Complexity gate: force_required — {'; '.join(warnings)}",
+            )
+            return "next"  # will be overridden by escalate
+        state.val_review_enabled = bool(val_review)
     return "next"
 
 
@@ -428,6 +445,13 @@ def _phase_plan(
     return "created"
 
 
+_PHASE_TO_REVIEW_TYPE: dict[str, str] = {
+    "PLAN_REVIEW": "plan",
+    "IMPL_REVIEW": "implementation",
+    "VAL_REVIEW": "implementation",
+}
+
+
 def _phase_review(
     state: LoopState,
     change_dir: Path,
@@ -444,20 +468,36 @@ def _phase_review(
         return "max_iter"
 
     if converge_fn is not None:
+        review_type = _PHASE_TO_REVIEW_TYPE.get(state.current_phase, "plan")
         result = converge_fn(
-            change_dir=str(change_dir),
-            worktree_path=str(worktree_path),
+            change_id=state.change_id,
+            review_type=review_type,
+            artifacts_dir=change_dir,
+            worktree_path=worktree_path,
             fix_mode=fix_mode,
-            phase=state.current_phase,
         )
+        # Support both ConvergenceResult dataclass and dict
+        converged = getattr(result, "converged", None)
+        if converged is None and isinstance(result, dict):
+            converged = result.get("converged", False)
+
         if isinstance(result, dict):
             findings_count = result.get("findings_count", 0)
-            state.findings_trend.append(findings_count)
-            state.blocking_findings = result.get("blocking_findings", [])
-            if result.get("converged", False):
-                state.iteration = 0
-                return "converged"
-            return "not_converged"
+            blocking = result.get("blocking_findings", [])
+        else:
+            # ConvergenceResult dataclass
+            consensus = getattr(result, "consensus", None) or {}
+            summary = consensus.get("summary", {}) if isinstance(consensus, dict) else {}
+            findings_count = summary.get("total_unique_findings", 0)
+            blocking = getattr(result, "escalate_findings", []) or []
+
+        state.findings_trend.append(findings_count)
+        state.blocking_findings = blocking
+
+        if converged:
+            state.iteration = 0
+            return "converged"
+        return "not_converged"
 
     # No converge function — assume converged
     state.iteration = 0

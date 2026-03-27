@@ -31,7 +31,7 @@ except ImportError:
 
 ALTERNATIVES_THRESHOLD = 2.0
 ALTERNATIVES_KINDS = frozenset({"algorithm", "data_model"})
-INTEGRATION_TYPE = "integration"
+INTEGRATION_TYPES = frozenset({"integration", "integrate"})
 
 
 def _score_loc(metadata: dict[str, Any]) -> float:
@@ -65,9 +65,9 @@ def _score_vendor_count(available_vendors: list[str]) -> float:
 
 def _is_integration_package(package: dict[str, Any]) -> bool:
     """Check if a package is an integration-type package."""
-    pkg_type = package.get("type", "")
-    pkg_id = package.get("id", "")
-    return pkg_type == INTEGRATION_TYPE or pkg_id.startswith("wp-integration")
+    pkg_type = package.get("task_type", package.get("type", ""))
+    pkg_id = package.get("package_id", package.get("id", ""))
+    return pkg_type in INTEGRATION_TYPES or pkg_id.startswith("wp-integration")
 
 
 def _compute_score(
@@ -160,7 +160,7 @@ def select_strategies(
     strategies: dict[str, str] = {}
 
     for package in packages:
-        pkg_id = package.get("id", "")
+        pkg_id = package.get("package_id", package.get("id", ""))
         if not pkg_id:
             continue
 

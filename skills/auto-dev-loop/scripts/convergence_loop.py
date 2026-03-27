@@ -106,7 +106,7 @@ def build_review_prompt(artifacts_dir: Path, round_num: int) -> str:
         "### Instructions",
         "Return findings as JSON with a top-level `findings` array.",
         "Each finding must have: id, type, criticality, description, "
-        "disposition (fix/accept/defer), and optionally file_path and line_range.",
+        "disposition (fix/accept/escalate/regenerate), and optionally file_path and line_range.",
         "",
         f"This is round {round_num}. Focus on remaining issues.",
     ])
@@ -213,6 +213,8 @@ def converge(
 
     synthesizer = ConsensusSynthesizer(quorum=min_quorum)
     trend: list[int] = []
+    consensus_dict: dict[str, Any] | None = None
+    blocking: list[dict[str, Any]] = []
 
     # 2. Loop through rounds
     for round_num in range(1, max_rounds + 1):
@@ -292,10 +294,11 @@ def converge(
 
         # Write episodic memory
         if memory_callback:
+            summary = consensus_dict.get("summary", {})
             memory_callback(
                 f"Round {round_num}: {len(blocking)} blocking findings, "
-                f"{report.confirmed_count} confirmed, "
-                f"{report.unconfirmed_count} unconfirmed"
+                f"{summary.get('confirmed_count', 0)} confirmed, "
+                f"{summary.get('unconfirmed_count', 0)} unconfirmed"
             )
 
         # 2i. If no blocking → converged!
@@ -333,6 +336,6 @@ def converge(
         converged=False,
         rounds=max_rounds,
         reason="max_rounds",
-        consensus=consensus_dict if "consensus_dict" in dir() else None,
-        escalate_findings=blocking if "blocking" in dir() else None,
+        consensus=consensus_dict,
+        escalate_findings=blocking or None,
     )

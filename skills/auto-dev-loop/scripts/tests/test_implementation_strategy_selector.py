@@ -30,7 +30,7 @@ class TestSelectStrategies:
         """loc=100, alternatives=3, kind=algorithm, 3 vendors -> alternatives."""
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-algo",
+                "package_id": "wp-algo",
                 "metadata": {
                     "loc_estimate": 100,
                     "alternatives_count": 3,
@@ -48,7 +48,7 @@ class TestSelectStrategies:
         """loc=400, alternatives=0, kind=crud -> lead_review."""
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-crud",
+                "package_id": "wp-crud",
                 "metadata": {
                     "loc_estimate": 400,
                     "alternatives_count": 0,
@@ -65,7 +65,7 @@ class TestSelectStrategies:
     def test_no_metadata_defaults_to_lead_review(self, tmp_path: Path) -> None:
         """Package without metadata -> lead_review."""
         wp = _write_packages(tmp_path, [
-            {"id": "wp-bare"},
+            {"package_id": "wp-bare"},
         ])
         result = select_strategies(
             wp,
@@ -81,7 +81,7 @@ class TestSelectStrategies:
         """
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-boundary",
+                "package_id": "wp-boundary",
                 "metadata": {
                     "loc_estimate": 150,
                     "alternatives_count": 2,
@@ -102,7 +102,7 @@ class TestSelectStrategies:
         """
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-low",
+                "package_id": "wp-low",
                 "metadata": {
                     "loc_estimate": 50,
                     "alternatives_count": 1,
@@ -125,7 +125,7 @@ class TestSelectStrategies:
         """
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-few-vendors",
+                "package_id": "wp-few-vendors",
                 "metadata": {
                     "loc_estimate": 100,
                     "alternatives_count": 1,
@@ -151,7 +151,7 @@ class TestSelectStrategies:
         (tmp_path / "sub").mkdir(exist_ok=True)
         wp2 = _write_packages(tmp_path / "sub", [
             {
-                "id": "wp-few-vendors",
+                "package_id": "wp-few-vendors",
                 "metadata": {
                     "loc_estimate": 100,
                     "alternatives_count": 1,
@@ -169,7 +169,7 @@ class TestSelectStrategies:
         """Multiple packages with different metadata -> correct per-package strategy."""
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-algo",
+                "package_id": "wp-algo",
                 "metadata": {
                     "loc_estimate": 80,
                     "alternatives_count": 3,
@@ -177,7 +177,7 @@ class TestSelectStrategies:
                 },
             },
             {
-                "id": "wp-crud",
+                "package_id": "wp-crud",
                 "metadata": {
                     "loc_estimate": 500,
                     "alternatives_count": 0,
@@ -185,7 +185,7 @@ class TestSelectStrategies:
                 },
             },
             {
-                "id": "wp-model",
+                "package_id": "wp-model",
                 "metadata": {
                     "loc_estimate": 120,
                     "alternatives_count": 2,
@@ -205,8 +205,8 @@ class TestSelectStrategies:
         """Integration-type packages always get lead_review."""
         wp = _write_packages(tmp_path, [
             {
-                "id": "wp-integration-final",
-                "type": "integration",
+                "package_id": "wp-integration-final",
+                "task_type": "integrate",
                 "metadata": {
                     "loc_estimate": 50,
                     "alternatives_count": 5,
@@ -214,7 +214,7 @@ class TestSelectStrategies:
                 },
             },
             {
-                "id": "wp-integration-glue",
+                "package_id": "wp-integration-glue",
                 "metadata": {
                     "loc_estimate": 50,
                     "alternatives_count": 5,

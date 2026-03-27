@@ -25,21 +25,24 @@ def _make_packages(
     count: int,
     loc_each: int | None = None,
     descriptions: list[str] | None = None,
-    types: list[str] | None = None,
+    task_types: list[str] | None = None,
     ids: list[str] | None = None,
+    locks: list[dict] | None = None,
 ) -> list[dict]:
-    """Helper to generate package entries."""
+    """Helper to generate package entries using real schema field names."""
     packages = []
     for i in range(count):
-        pkg: dict = {"id": f"wp-pkg-{i}", "description": f"Package {i}"}
+        pkg: dict = {"package_id": f"wp-pkg-{i}", "description": f"Package {i}"}
         if ids and i < len(ids):
-            pkg["id"] = ids[i]
+            pkg["package_id"] = ids[i]
         if descriptions and i < len(descriptions):
             pkg["description"] = descriptions[i]
-        if types and i < len(types):
-            pkg["type"] = types[i]
+        if task_types and i < len(task_types):
+            pkg["task_type"] = task_types[i]
         if loc_each is not None:
             pkg["metadata"] = {"loc_estimate": loc_each}
+        if locks and i < len(locks):
+            pkg["locks"] = locks[i]
         packages.append(pkg)
     return packages
 
