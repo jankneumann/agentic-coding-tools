@@ -4,17 +4,15 @@
 
 ```
 T1 (schema) ─────────────────────────────────┐
-T2 (convergence engine) ──────┐              │
-T3 (strategy selector) ──────┐│              │
-T4 (complexity gate) ────────┐││             │
-                             │││             │
-T5 (state machine) ──────────┘┘┘             │
-                             │               │
-T6 (SKILL.md) ──────────────┘               │
-                             │               │
-T7 (tests) ─────────────────┘               │
+T2 (convergence engine + tests) ─────┐       │
+T3 (strategy selector + tests) ─────┐│       │
+T4 (complexity gate + tests) ───────┐││      │
+                                    │││      │
+T5 (state machine + tests) ────────┘┘┘      │
+                                    │        │
+T6 (SKILL.md) ────────────────────┘         │
                                              │
-T8 (integration test) ──────────────────────┘
+T7 (integration test) ─────────────────────┘
 ```
 
 ## Tasks
@@ -23,7 +21,16 @@ T8 (integration test) ───────────────────�
 **Priority**: 1 (no dependencies)
 **Files**: `openspec/schemas/convergence-state.schema.json`
 
-Define JSON Schema for the serializable loop state that tracks phase, iteration, findings trend, vendor availability, and package status. Must support resumability — loading state from disk and continuing from the last checkpoint.
+Define JSON Schema for the serializable loop state including:
+- Phase enum (INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR, DONE, ESCALATE)
+- Iteration tracking, findings trend array
+- Vendor availability map, package status map
+- `package_authors` map (vendor that authored each package)
+- `implementation_strategy` map
+- `memory_ids` list (episodic memory IDs, not string keys)
+- `handoff_ids` list
+- `previous_phase` and `escalation_reason` for ESCALATE state
+- Timestamps, error field
 
 **Acceptance**: `openspec validate --strict` passes with new schema.
 
@@ -31,67 +38,77 @@ Define JSON Schema for the serializable loop state that tracks phase, iteration,
 
 ### T2: Implement convergence loop engine
 **Priority**: 1 (no dependencies)
-**Files**: `skills/auto-dev-loop/scripts/convergence_loop.py`
+**Files**: `skills/auto-dev-loop/scripts/convergence_loop.py`, `skills/auto-dev-loop/scripts/tests/test_convergence_loop.py`
 
 Reusable review-fix convergence engine:
-- Accepts review_type, artifacts path, max_rounds, severity threshold
-- Calls `review_dispatcher.dispatch_and_wait()` for multi-vendor review
-- Calls `consensus_synthesizer.synthesize()` for finding reconciliation
+- Imports `ReviewOrchestrator` and `ConsensusSynthesizer` via sys.path from `skills/parallel-implement-feature/scripts/`
+- Uses `ReviewOrchestrator.dispatch_and_wait()` with correct signature (review_type, dispatch_mode, prompt, cwd, ...)
+- Uses `ConsensusSynthesizer.synthesize()` with correct signature (review_type, target, vendor_results)
+- Reads `consensus_findings` and `summary.total_unique_findings` from results
+- Implements quorum gate: require `min_quorum` successful vendor results before evaluating findings
 - Implements exit condition: no blocking findings at configured severity
-- Implements trend tracking: escalate if findings not decreasing over 2 rounds
-- Implements fix dispatch: send findings to authoring agent in alternative mode
-- Writes coordinator memory at each round
+- Implements 3-point stall detection: escalate if findings at round N >= findings at round N-2
+- Relaxes unconfirmed findings in final round only
+- Fix dispatch differs by phase: inline for plan, targeted for implementation
+- Writes episodic coordinator memory via `remember(event_type, summary, details, tags)` at each round
 - Returns `ConvergenceResult` with converged flag, rounds count, consensus
 
-**Acceptance**: Unit tests cover convergence (0 findings), non-convergence (max rounds), stall detection (flat trend), and vendor unavailability (reduced quorum).
+**Acceptance**: Unit tests cover convergence (0 findings + quorum met), non-convergence (max rounds), stall detection (3-point window), quorum loss (< 2 vendors), inline vs targeted fix dispatch, and memory writes. Tests mock ReviewOrchestrator, ConsensusSynthesizer, and coordinator.
 
 ---
 
 ### T3: Implement implementation strategy selector
 **Priority**: 1 (no dependencies)
-**Files**: `skills/auto-dev-loop/scripts/implementation_strategy_selector.py`
+**Files**: `skills/auto-dev-loop/scripts/implementation_strategy_selector.py`, `skills/auto-dev-loop/scripts/tests/test_implementation_strategy_selector.py`
 
 Per-package decision logic:
-- Input: work-packages.yaml, design.md, vendor availability
+- Input: work-packages.yaml (reads `metadata.loc_estimate`, `metadata.alternatives_count`, `metadata.package_kind`), design.md, vendor availability
 - Output: dict mapping package_id to "alternatives" | "lead_review"
-- Scoring: LOC estimate (<200 = alternatives), design alternatives count, package type, vendor count
+- Scoring: LOC estimate (<200 = alternatives), design alternatives count (>=2), package type (algorithm/data_model), vendor count (3)
 - Threshold: score >= 2.0 → alternatives, else lead_review
-- Recalls vendor effectiveness from coordinator memory to bias lead selection
+- Fallback: if metadata absent, default to lead_review
+- Recalls vendor effectiveness from coordinator memory (episodic recall with tags) to bias lead selection
 
-**Acceptance**: Unit tests cover all scoring branches, boundary cases, and fallback when memory unavailable.
+**Acceptance**: Unit tests cover all scoring branches, boundary cases, metadata present vs absent, and fallback when memory unavailable.
 
 ---
 
 ### T4: Implement complexity gate
 **Priority**: 1 (no dependencies)
-**Files**: `skills/auto-dev-loop/scripts/complexity_gate.py`
+**Files**: `skills/auto-dev-loop/scripts/complexity_gate.py`, `skills/auto-dev-loop/scripts/tests/test_complexity_gate.py`
 
-Entry assessment that determines if a feature is suitable for full automation:
+Entry assessment:
 - Input: proposal.md, work-packages.yaml, tasks.md
-- Output: `GateResult` with `allowed: bool`, `warnings: list`, `checkpoints: list`
+- Reads configurable thresholds from `work-packages.yaml` `defaults.auto_loop.*` with built-in fallbacks
+- Output: `GateResult` with `allowed: bool`, `warnings: list`, `checkpoints: list`, `val_review_enabled: bool`
 - Thresholds: LOC > 500, packages > 4, external deps > 2, db migrations, security paths
 - Above threshold: warn + require `--force`, or inject manual review checkpoints
+- Database migrations / security-sensitive paths → enable VAL_REVIEW
 
-**Acceptance**: Unit tests cover each threshold independently and in combination.
+**Acceptance**: Unit tests cover each threshold independently and in combination, custom thresholds from YAML, and VAL_REVIEW injection.
 
 ---
 
 ### T5: Implement state machine conductor
 **Priority**: 2 (depends on T1-T4)
-**Files**: `skills/auto-dev-loop/scripts/auto_dev_loop.py`
+**Files**: `skills/auto-dev-loop/scripts/auto_dev_loop.py`, `skills/auto-dev-loop/scripts/tests/test_auto_dev_loop.py`
 
 The main conductor:
-- Loads/saves `LoopState` from `loop-state.json`
-- Implements state transition table with all 10 states
-- Delegates to convergence_loop for PLAN_REVIEW, IMPL_REVIEW
+- Loads/saves `LoopState` from `loop-state.json` (dual-write to coordinator memory)
+- Implements state transition table with all 13 states including PLAN and VAL_REVIEW
+- PLAN phase delegates to `/parallel-plan-feature` or `/linear-plan-feature`
+- VAL_REVIEW is conditional: skipped unless complexity gate enables it
+- Delegates to convergence_loop for PLAN_REVIEW, IMPL_REVIEW, VAL_REVIEW
 - Delegates to dag_scheduler for IMPLEMENT
+- Records `package_authors` during IMPLEMENT for targeted fix dispatch
 - Delegates to implementation_strategy_selector for per-package strategy
 - Delegates to complexity_gate at INIT
 - Writes handoff documents at each major transition
 - Creates PR at SUBMIT_PR state
-- Handles ESCALATE: writes diagnostic handoff, pauses for human input
+- ESCALATE: persists `previous_phase` and `escalation_reason`, writes diagnostic handoff, exits
+- Resume: detects ESCALATE state on re-invocation, re-evaluates gate condition
 
-**Acceptance**: Unit tests cover all state transitions, resumability (load from disk + continue), escalation paths, and vendor dropout mid-loop.
+**Acceptance**: Unit tests cover all state transitions, resumability (load from disk + continue), ESCALATE + resume, VAL_REVIEW skip/enable, vendor dropout mid-loop, and targeted fix dispatch.
 
 ---
 
@@ -101,6 +118,7 @@ The main conductor:
 
 Skill prompt that:
 - Accepts change-id (existing proposal) or feature description (creates proposal first)
+- Accepts optional flags: `--force` (bypass complexity gate), `--val-review` (force VAL_REVIEW)
 - Checks coordinator availability, degrades to linear workflow if unavailable
 - Runs complexity gate, warns if above thresholds
 - Invokes state machine conductor
@@ -109,24 +127,8 @@ Skill prompt that:
 
 ---
 
-### T7: Unit tests
-**Priority**: 2 (depends on T2-T5)
-**Files**: `skills/auto-dev-loop/scripts/tests/test_*.py`
-
-Comprehensive unit tests for all four scripts:
-- `test_convergence_loop.py`: convergence, non-convergence, stall, quorum, memory writes
-- `test_implementation_strategy_selector.py`: scoring, boundaries, memory recall
-- `test_complexity_gate.py`: thresholds, checkpoints, combinations
-- `test_auto_dev_loop.py`: state transitions, serialization, resume, escalation
-
-All tests must mock external dependencies (reviewer dispatch, coordinator, git operations).
-
-**Acceptance**: >= 90% line coverage on all scripts. All tests pass.
-
----
-
-### T8: Integration test
-**Priority**: 3 (depends on T5-T7)
+### T7: Integration test
+**Priority**: 3 (depends on T5-T6)
 **Files**: `skills/auto-dev-loop/scripts/tests/test_integration.py`
 **Marker**: `@pytest.mark.integration`
 
@@ -134,6 +136,7 @@ End-to-end test with mocked vendor CLIs:
 - Creates a trivial feature proposal
 - Runs the full loop with fake vendor responses that converge in 2 rounds
 - Verifies: state transitions, finding trend, memory writes, handoff documents, PR creation
+- Verifies: VAL_REVIEW is skipped for simple features
 - Uses coordinator in-memory mode (no DB dependency)
 
 **Acceptance**: Full loop completes without human intervention. All state transitions logged.

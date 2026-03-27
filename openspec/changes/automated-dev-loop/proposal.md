@@ -40,8 +40,10 @@ Today the development workflow requires a human operator to invoke each skill se
 A conductor skill that orchestrates the full lifecycle as a state machine:
 
 ```
-INIT → PLAN_REVIEW → PLAN_FIX → IMPLEMENT → IMPL_REVIEW → IMPL_FIX → VALIDATE → VAL_FIX → SUBMIT_PR → DONE
+INIT → PLAN → PLAN_REVIEW ⟷ PLAN_FIX → IMPLEMENT → IMPL_REVIEW ⟷ IMPL_FIX → VALIDATE → [VAL_REVIEW] → SUBMIT_PR → DONE
 ```
+
+VAL_REVIEW is optional — enabled by the complexity gate for features with database migrations, security-sensitive paths, or when explicitly requested via `--val-review`.
 
 Each state has:
 - **Entry action**: What to do when entering the state
@@ -52,12 +54,13 @@ Each state has:
 ### New Script: `convergence_loop.py`
 
 A reusable review-fix convergence engine that:
-1. Dispatches reviews to all available vendors (via `review_dispatcher.py`)
-2. Synthesizes consensus (via `consensus_synthesizer.py`)
-3. Checks exit condition: no confirmed/unconfirmed findings at medium+ severity
-4. If not converged: dispatches fixes to the authoring agent, re-reviews
-5. Tracks iteration count, finding trends, and convergence metrics
-6. Writes handoff and memory at each iteration
+1. Dispatches reviews to all available vendors (via `ReviewOrchestrator`)
+2. Synthesizes consensus (via `ConsensusSynthesizer`)
+3. Verifies quorum (minimum 2 vendors) before evaluating findings
+4. Checks exit condition: no confirmed/unconfirmed findings at medium+ severity
+5. If not converged: applies fixes inline (plan) or dispatches to recorded author (implementation)
+6. Tracks finding trends with 3-point stall detection
+7. Writes episodic memory and handoffs at each iteration
 
 ### New Script: `implementation_strategy_selector.py`
 
@@ -98,7 +101,7 @@ vendor_availability: {claude: true, codex: true, gemini: false}
 |------|-----------|
 | Review oscillation (vendors disagree on fixes) | Max iteration cap (3 rounds default), escalate-to-human on cap hit |
 | Severity calibration mismatch across vendors | Shared rubric in review prompt; consensus synthesis takes highest severity |
-| Infinite loop on non-convergent findings | Finding trend tracking — if findings aren't decreasing, escalate after 2 flat rounds |
+| Infinite loop on non-convergent findings | 3-point stall detection — if findings at round N >= round N-2, escalate |
 | Vendor unavailability mid-loop | Quorum-based: continue with 2/3; if <2, pause and alert |
 | Stale context after many fix iterations | Re-read artifacts at each iteration; don't cache stale state |
 | Cost explosion on complex features | Complexity gate at entry: reject features above threshold (LOC, file count, dependency depth) |

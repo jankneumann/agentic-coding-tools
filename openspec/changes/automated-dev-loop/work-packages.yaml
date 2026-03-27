@@ -306,6 +306,10 @@ packages:
     retry_budget: 1
     min_trust_level: 2
     depends_on:
+      - wp-schema
+      - wp-convergence-engine
+      - wp-strategy-selector
+      - wp-complexity-gate
       - wp-conductor
       - wp-skill-prompt
     scope:

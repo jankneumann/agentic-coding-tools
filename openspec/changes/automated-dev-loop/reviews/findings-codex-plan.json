@@ -1,0 +1,111 @@
+{
+  "review_type": "plan",
+  "target": "automated-dev-loop",
+  "reviewer_vendor": "gpt-5-codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The convergence design assumes review/consensus interfaces that the referenced dependencies do not expose. The plan calls module-level `review_dispatcher.dispatch_and_wait()` and `consensus_synthesizer.synthesize()` over raw findings arrays, then reads `consensus.findings` and `summary.total`, but the current code requires `ReviewOrchestrator.dispatch_and_wait(review_type, dispatch_mode, prompt, cwd, ...)`, `ConsensusSynthesizer.synthesize(review_type, target, vendor_results)`, returns `consensus_findings`, and relies on normalized vendor IDs across the review and consensus schemas. As written, `convergence_loop.py` cannot invoke or consume the existing stack without an adapter layer.",
+      "resolution": "Revise the design/tasks to add a compatibility layer that constructs `ReviewOrchestrator`, converts `ReviewResult` objects into `VendorResult` inputs, normalizes reviewer/vendor IDs before synthesis, and consumes `consensus_findings` plus `summary.total_unique_findings`; alternatively, update the shared dependencies and schemas first and reference the new contract explicitly.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {
+        "start": 109,
+        "end": 146
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The convergence algorithm declares success as soon as the blocking-finding list is empty, but it never checks quorum before advancing. That contradicts the spec and proposal language that convergence requires a reduced quorum of at least 2 vendors; with the current pseudocode, a single successful zero-finding review would incorrectly allow the loop to proceed.",
+      "resolution": "Make `quorum_met` an explicit gate before convergence. When fewer than 2 reviewers return valid results, pause or escalate instead of advancing, and add tests for the 1-vendor-success/0-findings case.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {
+        "start": 119,
+        "end": 131
+      }
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The proposal promises multi-vendor review convergence for plan, implementation, and validation artifacts, but the state machine only defines `VALIDATE` and `VAL_FIX`. There is no validation-review state, no validation consensus artifact, and no task that dispatches vendor review over validation evidence. As planned, validation passes on tool checks alone, which is materially weaker than the feature summary and goals commit to.",
+      "resolution": "Add an explicit validation review phase (for example `VAL_REVIEW` plus its re-review/fix flow) to the spec, design, tasks, and work packages, or narrow the proposal/goals so they no longer claim multi-vendor convergence for validation artifacts.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {
+        "start": 47,
+        "end": 58
+      }
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The fix-dispatch requirement says unresolved findings are sent to the 'authoring agent' in `alternative` mode, but the referenced dispatcher only broadcasts to available reviewers and optionally excludes one vendor; it has no target-agent parameter, and the loop state does not record which vendor authored a given artifact or package. The plan therefore has no deterministic way to route a fix back to the intended owner.",
+      "resolution": "Persist artifact/package authorship in loop state and extend the dispatcher contract with targeted dispatch, or explicitly split the behavior so plan fixes are applied in-process by the conductor while implementation fixes target the recorded lead agent.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 85,
+        "end": 99
+      }
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Alternative-mode fix rounds are defined as write-capable subprocess dispatches, but the design does not carry the work-package scope/lock model into those fix rounds. The current dispatcher interface accepts only a working directory and mode, not an editable-file allowlist, so a review-driven fix can modify arbitrary files in the worktree rather than only the affected artifact/package.",
+      "resolution": "Constrain every fix round to an isolated package or artifact worktree, enforce `write_allow` and lock acquisition before dispatch, and reject or roll back edits that fall outside the declared scope.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {
+        "start": 170,
+        "end": 177
+      }
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The memory/handoff design assumes a key-value memory API and requires memory keys such as `convergence:{change-id}:{phase}:round-{n}`, but the existing coordinator memory contract is episodic (`remember(event_type, summary, details, ...)`) and returns `memory_id`; it does not accept or expose a caller-defined key. That makes the required key-pattern scenario and the planned `memory_keys` state field unimplementable against the current coordinator interface.",
+      "resolution": "Redesign the feature around `memory_id` plus structured tags/details (for example phase and round in tags), or introduce a dedicated keyed state API in the coordinator first and update this plan to depend on it explicitly.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 133,
+        "end": 147
+      }
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The strategy-selector requirements depend on per-package LOC estimates and a count of design alternatives, but none of the reviewed artifacts defines a structured source for those values. `work-packages.yaml` only carries free-form descriptions, so the selector cannot deterministically satisfy scenarios like '100 LOC and 3 alternatives => alternatives strategy'.",
+      "resolution": "Add explicit per-package metadata such as `loc_estimate`, `alternatives_count`, and `package_kind` to a schema-backed artifact (most naturally `work-packages.yaml`), then update the selector design and tests to consume those fields instead of trying to infer them from prose.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 101,
+        "end": 115
+      }
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`ESCALATE` is modeled as resumable (`resolved -> <previous_state>`), but `LoopState` does not persist the previous phase or any human-resolution marker, and the spec provides no scenario for how an escalated loop is cleared and resumed. Once the loop enters `ESCALATE`, the promised resumability behavior is underspecified and not testable.",
+      "resolution": "Extend the state schema with fields such as `previous_phase`, `escalation_reason`, and `resume_condition`, and add a spec scenario that defines how a human resolves an escalation and how `/auto-dev-loop` resumes safely afterward.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md",
+      "line_range": {
+        "start": 63,
+        "end": 97
+      }
+    }
+  ]
+}

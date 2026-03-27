@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "automated-dev-loop",
+  "reviewers": [
+    {
+      "vendor": "claude-opus-4-6",
+      "agent_id": "claude-opus-4-6",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gpt-5-codex",
+      "agent_id": "gpt-5-codex",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The convergence_loop.py is listed as importing review_dispatcher.dispatch_and_wait() and consensus_synthesizer.synthesize(), but these are currently tightly coupled to the parallel-implement-feature skill's scripts directory. No import path or packaging strategy is specified for cross-skill Python imports. The design says 'No changes needed' to these dependencies, but convergence_loop.py needs to import them from a different skill's scripts/ directory."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The ESCALATE state transition table shows {\"resolved\": \"<previous_state>\", \"abandoned\": \"DONE\"} but the spec and design don't define how ESCALATE resolution works. Who resolves it? How does the system know the human has resolved it? There's no mechanism for re-entry after escalation \u2014 the state machine can't poll for human input."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The design calls dispatch_fixes() to 'the authoring agent' in alternative mode, but for plan artifacts (proposal.md, design.md, specs, work-packages.yaml) the authoring agent is the conductor itself (Claude). Fix dispatch would require Claude to invoke itself via CLI subprocess, which is circular. The MVRO review_dispatcher is designed for dispatching to OTHER vendors, not self-invocation."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The complexity gate thresholds (LOC > 500, packages > 4, external deps > 2) are hardcoded in the spec. These are reasonable defaults but there's no mechanism to override them per-project or per-invocation beyond --force (which bypasses all checks)."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The convergence algorithm's stall detection (trend[-1] >= trend[-2]) triggers after just 2 data points. In practice, round 1 might find 10 issues, fixes address 8 but introduce 3 new ones (net: 5). Round 2 finds 5 \u2014 this is not a stall, it's normal churn. But if round 3 finds 4, the trend [10, 5, 4] would NOT trigger stall detection, while [10, 5, 5] would \u2014 despite being only 1 finding different. The 2-point stall detection is too sensitive."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The alternatives+synthesis flow (step 3-4) says 'Synthesis agent reviews all 3, picks best approach. Merge selected implementation, cherry-pick individual improvements from others.' Cherry-picking across 3 independent implementations that modify the same files is extremely difficult to automate reliably. Git cherry-pick would fail on most non-trivial changes."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "No requirement or scenario covers what happens when the proposal itself needs to be created (user passes a description instead of a change-id). The spec says 'create a new proposal from the description' but doesn't specify which skill does this \u2014 /parallel-plan-feature? /linear-plan-feature? Does the proposal itself go through the convergence loop, or does it start at PLAN_REVIEW assuming the proposal is already adequate?"
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The work-packages.yaml has wp-integration depending on wp-conductor and wp-skill-prompt, but NOT on wp-schema, wp-convergence-engine, wp-strategy-selector, or wp-complexity-gate. Since wp-conductor depends on all four leaf packages, this is transitively correct \u2014 but the integration merge step (merge_worktrees.py) needs to merge ALL package branches, including the leaf ones. If integration only waits for wp-conductor and wp-skill-prompt, the leaf package branches may not be ready for merge."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The tasks.md lists T7 (unit tests) as a separate task depending on T2-T5, but the work-packages.yaml bundles tests with their respective packages (each package's write_allow includes its test file). This is inconsistent \u2014 are tests written by the package agent or by a separate test agent?"
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The automated loop dispatches vendor CLIs with write access (alternative mode) for fix dispatch. If a vendor CLI is compromised or produces malicious output, the fix could introduce vulnerabilities. The scope constraints in work-packages.yaml limit file access, but the fix dispatch during convergence operates outside the work-package scope model."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The convergence design assumes review/consensus interfaces that the referenced dependencies do not expose. The plan calls module-level `review_dispatcher.dispatch_and_wait()` and `consensus_synthesizer.synthesize()` over raw findings arrays, then reads `consensus.findings` and `summary.total`, but the current code requires `ReviewOrchestrator.dispatch_and_wait(review_type, dispatch_mode, prompt, cwd, ...)`, `ConsensusSynthesizer.synthesize(review_type, target, vendor_results)`, returns `consensus_findings`, and relies on normalized vendor IDs across the review and consensus schemas. As written, `convergence_loop.py` cannot invoke or consume the existing stack without an adapter layer."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The convergence algorithm declares success as soon as the blocking-finding list is empty, but it never checks quorum before advancing. That contradicts the spec and proposal language that convergence requires a reduced quorum of at least 2 vendors; with the current pseudocode, a single successful zero-finding review would incorrectly allow the loop to proceed."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The proposal promises multi-vendor review convergence for plan, implementation, and validation artifacts, but the state machine only defines `VALIDATE` and `VAL_FIX`. There is no validation-review state, no validation consensus artifact, and no task that dispatches vendor review over validation evidence. As planned, validation passes on tool checks alone, which is materially weaker than the feature summary and goals commit to."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The fix-dispatch requirement says unresolved findings are sent to the 'authoring agent' in `alternative` mode, but the referenced dispatcher only broadcasts to available reviewers and optionally excludes one vendor; it has no target-agent parameter, and the loop state does not record which vendor authored a given artifact or package. The plan therefore has no deterministic way to route a fix back to the intended owner."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Alternative-mode fix rounds are defined as write-capable subprocess dispatches, but the design does not carry the work-package scope/lock model into those fix rounds. The current dispatcher interface accepts only a working directory and mode, not an editable-file allowlist, so a review-driven fix can modify arbitrary files in the worktree rather than only the affected artifact/package."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The memory/handoff design assumes a key-value memory API and requires memory keys such as `convergence:{change-id}:{phase}:round-{n}`, but the existing coordinator memory contract is episodic (`remember(event_type, summary, details, ...)`) and returns `memory_id`; it does not accept or expose a caller-defined key. That makes the required key-pattern scenario and the planned `memory_keys` state field unimplementable against the current coordinator interface."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The strategy-selector requirements depend on per-package LOC estimates and a count of design alternatives, but none of the reviewed artifacts defines a structured source for those values. `work-packages.yaml` only carries free-form descriptions, so the selector cannot deterministically satisfy scenarios like '100 LOC and 3 alternatives => alternatives strategy'."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "`ESCALATE` is modeled as resumable (`resolved -> <previous_state>`), but `LoopState` does not persist the previous phase or any human-resolution marker, and the spec provides no scenario for how an escalated loop is cleared and resumed. Once the loop enters `ESCALATE`, the promised resumability behavior is underspecified and not testable."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 18,
+    "confirmed_count": 0,
+    "unconfirmed_count": 18,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}
