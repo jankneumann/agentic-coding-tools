@@ -227,6 +227,74 @@ If vendor review produces **blocking findings** (confirmed issues with dispositi
 
 If vendor CLIs are unavailable or all vendors fail, proceed without vendor review and note the gap.
 
+### 9.5. Merge-Time Validation Gate for OpenSpec PRs
+
+For OpenSpec PRs (`openspec/*` branch), check whether Docker-dependent validation has been run. Cloud-created PRs typically have environment-safe checks (pytest, mypy, ruff, openspec validate) but lack deployment-based validation.
+
+**Triggers when ALL conditions are met:**
+- PR origin is `openspec`
+- PR is not a draft
+- No `validation-report.md` exists at `openspec/changes/<change-id>/`, OR the existing report is missing deploy/smoke/security/e2e phases
+
+**Skip when ANY condition is met:**
+- `validation-report.md` exists with all phases completed
+- `--dry-run` mode is active
+- Docker is not available (`docker info` fails)
+
+**Validation phases** (Docker-dependent, local-only):
+
+```bash
+# Check out the PR branch in a worktree for isolation
+python3 "<agent-skills-dir>/worktree/scripts/worktree.py" setup "<change-id>" --agent-id merge-validate
+cd "$WORKTREE_PATH"
+```
+
+1. **Deploy phase**: Start services via docker-compose with DEBUG logging. Wait for health checks (PostgreSQL ready, REST API responding). If no docker-compose.yml exists, skip deploy and run remaining phases against already-running services.
+
+2. **Smoke phase**: Run the reusable pytest smoke test suite:
+```bash
+SKILL_DIR="$(git rev-parse --show-toplevel)/skills/validate-feature"
+pytest "$SKILL_DIR/scripts/smoke_tests/" -v --tb=short
+```
+Covers health endpoints, auth enforcement, CORS, error sanitization, security headers.
+
+3. **Security phase**: Run OWASP Dependency-Check and ZAP against the live deployment:
+```bash
+python3 skills/security-review/scripts/main.py \
+  --repo . --out-dir docs/security-review \
+  --zap-target "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}" \
+  --change "$CHANGE_ID" --allow-degraded-pass
+```
+
+4. **E2E phase**: Run Playwright E2E tests if available:
+```bash
+E2E_DIR=$(find . -path "*/tests/e2e" -type d | head -1)
+[ -n "$E2E_DIR" ] && pytest "$E2E_DIR" -v --tb=short
+```
+
+**Teardown**: Stop docker-compose services, remove worktree.
+
+**Write results**: Generate `validation-report.md` in the change directory and commit to the PR branch:
+
+```bash
+git add openspec/changes/<change-id>/validation-report.md
+git commit -m "validate: <change-id> -- merge-time validation (deploy, smoke, security, e2e)"
+git push
+```
+
+**Present findings** in the interactive review step alongside vendor review results:
+
+```
+Merge-Time Validation (OpenSpec: <change-id>):
+  ✓ Deploy: Services started (3 containers)
+  ✓ Smoke: 5/5 health checks passed
+  ○ Security: Skipped (Java not available)
+  ○ E2E: Skipped (no tests/e2e/ directory)
+  Result: PASS (2 passed, 2 skipped)
+```
+
+If any phase **fails**, flag the PR with a warning but do not hard-block — the operator decides whether to merge, fix, or skip. Critical failures (deploy crash, smoke test failures) should be highlighted prominently.
+
 ### 10. Determine Merge Order
 
 Before the interactive review, sort remaining PRs for optimal merge order:
@@ -336,6 +404,7 @@ After processing all PRs, present a summary:
 - CI re-run: #39
 - Comments addressed: #38
 - OpenSpec cleanup needed: /cleanup-feature add-user-export
+- Merge-time validation: #38 (deploy: pass, smoke: pass, security: skip, e2e: skip)
 ```
 
 ## Dry-Run Mode

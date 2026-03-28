@@ -270,6 +270,8 @@ grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md
 
 ### 6. Quality Checks (Parallel Execution) [all tiers]
 
+Run all environment-safe checks. These must pass in both cloud and local environments:
+
 ```
 Task(subagent_type="Bash", prompt="Run pytest and report pass/fail", run_in_background=true)
 Task(subagent_type="Bash", prompt="Run mypy src/ and report type errors", run_in_background=true)
@@ -279,6 +281,25 @@ Task(subagent_type="Bash", prompt="Run validate_flows.py --diff main...HEAD", ru
 ```
 
 Fix all failures before proceeding.
+
+### 6.5. Artifact Validation [local-parallel+]
+
+**Skip if TIER is "sequential".**
+
+Verify change-context completeness and work-package evidence:
+
+1. **Change-context audit**: Read `change-context.md` and verify that the Requirement Traceability Matrix has no `---` entries in Files Changed (all rows should reference actual files from `git diff --name-only main..HEAD`). Update Coverage Summary counts.
+
+2. **Work-package evidence** (if `work-packages.yaml` exists and per-package results are present):
+
+```bash
+skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_result.py" \
+  artifacts/<package-id>/result.json
+```
+
+Verify schema compliance, revision consistency, scope compliance, and no unresolved escalations.
+
+These checks are environment-safe and run in both cloud and local. Docker-dependent validation (deploy, smoke, security, E2E) is deferred to `/validate-feature` or the merge-time validation gate in `/merge-pull-requests`.
 
 ### 7. Document Lessons Learned [all tiers]
 
