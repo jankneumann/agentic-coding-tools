@@ -575,22 +575,55 @@ class ReviewOrchestrator:
         return cls(adapters)
 
     @classmethod
-    def from_coordinator(cls) -> "ReviewOrchestrator":
-        """Create orchestrator by querying the coordinator MCP server.
+    def _find_coordinator_dir(cls) -> tuple[str, Path] | None:
+        """Discover the agent-coordinator directory from MCP config.
 
-        Uses ``claude mcp call`` to invoke ``get_agent_dispatch_configs``
-        on the coordination MCP server.  Falls back to empty if coordinator
-        is unavailable.
+        Reads ``~/.claude.json`` to find the coordination MCP server's
+        ``run_mcp.py`` path, then derives the agent-coordinator directory
+        and Python binary from it.  Returns ``(python_bin, ac_dir)`` or
+        ``None`` if not configured.
         """
-        claude_bin = shutil.which("claude")
-        if not claude_bin:
-            logger.warning("claude binary not found — cannot query coordinator")
+        claude_json = Path.home() / ".claude.json"
+        if not claude_json.is_file():
+            return None
+        try:
+            cfg = json.loads(claude_json.read_text())
+            mcp = cfg.get("mcpServers", {}).get("coordination", {})
+            python_bin = mcp.get("command", "")
+            args = mcp.get("args", [])
+            if not python_bin or not args:
+                return None
+            # args[0] is the path to run_mcp.py; its parent is agent-coordinator
+            ac_dir = Path(args[0]).resolve().parent
+            if not ac_dir.is_dir():
+                return None
+            return (python_bin, ac_dir)
+        except (json.JSONDecodeError, OSError, IndexError):
+            return None
+
+    @classmethod
+    def from_coordinator(cls) -> "ReviewOrchestrator":
+        """Create orchestrator by calling get_dispatch_configs via subprocess.
+
+        Discovers the agent-coordinator directory from the coordination
+        MCP server config in ``~/.claude.json``, then runs
+        ``get_dispatch_configs.py`` using the same Python binary.
+        Works from any repo — no local agent-coordinator checkout required.
+        """
+        found = cls._find_coordinator_dir()
+        if not found:
+            logger.warning("coordination MCP server not configured in ~/.claude.json")
+            return cls({})
+
+        python_bin, ac_dir = found
+        script = ac_dir / "get_dispatch_configs.py"
+        if not script.is_file():
+            logger.warning("get_dispatch_configs.py not found at %s", script)
             return cls({})
 
         try:
             result = subprocess.run(
-                [claude_bin, "mcp", "call", "coordination",
-                 "get_agent_dispatch_configs", "{}"],
+                [python_bin, str(script)],
                 capture_output=True, text=True, timeout=15,
             )
             if result.returncode != 0:
@@ -606,57 +639,45 @@ class ReviewOrchestrator:
 
     @classmethod
     def from_agents_yaml(cls, path: Path | None = None) -> "ReviewOrchestrator":
-        """Create orchestrator from agents.yaml on disk (legacy/testing).
+        """Create orchestrator from an explicit agents.yaml path.
 
-        Only works in repos that have agent-coordinator/ on disk.
-        Prefer ``from_coordinator()`` for cross-repo use.
+        Uses ``_find_coordinator_dir()`` to locate the
+        ``get_dispatch_configs.py`` script, then passes *path* as an
+        argument so the script loads the specified YAML instead of its
+        default.  Works from any repo.
         """
-        try:
-            sys.path.insert(
-                0,
-                str(Path(__file__).resolve().parent.parent.parent.parent
-                    / "agent-coordinator"),
-            )
-            from src.agents_config import load_agents_config
-        except (ImportError, ModuleNotFoundError):
+        found = cls._find_coordinator_dir()
+        if not found:
             logger.warning(
-                "agent-coordinator not found on disk — "
-                "use from_coordinator() instead",
+                "agent-coordinator not found — "
+                "coordination MCP server not configured in ~/.claude.json",
             )
             return cls({})
 
-        entries = load_agents_config(path)
-        agents_list: list[dict[str, Any]] = []
-        for entry in entries:
-            if entry.cli is None:
-                continue
-            agents_list.append({
-                "agent_id": entry.name,
-                "type": entry.type,
-                "cli": {
-                    "command": entry.cli.command,
-                    "dispatch_modes": {
-                        name: {
-                            "args": mc.args,
-                            "async": mc.async_dispatch,
-                            **({"poll": {
-                                "command_template": mc.poll.command_template,
-                                "task_id_pattern": mc.poll.task_id_pattern,
-                                "success_pattern": mc.poll.success_pattern,
-                                "failure_pattern": mc.poll.failure_pattern,
-                                "interval_seconds": mc.poll.interval_seconds,
-                                "timeout_seconds": mc.poll.timeout_seconds,
-                            }} if mc.poll else {}),
-                        }
-                        for name, mc in entry.cli.dispatch_modes.items()
-                    },
-                    "model_flag": entry.cli.model_flag,
-                    "model": entry.cli.model,
-                    "model_fallbacks": entry.cli.model_fallbacks,
-                    "prompt_via_stdin": entry.cli.prompt_via_stdin,
-                },
-            })
-        return cls.from_config_dict({"agents": agents_list})
+        python_bin, ac_dir = found
+        script = ac_dir / "get_dispatch_configs.py"
+        if not script.is_file():
+            logger.warning("get_dispatch_configs.py not found at %s", script)
+            return cls({})
+
+        cmd = [python_bin, str(script)]
+        if path is not None:
+            cmd.append(str(path))
+
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    "agents.yaml load failed: %s", result.stderr[:200],
+                )
+                return cls({})
+            data = json.loads(result.stdout)
+            return cls.from_config_dict(data)
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
+            logger.warning("agents.yaml load error: %s", exc)
+            return cls({})
 
     def discover_reviewers(self, exclude_vendor: str | None = None) -> list[ReviewerInfo]:
         """Discover available reviewers, optionally excluding the primary vendor."""
