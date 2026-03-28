@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "automated-dev-loop",
+  "reviewers": [
+    {
+      "vendor": "claude-opus-4-6",
+      "agent_id": "claude-opus-4-6",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The design references '--include-vendor' for targeted fix dispatch to a specific vendor (IMPL_FIX section), but ReviewOrchestrator.dispatch_and_wait() only supports 'exclude_vendor' parameter, not include. There is no mechanism to dispatch to a single specific vendor \u2014 the dispatcher broadcasts to all available vendors minus the excluded one."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The design says strategy selector reads 'metadata.loc_estimate', 'metadata.alternatives_count', 'metadata.package_kind' from work-packages.yaml, and the dependencies table notes 'Add optional metadata field to package schema'. However, this schema change is not listed as a task or work package. The current work-packages.schema.json has additionalProperties: false on WorkPackage, so adding 'metadata' would fail schema validation until the schema is updated."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The spec scenario for 3-point stall detection has confusing phrasing: 'the system SHALL escalate because round 3 count (6) >= round 1 count (10) is false, so it continues'. This reads as 'SHALL escalate' followed by 'so it continues' \u2014 contradictory. The scenario should clearly state the expected outcome."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The design's diagram still shows VAL_REVIEW as always-present in the flow (VALIDATE \u2192 VAL_REVIEW \u2192 VAL_FIX), but the text and spec make it optional. The diagram should visually indicate the optional nature (e.g., dashed box or [brackets])."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The dispatch_and_wait() method currently dispatches sequentially per the code comment ('Currently dispatches sequentially. Future: parallel subprocess.'). For 3 vendors with 600s timeout each, worst case is 1800s (30 min) per convergence round. The proposal's success criterion of '< 30 minutes' for the full lifecycle would be impossible to meet if all 3 vendors hit timeout in any single round."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The metadata-driven strategy path is still incomplete end to end: `work-packages.yaml` defines no per-package `metadata.loc_estimate` / `metadata.alternatives_count` / `metadata.package_kind`, and no work package owns the required `work-packages.schema.json` change to allow those fields under strict validation. As written, T3's structured-metadata branch cannot be exercised or validated."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The convergence-loop design still assumes dispatcher and synthesizer interfaces that do not exist: it passes unsupported `output_dir` / `timeout` arguments to `ReviewOrchestrator.dispatch_and_wait()`, feeds `ReviewResult.findings` directly into `VendorResult`, and reads `ConsensusReport` like a dict (`f[\"agreed_criticality\"]`, `consensus.summary[...]`). Implementing the design literally will fail against the current `review_dispatcher.py` and `consensus_synthesizer.py` contracts."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "`IMPL_FIX` still depends on a targeted `--include-vendor` dispatch path, but the current review dispatcher only supports broadcast execution with optional `--exclude-vendor`. The plan therefore has no implementable contract for routing a fix round back to the recorded lead vendor only."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The executable convergence algorithm still does not encode the spec's `disagreement => ESCALATE` rule. In the current design, the blocking set only checks confirmed/unconfirmed medium+ findings, and T2/test acceptance never requires a disagreement path, so a round containing only disagreement findings can be treated as converged."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 9,
+    "confirmed_count": 0,
+    "unconfirmed_count": 9,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

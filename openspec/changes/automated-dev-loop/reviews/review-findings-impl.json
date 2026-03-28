@@ -1,0 +1,77 @@
+{
+  "review_type": "implementation",
+  "target": "automated-dev-loop",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "implementation_strategy_selector.py reads package.get('id') and package.get('type') but the real work-packages.yaml schema uses 'package_id' and 'task_type'. The selector will produce empty results when run against actual work-packages.yaml files. Tests pass because the test fixtures use the wrong field names too.",
+      "resolution": "Change package.get('id') to package.get('package_id') and package.get('type') to package.get('task_type') in both the selector and its tests. Similarly in _is_integration_package: check task_type=='integrate' (the actual value) not 'integration'.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/implementation_strategy_selector.py",
+      "package_id": "wp-strategy-selector"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "complexity_gate.py reads pkg.get('id') and pkg.get('type') but the real work-packages.yaml schema uses 'package_id' and 'task_type'. Same issue as the strategy selector — _count_impl_packages will count integration packages, and _check_signals won't match package IDs correctly. Tests use wrong field names.",
+      "resolution": "Change to 'package_id' and 'task_type' in complexity_gate.py and its tests. Also fix the locks signal check: in the real schema, locks is an object {files: [], keys: []}, not a list. Check locks.get('keys', []) instead of iterating locks as a list.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/complexity_gate.py",
+      "package_id": "wp-complexity-gate"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "auto_dev_loop.py calls assess_complexity_fn(change_dir=str(change_dir)) but the real assess_complexity() takes (work_packages_path, proposal_path, force) as positional/keyword args, not change_dir. The _phase_init also treats the result as a dict, but assess_complexity returns a GateResult dataclass.",
+      "resolution": "Fix _phase_init to call assess_complexity_fn(work_packages_path=change_dir / 'work-packages.yaml', proposal_path=change_dir / 'proposal.md') and access result as a dataclass (result.force_required, result.val_review_enabled) not dict.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/auto_dev_loop.py",
+      "package_id": "wp-conductor"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "auto_dev_loop.py calls converge_fn(change_dir=..., worktree_path=..., fix_mode=..., phase=...) but the real converge() function takes (change_id, review_type, artifacts_dir, worktree_path, agents_yaml_path, max_rounds, min_quorum, fix_mode, ...). The conductor passes 'phase' but converge expects 'review_type', and doesn't pass change_id.",
+      "resolution": "Fix _phase_review to call converge_fn with the correct signature: converge_fn(change_id=state.change_id, review_type=review_type_from_phase, artifacts_dir=change_dir, worktree_path=worktree_path, fix_mode=fix_mode). Map phase names to review_type: PLAN_REVIEW→'plan', IMPL_REVIEW→'implementation', VAL_REVIEW→'implementation'.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/auto_dev_loop.py",
+      "package_id": "wp-conductor"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "convergence_loop.py lines 336-337 use 'consensus_dict' in dir() and 'blocking' in dir() to handle possibly-unbound variables at end of loop. This is fragile — if max_rounds=0 (edge case), the for loop doesn't execute and both are unbound. Better to initialize before the loop.",
+      "resolution": "Initialize consensus_dict = None and blocking = [] before the for loop. Replace the dir() checks with simple None checks.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/convergence_loop.py",
+      "package_id": "wp-convergence-engine"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "convergence_loop.py line 297 accesses report.confirmed_count and report.unconfirmed_count directly on the ConsensusReport object, but line 256 already converts to dict (consensus_dict). This mixed access (object attributes in some places, dict keys in others) works but is inconsistent and could break if the attribute names change.",
+      "resolution": "Use consensus_dict consistently: consensus_dict['summary']['confirmed_count'] instead of report.confirmed_count. Or keep the report object for attribute access and only convert to dict at the end.",
+      "disposition": "accept",
+      "file_path": "skills/auto-dev-loop/scripts/convergence_loop.py",
+      "package_id": "wp-convergence-engine"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The review prompt builder (build_review_prompt) truncates proposal.md and design.md to 4000 chars each. For large proposals this loses important context. The disposition field values in the instructions say 'fix/accept/defer' but the schema uses 'fix/accept/escalate/regenerate'.",
+      "resolution": "Fix the disposition values in the prompt to match the schema. Consider passing the full content or using a smarter truncation strategy that preserves section headings.",
+      "disposition": "accept",
+      "file_path": "skills/auto-dev-loop/scripts/convergence_loop.py",
+      "package_id": "wp-convergence-engine"
+    }
+  ]
+}

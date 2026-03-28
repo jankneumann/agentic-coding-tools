@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "automated-dev-loop",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The metadata-driven strategy path is still incomplete end to end: `work-packages.yaml` defines no per-package `metadata.loc_estimate` / `metadata.alternatives_count` / `metadata.package_kind`, and no work package owns the required `work-packages.schema.json` change to allow those fields under strict validation. As written, T3's structured-metadata branch cannot be exercised or validated.",
+      "resolution": "Add the schema change to a concrete work package (likely `wp-schema`) and populate the relevant package metadata in `work-packages.yaml`, or relax the spec/tasks if inference-only selection is acceptable.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The convergence-loop design still assumes dispatcher and synthesizer interfaces that do not exist: it passes unsupported `output_dir` / `timeout` arguments to `ReviewOrchestrator.dispatch_and_wait()`, feeds `ReviewResult.findings` directly into `VendorResult`, and reads `ConsensusReport` like a dict (`f[\"agreed_criticality\"]`, `consensus.summary[...]`). Implementing the design literally will fail against the current `review_dispatcher.py` and `consensus_synthesizer.py` contracts.",
+      "resolution": "Revise the design and T2 to specify the real adapter flow: instantiate `ReviewOrchestrator`, convert each result's JSON payload into the `Finding` / `VendorResult` objects expected by `ConsensusSynthesizer`, then consume `ConsensusReport` via documented attributes or `to_dict()` before reading summary fields.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`IMPL_FIX` still depends on a targeted `--include-vendor` dispatch path, but the current review dispatcher only supports broadcast execution with optional `--exclude-vendor`. The plan therefore has no implementable contract for routing a fix round back to the recorded lead vendor only.",
+      "resolution": "Either extend `review_dispatcher.py` / `ReviewOrchestrator` with an explicit include-target vendor capability and cover it in tasks/tests, or redesign `IMPL_FIX` to invoke a single-vendor adapter directly instead of relying on the existing dispatcher CLI.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The executable convergence algorithm still does not encode the spec's `disagreement => ESCALATE` rule. In the current design, the blocking set only checks confirmed/unconfirmed medium+ findings, and T2/test acceptance never requires a disagreement path, so a round containing only disagreement findings can be treated as converged.",
+      "resolution": "Add an explicit check that any `disagreement` status (or `recommended_disposition == \"escalate\"`) transitions to `ESCALATE` before convergence is declared, and add unit coverage for that path in T2.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/automated-dev-loop/design.md"
+    }
+  ]
+}
