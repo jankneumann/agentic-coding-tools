@@ -150,7 +150,7 @@ After writing your own findings, dispatch reviews to other vendor CLIs and synth
 **Dispatch to other vendors** (excluding the current agent's vendor):
 
 ```bash
-python3 "<skill-base-dir>/../parallel-implement-feature/scripts/review_dispatcher.py" \
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py" \
   --review-type plan \
   --mode review \
   --prompt-file "openspec/changes/<change-id>/reviews/review-prompt.md" \
@@ -165,7 +165,7 @@ This dispatches to all available vendors (Codex, Gemini) configured in `agents.y
 **Synthesize consensus** from all findings (yours + vendor results):
 
 ```bash
-python3 "<skill-base-dir>/../parallel-implement-feature/scripts/consensus_synthesizer.py" \
+python3 "<skill-base-dir>/../parallel-infrastructure/scripts/consensus_synthesizer.py" \
   --review-type plan \
   --target "<change-id>" \
   --findings "openspec/changes/<change-id>/review-findings-plan.json" \
