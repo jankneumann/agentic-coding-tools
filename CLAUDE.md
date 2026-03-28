@@ -3,33 +3,35 @@
 
 ## Workflow
 
-Two skill families exist: **linear** (sequential, single-agent) and **parallel** (multi-agent, DAG-scheduled). Both share the same OpenSpec artifact structure. Original skill names are aliases for their `linear-*` equivalents.
+Unified skills with **tiered execution** — each skill auto-selects its tier at startup based on coordinator availability and feature complexity:
 
-### Linear Workflow (default)
-
-```
-/linear-explore-feature [focus-area] (optional)      → Candidate shortlist for next work
-/linear-plan-feature <description>                    → Proposal approval gate
-  /linear-iterate-on-plan <change-id> (optional)      → Refines plan before approval
-/linear-implement-feature <change-id>                 → PR review gate
-  /linear-iterate-on-implementation <change-id> (optional)  → Refinement complete
-  /linear-validate-feature <change-id> (optional)     → Live deployment verification (includes security scanning)
-/linear-cleanup-feature <change-id>                   → Done
-```
-
-Original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatible aliases.
-
-### Parallel Workflow (requires coordinator)
+| Tier | When | Planning Artifacts | Execution |
+|------|------|-------------------|-----------|
+| **Coordinated** | Coordinator available | Contracts + work-packages + resource claims | Multi-agent DAG via coordinator |
+| **Local parallel** | No coordinator, complex feature | Contracts + work-packages (no claims) | DAG via built-in Agent parallelism |
+| **Sequential** | Simple feature | Tasks.md only | Single-agent sequential |
 
 ```
-/parallel-explore-feature [focus-area]          → Candidate shortlist with resource claim analysis
-/parallel-plan-feature <description>            → Contracts + work-packages.yaml
-  /parallel-review-plan <change-id>             → Independent plan review (vendor-diverse)
-/parallel-implement-feature <change-id>         → DAG-scheduled multi-agent implementation
-  /parallel-review-implementation <change-id>   → Per-package review (vendor-diverse)
-/parallel-validate-feature <change-id>          → Evidence completeness + integration checks
-/parallel-cleanup-feature <change-id>           → Merge queue + cross-feature rebase
+/explore-feature [focus-area] (optional)               → Candidate shortlist for next work
+/plan-feature <description>                            → Proposal approval gate
+  /iterate-on-plan <change-id> (optional)              → Refines plan before approval
+  /parallel-review-plan <change-id> (optional)         → Independent plan review (vendor-diverse)
+/implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
+  /iterate-on-implementation <change-id> (optional)    → Refinement complete
+  /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)
+/cleanup-feature <change-id>                           → Done (runs deploy + security validation before merge)
 ```
+
+Validation is automatic: `/implement-feature` runs environment-safe checks (spec, evidence), `/cleanup-feature` and `/merge-pull-requests` run Docker-dependent checks (deploy, smoke, security, E2E) before merge. Both delegate to `/validate-feature` with `--phase` selectors. `/validate-feature` can also be invoked directly for a full manual pass.
+
+Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (e.g., "parallel plan feature" triggers `/plan-feature` with at least local-parallel tier).
+
+### Infrastructure Skills
+
+- **`coordination-bridge`** — Coordinator detection (`check_coordinator.py`) and HTTP fallback bridge
+- **`parallel-infrastructure`** — Shared parallel execution scripts: DAG scheduler, review dispatcher, consensus synthesizer, scope checker
+- **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
+- **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and auto-dev-loop)
 
 See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development.md) for the full design.
 

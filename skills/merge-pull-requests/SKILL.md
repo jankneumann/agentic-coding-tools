@@ -227,6 +227,41 @@ If vendor review produces **blocking findings** (confirmed issues with dispositi
 
 If vendor CLIs are unavailable or all vendors fail, proceed without vendor review and note the gap.
 
+### 9.5. Merge-Time Validation Gate for OpenSpec PRs
+
+For OpenSpec PRs (`openspec/*` branch), check whether Docker-dependent validation has been run. Cloud-created PRs typically pass environment-safe checks (pytest, mypy, ruff, openspec validate) during implementation but lack deployment-based validation.
+
+**Triggers when ALL conditions are met:**
+- PR origin is `openspec`
+- PR is not a draft
+- No `validation-report.md` exists at `openspec/changes/<change-id>/`, OR the existing report is missing deploy/smoke/security/e2e phases
+
+**Skip when ANY condition is met:**
+- `validation-report.md` exists with all phases completed
+- `--dry-run` mode is active
+- Docker is not available (`docker info` fails)
+
+**Action**: Delegate to `/validate-feature` with the Docker-dependent phases only:
+
+```
+/validate-feature <change-id> --phase deploy,smoke,security,e2e
+```
+
+This runs the canonical validation skill targeting only the phases that require local infrastructure. The skill handles worktree isolation, service lifecycle, report generation, and teardown. The resulting `validation-report.md` is committed to the PR branch so subsequent triage sessions skip this step.
+
+**Present findings** in the interactive review step alongside vendor review results:
+
+```
+Merge-Time Validation (OpenSpec: <change-id>):
+  ✓ Deploy: Services started (3 containers)
+  ✓ Smoke: 5/5 health checks passed
+  ○ Security: Skipped (Java not available)
+  ○ E2E: Skipped (no tests/e2e/ directory)
+  Result: PASS (2 passed, 2 skipped)
+```
+
+If any phase **fails**, flag the PR with a warning but do not hard-block — the operator decides whether to merge, fix, or skip. Critical failures (deploy crash, smoke test failures) should be highlighted prominently.
+
 ### 10. Determine Merge Order
 
 Before the interactive review, sort remaining PRs for optimal merge order:
@@ -336,6 +371,7 @@ After processing all PRs, present a summary:
 - CI re-run: #39
 - Comments addressed: #38
 - OpenSpec cleanup needed: /cleanup-feature add-user-export
+- Merge-time validation: #38 (deploy: pass, smoke: pass, security: skip, e2e: skip)
 ```
 
 ## Dry-Run Mode

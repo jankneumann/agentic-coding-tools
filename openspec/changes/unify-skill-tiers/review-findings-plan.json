@@ -1,0 +1,99 @@
+{
+  "review_type": "plan",
+  "target": "unify-skill-tiers",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "Task 8 proposes removing skills/parallel-implement-feature/ but auto-dev-loop/scripts/convergence_loop.py, fix-scrub/scripts/vendor_dispatch.py, and merge-pull-requests/scripts/vendor_review.py dynamically import ReviewOrchestrator, ConsensusSynthesizer, and other classes from skills/parallel-implement-feature/scripts/ via sys.path manipulation. Deleting this directory will break three skills at runtime.",
+      "resolution": "Before removing parallel-implement-feature/, move its scripts/ directory to a shared location (e.g., skills/shared-scripts/ or keep as skills/parallel-implement-feature/scripts/) and update the sys.path references in auto-dev-loop, fix-scrub, and merge-pull-requests. Add this as a prerequisite sub-task in Task 8.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/scripts/convergence_loop.py"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Task 8 also proposes removing skills/parallel-plan-feature/ which contains scripts/check_coordinator.py. The auto-dev-loop SKILL.md references this script at line 24 for coordinator detection. Other parallel skills also bundle their own check_coordinator.py copies.",
+      "resolution": "The canonical check_coordinator.py already exists at agent-coordinator/scripts/check_coordinator.py. Update all references to use that canonical path instead of skill-bundled copies. Verify the canonical version has identical behavior.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-plan-feature/scripts/check_coordinator.py"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The tasks list has no task for updating auto-dev-loop/SKILL.md, which contains explicit branching logic: 'if coordinator: /parallel-plan-feature else: /linear-plan-feature'. After consolidation, auto-dev-loop should reference the unified /plan-feature skill and let tier detection happen internally.",
+      "resolution": "Add a task to update skills/auto-dev-loop/SKILL.md to replace all /parallel-* and /linear-* invocations with unified skill names. Also update auto-dev-loop/scripts/convergence_loop.py import paths.",
+      "disposition": "fix",
+      "file_path": "skills/auto-dev-loop/SKILL.md"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The tasks list has no task for updating fix-scrub and merge-pull-requests skills, which import from parallel-implement-feature/scripts/. These are downstream consumers of the scripts being relocated.",
+      "resolution": "Add a task to update import paths in fix-scrub/scripts/vendor_dispatch.py and merge-pull-requests/scripts/vendor_review.py after relocating shared scripts.",
+      "disposition": "fix",
+      "file_path": "skills/fix-scrub/scripts/vendor_dispatch.py"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The tier selection logic in design.md uses 'feature has 3+ independent tasks' as a trigger for local-parallel tier. For plan-feature, this check happens before tasks exist (planning creates tasks). The tier detection needs different criteria per skill: plan-feature should detect complexity from the feature description/scope, while implement-feature can check existing work-packages.yaml or task count.",
+      "resolution": "Refine the tier selection logic per skill. For plan-feature: always generate contracts and work-packages unless the feature is trivially simple (single file change, <3 spec requirements). For implement-feature: check if work-packages.yaml exists (from planning) to select local-parallel vs sequential.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The design proposes 'Per-package worktrees: Yes' for local-parallel tier, but this contradicts the existing linear-implement-feature's within-feature parallelism pattern which uses a single worktree with file-scope constraints in agent prompts. Per-package worktrees without coordinator locks could still cause merge conflicts.",
+      "resolution": "Clarify in the design: local-parallel tier should use a SINGLE feature worktree (like sequential) with Agent tool dispatch and prompt-based scope constraints. Per-package worktrees should remain coordinated-tier only, where lock management prevents conflicts. Update the capabilities matrix accordingly.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The spec has no requirement for how the unified skill communicates which tier was selected to the user. Without clear feedback, users won't understand why contracts/work-packages were or weren't generated.",
+      "resolution": "Add a spec requirement: 'The unified skill SHALL emit a tier notification at startup indicating which tier was selected and why (e.g., \"Tier: local-parallel — coordinator unavailable, generating contracts and work-packages for local DAG execution\").'",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The spec defines TIER-3 (local-parallel) as triggered when 'the feature has work-packages.yaml or 3+ independent tasks'. But during plan-feature, work-packages don't exist yet. And during implement-feature, if planning was done with the sequential tier (no work-packages generated), there's no mechanism to upgrade to local-parallel. The tier should be overridable.",
+      "resolution": "Add a spec requirement: 'The user MAY override the detected tier via an explicit flag or trigger phrase (e.g., \"plan feature with work-packages\"). If the user invoked a parallel-prefixed trigger (e.g., \"parallel plan feature\"), the skill SHALL select at least the local-parallel tier.'",
+      "disposition": "fix"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Task 10 references docs/skills-workflow.md for updates but doesn't verify it exists. Also missing: docs/script-skill-dependencies.md which maps all script usage across skills and will need updating after script relocation.",
+      "resolution": "Add docs/script-skill-dependencies.md to the update list in Task 10. Add a conditional check for docs/skills-workflow.md existence.",
+      "disposition": "accept"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The parallel-review-plan and parallel-review-implementation skills are retained but still carry the 'parallel-' prefix, which is inconsistent with the consolidation removing all other parallel-* prefixes. The background planning agent suggested renaming them to review-plan and review-implementation.",
+      "resolution": "Consider renaming to review-plan and review-implementation for consistency. If renamed, add the old names to DEPRECATED_SKILLS and update cross-references. Acceptable to defer to a follow-up change.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The spec has no requirement covering the openspec/specs/skill-workflow/spec.md main spec file, which documents the entire parallel/linear skill family and degradation behavior. This spec needs updating to reflect the unified model.",
+      "resolution": "Add updating openspec/specs/skill-workflow/spec.md to Task 10's scope.",
+      "disposition": "accept"
+    }
+  ]
+}

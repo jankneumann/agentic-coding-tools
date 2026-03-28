@@ -121,14 +121,13 @@ These scripts are bundled inside their skill directories and are already synced 
 
 | Skill | Local Scripts |
 |-------|--------------|
-| parallel-plan-feature | `scripts/check_coordinator.py` |
-| parallel-implement-feature | `scripts/check_coordinator.py`, `dag_scheduler.py`, `circuit_breaker.py`, `escalation_handler.py`, `integration_orchestrator.py`, `package_executor.py`, `result_validator.py`, `scope_checker.py` |
-| parallel-cleanup-feature | `scripts/check_coordinator.py` |
+| coordination-bridge | `scripts/check_coordinator.py`, `scripts/coordination_bridge.py` |
+| parallel-infrastructure | `scripts/dag_scheduler.py`, `circuit_breaker.py`, `consensus_synthesizer.py`, `escalation_handler.py`, `integration_orchestrator.py`, `package_executor.py`, `result_validator.py`, `review_dispatcher.py`, `scope_checker.py` |
 | bug-scrub | `scripts/main.py` + 8 collector modules |
 | fix-scrub | `scripts/main.py` + 5 fix modules |
 | security-review | `scripts/main.py` + 10 security modules |
 | merge-pull-requests | `scripts/discover_prs.py`, `merge_pr.py`, `analyze_comments.py`, `check_staleness.py`, `shared.py` |
-| linear-validate-feature | `scripts/smoke_tests/` (5 pytest modules) |
+| validate-feature | `scripts/smoke_tests/` (5 pytest modules) |
 
 ## Cross-Skill Python Imports
 
@@ -136,8 +135,11 @@ Some skill-local scripts import from other skill directories via `sys.path` mani
 
 | Importing Script | Imports From |
 |-----------------|--------------|
-| `parallel-implement-feature/scripts/dag_scheduler.py` | `skills/validate-packages/scripts/validate_work_packages.py` |
-| `parallel-implement-feature/scripts/scope_checker.py` | `skills/refresh-architecture/scripts/parallel_zones.py` |
+| `parallel-infrastructure/scripts/dag_scheduler.py` | `skills/validate-packages/scripts/validate_work_packages.py` |
+| `parallel-infrastructure/scripts/scope_checker.py` | `skills/refresh-architecture/scripts/parallel_zones.py` |
+| `auto-dev-loop/scripts/convergence_loop.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
+| `fix-scrub/scripts/vendor_dispatch.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py` |
+| `merge-pull-requests/scripts/vendor_review.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
 
 ## Dependency Graph (Mermaid)
 
@@ -154,53 +156,53 @@ graph TD
         RA[skills/refresh-architecture/scripts/refresh_architecture.sh]
     end
 
-    subgraph "Linear Skills"
-        LP[linear-plan-feature]
-        LI[linear-implement-feature]
-        LIt[linear-iterate-on-implementation]
-        LV[linear-validate-feature]
-        LC[linear-cleanup-feature]
+    subgraph "Unified Workflow Skills"
+        PF[plan-feature]
+        IF[implement-feature]
+        IIt[iterate-on-implementation]
+        VF_S[validate-feature]
+        CF[cleanup-feature]
     end
 
-    subgraph "Parallel Skills"
-        PP[parallel-plan-feature]
-        PI[parallel-implement-feature]
-        PV[parallel-validate-feature]
-        PC[parallel-cleanup-feature]
+    subgraph "Infrastructure Skills"
+        PI[parallel-infrastructure]
     end
 
     subgraph "Utility Skills"
         FS[fix-scrub]
         RA_S[refresh-architecture]
         OBW[openspec-beads-worktree]
+        ADL[auto-dev-loop]
+        MPR[merge-pull-requests]
     end
 
-    LP --> WT
-    LP --> CB
-    LI --> WT
-    LI --> CB
-    LI --> VF
-    LIt --> WT
-    LIt --> CB
-    LV --> WT
-    LV --> CB
-    LV --> VF
-    LC --> WT
-    LC --> CB
+    PF --> WT
+    PF --> CB
+    PF --> VWP
+    PF --> PZ
+    IF --> WT
+    IF --> CB
+    IF --> MW
+    IF --> VWP
+    IF --> PZ
+    IF --> PI
+    IF --> VF
+    IIt --> WT
+    IIt --> CB
+    VF_S --> WT
+    VF_S --> CB
+    VF_S --> VF
+    VF_S --> VWR
+    CF --> WT
+    CF --> CB
+    CF --> MW
 
-    PP --> WT
-    PP --> VWP
-    PP --> PZ
-    PI --> WT
-    PI --> MW
-    PI --> VWP
-    PI --> PZ
-    PV --> VWR
-    PC --> WT
-    PC --> MW
-
+    ADL --> PI
+    ADL --> CB
     FS --> WT
     FS --> CB
+    FS --> PI
+    MPR --> PI
     RA_S --> RA
     OBW --> WT
 ```

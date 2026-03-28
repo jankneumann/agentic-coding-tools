@@ -59,7 +59,7 @@ def discover_vendors(
         # Add review_dispatcher's parent to path so we can import it
         dispatcher_dir = (
             Path(__file__).resolve().parent.parent.parent
-            / "parallel-implement-feature"
+            / "parallel-infrastructure"
             / "scripts"
         )
         sys.path.insert(0, str(dispatcher_dir))

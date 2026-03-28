@@ -292,11 +292,56 @@ install_python_tools() {
   echo "  export PATH=\"$venv_path/bin:\$PATH\""
 }
 
+# Deprecated skills that have been superseded by unified skills.
+# These are removed from agent config dirs before installing current skills.
+DEPRECATED_SKILLS=(
+  linear-plan-feature
+  linear-implement-feature
+  linear-explore-feature
+  linear-validate-feature
+  linear-cleanup-feature
+  linear-iterate-on-plan
+  linear-iterate-on-implementation
+  parallel-plan-feature
+  parallel-implement-feature
+  parallel-explore-feature
+  parallel-validate-feature
+  parallel-cleanup-feature
+)
+
+remove_deprecated_skills() {
+  local total_removed=0
+  for agent in "${agent_list[@]}"; do
+    agent="${agent//[[:space:]]/}"
+    [[ -n "$agent" ]] || continue
+
+    local rel_dir
+    rel_dir="$(agent_dir_for "$agent")" || continue
+    local dest_dir="$TARGET_ROOT/$rel_dir"
+
+    for deprecated in "${DEPRECATED_SKILLS[@]}"; do
+      local dep_path="$dest_dir/$deprecated"
+      if [[ -d "$dep_path" && -f "$dep_path/SKILL.md" ]]; then
+        rm -rf "$dep_path"
+        echo "  remove  $deprecated (deprecated)"
+        total_removed=$((total_removed + 1))
+      fi
+    done
+  done
+
+  if [[ $total_removed -gt 0 ]]; then
+    echo "Removed $total_removed deprecated skill(s)."
+  fi
+}
+
 echo "Installing ${#skills[@]} skill directorie(s) from: $SCRIPT_DIR"
 echo "Target root: $TARGET_ROOT"
 echo "Mode: $MODE"
 echo "Dependency hooks: $DEPS_MODE"
 echo "Python tools: $PYTHON_TOOLS_MODE"
+
+printf '\nRemoving deprecated skills...\n'
+remove_deprecated_skills
 
 total_installed=0
 total_skipped=0

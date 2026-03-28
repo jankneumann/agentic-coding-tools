@@ -21,14 +21,14 @@ Optional flags:
 At skill start, run the coordinator detection script:
 
 ```bash
-python3 "<skill-base-dir>/../parallel-plan-feature/scripts/check_coordinator.py" --json
+python3 "<skill-base-dir>/../coordination-bridge/scripts/check_coordinator.py" --json
 ```
 
 If coordinator is unavailable, emit a warning and fall back to sequential skill invocation:
-1. `/linear-plan-feature` (if description provided)
+1. `/plan-feature` (if description provided)
 2. `/parallel-review-plan` (single pass, no convergence loop)
-3. `/linear-implement-feature`
-4. `/linear-validate-feature`
+3. `/implement-feature`
+4. `/validate-feature`
 5. Create PR manually
 
 ## Steps
@@ -68,8 +68,7 @@ result = assess_complexity(work_packages_path, proposal_path, force=<--force fla
 ### 2. PLAN Phase
 
 If argument was a description (no existing change-id):
-- If coordinator available: invoke `/parallel-plan-feature <description>`
-- If coordinator unavailable: invoke `/linear-plan-feature <description>`
+- Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
 - Wait for proposal approval before continuing
 
 If argument was an existing change-id:
@@ -104,8 +103,7 @@ For **inline plan fixes** (PLAN_FIX): Read the blocking findings, edit the relev
 ### 4. IMPLEMENT Phase
 
 Invoke implementation using existing skills:
-- If coordinator available + work-packages.yaml exists: `/parallel-implement-feature <change-id>`
-- Otherwise: `/linear-implement-feature <change-id>`
+- Invoke `/implement-feature <change-id>` (tier auto-detected based on coordinator + work-packages.yaml)
 
 Record `package_authors` from the implementation results (which vendor implemented each package).
 
@@ -118,8 +116,7 @@ For **targeted implementation fixes** (IMPL_FIX): Look up the lead vendor from `
 ### 6. VALIDATE Phase
 
 Invoke validation:
-- If coordinator available: `/parallel-validate-feature <change-id>`
-- Otherwise: `/linear-validate-feature <change-id>`
+- Invoke `/validate-feature <change-id>` (tier auto-detected)
 
 **If passed**: Check `val_review_enabled` — if true, go to VAL_REVIEW; otherwise skip to SUBMIT_PR.
 **If failed**: Transition to VAL_FIX.
@@ -187,5 +184,5 @@ At each state transition, report:
 
 After human approval:
 ```
-/parallel-cleanup-feature <change-id>
+/cleanup-feature <change-id>
 ```
