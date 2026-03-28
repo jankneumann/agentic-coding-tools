@@ -35,7 +35,11 @@ The base skill names (`plan-feature`, `implement-feature`, etc.) become canonica
 ### In scope
 - Merge parallel artifacts (contracts, work-packages, DAG execution) into base skills
 - Add tiered execution detection (coordinated / local-parallel / sequential)
+- Relocate shared scripts into two infrastructure skills:
+  - `coordination-bridge` — gains `check_coordinator.py` (coordinator detection)
+  - New `parallel-infrastructure` — homes DAG scheduler, review dispatcher, consensus synthesizer, scope checker, and other parallel execution machinery
 - Update `install.sh` with deprecated skill removal
+- Update `auto-dev-loop`, `fix-scrub`, `merge-pull-requests` import paths to reference new script locations
 - Update `CLAUDE.md` workflow documentation
 - Remove deprecated `linear-*` and `parallel-*` skill directories
 - Preserve `parallel-review-plan` and `parallel-review-implementation` (used by implementation phase)
@@ -45,3 +49,4 @@ The base skill names (`plan-feature`, `implement-feature`, etc.) become canonica
 - Changes to the OpenSpec CLI or schemas
 - Changes to worktree management scripts
 - New coordinator capabilities
+- Renaming `parallel-review-*` skills (deferred to follow-up)
