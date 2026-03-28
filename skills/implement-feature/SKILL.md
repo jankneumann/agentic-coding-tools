@@ -286,20 +286,17 @@ Fix all failures before proceeding.
 
 **Skip if TIER is "sequential".**
 
-Verify change-context completeness and work-package evidence:
+Delegate to `/validate-feature` for environment-safe validation phases:
 
-1. **Change-context audit**: Read `change-context.md` and verify that the Requirement Traceability Matrix has no `---` entries in Files Changed (all rows should reference actual files from `git diff --name-only main..HEAD`). Update Coverage Summary counts.
-
-2. **Work-package evidence** (if `work-packages.yaml` exists and per-package results are present):
-
-```bash
-skills/.venv/bin/python "<skill-base-dir>/../validate-packages/scripts/validate_work_result.py" \
-  artifacts/<package-id>/result.json
+```
+/validate-feature <change-id> --phase spec,evidence
 ```
 
-Verify schema compliance, revision consistency, scope compliance, and no unresolved escalations.
+This runs the canonical validation skill targeting:
+- **Spec compliance** (`spec` phase): Audits `change-context.md` Requirement Traceability Matrix — verifies no `---` entries in Files Changed, updates Coverage Summary counts, and checks each requirement against the implementation.
+- **Evidence completeness** (`evidence` phase): Validates work-package results against `work-queue-result.schema.json`, checks revision consistency, scope compliance, and cross-package consistency. Populates the Evidence column in `change-context.md`.
 
-These checks are environment-safe and run in both cloud and local. Docker-dependent validation (deploy, smoke, security, E2E) is deferred to `/validate-feature` or the merge-time validation gate in `/merge-pull-requests`.
+These phases are environment-safe and run in both cloud and local. Docker-dependent phases (deploy, smoke, security, E2E) are deferred to the merge-time validation gate in `/cleanup-feature` or `/merge-pull-requests`.
 
 ### 7. Document Lessons Learned [all tiers]
 
