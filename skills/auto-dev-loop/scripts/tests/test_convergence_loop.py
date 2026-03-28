@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
 _PARALLEL_DIR = str(
     Path(__file__).resolve().parent.parent.parent.parent
-    / "parallel-implement-feature"
+    / "parallel-infrastructure"
     / "scripts"
 )
 for p in (_SCRIPTS_DIR, _PARALLEL_DIR):

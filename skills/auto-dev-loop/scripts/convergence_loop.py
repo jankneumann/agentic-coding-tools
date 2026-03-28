@@ -28,16 +28,16 @@ from pathlib import Path
 from typing import Any, Callable
 
 # ---------------------------------------------------------------------------
-# Import review_dispatcher and consensus_synthesizer from parallel-implement
+# Import review_dispatcher and consensus_synthesizer from parallel-infrastructure
 # ---------------------------------------------------------------------------
 
-_PARALLEL_IMPL_DIR = str(
+_PARALLEL_INFRA_DIR = str(
     Path(__file__).resolve().parent.parent.parent
-    / "parallel-implement-feature"
+    / "parallel-infrastructure"
     / "scripts"
 )
-if _PARALLEL_IMPL_DIR not in sys.path:
-    sys.path.insert(0, _PARALLEL_IMPL_DIR)
+if _PARALLEL_INFRA_DIR not in sys.path:
+    sys.path.insert(0, _PARALLEL_INFRA_DIR)
 
 from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,

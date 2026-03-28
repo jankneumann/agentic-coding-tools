@@ -248,10 +248,10 @@ def dispatch_vendor_reviews(
             "message": "Dry-run: would dispatch vendor reviews",
         }
 
-    # Import review infrastructure — lives in parallel-implement-feature
+    # Import review infrastructure — lives in parallel-infrastructure
     dispatcher_dir = (
         Path(__file__).resolve().parent.parent.parent
-        / "parallel-implement-feature" / "scripts"
+        / "parallel-infrastructure" / "scripts"
     )
     if not dispatcher_dir.exists():
         return {
