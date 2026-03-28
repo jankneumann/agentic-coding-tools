@@ -37,6 +37,7 @@ def test_coordination_api_rpc_calls_match_migrations() -> None:
         src_dir / "memory.py",
         src_dir / "handoffs.py",
         src_dir / "profiles.py",
+        src_dir / "feature_registry.py",
     ]
 
     called_rpcs: set[str] = set()

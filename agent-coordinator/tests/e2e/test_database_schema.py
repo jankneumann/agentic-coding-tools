@@ -20,6 +20,7 @@ EXPECTED_TABLES = [
     "audit_log",
     "cedar_policies",
     "changesets",
+    "feature_registry",
     "file_locks",
     "handoff_documents",
     "memory_episodic",
@@ -27,6 +28,7 @@ EXPECTED_TABLES = [
     "memory_working",
     "network_policies",
     "operation_guardrails",
+    "schema_migrations",
     "verification_results",
     "work_queue",
 ]

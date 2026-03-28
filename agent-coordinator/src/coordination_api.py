@@ -260,14 +260,37 @@ async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
 
 def create_coordination_api() -> FastAPI:
     """Create the coordination HTTP API application."""
+    import logging
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+
     from .telemetry import get_prometheus_app, init_telemetry
 
     init_telemetry()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        # Apply pending database migrations on startup
+        from .migrations import ensure_schema
+
+        try:
+            applied = await ensure_schema()
+            if applied:
+                logging.getLogger(__name__).info(
+                    "Applied %d pending migration(s) at startup.", len(applied)
+                )
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Migration check failed — continuing with existing schema.",
+                exc_info=True,
+            )
+        yield
 
     app = FastAPI(
         title="Agent Coordination API",
         description="Write operations for multi-agent coordination",
         version="0.2.0",
+        lifespan=lifespan,
     )
 
     # Mount Prometheus /metrics endpoint if enabled

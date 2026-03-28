@@ -1831,9 +1831,30 @@ After completing work, I'll release locks and mark tasks as done.
 
 def main() -> None:
     """Entry point for the MCP server."""
+    import asyncio
+
     from .telemetry import init_telemetry
 
     init_telemetry()
+
+    # Apply any pending database migrations before accepting tool calls
+    from .migrations import ensure_schema
+
+    try:
+        applied = asyncio.run(ensure_schema())
+        if applied:
+            import logging
+
+            logging.getLogger(__name__).info(
+                "Applied %d pending migration(s) at startup.", len(applied)
+            )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Migration check failed — continuing with existing schema.",
+            exc_info=True,
+        )
 
     # Default to stdio transport (for Claude Code integration)
     transport = "stdio"
