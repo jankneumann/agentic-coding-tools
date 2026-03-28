@@ -11,6 +11,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fix_models import ClassifiedFinding, FixGroup, FixPlan, severity_rank  # noqa: E402
 
 
+def assert_no_file_overlap(auto_groups: list[FixGroup]) -> None:
+    """Verify that no file_path appears in more than one group.
+
+    Raises:
+        AssertionError: If any file appears in multiple groups, with a
+            message listing the overlapping files.
+    """
+    seen: dict[str, int] = {}
+    for idx, group in enumerate(auto_groups):
+        fp = group.file_path
+        if fp in seen:
+            # Scan all groups to collect every overlap for a complete message
+            overlaps: dict[str, list[int]] = {}
+            for i, g in enumerate(auto_groups):
+                overlaps.setdefault(g.file_path, []).append(i)
+            duplicated = {
+                path: indices
+                for path, indices in overlaps.items()
+                if len(indices) > 1
+            }
+            msg_parts = [
+                f"  {path!r} in groups {indices}"
+                for path, indices in sorted(duplicated.items())
+            ]
+            raise AssertionError(
+                "File overlap detected across auto-fix groups:\n"
+                + "\n".join(msg_parts)
+            )
+        seen[fp] = idx
+
+
 def plan(
     classified: list[ClassifiedFinding],
     max_agent_fixes: int = 10,
