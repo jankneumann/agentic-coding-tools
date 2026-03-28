@@ -9,10 +9,10 @@ Install skills into agent config directories using symlinks or synced copies.
 Any directory under skills/ with SKILL.md is installed automatically.
 
 Options:
-  --target <directory>   Base directory that contains .claude/.codex/.gemini
+  --target <directory>   Base directory that contains .claude/.agents
                          (default: repository root)
   --agents <list>        Comma-separated list of agents to install for.
-                         Supported: claude,codex,gemini (default: all)
+                         Supported: claude,agents (default: all)
   --mode <type>          Install mode: symlink, rsync, or copy (default: rsync)
   --deps <mode>          Per-skill dependency hooks mode:
                          none (skip), print (show install commands), apply (execute)
@@ -35,13 +35,13 @@ Examples:
   ./install.sh --mode copy --force
   ./install.sh --target "$HOME" --deps none --python-tools none
   ./install.sh --mode symlink
-  ./install.sh --target /path/to/project --agents claude,codex --deps apply
+  ./install.sh --target /path/to/project --agents claude,agents --deps apply
 USAGE
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_ROOT="$(pwd)"
-AGENTS="claude,codex,gemini"
+AGENTS="claude,agents"
 MODE="rsync"
 FORCE=0
 DEPS_MODE="print"
@@ -137,8 +137,7 @@ esac
 agent_dir_for() {
   case "$1" in
     claude) echo ".claude/skills" ;;
-    codex)  echo ".codex/skills" ;;
-    gemini) echo ".gemini/skills" ;;
+    agents) echo ".agents/skills" ;;
     *) return 1 ;;
   esac
 }
