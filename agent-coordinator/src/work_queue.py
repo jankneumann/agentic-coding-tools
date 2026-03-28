@@ -533,12 +533,11 @@ class WorkQueueService:
             complete_result = CompleteResult.from_dict(result_data)
 
             # Record task duration only after completion succeeds
-            can_record = (
+            if (
                 complete_result.success
                 and claimed_at_snapshot is not None
                 and task_duration_hist is not None
-            )
-            if can_record:
+            ):
                 try:
                     now = datetime.now(UTC)
                     claimed_at = claimed_at_snapshot
