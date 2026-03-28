@@ -246,8 +246,9 @@ class LockService:
                             },
                         )
 
-                    # Active gauge: increment on acquire or refresh
-                    if lock_result.success and lock_result.action in ("acquired", "refreshed"):
+                    # Active gauge: increment only on newly acquired locks
+                    # (refreshed locks are already counted as active)
+                    if lock_result.success and lock_result.action == "acquired":
                         active_gauge.add(1)
 
                     # TTL histogram

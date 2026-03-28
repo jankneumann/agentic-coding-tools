@@ -508,27 +508,15 @@ class WorkQueueService:
 
             # Look up the task for claimed_at to compute task duration
             task_type_label = "unknown"
+            claimed_at_snapshot = None
             try:
                 task_obj = await self.get_task(task_id)
                 if task_obj is not None:
                     task_type_label = task_obj.task_type
-                    if task_obj.claimed_at is not None and task_duration_hist is not None:
-                        now = datetime.now(UTC)
-                        claimed_at = task_obj.claimed_at
-                        if claimed_at.tzinfo is None:
-                            claimed_at = claimed_at.replace(tzinfo=UTC)
-                        task_dur_ms = (now - claimed_at).total_seconds() * 1000
-                        if task_dur_ms >= 0:
-                            task_duration_hist.record(
-                                task_dur_ms,
-                                {
-                                    "task_type": task_type_label,
-                                    "outcome": "completed" if success else "failed",
-                                },
-                            )
+                    claimed_at_snapshot = task_obj.claimed_at
             except Exception:
                 logger.debug(
-                    "Failed to record task duration metric", exc_info=True
+                    "Failed to fetch task for duration metric", exc_info=True
                 )
 
             result_data = await self.db.rpc(
@@ -543,6 +531,32 @@ class WorkQueueService:
             )
 
             complete_result = CompleteResult.from_dict(result_data)
+
+            # Record task duration only after completion succeeds
+            can_record = (
+                complete_result.success
+                and claimed_at_snapshot is not None
+                and task_duration_hist is not None
+            )
+            if can_record:
+                try:
+                    now = datetime.now(UTC)
+                    claimed_at = claimed_at_snapshot
+                    if claimed_at.tzinfo is None:
+                        claimed_at = claimed_at.replace(tzinfo=UTC)
+                    task_dur_ms = (now - claimed_at).total_seconds() * 1000
+                    if task_dur_ms >= 0:
+                        task_duration_hist.record(
+                            task_dur_ms,
+                            {
+                                "task_type": task_type_label,
+                                "outcome": "completed" if success else "failed",
+                            },
+                        )
+                except Exception:
+                    logger.debug(
+                        "Failed to record task duration metric", exc_info=True
+                    )
 
             try:
                 await get_audit_service().log_operation(
