@@ -133,7 +133,7 @@ agents:
             timeout_seconds: 1800
       model_flag: "-m"
       model: "gpt-5.4"
-      model_fallbacks: ["gpt-5.3-codex", "gpt-5.4-mini"]
+      model_fallbacks: ["gpt-5.3-codex"]
 
   # ---------------------------------------------------------------------------
   # Gemini
