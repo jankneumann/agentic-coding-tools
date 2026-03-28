@@ -155,8 +155,8 @@ agents:
         alternative:
           args: ["--approval-mode", "yolo"]
       model_flag: "-m"
-      model: null
-      model_fallbacks: ["gemini-2.5-pro", "gemini-2.5-flash"]
+      model: "auto"
+      model_fallbacks: ["flash"]
 
   gemini-remote:
     type: gemini
@@ -195,5 +195,5 @@ agents:
             interval_seconds: 60
             timeout_seconds: 3600
       model_flag: "-m"
-      model: null
-      model_fallbacks: ["gemini-2.5-pro"]
+      model: "auto"
+      model_fallbacks: ["flash"]
