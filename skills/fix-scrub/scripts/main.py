@@ -18,9 +18,12 @@ from classify import classify  # noqa: E402
 from execute_auto import execute_auto_fixes  # noqa: E402
 from generate_prompts import generate_prompts  # noqa: E402
 from fix_models import ClassifiedFinding, Finding, FindingOrigin  # noqa: E402
-from plan_fixes import plan  # noqa: E402
+from parallel_auto import execute_auto_fixes_parallel  # noqa: E402
+from parallel_verify import verify_parallel  # noqa: E402
+from plan_fixes import assert_no_file_overlap, plan  # noqa: E402
 from render_fix_report import render_fix_report, write_fix_report  # noqa: E402
 from track_completions import track_completions  # noqa: E402
+from vendor_dispatch import discover_vendors, route_prompts_to_vendors, write_vendor_prompt_files  # noqa: E402
 from verify import verify  # noqa: E402
 
 
@@ -72,6 +75,8 @@ def run(
     max_agent_fixes: int = 10,
     project_dir: str | None = None,
     out_dir: str | None = None,
+    parallel: bool = False,
+    vendors: list[str] | None = None,
 ) -> int:
     """Run fix-scrub: classify, plan, execute, verify, report.
 
@@ -117,8 +122,15 @@ def run(
 
     # Execute auto-fixes
     if "auto" in tier_filter and fix_plan.auto_groups:
-        print("\nApplying auto-fixes...")
-        resolved, persisting = execute_auto_fixes(fix_plan.auto_groups, project_dir)
+        if parallel:
+            assert_no_file_overlap(fix_plan.auto_groups)
+            print("\nApplying auto-fixes in parallel...")
+            resolved, persisting = execute_auto_fixes_parallel(
+                fix_plan.auto_groups, project_dir
+            )
+        else:
+            print("\nApplying auto-fixes...")
+            resolved, persisting = execute_auto_fixes(fix_plan.auto_groups, project_dir)
         auto_resolved = resolved
         print(f"  Resolved: {len(resolved)}, Persisting: {len(persisting)}")
 
@@ -128,15 +140,25 @@ def run(
         print("\nGenerating agent-fix prompts...")
         agent_prompts = generate_prompts(fix_plan.agent_groups)
         print(f"  Generated {len(agent_prompts)} prompts")
-        # Write prompts to JSON for SKILL.md consumption
-        prompts_path = str(Path(out_dir) / "agent-fix-prompts.json")
-        with open(prompts_path, "w") as f:
-            json.dump(
-                [{"file": fp, "prompt": p} for fp, p in agent_prompts],
-                f,
-                indent=2,
-            )
-        print(f"  Prompts written to {prompts_path}")
+
+        if vendors:
+            # Multi-vendor dispatch: route per file-group
+            available = discover_vendors(requested_vendors=vendors)
+            print(f"  Vendors: {available}")
+            routed = route_prompts_to_vendors(agent_prompts, available)
+            written = write_vendor_prompt_files(routed, Path(out_dir))
+            for wp in written:
+                print(f"  Prompts written to {wp}")
+        else:
+            # Single-vendor: write unified prompts file
+            prompts_path = str(Path(out_dir) / "agent-fix-prompts.json")
+            with open(prompts_path, "w") as f:
+                json.dump(
+                    [{"file": fp, "prompt": p} for fp, p in agent_prompts],
+                    f,
+                    indent=2,
+                )
+            print(f"  Prompts written to {prompts_path}")
 
     # Track OpenSpec task completions
     all_resolved = auto_resolved + agent_resolved
@@ -148,7 +170,10 @@ def run(
 
     # Verify
     print("\nRunning quality checks...")
-    verification = verify(project_dir)
+    if parallel:
+        verification = verify_parallel(project_dir)
+    else:
+        verification = verify(project_dir)
     print(f"  Passed: {verification.passed}")
     for tool, result in verification.checks.items():
         icon = "pass" if result == "pass" else "FAIL"
@@ -214,9 +239,21 @@ def main() -> None:
         default=None,
         help="Output directory (default: docs/bug-scrub)",
     )
+    parser.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Run auto-fixes and verification concurrently",
+    )
+    parser.add_argument(
+        "--vendors",
+        type=str,
+        default=None,
+        help="Comma-separated vendor names for multi-vendor agent dispatch",
+    )
     args = parser.parse_args()
 
     tiers = args.tier.split(",")
+    vendor_list = args.vendors.split(",") if args.vendors else None
     exit_code = run(
         report_path=args.report,
         tier_filter=tiers,
@@ -225,6 +262,8 @@ def main() -> None:
         max_agent_fixes=args.max_agent_fixes,
         project_dir=args.project_dir,
         out_dir=args.out_dir,
+        parallel=args.parallel,
+        vendors=vendor_list,
     )
     sys.exit(exit_code)
 

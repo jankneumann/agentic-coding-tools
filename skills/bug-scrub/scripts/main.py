@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,6 +22,7 @@ from collect_pytest import collect as collect_pytest
 from collect_ruff import collect as collect_ruff
 from collect_security import collect as collect_security
 from models import SourceResult
+from parallel_runner import run_collectors_parallel
 from render_report import write_report
 
 ALL_SOURCES = {
@@ -52,6 +52,8 @@ def run(
     project_dir: str | None = None,
     out_dir: str | None = None,
     fmt: str = "both",
+    parallel: bool = False,
+    max_workers: int | None = None,
 ) -> int:
     """Run bug-scrub collection, aggregation, and reporting.
 
@@ -66,19 +68,33 @@ def run(
 
     selected_sources = sources if sources else list(ALL_SOURCES.keys())
 
-    # Collect from each source
-    results: list[SourceResult] = []
+    # Build collector dict for selected sources
+    collectors = {}
     for source_name in selected_sources:
         collector = ALL_SOURCES.get(source_name)
         if collector is None:
             print(f"Warning: Unknown source '{source_name}', skipping")
             continue
-        print(f"Collecting from {source_name}...")
-        result = collector(project_dir)
-        results.append(result)
-        status_icon = "ok" if result.status == "ok" else result.status
-        finding_count = len(result.findings)
-        print(f"  {status_icon}: {finding_count} findings ({result.duration_ms}ms)")
+        collectors[source_name] = collector
+
+    # Collect from each source (parallel or sequential)
+    if parallel:
+        workers = max_workers if max_workers else min(len(collectors), 8)
+        print(f"Collecting from {len(collectors)} sources in parallel (max_workers={workers})...")
+        results = run_collectors_parallel(collectors, project_dir, max_workers=workers)
+        for result in results:
+            status_icon = "ok" if result.status == "ok" else result.status
+            finding_count = len(result.findings)
+            print(f"  {result.source}: {status_icon}, {finding_count} findings ({result.duration_ms}ms)")
+    else:
+        results: list[SourceResult] = []
+        for source_name, collector in collectors.items():
+            print(f"Collecting from {source_name}...")
+            result = collector(project_dir)
+            results.append(result)
+            status_icon = "ok" if result.status == "ok" else result.status
+            finding_count = len(result.findings)
+            print(f"  {status_icon}: {finding_count} findings ({result.duration_ms}ms)")
 
     # Aggregate
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -140,6 +156,17 @@ def main() -> None:
         choices=["md", "json", "both"],
         help="Output format (default: both)",
     )
+    parser.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Run collectors concurrently via ThreadPoolExecutor",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=None,
+        help="Max concurrent collectors when --parallel is set (default: num sources, max 8)",
+    )
     args = parser.parse_args()
 
     sources = args.source.split(",") if args.source else None
@@ -149,6 +176,8 @@ def main() -> None:
         project_dir=args.project_dir,
         out_dir=args.out_dir,
         fmt=args.format,
+        parallel=args.parallel,
+        max_workers=args.max_workers,
     )
     sys.exit(exit_code)
 
