@@ -6,37 +6,29 @@ A structured feature development workflow for AI-assisted coding. Skills are reu
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.
 
-## Skill Families
+## Unified Skills with Tiered Execution
 
-Two skill families exist: **linear** (sequential, single-agent) and **parallel** (multi-agent, DAG-scheduled). Both share the same OpenSpec artifact structure. The core workflow skills have been renamed to `linear-*`; original names (`/explore-feature`, `/plan-feature`, etc.) are backward-compatible aliases.
+Each workflow skill auto-selects its execution tier at startup based on coordinator availability and feature complexity:
 
-### Linear Skills (default)
-
-Sequential feature development with one agent per phase:
-
-```
-/linear-explore-feature [focus-area]                   Candidate feature shortlist
-/linear-plan-feature <description>                     Proposal approval gate
-  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
-/linear-implement-feature <change-id>                  PR review gate
-  /linear-iterate-on-implementation <change-id>        Refinement complete
-  /linear-validate-feature <change-id> (optional)      Live deployment verification
-/linear-cleanup-feature <change-id>                    Done
-```
-
-### Parallel Skills (requires coordinator)
-
-Multi-agent feature development with contract-first design and DAG-scheduled work packages:
+| Tier | Coordinator | Artifacts | Execution |
+|------|------------|-----------|-----------|
+| **Coordinated** | Available | Contracts + work-packages + resource claims | Multi-agent DAG via coordinator |
+| **Local parallel** | Unavailable | Contracts + work-packages (no claims) | DAG via built-in Agent parallelism |
+| **Sequential** | Unavailable | Tasks.md only | Single-agent sequential |
 
 ```
-/parallel-explore-feature [focus-area]                 Candidate shortlist + resource claim analysis
-/parallel-plan-feature <description>                   Contracts + work-packages.yaml
-  /parallel-review-plan <change-id>                    Independent plan review (vendor-diverse)
-/parallel-implement-feature <change-id>                DAG-scheduled multi-agent implementation
+/explore-feature [focus-area]                          Candidate feature shortlist
+/plan-feature <description>                            Proposal approval gate
+  /iterate-on-plan <change-id> (optional)              Refines plan before approval
+  /parallel-review-plan <change-id> (optional)         Independent plan review (vendor-diverse)
+/implement-feature <change-id>                         PR review gate
+  /iterate-on-implementation <change-id>               Refinement complete
   /parallel-review-implementation <change-id>          Per-package review (vendor-diverse)
-/parallel-validate-feature <change-id>                 Evidence completeness + integration checks
-/parallel-cleanup-feature <change-id>                  Merge queue + cross-feature rebase
+  /validate-feature <change-id> (optional)             Live deployment + evidence audit
+/cleanup-feature <change-id>                           Done
 ```
+
+Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases. Using a `parallel-*` trigger forces at least the local-parallel tier.
 
 See [Two-Level Parallel Development](two-level-parallel-agentic-development.md) for the full design.
 
@@ -49,19 +41,19 @@ See [Two-Level Parallel Development](two-level-parallel-agentic-development.md) 
   - `openspec list --specs`
 
 ```
-/linear-plan-feature <description>                     Proposal approval gate
-  /linear-iterate-on-plan <change-id> (optional)       Refines plan before approval
-/linear-implement-feature <change-id>                  PR review gate
-  /linear-iterate-on-implementation <change-id>        Refinement complete
+/plan-feature <description>                            Proposal approval gate
+  /iterate-on-plan <change-id> (optional)              Refines plan before approval
+/implement-feature <change-id>                         PR review gate
+  /iterate-on-implementation <change-id>               Refinement complete
   /refresh-architecture [mode] (optional)              Regenerate/validate architecture artifacts
-  /linear-validate-feature <change-id> (optional)      Live deployment verification (includes security scanning)
-/linear-cleanup-feature <change-id>                    Done
+  /validate-feature <change-id> (optional)             Live deployment verification (includes security scanning)
+/cleanup-feature <change-id>                           Done
 ```
 
 Optional discovery stage before planning:
 
 ```
-/linear-explore-feature [focus-area]                   Candidate feature shortlist
+/explore-feature [focus-area]                          Candidate feature shortlist
 /refresh-architecture (optional)                       Fresh architecture context for planning
 ```
 
@@ -178,7 +170,7 @@ skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python
 Verify representative integrated skills match canonical content:
 
 ```bash
-for skill in linear-explore-feature linear-plan-feature linear-implement-feature linear-iterate-on-plan linear-iterate-on-implementation linear-validate-feature linear-cleanup-feature security-review setup-coordinator; do
+for skill in explore-feature plan-feature implement-feature iterate-on-plan iterate-on-implementation validate-feature cleanup-feature security-review setup-coordinator; do
   diff -u "skills/$skill/SKILL.md" ".claude/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".codex/skills/$skill/SKILL.md"
   diff -u "skills/$skill/SKILL.md" ".gemini/skills/$skill/SKILL.md"
@@ -416,17 +408,17 @@ Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to
 
 The parallel workflow decomposes features into work packages defined in `work-packages.yaml`:
 
-1. **Plan** — `/parallel-plan-feature` produces `contracts/` and `work-packages.yaml` with package definitions, dependency DAG, scope declarations, and lock key claims.
+1. **Plan** — `/plan-feature` produces `contracts/` and `work-packages.yaml` with package definitions, dependency DAG, scope declarations, and lock key claims.
 2. **Validate** — `skills/validate-packages/scripts/validate_work_packages.py` validates against `work-packages.schema.json`: schema compliance, DAG acyclicity, lock key canonicalization, and scope non-overlap via `skills/refresh-architecture/scripts/parallel_zones.py --validate-packages`.
 3. **Submit** — The orchestrator submits each package as a work queue task with `input_data` containing the package definition and context slice.
 4. **Execute** — Per-package agents claim tasks, acquire locks, implement within scope boundaries, and produce structured results conforming to `work-queue-result.schema.json`.
 5. **Review** — `/parallel-review-implementation` dispatches independent reviews per package. Review findings use `review-findings.schema.json` with dispositions: `fix`, `regenerate`, `accept`, `escalate`.
 6. **Integrate** — A `wp-integration` merge package runs the full test suite across all completed packages.
-7. **Validate** — `/parallel-validate-feature` audits evidence completeness across all package results.
+7. **Validate** — `/validate-feature` audits evidence completeness across all package results.
 
 ### DAG Scheduling
 
-The DAG scheduler (`skills/parallel-implement-feature/scripts/dag_scheduler.py`) manages Phase A preflight:
+The DAG scheduler (`skills/parallel-infrastructure/scripts/dag_scheduler.py`) manages Phase A preflight:
 
 - **Topological ordering** via Kahn's algorithm with `sorted()` for deterministic peer ordering
 - **Contract validation** — verifies all contract files referenced in packages exist
@@ -436,7 +428,7 @@ The DAG scheduler (`skills/parallel-implement-feature/scripts/dag_scheduler.py`)
 
 ### Package Execution Protocol
 
-Each package agent follows Phase B (`skills/parallel-implement-feature/scripts/package_executor.py`):
+Each package agent follows Phase B (`skills/parallel-infrastructure/scripts/package_executor.py`):
 
 1. **Pause-lock check** (B2/B9) — checks for `feature:<id>:pause` lock before starting and before completing
 2. **Deadlock-safe lock acquisition** (B3) — acquires all locks in sorted global order
@@ -446,7 +438,7 @@ Each package agent follows Phase B (`skills/parallel-implement-feature/scripts/p
 
 ### Escalation Handling
 
-The escalation handler (`skills/parallel-implement-feature/scripts/escalation_handler.py`) implements deterministic decisions for 8 escalation types:
+The escalation handler (`skills/parallel-infrastructure/scripts/escalation_handler.py`) implements deterministic decisions for 8 escalation types:
 
 | Type | Action | Description |
 |------|--------|-------------|
@@ -461,7 +453,7 @@ The escalation handler (`skills/parallel-implement-feature/scripts/escalation_ha
 
 ### Circuit Breaking
 
-The circuit breaker (`skills/parallel-implement-feature/scripts/circuit_breaker.py`) monitors agent health:
+The circuit breaker (`skills/parallel-infrastructure/scripts/circuit_breaker.py`) monitors agent health:
 
 - **Heartbeat detection** — packages exceeding their `timeout_minutes` without heartbeat are flagged as stuck
 - **Retry budget enforcement** — each package has a `retry_budget`; exhausted budgets trip the breaker

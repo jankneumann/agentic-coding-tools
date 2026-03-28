@@ -765,11 +765,22 @@ The coordinator maintains a feature registry. Each registered feature declares r
 
 ### 2.14 Skill Family Architecture
 
-**`linear-*` skills**: Current workflow, renamed with prefix.
+**Unified skills** with tiered execution. Each skill auto-detects its tier at startup:
 
-**`parallel-*` skills**: New workflow for multi-agent parallel execution. Degrades to linear-equivalent when coordinator unavailable.
+| Tier | Coordinator | Artifacts | Execution |
+|------|------------|-----------|-----------|
+| **Coordinated** | Available | Contracts + work-packages + resource claims | Multi-agent DAG via coordinator |
+| **Local parallel** | Unavailable | Contracts + work-packages (no claims) | DAG via built-in Agent parallelism |
+| **Sequential** | Unavailable | Tasks.md only | Single-agent sequential |
 
-**Capability mapping** for `/parallel-implement-feature`:
+Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases. The separate skill directories have been consolidated into the base names (`plan-feature`, `implement-feature`, etc.).
+
+**Infrastructure skills**:
+- `coordination-bridge` — Coordinator detection (`check_coordinator.py`) and HTTP fallback
+- `parallel-infrastructure` — Shared execution scripts (DAG scheduler, review dispatch, consensus)
+- `parallel-review-plan` / `parallel-review-implementation` — Vendor-diverse review utilities
+
+**Capability mapping** for coordinated tier:
 - REQUIRED (hard failure): `CAN_DISCOVER`, `CAN_QUEUE_WORK`, `CAN_LOCK`
 - REQUIRED (safety): `CAN_GUARDRAILS`
 - ENRICHING (degrades gracefully): `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_POLICY`, `CAN_AUDIT`
