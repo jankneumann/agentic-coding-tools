@@ -57,7 +57,7 @@ def verify_parallel(
     regressions: list[str] = []
     messages: list[str] = []
 
-    for tool_name, _cmd in tools:
+    for tool_name, _ in tools:
         success, output = results[tool_name]
         checks[tool_name] = "pass" if success else "fail"
 
@@ -70,7 +70,7 @@ def verify_parallel(
                     for failure in sorted(new_failures)
                 )
 
-        if "not available" in output or "skipped" in output:
+        if "not available" in output:
             messages.append(f"{tool_name}: skipped (not available)")
 
     passed = all(v == "pass" for v in checks.values()) and not regressions

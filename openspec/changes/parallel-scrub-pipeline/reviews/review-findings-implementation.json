@@ -1,0 +1,77 @@
+{
+  "review_type": "implementation",
+  "target": "parallel-scrub-pipeline",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "parallel_runner.py: TimeoutError from future.result(timeout=N) does NOT cancel the underlying thread. If a collector's subprocess hangs (e.g., pytest waiting for input), the thread continues running even after the timeout error is caught. With ThreadPoolExecutor, there is no way to kill a running thread. The timeout only affects how long the caller waits for the result.",
+      "resolution": "Document this limitation. For true cancellation, each collector's subprocess.run() already has its own timeout (300s). The parallel_runner timeout is a secondary backstop. Consider adding future.cancel() call after timeout (which succeeds only if the future hasn't started yet).",
+      "disposition": "accept",
+      "package_id": "wp-parallel-collectors",
+      "file_path": "skills/bug-scrub/scripts/parallel_runner.py"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "parallel_runner.py lines 86-98: _run_one() catches exceptions and returns SourceResult(status='error'), AND the outer loop (lines 68-74) also catches exceptions from future.result(). This means collector exceptions are caught twice — once in the worker thread (_run_one) and once in the main thread (future.result). The outer catch would only trigger for ThreadPoolExecutor internals failing, not for collector exceptions. This is defensive but could mask unexpected issues.",
+      "resolution": "This is actually good defensive coding. The double-catch ensures robustness even if ThreadPoolExecutor itself fails. Accept as-is.",
+      "disposition": "accept",
+      "package_id": "wp-parallel-collectors",
+      "file_path": "skills/bug-scrub/scripts/parallel_runner.py"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "parallel_verify.py line 60: Unused variable `_cmd` in the loop `for tool_name, _cmd in tools`. The destructuring unpacks the command list but doesn't use it (already dispatched via the executor). Pyright flags this. While harmless, it should use `_` to be explicit.",
+      "resolution": "Change `for tool_name, _cmd in tools:` to `for tool_name, _ in tools:` to suppress the diagnostic.",
+      "disposition": "fix",
+      "package_id": "wp-parallel-verify",
+      "file_path": "skills/fix-scrub/scripts/parallel_verify.py"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "parallel_verify.py: The 'skipped' detection (line 73) checks for 'not available' or 'skipped' in the tool output string. This is fragile — if pytest output happens to contain the word 'skipped' (which it often does for skipped tests), it would incorrectly add a 'skipped (not available)' message. The sequential verify.py doesn't have this check.",
+      "resolution": "Remove the skipped detection block (lines 73-74) or make it more specific — only check for 'not available' from _run_check returning a specific sentinel, not arbitrary substring matching on tool output.",
+      "disposition": "fix",
+      "package_id": "wp-parallel-verify",
+      "file_path": "skills/fix-scrub/scripts/parallel_verify.py"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "parallel_auto.py dispatches each FixGroup individually to execute_auto_fixes([group], ...). This is correct but creates one future per file. For projects with many files (100+), this could exhaust the thread pool. The max_workers=4 default mitigates this, but the pattern of submitting all futures at once means they all queue up.",
+      "resolution": "Accept as-is. ThreadPoolExecutor queues excess tasks and max_workers=4 bounds concurrency. For 100+ files, this is still faster than sequential. No change needed.",
+      "disposition": "accept",
+      "package_id": "wp-parallel-autofix",
+      "file_path": "skills/fix-scrub/scripts/parallel_auto.py"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "vendor_dispatch.py: discover_vendors() catches bare `except Exception` when importing ReviewOrchestrator. This is intentional (fallback to defaults) but logs at WARNING level. In test environments where ReviewOrchestrator isn't available, this will emit warnings on every run.",
+      "resolution": "Accept as-is. The warning is informational and helps debugging. Tests should mock or suppress the import.",
+      "disposition": "accept",
+      "package_id": "wp-vendor-dispatch",
+      "file_path": "skills/fix-scrub/scripts/vendor_dispatch.py"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "bug-scrub main.py line 61: `results: list[SourceResult] = []` in the else branch has a type annotation on a variable that was already used (without annotation) in the if branch (line 55, via run_collectors_parallel return). Pyright may flag this as a duplicate variable declaration.",
+      "resolution": "Move the type annotation to a single declaration before the if/else, or remove it from the else branch since the type is already inferred.",
+      "disposition": "accept",
+      "package_id": "wp-orchestrator-update",
+      "file_path": "skills/bug-scrub/scripts/main.py"
+    }
+  ]
+}
