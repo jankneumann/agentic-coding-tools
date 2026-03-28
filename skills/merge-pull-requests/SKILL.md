@@ -229,7 +229,7 @@ If vendor CLIs are unavailable or all vendors fail, proceed without vendor revie
 
 ### 9.5. Merge-Time Validation Gate for OpenSpec PRs
 
-For OpenSpec PRs (`openspec/*` branch), check whether Docker-dependent validation has been run. Cloud-created PRs typically have environment-safe checks (pytest, mypy, ruff, openspec validate) but lack deployment-based validation.
+For OpenSpec PRs (`openspec/*` branch), check whether Docker-dependent validation has been run. Cloud-created PRs typically pass environment-safe checks (pytest, mypy, ruff, openspec validate) during implementation but lack deployment-based validation.
 
 **Triggers when ALL conditions are met:**
 - PR origin is `openspec`
@@ -241,46 +241,13 @@ For OpenSpec PRs (`openspec/*` branch), check whether Docker-dependent validatio
 - `--dry-run` mode is active
 - Docker is not available (`docker info` fails)
 
-**Validation phases** (Docker-dependent, local-only):
+**Action**: Delegate to `/validate-feature` with the Docker-dependent phases only:
 
-```bash
-# Check out the PR branch in a worktree for isolation
-python3 "<agent-skills-dir>/worktree/scripts/worktree.py" setup "<change-id>" --agent-id merge-validate
-cd "$WORKTREE_PATH"
+```
+/validate-feature <change-id> --phase deploy,smoke,security,e2e
 ```
 
-1. **Deploy phase**: Start services via docker-compose with DEBUG logging. Wait for health checks (PostgreSQL ready, REST API responding). If no docker-compose.yml exists, skip deploy and run remaining phases against already-running services.
-
-2. **Smoke phase**: Run the reusable pytest smoke test suite:
-```bash
-SKILL_DIR="$(git rev-parse --show-toplevel)/skills/validate-feature"
-pytest "$SKILL_DIR/scripts/smoke_tests/" -v --tb=short
-```
-Covers health endpoints, auth enforcement, CORS, error sanitization, security headers.
-
-3. **Security phase**: Run OWASP Dependency-Check and ZAP against the live deployment:
-```bash
-python3 skills/security-review/scripts/main.py \
-  --repo . --out-dir docs/security-review \
-  --zap-target "http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}" \
-  --change "$CHANGE_ID" --allow-degraded-pass
-```
-
-4. **E2E phase**: Run Playwright E2E tests if available:
-```bash
-E2E_DIR=$(find . -path "*/tests/e2e" -type d | head -1)
-[ -n "$E2E_DIR" ] && pytest "$E2E_DIR" -v --tb=short
-```
-
-**Teardown**: Stop docker-compose services, remove worktree.
-
-**Write results**: Generate `validation-report.md` in the change directory and commit to the PR branch:
-
-```bash
-git add openspec/changes/<change-id>/validation-report.md
-git commit -m "validate: <change-id> -- merge-time validation (deploy, smoke, security, e2e)"
-git push
-```
+This runs the canonical validation skill targeting only the phases that require local infrastructure. The skill handles worktree isolation, service lifecycle, report generation, and teardown. The resulting `validation-report.md` is committed to the PR branch so subsequent triage sessions skip this step.
 
 **Present findings** in the interactive review step alongside vendor review results:
 

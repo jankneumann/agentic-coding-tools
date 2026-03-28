@@ -93,7 +93,25 @@ gh pr view openspec/<change-id>
 
 Confirm PR is approved and CI is passing before proceeding.
 
-### 2.5. Merge Queue Integration [coordinated only]
+### 2.5. Pre-Merge Validation Gate
+
+Check whether Docker-dependent validation has been run. Cloud-created PRs pass environment-safe checks during implementation but may lack deployment-based validation.
+
+If `validation-report.md` exists at `openspec/changes/<change-id>/` with deploy/smoke/security/e2e phases completed, skip this step.
+
+Otherwise, if Docker is available (`docker info` succeeds), run the missing phases:
+
+```
+/validate-feature <change-id> --phase deploy,smoke,security,e2e
+```
+
+This delegates to the canonical validation skill for service lifecycle, smoke tests, security scanning, and E2E. The resulting `validation-report.md` is committed to the PR branch.
+
+If Docker is not available, warn the operator that deployment validation was skipped and let them decide whether to proceed.
+
+If any phase **fails**, present findings and let the operator decide: fix, re-validate, or proceed anyway.
+
+### 2.6. Merge Queue Integration [coordinated only]
 
 These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY` capabilities.
 
