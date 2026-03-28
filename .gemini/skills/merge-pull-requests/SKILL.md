@@ -181,7 +181,53 @@ This uses the GitHub GraphQL API to get accurate thread resolution status:
 - Unresolved thread details: file path, line, reviewer, comment summary
 - Review approval state per reviewer
 
-### 9. Determine Merge Order
+### 9. Conditional Multi-Vendor Review
+
+For PRs that lack detailed reviews and are large enough to warrant automated analysis, dispatch multi-vendor reviews using the review infrastructure from `parallel-implement-feature`.
+
+```bash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/vendor_review.py <pr_number> \
+  --origin <origin> --reviews-json <comments_output_path> [--dry-run]
+```
+
+**Review is dispatched when ALL conditions are met:**
+- Origin is `openspec`, `codex`, or `other` (non-trivial PRs)
+- PR is not a draft
+- No existing fresh approvals
+- No outstanding `CHANGES_REQUESTED` reviews
+- PR is non-trivial: more than 50 changed lines OR more than 3 changed files
+
+**Review is skipped when ANY condition is met:**
+- Origin is `sentinel`, `bolt`, `palette`, `jules`, `dependabot`, or `renovate` (scoped automation or dependency updates)
+- PR already has 1+ approval
+- PR is small (≤50 changed lines AND ≤3 files)
+- `--dry-run` mode is active (reports eligibility only)
+
+The script:
+1. Computes PR size (additions, deletions, file count)
+2. Checks eligibility against the rules above
+3. If eligible, dispatches to available vendor CLIs (Codex, Gemini) in read-only mode
+4. Synthesizes a consensus report from vendor findings
+5. Outputs JSON with eligibility status and review findings
+
+**Present findings to the operator** alongside the existing comment analysis in the interactive review step:
+
+```
+🔍 Vendor Review (2 vendors):
+  ✓ Confirmed (2 vendors agree): 3 findings
+    - [HIGH/security] Missing input validation on /api/users endpoint
+    - [MEDIUM/correctness] Off-by-one error in pagination logic
+    - [LOW/style] Inconsistent naming in helper functions
+  ⚠ Unconfirmed (1 vendor only): 1 finding
+    - [LOW/performance] Consider caching for repeated lookups
+  Blocking: 1 (confirmed fix findings)
+```
+
+If vendor review produces **blocking findings** (confirmed issues with disposition=fix), recommend the operator skip or address the issues before merging.
+
+If vendor CLIs are unavailable or all vendors fail, proceed without vendor review and note the gap.
+
+### 10. Determine Merge Order
 
 Before the interactive review, sort remaining PRs for optimal merge order:
 
@@ -194,11 +240,12 @@ Within the dependency updates group, consider grouping by ecosystem (e.g. all `n
 
 This ordering minimizes the chance that merging one PR invalidates another.
 
-### 10. Interactive PR Review
+### 11. Interactive PR Review
 
 Process each remaining PR one at a time **in the order determined above**. Skip PRs with `auto_merge_enabled` unless the operator explicitly wants to review them. For each PR, present:
 - Classification and staleness status
 - Unresolved comments (if any) — distinguished from resolved threads
+- **Vendor review findings** (if dispatched in Step 9) — confirmed, unconfirmed, and blocking findings
 - CI and approval status (noting pending vs failed checks)
 - Whether checks are still running (offer to wait)
 - Whether the PR is from a fork (note: branch won't be deleted)
@@ -274,7 +321,7 @@ For PRs with unresolved comments:
 5. Return to main: `git checkout main`
 6. Return to the PR review workflow
 
-### 11. Summary
+### 12. Summary
 
 After processing all PRs, present a summary:
 
@@ -299,21 +346,22 @@ When invoked with `--dry-run`, the skill runs all discovery and analysis steps b
 python3 <agent-skills-dir>/merge-pull-requests/scripts/discover_prs.py --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <pr> --origin <type> --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/analyze_comments.py <pr> --dry-run
+python3 <agent-skills-dir>/merge-pull-requests/scripts/vendor_review.py <pr> --origin <type> --dry-run
 ```
 
 Output a full report:
 
 ```
 ## Dry-Run Report
-| #   | Title              | Origin     | Staleness | Unresolved | CI      | Flags              |
-|-----|--------------------|------------|-----------|------------|---------|--------------------|
-| 42  | Fix XSS in login   | sentinel   | obsolete  | 0          | pass    |                    |
-| 41  | Bump axios         | dependabot | fresh     | 0          | pass    | auto-merge         |
-| 40  | Bump lodash        | dependabot | fresh     | 0          | pass    |                    |
-| 39  | Fix typo           | other      | fresh     | 0          | fail    | fork               |
-| 38  | feat: Add export   | openspec   | fresh     | 2          | pass    |                    |
-| 37  | WIP: Refactor auth | other      | —         | 1          | pending | draft              |
-| 35  | Fix slow query     | bolt       | stale     | 0          | pass    | stacked            |
+| #   | Title              | Origin     | Staleness | Unresolved | CI      | Vendor Review      | Flags              |
+|-----|--------------------|------------|-----------|------------|---------|--------------------|--------------------
+| 42  | Fix XSS in login   | sentinel   | obsolete  | 0          | pass    | skip (origin)      |                    |
+| 41  | Bump axios         | dependabot | fresh     | 0          | pass    | skip (origin)      | auto-merge         |
+| 40  | Bump lodash        | dependabot | fresh     | 0          | pass    | skip (origin)      |                    |
+| 39  | Fix typo           | other      | fresh     | 0          | fail    | skip (small)       | fork               |
+| 38  | feat: Add export   | openspec   | fresh     | 2          | pass    | 3 findings (1 fix) |                    |
+| 37  | WIP: Refactor auth | other      | —         | 1          | pending | skip (draft)       | draft              |
+| 35  | Fix slow query     | bolt       | stale     | 0          | pass    | skip (origin)      | stacked            |
 ```
 
 ## Output
@@ -327,6 +375,7 @@ Output a full report:
 - Auto-merge PRs noted (recommended to skip)
 - Stacked PRs warned about dependency chain
 - Conflicting PR pairs warned about before merge
+- **Vendor review findings** for eligible PRs (confirmed, unconfirmed, blocking)
 - Failed CI re-runs triggered
 - Summary of all actions taken
 
