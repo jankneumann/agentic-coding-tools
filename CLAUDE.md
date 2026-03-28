@@ -16,12 +16,13 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 /plan-feature <description>                            → Proposal approval gate
   /iterate-on-plan <change-id> (optional)              → Refines plan before approval
   /parallel-review-plan <change-id> (optional)         → Independent plan review (vendor-diverse)
-/implement-feature <change-id>                         → PR review gate
+/implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
   /iterate-on-implementation <change-id> (optional)    → Refinement complete
   /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)
-  /validate-feature <change-id> (optional)             → Live deployment verification + evidence audit
-/cleanup-feature <change-id>                           → Done
+/cleanup-feature <change-id>                           → Done (runs deploy + security validation before merge)
 ```
+
+Validation is automatic: `/implement-feature` runs environment-safe checks (spec, evidence), `/cleanup-feature` and `/merge-pull-requests` run Docker-dependent checks (deploy, smoke, security, E2E) before merge. Both delegate to `/validate-feature` with `--phase` selectors. `/validate-feature` can also be invoked directly for a full manual pass.
 
 Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (e.g., "parallel plan feature" triggers `/plan-feature` with at least local-parallel tier).
 
@@ -29,6 +30,7 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 
 - **`coordination-bridge`** — Coordinator detection (`check_coordinator.py`) and HTTP fallback bridge
 - **`parallel-infrastructure`** — Shared parallel execution scripts: DAG scheduler, review dispatcher, consensus synthesizer, scope checker
+- **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
 - **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and auto-dev-loop)
 
 See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development.md) for the full design.

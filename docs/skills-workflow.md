@@ -21,12 +21,13 @@ Each workflow skill auto-selects its execution tier at startup based on coordina
 /plan-feature <description>                            Proposal approval gate
   /iterate-on-plan <change-id> (optional)              Refines plan before approval
   /parallel-review-plan <change-id> (optional)         Independent plan review (vendor-diverse)
-/implement-feature <change-id>                         PR review gate
+/implement-feature <change-id>                         PR review gate (auto-validates: spec, evidence)
   /iterate-on-implementation <change-id>               Refinement complete
   /parallel-review-implementation <change-id>          Per-package review (vendor-diverse)
-  /validate-feature <change-id> (optional)             Live deployment + evidence audit
-/cleanup-feature <change-id>                           Done
+/cleanup-feature <change-id>                           Done (auto-validates: deploy, smoke, security, e2e)
 ```
+
+Validation is built into the workflow: `/implement-feature` runs environment-safe phases (spec compliance, evidence completeness), `/cleanup-feature` and `/merge-pull-requests` run Docker-dependent phases (deploy, smoke, security, E2E) before merge. All delegate to `/validate-feature --phase <phases>`. The skill can also be invoked directly for a full manual pass.
 
 Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases. Using a `parallel-*` trigger forces at least the local-parallel tier.
 
