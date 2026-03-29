@@ -545,3 +545,104 @@ agents:
         assert entries[0].cli is not None
         assert entries[0].cli.model == "o3"
         assert entries[0].cli.model_fallbacks == []
+
+
+# ---------------------------------------------------------------------------
+# SDK config tests
+# ---------------------------------------------------------------------------
+
+AGENTS_WITH_SDK_YAML = """\
+agents:
+  test-remote:
+    type: codex
+    profile: codex_cloud_worker
+    trust_level: 2
+    transport: http
+    capabilities: [lock, queue]
+    description: Agent with SDK config
+    sdk:
+      package: openai
+      method: chat.completions.create
+      model: gpt-5.4
+      model_fallbacks: [gpt-5.4-mini]
+      api_key_env: OPENAI_API_KEY
+      max_tokens: 8192
+
+  test-no-sdk:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 3
+    transport: mcp
+    capabilities: [lock, queue]
+    description: Agent without SDK config
+"""
+
+
+class TestSdkConfig:
+    """Tests for SDK dispatch configuration in agents.yaml."""
+
+    def test_load_agent_with_sdk_section(self, tmp_path: Path) -> None:
+        """Agent with sdk section parses SdkConfig correctly."""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(AGENTS_WITH_SDK_YAML)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+
+        with_sdk = next(e for e in entries if e.name == "test-remote")
+        assert with_sdk.sdk is not None
+        assert with_sdk.sdk.package == "openai"
+        assert with_sdk.sdk.model == "gpt-5.4"
+        assert with_sdk.sdk.method == "chat.completions.create"
+        assert with_sdk.sdk.model_fallbacks == ["gpt-5.4-mini"]
+        assert with_sdk.sdk.api_key_env == "OPENAI_API_KEY"
+        assert with_sdk.sdk.max_tokens == 8192
+
+    def test_agent_without_sdk_section_has_none(self, tmp_path: Path) -> None:
+        """Agent without sdk section has sdk=None."""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(AGENTS_WITH_SDK_YAML)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+
+        without_sdk = next(e for e in entries if e.name == "test-no-sdk")
+        assert without_sdk.sdk is None
+
+    def test_real_agents_yaml_loads_sdk(self) -> None:
+        """The real agents.yaml loads with SDK sections for remote agents."""
+        entries = load_agents_config()
+        remote_with_sdk = [e for e in entries if e.sdk is not None]
+        assert len(remote_with_sdk) >= 3, "Expected at least 3 agents with SDK config"
+        packages = {e.sdk.package for e in remote_with_sdk}
+        assert packages == {"anthropic", "openai", "google-generativeai"}
+
+    def test_sdk_defaults_applied(self, tmp_path: Path) -> None:
+        """SDK section with only required fields gets correct defaults."""
+        yaml_content = """\
+agents:
+  test-minimal-sdk:
+    type: codex
+    profile: p
+    trust_level: 2
+    transport: http
+    capabilities: [lock]
+    description: Minimal SDK
+    sdk:
+      package: openai
+      model: gpt-5.4
+"""
+        agents_file = tmp_path / "agents.yaml"
+        agents_file.write_text(yaml_content)
+        secrets_file = tmp_path / ".secrets.yaml"
+        secrets_file.write_text("{}")
+
+        entries = load_agents_config(agents_file, secrets_path=secrets_file)
+        sdk = entries[0].sdk
+        assert sdk is not None
+        assert sdk.method == "messages.create"  # default
+        assert sdk.model_fallbacks == []
+        assert sdk.api_key_env == ""
+        assert sdk.max_tokens == 16384

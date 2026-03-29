@@ -577,18 +577,16 @@ class SdkVendorAdapter:
         return self._can_import_sdk()
 
     def _can_import_sdk(self) -> bool:
-        """Check if the vendor SDK package is importable."""
+        """Check if the vendor SDK package is importable (without importing)."""
+        import importlib.util
+
         pkg = self.sdk_config.package
         # Map pip package names to import names
         import_map = {
             "google-generativeai": "google.generativeai",
         }
         import_name = import_map.get(pkg, pkg)
-        try:
-            __import__(import_name)
-            return True
-        except ImportError:
-            return False
+        return importlib.util.find_spec(import_name) is not None
 
     def dispatch(
         self,
@@ -644,8 +642,11 @@ class SdkVendorAdapter:
                     error=f"SDK auth error: {exc}",
                     error_class=ErrorClass.AUTH,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except _SdkTransientError as exc:
                 last_error = str(exc)
+                logger.warning(
+                    "%s SDK transient error: %s", self.vendor, str(exc)[:200],
+                )
                 break
 
         return ReviewResult(
@@ -695,6 +696,8 @@ class SdkVendorAdapter:
             raise _SdkCapacityError()
         except anthropic.AuthenticationError as exc:
             raise _SdkAuthError(str(exc))
+        except Exception as exc:  # noqa: BLE001
+            raise _SdkTransientError(str(exc))
 
     def _call_openai(
         self, prompt: str, model: str, api_key: str, timeout: int,
@@ -719,6 +722,8 @@ class SdkVendorAdapter:
             raise _SdkCapacityError()
         except openai.AuthenticationError as exc:
             raise _SdkAuthError(str(exc))
+        except Exception as exc:  # noqa: BLE001
+            raise _SdkTransientError(str(exc))
 
     def _call_google(
         self, prompt: str, model: str, api_key: str, timeout: int,
@@ -744,7 +749,7 @@ class SdkVendorAdapter:
                 raise _SdkCapacityError()
             if "401" in err_lower or "api_key" in err_lower:
                 raise _SdkAuthError(str(exc))
-            raise
+            raise _SdkTransientError(str(exc))
 
 
 class _SdkCapacityError(Exception):
@@ -753,6 +758,10 @@ class _SdkCapacityError(Exception):
 
 class _SdkAuthError(Exception):
     """Raised when SDK returns an authentication error."""
+
+
+class _SdkTransientError(Exception):
+    """Raised when SDK returns a transient/network error."""
 
 
 _SDK_SYSTEM_PROMPT = (
@@ -1033,7 +1042,21 @@ class ReviewOrchestrator:
         Uses three-tier selection: CLI → SDK → skip.
         Currently dispatches sequentially.
         """
-        from api_key_resolver import ApiKeyResolver
+        try:
+            from api_key_resolver import ApiKeyResolver
+        except ImportError:
+            # When not running from the scripts directory, try relative path
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "api_key_resolver",
+                Path(__file__).parent / "api_key_resolver.py",
+            )
+            if spec and spec.loader:
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                ApiKeyResolver = mod.ApiKeyResolver  # type: ignore[no-redef] # noqa: N806
+            else:
+                raise
 
         reviewers = self.discover_reviewers(
             exclude_vendor=exclude_vendor,
