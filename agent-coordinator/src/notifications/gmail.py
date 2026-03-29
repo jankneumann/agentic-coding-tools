@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -11,8 +12,9 @@ from email.mime.text import MIMEText
 import aiosmtplib
 
 from src.event_bus import CoordinatorEvent
-from src.status import generate_token
+from src.status import generate_token, validate_token
 
+from .relay import clean_reply_body, extract_token, parse_reply, route_reply, validate_sender
 from .templates import (
     render_approval_email,
     render_escalation_email,
@@ -21,6 +23,14 @@ from .templates import (
 )
 
 logger = logging.getLogger(__name__)
+
+try:
+    import aioimaplib
+
+    _HAS_AIOIMAPLIB = True
+except ImportError:
+    aioimaplib = None  # type: ignore[assignment]
+    _HAS_AIOIMAPLIB = False
 
 
 class GmailChannel:
@@ -109,6 +119,155 @@ class GmailChannel:
 
     def supports_reply(self) -> bool:
         return True
+
+    # --- IMAP IDLE listener for inbound replies ---
+
+    async def start_imap_listener(self) -> None:
+        """Start the IMAP IDLE listener for processing email replies.
+
+        Connects to the IMAP server, enters IDLE mode, and processes
+        new messages as they arrive. Requires aioimaplib to be installed.
+
+        Environment variables:
+            IMAP_HOST: IMAP server hostname (default: imap.gmail.com)
+            IMAP_PORT: IMAP server port (default: 993)
+            IMAP_USER: IMAP username
+            IMAP_PASSWORD: IMAP password
+            NOTIFICATION_ALLOWED_SENDERS: Comma-separated sender allowlist
+        """
+        if not _HAS_AIOIMAPLIB:
+            logger.warning(
+                "IMAP listener not available: aioimaplib is not installed. "
+                "Install with: uv add aioimaplib"
+            )
+            return
+
+        self._imap_stop_event = asyncio.Event()
+
+        imap_host = os.environ.get("IMAP_HOST", "imap.gmail.com")
+        imap_port = int(os.environ.get("IMAP_PORT", "993"))
+        imap_user = os.environ.get("IMAP_USER", "")
+        imap_password = os.environ.get("IMAP_PASSWORD", "")
+        allowed_senders = os.environ.get("NOTIFICATION_ALLOWED_SENDERS", "")
+
+        if not imap_user or not imap_password:
+            logger.error("IMAP_USER and IMAP_PASSWORD must be set for IMAP listener")
+            return
+
+        logger.info("Starting IMAP IDLE listener on %s:%d", imap_host, imap_port)
+
+        try:
+            imap_client = aioimaplib.IMAP4_SSL(host=imap_host, port=imap_port)
+            await imap_client.wait_hello_from_server()
+            await imap_client.login(imap_user, imap_password)
+            await imap_client.select("INBOX")
+
+            while not self._imap_stop_event.is_set():
+                # Search for unseen messages
+                _, data = await imap_client.search("UNSEEN")
+                if data and data[0]:
+                    msg_ids = data[0].split()
+                    for msg_id in msg_ids:
+                        await self._process_imap_message(
+                            imap_client, msg_id, allowed_senders
+                        )
+
+                # Enter IDLE mode, wait for new mail or stop signal
+                idle_task = await imap_client.idle_start(timeout=300)
+                # Wait for either idle response or stop event
+                done, _ = await asyncio.wait(
+                    {idle_task, asyncio.create_task(self._imap_stop_event.wait())},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                imap_client.idle_done()
+
+                if self._imap_stop_event.is_set():
+                    break
+
+            await imap_client.logout()
+        except Exception:
+            logger.error("IMAP listener error", exc_info=True)
+
+    async def stop_imap_listener(self) -> None:
+        """Stop the IMAP IDLE listener."""
+        if hasattr(self, "_imap_stop_event"):
+            self._imap_stop_event.set()
+            logger.info("IMAP listener stop requested")
+        else:
+            logger.debug("IMAP listener was not running")
+
+    async def _process_imap_message(
+        self,
+        imap_client: object,
+        msg_id: bytes,
+        allowed_senders: str,
+    ) -> None:
+        """Process a single IMAP message: parse, validate, route."""
+        import email
+
+        from src.db import get_db
+
+        try:
+            _, msg_data = await imap_client.fetch(msg_id, "(RFC822)")  # type: ignore[union-attr]
+            if not msg_data or not msg_data[1]:
+                return
+
+            raw_email = msg_data[1]
+            msg = email.message_from_bytes(
+                raw_email if isinstance(raw_email, bytes) else raw_email.encode()
+            )
+
+            sender = msg.get("From", "")
+            subject = msg.get("Subject", "")
+
+            # Extract sender email from "Name <email>" format
+            if "<" in sender and ">" in sender:
+                sender = sender.split("<")[1].split(">")[0]
+
+            # Validate sender
+            if allowed_senders and not validate_sender(sender, allowed_senders):
+                logger.info("Rejected reply from unlisted sender: %s", sender)
+                return
+
+            # Extract token from subject
+            token = extract_token(subject)
+            if not token:
+                logger.debug("No token found in subject: %s", subject)
+                return
+
+            # Validate token
+            db = get_db()
+            token_data = await validate_token(db, token)
+            if not token_data:
+                logger.info("Invalid or expired token: %s", token)
+                return
+
+            # Get body
+            body = ""
+            if msg.is_multipart():
+                for part in msg.walk():
+                    if part.get_content_type() == "text/plain":
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            body = payload.decode("utf-8", errors="replace")
+                        break
+            else:
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    body = payload.decode("utf-8", errors="replace")
+
+            # Parse and route
+            command_type, command_value = parse_reply(body)
+            result = await route_reply(command_type, command_value, token_data, db)
+            logger.info(
+                "Routed email reply: token=%s command=%s result=%s",
+                token,
+                command_type,
+                result.get("status"),
+            )
+
+        except Exception:
+            logger.error("Failed to process IMAP message %s", msg_id, exc_info=True)
 
     @staticmethod
     def _render(event: CoordinatorEvent, token: str) -> tuple[str, str]:
