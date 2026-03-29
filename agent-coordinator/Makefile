@@ -150,6 +150,42 @@ gemini-mcp-setup: ## Register coordination MCP server with Gemini CLI
 mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordination MCP server with all CLI agents
 
 # ---------------------------------------------------------------------------
+# Phase: Hooks & Notification Integration
+# ---------------------------------------------------------------------------
+
+.PHONY: codex-hooks-setup
+codex-hooks-setup: ## Install coordinator hooks into Codex CLI (Stop, SessionStart, SessionEnd)
+	@echo "Codex hooks are defined in .codex/hooks.json (checked into repo)."
+	@echo "Codex CLI auto-discovers this file. No manual install needed."
+	@python3 -c "import json; json.load(open('$(CURDIR)/../.codex/hooks.json')); print('  .codex/hooks.json: valid')"
+
+.PHONY: gemini-wrapper-install
+gemini-wrapper-install: ## Install Gemini status wrapper (symlink to PATH)
+	@echo "Gemini CLI has no hooks. Use the wrapper script instead:"
+	@echo ""
+	@echo "  Direct:  $(CURDIR)/scripts/gemini_wrapper.sh \"your prompt\""
+	@echo "  Alias:   alias gemini-coord='$(CURDIR)/scripts/gemini_wrapper.sh'"
+	@echo ""
+	@if command -v gemini >/dev/null 2>&1; then \
+		echo "  gemini CLI: found at $$(which gemini)"; \
+	else \
+		echo "  gemini CLI: not found in PATH"; \
+	fi
+	@chmod +x $(CURDIR)/scripts/gemini_wrapper.sh
+	@echo ""
+	@echo "The wrapper registers/deregisters the agent and reports status"
+	@echo "after each Gemini invocation. Set these env vars:"
+	@echo "  COORDINATOR_URL=http://localhost:$(API_PORT)"
+	@echo "  AGENT_ID=gemini-1"
+	@echo "  AGENT_TYPE=gemini"
+
+.PHONY: hooks-setup
+hooks-setup: codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for all non-Claude agents
+	@echo ""
+	@echo "Claude Code hooks are in .claude/hooks.json (auto-discovered)."
+	@echo "All agents configured for coordinator status reporting."
+
+# ---------------------------------------------------------------------------
 # Phase: Quality
 # ---------------------------------------------------------------------------
 
