@@ -145,6 +145,54 @@ Each target registers the coordination MCP server with:
 
 Restart each CLI after registration to activate.
 
+#### 3a.1. Install lifecycle hooks (status reporting & notifications)
+
+Lifecycle hooks auto-register agents on session start, report status after each turn (heartbeat), and deregister on exit. They install at **user scope** so they work from any repo:
+
+```bash
+cd agent-coordinator
+
+# Install for all agents at once
+make hooks-setup
+
+# Or individually:
+make claude-hooks-setup      # Writes ~/.claude/hooks.json (SessionStart, Stop, SessionEnd)
+make codex-hooks-setup       # Writes ~/.codex/hooks.json (SessionStart, Stop, SessionEnd)
+make gemini-wrapper-install  # Symlinks gemini-coord to ~/.local/bin/
+```
+
+**How each agent gets lifecycle integration:**
+
+| Agent | Mechanism | Events |
+|-------|-----------|--------|
+| Claude Code | `~/.claude/hooks.json` | SessionStart, Stop, SubagentStop, SessionEnd |
+| Codex CLI | `~/.codex/hooks.json` | SessionStart, Stop, SessionEnd |
+| Gemini CLI | `gemini-coord` wrapper | register → run → report → deregister |
+
+Hook scripts use absolute paths to the coordinator's `scripts/` directory, so they resolve correctly regardless of the current working directory.
+
+For Gemini, use `gemini-coord` instead of bare `gemini` to get coordinator integration:
+```bash
+gemini-coord "implement the auth module"
+gemini-coord -p "fix the test" -y
+```
+
+#### 3a.2. Configure notifications (optional)
+
+To receive push notifications (approvals, escalations, stale agents) set:
+
+```bash
+export NOTIFICATION_CHANNELS=gmail    # gmail, telegram, webhook (comma-separated)
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=you@gmail.com
+export SMTP_PASSWORD=your-app-password
+export NOTIFICATION_RECIPIENT_EMAIL=you@gmail.com
+export NOTIFICATION_ALLOWED_SENDERS=you@gmail.com
+```
+
+Reply to notification emails to approve/deny, unblock escalations, or inject guidance. Omit `NOTIFICATION_CHANNELS` to disable.
+
 #### 3b. Allow-list coordination tools in Claude Code permissions
 
 After MCP registration, ensure all coordination tools are allow-listed so they don't trigger permission prompts during workflow execution:
