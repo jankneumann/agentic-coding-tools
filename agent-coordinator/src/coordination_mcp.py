@@ -1513,6 +1513,95 @@ async def remove_from_merge_queue(feature_id: str) -> dict[str, Any]:
 
 
 # =============================================================================
+# MCP TOOLS: Status Reporting
+# =============================================================================
+
+
+@mcp.tool()
+async def report_status(
+    agent_id: str,
+    change_id: str,
+    phase: str,
+    message: str = "",
+    needs_human: bool = False,
+    event_type: str = "phase_transition",
+    metadata: dict[str, Any] | None = None,
+) -> str:
+    """Report agent status (phase transitions, escalations) to the coordinator.
+
+    Called by hook scripts on Stop/SubagentStop events, or directly by agents
+    to report phase transitions. Emits a coordinator_status NOTIFY event and
+    updates the agent heartbeat.
+
+    Args:
+        agent_id: The agent reporting status
+        change_id: OpenSpec change identifier
+        phase: Current loop phase (e.g., PLAN, IMPLEMENT, ESCALATE)
+        message: Human-readable status message
+        needs_human: True if human intervention is needed (escalation)
+        event_type: Event classification (default: phase_transition)
+        metadata: Additional context
+
+    Returns:
+        JSON string with success status and urgency level
+    """
+    import json
+    import logging
+
+    from .discovery import get_discovery_service
+    from .event_bus import CoordinatorEvent, classify_urgency, get_event_bus
+
+    _log = logging.getLogger(__name__)
+
+    # Update heartbeat (best-effort)
+    try:
+        discovery = get_discovery_service()
+        await discovery.heartbeat()
+    except Exception:  # noqa: BLE001
+        _log.debug("Heartbeat update failed for MCP status report", exc_info=True)
+
+    # Determine urgency
+    urgency = classify_urgency(event_type)
+    if needs_human and urgency != "high":
+        urgency = "high"
+
+    # Emit coordinator_status NOTIFY
+    event = CoordinatorEvent(
+        event_type=event_type,
+        channel="coordinator_status",
+        entity_id=change_id or "unknown",
+        agent_id=agent_id,
+        urgency=urgency,
+        summary=f"[{phase}] {message}"[:200],
+        change_id=change_id or None,
+        context={
+            "phase": phase,
+            "needs_human": needs_human,
+            **(metadata or {}),
+        },
+    )
+
+    bus = get_event_bus()
+    if bus.running and not bus.failed:
+        try:
+            import asyncpg
+
+            conn = await asyncpg.connect(dsn=bus._dsn)  # noqa: SLF001
+            try:
+                await conn.execute(
+                    "SELECT pg_notify($1, $2)",
+                    "coordinator_status",
+                    event.to_json(),
+                )
+            finally:
+                await conn.close()
+        except Exception:  # noqa: BLE001
+            _log.debug("pg_notify failed for MCP status report", exc_info=True)
+
+    return json.dumps({"success": True, "urgency": urgency})
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 

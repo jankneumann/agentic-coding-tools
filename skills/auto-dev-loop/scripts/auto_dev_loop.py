@@ -134,12 +134,20 @@ def transition(state: LoopState, outcome: str) -> str:
 # Escalation helpers
 # ---------------------------------------------------------------------------
 
-def enter_escalate(state: LoopState, reason: str) -> LoopState:
+def enter_escalate(
+    state: LoopState,
+    reason: str,
+    status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+) -> LoopState:
     """Transition *state* into ESCALATE, recording the originating phase."""
     state.previous_phase = state.current_phase
     state.escalation_reason = reason
     state.current_phase = "ESCALATE"
     state.phase_started_at = _now_iso()
+    _safe_status_call(
+        status_fn, state, "status.escalated",
+        f"Escalated: {reason}", urgent=True,
+    )
     return state
 
 
@@ -177,17 +185,62 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _apply_transition(state: LoopState, outcome: str) -> LoopState:
+def _apply_transition(
+    state: LoopState,
+    outcome: str,
+    status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+) -> LoopState:
     """Compute and apply the transition, updating bookkeeping fields."""
+    old_phase = state.current_phase
     next_phase = transition(state, outcome)
     state.current_phase = next_phase
     state.phase_started_at = _now_iso()
     state.total_iterations += 1
+    _safe_status_call(
+        status_fn, state, "phase.transition",
+        f"Phase {old_phase} -> {next_phase}", urgent=False,
+    )
     return state
 
 
 def _is_review_phase(phase: str) -> bool:
     return phase in ("PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW")
+
+
+def _safe_status_call(
+    status_fn: Callable[[LoopState, str, str, bool], None] | None,
+    state: LoopState,
+    event_type: str,
+    message: str,
+    urgent: bool = False,
+) -> None:
+    """Call status_fn with a 5-second timeout, catching all errors."""
+    if status_fn is None:
+        return
+    import signal
+
+    def _timeout_handler(signum: int, frame: Any) -> None:
+        raise TimeoutError("status_fn timed out")
+
+    old_handler = None
+    try:
+        # Use SIGALRM for timeout on Unix; skip timeout on other platforms
+        try:
+            old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.alarm(5)
+        except (AttributeError, OSError):
+            pass
+
+        status_fn(state, event_type, message, urgent)
+    except Exception:
+        logger.debug("status_fn call failed", exc_info=True)
+    finally:
+        try:
+            signal.alarm(0)
+            if old_handler is not None:
+                signal.signal(signal.SIGALRM, old_handler)
+        except (AttributeError, OSError):
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +262,7 @@ def run_loop(
     gate_check_fn: Callable[[LoopState], bool] | None = None,
     converge_fn: Callable[..., Any] | None = None,
     assess_complexity_fn: Callable[..., Any] | None = None,
+    status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
     max_global_iterations: int = 50,
 ) -> LoopState:
     """Drive the automated dev loop from the current phase to DONE or ESCALATE.
@@ -237,6 +291,10 @@ def run_loop(
         Override for the convergence loop (defaults to sibling module).
     assess_complexity_fn:
         Override for complexity assessment (defaults to sibling module).
+    status_fn:
+        Called on phase transitions and escalations to report status.
+        Signature: ``(state, event_type, message, urgent) -> None``.
+        Wrapped in try/except with 5s timeout — never crashes the loop.
     max_global_iterations:
         Safety cap on total loop iterations.
     """
@@ -289,7 +347,7 @@ def run_loop(
         except Exception as exc:
             logger.error("Phase %s raised: %s", phase, exc)
             state.error = str(exc)
-            enter_escalate(state, f"Exception in {phase}: {exc}")
+            enter_escalate(state, f"Exception in {phase}: {exc}", status_fn=status_fn)
             save_state(state, state_path)
             break
 
@@ -305,12 +363,19 @@ def run_loop(
             continue
 
         prev_phase = state.current_phase
-        _apply_transition(state, outcome)
+        _apply_transition(state, outcome, status_fn=status_fn)
 
         # Write handoff at major boundaries
         _maybe_handoff(prev_phase, state.current_phase, state, handoff_fn)
 
         save_state(state, state_path)
+
+    # Report DONE status
+    if state.current_phase == "DONE":
+        _safe_status_call(
+            status_fn, state, "phase.transition",
+            f"Loop completed for {change_id}", urgent=False,
+        )
 
     # Final memory on completion
     if state.current_phase == "DONE" and memory_fn is not None:

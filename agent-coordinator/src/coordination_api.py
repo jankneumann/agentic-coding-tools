@@ -163,6 +163,16 @@ class FeatureConflictsRequest(BaseModel):
     candidate_claims: list[str]
 
 
+class StatusReportRequest(BaseModel):
+    agent_id: str
+    change_id: str = ""
+    phase: str = "UNKNOWN"
+    message: str = ""
+    needs_human: bool = False
+    event_type: str = "phase_transition"
+    metadata: dict[str, Any] | None = None
+
+
 class MergeQueueEnqueueRequest(BaseModel):
     feature_id: str
     pr_url: str | None = None
@@ -284,7 +294,26 @@ def create_coordination_api() -> FastAPI:
                 "Migration check failed — continuing with existing schema.",
                 exc_info=True,
             )
+
+        # Start event bus for status NOTIFY
+        from .event_bus import get_event_bus
+
+        event_bus = get_event_bus()
+        try:
+            await event_bus.start()
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Event bus startup failed — status NOTIFY disabled.",
+                exc_info=True,
+            )
+
         yield
+
+        # Shutdown event bus
+        try:
+            await event_bus.stop()
+        except Exception:  # noqa: BLE001
+            pass
 
     app = FastAPI(
         title="Agent Coordination API",
@@ -1274,6 +1303,129 @@ def create_coordination_api() -> FastAPI:
 
         success = await get_merge_queue_service().remove_from_queue(feature_id)
         return {"success": success, "feature_id": feature_id}
+
+    # --------------------------------------------------------------------- #
+    # STATUS REPORTING
+    # --------------------------------------------------------------------- #
+
+    @app.post("/status/report")
+    async def report_status(
+        request: StatusReportRequest,
+    ) -> dict[str, Any]:
+        """Accept status reports from agent hooks (Stop/SubagentStop).
+
+        No API key required — status reports are fire-and-forget from hooks
+        that may not have credentials configured.
+        """
+        import logging as _logging
+
+        from .discovery import get_discovery_service
+        from .event_bus import CoordinatorEvent, classify_urgency, get_event_bus
+
+        _log = _logging.getLogger(__name__)
+
+        # Update heartbeat via discovery service (best-effort)
+        try:
+            discovery = get_discovery_service()
+            await discovery.heartbeat()
+        except Exception:  # noqa: BLE001
+            _log.debug("Heartbeat update failed for status report", exc_info=True)
+
+        # Determine urgency
+        urgency = classify_urgency(request.event_type)
+        if request.needs_human and urgency != "high":
+            urgency = "high"
+
+        # Emit coordinator_status NOTIFY via event bus
+        event = CoordinatorEvent(
+            event_type=request.event_type,
+            channel="coordinator_status",
+            entity_id=request.change_id or "unknown",
+            agent_id=request.agent_id,
+            urgency=urgency,
+            summary=f"[{request.phase}] {request.message}"[:200],
+            change_id=request.change_id or None,
+            context={
+                "phase": request.phase,
+                "needs_human": request.needs_human,
+                **(request.metadata or {}),
+            },
+        )
+
+        bus = get_event_bus()
+        if bus.running and not bus.failed:
+            try:
+                import asyncpg
+
+                conn = await asyncpg.connect(
+                    dsn=bus._dsn,  # noqa: SLF001
+                )
+                try:
+                    await conn.execute(
+                        "SELECT pg_notify($1, $2)",
+                        "coordinator_status",
+                        event.to_json(),
+                    )
+                finally:
+                    await conn.close()
+            except Exception:  # noqa: BLE001
+                _log.debug("pg_notify failed for status report", exc_info=True)
+
+        return {"success": True, "urgency": urgency}
+
+    # --------------------------------------------------------------------- #
+    # NOTIFICATIONS (status/diagnostics)
+    # --------------------------------------------------------------------- #
+
+    @app.post("/notifications/test")
+    async def test_notification(
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Send a test notification through the event bus."""
+        from .event_bus import CoordinatorEvent, get_event_bus
+
+        event = CoordinatorEvent(
+            event_type="notification.test",
+            channel="coordinator_status",
+            entity_id="test",
+            agent_id=principal.get("agent_id", "api"),
+            urgency="low",
+            summary="Test notification from API",
+        )
+
+        bus = get_event_bus()
+        sent = False
+        if bus.running and not bus.failed:
+            try:
+                import asyncpg
+
+                conn = await asyncpg.connect(dsn=bus._dsn)  # noqa: SLF001
+                try:
+                    await conn.execute(
+                        "SELECT pg_notify($1, $2)",
+                        "coordinator_status",
+                        event.to_json(),
+                    )
+                    sent = True
+                finally:
+                    await conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+        return {"success": True, "sent": sent}
+
+    @app.get("/notifications/status")
+    async def notifications_status() -> dict[str, Any]:
+        """Get event bus and notification system status."""
+        from .event_bus import get_event_bus
+
+        bus = get_event_bus()
+        return {
+            "event_bus": {
+                "running": bus.running,
+                "failed": bus.failed,
+            },
+        }
 
     # --------------------------------------------------------------------- #
     # HEALTH
