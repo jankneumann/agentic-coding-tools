@@ -1,0 +1,46 @@
+version: 1
+profiles:
+  python:
+    signals:
+      - pyproject.toml
+      - requirements.txt
+      - setup.py
+    scanners:
+      - dependency-check
+  node:
+    signals:
+      - package.json
+      - package-lock.json
+      - pnpm-lock.yaml
+      - yarn.lock
+    scanners:
+      - dependency-check
+  java:
+    signals:
+      - pom.xml
+      - build.gradle
+      - build.gradle.kts
+    scanners:
+      - dependency-check
+  docker-api:
+    signals:
+      - docker-compose.yml
+      - docker-compose.yaml
+      - compose.yml
+      - openapi.yaml
+      - openapi.yml
+      - swagger.yaml
+      - swagger.yml
+    scanners:
+      - zap
+  mixed:
+    signals:
+      - multiple-profile-signals
+    scanners:
+      - dependency-check
+      - zap
+  generic:
+    signals:
+      - fallback
+    scanners:
+      - dependency-check

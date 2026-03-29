@@ -31,5 +31,6 @@
       "Read(~/.config/**)",
       "Read(**/.env.*)"
     ]
-  }
+  },
+    "outputStyle": "Explanatory"
 }
