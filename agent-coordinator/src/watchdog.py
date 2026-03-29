@@ -1,0 +1,306 @@
+"""Async background task for periodic health monitoring.
+
+Periodically checks for stale agents, aging approvals, expiring locks,
+expired tokens, and event bus health. Emits notifications via pg_notify.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import time
+from datetime import datetime, timezone
+from typing import Any
+
+from .db import DatabaseClient, get_db
+from .event_bus import CoordinatorEvent, get_event_bus
+
+logger = logging.getLogger(__name__)
+
+# Defaults
+_DEFAULT_INTERVAL_SECONDS = 60
+_STALE_AGENT_THRESHOLD_MINUTES = 15
+_AGING_APPROVAL_THRESHOLD_MINUTES = 15
+_REMINDER_DEBOUNCE_SECONDS = 30 * 60  # 30 minutes
+_LOCK_EXPIRY_WARNING_MINUTES = 10
+
+
+class WatchdogService:
+    """Periodic health monitor running as an asyncio background task."""
+
+    def __init__(
+        self,
+        db: DatabaseClient | None = None,
+        check_interval: int | None = None,
+        time_fn: Any = None,
+    ) -> None:
+        self._db = db
+        self._interval = check_interval or int(
+            os.environ.get("WATCHDOG_INTERVAL_SECONDS", str(_DEFAULT_INTERVAL_SECONDS))
+        )
+        self._time_fn = time_fn or time.monotonic
+        self._running = False
+        self._task: asyncio.Task[None] | None = None
+        self._last_reminders: dict[str, float] = {}  # approval_id -> last_reminder_timestamp
+
+    @property
+    def db(self) -> DatabaseClient:
+        if self._db is None:
+            self._db = get_db()
+        return self._db
+
+    @property
+    def running(self) -> bool:
+        return self._running
+
+    async def start(self) -> None:
+        """Start watchdog as asyncio background task."""
+        if self._running:
+            return
+        self._running = True
+        self._task = asyncio.create_task(self._loop())
+        logger.info("Watchdog: started (interval=%ds)", self._interval)
+
+    async def stop(self) -> None:
+        """Stop watchdog gracefully."""
+        self._running = False
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        self._task = None
+        logger.info("Watchdog: stopped")
+
+    async def run_once(self) -> None:
+        """Run a single check cycle (useful for testing)."""
+        await self._check_stale_agents()
+        await self._check_aging_approvals()
+        await self._check_expiring_locks()
+        await self._cleanup_expired_tokens()
+        await self._check_event_bus_health()
+
+    async def _loop(self) -> None:
+        """Main loop: run checks at the configured interval."""
+        while self._running:
+            try:
+                await self.run_once()
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                logger.error("Watchdog: check cycle failed: %s", exc, exc_info=True)
+            try:
+                await asyncio.sleep(self._interval)
+            except asyncio.CancelledError:
+                break
+
+    async def _check_stale_agents(self) -> None:
+        """Find agents with heartbeat > 15 min, emit notification, cleanup."""
+        try:
+            now = datetime.now(timezone.utc)
+            rows = await self.db.query(
+                "agent_discovery",
+                f"status=eq.active&last_heartbeat=lt.{(now - __import__('datetime').timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)).isoformat()}",
+            )
+            for row in rows:
+                agent_id = row.get("agent_id", "unknown")
+                await self._emit_event(
+                    channel="coordinator_agent",
+                    event_type="agent.stale",
+                    entity_id=agent_id,
+                    agent_id=agent_id,
+                    urgency="high",
+                    summary=f"Agent {agent_id} has not sent a heartbeat in over {_STALE_AGENT_THRESHOLD_MINUTES} minutes",
+                )
+                logger.warning("Watchdog: stale agent detected: %s", agent_id)
+
+            # Cleanup dead agents via RPC
+            if rows:
+                try:
+                    await self.db.rpc(
+                        "cleanup_dead_agents",
+                        {"p_stale_threshold": f"{_STALE_AGENT_THRESHOLD_MINUTES} minutes"},
+                    )
+                except Exception as exc:
+                    logger.error("Watchdog: cleanup_dead_agents RPC failed: %s", exc)
+
+                # Expire pending approvals from stale agents
+                stale_agent_ids = [r.get("agent_id") for r in rows if r.get("agent_id")]
+                for agent_id in stale_agent_ids:
+                    try:
+                        pending = await self.db.query(
+                            "approval_queue",
+                            f"status=eq.pending&agent_id=eq.{agent_id}",
+                        )
+                        for approval in pending:
+                            await self.db.update(
+                                "approval_queue",
+                                {"id": approval["id"]},
+                                {"status": "expired"},
+                            )
+                    except Exception as exc:
+                        logger.error(
+                            "Watchdog: failed to expire approvals for stale agent %s: %s",
+                            agent_id,
+                            exc,
+                        )
+        except Exception as exc:
+            logger.error("Watchdog: _check_stale_agents failed: %s", exc)
+
+    async def _check_aging_approvals(self) -> None:
+        """Find pending approvals > 15 min, emit reminder (debounced 30 min)."""
+        try:
+            from datetime import timedelta
+
+            now = datetime.now(timezone.utc)
+            threshold = (now - timedelta(minutes=_AGING_APPROVAL_THRESHOLD_MINUTES)).isoformat()
+            rows = await self.db.query(
+                "approval_queue",
+                f"status=eq.pending&created_at=lt.{threshold}",
+            )
+            current_time = self._time_fn()
+            for row in rows:
+                approval_id = str(row.get("id", ""))
+                last_reminder = self._last_reminders.get(approval_id, 0.0)
+                if current_time - last_reminder < _REMINDER_DEBOUNCE_SECONDS:
+                    continue
+
+                agent_id = row.get("agent_id", "unknown")
+                operation = row.get("operation", "unknown")
+                await self._emit_event(
+                    channel="coordinator_approval",
+                    event_type="approval.reminder",
+                    entity_id=approval_id,
+                    agent_id=agent_id,
+                    urgency="medium",
+                    summary=f"Approval request {approval_id} for '{operation}' has been pending for over {_AGING_APPROVAL_THRESHOLD_MINUTES} minutes",
+                )
+                self._last_reminders[approval_id] = current_time
+        except Exception as exc:
+            logger.error("Watchdog: _check_aging_approvals failed: %s", exc)
+
+    async def _check_expiring_locks(self) -> None:
+        """Find locks within 10 min of TTL, warn holder."""
+        try:
+            now = datetime.now(timezone.utc)
+            from datetime import timedelta
+
+            soon = (now + timedelta(minutes=_LOCK_EXPIRY_WARNING_MINUTES)).isoformat()
+            rows = await self.db.query(
+                "file_locks",
+                f"expires_at=lt.{soon}&expires_at=gt.{now.isoformat()}",
+            )
+            for row in rows:
+                file_path = row.get("file_path", "unknown")
+                locked_by = row.get("locked_by", "unknown")
+                await self._emit_event(
+                    channel="coordinator_agent",
+                    event_type="agent.lock_expiring",
+                    entity_id=file_path,
+                    agent_id=locked_by,
+                    urgency="medium",
+                    summary=f"Lock on '{file_path}' held by {locked_by} expires within {_LOCK_EXPIRY_WARNING_MINUTES} minutes",
+                )
+        except Exception as exc:
+            logger.error("Watchdog: _check_expiring_locks failed: %s", exc)
+
+    async def _cleanup_expired_tokens(self) -> None:
+        """Delete expired notification tokens."""
+        try:
+            now = datetime.now(timezone.utc)
+            expired = await self.db.query(
+                "notification_tokens",
+                f"expires_at=lt.{now.isoformat()}",
+            )
+            for row in expired:
+                token_id = row.get("id")
+                if token_id:
+                    await self.db.delete("notification_tokens", {"id": token_id})
+            if expired:
+                logger.info("Watchdog: cleaned up %d expired notification tokens", len(expired))
+        except Exception as exc:
+            logger.error("Watchdog: _cleanup_expired_tokens failed: %s", exc)
+
+    async def _check_event_bus_health(self) -> None:
+        """Check if event bus has failed, try restart."""
+        try:
+            bus = get_event_bus()
+            if bus.failed:
+                logger.warning("Watchdog: event bus is in failed state, attempting restart")
+                # Emit notification directly (bus is down)
+                await self._emit_event(
+                    channel="coordinator_agent",
+                    event_type="bus.connection_failed",
+                    entity_id="event_bus",
+                    agent_id="watchdog",
+                    urgency="high",
+                    summary="Event bus connection failed, attempting restart",
+                )
+                try:
+                    await bus.restart()
+                    logger.info("Watchdog: event bus restarted successfully")
+                except Exception as exc:
+                    logger.error("Watchdog: event bus restart failed: %s", exc)
+        except Exception as exc:
+            logger.error("Watchdog: _check_event_bus_health failed: %s", exc)
+
+    async def _emit_event(
+        self,
+        channel: str,
+        event_type: str,
+        entity_id: str,
+        agent_id: str,
+        urgency: str,
+        summary: str,
+    ) -> None:
+        """Emit event via direct pg_notify (not through event bus listener).
+
+        Uses the DatabaseClient to send a NOTIFY directly, bypassing event bus
+        to avoid loops.
+        """
+        event = CoordinatorEvent(
+            event_type=event_type,
+            channel=channel,
+            entity_id=entity_id,
+            agent_id=agent_id,
+            urgency=urgency,  # type: ignore[arg-type]
+            summary=summary,
+        )
+        try:
+            # Try pg_notify via RPC with internal flag to prevent trigger loops
+            await self.db.rpc(
+                "pg_notify_direct",
+                {
+                    "p_channel": channel,
+                    "p_payload": event.to_json(),
+                },
+            )
+        except Exception:
+            # Fallback: just log the event if direct notify is not available
+            logger.info(
+                "Watchdog event (direct notify unavailable): %s %s",
+                event_type,
+                summary,
+            )
+
+
+# --- Singleton ---
+
+_watchdog: WatchdogService | None = None
+
+
+def get_watchdog() -> WatchdogService:
+    """Return the singleton WatchdogService."""
+    global _watchdog
+    if _watchdog is None:
+        _watchdog = WatchdogService()
+    return _watchdog
+
+
+def reset_watchdog() -> None:
+    """Reset the singleton (for tests)."""
+    global _watchdog
+    _watchdog = None
