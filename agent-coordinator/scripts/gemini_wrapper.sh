@@ -23,7 +23,15 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so SCRIPT_DIR points to the actual scripts/ directory
+# even when invoked via ~/.local/bin/gemini-coord symlink
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 COORDINATOR_URL="${COORDINATOR_URL:-http://localhost:8081}"
 AGENT_ID="${AGENT_ID:-gemini-1}"
 AGENT_TYPE="${AGENT_TYPE:-gemini}"

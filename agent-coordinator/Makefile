@@ -152,38 +152,80 @@ mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordin
 # ---------------------------------------------------------------------------
 # Phase: Hooks & Notification Integration
 # ---------------------------------------------------------------------------
+# Hooks install at USER scope (~/.claude/, ~/.codex/) so they fire in ANY
+# repo, not just this one.  The hook scripts use absolute paths back to
+# this checkout so they find the coordinator Python modules.
+
+SCRIPTS_ABS := $(CURDIR)/scripts
+
+# JSON template used by claude-hooks-setup and codex-hooks-setup.
+# Uses absolute paths so the hooks work from any working directory.
+define HOOKS_JSON
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "python3 $(SCRIPTS_ABS)/register_agent.py"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 $(SCRIPTS_ABS)/report_status.py"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "python3 $(SCRIPTS_ABS)/deregister_agent.py"
+      }
+    ]
+  }
+}
+endef
+export HOOKS_JSON
+
+.PHONY: claude-hooks-setup
+claude-hooks-setup: ## Install coordinator hooks into Claude Code (user scope, works in any repo)
+	@mkdir -p ~/.claude
+	@echo "$$HOOKS_JSON" > ~/.claude/hooks.json
+	@echo "Installed ~/.claude/hooks.json (user scope)"
+	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
+	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
 .PHONY: codex-hooks-setup
-codex-hooks-setup: ## Install coordinator hooks into Codex CLI (Stop, SessionStart, SessionEnd)
-	@echo "Codex hooks are defined in .codex/hooks.json (checked into repo)."
-	@echo "Codex CLI auto-discovers this file. No manual install needed."
-	@python3 -c "import json; json.load(open('$(CURDIR)/../.codex/hooks.json')); print('  .codex/hooks.json: valid')"
+codex-hooks-setup: ## Install coordinator hooks into Codex CLI (user scope, works in any repo)
+	@mkdir -p ~/.codex
+	@echo "$$HOOKS_JSON" > ~/.codex/hooks.json
+	@echo "Installed ~/.codex/hooks.json (user scope)"
+	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
+	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
 .PHONY: gemini-wrapper-install
-gemini-wrapper-install: ## Install Gemini status wrapper (symlink to PATH)
-	@echo "Gemini CLI has no hooks. Use the wrapper script instead:"
+gemini-wrapper-install: ## Install Gemini status wrapper (symlink gemini-coord to ~/.local/bin)
+	@chmod +x $(SCRIPTS_ABS)/gemini_wrapper.sh
+	@mkdir -p ~/.local/bin
+	@ln -sf $(SCRIPTS_ABS)/gemini_wrapper.sh ~/.local/bin/gemini-coord
+	@echo "Installed ~/.local/bin/gemini-coord -> $(SCRIPTS_ABS)/gemini_wrapper.sh"
 	@echo ""
-	@echo "  Direct:  $(CURDIR)/scripts/gemini_wrapper.sh \"your prompt\""
-	@echo "  Alias:   alias gemini-coord='$(CURDIR)/scripts/gemini_wrapper.sh'"
+	@echo "Usage (from any repo):"
+	@echo "  gemini-coord \"your prompt here\""
+	@echo "  gemini-coord -p \"fix the test\" -y"
 	@echo ""
-	@if command -v gemini >/dev/null 2>&1; then \
-		echo "  gemini CLI: found at $$(which gemini)"; \
-	else \
-		echo "  gemini CLI: not found in PATH"; \
-	fi
-	@chmod +x $(CURDIR)/scripts/gemini_wrapper.sh
-	@echo ""
-	@echo "The wrapper registers/deregisters the agent and reports status"
-	@echo "after each Gemini invocation. Set these env vars:"
-	@echo "  COORDINATOR_URL=http://localhost:$(API_PORT)"
-	@echo "  AGENT_ID=gemini-1"
-	@echo "  AGENT_TYPE=gemini"
+	@echo "Ensure ~/.local/bin is in your PATH."
+	@echo "Set env vars for coordinator connection:"
+	@echo "  export COORDINATOR_URL=http://localhost:$(API_PORT)"
+	@echo "  export AGENT_ID=gemini-1"
+	@echo "  export AGENT_TYPE=gemini"
 
 .PHONY: hooks-setup
-hooks-setup: codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for all non-Claude agents
+hooks-setup: claude-hooks-setup codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for ALL agents (user scope)
 	@echo ""
-	@echo "Claude Code hooks are in .claude/hooks.json (auto-discovered)."
 	@echo "All agents configured for coordinator status reporting."
+	@echo "  Claude Code: ~/.claude/hooks.json  (SessionStart, Stop, SessionEnd)"
+	@echo "  Codex CLI:   ~/.codex/hooks.json   (SessionStart, Stop, SessionEnd)"
+	@echo "  Gemini CLI:  ~/.local/bin/gemini-coord (wrapper script)"
 
 # ---------------------------------------------------------------------------
 # Phase: Quality
