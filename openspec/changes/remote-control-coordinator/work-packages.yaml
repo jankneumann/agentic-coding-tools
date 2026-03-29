@@ -205,12 +205,13 @@ packages:
     description: >
       Add report_status.py Claude Code hook script (Stop/SubagentStop) that reads
       loop-state.json, updates heartbeat, and reports phase transitions. Add
-      POST /status/report HTTP endpoint. Add status_fn callback to auto-dev-loop's
-      run_loop(). Update .claude/hooks.json with Stop and SubagentStop entries.
-      Add report_status MCP tool to coordination_mcp.py.
+      POST /status/report HTTP endpoint (assumes coordination_api.py lifespan
+      wiring from wp-notifier-core is already in place). Add status_fn callback
+      to auto-dev-loop's run_loop(). Update .claude/hooks.json with Stop and
+      SubagentStop entries. Add report_status MCP tool to coordination_mcp.py.
     role: "backend-engineer"
     priority: 3
-    depends_on: ["wp-event-bus"]
+    depends_on: ["wp-event-bus", "wp-notifier-core"]
     locks:
       files:
         - "agent-coordinator/scripts/report_status.py"
@@ -335,7 +336,7 @@ packages:
     worktree:
       name: "wp-integration"
       mode: "shared"
-    timeout_minutes: 120
+    timeout_minutes: 180
     retry_budget: 0
     min_trust_level: 2
     verification:

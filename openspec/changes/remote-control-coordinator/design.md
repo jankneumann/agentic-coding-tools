@@ -23,6 +23,8 @@ The system must remain agent-agnostic: Claude Code gets deeper integration via h
 - Replacing Claude Code Channels or Remote Control — those are session-scoped; this is coordination-scoped
 - WhatsApp integration (no stable bot API for automated messaging)
 - Auto-executing arbitrary commands from email replies (security boundary — only route to existing coordinator endpoints)
+- Guardrail violation notifications (requires event log table or instrumentation of `GuardrailService.check()` — better as a follow-up change)
+- OAuth2 for Gmail (adds token refresh complexity and Google Cloud Console setup — App Passwords sufficient for initial rollout)
 
 ## Decisions
 
@@ -32,12 +34,13 @@ The system must remain agent-agnostic: Claude Code gets deeper integration via h
 
 **Rationale**: The existing pattern already handles reconnection with exponential backoff, callback registration, and safe error handling. Generalizing it avoids duplicating this logic per-channel. Database triggers on `approval_queue`, `work_queue`, and `agent_discovery` tables emit NOTIFY events — pure PostgreSQL, no Supabase dependency.
 
-**Channels**:
-- `coordinator_approval` — approval submitted, decided, expired
-- `coordinator_task` — task claimed, completed, failed
-- `coordinator_agent` — agent registered, stale, disconnected
-- `coordinator_status` — phase transitions, escalations from auto-dev-loop
-- `coordinator_guardrail` — destructive operation blocked
+**Channels** (trigger source in parentheses):
+- `coordinator_approval` — approval submitted, decided, expired (trigger on `approval_queue`)
+- `coordinator_task` — task claimed, completed, failed (trigger on `work_queue`)
+- `coordinator_agent` — agent registered, stale, disconnected (trigger on `agent_discovery`)
+- `coordinator_status` — phase transitions, escalations from auto-dev-loop (emitted by `POST /status/report` and watchdog via direct `pg_notify`)
+
+Note: Guardrail events (`coordinator_guardrail`) are deferred — the `operation_guardrails` table is a pattern store, not an event log. Guardrail violations are currently detected in-process by `GuardrailService.check()`. Adding a guardrail event channel requires either an event log table or instrumenting the check method to emit NOTIFY, which is better scoped as a follow-up change.
 
 ### D2: Channel Plugin Interface
 
@@ -65,7 +68,7 @@ class NotificationChannel(Protocol):
 
 ### D3: Gmail as Primary Bidirectional Channel
 
-**Decision**: Implement Gmail via `aiosmtplib` (outbound) and `aioimaplib` (inbound IMAP IDLE). Replies are parsed and routed to coordinator API endpoints. Use App Passwords or OAuth2 for authentication.
+**Decision**: Implement Gmail via `aiosmtplib` (outbound) and `aioimaplib` (inbound IMAP IDLE). Replies are parsed and routed to coordinator API endpoints. Use App Passwords for authentication (OAuth2 deferred — adds token refresh complexity and Google Cloud Console setup that isn't justified for initial rollout).
 
 **Rationale**: Gmail supports IMAP IDLE for near-real-time push (1-5s latency). Email provides threading by change-id, rich HTML bodies, and works from any device. IMAP IDLE has a 29-minute timeout (Gmail-specific) — reconnect and re-IDLE. This matches Claude-Code-Remote's proven IMAP approach.
 

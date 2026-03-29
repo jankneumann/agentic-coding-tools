@@ -2,52 +2,53 @@
 
 ## Phase 1: Event Bus + Outbound Notifications
 
-- [ ] **T1.1** Create `agent-coordinator/src/event_bus.py` — generalize `policy_sync.py` into multi-channel `EventBusService` with `on_event(channel, callback)` registration
-- [ ] **T1.2** Create database migration for NOTIFY triggers on `approval_queue` (INSERT, UPDATE status), `work_queue` (UPDATE status), `agent_discovery` (INSERT, UPDATE status/heartbeat)
-- [ ] **T1.3** Define `CoordinatorEvent` dataclass with fields: `event_type`, `channel`, `entity_id`, `agent_id`, `change_id`, `urgency`, `summary`, `context`, `timestamp`
-- [ ] **T1.4** Write tests for `EventBusService` — callback dispatch, reconnection, multi-channel listening
-- [ ] **T1.5** Create `agent-coordinator/src/notifications/__init__.py` and `base.py` — `NotificationChannel` protocol
-- [ ] **T1.6** Create `agent-coordinator/src/notifications/notifier.py` — `NotifierService` with channel registry, urgency classification, parallel dispatch
-- [ ] **T1.7** Create `agent-coordinator/src/notifications/gmail.py` — `GmailChannel` outbound (SMTP via `aiosmtplib`), HTML templates, email threading by change-id
-- [ ] **T1.8** Create `agent-coordinator/src/notifications/templates.py` — HTML email templates for each event type (approval request, status update, escalation alert, stale agent warning)
-- [ ] **T1.9** Create `agent-coordinator/src/status.py` — notification token generation, storage, validation, invalidation
+- [ ] **T1.1** Create `agent-coordinator/src/event_bus.py` — generalize `policy_sync.py` into multi-channel `EventBusService` with `on_event(channel, callback)` registration. Include `failed` flag for watchdog health detection. Include payload size check (truncate `context` if NOTIFY payload > 7KB).
+- [ ] **T1.2** Create database migration for NOTIFY triggers on `approval_queue` (INSERT, UPDATE status), `work_queue` (UPDATE status), `agent_discovery` (INSERT, UPDATE status/heartbeat). Triggers SHALL check `current_setting('app.coordinator_internal')` and skip NOTIFY when `'true'` (prevents self-notification loops).
+- [ ] **T1.3** Define `CoordinatorEvent` dataclass per the schema in spec.md Definitions section: `event_type`, `channel`, `entity_id` (UUID), `agent_id`, `change_id` (optional), `urgency` (Literal), `summary` (max 200 chars), `context` (dict, optional), `timestamp` (ISO 8601)
+- [ ] **T1.4** Write tests for `EventBusService` — callback dispatch, reconnection with backoff, multi-channel listening, retry exhaustion behavior, payload truncation
+- [ ] **T1.5** Create `agent-coordinator/src/notifications/__init__.py` and `base.py` — `NotificationChannel` protocol + `GmailChannelFake` test double
+- [ ] **T1.6** Create `agent-coordinator/src/notifications/notifier.py` — `NotifierService` with channel registry, urgency classification, parallel dispatch with per-channel error isolation, SMTP retry (exponential backoff, base 2s, max 60s, 3 attempts), event filter per channel via `NOTIFICATION_EVENT_FILTER_{CHANNEL}` env var
+- [ ] **T1.7** Create `agent-coordinator/src/notifications/gmail.py` — `GmailChannel` outbound (SMTP via `aiosmtplib`, App Password auth), HTML templates, email threading by change-id via `In-Reply-To`/`References` headers
+- [ ] **T1.8** Create `agent-coordinator/src/notifications/templates.py` — HTML email templates for each event type (approval request, status update, escalation alert, stale agent warning, digest summary)
+- [ ] **T1.9** Create `agent-coordinator/src/status.py` — notification token generation (8-char via `secrets.token_urlsafe`), storage, validation (atomic `UPDATE WHERE used_at IS NULL`), invalidation
 - [ ] **T1.10** Create database migration for `notification_tokens` table (token, event_type, entity_id, change_id, created_at, expires_at, used_at)
 - [ ] **T1.11** Add `aiosmtplib` and `email-validator` to `agent-coordinator/pyproject.toml` dependencies
-- [ ] **T1.12** Wire event bus and notifier into `coordination_api.py` FastAPI lifespan
+- [ ] **T1.12** Wire event bus and notifier into `coordination_api.py` FastAPI lifespan (start on startup, stop on shutdown)
 - [ ] **T1.13** Add `POST /notifications/test` and `GET /notifications/status` endpoints to `coordination_api.py`
-- [ ] **T1.14** Write tests for `NotifierService` — channel dispatch, urgency filtering, disabled mode
-- [ ] **T1.15** Write tests for `GmailChannel` outbound — SMTP mock, template rendering, header generation
+- [ ] **T1.14** Write tests for `NotifierService` — channel dispatch, urgency filtering, disabled mode, per-channel error isolation, SMTP retry, digest batching, event type filtering. Use `GmailChannelFake` test double.
+- [ ] **T1.15** Write tests for `GmailChannel` outbound — SMTP mock via `aiosmtplib` test mode, template rendering, header generation, threading. Use `freezegun`/`time-machine` for timing tests.
 
 ## Phase 2: Inbound Relay + Status Hooks
 
-- [ ] **T2.1** Add IMAP IDLE listener to `GmailChannel` — async monitoring via `aioimaplib`, reconnect on timeout/disconnect
-- [ ] **T2.2** Create `agent-coordinator/src/notifications/relay.py` — reply parser (token extraction, command recognition, sender validation)
-- [ ] **T2.3** Implement reply routing: approval decisions → `ApprovalService.decide_request()`, guidance → `MemoryService.remember()`, gate checks → status update
-- [ ] **T2.4** Implement token lifecycle in relay: validate, invalidate on use, handle expired/invalid tokens with error reply emails
-- [ ] **T2.5** Add `aioimaplib` to `agent-coordinator/pyproject.toml` dependencies
-- [ ] **T2.6** Write tests for Gmail relay — reply parsing, token validation, routing (mocked IMAP)
+- [ ] **T2.1** Add IMAP IDLE listener to `GmailChannel` — async monitoring via `aioimaplib`, reconnect on IDLE timeout (parameterized, default 29min for Gmail) or disconnect, up to 3 reconnect attempts before emitting `high` urgency event
+- [ ] **T2.2** Create `agent-coordinator/src/notifications/relay.py` — reply parser: extract token via regex `\[#([A-Za-z0-9]{8})\]` from subject (priority 1) or `In-Reply-To` header (priority 2). Split body by whitespace, strip punctuation from first word, case-insensitive match against command set. Multi-line: first line = command, rest = guidance context.
+- [ ] **T2.3** Implement reply routing: `approved`/`denied` → `ApprovalService.decide_request()`, `resolved` → `POST /status/report` with `event_type: "gate_check"`, `skip` → `POST /status/report` with `event_type: "phase_skip"`, free-text → `MemoryService.remember()` with tags `["human-feedback", change_id]`
+- [ ] **T2.4** Implement token lifecycle in relay: validate via atomic `UPDATE WHERE used_at IS NULL`, handle expired/invalid/reused tokens with specific error reply emails. Validate sender case-insensitively against allowlist (no domain wildcards).
+- [ ] **T2.5** Add `aioimaplib` to `agent-coordinator/pyproject.toml` dependencies (preserve existing `aiosmtplib` and `email-validator` from T1.11)
+- [ ] **T2.6** Write tests for Gmail relay — parametrized reply parsing (`"approved"`, `"APPROVE!"`, `"yes"`, `"app roved"→None`), token validation, concurrent race (two replies same token), routing to correct service, unauthorized sender rejection. Use `MockIMAPClient` fixture.
 - [ ] **T2.7** Create `agent-coordinator/scripts/report_status.py` — Claude Code Stop/SubagentStop hook script
-- [ ] **T2.8** Implement `report_status.py` logic: read `loop-state.json`, detect phase change vs cached state, call `POST /status/report`, update heartbeat, 5s timeout
-- [ ] **T2.9** Add `POST /status/report` endpoint to `coordination_api.py` — accept status reports, emit `coordinator_status` NOTIFY
-- [ ] **T2.10** Add `report_status` MCP tool to `coordination_mcp.py` for local agents
-- [ ] **T2.11** Add `status_fn` callback parameter to `auto_dev_loop.py`'s `run_loop()` — call at phase transitions, escalations, and loop completion
+- [ ] **T2.8** Implement `report_status.py` logic: read `loop-state.json` (handle missing/corrupt JSON gracefully → phase="UNKNOWN"), detect phase change vs `.status-cache.json`, call `POST /status/report` with 5s `httpx` timeout, update heartbeat as side effect, exit 0 in all cases
+- [ ] **T2.9** Add `POST /status/report` endpoint to `coordination_api.py` — accept status reports, emit `coordinator_status` NOTIFY via direct `pg_notify`. Assumes lifespan wiring from T1.12 is in place.
+- [ ] **T2.10** Add `report_status` MCP tool to `coordination_mcp.py` for local agents (same fields as HTTP endpoint: `agent_id`, `change_id`, `phase`, `message`, `needs_human`, `metadata`)
+- [ ] **T2.11** Add `status_fn` callback parameter to `auto_dev_loop.py`'s `run_loop()` — call at phase transitions, escalations, and loop completion. Catch exceptions and timeouts (5s) — log but do NOT crash loop. Include error in next heartbeat.
 - [ ] **T2.12** Update `.claude/hooks.json` — add Stop and SubagentStop entries for `report_status.py`
-- [ ] **T2.13** Write tests for `report_status.py` — phase detection, caching, timeout behavior, graceful failure
-- [ ] **T2.14** Write tests for status endpoint — HTTP and MCP paths, heartbeat side effect
+- [ ] **T2.13** Write tests for `report_status.py` — phase detection, caching, timeout behavior (mock httpx), graceful failure on missing loop-state.json, corrupt JSON, unreachable coordinator
+- [ ] **T2.14** Write tests for status endpoint — HTTP and MCP paths produce equivalent results, heartbeat side effect verified
 
 ## Phase 3: Watchdog + Additional Channels
 
-- [ ] **T3.1** Create `agent-coordinator/src/watchdog.py` — async background task with configurable interval
-- [ ] **T3.2** Implement stale agent detection: query `agent_discovery` for `last_heartbeat < NOW() - 15min`, emit notification, call `cleanup_dead_agents()`
-- [ ] **T3.3** Implement aging approval detection: query `approval_queue` for pending > 15 min, emit reminder (debounced to once per 30 min per approval)
+- [ ] **T3.1** Create `agent-coordinator/src/watchdog.py` — async background task with configurable interval (`WATCHDOG_INTERVAL_SECONDS`, default 60, range 10-3600). Inject `time_fn` for deterministic testing.
+- [ ] **T3.2** Implement stale agent detection: query `agent_discovery` for `last_heartbeat < NOW() - 15min` AND `status = 'active'`, emit notification, call `cleanup_dead_agents()`. Also expire pending approvals from stale agents.
+- [ ] **T3.3** Implement aging approval detection: query `approval_queue` for pending > 15 min, emit reminder. Debounce via in-memory `last_reminder_at` dict keyed by `approval_id` (30-min interval, resets on restart).
 - [ ] **T3.4** Implement expiring lock detection: query `file_locks` for TTL within 10 min, warn lock holder
 - [ ] **T3.5** Implement expired token cleanup: DELETE from `notification_tokens` WHERE `expires_at < NOW()`
-- [ ] **T3.6** Wire watchdog into `coordination_api.py` lifespan (start on startup, stop on shutdown)
-- [ ] **T3.7** Write tests for watchdog — stale detection, approval reminders, debouncing, token cleanup
-- [ ] **T3.8** Create `agent-coordinator/src/notifications/telegram.py` — `TelegramChannel` via Bot API, inline keyboard buttons for approve/deny
-- [ ] **T3.9** Create `agent-coordinator/src/notifications/webhook.py` — `WebhookChannel` for generic HTTP POST (ntfy, PagerDuty, n8n, Zapier)
-- [ ] **T3.10** Add digest batching to `NotifierService` — collect low-urgency events, send summary every N minutes (configurable)
-- [ ] **T3.11** Write tests for Telegram and webhook channels
+- [ ] **T3.6** Implement event bus health check: if `event_bus.failed` flag set, emit `high` urgency notification via direct `pg_notify` and attempt event bus restart
+- [ ] **T3.7** Wire watchdog into `coordination_api.py` lifespan (start on startup, stop on shutdown). Watchdog uses direct `pg_notify` (not event bus listener) to ensure notifications work even if event bus is down.
+- [ ] **T3.8** Write tests for watchdog — stale detection, approval reminders with debounce verification (using `time-machine`), token cleanup, event bus health check, stale-agent approval expiry
+- [ ] **T3.9** Create `agent-coordinator/src/notifications/telegram.py` — `TelegramChannel` via Bot API, inline keyboard buttons for approve/deny
+- [ ] **T3.10** Create `agent-coordinator/src/notifications/webhook.py` — `WebhookChannel` for generic HTTP POST (ntfy, PagerDuty, n8n, Zapier)
+- [ ] **T3.11** Add digest batching to `NotifierService` — collect low-urgency events, send summary every `NOTIFICATION_DIGEST_INTERVAL_SECONDS` (default 600). Digest contains: event count, per-type summary, 5 most recent summaries. Max batch: 100 events.
+- [ ] **T3.12** Write tests for Telegram and webhook channels
 
 ## Integration
 
