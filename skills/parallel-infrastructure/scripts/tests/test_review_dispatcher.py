@@ -15,6 +15,9 @@ from review_dispatcher import (
     ErrorClass,
     ModeConfig,
     ReviewOrchestrator,
+    ReviewResult,
+    SdkConfig,
+    SdkVendorAdapter,
     classify_error,
 )
 
@@ -450,3 +453,230 @@ class TestAsyncDispatch:
         result = adapter.poll_for_result("abc123", poll_cfg)
         assert result.success is False
         assert "timed out" in (result.error or "").lower()
+
+
+# ---------------------------------------------------------------------------
+# SDK adapter tests
+# ---------------------------------------------------------------------------
+
+def _sdk_config(
+    package: str = "anthropic",
+    model: str = "claude-sonnet-4-6",
+    model_fallbacks: list[str] | None = None,
+) -> SdkConfig:
+    return SdkConfig(
+        package=package,
+        model=model,
+        model_fallbacks=model_fallbacks or [],
+        api_key_env="ANTHROPIC_API_KEY",
+        max_tokens=16384,
+    )
+
+
+def _sdk_adapter(
+    agent_id: str = "claude-remote",
+    vendor: str = "claude_code",
+    **kwargs: object,
+) -> SdkVendorAdapter:
+    return SdkVendorAdapter(
+        agent_id=agent_id,
+        vendor=vendor,
+        sdk_config=_sdk_config(**kwargs),  # type: ignore[arg-type]
+        openbao_role_id="test-role",
+    )
+
+
+class TestSdkCanDispatch:
+    def test_review_mode_with_importable_package(self) -> None:
+        """SDK can dispatch review when package is importable."""
+        adapter = _sdk_adapter()
+        with patch.object(adapter, "_can_import_sdk", return_value=True):
+            assert adapter.can_dispatch("review") is True
+
+    def test_alternative_mode_rejected(self) -> None:
+        """SDK does not support alternative mode."""
+        adapter = _sdk_adapter()
+        assert adapter.can_dispatch("alternative") is False
+
+    def test_review_mode_without_package(self) -> None:
+        """SDK cannot dispatch when package is not importable."""
+        adapter = _sdk_adapter()
+        with patch.object(adapter, "_can_import_sdk", return_value=False):
+            assert adapter.can_dispatch("review") is False
+
+
+class TestSdkDispatch:
+    def test_dispatch_without_api_key(self, tmp_path: Path) -> None:
+        """SDK dispatch fails when no API key provided."""
+        adapter = _sdk_adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path, api_key=None)
+        assert result.success is False
+        assert "No API key" in (result.error or "")
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_success(self, mock_call: MagicMock, tmp_path: Path) -> None:
+        """SDK dispatch succeeds with valid findings."""
+        mock_call.return_value = json.loads(VALID_FINDINGS_JSON)
+        adapter = _sdk_adapter()
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+        assert result.success is True
+        assert result.findings is not None
+        assert result.model_used == "claude-sonnet-4-6"
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_model_fallback(self, mock_call: MagicMock, tmp_path: Path) -> None:
+        """SDK dispatch falls back on capacity error."""
+        from review_dispatcher import _SdkCapacityError
+        mock_call.side_effect = [
+            _SdkCapacityError(),
+            json.loads(VALID_FINDINGS_JSON),
+        ]
+        adapter = _sdk_adapter(model_fallbacks=["claude-haiku-4-5-20251001"])
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+        assert result.success is True
+        assert result.models_attempted == [
+            "claude-sonnet-4-6", "claude-haiku-4-5-20251001",
+        ]
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_auth_error_no_fallback(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        """SDK auth error does not trigger model fallback."""
+        from review_dispatcher import _SdkAuthError
+        mock_call.side_effect = _SdkAuthError("Invalid key")
+        adapter = _sdk_adapter(model_fallbacks=["claude-haiku-4-5-20251001"])
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-bad",
+        )
+        assert result.success is False
+        assert result.error_class == ErrorClass.AUTH
+        assert result.models_attempted == ["claude-sonnet-4-6"]
+
+
+# ---------------------------------------------------------------------------
+# Three-tier selection tests
+# ---------------------------------------------------------------------------
+
+class TestThreeTierSelection:
+    def test_cli_preferred_over_sdk(self) -> None:
+        """When CLI is installed, CLI is selected over SDK."""
+        cli_adapters = {
+            "claude-local": _adapter("claude-local", "claude_code", command="claude"),
+        }
+        sdk_adapters = {
+            "claude-remote": _sdk_adapter("claude-remote", "claude_code"),
+        }
+        orch = ReviewOrchestrator(cli_adapters, sdk_adapters)
+        with patch("shutil.which", return_value="/usr/bin/claude"):
+            reviewers = orch.discover_reviewers()
+        assert len(reviewers) == 1
+        assert reviewers[0].dispatch_tier == "cli"
+        assert reviewers[0].agent_id == "claude-local"
+
+    def test_sdk_fallback_when_cli_missing(self) -> None:
+        """When CLI is not installed, SDK is selected."""
+        cli_adapters = {
+            "codex-local": _adapter("codex-local", "codex", command="codex"),
+        }
+        sdk_adapters = {
+            "codex-remote": SdkVendorAdapter(
+                agent_id="codex-remote",
+                vendor="codex",
+                sdk_config=SdkConfig(
+                    package="openai",
+                    model="gpt-5.4",
+                    api_key_env="OPENAI_API_KEY",
+                ),
+            ),
+        }
+        orch = ReviewOrchestrator(cli_adapters, sdk_adapters)
+        with patch("shutil.which", return_value=None):
+            with patch.object(
+                SdkVendorAdapter, "can_dispatch", return_value=True,
+            ):
+                reviewers = orch.discover_reviewers()
+        assert len(reviewers) == 1
+        assert reviewers[0].dispatch_tier == "sdk"
+        assert reviewers[0].agent_id == "codex-remote"
+
+    def test_skip_when_nothing_available(self) -> None:
+        """When neither CLI nor SDK is available, vendor is skipped."""
+        cli_adapters = {
+            "gemini-local": _adapter("gemini-local", "gemini", command="gemini"),
+        }
+        sdk_adapters = {
+            "gemini-remote": SdkVendorAdapter(
+                agent_id="gemini-remote",
+                vendor="gemini",
+                sdk_config=SdkConfig(
+                    package="google-generativeai",
+                    model="gemini-2.5-pro",
+                ),
+            ),
+        }
+        orch = ReviewOrchestrator(cli_adapters, sdk_adapters)
+        with patch("shutil.which", return_value=None):
+            with patch.object(
+                SdkVendorAdapter, "can_dispatch", return_value=False,
+            ):
+                reviewers = orch.discover_reviewers()
+        assert len(reviewers) == 0
+
+    def test_mixed_cli_and_sdk(self) -> None:
+        """Mixed: one vendor via CLI, another via SDK."""
+        cli_adapters = {
+            "claude-local": _adapter("claude-local", "claude_code", command="claude"),
+            "codex-local": _adapter("codex-local", "codex", command="codex"),
+        }
+        sdk_adapters = {
+            "codex-remote": SdkVendorAdapter(
+                agent_id="codex-remote",
+                vendor="codex",
+                sdk_config=SdkConfig(package="openai", model="gpt-5.4"),
+            ),
+        }
+        orch = ReviewOrchestrator(cli_adapters, sdk_adapters)
+
+        def which_side_effect(cmd: str) -> str | None:
+            return "/usr/bin/claude" if cmd == "claude" else None
+
+        with patch("shutil.which", side_effect=which_side_effect):
+            with patch.object(
+                SdkVendorAdapter, "can_dispatch", return_value=True,
+            ):
+                reviewers = orch.discover_reviewers()
+
+        assert len(reviewers) == 2
+        tiers = {r.vendor: r.dispatch_tier for r in reviewers}
+        assert tiers["claude_code"] == "cli"
+        assert tiers["codex"] == "sdk"
+
+    def test_deduplication_by_vendor(self) -> None:
+        """At most one reviewer per vendor type."""
+        cli_adapters = {
+            "claude-local": _adapter("claude-local", "claude_code", command="claude"),
+        }
+        sdk_adapters = {
+            "claude-remote": _sdk_adapter("claude-remote", "claude_code"),
+        }
+        orch = ReviewOrchestrator(cli_adapters, sdk_adapters)
+        with patch("shutil.which", return_value="/usr/bin/claude"):
+            reviewers = orch.discover_reviewers()
+        assert len(reviewers) == 1
+
+    def test_exclude_vendor(self) -> None:
+        """Excluded vendors are omitted from discovery."""
+        cli_adapters = {
+            "claude-local": _adapter("claude-local", "claude_code", command="claude"),
+            "codex-local": _adapter("codex-local", "codex", command="codex"),
+        }
+        orch = ReviewOrchestrator(cli_adapters)
+        with patch("shutil.which", return_value="/usr/bin/mock"):
+            reviewers = orch.discover_reviewers(exclude_vendor="claude_code")
+        assert len(reviewers) == 1
+        assert reviewers[0].vendor == "codex"

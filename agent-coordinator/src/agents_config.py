@@ -63,6 +63,22 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         },
                     },
                     "description": {"type": "string", "minLength": 1},
+                    "sdk": {
+                        "type": "object",
+                        "required": ["package", "model"],
+                        "properties": {
+                            "package": {"type": "string", "minLength": 1},
+                            "method": {"type": "string", "minLength": 1},
+                            "model": {"type": "string", "minLength": 1},
+                            "model_fallbacks": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "api_key_env": {"type": "string", "minLength": 1},
+                            "max_tokens": {"type": "integer", "minimum": 1},
+                        },
+                        "additionalProperties": False,
+                    },
                     "cli": {
                         "type": "object",
                         "required": ["command", "dispatch_modes", "model_flag"],
@@ -171,6 +187,23 @@ class CliConfig:
 
 
 @dataclass
+class SdkConfig:
+    """SDK dispatch configuration for an agent.
+
+    Parsed from the optional ``sdk`` section of an agent entry in
+    ``agents.yaml``.  Enables direct API dispatch via vendor Python SDKs
+    as a fallback when the vendor's CLI is not installed.
+    """
+
+    package: str
+    model: str
+    method: str = "messages.create"
+    model_fallbacks: list[str] = field(default_factory=list)
+    api_key_env: str = ""
+    max_tokens: int = 16384
+
+
+@dataclass
 class AgentEntry:
     """A single agent definition from ``agents.yaml``."""
 
@@ -185,6 +218,7 @@ class AgentEntry:
     api_key: str | None = None
     openbao_role_id: str | None = None
     cli: CliConfig | None = None
+    sdk: SdkConfig | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +322,18 @@ def load_agents_config(
                 prompt_via_stdin=raw_cli.get("prompt_via_stdin", False),
             )
 
+        sdk_config: SdkConfig | None = None
+        raw_sdk = agent_data.get("sdk")
+        if raw_sdk:
+            sdk_config = SdkConfig(
+                package=raw_sdk["package"],
+                model=raw_sdk["model"],
+                method=raw_sdk.get("method", "messages.create"),
+                model_fallbacks=raw_sdk.get("model_fallbacks", []),
+                api_key_env=raw_sdk.get("api_key_env", ""),
+                max_tokens=raw_sdk.get("max_tokens", 16384),
+            )
+
         entries.append(
             AgentEntry(
                 name=name,
@@ -301,6 +347,7 @@ def load_agents_config(
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
                 cli=cli_config,
+                sdk=sdk_config,
             )
         )
 
@@ -494,7 +541,7 @@ def reset_agents_config() -> None:
 def get_dispatch_configs(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, Any]:
-    """Return CLI dispatch configs for agents with a ``cli`` section.
+    """Return dispatch configs for agents with a ``cli`` or ``sdk`` section.
 
     Shared serialization logic used by both MCP and HTTP endpoints.
     Returns a dict with ``agents`` key containing a list of agent
@@ -505,12 +552,21 @@ def get_dispatch_configs(
 
     agents_out: list[dict[str, Any]] = []
     for entry in agents:
-        if entry.cli is None:
+        if entry.cli is None and entry.sdk is None:
             continue
-        agents_out.append({
-            "agent_id": entry.name,
-            "type": entry.type,
-            "cli": {
+        sdk_out: dict[str, Any] | None = None
+        if entry.sdk:
+            sdk_out = {
+                "package": entry.sdk.package,
+                "model": entry.sdk.model,
+                "method": entry.sdk.method,
+                "model_fallbacks": entry.sdk.model_fallbacks,
+                "api_key_env": entry.sdk.api_key_env,
+                "max_tokens": entry.sdk.max_tokens,
+            }
+        cli_out: dict[str, Any] | None = None
+        if entry.cli:
+            cli_out = {
                 "command": entry.cli.command,
                 "dispatch_modes": {
                     name: {
@@ -531,7 +587,14 @@ def get_dispatch_configs(
                 "model": entry.cli.model,
                 "model_fallbacks": entry.cli.model_fallbacks,
                 "prompt_via_stdin": entry.cli.prompt_via_stdin,
-            },
+            }
+        agents_out.append({
+            "agent_id": entry.name,
+            "type": entry.type,
+            "transport": entry.transport,
+            "openbao_role_id": entry.openbao_role_id,
+            "cli": cli_out,
+            "sdk": sdk_out,
         })
 
     return {"agents": agents_out}
