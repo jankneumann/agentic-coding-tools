@@ -1,0 +1,364 @@
+schema_version: 1
+
+feature:
+  id: "remote-control-coordinator"
+  title: "Remote control and notification system for agent coordinator"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+
+packages:
+  # --- Phase 1: Event Bus + Outbound Notifications ---
+
+  - package_id: "wp-event-bus"
+    title: "Generalized event bus via PostgreSQL LISTEN/NOTIFY"
+    task_type: "implement"
+    description: >
+      Extract the LISTEN/NOTIFY pattern from policy_sync.py into a general-purpose
+      EventBusService. Add database triggers on approval_queue, work_queue, and
+      agent_discovery tables to emit NOTIFY events on INSERT/UPDATE. Define the
+      CoordinatorEvent dataclass and event type taxonomy.
+    role: "backend-engineer"
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/event_bus.py"
+      keys:
+        - "db:schema:notification_triggers"
+      ttl_minutes: 120
+      reason: "Event bus implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/event_bus.py"
+        - "agent-coordinator/supabase/migrations/*_notification_triggers.sql"
+        - "agent-coordinator/tests/test_event_bus.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/supabase/migrations/**"
+      deny:
+        - "agent-coordinator/src/notifications/**"
+        - "skills/**"
+    worktree:
+      name: "wp-event-bus"
+      mode: "isolated"
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_event_bus.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-event-bus/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+        - name: "type-check"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/event_bus.py --strict"
+          expect_exit_code: 0
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-notifier-core"
+    title: "Pluggable notification service with Gmail outbound"
+    task_type: "implement"
+    description: >
+      Implement the NotifierService with channel plugin registry, event urgency
+      classification, and parallel dispatch. Implement GmailChannel outbound
+      (SMTP via aiosmtplib) with HTML templates, threading by change-id, and
+      notification token generation. Add notification_tokens table migration.
+      Wire event bus -> notifier in coordination_api.py lifespan. Add
+      POST /notifications/test and GET /notifications/status endpoints.
+    role: "backend-engineer"
+    priority: 2
+    depends_on: ["wp-event-bus"]
+    locks:
+      files:
+        - "agent-coordinator/src/notifications/__init__.py"
+        - "agent-coordinator/src/notifications/base.py"
+        - "agent-coordinator/src/notifications/notifier.py"
+        - "agent-coordinator/src/notifications/gmail.py"
+        - "agent-coordinator/src/notifications/templates.py"
+        - "agent-coordinator/src/status.py"
+      keys:
+        - "api:POST /notifications/test"
+        - "api:GET /notifications/status"
+        - "db:schema:notification_tokens"
+      ttl_minutes: 120
+      reason: "Notifier core implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/notifications/**"
+        - "agent-coordinator/src/status.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/supabase/migrations/*_notification_tokens.sql"
+        - "agent-coordinator/tests/test_notifier.py"
+        - "agent-coordinator/tests/test_gmail_channel.py"
+        - "agent-coordinator/pyproject.toml"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/supabase/migrations/**"
+      deny:
+        - "agent-coordinator/src/event_bus.py"
+        - "skills/**"
+    worktree:
+      name: "wp-notifier-core"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_notifier.py tests/test_gmail_channel.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-notifier-core/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+        - name: "type-check"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/notifications/ src/status.py --strict"
+          expect_exit_code: 0
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  # --- Phase 2: Inbound Relay + Status Hooks ---
+
+  - package_id: "wp-gmail-relay"
+    title: "Gmail IMAP inbound relay with reply-to-approve"
+    task_type: "implement"
+    description: >
+      Add IMAP IDLE listener to GmailChannel for near-real-time reply detection.
+      Implement reply parsing (token extraction, command recognition, sender validation).
+      Route parsed replies to coordinator API endpoints (approval decisions, guidance
+      injection). Handle token lifecycle (validation, invalidation, expiry errors).
+      Send confirmation/error reply emails.
+    role: "backend-engineer"
+    priority: 3
+    depends_on: ["wp-notifier-core"]
+    locks:
+      files:
+        - "agent-coordinator/src/notifications/gmail.py"
+        - "agent-coordinator/src/notifications/relay.py"
+      keys:
+        - "feature:gmail-inbound-relay"
+      ttl_minutes: 120
+      reason: "Gmail IMAP relay implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/notifications/gmail.py"
+        - "agent-coordinator/src/notifications/relay.py"
+        - "agent-coordinator/tests/test_gmail_relay.py"
+        - "agent-coordinator/pyproject.toml"
+      read_allow:
+        - "agent-coordinator/src/**"
+      deny:
+        - "agent-coordinator/src/event_bus.py"
+        - "skills/**"
+    worktree:
+      name: "wp-gmail-relay"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_gmail_relay.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-gmail-relay/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  - package_id: "wp-status-hooks"
+    title: "Status reporting hooks and auto-dev-loop integration"
+    task_type: "implement"
+    description: >
+      Add report_status.py Claude Code hook script (Stop/SubagentStop) that reads
+      loop-state.json, updates heartbeat, and reports phase transitions. Add
+      POST /status/report HTTP endpoint. Add status_fn callback to auto-dev-loop's
+      run_loop(). Update .claude/hooks.json with Stop and SubagentStop entries.
+      Add report_status MCP tool to coordination_mcp.py.
+    role: "backend-engineer"
+    priority: 3
+    depends_on: ["wp-event-bus"]
+    locks:
+      files:
+        - "agent-coordinator/scripts/report_status.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+      keys:
+        - "api:POST /status/report"
+      ttl_minutes: 120
+      reason: "Status hooks implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/scripts/report_status.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/tests/test_status_reporting.py"
+        - ".claude/hooks.json"
+        - "skills/auto-dev-loop/scripts/auto_dev_loop.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "skills/auto-dev-loop/**"
+      deny:
+        - "agent-coordinator/src/notifications/**"
+    worktree:
+      name: "wp-status-hooks"
+      mode: "isolated"
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_status_reporting.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-status-hooks/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  # --- Phase 3: Watchdog + Additional Channels ---
+
+  - package_id: "wp-watchdog"
+    title: "Watchdog service and additional notification channels"
+    task_type: "implement"
+    description: >
+      Implement watchdog.py as asyncio background task within coordination_api.py
+      lifespan. Monitor stale agents (>15min heartbeat), aging approvals (>15min pending),
+      expiring locks (within 10min of TTL), and expired notification tokens. Add
+      TelegramChannel and WebhookChannel plugins. Add digest batching for low-urgency
+      events.
+    role: "backend-engineer"
+    priority: 4
+    depends_on: ["wp-notifier-core"]
+    locks:
+      files:
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/src/notifications/telegram.py"
+        - "agent-coordinator/src/notifications/webhook.py"
+      keys:
+        - "feature:watchdog-service"
+      ttl_minutes: 120
+      reason: "Watchdog and additional channels"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/src/notifications/telegram.py"
+        - "agent-coordinator/src/notifications/webhook.py"
+        - "agent-coordinator/tests/test_watchdog.py"
+        - "agent-coordinator/tests/test_telegram_channel.py"
+        - "agent-coordinator/tests/test_webhook_channel.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: "wp-watchdog"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_watchdog.py tests/test_telegram_channel.py tests/test_webhook_channel.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-watchdog/pytest.xml"
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+
+  # --- Integration ---
+
+  - package_id: "wp-integration"
+    title: "Integration merge and full test suite"
+    task_type: "integrate"
+    description: >
+      Merge all worktrees, run full coordinator test suite, verify event bus ->
+      notifier -> channel pipeline end-to-end with mocked SMTP/IMAP, verify
+      hooks.json is valid, verify all new endpoints respond correctly.
+    priority: 1
+    depends_on: ["wp-gmail-relay", "wp-status-hooks", "wp-watchdog"]
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow: ["**"]
+      read_allow: ["**"]
+    worktree:
+      name: "wp-integration"
+      mode: "shared"
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full-test-suite"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m pytest -m 'not e2e and not integration' --tb=short"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "artifacts/wp-integration/pytest.xml"
+            result_keys:
+              - "test_count"
+        - name: "type-check-all"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/"
+          expect_exit_code: 0
+        - name: "lint"
+          kind: "command"
+          command: "cd agent-coordinator && .venv/bin/python -m ruff check ."
+          expect_exit_code: 0
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"
