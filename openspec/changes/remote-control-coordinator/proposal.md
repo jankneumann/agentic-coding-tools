@@ -8,7 +8,7 @@ Claude-Code-Remote (JessyTsui) demonstrates that email and messaging relay works
 
 ## What Changes
 
-- Add a **generalized event bus** by extending PostgreSQL LISTEN/NOTIFY beyond the existing `policy_changed` channel to cover task lifecycle, approvals, agent health, and guardrail events
+- Add a **generalized event bus** by extending PostgreSQL LISTEN/NOTIFY beyond the existing `policy_changed` channel to cover task lifecycle, approvals, agent health, and status events (guardrail notifications deferred — see design.md)
 - Add a **pluggable Notifier service** with a channel abstraction (Gmail, Telegram, webhook) that subscribes to the event bus and dispatches notifications
 - Add a **Gmail channel** with SMTP outbound and IMAP IDLE inbound for reply-to-approve and reply-to-unblock workflows
 - Add a **`report_status.py` Claude Code hook** (Stop/SubagentStop) that updates heartbeats and reports phase transitions from the auto-dev-loop — with an equivalent HTTP API endpoint for Codex/Gemini agents
@@ -16,7 +16,7 @@ Claude-Code-Remote (JessyTsui) demonstrates that email and messaging relay works
 
 ## Impact
 
-- Affected specs: `agent-coordinator` (new event bus, notifier, status endpoint)
+- Affected specs: `agent-coordinator` (new event bus, notifier, status endpoint). Note: guardrail notification events are deferred per design decision D1 (see design.md).
 - New code:
   - `agent-coordinator/src/event_bus.py` — generalized LISTEN/NOTIFY listener (extends `policy_sync.py` pattern)
   - `agent-coordinator/src/notifications/` — Notifier service, channel plugins (Gmail, Telegram, webhook)

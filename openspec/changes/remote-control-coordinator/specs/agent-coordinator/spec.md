@@ -195,9 +195,11 @@ AND an audit log entry SHALL be created with `operation: "unauthorized_reply"`, 
 
 WHEN a human replies "resolved" to an escalation notification
 AND the token is valid
-THEN the relay SHALL call `POST /status/report` with `event_type: "gate_check"`
-AND the auto-dev-loop's `gate_check_fn` SHALL evaluate the escalation condition on its next iteration
+THEN the relay SHALL call `POST /status/report` with `event_type: "gate_check"` and `change_id` from the token
+AND the coordinator SHALL store this as a status event in the `coordinator_status` NOTIFY channel
 AND a confirmation email SHALL be sent: "Gate check triggered. Loop will re-evaluate."
+
+Note: The auto-dev-loop's existing `gate_check_fn` callback (already defined in `auto_dev_loop.py`) polls coordinator state. When it sees a `gate_check` status event for its change-id, it re-evaluates the escalation condition. No new callback parameter is needed — `gate_check_fn` is already part of `run_loop()`'s signature.
 
 #### Scenario: Human replies with free-text guidance
 
@@ -236,9 +238,13 @@ The coordinator SHALL accept status reports from agents via both Claude Code hoo
 
 ### Requirements
 
-- A new `POST /status/report` endpoint SHALL accept: `agent_id`, `change_id`, `phase`, `message`, `needs_human` (boolean), `metadata` (optional JSON).
+- A new `POST /status/report` endpoint SHALL accept: `agent_id`, `change_id`, `phase`, `message`, `needs_human` (boolean), `event_type` (optional, default: `"phase_transition"`), `metadata` (optional JSON).
 - The endpoint SHALL update the agent's heartbeat timestamp as a side effect.
 - If `needs_human` is true, the event SHALL be classified as `high` urgency.
+- The endpoint SHALL emit a `coordinator_status` NOTIFY event for all status reports.
+- Special `event_type` values have semantic meaning for the auto-dev-loop:
+  - `gate_check` — signals that a human has confirmed an escalation is resolved. The auto-dev-loop's `gate_check_fn` SHALL query for recent `gate_check` events for its `change_id` and re-evaluate the escalation condition if found.
+  - `phase_skip` — signals that a human wants to bypass the current phase. The auto-dev-loop's `gate_check_fn` SHALL query for recent `phase_skip` events and return `True` (resolved) if found, causing the loop to exit ESCALATE and proceed to the next phase.
 - A `report_status.py` Claude Code hook script SHALL:
   - Fire on `Stop` and `SubagentStop` events.
   - Read `loop-state.json` if present to extract `current_phase` and `findings_trend`.
