@@ -45,7 +45,7 @@ def parse_reply(body: str) -> tuple[str, str | None]:
     """
     cleaned = clean_reply_body(body)
     if not cleaned.strip():
-        return ("guidance", cleaned)
+        return ("guidance", None)  # Empty body — no actionable content
 
     lines = cleaned.strip().splitlines()
     first_line = lines[0].strip()
@@ -174,6 +174,9 @@ async def route_reply(
         }
 
     elif command_type == "guidance":
+        if not command_value or not command_value.strip():
+            return {"status": "skipped", "reason": "empty_guidance"}
+
         from src.memory import MemoryService
 
         memory_svc = MemoryService(db=db)

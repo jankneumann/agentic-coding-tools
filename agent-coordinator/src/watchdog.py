@@ -100,10 +100,13 @@ class WatchdogService:
     async def _check_stale_agents(self) -> None:
         """Find agents with heartbeat > 15 min, emit notification, cleanup."""
         try:
+            from datetime import timedelta
+
             now = datetime.now(timezone.utc)
+            threshold = (now - timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)).isoformat()
             rows = await self.db.query(
                 "agent_discovery",
-                f"status=eq.active&last_heartbeat=lt.{(now - __import__('datetime').timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)).isoformat()}",
+                f"status=eq.active&last_heartbeat=lt.{threshold}",
             )
             for row in rows:
                 agent_id = row.get("agent_id", "unknown")
@@ -179,6 +182,12 @@ class WatchdogService:
                     summary=f"Approval request {approval_id} for '{operation}' has been pending for over {_AGING_APPROVAL_THRESHOLD_MINUTES} minutes",
                 )
                 self._last_reminders[approval_id] = current_time
+
+            # Prune stale entries: remove IDs not in the current pending set
+            pending_ids = {str(r.get("id", "")) for r in rows}
+            stale_keys = [k for k in self._last_reminders if k not in pending_ids]
+            for k in stale_keys:
+                del self._last_reminders[k]
         except Exception as exc:
             logger.error("Watchdog: _check_aging_approvals failed: %s", exc)
 

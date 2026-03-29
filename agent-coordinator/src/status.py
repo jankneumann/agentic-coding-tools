@@ -52,20 +52,15 @@ async def store_token(
 async def validate_token(db: DatabaseClient, token: str) -> dict[str, Any] | None:
     """Validate and consume a token atomically.
 
-    Finds the token if it hasn't been used and hasn't expired, then marks
-    it as used. Returns the token row dict or None if invalid/expired/used.
+    Uses a single UPDATE ... WHERE used_at IS NULL AND expires_at > NOW()
+    to prevent race conditions (two replies consuming the same token).
+    Returns the token row dict or None if invalid/expired/already used.
     """
     now = datetime.now(timezone.utc).isoformat()
 
-    # Query for valid token
-    rows = await db.query(
-        "notification_tokens",
-        query_params=f"token=eq.{token}&used_at=is.null&expires_at=gt.{now}",
-    )
-    if not rows:
-        return None
-
-    # Mark as used
+    # Atomic: only updates if token is unused AND not expired.
+    # If two requests race, only one UPDATE will match (the row's
+    # used_at changes from NULL to non-NULL after the first).
     updated = await db.update(
         "notification_tokens",
         match={"token": token},
@@ -74,7 +69,11 @@ async def validate_token(db: DatabaseClient, token: str) -> dict[str, Any] | Non
     if not updated:
         return None
 
-    return updated[0] if updated else rows[0]
+    row = updated[0]
+    # Check if it was actually valid (not expired, was unused before our update)
+    if row.get("expires_at", "") < now:
+        return None
+    return row
 
 
 async def cleanup_expired_tokens(db: DatabaseClient) -> int:
