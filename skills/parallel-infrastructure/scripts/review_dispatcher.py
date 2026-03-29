@@ -159,10 +159,17 @@ class ReviewResult:
 class CliVendorAdapter:
     """Config-driven vendor adapter — one class handles all vendors."""
 
-    def __init__(self, agent_id: str, vendor: str, cli_config: CliConfig) -> None:
+    def __init__(
+        self,
+        agent_id: str,
+        vendor: str,
+        cli_config: CliConfig,
+        transport: str = "mcp",
+    ) -> None:
         self.agent_id = agent_id
         self.vendor = vendor
         self.cli_config = cli_config
+        self.transport = transport
 
     def can_dispatch(self, mode: str) -> bool:
         """Check if this adapter can dispatch the given mode."""
@@ -819,6 +826,7 @@ class ReviewOrchestrator:
                         model_fallbacks=cli.get("model_fallbacks", []),
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                     ),
+                    transport=agent.get("transport", "mcp"),
                 )
 
             # Build SDK adapter
@@ -960,9 +968,8 @@ class ReviewOrchestrator:
         for agent_id, adapter in self.adapters.items():
             if exclude_vendor and adapter.vendor == exclude_vendor:
                 continue
-            # Only consider local agents for CLI dispatch
-            transport = getattr(adapter, "transport", "mcp")
-            if transport == "mcp" and adapter.vendor not in cli_by_vendor:
+            # Only consider local agents (transport=mcp) for CLI dispatch
+            if adapter.transport == "mcp" and adapter.vendor not in cli_by_vendor:
                 cli_by_vendor[adapter.vendor] = (agent_id, adapter)
 
         # Collect all SDK adapters
@@ -1209,8 +1216,8 @@ def main() -> int:
             orch = ReviewOrchestrator.from_coordinator()
             if not orch.adapters:
                 orch = ReviewOrchestrator.from_agents_yaml()
-        if not orch.adapters:
-            print("No agents with CLI dispatch configs found")
+        if not orch.adapters and not orch.sdk_adapters:
+            print("No agents with dispatch configs found")
             return 1
         reviewers = orch.discover_reviewers()
         print(f"{'Agent':<20} {'Vendor':<15} {'Tier':<6} {'Command/SDK':<20} {'Modes':<25} {'Fallbacks'}")
@@ -1273,7 +1280,7 @@ def main() -> int:
     print(f"Available reviewers: {[(r.agent_id, r.dispatch_tier) for r in available]}")
 
     if not available:
-        print("No vendor CLIs available", file=sys.stderr)
+        print("No vendors available (no CLI or SDK dispatch)", file=sys.stderr)
         return 1
 
     # Dispatch

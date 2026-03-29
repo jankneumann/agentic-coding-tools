@@ -85,11 +85,10 @@ class ApiKeyResolver:
         openbao_role_id: str,
         api_key_env: str,
     ) -> str | None:
-        """Resolve API key from OpenBao via agent-coordinator subprocess.
+        """Resolve API key directly via hvac client using OpenBao AppRole auth.
 
-        Uses the same ``_find_coordinator_dir`` pattern as the
-        ReviewOrchestrator to locate agent-coordinator, then calls a
-        helper script to resolve the secret.
+        Authenticates with the agent's ``openbao_role_id`` and reads
+        the secret named ``api_key_env`` from the vault.
         """
         try:
             import hvac
