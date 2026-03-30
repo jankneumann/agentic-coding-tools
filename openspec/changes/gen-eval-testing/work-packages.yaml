@@ -1,0 +1,188 @@
+# Work Packages: Generator-Evaluator Testing Framework
+# Change ID: gen-eval-testing
+# Tier: local-parallel
+
+packages:
+  - id: wp-foundation
+    name: "Foundation: Core Models + Config"
+    description: "Data models, configuration, interface descriptor parsing"
+    tasks: [T1.1, T1.2, T1.3, T1.4, T1.5, T1.6]
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/__init__.py"
+        - "agent-coordinator/evaluation/gen_eval/config.py"
+        - "agent-coordinator/evaluation/gen_eval/descriptor.py"
+        - "agent-coordinator/evaluation/gen_eval/models.py"
+        - "agent-coordinator/pyproject.toml"
+      read_allow:
+        - "agent-coordinator/evaluation/**"
+        - "agent-coordinator/src/**"
+    verification: tier_a
+    agent_hint: "Start here. Define Pydantic models for GenEvalConfig, BudgetConfig, InterfaceDescriptor, Scenario, ActionStep, ScenarioVerdict. Add gen-eval optional deps to pyproject.toml."
+
+  - id: wp-clients
+    name: "Transport Clients"
+    description: "Pluggable HTTP, MCP, CLI, DB, browser clients"
+    tasks: [T2.1, T2.2, T2.3, T2.4, T2.5, T2.6, T2.7, T2.8]
+    priority: 2
+    dependencies: [wp-foundation]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/clients/**"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_cli.py"
+    verification: tier_a
+    agent_hint: "Implement TransportClient protocol. HttpClient uses httpx with auth injection. McpClient uses fastmcp SDK. CliClient uses subprocess. DbClient uses asyncpg (SELECT only). WaitClient uses asyncio.sleep."
+
+  - id: wp-generator
+    name: "Scenario Generation"
+    description: "Template generator, LLM generator, hybrid generator"
+    tasks: [T3.1, T3.8, T3.9, T3.10]
+    priority: 2
+    dependencies: [wp-foundation]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/generator.py"
+        - "agent-coordinator/evaluation/gen_eval/llm_generator.py"
+        - "agent-coordinator/evaluation/gen_eval/hybrid_generator.py"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+    verification: tier_a
+    agent_hint: "TemplateGenerator loads YAML, expands Jinja2 params, validates Scenario schema. LLMGenerator calls Claude API with descriptor + feedback. HybridGenerator combines both with budget awareness."
+
+  - id: wp-scenarios
+    name: "Template Scenario Authoring"
+    description: "80 YAML scenario templates across 12 categories for agent-coordinator dogfood"
+    tasks: [T3.2, T3.3, T3.4, T3.5, T3.6, T3.7]
+    priority: 3
+    dependencies: [wp-foundation]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/scenarios/**"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/models.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_cli.py"
+    verification: tier_b
+    agent_hint: "Write YAML scenario templates with parameterized steps. Follow the Scenario model schema. Each template should exercise multiple transports where possible. Include cleanup steps."
+
+  - id: wp-evaluator
+    name: "Skeptical Evaluator"
+    description: "Scenario execution, assertion checking, cross-interface verification"
+    tasks: [T4.1, T4.2, T4.3, T4.4, T4.5]
+    priority: 2
+    dependencies: [wp-clients]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/evaluator.py"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+    verification: tier_a
+    agent_hint: "Execute scenarios step-by-step through transport clients. Implement variable capture with JSONPath. Compare actual vs expected. Always run cleanup steps. Produce ScenarioVerdict with per-step detail."
+
+  - id: wp-feedback
+    name: "Feedback + Change Detection"
+    description: "Feedback synthesis and changed-feature detection"
+    tasks: [T5.1, T5.2, T5.3]
+    priority: 3
+    dependencies: [wp-evaluator]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/feedback.py"
+        - "agent-coordinator/evaluation/gen_eval/change_detector.py"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+    verification: tier_b
+    agent_hint: "FeedbackSynthesizer analyzes ScenarioVerdicts to find failing interfaces, coverage gaps, near-misses. ChangeDetector parses git diff to map changed source files to interface endpoints."
+
+  - id: wp-orchestrator
+    name: "Orchestrator + Reporting"
+    description: "Full lifecycle management, budget tracking, reports, metrics integration"
+    tasks: [T6.1, T6.2, T6.3, T6.4, T6.5, T7.1, T7.2, T7.3]
+    priority: 2
+    dependencies: [wp-generator, wp-evaluator, wp-feedback]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/orchestrator.py"
+        - "agent-coordinator/evaluation/gen_eval/reports.py"
+        - "agent-coordinator/evaluation/metrics.py"
+        - "agent-coordinator/evaluation/__init__.py"
+      read_allow:
+        - "agent-coordinator/evaluation/**"
+        - "agent-coordinator/docker-compose.yml"
+    verification: tier_a
+    agent_hint: "Orchestrator manages: start services → generate scenarios → prioritize by budget tier → evaluate (parallel with concurrency limit) → synthesize feedback → iterate if budget remains → generate report → teardown. Extend metrics.py with GenEvalMetrics."
+
+  - id: wp-dogfood
+    name: "Dogfood Descriptor + Response Schemas"
+    description: "Interface descriptor and response schemas for agent-coordinator"
+    tasks: [T8.1, T8.2]
+    priority: 3
+    dependencies: [wp-foundation]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/descriptors/**"
+        - "agent-coordinator/evaluation/gen_eval/schemas/**"
+      read_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_cli.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/docker-compose.yml"
+    verification: tier_b
+    agent_hint: "Create agent-coordinator.yaml descriptor covering all 35 HTTP endpoints, 39 MCP tools, 31 CLI commands. Extract response schemas from Pydantic models in coordination_api.py."
+
+  - id: wp-entry-points
+    name: "CLI + Skill Entry Points"
+    description: "CLI __main__.py, gen-eval skill, validate-feature integration"
+    tasks: [T9.1, T9.2, T9.3]
+    priority: 3
+    dependencies: [wp-orchestrator]
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/__main__.py"
+        - "skills/gen-eval/**"
+        - "skills/validate-feature/SKILL.md"
+      read_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "skills/validate-feature/**"
+    verification: tier_b
+    agent_hint: "CLI entry point with argparse. Skill SKILL.md following existing skill conventions. Add gen-eval as optional phase in validate-feature between smoke and E2E."
+
+  - id: wp-integration-tests
+    name: "Integration Testing (Live Services)"
+    description: "Tests that run against real docker-compose services"
+    tasks: [T10.1, T10.2, T10.3, T11.1, T11.2, T12.1, T12.2]
+    priority: 3
+    dependencies: [wp-orchestrator, wp-dogfood, wp-scenarios]
+    scope:
+      write_allow:
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
+        - "agent-coordinator/evaluation/gen_eval/coordinator.py"
+        - ".github/workflows/ci.yml"
+      read_allow:
+        - "agent-coordinator/**"
+        - ".github/workflows/**"
+    verification: tier_a
+    agent_hint: "Integration tests require docker-compose up. Test template scenarios against live API/MCP/DB. Test full orchestrator run. Add CI job with pytest marker gen_eval and template-only mode."
+
+dag:
+  roots: [wp-foundation]
+  parallel_zones:
+    - zone: "zone-1-foundation"
+      packages: [wp-foundation]
+    - zone: "zone-2-core"
+      packages: [wp-clients, wp-generator, wp-scenarios, wp-dogfood]
+    - zone: "zone-3-eval"
+      packages: [wp-evaluator, wp-feedback]
+    - zone: "zone-4-orchestrate"
+      packages: [wp-orchestrator]
+    - zone: "zone-5-integrate"
+      packages: [wp-entry-points, wp-integration-tests]
+  critical_path: [wp-foundation, wp-clients, wp-evaluator, wp-orchestrator, wp-integration-tests]
