@@ -119,6 +119,24 @@ class Scenario(BaseModel):
     generated_by: Literal["template", "llm"] = "template"
 ```
 
+#### Module Organization
+
+Generator code is organized into **separate files per strategy**, not one monolithic module:
+
+| File | Class | Purpose |
+|------|-------|---------|
+| `generator.py` | `TemplateGenerator` | Load YAML templates, parameterize, validate |
+| `cli_generator.py` | `CLIGenerator` | Generate scenarios via `claude --print` / `codex` |
+| `sdk_generator.py` | `SDKGenerator` | Generate scenarios via Anthropic/OpenAI SDK |
+| `hybrid_generator.py` | `HybridGenerator` | Compose template + CLI + SDK with adaptive fallback |
+
+All generators implement a common `ScenarioGenerator` protocol:
+```python
+class ScenarioGenerator(Protocol):
+    async def generate(self, focus_areas: list[str] | None = None,
+                       count: int = 10) -> list[Scenario]: ...
+```
+
 #### Generation Modes
 
 **Template Generation** (zero cost):
@@ -277,10 +295,10 @@ class AdaptiveBackend:
 The generator receives:
 1. The interface descriptor (what endpoints/tools exist)
 2. Template scenarios as examples of the expected format
-3. Evaluator feedback from previous iterations (what failed, what's under-tested)
+3. Evaluator feedback from previous iterations (what failed, what's under-tested) — **`None` on first iteration**
 4. Focus areas (changed endpoints, security boundaries, etc.)
 
-It produces Scenario objects validated against the schema before execution.
+It produces Scenario objects validated against the `Scenario` Pydantic model before execution. Invalid scenarios are logged and skipped.
 
 ### 3. Evaluator (`evaluator.py`)
 
@@ -424,8 +442,8 @@ class TimeBudget(BaseModel):
     @property
     def remaining_minutes(self) -> float: ...
 
-class APIBudget(BaseModel):
-    """USD budget for API fallback mode only (opt-in)."""
+class SDKBudget(BaseModel):
+    """USD budget for SDK-based execution (sdk-only mode or adaptive fallback)."""
     budget_usd: float = 5.0
     spent_usd: float = 0.0
     generation_spent: float = 0.0
@@ -438,7 +456,7 @@ class BudgetTracker(BaseModel):
     """Unified budget tracker supporting CLI (time) and API (cost) modes."""
     mode: Literal["cli", "api"] = "cli"
     time_budget: TimeBudget = TimeBudget()
-    api_budget: APIBudget | None = None  # Only used in api-fallback mode
+    sdk_budget: SDKBudget | None = None  # Used in sdk-only mode or adaptive fallback
 
     def can_continue(self) -> bool: ...
 ```
@@ -518,7 +536,7 @@ class BudgetConfig(BaseModel):
 class GenEvalConfig(BaseModel):
     """Configuration for a gen-eval run."""
     descriptor_path: Path
-    mode: Literal["template-only", "cli-augmented", "sdk-only"] = "template-only"
+    mode: Literal["template-only", "cli-augmented", "sdk-only"] = "template-only"  # cli-augmented includes adaptive SDK fallback
     # CLI backend config (subscription-covered, preferred)
     cli_command: str = "claude"          # "claude" or "codex"
     cli_args: list[str] = ["--print"]   # Args for CLI invocation
@@ -548,21 +566,23 @@ class GenEvalConfig(BaseModel):
 
 ### Template Categories for Agent-Coordinator
 
-| Category | Count | Priority | Description |
-|----------|-------|----------|-------------|
-| `lock-lifecycle` | 8 | 1 | Acquire, release, conflict, TTL expiry, cross-interface |
-| `work-queue` | 10 | 1 | Submit, claim, complete, dependencies, priority ordering |
-| `memory-crud` | 6 | 2 | Store, query, relevance filtering, tag search |
-| `guardrails` | 5 | 1 | Block destructive ops, allow safe ops, severity levels |
-| `auth-boundary` | 8 | 1 | API key enforcement, missing auth, invalid auth, profile trust |
-| `handoffs` | 4 | 2 | Write/read handoff docs, agent-specific filtering |
-| `audit-trail` | 4 | 2 | All operations produce audit entries, queryable |
-| `cross-interface` | 10 | 1 | Same operation verified across HTTP, MCP, CLI, DB |
-| `multi-agent` | 8 | 1 | Concurrent agents, lock contention, work claiming races |
-| `policy-engine` | 5 | 2 | Cedar policy check, native policy, policy validation |
-| `feature-registry` | 6 | 2 | Register, deregister, conflict analysis |
-| `merge-queue` | 6 | 2 | Enqueue, priority ordering, pre-merge checks |
-| **Total** | **80** | | |
+| Category | Success | Failure/Edge | Total | Priority | Description |
+|----------|---------|-------------|-------|----------|-------------|
+| `lock-lifecycle` | 4 | 4 | 8 | 1 | Acquire, release, conflict, TTL expiry, cross-interface |
+| `work-queue` | 5 | 5 | 10 | 1 | Submit, claim, complete, dependencies, priority, error |
+| `memory-crud` | 3 | 3 | 6 | 2 | Store, query, relevance filtering, tag search, empty results |
+| `guardrails` | 2 | 3 | 5 | 1 | Block destructive ops, allow safe ops, severity levels |
+| `auth-boundary` | 3 | 5 | 8 | 1 | Valid key, missing key, invalid key, trust levels, policy denial |
+| `handoffs` | 2 | 2 | 4 | 2 | Write/read handoff docs, agent filtering, empty handoffs |
+| `audit-trail` | 2 | 2 | 4 | 2 | Operations produce entries, query filters, empty audit |
+| `cross-interface` | 5 | 5 | 10 | 1 | Same operation verified across HTTP, MCP, CLI, DB |
+| `multi-agent` | 3 | 5 | 8 | 1 | Concurrent agents, lock contention, work claiming races |
+| `policy-engine` | 3 | 3 | 6 | 2 | Cedar policy check, native policy, validation, denial |
+| `feature-registry` | 3 | 3 | 6 | 2 | Register, deregister, conflict analysis, duplicate |
+| `merge-queue` | 3 | 3 | 6 | 2 | Enqueue, priority ordering, pre-merge checks, empty |
+| **Total** | **38** | **43** | **81** | | |
+
+> Each category includes both success-path and failure/edge-case scenarios to ensure REQ-SCN-06 compliance.
 
 ### Example Template: Multi-Agent Lock Contention
 
@@ -663,17 +683,17 @@ python -m evaluation.gen_eval \
   --time-budget 120 \
   --max-iterations 3
 
-# API fallback (explicit opt-in, per-token cost, for CI without CLI)
+# SDK-only mode (explicit opt-in, per-token cost, for CI without CLI)
 python -m evaluation.gen_eval \
   --descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
-  --mode api-fallback \
-  --api-budget 10.0
+  --mode sdk-only \
+  --sdk-budget 10.0
 ```
 
 ### Skill Entry Point
 
 ```
-/gen-eval [--descriptor PATH] [--mode template-only|cli-augmented|api-fallback] [--cli claude|codex] [--time-budget MINUTES] [--change-id ID]
+/gen-eval [--descriptor PATH] [--mode template-only|cli-augmented|sdk-only] [--cli claude|codex] [--time-budget MINUTES] [--change-id ID]
 ```
 
 ### validate-feature Integration

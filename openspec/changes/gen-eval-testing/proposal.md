@@ -180,7 +180,7 @@ This follows the same pattern as the existing evaluation harness backends (`Clau
 - **Templates** (zero LLM, instant): YAML scenario files for known critical paths — deterministic, fast, CI-friendly.
 - **CLI-augmented** (subscription-covered): Generator/evaluator agents run via `claude --print` or `codex` to produce novel edge-case scenarios and provide skeptical judgment. Guided by evaluator feedback.
 - **SDK fallback** (per-token cost): Automatic fallback when CLI hits rate limits, session caps, or weekly caps. Also used for SDK-specific features (structured outputs, tool use) or CI environments without CLI access. The `AdaptiveBackend` detects CLI rate limiting and switches transparently.
-- **Mode selection**: `template-only` (fastest), `cli-augmented` (default, adaptive fallback to SDK), `sdk-only` (explicit opt-in for CI/cloud).
+- **Mode selection**: `template-only` (fastest, no LLM), `cli-augmented` (default, adaptive fallback to SDK when rate-limited), `sdk-only` (explicit opt-in for CI/cloud without CLI access).
 
 ### D3: Cross-Interface Consistency as First-Class Concern
 
@@ -293,7 +293,7 @@ Since `claude` and `codex` CLI usage is covered by subscription plans (Pro/Team/
 | `cli-augmented` | $0 (subscription) | ~15-30 min | Default interactive: CLI-powered generation + evaluation |
 | `cli-comprehensive` | $0 (subscription) | ~1-2 hr | Full surface, multi-iteration feedback loops |
 | `cli-augmented` (rate-limited, SDK fallback) | SDK cost for overflow | ~15-60 min | CLI hits caps, transparently falls back to SDK for remaining calls |
-| `sdk-only` | $5-50 (per-token) | ~10-60 min | CI without CLI access, explicit opt-in only |
+| `sdk-only` | $5-50 (per-token) | ~10-60 min | CI without CLI access, or when CLI caps exhausted |
 
 Service costs (PostgreSQL, API server) are local Docker containers — no cloud cost.
 
@@ -321,8 +321,9 @@ Most evaluation is programmatic (free and instant). CLI-powered LLM is the defau
 
 ## Success Criteria
 
-1. **Dogfood passes**: All 105+ agent-coordinator interfaces exercised with template scenarios, 95%+ pass rate
-2. **Cross-interface bugs found**: At least 1 real bug discovered via cross-interface consistency checks that existing tests miss
-3. **LLM generation adds value**: LLM-generated scenarios find at least 1 issue that templates don't cover
-4. **Budget predictable**: Actual cost within 20% of estimated for each run mode
-5. **Reusable**: A second project can onboard by providing only an interface descriptor (no code changes to the framework)
+1. **Dogfood coverage**: Template scenarios achieve 80%+ interface coverage (unique interfaces exercised / total interfaces in descriptor × 100) across all 105+ agent-coordinator interfaces
+2. **Template pass rate**: 95%+ of template scenarios pass against a clean docker-compose deployment (measured by `scenarios_passed / scenarios_executed`)
+3. **Cross-interface consistency**: Cross-interface scenarios (category `cross-interface`) detect at least 1 state inconsistency across HTTP/MCP/CLI/DB that is not caught by existing unit or integration tests — verified by checking the inconsistency against `agent-coordinator/tests/` coverage
+4. **CLI-augmented generation**: In `cli-augmented` mode, the generator produces at least 5 valid scenarios (passing Pydantic schema validation) per CLI invocation, and at least 1 generated scenario exercises an interface not covered by templates
+5. **Time budget accuracy**: In `cli-augmented` mode, actual wall-clock time is within ±30% of `time_budget_minutes` configuration (measured across 3 runs)
+6. **Reusable**: A second project can be onboarded by providing only an interface descriptor YAML — no Python code changes to the gen-eval framework needed. Verified by creating a minimal descriptor for a different service and running `template-only` mode.
