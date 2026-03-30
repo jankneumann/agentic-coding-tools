@@ -171,11 +171,16 @@ startup:
   teardown: "docker-compose down -v"
 ```
 
-### D2: Template + LLM Hybrid Generation
+### D2: CLI-First LLM Execution (Subscription-Covered)
 
-- **Templates** (zero LLM cost): YAML scenario files for known critical paths — lock lifecycle, work queue dependencies, guardrail violations, memory CRUD. Deterministic, fast, CI-friendly.
-- **LLM-augmented** (uses budget): Generator agent reads the interface descriptor and produces novel edge-case scenarios. Guided by evaluator feedback from previous iterations. Discovers failure modes templates miss.
-- **Mode selection**: `template-only` for CI, `hybrid` for manual runs, `llm-only` for exploratory testing.
+Both the generator and evaluator use **CLI tools** (`claude --print`, `codex`) as their LLM engine rather than direct API calls. Since CLI usage is covered by subscription plans (Claude Pro/Team/Enterprise, Codex), this makes LLM-powered generation and evaluation effectively **zero marginal cost** — the only constraint is time and rate limits, not per-token charges.
+
+This follows the same pattern as the existing evaluation harness backends (`ClaudeCodeBackend`, `CodexBackend`) which already shell out to CLI tools via subprocess.
+
+- **Templates** (zero LLM, instant): YAML scenario files for known critical paths — deterministic, fast, CI-friendly.
+- **CLI-augmented** (subscription-covered): Generator/evaluator agents run via `claude --print` or `codex` to produce novel edge-case scenarios and provide skeptical judgment. Guided by evaluator feedback.
+- **SDK fallback** (per-token cost): Automatic fallback when CLI hits rate limits, session caps, or weekly caps. Also used for SDK-specific features (structured outputs, tool use) or CI environments without CLI access. The `AdaptiveBackend` detects CLI rate limiting and switches transparently.
+- **Mode selection**: `template-only` (fastest), `cli-augmented` (default, adaptive fallback to SDK), `sdk-only` (explicit opt-in for CI/cloud).
 
 ### D3: Cross-Interface Consistency as First-Class Concern
 
@@ -203,14 +208,15 @@ steps:
     expect: { rows: 1, row[0].agent_id: "agent-1" }
 ```
 
-### D4: Progressive Budget Allocation
+### D4: Progressive Scope Allocation with Time Budget
 
-Budget is allocated in priority tiers:
-1. **Tier 1** (40% budget): Changed features — deep adversarial evaluation on modified endpoints/tools
-2. **Tier 2** (35% budget): Critical paths — lock lifecycle, work queue, guardrails, auth
-3. **Tier 3** (25% budget): Full surface — comprehensive regression sweep
+Since CLI-based LLM calls are subscription-covered, the primary constraint is **time** (wall-clock and rate limits), not dollars. Budget is expressed as a **time envelope** with scope tiers:
 
-Template execution is free (no LLM calls). LLM budget applies only to scenario generation and LLM-based evaluation judgment. Programmatic evaluation (schema validation, DB state checks) is always free.
+1. **Tier 1** (40% time): Changed features — deep adversarial evaluation on modified endpoints/tools
+2. **Tier 2** (35% time): Critical paths — lock lifecycle, work queue, guardrails, auth
+3. **Tier 3** (25% time): Full surface — comprehensive regression sweep
+
+Template execution is instant (no LLM calls). CLI-augmented generation/evaluation uses subscription-covered CLI calls. An optional **USD budget cap** applies only when `api-fallback` mode is explicitly enabled for environments without CLI access.
 
 ### D5: Coordinator Integration (Optional)
 
@@ -277,14 +283,30 @@ The first interface descriptor targets our own agent-coordinator. Implementation
 
 ## Cost Considerations
 
-| Run Mode | LLM Cost | Use Case |
-|----------|----------|----------|
-| `template-only` | $0 | CI per-PR, deterministic scenarios only |
-| `hybrid-ci` | $2-5 | CI with light LLM generation for changed features |
-| `hybrid-manual` | $10-20 | Pre-release, broader LLM generation + evaluation |
-| `comprehensive` | $30-50 | Full surface, all LLM generation + multi-iteration feedback |
+### CLI-First Model (Subscription-Covered)
+
+Since `claude` and `codex` CLI usage is covered by subscription plans (Pro/Team/Enterprise), the marginal cost of LLM-powered generation and evaluation is **$0** — the constraint is wall-clock time and rate limits, not per-token charges.
+
+| Run Mode | Marginal Cost | Wall-Clock | Use Case |
+|----------|--------------|------------|----------|
+| `template-only` | $0 | ~2 min | CI per-PR, deterministic scenarios only |
+| `cli-augmented` | $0 (subscription) | ~15-30 min | Default interactive: CLI-powered generation + evaluation |
+| `cli-comprehensive` | $0 (subscription) | ~1-2 hr | Full surface, multi-iteration feedback loops |
+| `cli-augmented` (rate-limited, SDK fallback) | SDK cost for overflow | ~15-60 min | CLI hits caps, transparently falls back to SDK for remaining calls |
+| `sdk-only` | $5-50 (per-token) | ~10-60 min | CI without CLI access, explicit opt-in only |
 
 Service costs (PostgreSQL, API server) are local Docker containers — no cloud cost.
+
+### Why CLI-First Works
+
+The existing evaluation harness already uses this pattern — `ClaudeCodeBackend` runs `claude --print` as a subprocess. The gen-eval framework extends this:
+
+- **Generator**: `claude --print "Given this interface descriptor, generate 5 edge-case scenarios for lock contention..."` → parsed as YAML Scenario objects
+- **Evaluator (LLM judgment)**: `claude --print "Given this scenario verdict with these actual/expected mismatches, is this a real failure or a false positive? Explain..."` → structured judgment
+- **Evaluator (programmatic)**: Schema validation, DB state checks, assertion matching → no LLM needed
+- **SDK fallback**: If CLI returns rate-limit errors or the subscription hits session/weekly caps, the `AdaptiveBackend` transparently routes to the Anthropic/OpenAI SDK for remaining calls
+
+Most evaluation is programmatic (free and instant). CLI-powered LLM is the default for generation and judgment. SDK kicks in only when CLI is exhausted or for SDK-specific features like structured outputs.
 
 ## Risks and Mitigations
 

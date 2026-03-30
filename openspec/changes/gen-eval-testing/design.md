@@ -169,25 +169,112 @@ steps:
   # ... verify via MCP, release, verify again
 ```
 
-**LLM Generation** (uses budget):
+**CLI-Augmented Generation** (subscription-covered):
 ```python
-class LLMGenerator:
-    """Use LLM to generate novel edge-case scenarios."""
+class CLIGenerator:
+    """Use CLI tools (claude/codex) to generate novel edge-case scenarios.
+
+    Runs claude --print or codex as a subprocess, leveraging subscription
+    plans for zero marginal cost. Falls back to direct API calls only
+    when explicitly configured (e.g., CI environments without CLI access).
+    """
 
     def __init__(self,
                  descriptor: InterfaceDescriptor,
-                 model: str = "claude-sonnet-4-6",
+                 cli_backend: CLIBackend | None = None,  # claude, codex, etc.
+                 api_client: Any | None = None,           # API fallback only
                  feedback: list[EvalFeedback] | None = None
                  ) -> None: ...
 
     async def generate(self,
                        focus_areas: list[str] | None = None,
                        count: int = 5,
-                       budget: BudgetTracker | None = None
+                       time_budget: TimeBudget | None = None
                        ) -> list[Scenario]: ...
 ```
 
-The LLM generator receives:
+The CLI generator:
+1. Builds a prompt containing the interface descriptor, template examples, and evaluator feedback
+2. Executes via `claude --print` (or `codex`) as a subprocess — subscription-covered
+3. Parses the CLI output as YAML Scenario objects
+4. Validates against the Scenario schema before returning
+5. Falls back to direct API call only if `api_fallback=True` and CLI is unavailable
+
+```python
+class LLMBackend(Protocol):
+    """Protocol for LLM execution backends (CLI or SDK)."""
+    async def run(self, prompt: str, system: str | None = None) -> str: ...
+    async def is_available(self) -> bool: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def is_subscription_covered(self) -> bool: ...
+
+class CLIBackend:
+    """Subprocess wrapper for CLI-based LLM execution (subscription-covered)."""
+
+    def __init__(self,
+                 command: str = "claude",         # or "codex"
+                 args: list[str] | None = None,   # e.g., ["--print"]
+                 timeout_seconds: int = 120,
+                 ) -> None: ...
+
+    async def run(self, prompt: str, system: str | None = None) -> str:
+        """Execute prompt via CLI and return output text."""
+        ...
+
+    async def is_available(self) -> bool:
+        """Check if CLI tool is installed and accessible."""
+        ...
+
+    @property
+    def is_subscription_covered(self) -> bool:
+        return True
+
+class SDKBackend:
+    """Direct SDK-based LLM execution (per-token cost).
+
+    Used as fallback when CLI is rate-limited, hits session/weekly caps,
+    or when SDK-specific features are needed (structured outputs, tool use).
+    """
+
+    def __init__(self,
+                 provider: Literal["anthropic", "openai"] = "anthropic",
+                 model: str = "claude-sonnet-4-6",
+                 api_key_env: str = "ANTHROPIC_API_KEY",
+                 ) -> None: ...
+
+    async def run(self, prompt: str, system: str | None = None) -> str:
+        """Execute prompt via SDK and return output text."""
+        ...
+
+    async def is_available(self) -> bool:
+        """Check if API key is configured."""
+        ...
+
+    @property
+    def is_subscription_covered(self) -> bool:
+        return False
+
+class AdaptiveBackend:
+    """Tries CLI first, falls back to SDK on rate limits or caps.
+
+    Detects CLI rate limiting (exit codes, stderr patterns) and
+    automatically switches to SDK. Tracks which backend served each
+    request for cost reporting.
+    """
+
+    def __init__(self,
+                 cli: CLIBackend,
+                 sdk: SDKBackend | None = None,
+                 ) -> None: ...
+
+    async def run(self, prompt: str, system: str | None = None) -> str:
+        """Try CLI first, fall back to SDK if rate-limited."""
+        ...
+```
+
+The generator receives:
 1. The interface descriptor (what endpoints/tools exist)
 2. Template scenarios as examples of the expected format
 3. Evaluator feedback from previous iterations (what failed, what's under-tested)
@@ -236,11 +323,11 @@ class Evaluator:
 
 #### Verification Strategies
 
-1. **Schema verification** (programmatic, free): Response matches expected JSON schema
-2. **Assertion verification** (programmatic, free): Specific field values match expectations
-3. **State verification** (programmatic, free): Database queries confirm expected state
-4. **Cross-interface verification** (programmatic, free): Same operation verified across transports
-5. **LLM judgment** (uses budget): For ambiguous or complex semantic verification where programmatic checks are insufficient
+1. **Schema verification** (programmatic, instant): Response matches expected JSON schema
+2. **Assertion verification** (programmatic, instant): Specific field values match expectations
+3. **State verification** (programmatic, instant): Database queries confirm expected state
+4. **Cross-interface verification** (programmatic, instant): Same operation verified across transports
+5. **CLI-powered LLM judgment** (subscription-covered): For ambiguous or complex semantic verification where programmatic checks are insufficient. Runs `claude --print` with the verdict context and asks for structured pass/fail judgment with reasoning. Falls back to API only when explicitly configured.
 
 ### 4. Transport Clients (`clients/`)
 
@@ -320,20 +407,40 @@ class GenEvalOrchestrator:
 
 #### Budget Tracking
 
+The budget model is **time-based** for CLI execution (subscription-covered) with an optional USD cap for API fallback mode.
+
 ```python
-class BudgetTracker:
-    """Track LLM API costs against configured budget."""
-    budget_usd: float
+class TimeBudget(BaseModel):
+    """Time-based budget for CLI-powered evaluation (subscription-covered)."""
+    total_minutes: float = 60.0          # Wall-clock limit
+    elapsed_minutes: float = 0.0
+    cli_calls: int = 0                   # Track rate limit pressure
+    max_cli_calls: int | None = None     # Optional rate limit cap
+    generation_minutes: float = 0.0
+    evaluation_minutes: float = 0.0
+
+    def can_continue(self) -> bool: ...
+    def record_call(self, category: str, duration_seconds: float) -> None: ...
+    @property
+    def remaining_minutes(self) -> float: ...
+
+class APIBudget(BaseModel):
+    """USD budget for API fallback mode only (opt-in)."""
+    budget_usd: float = 5.0
     spent_usd: float = 0.0
     generation_spent: float = 0.0
     evaluation_spent: float = 0.0
 
     def can_afford(self, estimated_cost: float) -> bool: ...
     def record(self, category: str, tokens: TokenUsage) -> None: ...
-    @property
-    def remaining(self) -> float: ...
-    @property
-    def utilization(self) -> float: ...
+
+class BudgetTracker(BaseModel):
+    """Unified budget tracker supporting CLI (time) and API (cost) modes."""
+    mode: Literal["cli", "api"] = "cli"
+    time_budget: TimeBudget = TimeBudget()
+    api_budget: APIBudget | None = None  # Only used in api-fallback mode
+
+    def can_continue(self) -> bool: ...
 ```
 
 #### Changed-Feature Detection
@@ -411,16 +518,28 @@ class BudgetConfig(BaseModel):
 class GenEvalConfig(BaseModel):
     """Configuration for a gen-eval run."""
     descriptor_path: Path
-    mode: Literal["template-only", "hybrid", "llm-only"] = "template-only"
-    budget: BudgetConfig = BudgetConfig()
-    max_iterations: int = 1           # Feedback loop iterations
+    mode: Literal["template-only", "cli-augmented", "sdk-only"] = "template-only"
+    # CLI backend config (subscription-covered, preferred)
+    cli_command: str = "claude"          # "claude" or "codex"
+    cli_args: list[str] = ["--print"]   # Args for CLI invocation
+    # SDK backend config (per-token, fallback or explicit)
+    sdk_provider: str = "anthropic"      # "anthropic" or "openai"
+    sdk_model: str = "claude-sonnet-4-6" # Model for SDK calls
+    sdk_api_key_env: str = "ANTHROPIC_API_KEY"
+    # Budget
+    time_budget_minutes: float = 60.0    # Wall-clock limit for CLI mode
+    sdk_budget_usd: float | None = None  # Cap for SDK calls (fallback or sdk-only)
+    # Adaptive behavior (cli-augmented mode)
+    auto_fallback_to_sdk: bool = True    # Fall back to SDK when CLI rate-limited
+    # Execution
+    max_iterations: int = 1              # Feedback loop iterations
     max_scenarios_per_iteration: int = 50
-    parallel_scenarios: int = 5       # Concurrent scenario execution
+    parallel_scenarios: int = 5          # Concurrent scenario execution
     changed_features_ref: str | None = None  # Git ref for change detection
     openspec_change_id: str | None = None    # OpenSpec change for targeting
     use_coordinator: bool = False
     report_format: Literal["markdown", "json", "both"] = "both"
-    fail_threshold: float = 0.95     # Minimum pass rate to succeed
+    fail_threshold: float = 0.95         # Minimum pass rate to succeed
     seed_data: bool = True
     verbose: bool = False
 ```
@@ -523,30 +642,38 @@ cleanup:
 ### CLI Entry Point
 
 ```bash
-# Template-only run against dogfood descriptor
+# Template-only run (instant, no LLM)
 python -m evaluation.gen_eval \
   --descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
   --mode template-only
 
-# Hybrid run with $20 budget targeting changed features
+# CLI-augmented run using claude CLI (subscription-covered, $0 marginal cost)
 python -m evaluation.gen_eval \
   --descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
-  --mode hybrid \
-  --budget 20.0 \
+  --mode cli-augmented \
+  --cli-command claude \
+  --time-budget 30 \
   --changed-features-ref main
 
-# Full comprehensive run
+# CLI-augmented comprehensive run with codex
 python -m evaluation.gen_eval \
   --descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
-  --mode hybrid \
-  --budget 50.0 \
+  --mode cli-augmented \
+  --cli-command codex \
+  --time-budget 120 \
   --max-iterations 3
+
+# API fallback (explicit opt-in, per-token cost, for CI without CLI)
+python -m evaluation.gen_eval \
+  --descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
+  --mode api-fallback \
+  --api-budget 10.0
 ```
 
 ### Skill Entry Point
 
 ```
-/gen-eval [--descriptor PATH] [--mode template-only|hybrid] [--budget USD] [--change-id ID]
+/gen-eval [--descriptor PATH] [--mode template-only|cli-augmented|api-fallback] [--cli claude|codex] [--time-budget MINUTES] [--change-id ID]
 ```
 
 ### validate-feature Integration

@@ -33,8 +33,9 @@
 - [ ] **T3.5**: Write template scenarios for `auth-boundary` category (8 templates: valid API key, missing key, invalid key, read-only no auth, profile trust levels, guardrail enforcement, policy denial, cross-interface auth)
 - [ ] **T3.6**: Write template scenarios for `cross-interface` category (10 templates: lock via each interface, memory via each interface, work queue via each interface, mixed operations)
 - [ ] **T3.7**: Write template scenarios for remaining categories: `guardrails` (5), `memory-crud` (6), `handoffs` (4), `audit-trail` (4), `policy-engine` (5), `feature-registry` (6), `merge-queue` (6)
-- [ ] **T3.8**: Create `evaluation/gen_eval/llm_generator.py` — LLM-powered scenario generator that reads the interface descriptor, uses evaluator feedback, and produces validated Scenario objects
-- [ ] **T3.9**: Create `evaluation/gen_eval/hybrid_generator.py` — combines template and LLM generation with budget-aware switching
+- [ ] **T3.8**: Create `evaluation/gen_eval/cli_generator.py` — CLI-powered scenario generator (`claude --print` / `codex`) that reads the interface descriptor, uses evaluator feedback, and produces validated Scenario objects. Subscription-covered, zero marginal cost.
+- [ ] **T3.9**: Create `evaluation/gen_eval/sdk_generator.py` — SDK-powered scenario generator (Anthropic SDK / OpenAI SDK) as fallback for when CLI is rate-limited, hits session/weekly caps, or needs SDK-specific features (structured outputs, tool use). Per-token cost, explicit opt-in.
+- [ ] **T3.9b**: Create `evaluation/gen_eval/hybrid_generator.py` — combines template + CLI + SDK generation with automatic fallback: templates first, CLI-augmented second, SDK fallback when CLI hits rate limits or caps.
 - [ ] **T3.10**: Write unit tests for generators (`tests/test_evaluation/test_gen_eval/test_generator.py`)
 
 ### Phase 4: Evaluator

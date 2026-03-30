@@ -15,10 +15,13 @@
 ### Scenario Generation (REQ-GEN)
 
 - **REQ-GEN-01**: The framework MUST support template-based scenario generation from YAML files with parameterization (Jinja2-style variable substitution and combinatorial expansion).
-- **REQ-GEN-02**: The framework MUST support LLM-augmented scenario generation that reads the interface descriptor and evaluator feedback to produce novel edge-case scenarios.
+- **REQ-GEN-02**: The framework MUST support CLI-augmented scenario generation using subscription-covered CLI tools (`claude --print`, `codex`) that reads the interface descriptor and evaluator feedback to produce novel edge-case scenarios.
 - **REQ-GEN-03**: Generated scenarios MUST be validated against a defined schema before execution.
-- **REQ-GEN-04**: The framework MUST support three generation modes: `template-only` (zero LLM cost), `hybrid` (template + LLM), `llm-only`.
+- **REQ-GEN-04**: The framework MUST support three generation modes: `template-only` (no LLM), `cli-augmented` (subscription-covered CLI tools), `api-fallback` (per-token, explicit opt-in).
 - **REQ-GEN-05**: The generator MUST accept focus areas (changed endpoints, categories) to produce targeted scenarios.
+- **REQ-GEN-06**: The framework MUST default to CLI-based LLM execution (`claude --print`, `codex`) as the subscription-covered path.
+- **REQ-GEN-07**: The framework MUST provide an `AdaptiveBackend` that detects CLI rate limiting (exit codes, stderr patterns, session/weekly caps) and transparently falls back to SDK-based execution (Anthropic SDK, OpenAI SDK) for remaining calls.
+- **REQ-GEN-08**: SDK-based execution MUST be available as an explicit `sdk-only` mode for CI environments without CLI access, and as automatic fallback in `cli-augmented` mode when CLI is rate-limited.
 
 ### Scenario Model (REQ-SCN)
 
@@ -47,11 +50,12 @@
 
 ### Budget Management (REQ-BDG)
 
-- **REQ-BDG-01**: The framework MUST enforce a configurable USD budget cap for LLM API calls (generation + evaluation judgment).
-- **REQ-BDG-02**: Template execution and programmatic evaluation MUST NOT count against the budget (they are free).
-- **REQ-BDG-03**: The framework MUST allocate budget progressively: changed features (tier 1) → critical paths (tier 2) → full surface (tier 3).
-- **REQ-BDG-04**: The framework MUST terminate gracefully when budget is exhausted, producing a report on what was evaluated.
-- **REQ-BDG-05**: The framework MUST track and report actual cost per generation, per evaluation, and total.
+- **REQ-BDG-01**: In `cli-augmented` mode, the framework MUST enforce a configurable **time budget** (wall-clock minutes) since CLI usage is subscription-covered with zero marginal cost.
+- **REQ-BDG-02**: In `api-fallback` mode, the framework MUST enforce a configurable **USD budget cap** for per-token API calls.
+- **REQ-BDG-03**: Template execution and programmatic evaluation MUST NOT count against any budget (they are instant and free).
+- **REQ-BDG-04**: The framework MUST allocate scope progressively: changed features (tier 1) → critical paths (tier 2) → full surface (tier 3).
+- **REQ-BDG-05**: The framework MUST terminate gracefully when budget (time or USD) is exhausted, producing a report on what was evaluated.
+- **REQ-BDG-06**: The framework MUST track and report: CLI calls made, wall-clock time consumed, and (in API mode) USD cost per generation/evaluation.
 
 ### Feedback Loop (REQ-FBK)
 
