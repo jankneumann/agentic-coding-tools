@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lock Response Schemas",
+  "description": "JSON Schema definitions for lock acquire, release, and status responses.",
+  "definitions": {
+    "lock_acquire_response": {
+      "type": "object",
+      "description": "Response from POST /locks/acquire and mcp:acquire_lock",
+      "required": ["success", "lock"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the lock was successfully acquired"
+        },
+        "lock": {
+          "$ref": "#/definitions/lock_record"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "lock_acquire_conflict_response": {
+      "type": "object",
+      "description": "Response when lock acquisition fails due to an existing lock",
+      "required": ["success", "holder"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "enum": [false]
+        },
+        "holder": {
+          "type": "string",
+          "description": "Agent ID of the current lock holder"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the existing lock expires"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "lock_release_response": {
+      "type": "object",
+      "description": "Response from POST /locks/release and mcp:release_lock",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the lock was successfully released"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "lock_status_response": {
+      "type": "object",
+      "description": "Response from GET /locks/status/{path} and mcp:check_locks",
+      "required": ["locked"],
+      "properties": {
+        "locked": {
+          "type": "boolean",
+          "description": "Whether the file is currently locked"
+        },
+        "lock": {
+          "oneOf": [
+            { "$ref": "#/definitions/lock_record" },
+            { "type": "null" }
+          ],
+          "description": "Lock details if locked, null otherwise"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "lock_list_response": {
+      "type": "object",
+      "description": "Response from GET /locks/active",
+      "required": ["locks"],
+      "properties": {
+        "locks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/lock_record" },
+          "description": "List of all active locks"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "lock_record": {
+      "type": "object",
+      "description": "A single lock entry",
+      "required": ["file_path", "agent_id", "acquired_at", "expires_at"],
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "The locked file path"
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Agent that holds the lock"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason the lock was requested"
+        },
+        "acquired_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the lock was acquired"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the lock expires (TTL)"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Work Queue Response Schemas",
+  "description": "JSON Schema definitions for work submit, claim, and complete responses.",
+  "definitions": {
+    "work_submit_response": {
+      "type": "object",
+      "description": "Response from POST /work/submit and mcp:submit_work",
+      "required": ["success", "task"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the task was successfully submitted"
+        },
+        "task": {
+          "$ref": "#/definitions/task_record"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "work_claim_response": {
+      "type": "object",
+      "description": "Response from POST /work/claim and mcp:get_work",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether a task was successfully claimed"
+        },
+        "task": {
+          "oneOf": [
+            { "$ref": "#/definitions/task_record" },
+            { "type": "null" }
+          ],
+          "description": "The claimed task, or null if queue is empty"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "work_complete_response": {
+      "type": "object",
+      "description": "Response from POST /work/complete and mcp:complete_work",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the task was successfully marked complete"
+        },
+        "task": {
+          "$ref": "#/definitions/task_record"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "work_cancel_response": {
+      "type": "object",
+      "description": "Response from POST /work/cancel and mcp:cancel_work",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the task was successfully cancelled"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "work_list_response": {
+      "type": "object",
+      "description": "Response from GET /work/queue and mcp:list_work",
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/task_record" },
+          "description": "List of tasks in the queue"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of tasks matching the query"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "task_record": {
+      "type": "object",
+      "description": "A single work queue task",
+      "required": ["task_id", "task_type", "status", "created_at"],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Unique task identifier"
+        },
+        "task_type": {
+          "type": "string",
+          "description": "Category of the task (e.g. code_review, test, implement)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable task description"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "claimed", "completed", "failed", "cancelled"],
+          "description": "Current task status"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Task priority (higher = more urgent)"
+        },
+        "submitted_by": {
+          "type": "string",
+          "description": "Agent ID that submitted the task"
+        },
+        "claimed_by": {
+          "type": ["string", "null"],
+          "description": "Agent ID that claimed the task"
+        },
+        "result": {
+          "type": ["object", "string", "null"],
+          "description": "Task result payload on completion"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the task was submitted"
+        },
+        "claimed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the task was claimed"
+        },
+        "completed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the task was completed"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Task IDs this task depends on"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Arbitrary task metadata"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

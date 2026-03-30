@@ -1,0 +1,735 @@
+# Interface descriptor for agent-coordinator dogfood evaluation.
+# Consumed by the gen-eval framework to generate and run test scenarios
+# against the coordinator's HTTP API, MCP server, and CLI.
+
+project: agent-coordinator
+version: "0.1.0"
+
+services:
+  # ── HTTP API ────────────────────────────────────────────────────────
+  - name: http-api
+    type: http
+    base_url: http://localhost:8081
+    auth:
+      type: api_key
+      header: X-API-Key
+      env_var: COORDINATION_API_KEY
+    endpoints:
+      # Locks (5)
+      - path: /locks/acquire
+        method: POST
+        auth_required: true
+        description: Acquire an exclusive file lock
+        tags: [locks, write]
+      - path: /locks/release
+        method: POST
+        auth_required: true
+        description: Release an existing file lock
+        tags: [locks, write]
+      - path: /locks/status/{path}
+        method: GET
+        auth_required: false
+        description: Check lock status for a specific file path
+        tags: [locks, read]
+      - path: /locks/active
+        method: GET
+        auth_required: false
+        description: List all active locks
+        tags: [locks, read]
+      - path: /locks/force-release
+        method: POST
+        auth_required: true
+        description: Force-release a lock held by another agent
+        tags: [locks, write, admin]
+
+      # Memory (4)
+      - path: /memory/store
+        method: POST
+        auth_required: true
+        description: Store an episodic memory entry
+        tags: [memory, write]
+      - path: /memory/query
+        method: POST
+        auth_required: true
+        description: Query episodic memories by tags, type, or text
+        tags: [memory, read]
+      - path: /memory/working/update
+        method: POST
+        auth_required: true
+        description: Update working memory for the calling agent
+        tags: [memory, write]
+      - path: /memory/working/get
+        method: POST
+        auth_required: true
+        description: Get working memory for the calling agent
+        tags: [memory, read]
+
+      # Work Queue (5)
+      - path: /work/submit
+        method: POST
+        auth_required: true
+        description: Submit a new task to the work queue
+        tags: [work, write]
+      - path: /work/claim
+        method: POST
+        auth_required: true
+        description: Claim the next available task
+        tags: [work, write]
+      - path: /work/complete
+        method: POST
+        auth_required: true
+        description: Mark a claimed task as complete
+        tags: [work, write]
+      - path: /work/queue
+        method: GET
+        auth_required: false
+        description: List tasks in the work queue
+        tags: [work, read]
+      - path: /work/cancel
+        method: POST
+        auth_required: true
+        description: Cancel a pending or claimed task
+        tags: [work, write]
+
+      # Guardrails (2)
+      - path: /guardrails/check
+        method: POST
+        auth_required: true
+        description: Check an operation against guardrail patterns
+        tags: [guardrails, read]
+      - path: /guardrails/patterns
+        method: GET
+        auth_required: false
+        description: List all active guardrail patterns
+        tags: [guardrails, read]
+
+      # Profiles (3)
+      - path: /profiles/me
+        method: GET
+        auth_required: true
+        description: Get the calling agent's profile
+        tags: [profiles, read]
+      - path: /profiles/{agent_id}
+        method: GET
+        auth_required: true
+        description: Get another agent's profile by ID
+        tags: [profiles, read]
+      - path: /profiles/register
+        method: POST
+        auth_required: true
+        description: Register a new agent profile
+        tags: [profiles, write]
+
+      # Audit (2)
+      - path: /audit
+        method: GET
+        auth_required: true
+        description: Query the audit trail with filters
+        tags: [audit, read]
+      - path: /audit/{entry_id}
+        method: GET
+        auth_required: true
+        description: Get a specific audit entry by ID
+        tags: [audit, read]
+
+      # Handoffs (2)
+      - path: /handoffs/write
+        method: POST
+        auth_required: true
+        description: Write a session handoff document
+        tags: [handoffs, write]
+      - path: /handoffs/read
+        method: POST
+        auth_required: true
+        description: Read handoff documents for a session
+        tags: [handoffs, read]
+
+      # Policy (3)
+      - path: /policy/check
+        method: POST
+        auth_required: true
+        description: Check whether an action is authorized by policy
+        tags: [policy, read]
+      - path: /policy/validate
+        method: POST
+        auth_required: true
+        description: Validate Cedar policy text for syntax errors
+        tags: [policy, read]
+      - path: /policy/rules
+        method: GET
+        auth_required: true
+        description: List all active policy rules
+        tags: [policy, read]
+
+      # Discovery (2)
+      - path: /agents/discover
+        method: GET
+        auth_required: false
+        description: Discover active agents
+        tags: [discovery, read]
+      - path: /agents/heartbeat
+        method: POST
+        auth_required: true
+        description: Send agent heartbeat to maintain presence
+        tags: [discovery, write]
+
+      # Ports (2)
+      - path: /ports/register
+        method: POST
+        auth_required: true
+        description: Register a service port for discovery
+        tags: [ports, write]
+      - path: /ports/lookup
+        method: GET
+        auth_required: false
+        description: Look up a registered service port
+        tags: [ports, read]
+
+      # Approvals (2)
+      - path: /approvals/request
+        method: POST
+        auth_required: true
+        description: Request approval for a gated operation
+        tags: [approvals, write]
+      - path: /approvals/respond
+        method: POST
+        auth_required: true
+        description: Approve or reject an approval request
+        tags: [approvals, write]
+
+      # Features (3)
+      - path: /features/register
+        method: POST
+        auth_required: true
+        description: Register an active feature branch
+        tags: [features, write]
+      - path: /features/deregister
+        method: POST
+        auth_required: true
+        description: Deregister a feature branch
+        tags: [features, write]
+      - path: /features/conflicts
+        method: POST
+        auth_required: true
+        description: Check for file-level conflicts between features
+        tags: [features, read]
+
+      # Merge Queue (2)
+      - path: /merge-queue/enqueue
+        method: POST
+        auth_required: true
+        description: Enqueue a branch for coordinated merge
+        tags: [merge-queue, write]
+      - path: /merge-queue/status
+        method: POST
+        auth_required: true
+        description: Get merge queue status
+        tags: [merge-queue, read]
+
+      # Health (1)
+      - path: /health
+        method: GET
+        auth_required: false
+        description: Service health check
+        tags: [health, read]
+
+  # ── MCP Server ──────────────────────────────────────────────────────
+  - name: mcp-server
+    type: mcp
+    transport: stdio
+    tools:
+      # Locks
+      - name: acquire_lock
+        description: Acquire an exclusive file lock
+        tags: [locks, write]
+      - name: release_lock
+        description: Release an existing file lock
+        tags: [locks, write]
+      - name: check_locks
+        description: Check lock status for one or more file paths
+        tags: [locks, read]
+      - name: force_release_lock
+        description: Force-release a lock held by another agent
+        tags: [locks, write, admin]
+      # Memory
+      - name: remember
+        description: Store an episodic memory entry
+        tags: [memory, write]
+      - name: recall
+        description: Query episodic memories by tags, type, or text
+        tags: [memory, read]
+      - name: update_working_memory
+        description: Update working memory for the calling agent
+        tags: [memory, write]
+      - name: get_working_memory
+        description: Get working memory for the calling agent
+        tags: [memory, read]
+      # Work Queue
+      - name: submit_work
+        description: Submit a new task to the work queue
+        tags: [work, write]
+      - name: get_work
+        description: Claim the next available task
+        tags: [work, write]
+      - name: complete_work
+        description: Mark a claimed task as complete
+        tags: [work, write]
+      - name: cancel_work
+        description: Cancel a pending or claimed task
+        tags: [work, write]
+      - name: list_work
+        description: List tasks in the work queue
+        tags: [work, read]
+      # Guardrails
+      - name: check_guardrails
+        description: Check an operation against guardrail patterns
+        tags: [guardrails, read]
+      - name: list_guardrail_patterns
+        description: List all active guardrail patterns
+        tags: [guardrails, read]
+      # Profiles
+      - name: get_my_profile
+        description: Get the calling agent's profile
+        tags: [profiles, read]
+      - name: get_agent_profile
+        description: Get another agent's profile by ID
+        tags: [profiles, read]
+      - name: register_agent
+        description: Register a new agent profile
+        tags: [profiles, write]
+      # Audit
+      - name: query_audit
+        description: Query the audit trail with filters
+        tags: [audit, read]
+      - name: get_audit_entry
+        description: Get a specific audit entry by ID
+        tags: [audit, read]
+      # Handoffs
+      - name: write_handoff
+        description: Write a session handoff document
+        tags: [handoffs, write]
+      - name: read_handoffs
+        description: Read handoff documents for a session
+        tags: [handoffs, read]
+      # Policy
+      - name: check_policy
+        description: Check whether an action is authorized by policy
+        tags: [policy, read]
+      - name: validate_policy
+        description: Validate Cedar policy text for syntax errors
+        tags: [policy, read]
+      - name: list_policy_rules
+        description: List all active policy rules
+        tags: [policy, read]
+      # Discovery
+      - name: discover_agents
+        description: Discover active agents
+        tags: [discovery, read]
+      - name: send_heartbeat
+        description: Send agent heartbeat to maintain presence
+        tags: [discovery, write]
+      # Ports
+      - name: register_port
+        description: Register a service port for discovery
+        tags: [ports, write]
+      - name: lookup_port
+        description: Look up a registered service port
+        tags: [ports, read]
+      # Approvals
+      - name: request_approval
+        description: Request approval for a gated operation
+        tags: [approvals, write]
+      - name: respond_to_approval
+        description: Approve or reject an approval request
+        tags: [approvals, write]
+      # Features
+      - name: register_feature
+        description: Register an active feature branch
+        tags: [features, write]
+      - name: deregister_feature
+        description: Deregister a feature branch
+        tags: [features, write]
+      - name: check_feature_conflicts
+        description: Check for file-level conflicts between features
+        tags: [features, read]
+      # Merge Queue
+      - name: enqueue_merge
+        description: Enqueue a branch for coordinated merge
+        tags: [merge-queue, write]
+      - name: get_merge_queue_status
+        description: Get merge queue status
+        tags: [merge-queue, read]
+      # Misc
+      - name: pre_merge_check
+        description: Run pre-merge safety checks
+        tags: [merge-queue, read]
+      - name: get_health
+        description: Service health check
+        tags: [health, read]
+      - name: learn_procedure
+        description: Store a procedural memory entry
+        tags: [memory, write]
+
+  # ── CLI ─────────────────────────────────────────────────────────────
+  - name: cli
+    type: cli
+    command: python -m src.coordination_cli
+    json_flag: --json
+    commands:
+      # Locks (5)
+      - name: lock acquire
+        description: Acquire an exclusive file lock
+        tags: [locks, write]
+      - name: lock release
+        description: Release an existing file lock
+        tags: [locks, write]
+      - name: lock status
+        description: Check lock status for a specific file path
+        tags: [locks, read]
+      - name: lock list
+        description: List all active locks
+        tags: [locks, read]
+      - name: lock force-release
+        description: Force-release a lock held by another agent
+        tags: [locks, write, admin]
+      # Memory (4)
+      - name: memory store
+        description: Store an episodic memory entry
+        tags: [memory, write]
+      - name: memory query
+        description: Query episodic memories
+        tags: [memory, read]
+      - name: memory working-update
+        description: Update working memory
+        tags: [memory, write]
+      - name: memory working-get
+        description: Get working memory
+        tags: [memory, read]
+      # Work Queue (5)
+      - name: work submit
+        description: Submit a new task to the work queue
+        tags: [work, write]
+      - name: work claim
+        description: Claim the next available task
+        tags: [work, write]
+      - name: work complete
+        description: Mark a claimed task as complete
+        tags: [work, write]
+      - name: work list
+        description: List tasks in the work queue
+        tags: [work, read]
+      - name: work cancel
+        description: Cancel a pending or claimed task
+        tags: [work, write]
+      # Guardrails (2)
+      - name: guardrails check
+        description: Check an operation against guardrail patterns
+        tags: [guardrails, read]
+      - name: guardrails patterns
+        description: List all active guardrail patterns
+        tags: [guardrails, read]
+      # Profiles (3)
+      - name: profile me
+        description: Get the calling agent's profile
+        tags: [profiles, read]
+      - name: profile get
+        description: Get another agent's profile by ID
+        tags: [profiles, read]
+      - name: profile register
+        description: Register a new agent profile
+        tags: [profiles, write]
+      # Audit (2)
+      - name: audit query
+        description: Query the audit trail
+        tags: [audit, read]
+      - name: audit get
+        description: Get a specific audit entry
+        tags: [audit, read]
+      # Handoffs (2)
+      - name: handoff write
+        description: Write a session handoff document
+        tags: [handoffs, write]
+      - name: handoff read
+        description: Read handoff documents
+        tags: [handoffs, read]
+      # Policy (3)
+      - name: policy check
+        description: Check policy authorization
+        tags: [policy, read]
+      - name: policy validate
+        description: Validate Cedar policy text
+        tags: [policy, read]
+      - name: policy rules
+        description: List active policy rules
+        tags: [policy, read]
+      # Discovery (2)
+      - name: agent discover
+        description: Discover active agents
+        tags: [discovery, read]
+      - name: agent heartbeat
+        description: Send agent heartbeat
+        tags: [discovery, write]
+      # Ports (2)
+      - name: port register
+        description: Register a service port
+        tags: [ports, write]
+      - name: port lookup
+        description: Look up a registered service port
+        tags: [ports, read]
+      # Approvals (2)
+      - name: approval request
+        description: Request approval for a gated operation
+        tags: [approvals, write]
+      - name: approval respond
+        description: Respond to an approval request
+        tags: [approvals, write]
+      # Features (3)
+      - name: feature register
+        description: Register an active feature branch
+        tags: [features, write]
+      - name: feature deregister
+        description: Deregister a feature branch
+        tags: [features, write]
+      - name: feature conflicts
+        description: Check for file-level conflicts
+        tags: [features, read]
+      # Merge Queue (2)
+      - name: merge-queue enqueue
+        description: Enqueue a branch for coordinated merge
+        tags: [merge-queue, write]
+      - name: merge-queue status
+        description: Get merge queue status
+        tags: [merge-queue, read]
+
+# ── State Verifiers ─────────────────────────────────────────────────
+state_verifiers:
+  - name: postgres
+    type: postgres
+    dsn_env: DATABASE_URL
+    tables:
+      - file_locks
+      - work_queue
+      - memory_episodic
+      - memory_working
+      - memory_procedural
+      - agent_profiles
+      - audit_log
+      - operation_guardrails
+
+# ── Startup / Teardown ──────────────────────────────────────────────
+startup:
+  command: docker-compose up -d
+  health_check: http://localhost:8081/health
+  health_timeout_seconds: 60
+  health_retry_count: 5
+  teardown: docker-compose down -v
+
+# ── Scenario directories ────────────────────────────────────────────
+scenario_dirs:
+  - scenarios/
+
+# ── File-to-interface mappings for change detection ─────────────────
+file_interface_map:
+  - file_pattern: src/locks.py
+    interfaces:
+      - "POST /locks/acquire"
+      - "POST /locks/release"
+      - "GET /locks/status/{path}"
+      - "GET /locks/active"
+      - "POST /locks/force-release"
+      - "mcp:acquire_lock"
+      - "mcp:release_lock"
+      - "mcp:check_locks"
+      - "mcp:force_release_lock"
+      - "cli:lock acquire"
+      - "cli:lock release"
+      - "cli:lock status"
+      - "cli:lock list"
+      - "cli:lock force-release"
+
+  - file_pattern: src/memory.py
+    interfaces:
+      - "POST /memory/store"
+      - "POST /memory/query"
+      - "POST /memory/working/update"
+      - "POST /memory/working/get"
+      - "mcp:remember"
+      - "mcp:recall"
+      - "mcp:update_working_memory"
+      - "mcp:get_working_memory"
+      - "mcp:learn_procedure"
+      - "cli:memory store"
+      - "cli:memory query"
+      - "cli:memory working-update"
+      - "cli:memory working-get"
+
+  - file_pattern: src/work_queue.py
+    interfaces:
+      - "POST /work/submit"
+      - "POST /work/claim"
+      - "POST /work/complete"
+      - "GET /work/queue"
+      - "POST /work/cancel"
+      - "mcp:submit_work"
+      - "mcp:get_work"
+      - "mcp:complete_work"
+      - "mcp:cancel_work"
+      - "mcp:list_work"
+      - "cli:work submit"
+      - "cli:work claim"
+      - "cli:work complete"
+      - "cli:work list"
+      - "cli:work cancel"
+
+  - file_pattern: src/guardrails.py
+    interfaces:
+      - "POST /guardrails/check"
+      - "GET /guardrails/patterns"
+      - "mcp:check_guardrails"
+      - "mcp:list_guardrail_patterns"
+      - "cli:guardrails check"
+      - "cli:guardrails patterns"
+
+  - file_pattern: src/profiles.py
+    interfaces:
+      - "GET /profiles/me"
+      - "GET /profiles/{agent_id}"
+      - "POST /profiles/register"
+      - "mcp:get_my_profile"
+      - "mcp:get_agent_profile"
+      - "mcp:register_agent"
+      - "cli:profile me"
+      - "cli:profile get"
+      - "cli:profile register"
+
+  - file_pattern: src/audit.py
+    interfaces:
+      - "GET /audit"
+      - "GET /audit/{entry_id}"
+      - "mcp:query_audit"
+      - "mcp:get_audit_entry"
+      - "cli:audit query"
+      - "cli:audit get"
+
+  - file_pattern: src/coordination_api.py
+    interfaces:
+      - "POST /locks/acquire"
+      - "POST /locks/release"
+      - "GET /locks/status/{path}"
+      - "GET /locks/active"
+      - "POST /locks/force-release"
+      - "POST /memory/store"
+      - "POST /memory/query"
+      - "POST /memory/working/update"
+      - "POST /memory/working/get"
+      - "POST /work/submit"
+      - "POST /work/claim"
+      - "POST /work/complete"
+      - "GET /work/queue"
+      - "POST /work/cancel"
+      - "POST /guardrails/check"
+      - "GET /guardrails/patterns"
+      - "GET /profiles/me"
+      - "GET /profiles/{agent_id}"
+      - "POST /profiles/register"
+      - "GET /audit"
+      - "GET /audit/{entry_id}"
+      - "POST /handoffs/write"
+      - "POST /handoffs/read"
+      - "POST /policy/check"
+      - "POST /policy/validate"
+      - "GET /policy/rules"
+      - "GET /agents/discover"
+      - "POST /agents/heartbeat"
+      - "POST /ports/register"
+      - "GET /ports/lookup"
+      - "POST /approvals/request"
+      - "POST /approvals/respond"
+      - "POST /features/register"
+      - "POST /features/deregister"
+      - "POST /features/conflicts"
+      - "POST /merge-queue/enqueue"
+      - "POST /merge-queue/status"
+      - "GET /health"
+
+  - file_pattern: src/coordination_mcp.py
+    interfaces:
+      - "mcp:acquire_lock"
+      - "mcp:release_lock"
+      - "mcp:check_locks"
+      - "mcp:force_release_lock"
+      - "mcp:remember"
+      - "mcp:recall"
+      - "mcp:update_working_memory"
+      - "mcp:get_working_memory"
+      - "mcp:submit_work"
+      - "mcp:get_work"
+      - "mcp:complete_work"
+      - "mcp:cancel_work"
+      - "mcp:list_work"
+      - "mcp:check_guardrails"
+      - "mcp:list_guardrail_patterns"
+      - "mcp:get_my_profile"
+      - "mcp:get_agent_profile"
+      - "mcp:register_agent"
+      - "mcp:query_audit"
+      - "mcp:get_audit_entry"
+      - "mcp:write_handoff"
+      - "mcp:read_handoffs"
+      - "mcp:check_policy"
+      - "mcp:validate_policy"
+      - "mcp:list_policy_rules"
+      - "mcp:discover_agents"
+      - "mcp:send_heartbeat"
+      - "mcp:register_port"
+      - "mcp:lookup_port"
+      - "mcp:request_approval"
+      - "mcp:respond_to_approval"
+      - "mcp:register_feature"
+      - "mcp:deregister_feature"
+      - "mcp:check_feature_conflicts"
+      - "mcp:enqueue_merge"
+      - "mcp:get_merge_queue_status"
+      - "mcp:pre_merge_check"
+      - "mcp:get_health"
+      - "mcp:learn_procedure"
+
+  - file_pattern: src/coordination_cli.py
+    interfaces:
+      - "cli:lock acquire"
+      - "cli:lock release"
+      - "cli:lock status"
+      - "cli:lock list"
+      - "cli:lock force-release"
+      - "cli:memory store"
+      - "cli:memory query"
+      - "cli:memory working-update"
+      - "cli:memory working-get"
+      - "cli:work submit"
+      - "cli:work claim"
+      - "cli:work complete"
+      - "cli:work list"
+      - "cli:work cancel"
+      - "cli:guardrails check"
+      - "cli:guardrails patterns"
+      - "cli:profile me"
+      - "cli:profile get"
+      - "cli:profile register"
+      - "cli:audit query"
+      - "cli:audit get"
+      - "cli:handoff write"
+      - "cli:handoff read"
+      - "cli:policy check"
+      - "cli:policy validate"
+      - "cli:policy rules"
+      - "cli:agent discover"
+      - "cli:agent heartbeat"
+      - "cli:port register"
+      - "cli:port lookup"
+      - "cli:approval request"
+      - "cli:approval respond"
+      - "cli:feature register"
+      - "cli:feature deregister"
+      - "cli:feature conflicts"
+      - "cli:merge-queue enqueue"
+      - "cli:merge-queue status"

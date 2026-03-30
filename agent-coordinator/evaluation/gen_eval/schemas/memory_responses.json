@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Memory Response Schemas",
+  "description": "JSON Schema definitions for memory store and query responses.",
+  "definitions": {
+    "memory_store_response": {
+      "type": "object",
+      "description": "Response from POST /memory/store and mcp:remember",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether the memory was successfully stored"
+        },
+        "memory_id": {
+          "type": "string",
+          "description": "Unique identifier for the stored memory"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "memory_query_response": {
+      "type": "object",
+      "description": "Response from POST /memory/query and mcp:recall",
+      "required": ["memories"],
+      "properties": {
+        "memories": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/episodic_memory_record" },
+          "description": "Matching memory entries ordered by relevance"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of matching memories"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "working_memory_update_response": {
+      "type": "object",
+      "description": "Response from POST /memory/working/update and mcp:update_working_memory",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether working memory was successfully updated"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable status message"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "working_memory_get_response": {
+      "type": "object",
+      "description": "Response from POST /memory/working/get and mcp:get_working_memory",
+      "required": ["working_memory"],
+      "properties": {
+        "working_memory": {
+          "oneOf": [
+            { "$ref": "#/definitions/working_memory_record" },
+            { "type": "null" }
+          ],
+          "description": "Current working memory state, or null if none set"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "episodic_memory_record": {
+      "type": "object",
+      "description": "A single episodic memory entry",
+      "required": ["memory_id", "agent_id", "event_type", "summary", "created_at"],
+      "properties": {
+        "memory_id": {
+          "type": "string",
+          "description": "Unique memory identifier"
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Agent that created the memory"
+        },
+        "event_type": {
+          "type": "string",
+          "description": "Category of the event (e.g. decision, error, discovery)"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Human-readable summary of the memory"
+        },
+        "details": {
+          "type": ["object", "string", "null"],
+          "description": "Structured details or context"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for filtering and retrieval"
+        },
+        "relevance_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Relevance score from query (0-1)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the memory was stored"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "working_memory_record": {
+      "type": "object",
+      "description": "Working memory state for an agent",
+      "required": ["agent_id"],
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "description": "Agent the working memory belongs to"
+        },
+        "current_task": {
+          "type": ["string", "null"],
+          "description": "What the agent is currently working on"
+        },
+        "context": {
+          "type": "object",
+          "description": "Arbitrary context data for the agent's current work"
+        },
+        "goals": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Active goals the agent is pursuing"
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Known blockers for the agent"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When working memory was last updated"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
