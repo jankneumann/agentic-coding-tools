@@ -339,6 +339,32 @@ def compute_effect_size(group_a: list[float], group_b: list[float]) -> float:
     return (mean_a - mean_b) / pooled_std
 
 
+@dataclass
+class GenEvalMetrics:
+    """Metrics for a single gen-eval scenario evaluation.
+
+    Captures per-scenario timing, verdict, and backend information
+    for integration with the MetricsCollector pipeline.
+    """
+
+    scenario_id: str
+    interface: str
+    verdict: str  # pass/fail/error
+    duration_seconds: float
+    category: str
+    backend_used: str  # template/cli/sdk
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scenario_id": self.scenario_id,
+            "interface": self.interface,
+            "verdict": self.verdict,
+            "duration_seconds": self.duration_seconds,
+            "category": self.category,
+            "backend_used": self.backend_used,
+        }
+
+
 class MetricsCollector:
     """Collects metrics during evaluation runs.
 
