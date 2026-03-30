@@ -110,27 +110,27 @@ class FeedbackSynthesizer:
         verdicts: list[ScenarioVerdict],
         descriptor: InterfaceDescriptor,
     ) -> list[str]:
-        """Find categories with < 50% scenario coverage.
+        """Find categories with < 50% interface coverage.
 
         For each category present in verdicts, compute the ratio of
-        unique scenarios exercised vs total interfaces in the descriptor.
-        Categories where (scenarios_in_category / total_interfaces) < 50%
-        are considered under-tested.
+        unique interfaces exercised (from ``interfaces_tested`` on verdicts
+        in that category) vs total interfaces in the descriptor.
+        Categories where coverage < 50% are considered under-tested.
         """
         total_interfaces = descriptor.total_interface_count()
         if total_interfaces == 0:
             return []
 
-        # Count unique scenarios per category
-        category_scenarios: dict[str, set[str]] = {}
+        # Collect unique interfaces exercised per category
+        category_interfaces: dict[str, set[str]] = {}
         for v in verdicts:
             cat = v.category
             if cat:
-                category_scenarios.setdefault(cat, set()).add(v.scenario_id)
+                category_interfaces.setdefault(cat, set()).update(v.interfaces_tested)
 
         under_tested: list[str] = []
-        for cat, scenarios in sorted(category_scenarios.items()):
-            ratio = len(scenarios) / total_interfaces
+        for cat, interfaces in sorted(category_interfaces.items()):
+            ratio = len(interfaces) / total_interfaces
             if ratio < _UNDER_TESTED_THRESHOLD:
                 under_tested.append(cat)
 

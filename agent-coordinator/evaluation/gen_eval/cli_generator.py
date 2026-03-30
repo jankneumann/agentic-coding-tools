@@ -70,22 +70,21 @@ class CLIBackend:
         Raises:
             CLIBackendError: On non-zero exit code or timeout.
         """
-        cmd_args = [self.command, *self.args]
         if system:
             # Prepend system instruction to prompt
             full_prompt = f"[System]: {system}\n\n{prompt}"
         else:
             full_prompt = prompt
 
+        cmd = [self.command, *self.args, full_prompt]
         try:
             proc = await asyncio.create_subprocess_exec(
-                *cmd_args,
-                stdin=asyncio.subprocess.PIPE,
+                *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(full_prompt.encode()),
+                proc.communicate(),
                 timeout=self.timeout_seconds,
             )
         except TimeoutError as e:

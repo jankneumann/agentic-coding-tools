@@ -259,6 +259,39 @@ class TestTemplateGeneratorParameterExpansion:
         assert len(scenarios) == 3
 
     @pytest.mark.asyncio
+    async def test_scalar_parameter_coercion(
+        self, descriptor: InterfaceDescriptor, config: GenEvalConfig
+    ) -> None:
+        """Scalar params should be wrapped in a list, not iterated char-by-char."""
+        scenario_dir = descriptor.scenario_dirs[0]
+        _write_scenario_yaml(
+            scenario_dir,
+            "scalar.yaml",
+            {
+                "id": "scalar-test",
+                "name": "Test {{ mode }}",
+                "description": "Scalar param test",
+                "category": "test",
+                "interfaces": ["http"],
+                "parameters": {"mode": "single"},
+                "steps": [
+                    {
+                        "id": "s1",
+                        "transport": "http",
+                        "method": "GET",
+                        "endpoint": "/health",
+                    }
+                ],
+            },
+        )
+        gen = TemplateGenerator(descriptor, config)
+        scenarios = await gen.generate(count=50)
+        # Should produce exactly 1 scenario (the scalar string treated as a single value),
+        # not 6 scenarios (one per character in "single")
+        assert len(scenarios) == 1
+        assert scenarios[0].name == "Test single"
+
+    @pytest.mark.asyncio
     async def test_no_parameters_passthrough(
         self, descriptor: InterfaceDescriptor, config: GenEvalConfig
     ) -> None:

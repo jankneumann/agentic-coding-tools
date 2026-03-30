@@ -84,6 +84,8 @@ class SDKBackend:
                 kwargs["system"] = system
             response = await client.messages.create(**kwargs)
             # Extract text from response
+            if not response.content or not hasattr(response.content[0], 'text'):
+                raise SDKBackendError("Empty or non-text response from API")
             return response.content[0].text  # type: ignore[union-attr]
         except Exception as e:
             raise SDKBackendError(f"Anthropic API error: {e}") from e

@@ -27,7 +27,7 @@ from evaluation.gen_eval.models import (
 )
 
 # Pattern for variable interpolation: {{ var_name }}
-_VAR_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+_VAR_PATTERN = re.compile(r"\{\{\s*([\w.\-]+)\s*\}\}")
 
 # Default per-step timeout in seconds
 _DEFAULT_TIMEOUT = 30.0
@@ -243,10 +243,12 @@ class Evaluator:
         cross_diff = self._detect_cross_interface_mismatch(
             step, result.body, prev_transport, prev_body
         )
-        if cross_diff and diff is None:
-            diff = cross_diff
-        elif cross_diff and diff is not None:
-            diff["cross_interface"] = cross_diff
+        if cross_diff:
+            status = "fail"
+            if diff is None:
+                diff = cross_diff
+            else:
+                diff["cross_interface"] = cross_diff
 
         return StepVerdict(
             step_id=step.id,

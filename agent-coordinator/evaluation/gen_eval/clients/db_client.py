@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from typing import Any
 
@@ -74,15 +75,27 @@ class DbClient:
                     duration_ms=elapsed,
                 )
 
-            # Variable interpolation
-            for var_key, var_val in context.variables.items():
-                sql = sql.replace(f"${{{var_key}}}", str(var_val))
+            # Parameterized variable substitution (prevents SQL injection)
+            params: list[Any] = []
+            param_idx = 0
+
+            def _replace_var(match: re.Match[str]) -> str:
+                nonlocal param_idx
+                var_name = match.group(1)
+                if var_name in context.variables:
+                    param_idx += 1
+                    params.append(context.variables[var_name])
+                    return f"${param_idx}"
+                return match.group(0)  # leave unresolved vars as-is
+
+            safe_sql = re.sub(r"\$\{(\w+)\}", _replace_var, sql)
 
             pool = await self._ensure_pool()
             timeout = step.timeout_seconds or context.timeout_seconds
 
             async with pool.acquire() as conn:
-                rows = await conn.fetch(sql, timeout=timeout)
+                async with conn.transaction(readonly=True):
+                    rows = await conn.fetch(safe_sql, *params, timeout=timeout)
 
             result_rows: list[dict[str, Any]] = [dict(r) for r in rows]
             body: dict[str, Any] = {"rows": result_rows, "count": len(result_rows)}

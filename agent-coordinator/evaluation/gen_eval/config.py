@@ -54,7 +54,9 @@ class TimeBudget(BaseModel):
         """Record a CLI call with its duration."""
         self.cli_calls += 1
         minutes = duration_seconds / 60.0
-        self.elapsed_minutes += minutes
+        if self._start_time is None:
+            # No wall-clock running, track elapsed manually
+            self.elapsed_minutes += minutes
         if category == "generation":
             self.generation_minutes += minutes
         elif category == "evaluation":
@@ -63,7 +65,10 @@ class TimeBudget(BaseModel):
     @property
     def remaining_minutes(self) -> float:
         """Minutes remaining in the budget."""
-        return max(0.0, self.total_minutes - self.elapsed_minutes)
+        elapsed = self.elapsed_minutes
+        if self._start_time is not None:
+            elapsed += (time.monotonic() - self._start_time) / 60.0
+        return max(0.0, self.total_minutes - elapsed)
 
 
 class SDKBudget(BaseModel):
@@ -170,6 +175,8 @@ class GenEvalConfig(BaseModel):
     report_format: Literal["markdown", "json", "both"] = "both"
     fail_threshold: float = 0.95
     seed_data: bool = True
+    no_services: bool = False
+    categories: list[str] | None = None
     verbose: bool = False
     # Health check
     health_check_retries: int = 5
@@ -180,6 +187,8 @@ class GenEvalConfig(BaseModel):
         """Load config from a YAML file."""
         with open(path) as f:
             data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
         return cls(**data)
 
     @classmethod

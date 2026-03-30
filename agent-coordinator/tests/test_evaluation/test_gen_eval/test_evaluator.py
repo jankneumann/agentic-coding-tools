@@ -297,6 +297,50 @@ class TestVariableInterpolation:
         assert executed_step.body["token"] == "xyz"
 
     @pytest.mark.asyncio
+    async def test_interpolation_with_hyphens_and_dots(self) -> None:
+        """Variables with hyphens and dots should interpolate correctly."""
+        result = _make_result(body={"ok": True})
+        registry = _mock_registry(result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        step = _make_step(
+            endpoint="/items/{{ my-var.name }}",
+            expect=ExpectBlock(status=200),
+        )
+        scenario = _make_scenario(steps=[step])
+        # Provide a variable with hyphens and dots
+        # We need to manually set captured_vars context
+        await evaluator.evaluate(scenario)
+
+        # Check the step was called with the unresolved var (no context vars)
+        call_args = registry.execute.call_args_list[0]
+        executed_step = call_args[0][1]
+        assert executed_step.endpoint == "/items/{{ my-var.name }}"
+
+        # Now test with actual variable resolution
+        result2 = _make_result(body={"id": "val-1"})
+        result3 = _make_result(body={"ok": True})
+        registry2 = _mock_registry(result2, result3)
+        evaluator2 = Evaluator(_mock_descriptor(), registry2)
+
+        step1 = _make_step(
+            step_id="create",
+            capture={"my-var.name": "$.id"},
+            expect=ExpectBlock(status=200),
+        )
+        step2 = _make_step(
+            step_id="use",
+            endpoint="/items/{{ my-var.name }}",
+            expect=ExpectBlock(status=200),
+        )
+        scenario2 = _make_scenario(steps=[step1, step2])
+        await evaluator2.evaluate(scenario2)
+
+        call_args2 = registry2.execute.call_args_list[1]
+        executed_step2 = call_args2[0][1]
+        assert executed_step2.endpoint == "/items/val-1"
+
+    @pytest.mark.asyncio
     async def test_unresolved_variable_kept_as_is(self) -> None:
         """Variables not in context stay as literal {{ var }} strings."""
         result = _make_result(body={"ok": True})
@@ -442,8 +486,10 @@ class TestCrossInterfaceMismatch:
         scenario.interfaces = ["http", "mcp"]
         verdict = await evaluator.evaluate(scenario)
 
-        # The mismatch should be in the diff of the second step
+        # REQ-EVAL-03: cross-interface mismatch MUST be reported as "fail"
+        assert verdict.status == "fail"
         mcp_verdict = verdict.steps[1]
+        assert mcp_verdict.status == "fail"
         assert mcp_verdict.diff is not None
         cross = mcp_verdict.diff
         # Check for the cross-interface mismatch structure

@@ -130,6 +130,8 @@ class InterfaceDescriptor(BaseModel):
         """Load descriptor from a YAML file."""
         with open(path) as f:
             data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
         return cls(**data)
 
     def all_interfaces(self) -> list[str]:
@@ -145,6 +147,9 @@ class InterfaceDescriptor(BaseModel):
             elif svc.type == "cli":
                 for cmd in svc.commands:
                     interfaces.append(f"cli:{cmd.name}")
+            elif svc.type == "browser":
+                if svc.launch_url:
+                    interfaces.append(f"browser:{svc.launch_url}")
         return interfaces
 
     def total_interface_count(self) -> int:

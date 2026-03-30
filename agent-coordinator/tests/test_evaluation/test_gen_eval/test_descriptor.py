@@ -161,6 +161,43 @@ class TestInterfaceDescriptor:
         )
         assert len(mapping.interfaces) == 3
 
+    def test_browser_service_in_all_interfaces(self) -> None:
+        desc = InterfaceDescriptor(
+            project="browser-test",
+            version="0.1",
+            services=[
+                ServiceDescriptor(
+                    name="web-ui",
+                    type="browser",
+                    launch_url="http://localhost:3000",
+                ),
+            ],
+            startup=StartupConfig(
+                command="echo start",
+                health_check="echo ok",
+                teardown="echo stop",
+            ),
+        )
+        interfaces = desc.all_interfaces()
+        assert "browser:http://localhost:3000" in interfaces
+        assert desc.total_interface_count() == 1
+
+    def test_from_yaml_empty_file(self, tmp_path: Path) -> None:
+        yaml_path = tmp_path / "empty.yaml"
+        yaml_path.write_text("")
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="Expected YAML mapping"):
+            InterfaceDescriptor.from_yaml(yaml_path)
+
+    def test_from_yaml_non_dict(self, tmp_path: Path) -> None:
+        yaml_path = tmp_path / "list.yaml"
+        yaml_path.write_text("- item1\n- item2\n")
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="Expected YAML mapping"):
+            InterfaceDescriptor.from_yaml(yaml_path)
+
     def test_empty_services(self) -> None:
         desc = InterfaceDescriptor(
             project="empty",

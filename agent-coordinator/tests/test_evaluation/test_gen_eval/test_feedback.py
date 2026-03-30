@@ -203,6 +203,21 @@ class TestFeedbackSynthesizer:
 
         assert "locks" not in feedback.under_tested_categories
 
+    def test_under_tested_uses_interfaces_not_scenarios(
+        self, descriptor: InterfaceDescriptor
+    ) -> None:
+        """Under-tested metric uses interfaces exercised, not scenario count."""
+        # 4 total interfaces. Two scenarios in 'locks' but both test the same interface.
+        # interfaces_exercised_in_category = 1, ratio = 1/4 = 25% < 50%
+        verdicts = [
+            _make_verdict("s1", "pass", "locks", ["POST /locks/acquire"]),
+            _make_verdict("s2", "pass", "locks", ["POST /locks/acquire"]),
+        ]
+        synth = FeedbackSynthesizer()
+        feedback = synth.synthesize(verdicts, descriptor)
+
+        assert "locks" in feedback.under_tested_categories
+
     def test_near_miss_high_latency(self, descriptor: InterfaceDescriptor) -> None:
         """Passed scenarios with duration > 500ms are near-miss."""
         verdicts = [

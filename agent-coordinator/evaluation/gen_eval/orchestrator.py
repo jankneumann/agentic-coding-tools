@@ -74,7 +74,7 @@ class GenEvalOrchestrator:
         try:
             # 1. Start services
             self._run_startup()
-            self._health_check()
+            await self._health_check()
 
             # 2. Seed data
             self._seed_data()
@@ -132,7 +132,7 @@ class GenEvalOrchestrator:
         logger.info("Starting services: %s", cmd)
         subprocess.run(cmd, shell=True, check=True, capture_output=True, timeout=120)
 
-    def _health_check(self) -> None:
+    async def _health_check(self) -> None:
         """Poll the health check endpoint with retry and exponential backoff."""
         health_target = self.descriptor.startup.health_check
         retries = self.config.health_check_retries
@@ -159,7 +159,7 @@ class GenEvalOrchestrator:
                     retries,
                     backoff,
                 )
-                time.sleep(backoff)
+                await asyncio.sleep(backoff)
 
         raise HealthCheckError(f"Health check failed after {retries} attempts: {health_target}")
 
@@ -220,7 +220,7 @@ class GenEvalOrchestrator:
         max_total = self.config.max_scenarios_per_iteration
         max_tier1 = int(max_total * 0.40)
         max_tier2 = int(max_total * 0.35)
-        max_tier3 = int(max_total * 0.25)
+        max_tier3 = max_total - max_tier1 - max_tier2  # gets the remainder
 
         result = tier1[:max_tier1] + tier2[:max_tier2] + tier3[:max_tier3]
         return result
@@ -243,8 +243,11 @@ class GenEvalOrchestrator:
                     self._budget_exhausted = True
                     return None
                 verdict = await self.evaluator.evaluate(scenario)
-                # Record time spent
-                self.budget_tracker.time_budget.record_call("evaluation", verdict.duration_seconds)
+                # Record time spent — only count as CLI call when backend is actually CLI
+                if verdict.backend_used == "cli":
+                    self.budget_tracker.time_budget.record_call(
+                        "evaluation", verdict.duration_seconds
+                    )
                 return verdict
 
         tasks = [asyncio.create_task(_eval_one(s)) for s in scenarios]

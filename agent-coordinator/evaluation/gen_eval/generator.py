@@ -103,7 +103,7 @@ class TemplateGenerator:
 
         # Build all combinations
         keys = list(params.keys())
-        values = [params[k] for k in keys]
+        values = [v if isinstance(v, list) else [v] for v in (params[k] for k in keys)]
         combos = list(itertools.islice(itertools.product(*values), self.max_expansions))
 
         expanded: list[dict[str, Any]] = []

@@ -9,10 +9,13 @@ Supports HTTP APIs, MCP tools, CLI commands, and database state
 verification through pluggable transport clients.
 """
 
+from .change_detector import ChangeDetector
 from .config import BudgetConfig, BudgetTracker, GenEvalConfig, SDKBudget, TimeBudget
 from .descriptor import InterfaceDescriptor, ServiceDescriptor, StartupConfig, StateVerifier
+from .feedback import FeedbackSynthesizer
 from .models import (
     ActionStep,
+    EvalFeedback,
     ExpectBlock,
     Scenario,
     ScenarioGenerator,
@@ -24,7 +27,10 @@ __all__ = [
     "ActionStep",
     "BudgetConfig",
     "BudgetTracker",
+    "ChangeDetector",
+    "EvalFeedback",
     "ExpectBlock",
+    "FeedbackSynthesizer",
     "GenEvalConfig",
     "InterfaceDescriptor",
     "SDKBudget",

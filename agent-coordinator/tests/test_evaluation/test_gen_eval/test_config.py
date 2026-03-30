@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from evaluation.gen_eval.config import (
@@ -46,6 +47,32 @@ class TestTimeBudget:
         budget.record_call("evaluation", 60.0)
         assert budget.evaluation_minutes == 1.0
         assert budget.generation_minutes == 0.0
+
+    def test_remaining_includes_running_wallclock(self) -> None:
+        """remaining_minutes accounts for time elapsed since start()."""
+        budget = TimeBudget(total_minutes=10.0)
+        budget.start()
+        # Simulate passage of time by backdating _start_time
+        budget._start_time = budget._start_time - 300.0  # type: ignore[operator]  # 5 minutes ago
+        assert budget.remaining_minutes == pytest.approx(5.0, abs=0.1)
+
+    def test_record_call_no_double_count_when_timer_running(self) -> None:
+        """record_call should not add to elapsed_minutes when wall-clock is running."""
+        budget = TimeBudget(total_minutes=10.0)
+        budget.start()
+        budget.record_call("generation", 120.0)  # 2 minutes
+        # elapsed_minutes should NOT increase while timer is running
+        assert budget.elapsed_minutes == 0.0
+        assert budget.cli_calls == 1
+        assert budget.generation_minutes == 2.0
+
+    def test_record_call_adds_elapsed_when_timer_stopped(self) -> None:
+        """record_call adds to elapsed_minutes when no wall-clock is running."""
+        budget = TimeBudget(total_minutes=10.0)
+        # No start() called
+        budget.record_call("generation", 120.0)  # 2 minutes
+        assert budget.elapsed_minutes == 2.0
+        assert budget.remaining_minutes == 8.0
 
 
 class TestSDKBudget:

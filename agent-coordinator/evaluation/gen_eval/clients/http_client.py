@@ -141,16 +141,16 @@ class HttpClient:
             text = text.replace(f"${{{key}}}", str(val))
         return text
 
-    @staticmethod
+    @classmethod
     def _interpolate_body(
-        body: dict[str, Any] | None, variables: dict[str, Any]
-    ) -> dict[str, Any] | None:
-        if body is None:
-            return None
-        result: dict[str, Any] = {}
-        for k, v in body.items():
-            if isinstance(v, str):
-                for var_key, var_val in variables.items():
-                    v = v.replace(f"${{{var_key}}}", str(var_val))
-            result[k] = v
-        return result
+        cls, body: Any, variables: dict[str, Any]
+    ) -> Any:
+        if isinstance(body, dict):
+            return {k: cls._interpolate_body(v, variables) for k, v in body.items()}
+        elif isinstance(body, list):
+            return [cls._interpolate_body(item, variables) for item in body]
+        elif isinstance(body, str):
+            for key, val in variables.items():
+                body = body.replace(f"${{{key}}}", str(val))
+            return body
+        return body

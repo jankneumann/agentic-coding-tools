@@ -136,12 +136,13 @@ class TestCLIBackend:
         mock_proc.communicate = AsyncMock(return_value=(b"output", b""))
         mock_proc.returncode = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
             await backend.run("user prompt", system="system instruction")
-        # Verify the full prompt includes system
-        call_args = mock_proc.communicate.call_args
-        stdin_data = call_args[0][0] if call_args[0] else call_args[1].get("input", b"")
-        assert b"system instruction" in stdin_data
+        # Verify the prompt is passed as a positional argument (not stdin)
+        exec_args = mock_exec.call_args[0]
+        full_prompt = exec_args[-1]  # last positional arg is the prompt
+        assert "system instruction" in full_prompt
+        assert "user prompt" in full_prompt
 
 
 class TestCLIGenerator:

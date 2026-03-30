@@ -124,6 +124,27 @@ class TestSDKBackend:
             await backend.run("test")
 
     @pytest.mark.asyncio
+    async def test_run_anthropic_empty_response(self) -> None:
+        """Empty response.content should raise SDKBackendError, not crash."""
+        backend = SDKBackend(provider="anthropic", api_key_env="TEST_API_KEY")
+
+        mock_response = MagicMock()
+        mock_response.content = []  # empty content
+
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+
+        import sys
+
+        mock_anthropic_module = MagicMock()
+        mock_anthropic_module.AsyncAnthropic.return_value = mock_client
+
+        with patch.dict(os.environ, {"TEST_API_KEY": "sk-test"}):
+            with patch.dict(sys.modules, {"anthropic": mock_anthropic_module}):
+                with pytest.raises(SDKBackendError, match="Empty or non-text response"):
+                    await backend.run("generate scenarios")
+
+    @pytest.mark.asyncio
     async def test_run_openai_success(self) -> None:
         backend = SDKBackend(provider="openai", model="gpt-4", api_key_env="TEST_OPENAI_KEY")
 

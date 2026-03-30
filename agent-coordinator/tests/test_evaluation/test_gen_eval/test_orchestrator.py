@@ -50,6 +50,7 @@ def _make_verdict(
     status: str = "pass",
     interfaces: list[str] | None = None,
     category: str = "test-cat",
+    backend_used: str = "template",
 ) -> ScenarioVerdict:
     return ScenarioVerdict(
         scenario_id=scenario_id,
@@ -59,6 +60,7 @@ def _make_verdict(
         duration_seconds=0.5,
         interfaces_tested=interfaces or ["POST /locks/acquire"],
         category=category,
+        backend_used=backend_used,
     )
 
 
@@ -169,7 +171,7 @@ class TestHealthCheck:
             return result
 
         with patch("evaluation.gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("evaluation.gen_eval.orchestrator.time.sleep"):
+            with patch("evaluation.gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
                 report = await orchestrator.run()
 
         assert report.total_scenarios == 1
@@ -186,7 +188,7 @@ class TestHealthCheck:
             return result
 
         with patch("evaluation.gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("evaluation.gen_eval.orchestrator.time.sleep"):
+            with patch("evaluation.gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(HealthCheckError, match="Health check failed after 3 attempts"):
                     await orchestrator.run()
 
@@ -228,7 +230,7 @@ class TestBudgetExhaustion:
             nonlocal eval_count
             eval_count += 1
             # After first eval, exhaust the budget
-            return _make_verdict(scenario.id)
+            return _make_verdict(scenario.id, backend_used="cli")
 
         mock_ev = AsyncMock(spec=Evaluator)
         mock_ev.evaluate = AsyncMock(side_effect=eval_side_effect)
@@ -421,7 +423,7 @@ class TestTeardownAlwaysRuns:
             return result
 
         with patch("evaluation.gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("evaluation.gen_eval.orchestrator.time.sleep"):
+            with patch("evaluation.gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(HealthCheckError):
                     await orchestrator.run()
 
@@ -493,6 +495,31 @@ class TestTierPrioritization:
         assert ids.index("tier1") < ids.index("tier2")
         assert ids.index("tier2") < ids.index("tier3")
 
+    def test_tier_budgets_no_lost_slots(
+        self,
+        orchestrator: GenEvalOrchestrator,
+    ) -> None:
+        """Tier budget allocation should not lose slots due to int() truncation."""
+        orchestrator.config.max_scenarios_per_iteration = 10
+
+        # Create enough scenarios to fill all tiers
+        # All go to tier3 since no change detector and priority > 1
+        scenarios = [
+            _make_scenario(f"s{i}", priority=2, interfaces=["GET /health"])
+            for i in range(10)
+        ]
+
+        result = orchestrator._prioritize_scenarios(scenarios)
+        # tier1=int(10*0.40)=4, tier2=int(10*0.35)=3, tier3=10-4-3=3
+        # All scenarios are tier3, so we get min(10, 3) = 3
+        # But the total budget is 4+3+3=10 (no lost slots)
+        assert len(result) <= 10
+        # The key assertion: tier3 gets the remainder (3 not 2)
+        # With old code: int(10*0.25)=2, total=4+3+2=9 (lost 1)
+        # With new code: 10-4-3=3, total=4+3+3=10 (no loss)
+        # Since all are tier3, result length = min(10, 3) = 3
+        assert len(result) == 3
+
     def test_no_change_detector_all_tier2_tier3(
         self,
         orchestrator: GenEvalOrchestrator,
@@ -524,7 +551,7 @@ class TestGracefulShutdown:
         async def eval_side_effect(scenario: Scenario) -> ScenarioVerdict:
             nonlocal eval_count
             eval_count += 1
-            return _make_verdict(scenario.id)
+            return _make_verdict(scenario.id, backend_used="cli")
 
         mock_ev = AsyncMock(spec=Evaluator)
         mock_ev.evaluate = AsyncMock(side_effect=eval_side_effect)
@@ -545,3 +572,69 @@ class TestGracefulShutdown:
         # Report should exist even with budget exhaustion
         assert isinstance(report.total_scenarios, int)
         assert report.budget_exhausted
+
+    @pytest.mark.asyncio
+    async def test_template_verdicts_do_not_inflate_cli_calls(
+        self,
+        config: GenEvalConfig,
+        descriptor: InterfaceDescriptor,
+    ) -> None:
+        """Template-only evaluations should not increment cli_calls."""
+        scenarios = [_make_scenario(f"s{i}", priority=1) for i in range(3)]
+        mock_gen = AsyncMock()
+        mock_gen.generate = AsyncMock(return_value=scenarios)
+
+        async def eval_side_effect(scenario: Scenario) -> ScenarioVerdict:
+            return _make_verdict(scenario.id, backend_used="template")
+
+        mock_ev = AsyncMock(spec=Evaluator)
+        mock_ev.evaluate = AsyncMock(side_effect=eval_side_effect)
+
+        config.max_scenarios_per_iteration = 100
+
+        orch = GenEvalOrchestrator(
+            config=config,
+            descriptor=descriptor,
+            generator=mock_gen,
+            evaluator=mock_ev,
+        )
+
+        with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            report = await orch.run()
+
+        assert report.total_scenarios == 3
+        assert orch.budget_tracker.time_budget.cli_calls == 0
+
+    @pytest.mark.asyncio
+    async def test_cli_verdicts_do_increment_cli_calls(
+        self,
+        config: GenEvalConfig,
+        descriptor: InterfaceDescriptor,
+    ) -> None:
+        """CLI-backend evaluations should increment cli_calls."""
+        scenarios = [_make_scenario(f"s{i}", priority=1) for i in range(3)]
+        mock_gen = AsyncMock()
+        mock_gen.generate = AsyncMock(return_value=scenarios)
+
+        async def eval_side_effect(scenario: Scenario) -> ScenarioVerdict:
+            return _make_verdict(scenario.id, backend_used="cli")
+
+        mock_ev = AsyncMock(spec=Evaluator)
+        mock_ev.evaluate = AsyncMock(side_effect=eval_side_effect)
+
+        config.max_scenarios_per_iteration = 100
+
+        orch = GenEvalOrchestrator(
+            config=config,
+            descriptor=descriptor,
+            generator=mock_gen,
+            evaluator=mock_ev,
+        )
+
+        with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            report = await orch.run()
+
+        assert report.total_scenarios == 3
+        assert orch.budget_tracker.time_budget.cli_calls == 3

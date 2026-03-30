@@ -187,6 +187,25 @@ class TestHttpClient:
         result = HttpClient._interpolate_body(body, {"lock_id": "xyz"})
         assert result == {"lock_id": "xyz", "agent": "test"}
 
+    def test_body_interpolation_nested_dict(self) -> None:
+        body = {"outer": {"inner": "${val}"}, "plain": "ok"}
+        result = HttpClient._interpolate_body(body, {"val": "deep"})
+        assert result == {"outer": {"inner": "deep"}, "plain": "ok"}
+
+    def test_body_interpolation_nested_list(self) -> None:
+        body = {"items": ["${a}", "${b}"], "count": 2}
+        result = HttpClient._interpolate_body(body, {"a": "x", "b": "y"})
+        assert result == {"items": ["x", "y"], "count": 2}
+
+    def test_body_interpolation_deeply_nested(self) -> None:
+        body = {"l1": {"l2": [{"l3": "${v}"}]}}
+        result = HttpClient._interpolate_body(body, {"v": "found"})
+        assert result == {"l1": {"l2": [{"l3": "found"}]}}
+
+    def test_body_interpolation_none(self) -> None:
+        result = HttpClient._interpolate_body(None, {"k": "v"})
+        assert result is None
+
     @pytest.mark.asyncio
     async def test_execute_error(self) -> None:
         client = HttpClient(base_url="http://localhost:8081")
@@ -432,7 +451,16 @@ class TestDbClient:
 
     @staticmethod
     def _make_mock_pool(mock_conn: AsyncMock) -> MagicMock:
-        """Create a mock asyncpg pool whose acquire() is an async ctx manager."""
+        """Create a mock asyncpg pool whose acquire() is an async ctx manager.
+
+        Also mocks conn.transaction(readonly=True) as an async ctx manager.
+        """
+        # Mock the transaction context manager
+        mock_txn = MagicMock()
+        mock_txn.__aenter__ = AsyncMock(return_value=mock_txn)
+        mock_txn.__aexit__ = AsyncMock(return_value=False)
+        mock_conn.transaction = MagicMock(return_value=mock_txn)
+
         mock_pool = MagicMock()
         acm = MagicMock()
         acm.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -461,6 +489,7 @@ class TestDbClient:
 
     @pytest.mark.asyncio
     async def test_execute_variable_substitution(self) -> None:
+        """Variables are passed as positional params, not interpolated into SQL."""
         client = DbClient()
 
         mock_conn = AsyncMock()
@@ -470,13 +499,59 @@ class TestDbClient:
         step = ActionStep(
             id="s1",
             transport="db",
-            sql="SELECT * FROM file_locks WHERE file_path = '${path}'",
+            sql="SELECT * FROM file_locks WHERE file_path = ${path}",
         )
         ctx = StepContext(variables={"path": "src/main.py"})
         await client.execute(step, ctx)
         mock_conn.fetch.assert_awaited_once()
         called_sql = mock_conn.fetch.call_args[0][0]
-        assert "src/main.py" in called_sql
+        # The SQL should contain $1 placeholder, NOT the literal value
+        assert "$1" in called_sql
+        assert "src/main.py" not in called_sql
+        # The value should be passed as a positional parameter
+        called_params = mock_conn.fetch.call_args[0][1:]
+        assert called_params == ("src/main.py",)
+
+    @pytest.mark.asyncio
+    async def test_execute_readonly_transaction(self) -> None:
+        """Queries run inside a read-only transaction as defense-in-depth."""
+        client = DbClient()
+
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = []
+        client._pool = self._make_mock_pool(mock_conn)
+
+        step = ActionStep(id="s1", transport="db", sql="SELECT 1")
+        ctx = StepContext()
+        await client.execute(step, ctx)
+        mock_conn.transaction.assert_called_once_with(readonly=True)
+
+    @pytest.mark.asyncio
+    async def test_execute_prevents_sql_injection(self) -> None:
+        """A malicious captured variable must be safely parameterized, not interpolated."""
+        client = DbClient()
+
+        mock_conn = AsyncMock()
+        mock_conn.fetch.return_value = []
+        client._pool = self._make_mock_pool(mock_conn)
+
+        malicious_value = "'; DROP TABLE users; --"
+        step = ActionStep(
+            id="s1",
+            transport="db",
+            sql="SELECT * FROM file_locks WHERE file_path = ${path}",
+        )
+        ctx = StepContext(variables={"path": malicious_value})
+        await client.execute(step, ctx)
+
+        mock_conn.fetch.assert_awaited_once()
+        called_sql = mock_conn.fetch.call_args[0][0]
+        # The SQL must NOT contain the malicious string
+        assert "DROP TABLE" not in called_sql
+        assert "$1" in called_sql
+        # The malicious value is safely passed as a parameter
+        called_params = mock_conn.fetch.call_args[0][1:]
+        assert called_params == (malicious_value,)
 
     @pytest.mark.asyncio
     async def test_cleanup(self) -> None:
