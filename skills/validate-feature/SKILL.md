@@ -27,7 +27,7 @@ Deploy the feature locally with DEBUG logging, run security scans and behavioral
 - `--skip-security` — skip the Security Scan phase
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
 
-Valid phase names: `deploy`, `smoke`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
+Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
 ## Prerequisites
 
@@ -239,6 +239,54 @@ The smoke tests cover:
 - **Security headers**: Content-Type set correctly, Server header not overly detailed, no X-Powered-By
 
 If Smoke fails (SMOKE_EXIT != 0 and != 5), stop validation and skip to Teardown.
+
+### 4b. Gen-Eval Phase (Optional)
+
+**Phase name:** `gen-eval`
+**Criticality:** Non-critical (continues on failure)
+
+Run generator-evaluator testing when interface descriptors exist for the project. This phase auto-detects descriptor files and runs in `template-only` mode by default, requiring no CLI or SDK dependencies.
+
+```bash
+# Auto-detect gen-eval descriptors
+GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null)
+
+if [ -z "$GENEVAL_DESCRIPTORS" ]; then
+  echo "SKIP: No gen-eval descriptors found. Skipping gen-eval phase."
+  GENEVAL_RESULT="skip"
+else
+  echo "Running gen-eval testing (template-only mode)..."
+  GENEVAL_FAILED=false
+
+  for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
+    echo "  Descriptor: $DESCRIPTOR"
+    python -m evaluation.gen_eval \
+      --descriptor "$DESCRIPTOR" \
+      --mode template-only \
+      --no-services \
+      --report-format both \
+      --output-dir "$PROJECT_ROOT/openspec/changes/$CHANGE_ID" 2>&1
+    GENEVAL_EXIT=$?
+
+    if [ $GENEVAL_EXIT -ne 0 ]; then
+      GENEVAL_FAILED=true
+      echo "  gen-eval: FAIL for $DESCRIPTOR (exit $GENEVAL_EXIT)"
+    else
+      echo "  gen-eval: PASS for $DESCRIPTOR"
+    fi
+  done
+
+  if [ "$GENEVAL_FAILED" = true ]; then
+    GENEVAL_RESULT="fail"
+    echo "Gen-eval: FAIL — One or more descriptors had failures (non-blocking)"
+  else
+    GENEVAL_RESULT="pass"
+    echo "Gen-eval: PASS — All descriptors passed"
+  fi
+fi
+```
+
+Gen-eval failures are non-critical and do not block validation. Results are included in the validation report for informational purposes.
 
 ### 5. Security Phase
 
@@ -551,6 +599,7 @@ Produce a structured summary of all phases:
 
 ✓ Deploy: Services started (N containers, DEBUG logging enabled)
 ✓ Smoke: All health checks passed (API, MCP, database)
+○ Gen-Eval: Skipped (no descriptors found) _or_ ✓ Gen-Eval: 12/12 scenarios passed (template-only)
 ✓ Security: PASS — No threshold findings (dependency-check: ok, zap: ok)
 ✗ E2E: 3/5 tests passed, 2 failures
   - test_login_flow: TimeoutError on /api/auth
