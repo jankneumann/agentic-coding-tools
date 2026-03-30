@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
@@ -84,7 +83,7 @@ class TestCLIBackend:
     async def test_run_timeout(self) -> None:
         backend = CLIBackend(command="sleep", args=["100"], timeout_seconds=1)
         mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_proc.communicate = AsyncMock(side_effect=TimeoutError())
 
         with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             with pytest.raises(CLIBackendError) as exc_info:
@@ -137,7 +136,7 @@ class TestCLIBackend:
         mock_proc.communicate = AsyncMock(return_value=(b"output", b""))
         mock_proc.returncode = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             await backend.run("user prompt", system="system instruction")
         # Verify the full prompt includes system
         call_args = mock_proc.communicate.call_args
@@ -190,7 +189,9 @@ class TestCLIGenerator:
                     "description": "With fences",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             ]
         )
@@ -225,7 +226,9 @@ class TestCLIGenerator:
                     "description": "Valid",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "bad",

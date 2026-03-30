@@ -13,12 +13,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from jinja2 import Environment, BaseLoader, StrictUndefined, TemplateSyntaxError, UndefinedError
+from jinja2 import BaseLoader, Environment, StrictUndefined, TemplateSyntaxError, UndefinedError
 from pydantic import ValidationError
 
 from .config import GenEvalConfig
 from .descriptor import InterfaceDescriptor
-from .models import ActionStep, EvalFeedback, Scenario
+from .models import EvalFeedback, Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -168,8 +168,7 @@ class TemplateGenerator:
             scenarios = [
                 s
                 for s in scenarios
-                if s.category in focus_areas
-                or any(tag in focus_areas for tag in s.tags)
+                if s.category in focus_areas or any(tag in focus_areas for tag in s.tags)
             ]
 
         if self.feedback and self.feedback.under_tested_categories:
@@ -186,5 +185,3 @@ class TemplateGenerator:
         # Sort by priority (lower = higher priority)
         scenarios.sort(key=lambda s: s.priority)
         return scenarios
-
-

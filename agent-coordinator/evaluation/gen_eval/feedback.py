@@ -180,7 +180,6 @@ class FeedbackSynthesizer:
             exercised.update(v.interfaces_tested)
 
         result: dict[str, float] = {}
-        total = len(all_interfaces)
         for iface in all_interfaces:
             result[iface] = 100.0 if iface in exercised else 0.0
 

@@ -71,9 +71,7 @@ class TransportClientRegistry:
         """Look up the client for *transport*, or None."""
         return self._clients.get(transport)
 
-    async def execute(
-        self, transport: str, step: ActionStep, context: StepContext
-    ) -> StepResult:
+    async def execute(self, transport: str, step: ActionStep, context: StepContext) -> StepResult:
         """Dispatch a step to the appropriate client."""
         client = self._clients.get(transport)
         if client is None:

@@ -37,9 +37,7 @@ class ChangeDetector:
             )
             if result.returncode != 0:
                 return []
-            changed_files = [
-                line.strip() for line in result.stdout.splitlines() if line.strip()
-            ]
+            changed_files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         except (subprocess.SubprocessError, OSError):
             return []
 

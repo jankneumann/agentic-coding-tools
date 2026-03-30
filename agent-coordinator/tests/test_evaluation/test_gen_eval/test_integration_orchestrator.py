@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -57,19 +57,29 @@ def _build_full_descriptor() -> InterfaceDescriptor:
                 ),
                 endpoints=[
                     EndpointDescriptor(
-                        path="/locks/acquire", method="POST", auth_required=True,
+                        path="/locks/acquire",
+                        method="POST",
+                        auth_required=True,
                     ),
                     EndpointDescriptor(
-                        path="/locks/release", method="POST", auth_required=True,
+                        path="/locks/release",
+                        method="POST",
+                        auth_required=True,
                     ),
                     EndpointDescriptor(
-                        path="/health", method="GET", auth_required=False,
+                        path="/health",
+                        method="GET",
+                        auth_required=False,
                     ),
                     EndpointDescriptor(
-                        path="/work/submit", method="POST", auth_required=True,
+                        path="/work/submit",
+                        method="POST",
+                        auth_required=True,
                     ),
                     EndpointDescriptor(
-                        path="/work/claim", method="POST", auth_required=True,
+                        path="/work/claim",
+                        method="POST",
+                        auth_required=True,
                     ),
                 ],
             ),

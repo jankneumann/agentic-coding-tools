@@ -11,7 +11,6 @@ import asyncio
 import logging
 import subprocess
 import time
-from typing import Any
 
 from evaluation.gen_eval.change_detector import ChangeDetector
 from evaluation.gen_eval.config import BudgetTracker, GenEvalConfig
@@ -107,9 +106,7 @@ class GenEvalOrchestrator:
                 iterations_completed += 1
 
                 # 6. Synthesize feedback
-                feedback = self.feedback_synthesizer.synthesize(
-                    verdicts, self.descriptor, feedback
-                )
+                feedback = self.feedback_synthesizer.synthesize(verdicts, self.descriptor, feedback)
 
                 # 7. Check budget for next iteration
                 if not self.budget_tracker.can_continue():
@@ -155,16 +152,16 @@ class GenEvalOrchestrator:
                 pass
 
             if attempt < retries - 1:
-                backoff = interval * (2 ** attempt)
+                backoff = interval * (2**attempt)
                 logger.info(
                     "Health check attempt %d/%d failed, retrying in %.1fs",
-                    attempt + 1, retries, backoff,
+                    attempt + 1,
+                    retries,
+                    backoff,
                 )
                 time.sleep(backoff)
 
-        raise HealthCheckError(
-            f"Health check failed after {retries} attempts: {health_target}"
-        )
+        raise HealthCheckError(f"Health check failed after {retries} attempts: {health_target}")
 
     def _seed_data(self) -> None:
         """Run seed command if configured."""
@@ -232,9 +229,7 @@ class GenEvalOrchestrator:
     # Parallel evaluation
     # ------------------------------------------------------------------
 
-    async def _evaluate_parallel(
-        self, scenarios: list[Scenario]
-    ) -> list[ScenarioVerdict]:
+    async def _evaluate_parallel(self, scenarios: list[Scenario]) -> list[ScenarioVerdict]:
         """Evaluate scenarios with bounded parallelism."""
         semaphore = asyncio.Semaphore(self.config.parallel_scenarios)
         verdicts: list[ScenarioVerdict] = []
@@ -249,9 +244,7 @@ class GenEvalOrchestrator:
                     return None
                 verdict = await self.evaluator.evaluate(scenario)
                 # Record time spent
-                self.budget_tracker.time_budget.record_call(
-                    "evaluation", verdict.duration_seconds
-                )
+                self.budget_tracker.time_budget.record_call("evaluation", verdict.duration_seconds)
                 return verdict
 
         tasks = [asyncio.create_task(_eval_one(s)) for s in scenarios]
@@ -320,9 +313,7 @@ class GenEvalOrchestrator:
             "cli_calls": float(self.budget_tracker.time_budget.cli_calls),
             "time_minutes": self.budget_tracker.time_budget.elapsed_minutes,
             "sdk_cost_usd": (
-                self.budget_tracker.sdk_budget.spent_usd
-                if self.budget_tracker.sdk_budget
-                else 0.0
+                self.budget_tracker.sdk_budget.spent_usd if self.budget_tracker.sdk_budget else 0.0
             ),
         }
 

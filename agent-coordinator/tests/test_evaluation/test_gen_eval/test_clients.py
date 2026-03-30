@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,7 +20,6 @@ from evaluation.gen_eval.clients import (
 )
 from evaluation.gen_eval.descriptor import AuthConfig
 from evaluation.gen_eval.models import ActionStep
-
 
 # ======================================================================
 # StepResult / StepContext
@@ -128,9 +125,7 @@ class TestHttpClient:
     @pytest.mark.asyncio
     async def test_execute_success(self) -> None:
         client = HttpClient(base_url="http://localhost:8081")
-        step = ActionStep(
-            id="s1", transport="http", method="GET", endpoint="/health"
-        )
+        step = ActionStep(id="s1", transport="http", method="GET", endpoint="/health")
         ctx = StepContext()
 
         mock_response = MagicMock()
@@ -143,6 +138,7 @@ class TestHttpClient:
             mock_req.return_value = mock_response
             # Pre-create the internal client so the mock is used
             import httpx
+
             client._client = httpx.AsyncClient(base_url="http://localhost:8081")
             with patch.object(client._client, "request", new_callable=AsyncMock) as m:
                 m.return_value = mock_response
@@ -198,6 +194,7 @@ class TestHttpClient:
         ctx = StepContext()
 
         import httpx
+
         client._client = httpx.AsyncClient(base_url="http://localhost:8081")
         with patch.object(
             client._client, "request", new_callable=AsyncMock, side_effect=Exception("conn refused")
@@ -214,6 +211,7 @@ class TestHttpClient:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         import httpx
+
         client._client = httpx.AsyncClient(base_url="http://localhost:8081")
         with patch.object(client._client, "get", new_callable=AsyncMock) as m:
             m.return_value = mock_resp
@@ -224,6 +222,7 @@ class TestHttpClient:
     async def test_health_check_failure(self) -> None:
         client = HttpClient(base_url="http://localhost:8081")
         import httpx
+
         client._client = httpx.AsyncClient(base_url="http://localhost:8081")
         with patch.object(
             client._client, "get", new_callable=AsyncMock, side_effect=Exception("down")
@@ -256,9 +255,7 @@ class TestMcpClient:
         result = await client.execute(step, ctx)
         assert result.error is None
         assert result.body["lock_id"] == "abc123"
-        mock_mcp.call_tool.assert_awaited_once_with(
-            "acquire_lock", {"file_path": "src/main.py"}
-        )
+        mock_mcp.call_tool.assert_awaited_once_with("acquire_lock", {"file_path": "src/main.py"})
 
     @pytest.mark.asyncio
     async def test_execute_no_tool(self) -> None:
@@ -302,9 +299,7 @@ class TestMcpClient:
         )
         ctx = StepContext(variables={"lock_id": "abc123"})
         await client.execute(step, ctx)
-        mock_mcp.call_tool.assert_awaited_once_with(
-            "release_lock", {"lock_id": "abc123"}
-        )
+        mock_mcp.call_tool.assert_awaited_once_with("release_lock", {"lock_id": "abc123"})
 
     @pytest.mark.asyncio
     async def test_health_check(self) -> None:
@@ -478,7 +473,7 @@ class TestDbClient:
             sql="SELECT * FROM file_locks WHERE file_path = '${path}'",
         )
         ctx = StepContext(variables={"path": "src/main.py"})
-        result = await client.execute(step, ctx)
+        await client.execute(step, ctx)
         mock_conn.fetch.assert_awaited_once()
         called_sql = mock_conn.fetch.call_args[0][0]
         assert "src/main.py" in called_sql

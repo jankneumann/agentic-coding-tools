@@ -168,7 +168,7 @@ class SDKGenerator:
             "You are a test scenario generator. Output ONLY valid YAML — a list "
             "of scenario objects. No markdown fences, no commentary. "
             "Each scenario must have: id, name, description, category, interfaces, "
-            'steps (each with id, transport, and transport-specific fields). '
+            "steps (each with id, transport, and transport-specific fields). "
             'Set generated_by to "llm".'
         )
 
@@ -198,9 +198,7 @@ class SDKGenerator:
         if self.feedback.failing_interfaces:
             parts.append(f"  Failing: {', '.join(self.feedback.failing_interfaces)}")
         if self.feedback.under_tested_categories:
-            parts.append(
-                f"  Under-tested: {', '.join(self.feedback.under_tested_categories)}"
-            )
+            parts.append(f"  Under-tested: {', '.join(self.feedback.under_tested_categories)}")
         if self.feedback.suggested_focus:
             parts.append(f"  Focus on: {', '.join(self.feedback.suggested_focus)}")
         return "\n".join(parts)
@@ -210,7 +208,7 @@ class SDKGenerator:
         text = raw.strip()
         if text.startswith("```"):
             lines = text.split("\n")
-            lines = [l for l in lines if not l.strip().startswith("```")]
+            lines = [line for line in lines if not line.strip().startswith("```")]
             text = "\n".join(lines)
 
         try:

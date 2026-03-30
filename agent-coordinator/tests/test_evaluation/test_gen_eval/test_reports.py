@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
-from evaluation.gen_eval.models import ScenarioVerdict, StepVerdict
+from evaluation.gen_eval.models import ScenarioVerdict
 from evaluation.gen_eval.reports import (
     GenEvalReport,
     generate_json_report,
@@ -41,7 +39,9 @@ def _make_report(
     if verdicts is None:
         verdicts = [
             _make_verdict("s1", "pass", ["POST /locks/acquire"], "locks"),
-            _make_verdict("s2", "fail", ["POST /locks/release"], "locks", failure_summary="step failed"),
+            _make_verdict(
+                "s2", "fail", ["POST /locks/release"], "locks", failure_summary="step failed"
+            ),
             _make_verdict("s3", "error", ["GET /health"], "health"),
             _make_verdict("s4", "pass", ["POST /locks/acquire"], "locks"),
         ]

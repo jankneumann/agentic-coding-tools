@@ -88,7 +88,7 @@ class CLIBackend:
                 proc.communicate(full_prompt.encode()),
                 timeout=self.timeout_seconds,
             )
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise CLIBackendError(
                 f"CLI command timed out after {self.timeout_seconds}s",
                 exit_code=-1,
@@ -199,9 +199,7 @@ class CLIGenerator:
         if self.feedback.failing_interfaces:
             parts.append(f"  Failing: {', '.join(self.feedback.failing_interfaces)}")
         if self.feedback.under_tested_categories:
-            parts.append(
-                f"  Under-tested: {', '.join(self.feedback.under_tested_categories)}"
-            )
+            parts.append(f"  Under-tested: {', '.join(self.feedback.under_tested_categories)}")
         if self.feedback.suggested_focus:
             parts.append(f"  Focus on: {', '.join(self.feedback.suggested_focus)}")
         return "\n".join(parts)
@@ -213,7 +211,7 @@ class CLIGenerator:
         if text.startswith("```"):
             lines = text.split("\n")
             # Remove first and last fence lines
-            lines = [l for l in lines if not l.strip().startswith("```")]
+            lines = [line for line in lines if not line.strip().startswith("```")]
             text = "\n".join(lines)
 
         try:

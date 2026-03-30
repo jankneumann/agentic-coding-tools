@@ -8,7 +8,6 @@ back CLI -> SDK transparently.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from .cli_generator import CLIBackend, CLIBackendError, CLIGenerator
 from .config import GenEvalConfig
@@ -94,9 +93,7 @@ class AdaptiveBackend:
         if error.exit_code == 0:
             return False
         stderr_lower = error.stderr.lower()
-        return any(
-            pattern.lower() in stderr_lower for pattern in self._rate_limit_patterns
-        )
+        return any(pattern.lower() in stderr_lower for pattern in self._rate_limit_patterns)
 
     def reset(self) -> None:
         """Reset CLI availability (e.g., after a backoff period)."""

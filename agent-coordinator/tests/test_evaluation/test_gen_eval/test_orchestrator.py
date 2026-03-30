@@ -3,24 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from evaluation.gen_eval.config import BudgetTracker, GenEvalConfig, TimeBudget
-from evaluation.gen_eval.descriptor import InterfaceDescriptor, StartupConfig
-from evaluation.gen_eval.evaluator import Evaluator
-from evaluation.gen_eval.feedback import FeedbackSynthesizer
 from evaluation.gen_eval.change_detector import ChangeDetector
+from evaluation.gen_eval.config import GenEvalConfig
+from evaluation.gen_eval.descriptor import InterfaceDescriptor
+from evaluation.gen_eval.evaluator import Evaluator
 from evaluation.gen_eval.models import (
     ActionStep,
-    EvalFeedback,
     Scenario,
     ScenarioVerdict,
-    StepVerdict,
 )
 from evaluation.gen_eval.orchestrator import GenEvalOrchestrator, HealthCheckError
 
@@ -118,9 +114,7 @@ class TestFullRunLifecycle:
     """Test the complete orchestrator run lifecycle."""
 
     @pytest.mark.asyncio
-    async def test_full_run_succeeds(
-        self, orchestrator: GenEvalOrchestrator
-    ) -> None:
+    async def test_full_run_succeeds(self, orchestrator: GenEvalOrchestrator) -> None:
         with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             report = await orchestrator.run()
@@ -131,9 +125,7 @@ class TestFullRunLifecycle:
         assert not report.budget_exhausted
 
     @pytest.mark.asyncio
-    async def test_startup_called(
-        self, orchestrator: GenEvalOrchestrator
-    ) -> None:
+    async def test_startup_called(self, orchestrator: GenEvalOrchestrator) -> None:
         with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             await orchestrator.run()
@@ -143,9 +135,7 @@ class TestFullRunLifecycle:
         assert any("docker-compose up" in str(c) for c in calls)
 
     @pytest.mark.asyncio
-    async def test_teardown_called(
-        self, orchestrator: GenEvalOrchestrator
-    ) -> None:
+    async def test_teardown_called(self, orchestrator: GenEvalOrchestrator) -> None:
         with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             await orchestrator.run()
@@ -185,9 +175,7 @@ class TestHealthCheck:
         assert report.total_scenarios == 1
 
     @pytest.mark.asyncio
-    async def test_health_check_failure_aborts(
-        self, orchestrator: GenEvalOrchestrator
-    ) -> None:
+    async def test_health_check_failure_aborts(self, orchestrator: GenEvalOrchestrator) -> None:
         def side_effect(*args: Any, **kwargs: Any) -> MagicMock:
             result = MagicMock()
             if kwargs.get("shell"):
@@ -396,7 +384,7 @@ class TestTeardownAlwaysRuns:
         )
 
         teardown_called = False
-        original_teardown = orch._run_teardown
+        _ = orch._run_teardown  # noqa: F841
 
         def track_teardown() -> None:
             nonlocal teardown_called
@@ -416,7 +404,7 @@ class TestTeardownAlwaysRuns:
         self, orchestrator: GenEvalOrchestrator
     ) -> None:
         teardown_called = False
-        original_teardown = orchestrator._run_teardown
+        _ = orchestrator._run_teardown  # noqa: F841
 
         def track_teardown() -> None:
             nonlocal teardown_called
@@ -444,9 +432,7 @@ class TestSeedData:
     """Test seed data execution."""
 
     @pytest.mark.asyncio
-    async def test_seed_data_called(
-        self, orchestrator: GenEvalOrchestrator
-    ) -> None:
+    async def test_seed_data_called(self, orchestrator: GenEvalOrchestrator) -> None:
         with patch("evaluation.gen_eval.orchestrator.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             await orchestrator.run()

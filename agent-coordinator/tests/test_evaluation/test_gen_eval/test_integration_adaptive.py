@@ -7,7 +7,7 @@ can run without any external services.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,7 +16,6 @@ from evaluation.gen_eval.coordinator import CoordinatorIntegration, _build_findi
 from evaluation.gen_eval.hybrid_generator import AdaptiveBackend
 from evaluation.gen_eval.models import EvalFeedback, Scenario
 from evaluation.gen_eval.reports import GenEvalReport
-
 
 # ===========================================================================
 # Unit tests (no external services needed)
@@ -437,9 +436,7 @@ class TestAdaptiveBackendIntegration:
         sdk = AsyncMock()
         sdk.name = "sdk"
         sdk.is_available = AsyncMock(return_value=True)
-        sdk.run = AsyncMock(
-            return_value='id: "generated-1"\nname: "Generated"\n'
-        )
+        sdk.run = AsyncMock(return_value='id: "generated-1"\nname: "Generated"\n')
 
         backend = AdaptiveBackend(cli=cli, sdk=sdk)
 

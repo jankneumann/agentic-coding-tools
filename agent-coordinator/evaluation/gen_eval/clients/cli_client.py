@@ -53,9 +53,7 @@ class CliClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
 
             exit_code = proc.returncode or 0
             raw_out = stdout.decode("utf-8", errors="replace").strip()
@@ -77,7 +75,7 @@ class CliClient:
                 error=raw_err if raw_err else None,
                 duration_ms=elapsed,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed = (time.perf_counter() - start) * 1000
             return StepResult(error="Command timed out", duration_ms=elapsed)
         except Exception as exc:
@@ -88,7 +86,8 @@ class CliClient:
         """Check that the CLI binary is callable."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                self._command, "--help",
+                self._command,
+                "--help",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

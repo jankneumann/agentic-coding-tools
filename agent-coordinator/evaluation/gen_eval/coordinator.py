@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from evaluation.gen_eval.models import EvalFeedback, Scenario, ScenarioVerdict
+from evaluation.gen_eval.models import EvalFeedback, Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +76,7 @@ class CoordinatorIntegration:
 
         return self._available
 
-    async def distribute_scenarios(
-        self, scenarios: list[Scenario]
-    ) -> list[str]:
+    async def distribute_scenarios(self, scenarios: list[Scenario]) -> list[str]:
         """Submit scenarios as work queue tasks.
 
         Returns a list of task IDs for the submitted scenarios.
@@ -118,9 +116,7 @@ class CoordinatorIntegration:
                         resp.status_code,
                     )
             except Exception as exc:
-                logger.warning(
-                    "Error submitting scenario %s: %s", scenario.id, exc
-                )
+                logger.warning("Error submitting scenario %s: %s", scenario.id, exc)
 
         logger.info(
             "Distributed %d/%d scenarios to coordinator",
@@ -159,9 +155,7 @@ class CoordinatorIntegration:
         except Exception as exc:
             logger.warning("Failed to store findings: %s", exc)
 
-    async def recall_previous_findings(
-        self, project: str
-    ) -> list[EvalFeedback]:
+    async def recall_previous_findings(self, project: str) -> list[EvalFeedback]:
         """Recall findings from previous runs.
 
         Queries coordinator memory for past gen-eval findings and converts
@@ -183,9 +177,7 @@ class CoordinatorIntegration:
                 },
             )
             if resp.status_code != 200:
-                logger.warning(
-                    "Failed to recall findings: HTTP %d", resp.status_code
-                )
+                logger.warning("Failed to recall findings: HTTP %d", resp.status_code)
                 return []
 
             data = resp.json()
@@ -197,12 +189,8 @@ class CoordinatorIntegration:
                 feedbacks.append(
                     EvalFeedback(
                         iteration=i + 1,
-                        failing_interfaces=metadata.get(
-                            "failing_interfaces", []
-                        ),
-                        under_tested_categories=metadata.get(
-                            "under_tested_categories", []
-                        ),
+                        failing_interfaces=metadata.get("failing_interfaces", []),
+                        under_tested_categories=metadata.get("under_tested_categories", []),
                         coverage_summary=metadata.get("coverage_summary", {}),
                     )
                 )

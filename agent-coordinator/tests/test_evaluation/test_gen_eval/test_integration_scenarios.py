@@ -10,14 +10,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from evaluation.gen_eval.clients.base import (
-    StepContext,
-    StepResult,
-    TransportClient,
     TransportClientRegistry,
 )
 from evaluation.gen_eval.clients.http_client import HttpClient
@@ -33,9 +29,6 @@ from evaluation.gen_eval.descriptor import (
 from evaluation.gen_eval.evaluator import Evaluator
 from evaluation.gen_eval.generator import TemplateGenerator
 from evaluation.gen_eval.models import (
-    ActionStep,
-    ExpectBlock,
-    Scenario,
     ScenarioVerdict,
 )
 
@@ -213,9 +206,7 @@ class TestLockLifecycleIntegration:
         generator = TemplateGenerator(descriptor=descriptor, config=config)
         scenarios = await generator.generate(count=50)
 
-        conflict_scenarios = [
-            s for s in scenarios if "conflict" in s.id.lower()
-        ]
+        conflict_scenarios = [s for s in scenarios if "conflict" in s.id.lower()]
         assert len(conflict_scenarios) > 0, "No conflict-detection scenarios found"
 
         registry = _build_registry()

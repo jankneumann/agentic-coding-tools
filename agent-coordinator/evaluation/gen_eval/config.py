@@ -80,9 +80,10 @@ class SDKBudget(BaseModel):
 
     def can_afford(self, estimated_cost: float) -> bool:
         """Check if budget can afford estimated cost."""
-        return self.spent_usd < self.budget_usd and (
-            self.spent_usd + estimated_cost
-        ) <= self.budget_usd
+        return (
+            self.spent_usd < self.budget_usd
+            and (self.spent_usd + estimated_cost) <= self.budget_usd
+        )
 
     def record(self, category: str, cost_usd: float) -> None:
         """Record a spend event."""

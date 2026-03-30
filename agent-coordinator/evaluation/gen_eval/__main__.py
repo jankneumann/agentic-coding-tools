@@ -118,8 +118,7 @@ async def main(args: argparse.Namespace) -> int:
 
     if args.verbose:
         print(
-            f"gen-eval: descriptor loaded — {len(descriptor.features)} features, "
-            f"mode={config.mode}"
+            f"gen-eval: descriptor loaded — {len(descriptor.features)} features, mode={config.mode}"
         )
 
     # 3-5. Create orchestrator (encapsulates generator + evaluator setup)

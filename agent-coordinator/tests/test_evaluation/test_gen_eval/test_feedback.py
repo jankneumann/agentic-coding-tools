@@ -24,7 +24,6 @@ from evaluation.gen_eval.descriptor import (
 from evaluation.gen_eval.feedback import FeedbackSynthesizer
 from evaluation.gen_eval.models import EvalFeedback, ScenarioVerdict, StepVerdict
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -120,7 +119,9 @@ class TestFeedbackSynthesizer:
         """Test with a mix of pass/fail/error verdicts."""
         verdicts = [
             _make_verdict(
-                "s1", "fail", "locks",
+                "s1",
+                "fail",
+                "locks",
                 ["POST /locks/acquire"],
                 steps=[_make_step("step1", "fail")],
             ),
@@ -137,7 +138,9 @@ class TestFeedbackSynthesizer:
         """Failing interfaces are collected from steps with status=fail."""
         verdicts = [
             _make_verdict(
-                "s1", "fail", "locks",
+                "s1",
+                "fail",
+                "locks",
                 ["POST /locks/acquire", "POST /locks/release"],
                 steps=[
                     _make_step("step1", "pass"),
@@ -214,7 +217,9 @@ class TestFeedbackSynthesizer:
         """Passed scenarios with step diffs are near-miss."""
         verdicts = [
             _make_verdict(
-                "s1", "pass", "locks",
+                "s1",
+                "pass",
+                "locks",
                 ["POST /locks/acquire"],
                 steps=[_make_step("step1", "pass", diff={"body.count": "expected 5, got 4"})],
             ),
@@ -227,8 +232,14 @@ class TestFeedbackSynthesizer:
     def test_no_near_miss_for_failed(self, descriptor: InterfaceDescriptor) -> None:
         """Failed scenarios should not appear as near-miss."""
         verdicts = [
-            _make_verdict("s1", "fail", "locks", ["POST /locks/acquire"], duration_seconds=1.0,
-                          steps=[_make_step("step1", "fail")]),
+            _make_verdict(
+                "s1",
+                "fail",
+                "locks",
+                ["POST /locks/acquire"],
+                duration_seconds=1.0,
+                steps=[_make_step("step1", "fail")],
+            ),
         ]
         synth = FeedbackSynthesizer()
         feedback = synth.synthesize(verdicts, descriptor)
@@ -239,7 +250,9 @@ class TestFeedbackSynthesizer:
         """Empty diff dict should not trigger near-miss."""
         verdicts = [
             _make_verdict(
-                "s1", "pass", "locks",
+                "s1",
+                "pass",
+                "locks",
                 ["POST /locks/acquire"],
                 duration_seconds=0.1,
                 steps=[_make_step("step1", "pass", diff={})],
@@ -256,7 +269,9 @@ class TestFeedbackSynthesizer:
         """Suggested focus is the union of failing interfaces and under-tested categories."""
         verdicts = [
             _make_verdict(
-                "s1", "fail", "locks",
+                "s1",
+                "fail",
+                "locks",
                 ["POST /locks/acquire"],
                 steps=[_make_step("step1", "fail")],
             ),
@@ -283,7 +298,9 @@ class TestFeedbackSynthesizer:
         """to_prompt_text produces a readable multi-line string."""
         verdicts = [
             _make_verdict(
-                "s1", "fail", "locks",
+                "s1",
+                "fail",
+                "locks",
                 ["POST /locks/acquire"],
                 steps=[_make_step("step1", "fail")],
             ),
@@ -314,9 +331,7 @@ class TestFeedbackSynthesizer:
             project="empty",
             version="0.1.0",
             services=[],
-            startup=StartupConfig(
-                command="echo", health_check="http://localhost", teardown="echo"
-            ),
+            startup=StartupConfig(command="echo", health_check="http://localhost", teardown="echo"),
         )
         synth = FeedbackSynthesizer()
         feedback = synth.synthesize([], empty_descriptor)
@@ -334,11 +349,15 @@ class TestChangeDetector:
         """Changed files matching patterns should map to interfaces."""
         detector = ChangeDetector(descriptor)
 
-        mock_result = type("Result", (), {
-            "returncode": 0,
-            "stdout": "src/locks.py\nsrc/unrelated.py\n",
-            "stderr": "",
-        })()
+        mock_result = type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "src/locks.py\nsrc/unrelated.py\n",
+                "stderr": "",
+            },
+        )()
 
         with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
             result = detector.detect_from_git_diff("main")
@@ -350,11 +369,15 @@ class TestChangeDetector:
         """Glob patterns like src/mcp_*.py should match."""
         detector = ChangeDetector(descriptor)
 
-        mock_result = type("Result", (), {
-            "returncode": 0,
-            "stdout": "src/mcp_server.py\n",
-            "stderr": "",
-        })()
+        mock_result = type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "src/mcp_server.py\n",
+                "stderr": "",
+            },
+        )()
 
         with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
             result = detector.detect_from_git_diff("main")
@@ -365,11 +388,15 @@ class TestChangeDetector:
         """Files that don't match any pattern return empty list."""
         detector = ChangeDetector(descriptor)
 
-        mock_result = type("Result", (), {
-            "returncode": 0,
-            "stdout": "README.md\ndocs/guide.md\n",
-            "stderr": "",
-        })()
+        mock_result = type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "README.md\ndocs/guide.md\n",
+                "stderr": "",
+            },
+        )()
 
         with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
             result = detector.detect_from_git_diff("main")
@@ -392,27 +419,25 @@ class TestChangeDetector:
         """Non-zero return code returns empty list."""
         detector = ChangeDetector(descriptor)
 
-        mock_result = type("Result", (), {
-            "returncode": 128,
-            "stdout": "",
-            "stderr": "fatal: not a git repo",
-        })()
+        mock_result = type(
+            "Result",
+            (),
+            {
+                "returncode": 128,
+                "stdout": "",
+                "stderr": "fatal: not a git repo",
+            },
+        )()
 
         with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
             result = detector.detect_from_git_diff("main")
 
         assert result == []
 
-    def test_change_context_parsing(
-        self, descriptor: InterfaceDescriptor, tmp_path: Path
-    ) -> None:
+    def test_change_context_parsing(self, descriptor: InterfaceDescriptor, tmp_path: Path) -> None:
         """Parses change-context.md and maps file references to interfaces."""
         ctx = tmp_path / "change-context.md"
-        ctx.write_text(
-            "# Changes\n\n"
-            "- Modified `src/locks.py` for lock timeout\n"
-            "- Updated tests\n"
-        )
+        ctx.write_text("# Changes\n\n- Modified `src/locks.py` for lock timeout\n- Updated tests\n")
 
         detector = ChangeDetector(descriptor)
         result = detector.detect_from_change_context(ctx)
@@ -445,18 +470,20 @@ class TestChangeDetector:
             project="test",
             version="0.1.0",
             services=[],
-            startup=StartupConfig(
-                command="echo", health_check="http://localhost", teardown="echo"
-            ),
+            startup=StartupConfig(command="echo", health_check="http://localhost", teardown="echo"),
             file_interface_map=[],
         )
         detector = ChangeDetector(desc)
 
-        mock_result = type("Result", (), {
-            "returncode": 0,
-            "stdout": "src/locks.py\n",
-            "stderr": "",
-        })()
+        mock_result = type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "src/locks.py\n",
+                "stderr": "",
+            },
+        )()
 
         with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
             result = detector.detect_from_git_diff("main")

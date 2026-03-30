@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -17,9 +17,8 @@ from evaluation.gen_eval.descriptor import (
     StartupConfig,
 )
 from evaluation.gen_eval.hybrid_generator import AdaptiveBackend, HybridGenerator
-from evaluation.gen_eval.generator import TemplateGenerator
-from evaluation.gen_eval.models import EvalFeedback, Scenario
-from evaluation.gen_eval.sdk_generator import SDKBackend, SDKBackendError
+from evaluation.gen_eval.models import EvalFeedback
+from evaluation.gen_eval.sdk_generator import SDKBackend
 
 
 @pytest.fixture
@@ -140,9 +139,7 @@ class TestAdaptiveBackend:
         mock_sdk_backend.run.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_sdk_configured_raises(
-        self, mock_cli_backend: AsyncMock
-    ) -> None:
+    async def test_no_sdk_configured_raises(self, mock_cli_backend: AsyncMock) -> None:
         mock_cli_backend.run.side_effect = CLIBackendError(
             "rate limited", exit_code=1, stderr="rate limit"
         )
@@ -269,7 +266,9 @@ class TestHybridGenerator:
                     "description": "From template",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             )
         )
@@ -305,7 +304,9 @@ class TestHybridGenerator:
                     "description": "From template",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             )
         )
@@ -319,7 +320,14 @@ class TestHybridGenerator:
                     "category": "test",
                     "interfaces": ["http"],
                     "generated_by": "llm",
-                    "steps": [{"id": "s1", "transport": "http", "method": "POST", "endpoint": "/locks/acquire"}],
+                    "steps": [
+                        {
+                            "id": "s1",
+                            "transport": "http",
+                            "method": "POST",
+                            "endpoint": "/locks/acquire",
+                        }
+                    ],
                 }
             ]
         )
@@ -355,7 +363,9 @@ class TestHybridGenerator:
                     "description": "From template",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             )
         )
@@ -369,7 +379,9 @@ class TestHybridGenerator:
                     "description": "Duplicate",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             ]
         )
@@ -403,7 +415,9 @@ class TestHybridGenerator:
                     "description": "Always works",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             )
         )
@@ -441,7 +455,14 @@ class TestHybridGenerator:
                         "description": f"Test {i}",
                         "category": "test",
                         "interfaces": ["http"],
-                        "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                        "steps": [
+                            {
+                                "id": "s1",
+                                "transport": "http",
+                                "method": "GET",
+                                "endpoint": "/health",
+                            }
+                        ],
                     }
                     for i in range(5)
                 ]

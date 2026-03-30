@@ -93,9 +93,10 @@ class TestSDKBackend:
         mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(os.environ, {"TEST_API_KEY": "sk-test"}):
-            with patch("evaluation.gen_eval.sdk_generator.anthropic", create=True) as mock_mod:
+            with patch("evaluation.gen_eval.sdk_generator.anthropic", create=True):
                 # Mock the import
                 import sys
+
                 mock_anthropic_module = MagicMock()
                 mock_anthropic_module.AsyncAnthropic.return_value = mock_client
                 with patch.dict(sys.modules, {"anthropic": mock_anthropic_module}):
@@ -109,6 +110,7 @@ class TestSDKBackend:
         env.pop("MISSING_KEY_XYZ", None)
 
         import sys
+
         mock_anthropic = MagicMock()
         with patch.dict(os.environ, env, clear=True):
             with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
@@ -123,9 +125,7 @@ class TestSDKBackend:
 
     @pytest.mark.asyncio
     async def test_run_openai_success(self) -> None:
-        backend = SDKBackend(
-            provider="openai", model="gpt-4", api_key_env="TEST_OPENAI_KEY"
-        )
+        backend = SDKBackend(provider="openai", model="gpt-4", api_key_env="TEST_OPENAI_KEY")
 
         mock_message = MagicMock()
         mock_message.content = "- id: oai-test\n  name: OpenAI Test"
@@ -138,6 +138,7 @@ class TestSDKBackend:
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
         import sys
+
         mock_openai_module = MagicMock()
         mock_openai_module.AsyncOpenAI.return_value = mock_client
 
@@ -247,7 +248,9 @@ class TestSDKGenerator:
                     "description": "With fences",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
             ]
         )

@@ -4,19 +4,23 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from evaluation.gen_eval.clients.base import StepContext, StepResult, TransportClientRegistry
+from evaluation.gen_eval.clients.base import StepResult, TransportClientRegistry
 from evaluation.gen_eval.descriptor import InterfaceDescriptor
 from evaluation.gen_eval.evaluator import Evaluator
-from evaluation.gen_eval.models import ActionStep, ExpectBlock, Scenario, ScenarioVerdict, StepVerdict
-
+from evaluation.gen_eval.models import (
+    ActionStep,
+    ExpectBlock,
+    Scenario,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_step(
     step_id: str = "step1",

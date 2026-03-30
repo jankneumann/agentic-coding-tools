@@ -16,7 +16,7 @@ from evaluation.gen_eval.descriptor import (
     StartupConfig,
 )
 from evaluation.gen_eval.generator import TemplateGenerator
-from evaluation.gen_eval.models import EvalFeedback, Scenario
+from evaluation.gen_eval.models import EvalFeedback
 
 
 @pytest.fixture
@@ -109,7 +109,9 @@ class TestTemplateGeneratorBasic:
                     "description": "First",
                     "category": "cat1",
                     "interfaces": ["http"],
-                    "steps": [{"id": "step1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "step1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "s2",
@@ -117,7 +119,9 @@ class TestTemplateGeneratorBasic:
                     "description": "Second",
                     "category": "cat2",
                     "interfaces": ["http"],
-                    "steps": [{"id": "step1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "step1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
             ],
         )
@@ -135,7 +139,8 @@ class TestTemplateGeneratorBasic:
 
     @pytest.mark.asyncio
     async def test_missing_scenario_dir(
-        self, config: GenEvalConfig,
+        self,
+        config: GenEvalConfig,
     ) -> None:
         desc = InterfaceDescriptor(
             project="test",
@@ -320,7 +325,9 @@ class TestTemplateGeneratorValidation:
                     "description": "Valid",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "bad",
@@ -363,7 +370,9 @@ class TestTemplateGeneratorFiltering:
                     "description": "Lock",
                     "category": "locks",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "s2",
@@ -371,7 +380,9 @@ class TestTemplateGeneratorFiltering:
                     "description": "Memory",
                     "category": "memory",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
             ],
         )
@@ -396,7 +407,9 @@ class TestTemplateGeneratorFiltering:
                     "category": "test",
                     "priority": 3,
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "high",
@@ -405,7 +418,9 @@ class TestTemplateGeneratorFiltering:
                     "category": "test",
                     "priority": 1,
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
             ],
         )
@@ -430,7 +445,9 @@ class TestTemplateGeneratorFiltering:
                     "category": "locks",
                     "priority": 2,
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
                 {
                     "id": "s2",
@@ -439,7 +456,9 @@ class TestTemplateGeneratorFiltering:
                     "category": "memory",
                     "priority": 2,
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 },
             ],
         )
@@ -453,9 +472,7 @@ class TestTemplateGeneratorFiltering:
         assert scenarios[0].category == "memory"
 
     @pytest.mark.asyncio
-    async def test_count_cap(
-        self, descriptor: InterfaceDescriptor, config: GenEvalConfig
-    ) -> None:
+    async def test_count_cap(self, descriptor: InterfaceDescriptor, config: GenEvalConfig) -> None:
         scenario_dir = descriptor.scenario_dirs[0]
         _write_scenario_yaml(
             scenario_dir,
@@ -467,7 +484,9 @@ class TestTemplateGeneratorFiltering:
                     "description": f"Test {i}",
                     "category": "test",
                     "interfaces": ["http"],
-                    "steps": [{"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}],
+                    "steps": [
+                        {"id": "s1", "transport": "http", "method": "GET", "endpoint": "/health"}
+                    ],
                 }
                 for i in range(20)
             ],

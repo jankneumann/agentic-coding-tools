@@ -29,9 +29,7 @@ class DbClient:
 
             dsn = os.environ.get(self._dsn_env)
             if not dsn:
-                raise RuntimeError(
-                    f"Environment variable {self._dsn_env} is not set"
-                )
+                raise RuntimeError(f"Environment variable {self._dsn_env} is not set")
             self._pool = await asyncpg.create_pool(dsn=dsn, min_size=1, max_size=3)
         return self._pool
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from copy import deepcopy
 from typing import Any
 
 from jsonpath_ng import parse as jsonpath_parse
@@ -19,7 +18,13 @@ from jsonpath_ng.exceptions import JsonPathParserError
 
 from evaluation.gen_eval.clients.base import StepContext, StepResult, TransportClientRegistry
 from evaluation.gen_eval.descriptor import InterfaceDescriptor
-from evaluation.gen_eval.models import ActionStep, ExpectBlock, Scenario, ScenarioVerdict, StepVerdict
+from evaluation.gen_eval.models import (
+    ActionStep,
+    ExpectBlock,
+    Scenario,
+    ScenarioVerdict,
+    StepVerdict,
+)
 
 # Pattern for variable interpolation: {{ var_name }}
 _VAR_PATTERN = re.compile(r"\{\{\s*(\w+)\s*\}\}")
@@ -64,9 +69,7 @@ class Evaluator:
                 )
                 continue
 
-            verdict = await self._execute_step(
-                step, captured_vars, prev_transport, prev_body
-            )
+            verdict = await self._execute_step(step, captured_vars, prev_transport, prev_body)
             step_verdicts.append(verdict)
 
             # Capture variables on success
@@ -113,8 +116,7 @@ class Evaluator:
             if failed:
                 first = failed[0]
                 failure_summary = (
-                    f"Step '{first.step_id}' {first.status}: "
-                    f"{first.error_message or first.diff}"
+                    f"Step '{first.step_id}' {first.status}: {first.error_message or first.diff}"
                 )
 
         elapsed = time.monotonic() - start
@@ -172,7 +174,7 @@ class Evaluator:
                 self.clients.execute(interpolated.transport, interpolated, context),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed_ms = (time.monotonic() - step_start) * 1000
             return StepVerdict(
                 step_id=step.id,
@@ -257,9 +259,7 @@ class Evaluator:
             captured_vars=captured,
         )
 
-    def _interpolate_step(
-        self, step: ActionStep, variables: dict[str, Any]
-    ) -> ActionStep:
+    def _interpolate_step(self, step: ActionStep, variables: dict[str, Any]) -> ActionStep:
         """Return a copy of *step* with ``{{ var }}`` placeholders replaced."""
         if not variables:
             return step

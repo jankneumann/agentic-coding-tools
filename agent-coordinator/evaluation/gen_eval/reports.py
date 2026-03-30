@@ -8,7 +8,7 @@ metrics, per-interface and per-category breakdowns, and cost summaries.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 
 from evaluation.gen_eval.models import ScenarioVerdict
 
@@ -60,12 +60,8 @@ def generate_markdown_report(report: GenEvalReport) -> str:
     lines.append("## Cost Summary")
     lines.append("")
     lines.append(f"- **CLI calls**: {int(report.cost_summary.get('cli_calls', 0))}")
-    lines.append(
-        f"- **Time**: {report.cost_summary.get('time_minutes', 0):.1f} minutes"
-    )
-    lines.append(
-        f"- **SDK cost**: ${report.cost_summary.get('sdk_cost_usd', 0):.2f}"
-    )
+    lines.append(f"- **Time**: {report.cost_summary.get('time_minutes', 0):.1f} minutes")
+    lines.append(f"- **SDK cost**: ${report.cost_summary.get('sdk_cost_usd', 0):.2f}")
     lines.append("")
 
     # Per-interface breakdown
