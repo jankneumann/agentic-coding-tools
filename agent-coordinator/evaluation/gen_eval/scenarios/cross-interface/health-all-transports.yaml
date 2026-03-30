@@ -1,0 +1,28 @@
+id: "cross-health-all-transports"
+name: "Health check accessible from all transports"
+description: "Verify system health is queryable from HTTP (no auth), MCP, and CLI interfaces"
+category: "cross-interface"
+priority: 2
+interfaces: ["http", "mcp", "cli"]
+tags: ["cross-interface", "health", "success"]
+
+steps:
+  - id: http_health
+    transport: http
+    method: GET
+    endpoint: /health
+    expect:
+      status: 200
+
+  - id: mcp_profile_as_health
+    transport: mcp
+    tool: get_my_profile
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: cli_lock_status_as_health
+    transport: cli
+    command: "lock status"
+    expect:
+      exit_code: 0

@@ -1,0 +1,47 @@
+id: "pol-native-policy-allow"
+name: "Native policy engine allows authorized action"
+description: "Check that the native policy engine grants access when the principal has the required permissions for the requested action and resource."
+category: "policy-engine"
+priority: 1
+interfaces: ["http"]
+tags: ["policy", "native", "allow", "success"]
+
+steps:
+  - id: allow_read_action
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1"
+      action: "read"
+      resource: "file:src/main.py"
+    expect:
+      status: 200
+      body:
+        allowed: true
+
+  - id: allow_write_action
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1"
+      action: "write"
+      resource: "file:src/main.py"
+    expect:
+      status: 200
+      body:
+        allowed: true
+
+  - id: allow_submit_work
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1"
+      action: "submit"
+      resource: "work_queue"
+    expect:
+      status: 200
+      body:
+        allowed: true

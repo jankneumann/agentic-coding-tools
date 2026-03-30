@@ -1,0 +1,24 @@
+id: "wq-get-nonexistent"
+name: "Claim with nonexistent task type returns empty"
+description: "Try to claim a task using a task type that has no pending entries. Should gracefully return no work available."
+category: "work-queue"
+priority: 2
+interfaces: ["mcp", "cli"]
+tags: ["work-queue", "not-found", "failure"]
+
+steps:
+  - id: mcp_get_nonexistent
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["totally_fake_type_that_does_not_exist"]
+    expect:
+      body:
+        success: false
+
+  - id: cli_get_nonexistent
+    transport: cli
+    command: work
+    args: ["claim", "--task-types", "another_fake_type"]
+    expect:
+      exit_code: 0

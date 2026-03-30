@@ -1,0 +1,66 @@
+id: "multi-lock-contention-conflict"
+name: "Two agents contend for same lock with conflicting intentions"
+description: "Agent-1 and agent-2 both try to acquire the same lock. Only one should succeed. The loser should get a clear conflict response identifying the holder"
+category: "multi-agent"
+priority: 1
+interfaces: ["http"]
+tags: ["multi-agent", "locks", "contention", "failure"]
+
+steps:
+  - id: agent1_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/contested.py"
+      agent_id: "agent-1"
+      reason: "needs to refactor contested module"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_acquire_fails
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/contested.py"
+      agent_id: "agent-2"
+      reason: "wants to add feature to contested module"
+    expect:
+      status: 409
+      body:
+        success: false
+      error_contains: "agent-1"
+
+  - id: agent2_cannot_release_agent1_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/contested.py"
+      agent_id: "agent-2"
+    expect:
+      status: 403
+      body:
+        success: false
+
+  - id: verify_agent1_still_holds
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/contested.py
+    expect:
+      status: 200
+      body:
+        locked: true
+        agent_id: "agent-1"
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/contested.py"
+      agent_id: "agent-1"

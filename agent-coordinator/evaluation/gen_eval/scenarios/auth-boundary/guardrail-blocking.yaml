@@ -1,0 +1,47 @@
+id: "auth-guardrail-blocking"
+name: "Guardrails block destructive operations"
+description: "Submit known-destructive operations to the guardrails endpoint and verify they are flagged and blocked"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["auth", "guardrails", "destructive", "failure"]
+
+steps:
+  - id: http_check_rm_rf
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "rm -rf /important/production/data"
+      file_paths: ["/important/production/data"]
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: http_check_force_push
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git push --force origin main"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: mcp_check_drop_table
+    transport: mcp
+    tool: check_guardrails
+    params:
+      operation_text: "DROP TABLE users CASCADE"
+      file_paths: ["migrations/destroy.sql"]
+    expect:
+      body:
+        safe: false
+
+  - id: cli_check_reset_hard
+    transport: cli
+    command: "guardrails check --operation 'git reset --hard HEAD~10'"
+    expect:
+      exit_code: 0

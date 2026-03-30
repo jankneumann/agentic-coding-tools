@@ -1,0 +1,103 @@
+id: "audit-query-filters"
+name: "Audit trail query filters by agent and operation"
+description: "Multiple agents perform different operations; audit queries correctly filter by agent_id and operation type"
+category: "audit-trail"
+priority: 2
+interfaces: ["http"]
+tags: ["audit", "filtering", "success"]
+
+steps:
+  - id: agent1_acquires_lock
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/filter_test_a.py"
+      agent_id: "agent-filter-1"
+      reason: "audit filter test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_writes_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      agent_id: "agent-filter-2"
+      agent_type: "codex"
+      summary: "Completed work for audit filter test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: filter_by_agent1
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-filter-1"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - agent_id: "agent-filter-1"
+            operation: "acquire_lock"
+      body_excludes:
+        entries:
+          - agent_id: "agent-filter-2"
+
+  - id: filter_by_operation
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      operation: "handoff_write"
+      limit: 10
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - operation: "handoff_write"
+      body_excludes:
+        entries:
+          - operation: "acquire_lock"
+
+  - id: filter_combined
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-filter-1"
+      operation: "acquire_lock"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - agent_id: "agent-filter-1"
+            operation: "acquire_lock"
+
+cleanup:
+  - id: release_filter_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/filter_test_a.py"
+      agent_id: "agent-filter-1"

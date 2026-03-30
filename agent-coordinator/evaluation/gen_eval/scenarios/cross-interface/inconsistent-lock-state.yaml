@@ -1,0 +1,47 @@
+id: "cross-inconsistent-lock-state"
+name: "Lock acquired via one interface but release attempted from mismatched identity"
+description: "Acquire a lock via HTTP with agent-1 identity, then attempt to release via MCP which uses a different agent identity. The release should fail, preserving lock integrity"
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["cross-interface", "locks", "identity-mismatch", "failure"]
+
+steps:
+  - id: http_acquire_as_agent1
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/inconsistent_lock.py"
+      agent_id: "agent-http-1"
+      reason: "cross-interface identity mismatch test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_release_different_identity
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/inconsistent_lock.py"
+    expect:
+      body:
+        success: false
+
+  - id: verify_lock_still_held
+    transport: db
+    sql: "SELECT agent_id FROM file_locks WHERE file_path = 'src/inconsistent_lock.py'"
+    expect:
+      rows: 1
+      row:
+        agent_id: "agent-http-1"
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/inconsistent_lock.py"
+      agent_id: "agent-http-1"

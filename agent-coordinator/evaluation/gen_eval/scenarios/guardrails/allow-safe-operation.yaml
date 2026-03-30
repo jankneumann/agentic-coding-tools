@@ -1,0 +1,48 @@
+id: "gr-allow-safe-operation"
+name: "Safe operations pass guardrails"
+description: "Check that benign operations like git add, git commit, and file reads are allowed through guardrails."
+category: "guardrails"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["guardrails", "basic", "success"]
+
+steps:
+  - id: http_allow_git_add
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git add src/main.py"
+      file_paths: ["src/main.py"]
+    expect:
+      status: 200
+      body:
+        safe: true
+
+  - id: http_allow_git_commit
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git commit -m 'fix: resolve null pointer exception'"
+    expect:
+      status: 200
+      body:
+        safe: true
+
+  - id: mcp_allow_cat
+    transport: mcp
+    tool: check_guardrails
+    params:
+      operation_text: "cat src/config.py"
+      file_paths: ["src/config.py"]
+    expect:
+      body:
+        safe: true
+
+  - id: cli_allow_ls
+    transport: cli
+    command: guardrails
+    args: ["check", "--operation", "ls -la src/"]
+    expect:
+      exit_code: 0

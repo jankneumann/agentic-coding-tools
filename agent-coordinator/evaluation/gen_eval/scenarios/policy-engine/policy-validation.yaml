@@ -1,0 +1,51 @@
+id: "pol-policy-validation"
+name: "Policy text validation accepts valid and rejects invalid"
+description: "Submit both well-formed and malformed policy texts to the validation endpoint. Verify correct acceptance and rejection."
+category: "policy-engine"
+priority: 1
+interfaces: ["http"]
+tags: ["policy", "validation", "success"]
+
+steps:
+  - id: validate_valid_policy
+    transport: http
+    method: POST
+    endpoint: /policy/validate
+    body:
+      policy_text: |
+        permit(
+          principal,
+          action == Action::"read",
+          resource
+        );
+    expect:
+      status: 200
+      body:
+        valid: true
+
+  - id: validate_forbid_policy
+    transport: http
+    method: POST
+    endpoint: /policy/validate
+    body:
+      policy_text: |
+        forbid(
+          principal == Agent::"untrusted-bot",
+          action == Action::"delete",
+          resource
+        );
+    expect:
+      status: 200
+      body:
+        valid: true
+
+  - id: validate_invalid_syntax
+    transport: http
+    method: POST
+    endpoint: /policy/validate
+    body:
+      policy_text: "this is not valid cedar syntax at all {"
+    expect:
+      status: 200
+      body:
+        valid: false

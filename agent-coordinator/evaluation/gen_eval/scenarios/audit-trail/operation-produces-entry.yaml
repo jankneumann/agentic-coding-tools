@@ -1,0 +1,68 @@
+id: "audit-operation-produces-entry"
+name: "Coordination operation produces audit trail entry"
+description: "Performing a lock acquire should automatically create an audit log entry that can be queried"
+category: "audit-trail"
+priority: 2
+interfaces: ["http"]
+tags: ["audit", "basic", "success"]
+
+steps:
+  - id: perform_operation
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/audit_test_target.py"
+      agent_id: "agent-audit-1"
+      reason: "testing audit trail generation"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: query_audit_for_operation
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-audit-1"
+      operation: "acquire_lock"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - agent_id: "agent-audit-1"
+            operation: "acquire_lock"
+            success: true
+
+  - id: verify_audit_has_parameters
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-audit-1"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - parameters:
+              file_path: "src/audit_test_target.py"
+
+cleanup:
+  - id: release_test_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/audit_test_target.py"
+      agent_id: "agent-audit-1"

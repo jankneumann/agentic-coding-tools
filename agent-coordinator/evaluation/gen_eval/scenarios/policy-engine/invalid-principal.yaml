@@ -1,0 +1,47 @@
+id: "pol-invalid-principal"
+name: "Policy check with invalid or empty principal"
+description: "Send policy check requests with empty, null, or malformed principal identifiers. The system should reject these with appropriate errors."
+category: "policy-engine"
+priority: 2
+interfaces: ["http"]
+tags: ["policy", "validation", "failure"]
+
+steps:
+  - id: empty_principal
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: ""
+      action: "read"
+      resource: "file:src/main.py"
+    expect:
+      status: 422
+      body:
+        allowed: false
+
+  - id: whitespace_principal
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "   "
+      action: "read"
+      resource: "file:src/main.py"
+    expect:
+      status: 422
+      body:
+        allowed: false
+
+  - id: injection_attempt
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1'; DROP TABLE agent_profiles;--"
+      action: "read"
+      resource: "file:src/main.py"
+    expect:
+      status: 200
+      body:
+        allowed: false

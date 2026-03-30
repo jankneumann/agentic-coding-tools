@@ -1,0 +1,73 @@
+id: "feature-register"
+name: "Register a feature with resource claims"
+description: "Agent registers a feature claiming specific files, then verifies it appears in active features list"
+category: "feature-registry"
+priority: 2
+interfaces: ["http"]
+tags: ["feature-registry", "basic", "success"]
+
+steps:
+  - id: register_feature
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-auth-refactor"
+      resource_claims:
+        - "src/auth.py"
+        - "src/policy_engine.py"
+        - "tests/test_auth.py"
+      title: "Refactor authentication to support OAuth2"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-auth-refactor"
+      merge_priority: 3
+      metadata:
+        change_id: "feat-auth-refactor"
+        estimated_files: 3
+    expect:
+      status: 200
+      body:
+        success: true
+        feature_id: "feat-auth-refactor"
+        action: "registered"
+    capture:
+      feature_id: "$.feature_id"
+
+  - id: verify_feature_exists
+    transport: http
+    method: GET
+    endpoint: /features/{{ feature_id }}
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        feature_id: "feat-auth-refactor"
+        title: "Refactor authentication to support OAuth2"
+        registered_by: "agent-1"
+        merge_priority: 3
+
+  - id: verify_in_active_list
+    transport: http
+    method: GET
+    endpoint: /features/active
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_contains:
+        features:
+          - feature_id: "feat-auth-refactor"
+
+cleanup:
+  - id: deregister_feature
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-auth-refactor"
+      status: "completed"

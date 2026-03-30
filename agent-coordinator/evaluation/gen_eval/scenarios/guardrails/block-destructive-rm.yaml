@@ -1,0 +1,43 @@
+id: "gr-block-destructive-rm"
+name: "Block destructive rm -rf command"
+description: "Verify that guardrails detect and block rm -rf and similar destructive file deletion commands."
+category: "guardrails"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["guardrails", "destructive", "failure"]
+
+steps:
+  - id: http_block_rm_rf
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "rm -rf /"
+      file_paths: ["/"]
+    expect:
+      status: 200
+      body:
+        safe: false
+      error_contains: "destructive"
+
+  - id: http_block_rm_rf_src
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "rm -rf src/"
+      file_paths: ["src/"]
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: mcp_block_rm_rf
+    transport: mcp
+    tool: check_guardrails
+    params:
+      operation_text: "rm -rf node_modules/ src/ tests/"
+      file_paths: ["node_modules/", "src/", "tests/"]
+    expect:
+      body:
+        safe: false

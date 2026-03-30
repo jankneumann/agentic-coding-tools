@@ -1,0 +1,37 @@
+id: "pol-cedar-policy-check"
+name: "Cedar policy evaluation succeeds"
+description: "Validate and check a Cedar policy that explicitly permits an action. Tests the Cedar backend integration."
+category: "policy-engine"
+priority: 2
+interfaces: ["http"]
+tags: ["policy", "cedar", "success"]
+
+steps:
+  - id: validate_cedar_policy
+    transport: http
+    method: POST
+    endpoint: /policy/validate
+    body:
+      policy_text: |
+        permit(
+          principal == Agent::"agent-trusted",
+          action == Action::"deploy",
+          resource == Environment::"staging"
+        );
+    expect:
+      status: 200
+      body:
+        valid: true
+
+  - id: check_cedar_allow
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-trusted"
+      action: "deploy"
+      resource: "environment:staging"
+    expect:
+      status: 200
+      body:
+        allowed: true

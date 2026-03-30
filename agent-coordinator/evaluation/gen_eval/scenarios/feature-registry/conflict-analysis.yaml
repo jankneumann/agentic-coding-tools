@@ -1,0 +1,76 @@
+id: "feature-conflict-analysis"
+name: "Detect resource conflicts between features"
+description: "Two features claim overlapping files; conflict analysis correctly identifies the overlap and reports feasibility"
+category: "feature-registry"
+priority: 2
+interfaces: ["http"]
+tags: ["feature-registry", "conflicts", "success"]
+
+steps:
+  - id: register_existing_feature
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-db-migration"
+      resource_claims:
+        - "src/db.py"
+        - "src/db_postgres.py"
+        - "supabase/migrations/005_new_table.sql"
+      title: "Database migration for new table"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-db-migration"
+      merge_priority: 2
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: analyze_overlapping_candidate
+    transport: http
+    method: POST
+    endpoint: /features/conflicts
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      candidate_feature_id: "feat-db-refactor"
+      candidate_claims:
+        - "src/db.py"
+        - "src/config.py"
+    expect:
+      status: 200
+      body:
+        candidate_feature_id: "feat-db-refactor"
+        total_candidate_claims: 2
+      body_contains:
+        total_conflicting_claims: 1
+
+  - id: analyze_non_overlapping_candidate
+    transport: http
+    method: POST
+    endpoint: /features/conflicts
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      candidate_feature_id: "feat-ui-update"
+      candidate_claims:
+        - "src/frontend/app.js"
+        - "src/frontend/styles.css"
+    expect:
+      status: 200
+      body:
+        candidate_feature_id: "feat-ui-update"
+        total_conflicting_claims: 0
+
+cleanup:
+  - id: deregister_existing
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-db-migration"
+      status: "completed"

@@ -1,0 +1,122 @@
+id: "merge-queue-priority-ordering"
+name: "Merge queue respects priority ordering"
+description: "Enqueue features with different priorities; verify the next-to-merge endpoint returns the highest priority entry"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "priority", "success"]
+
+steps:
+  - id: register_low_priority
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-low-pri"
+      resource_claims:
+        - "src/low.py"
+      title: "Low priority feature"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-low-pri"
+      merge_priority: 8
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: register_high_priority
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-high-pri"
+      resource_claims:
+        - "src/high.py"
+      title: "High priority feature"
+      agent_id: "agent-2"
+      branch_name: "openspec/feat-high-pri"
+      merge_priority: 1
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_low_first
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-low-pri"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_high_second
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-high-pri"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_queue_order
+    transport: http
+    method: GET
+    endpoint: /merge-queue
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - feature_id: "feat-high-pri"
+            merge_priority: 1
+          - feature_id: "feat-low-pri"
+            merge_priority: 8
+      body_ordered_by:
+        field: "entries[*].merge_priority"
+        direction: "ascending"
+
+cleanup:
+  - id: remove_high
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-high-pri
+    headers:
+      X-API-Key: "test-key-agent2"
+  - id: remove_low
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-low-pri
+    headers:
+      X-API-Key: "test-key-agent1"
+  - id: dereg_high
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-high-pri"
+      status: "cancelled"
+  - id: dereg_low
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-low-pri"
+      status: "cancelled"

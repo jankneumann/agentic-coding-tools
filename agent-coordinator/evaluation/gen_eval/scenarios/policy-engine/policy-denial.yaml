@@ -1,0 +1,47 @@
+id: "pol-policy-denial"
+name: "Policy denies unauthorized action"
+description: "Check that the policy engine correctly denies actions that the principal is not authorized to perform, returning allowed=false with a reason."
+category: "policy-engine"
+priority: 1
+interfaces: ["http"]
+tags: ["policy", "deny", "failure"]
+
+steps:
+  - id: deny_admin_action
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-untrusted"
+      action: "admin"
+      resource: "system:config"
+    expect:
+      status: 200
+      body:
+        allowed: false
+
+  - id: deny_delete_protected
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-readonly"
+      action: "delete"
+      resource: "file:src/critical_module.py"
+    expect:
+      status: 200
+      body:
+        allowed: false
+
+  - id: deny_deploy_production
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-junior"
+      action: "deploy"
+      resource: "environment:production"
+    expect:
+      status: 200
+      body:
+        allowed: false

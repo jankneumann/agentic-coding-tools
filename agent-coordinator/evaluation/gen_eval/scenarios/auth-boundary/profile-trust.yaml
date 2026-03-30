@@ -1,0 +1,27 @@
+id: "auth-profile-trust"
+name: "Agent profile returns correct trust level"
+description: "Authenticated agent retrieves its profile and verifies trust level, allowed operations, and identity fields"
+category: "auth-boundary"
+priority: 2
+interfaces: ["http", "mcp"]
+tags: ["auth", "profiles", "trust", "success"]
+
+steps:
+  - id: http_get_profile
+    transport: http
+    method: GET
+    endpoint: /profiles/me
+    headers:
+      X-API-Key: "{{ valid_api_key }}"
+    expect:
+      status: 200
+      body:
+        agent_id: "{{ expected_agent_id }}"
+      not_empty: true
+
+  - id: mcp_get_profile
+    transport: mcp
+    tool: get_my_profile
+    params: {}
+    expect:
+      not_empty: true

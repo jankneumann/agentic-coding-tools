@@ -1,0 +1,84 @@
+id: "multi-work-claiming-fairness"
+name: "Multiple agents claim different work items"
+description: "Submit multiple work items, then have different agents claim them. Each agent should get a distinct task with no double-claiming"
+category: "multi-agent"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["multi-agent", "work-queue", "fairness", "success"]
+
+steps:
+  - id: submit_task_1
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "fairness_test"
+      task_description: "task alpha for fairness test"
+      priority: 5
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_1_id: "$.task_id"
+
+  - id: submit_task_2
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "fairness_test"
+      task_description: "task beta for fairness test"
+      priority: 5
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_2_id: "$.task_id"
+
+  - id: agent1_claim
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["fairness_test"]
+    expect:
+      status: 200
+      not_empty: true
+    capture:
+      agent1_task_id: "$.task_id"
+
+  - id: agent2_claim
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["fairness_test"]
+    expect:
+      not_empty: true
+    capture:
+      agent2_task_id: "$.task_id"
+
+  - id: complete_task_1
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ agent1_task_id }}"
+      success: true
+      result: "agent-1 completed"
+    expect:
+      status: 200
+
+  - id: complete_task_2
+    transport: mcp
+    tool: complete_work
+    params:
+      task_id: "{{ agent2_task_id }}"
+      success: true
+      result: "agent-2 completed"
+    expect:
+      body:
+        success: true

@@ -1,0 +1,76 @@
+id: "mem-relevance-filtering"
+name: "Query filters by event type and respects limit"
+description: "Store memories of different event types, then query with event_type filter and limit to verify correct filtering and pagination."
+category: "memory-crud"
+priority: 2
+interfaces: ["http"]
+tags: ["memory", "filtering", "pagination", "success"]
+
+steps:
+  - id: store_decision_1
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "decision"
+      summary: "Decided to use FastAPI for the HTTP layer"
+      agent_id: "agent-1"
+      tags: ["architecture"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: store_decision_2
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "decision"
+      summary: "Decided to use Pydantic v2 for validation"
+      agent_id: "agent-1"
+      tags: ["architecture"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: store_observation
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "observation"
+      summary: "CI pipeline takes 8 minutes on average"
+      agent_id: "agent-1"
+      tags: ["ci"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: query_decisions_only
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      event_type: "decision"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        success: true
+      not_empty: true
+
+  - id: query_with_limit_1
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      event_type: "decision"
+      limit: 1
+    expect:
+      status: 200
+      body:
+        success: true
+      not_empty: true

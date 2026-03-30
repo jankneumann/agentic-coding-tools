@@ -1,0 +1,36 @@
+id: "handoff-empty-read"
+name: "Read handoffs when none exist for agent"
+description: "Reading handoffs for an agent that has never written any returns an empty list"
+category: "handoffs"
+priority: 2
+interfaces: ["http"]
+tags: ["handoffs", "empty", "failure"]
+
+steps:
+  - id: read_nonexistent_agent
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_name: "agent-never-existed-xyz"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        handoffs: []
+
+  - id: read_with_zero_limit
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_name: "agent-1"
+      limit: 0
+    expect:
+      status: 200
+      body:
+        handoffs: []

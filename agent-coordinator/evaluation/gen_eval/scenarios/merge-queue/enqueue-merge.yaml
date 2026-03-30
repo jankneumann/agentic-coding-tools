@@ -1,0 +1,75 @@
+id: "merge-queue-enqueue"
+name: "Enqueue a feature for merging"
+description: "Register a feature, enqueue it in the merge queue, and verify it appears in the queue listing"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "basic", "success"]
+
+steps:
+  - id: register_feature_first
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-merge-basic"
+      resource_claims:
+        - "src/locks.py"
+      title: "Basic merge queue test"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-merge-basic"
+      merge_priority: 5
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_for_merge
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-merge-basic"
+      pr_url: "https://github.com/org/repo/pull/42"
+    expect:
+      status: 200
+      body:
+        success: true
+        entry:
+          feature_id: "feat-merge-basic"
+          branch_name: "openspec/feat-merge-basic"
+          merge_priority: 5
+          pr_url: "https://github.com/org/repo/pull/42"
+
+  - id: verify_in_queue
+    transport: http
+    method: GET
+    endpoint: /merge-queue
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - feature_id: "feat-merge-basic"
+
+cleanup:
+  - id: remove_from_queue
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-merge-basic
+    headers:
+      X-API-Key: "test-key-agent1"
+  - id: deregister_feature
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-merge-basic"
+      status: "cancelled"

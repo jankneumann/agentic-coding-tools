@@ -1,0 +1,49 @@
+id: "handoff-missing-context"
+name: "Write handoff with missing required fields"
+description: "Attempting to write a handoff without the required summary or agent_id fields should fail with validation error"
+category: "handoffs"
+priority: 2
+interfaces: ["http"]
+tags: ["handoffs", "validation", "failure"]
+
+steps:
+  - id: missing_summary
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      # summary is required but omitted
+      completed_work:
+        - "Some work"
+    expect:
+      status: 422
+      error_contains: "summary"
+
+  - id: missing_agent_id
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      # agent_id is required but omitted
+      agent_type: "claude_code"
+      summary: "Work summary"
+    expect:
+      status: 422
+      error_contains: "agent_id"
+
+  - id: missing_api_key
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      summary: "Unauthorized write attempt"
+    expect:
+      status: 401

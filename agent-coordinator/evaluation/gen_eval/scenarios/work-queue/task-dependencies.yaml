@@ -1,0 +1,90 @@
+id: "wq-task-dependencies"
+name: "Task with dependency chain"
+description: "Submit two tasks where the second depends on the first. Verify the dependent task cannot be claimed until the dependency is met."
+category: "work-queue"
+priority: 1
+interfaces: ["http"]
+tags: ["work-queue", "dependencies", "success"]
+
+steps:
+  - id: submit_parent_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "design"
+      task_description: "Design the database schema"
+      priority: 1
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      parent_id: "$.task_id"
+
+  - id: submit_dependent_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "implementation"
+      task_description: "Implement the database schema"
+      priority: 2
+      dependencies: ["{{ parent_id }}"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      child_id: "$.task_id"
+
+  - id: claim_parent
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["design"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: complete_parent
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ parent_id }}"
+      success: true
+      result: "Schema designed with 5 tables"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: claim_child_after_parent_done
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-2"
+      agent_type: "codex"
+      task_types: ["implementation"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      claimed_child_id: "$.task_id"
+
+cleanup:
+  - id: cleanup_child
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ claimed_child_id }}"
+      success: true
+      result: "cleanup"

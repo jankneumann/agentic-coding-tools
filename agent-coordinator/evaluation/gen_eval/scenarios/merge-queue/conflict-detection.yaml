@@ -1,0 +1,135 @@
+id: "merge-queue-conflict-detection"
+name: "Pre-merge checks detect resource conflicts"
+description: "Two features with overlapping resource claims are enqueued; pre-merge checks on the second should report conflicts"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "conflicts", "failure"]
+
+steps:
+  - id: register_feature_a
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-conflict-a"
+      resource_claims:
+        - "src/db.py"
+        - "src/db_postgres.py"
+      title: "Feature A with DB claims"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-conflict-a"
+      merge_priority: 2
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: register_feature_b
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-conflict-b"
+      resource_claims:
+        - "src/db.py"
+        - "src/config.py"
+      title: "Feature B overlapping DB claims"
+      agent_id: "agent-2"
+      branch_name: "openspec/feat-conflict-b"
+      merge_priority: 4
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_feature_a
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-conflict-a"
+      pr_url: "https://github.com/org/repo/pull/60"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_feature_b
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-conflict-b"
+      pr_url: "https://github.com/org/repo/pull/61"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: check_feature_b_conflicts
+    transport: http
+    method: POST
+    endpoint: /merge-queue/check/feat-conflict-b
+    headers:
+      X-API-Key: "test-key-agent2"
+    expect:
+      status: 200
+      body:
+        feature_id: "feat-conflict-b"
+      body_has_keys:
+        - "conflicts"
+      body_contains:
+        conflicts:
+          - "src/db.py"
+
+  - id: verify_feature_a_clean
+    transport: http
+    method: POST
+    endpoint: /merge-queue/check/feat-conflict-a
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        feature_id: "feat-conflict-a"
+
+cleanup:
+  - id: remove_b
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-conflict-b
+    headers:
+      X-API-Key: "test-key-agent2"
+  - id: remove_a
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-conflict-a
+    headers:
+      X-API-Key: "test-key-agent1"
+  - id: dereg_b
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      feature_id: "feat-conflict-b"
+      status: "cancelled"
+  - id: dereg_a
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-conflict-a"
+      status: "cancelled"

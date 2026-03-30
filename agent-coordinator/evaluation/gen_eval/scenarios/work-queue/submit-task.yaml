@@ -1,0 +1,42 @@
+id: "wq-submit-task"
+name: "Submit a new task to the work queue"
+description: "Submit a code review task via HTTP, verify it is persisted in the database with correct fields"
+category: "work-queue"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["work-queue", "basic", "success"]
+
+steps:
+  - id: submit_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review PR #42 for security issues"
+      priority: 2
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: verify_task_in_db
+    transport: db
+    sql: "SELECT task_type, status FROM work_queue WHERE id = '{{ task_id }}'"
+    expect:
+      rows: 1
+      row:
+        task_type: "code_review"
+        status: "pending"
+
+cleanup:
+  - id: cleanup_complete
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ task_id }}"
+      success: true
+      result: "cleanup"

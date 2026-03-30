@@ -1,0 +1,56 @@
+id: "auth-missing-key-rejected"
+name: "Write request without API key is rejected"
+description: "Attempt to call write endpoints without providing X-API-Key header. All should return 401 Unauthorized"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http"]
+tags: ["auth", "missing-key", "failure"]
+
+steps:
+  - id: acquire_no_key
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/no_key_test.py"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: memory_store_no_key
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "test"
+      summary: "should fail"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: work_submit_no_key
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "test"
+      task_description: "should fail"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: guardrails_no_key
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "rm -rf /"
+    expect:
+      status: 401
+      body:
+        success: false

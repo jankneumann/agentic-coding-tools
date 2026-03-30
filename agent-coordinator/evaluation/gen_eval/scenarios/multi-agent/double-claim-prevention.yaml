@@ -1,0 +1,59 @@
+id: "multi-double-claim-prevention"
+name: "Same work item cannot be claimed twice"
+description: "Submit a single work item. Agent-1 claims it successfully. Agent-2 tries to claim the same task type but should get nothing (queue empty) or a different task"
+category: "multi-agent"
+priority: 1
+interfaces: ["http"]
+tags: ["multi-agent", "work-queue", "double-claim", "failure"]
+
+steps:
+  - id: submit_single_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "unique_claim_test"
+      task_description: "only one agent should get this"
+      priority: 5
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: agent1_claims
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["unique_claim_test"]
+    expect:
+      status: 200
+      not_empty: true
+
+  - id: agent2_gets_nothing
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-2"
+      agent_type: "codex"
+      task_types: ["unique_claim_test"]
+    expect:
+      status: 200
+      body:
+        task_id: null
+
+  - id: agent1_completes
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ task_id }}"
+      success: true
+      result: "agent-1 completed the only available task"
+    expect:
+      status: 200

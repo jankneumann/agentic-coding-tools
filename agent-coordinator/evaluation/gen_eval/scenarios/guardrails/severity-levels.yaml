@@ -1,0 +1,42 @@
+id: "gr-severity-levels"
+name: "Guardrails report severity levels correctly"
+description: "Verify that guardrails return appropriate severity levels for different risk categories: safe operations get no warnings, risky operations get warnings with severity."
+category: "guardrails"
+priority: 2
+interfaces: ["http"]
+tags: ["guardrails", "severity", "success"]
+
+steps:
+  - id: check_safe_operation
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git status"
+    expect:
+      status: 200
+      body:
+        safe: true
+
+  - id: check_moderate_risk
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git push origin feature-branch"
+    expect:
+      status: 200
+      body:
+        safe: true
+
+  - id: check_high_risk
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "rm -rf /tmp/build"
+      file_paths: ["/tmp/build"]
+    expect:
+      status: 200
+      body:
+        safe: false

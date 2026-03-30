@@ -1,0 +1,21 @@
+id: "wq-claim-no-tasks"
+name: "Claim when no tasks are available"
+description: "Attempt to claim a task when the queue is empty for the requested type. Should return a clear no-tasks-available response."
+category: "work-queue"
+priority: 1
+interfaces: ["http"]
+tags: ["work-queue", "empty", "failure"]
+
+steps:
+  - id: claim_empty_queue
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-lonely"
+      agent_type: "claude_code"
+      task_types: ["nonexistent_type_xyz"]
+    expect:
+      status: 200
+      body:
+        success: false

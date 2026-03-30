@@ -1,0 +1,78 @@
+id: "multi-coordinated-task-completion"
+name: "Agents coordinate via work queue and memory"
+description: "Agent-1 submits work and stores context in memory. Agent-2 claims the work, recalls the context, completes the task, and stores a completion memory"
+category: "multi-agent"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["multi-agent", "coordination", "work-queue", "memory", "success"]
+
+steps:
+  - id: agent1_store_context
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "task_context"
+      summary: "Config refactor needed: move DB settings to environment variables"
+      agent_id: "agent-1"
+      tags: ["coordinated-task", "config-refactor"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent1_submit_work
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "refactor"
+      task_description: "Refactor config.py to use env vars. See memory tag: coordinated-task"
+      priority: 3
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: agent2_recall_context
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["coordinated-task"]
+      limit: 5
+    expect:
+      not_empty: true
+
+  - id: agent2_claim_work
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["refactor"]
+    expect:
+      not_empty: true
+    capture:
+      claimed_id: "$.task_id"
+
+  - id: agent2_complete_work
+    transport: mcp
+    tool: complete_work
+    params:
+      task_id: "{{ claimed_id }}"
+      success: true
+      result: "Refactored config.py to use os.environ"
+    expect:
+      body:
+        success: true
+
+  - id: agent2_store_completion
+    transport: mcp
+    tool: remember
+    params:
+      event_type: "task_completed"
+      summary: "Completed config refactor task from agent-1"
+      tags: ["coordinated-task", "completed"]
+    expect:
+      body:
+        success: true

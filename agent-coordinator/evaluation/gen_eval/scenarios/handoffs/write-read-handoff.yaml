@@ -1,0 +1,73 @@
+id: "handoff-write-read"
+name: "Write and read a handoff document"
+description: "Agent-1 writes a handoff with session context, then agent-2 reads it to resume work"
+category: "handoffs"
+priority: 2
+interfaces: ["http"]
+tags: ["handoffs", "basic", "success"]
+
+steps:
+  - id: write_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      session_id: "session-abc-123"
+      summary: "Completed lock refactoring in src/locks.py"
+      completed_work:
+        - "Refactored acquire_lock to use async context manager"
+        - "Added TTL enforcement on lock acquisition"
+      in_progress:
+        - "Migration script for existing locks"
+      decisions:
+        - "Chose 5-minute default TTL based on p99 task duration"
+      next_steps:
+        - "Update tests for new TTL behavior"
+        - "Run migration script in staging"
+      relevant_files:
+        - "src/locks.py"
+        - "supabase/migrations/004_lock_ttl.sql"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      handoff_id: "$.handoff_id"
+
+  - id: read_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      agent_name: "agent-1"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        handoffs:
+          - summary: "Completed lock refactoring in src/locks.py"
+            agent_name: "agent-1"
+            session_id: "session-abc-123"
+
+  - id: verify_audit_entry
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-1"
+      operation: "handoff_write"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - agent_id: "agent-1"
+            operation: "handoff_write"

@@ -1,0 +1,85 @@
+id: "merge-queue-duplicate-enqueue"
+name: "Enqueue the same feature twice"
+description: "Attempting to enqueue a feature that is already in the merge queue should be handled gracefully"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "duplicate", "failure"]
+
+steps:
+  - id: register_feature
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-dup-enqueue"
+      resource_claims:
+        - "src/work_queue.py"
+      title: "Duplicate enqueue test"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-dup-enqueue"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: first_enqueue
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-dup-enqueue"
+      pr_url: "https://github.com/org/repo/pull/50"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: duplicate_enqueue
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-dup-enqueue"
+      pr_url: "https://github.com/org/repo/pull/50"
+    expect:
+      status_one_of: [200, 409]
+      # Implementation may return conflict or idempotent success
+
+  - id: verify_single_entry
+    transport: http
+    method: GET
+    endpoint: /merge-queue
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      # Should contain exactly one entry for feat-dup-enqueue, not two
+      body_count:
+        path: "entries"
+        filter:
+          feature_id: "feat-dup-enqueue"
+        expected: 1
+
+cleanup:
+  - id: remove_from_queue
+    transport: http
+    method: DELETE
+    endpoint: /merge-queue/feat-dup-enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+  - id: deregister_feature
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-dup-enqueue"
+      status: "cancelled"

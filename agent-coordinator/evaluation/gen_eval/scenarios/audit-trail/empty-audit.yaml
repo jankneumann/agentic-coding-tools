@@ -1,0 +1,51 @@
+id: "audit-empty-results"
+name: "Audit query returns empty for unknown agent or operation"
+description: "Querying audit trail for a nonexistent agent or operation type returns an empty entries list"
+category: "audit-trail"
+priority: 2
+interfaces: ["http"]
+tags: ["audit", "empty", "failure"]
+
+steps:
+  - id: query_nonexistent_agent
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-does-not-exist-xyz-999"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        entries: []
+
+  - id: query_nonexistent_operation
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      operation: "nonexistent_operation_type"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        entries: []
+
+  - id: query_combined_no_match
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-does-not-exist-xyz-999"
+      operation: "nonexistent_operation_type"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        entries: []

@@ -1,0 +1,48 @@
+id: "wq-duplicate-submit"
+name: "Duplicate task submission handling"
+description: "Submit the exact same task twice. The system should either reject the duplicate or return the existing task, but not create two identical pending tasks."
+category: "work-queue"
+priority: 2
+interfaces: ["http", "db"]
+tags: ["work-queue", "idempotency", "failure"]
+
+steps:
+  - id: submit_first
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review PR #99 - exact duplicate test"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      first_id: "$.task_id"
+
+  - id: submit_duplicate
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review PR #99 - exact duplicate test"
+    expect:
+      status: 200
+
+  - id: verify_no_double_entry
+    transport: db
+    sql: "SELECT COUNT(*) as cnt FROM work_queue WHERE task_description = 'Review PR #99 - exact duplicate test' AND status = 'pending'"
+    expect:
+      rows: 1
+
+cleanup:
+  - id: cleanup_first
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ first_id }}"
+      success: true
+      result: "cleanup"

@@ -1,0 +1,42 @@
+id: "pol-missing-resource"
+name: "Policy check with missing or empty resource"
+description: "Send policy check requests where the resource field is empty or missing. The system should reject the request with a validation error."
+category: "policy-engine"
+priority: 2
+interfaces: ["http"]
+tags: ["policy", "validation", "failure"]
+
+steps:
+  - id: empty_resource
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1"
+      action: "read"
+      resource: ""
+    expect:
+      status: 422
+      body:
+        allowed: false
+
+  - id: empty_action
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "agent-1"
+      action: ""
+      resource: "file:src/main.py"
+    expect:
+      status: 422
+      body:
+        allowed: false
+
+  - id: missing_all_fields
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body: {}
+    expect:
+      status: 422

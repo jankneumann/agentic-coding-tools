@@ -1,0 +1,48 @@
+id: "cross-memory-cross-interface"
+name: "Memory stored via HTTP, recalled via MCP and CLI"
+description: "Store a memory event through HTTP, then recall it through MCP and CLI to verify cross-interface consistency"
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["cross-interface", "memory", "success"]
+
+steps:
+  - id: http_store
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "cross_mem_test"
+      summary: "stored via HTTP for cross-interface recall"
+      agent_id: "agent-1"
+      tags: ["cross-mem-unique-tag"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_recall
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["cross-mem-unique-tag"]
+      limit: 5
+    expect:
+      not_empty: true
+
+  - id: cli_recall
+    transport: cli
+    command: "memory query --tags cross-mem-unique-tag"
+    expect:
+      exit_code: 0
+
+  - id: http_query_verify
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["cross-mem-unique-tag"]
+      limit: 5
+    expect:
+      status: 200
+      not_empty: true

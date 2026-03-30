@@ -1,0 +1,22 @@
+id: "auth-read-only-no-auth"
+name: "Read-only endpoints accessible without authentication"
+description: "Health check and lock status endpoints should be accessible without any API key"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http"]
+tags: ["auth", "public", "success"]
+
+steps:
+  - id: health_no_auth
+    transport: http
+    method: GET
+    endpoint: /health
+    expect:
+      status: 200
+
+  - id: lock_status_no_auth
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/any_file.py
+    expect:
+      status: 200

@@ -1,0 +1,40 @@
+id: "wq-submit-claim-cross"
+name: "Submit via HTTP, claim via MCP, complete via CLI"
+description: "Cross-transport scenario: submit a task through HTTP API, claim it via MCP tool, and complete it via CLI command."
+category: "work-queue"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["work-queue", "cross-interface", "success"]
+
+steps:
+  - id: submit_via_http
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "testing"
+      task_description: "Write unit tests for auth module"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: claim_via_mcp
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["testing"]
+    expect:
+      body:
+        success: true
+    capture:
+      claimed_task_id: "$.task_id"
+
+  - id: complete_via_cli
+    transport: cli
+    command: work
+    args: ["complete", "--task-id", "{{ claimed_task_id }}", "--success", "--result", "Tests written: 12 passing"]
+    expect:
+      exit_code: 0

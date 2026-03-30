@@ -1,0 +1,69 @@
+id: "multi-agent-impersonation"
+name: "Agent cannot impersonate another agent"
+description: "Agent-2 tries to perform operations using agent-1's identity. The system should reject or at minimum audit this as a distinct identity"
+category: "multi-agent"
+priority: 1
+interfaces: ["http"]
+tags: ["multi-agent", "security", "impersonation", "failure"]
+
+steps:
+  - id: agent1_acquires_lock
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/impersonate.py"
+      agent_id: "agent-1"
+      reason: "legitimate lock"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_tries_release_as_agent1
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "{{ agent2_api_key }}"
+    body:
+      file_path: "src/impersonate.py"
+      agent_id: "agent-1"
+    expect:
+      status: 403
+      body:
+        success: false
+
+  - id: agent2_tries_store_as_agent1
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    headers:
+      X-API-Key: "{{ agent2_api_key }}"
+    body:
+      event_type: "impersonation_attempt"
+      summary: "agent-2 pretending to be agent-1"
+      agent_id: "agent-1"
+    expect:
+      status: 403
+      body:
+        success: false
+
+  - id: verify_lock_intact
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/impersonate.py
+    expect:
+      status: 200
+      body:
+        locked: true
+        agent_id: "agent-1"
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/impersonate.py"
+      agent_id: "agent-1"

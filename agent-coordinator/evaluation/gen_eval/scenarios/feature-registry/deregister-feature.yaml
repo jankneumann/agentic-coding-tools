@@ -1,0 +1,66 @@
+id: "feature-deregister"
+name: "Deregister a completed feature"
+description: "Register a feature, then deregister it as completed. Verify it no longer appears in active features"
+category: "feature-registry"
+priority: 2
+interfaces: ["http"]
+tags: ["feature-registry", "lifecycle", "success"]
+
+steps:
+  - id: register_feature
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-temp-cleanup"
+      resource_claims:
+        - "src/cleanup.py"
+      title: "Temporary cleanup task"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-temp-cleanup"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: deregister_as_completed
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-temp-cleanup"
+      status: "completed"
+    expect:
+      status: 200
+      body:
+        success: true
+        feature_id: "feat-temp-cleanup"
+        status: "completed"
+
+  - id: verify_not_in_active
+    transport: http
+    method: GET
+    endpoint: /features/active
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_excludes:
+        features:
+          - feature_id: "feat-temp-cleanup"
+
+  - id: verify_feature_status_updated
+    transport: http
+    method: GET
+    endpoint: /features/feat-temp-cleanup
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        feature_id: "feat-temp-cleanup"
+        status: "completed"

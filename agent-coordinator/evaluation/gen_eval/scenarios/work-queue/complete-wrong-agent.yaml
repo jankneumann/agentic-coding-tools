@@ -1,0 +1,72 @@
+id: "wq-complete-wrong-agent"
+name: "Complete task by wrong agent is rejected"
+description: "Agent-1 claims a task, then agent-2 attempts to complete it. The system should reject the completion since only the assigned agent may complete a task."
+category: "work-queue"
+priority: 1
+interfaces: ["http"]
+tags: ["work-queue", "authorization", "failure"]
+
+steps:
+  - id: submit_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review authentication module"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: claim_as_agent1
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["code_review"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      claimed_id: "$.task_id"
+
+  - id: complete_as_wrong_agent
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    headers:
+      X-Agent-Id: "agent-2"
+    body:
+      task_id: "{{ claimed_id }}"
+      success: true
+      result: "Attempting unauthorized completion"
+    expect:
+      status: 403
+      body:
+        success: false
+      error_contains: "not assigned"
+
+  - id: verify_still_in_progress
+    transport: db
+    sql: "SELECT status, assigned_to FROM work_queue WHERE id = '{{ claimed_id }}'"
+    expect:
+      rows: 1
+      row:
+        status: "in_progress"
+        assigned_to: "agent-1"
+
+cleanup:
+  - id: cleanup_complete
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ claimed_id }}"
+      success: true
+      result: "cleanup"

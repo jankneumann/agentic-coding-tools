@@ -1,0 +1,65 @@
+id: "mem-tag-search"
+name: "Search memories by tags across transports"
+description: "Store multiple memories with different tags, then verify tag-based filtering returns only matching entries via HTTP, MCP, and CLI."
+category: "memory-crud"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["memory", "tags", "search", "success"]
+
+steps:
+  - id: store_bug_memory
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "observation"
+      summary: "Found race condition in lock acquisition under high concurrency"
+      agent_id: "agent-1"
+      tags: ["bug", "locks", "concurrency"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: store_feature_memory
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "observation"
+      summary: "New caching layer reduced API latency by 40%"
+      agent_id: "agent-1"
+      tags: ["feature", "performance", "caching"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: query_bug_tag_http
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["bug"]
+      limit: 10
+    expect:
+      status: 200
+      body:
+        success: true
+      not_empty: true
+
+  - id: query_bug_tag_mcp
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["bug"]
+      limit: 10
+    expect:
+      not_empty: true
+
+  - id: query_bug_tag_cli
+    transport: cli
+    command: memory
+    args: ["query", "--tags", "bug"]
+    expect:
+      exit_code: 0

@@ -1,0 +1,105 @@
+id: "wq-priority-ordering"
+name: "Higher priority tasks are claimed first"
+description: "Submit multiple tasks with different priorities and verify that claiming returns the highest priority (lowest number) task first."
+category: "work-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["work-queue", "priority", "success"]
+
+steps:
+  - id: submit_low_priority
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review minor doc update"
+      priority: 3
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      low_id: "$.task_id"
+
+  - id: submit_high_priority
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review critical security patch"
+      priority: 1
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      high_id: "$.task_id"
+
+  - id: submit_medium_priority
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "code_review"
+      task_description: "Review feature branch"
+      priority: 2
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      med_id: "$.task_id"
+
+  - id: claim_first
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["code_review"]
+    expect:
+      status: 200
+      body:
+        success: true
+        task_id: "{{ high_id }}"
+
+  - id: complete_first
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ high_id }}"
+      success: true
+
+  - id: claim_second
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["code_review"]
+    expect:
+      status: 200
+      body:
+        success: true
+        task_id: "{{ med_id }}"
+
+cleanup:
+  - id: cleanup_med
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ med_id }}"
+      success: true
+  - id: cleanup_low
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ low_id }}"
+      success: true

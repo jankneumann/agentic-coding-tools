@@ -1,0 +1,82 @@
+id: "wq-dependency-not-met"
+name: "Cannot claim task with unmet dependency"
+description: "Submit a task that depends on another incomplete task. Attempting to claim the dependent task should fail because the dependency is not yet satisfied."
+category: "work-queue"
+priority: 1
+interfaces: ["http"]
+tags: ["work-queue", "dependencies", "failure"]
+
+steps:
+  - id: submit_prerequisite
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "design"
+      task_description: "Design the API schema"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      prereq_id: "$.task_id"
+
+  - id: submit_blocked_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "implementation"
+      task_description: "Implement the API endpoints"
+      dependencies: ["{{ prereq_id }}"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      blocked_id: "$.task_id"
+
+  - id: attempt_claim_blocked
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-eager"
+      agent_type: "claude_code"
+      task_types: ["implementation"]
+    expect:
+      status: 200
+      body:
+        success: false
+
+cleanup:
+  - id: cleanup_prereq_claim
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-cleanup"
+      agent_type: "claude_code"
+      task_types: ["design"]
+  - id: cleanup_prereq_complete
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ prereq_id }}"
+      success: true
+  - id: cleanup_blocked_claim
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-cleanup"
+      agent_type: "claude_code"
+      task_types: ["implementation"]
+  - id: cleanup_blocked_complete
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ blocked_id }}"
+      success: true

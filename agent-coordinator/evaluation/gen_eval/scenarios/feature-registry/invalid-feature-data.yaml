@@ -1,0 +1,66 @@
+id: "feature-invalid-data"
+name: "Register feature with invalid or missing required fields"
+description: "Submitting registration with missing feature_id or empty resource_claims should fail with validation error"
+category: "feature-registry"
+priority: 2
+interfaces: ["http"]
+tags: ["feature-registry", "validation", "failure"]
+
+steps:
+  - id: missing_feature_id
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      # feature_id is required but omitted
+      resource_claims:
+        - "src/main.py"
+      title: "Missing feature ID"
+      agent_id: "agent-1"
+    expect:
+      status: 422
+      error_contains: "feature_id"
+
+  - id: missing_resource_claims
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-no-claims"
+      # resource_claims is required but omitted
+      title: "No resource claims"
+      agent_id: "agent-1"
+    expect:
+      status: 422
+      error_contains: "resource_claims"
+
+  - id: empty_resource_claims
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-empty-claims"
+      resource_claims: []
+      title: "Empty claims list"
+      agent_id: "agent-1"
+    expect:
+      status_one_of: [200, 422]
+      # Some implementations accept empty claims; test documents the behavior
+
+  - id: no_api_key
+    transport: http
+    method: POST
+    endpoint: /features/register
+    body:
+      feature_id: "feat-unauthorized"
+      resource_claims:
+        - "src/main.py"
+      agent_id: "agent-1"
+    expect:
+      status: 401

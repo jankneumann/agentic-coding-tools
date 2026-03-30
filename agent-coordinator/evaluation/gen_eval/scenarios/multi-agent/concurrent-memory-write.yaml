@@ -1,0 +1,66 @@
+id: "multi-concurrent-memory-write"
+name: "Multiple agents write to memory concurrently"
+description: "Two agents store memory events simultaneously with the same tags. Both should succeed and both entries should be independently retrievable without data loss or corruption"
+category: "multi-agent"
+priority: 1
+interfaces: ["http", "mcp", "db"]
+tags: ["multi-agent", "memory", "concurrency", "failure"]
+
+steps:
+  - id: agent1_store
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "concurrent_write"
+      summary: "agent-1 memory entry for concurrency test"
+      agent_id: "agent-1"
+      tags: ["concurrent-mem-test"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_store
+    transport: mcp
+    tool: remember
+    params:
+      event_type: "concurrent_write"
+      summary: "agent-2 memory entry for concurrency test"
+      tags: ["concurrent-mem-test"]
+    expect:
+      body:
+        success: true
+
+  - id: query_both_entries
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["concurrent-mem-test"]
+      limit: 10
+    expect:
+      status: 200
+      not_empty: true
+
+  - id: verify_both_in_db
+    transport: db
+    sql: "SELECT COUNT(*) as cnt FROM memory_episodic WHERE tags @> ARRAY['concurrent-mem-test']"
+    expect:
+      rows: 1
+      row:
+        cnt: 2
+
+  - id: verify_agent1_entry
+    transport: db
+    sql: "SELECT agent_id FROM memory_episodic WHERE tags @> ARRAY['concurrent-mem-test'] AND agent_id = 'agent-1'"
+    expect:
+      rows: 1
+      row:
+        agent_id: "agent-1"
+
+  - id: verify_agent2_entry
+    transport: db
+    sql: "SELECT COUNT(*) as cnt FROM memory_episodic WHERE tags @> ARRAY['concurrent-mem-test'] AND agent_id != 'agent-1'"
+    expect:
+      rows: 1

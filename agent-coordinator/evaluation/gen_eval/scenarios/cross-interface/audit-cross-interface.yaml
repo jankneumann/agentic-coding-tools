@@ -1,0 +1,64 @@
+id: "cross-audit-cross-interface"
+name: "Operations from different interfaces all appear in audit trail"
+description: "Perform operations via HTTP, MCP, and CLI, then query audit trail to verify all three are recorded"
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["cross-interface", "audit", "success"]
+
+steps:
+  - id: http_lock_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/audit_cross_http.py"
+      agent_id: "agent-audit-1"
+      reason: "audit cross-interface test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_memory_store
+    transport: mcp
+    tool: remember
+    params:
+      event_type: "audit_cross_test"
+      summary: "MCP operation for audit trail"
+      tags: ["audit-cross"]
+    expect:
+      body:
+        success: true
+
+  - id: cli_lock_release
+    transport: cli
+    command: "lock release --file-path src/audit_cross_http.py"
+    expect:
+      exit_code: 0
+
+  - id: query_audit_http
+    transport: http
+    method: GET
+    endpoint: /audit?agent_id=agent-audit-1&limit=10
+    expect:
+      status: 200
+      not_empty: true
+
+  - id: mcp_query_audit
+    transport: mcp
+    tool: query_audit
+    params:
+      operation: "memory_store"
+      limit: 5
+    expect:
+      not_empty: true
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/audit_cross_http.py"
+      agent_id: "agent-audit-1"

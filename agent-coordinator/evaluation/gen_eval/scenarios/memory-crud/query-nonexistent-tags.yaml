@@ -1,0 +1,37 @@
+id: "mem-query-nonexistent-tags"
+name: "Query with multiple nonexistent tags returns empty"
+description: "Query using a combination of tags that no stored memory has. Verify the system returns an empty but valid response across all transports."
+category: "memory-crud"
+priority: 2
+interfaces: ["http", "mcp", "cli"]
+tags: ["memory", "tags", "not-found", "failure"]
+
+steps:
+  - id: http_query_fake_tags
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["unicorn_rainbow_tag", "definitely_not_real"]
+      limit: 100
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_query_fake_tags
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["alpha_bravo_charlie_nonexistent"]
+      limit: 5
+    expect:
+      body:
+        success: true
+
+  - id: cli_query_fake_tags
+    transport: cli
+    command: memory
+    args: ["query", "--tags", "xyzzy_not_a_tag"]
+    expect:
+      exit_code: 0

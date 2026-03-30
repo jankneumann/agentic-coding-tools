@@ -1,0 +1,49 @@
+id: "lock-acquire-already-held"
+name: "Same agent tries to acquire lock it already holds"
+description: "Agent acquires a lock, then tries to acquire the same lock again. Should return an error or idempotent success, not corrupt state"
+category: "lock-lifecycle"
+priority: 2
+interfaces: ["http", "db"]
+tags: ["locks", "idempotent", "failure"]
+
+steps:
+  - id: first_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/double_acquire.py"
+      agent_id: "agent-1"
+      reason: "first acquire"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: second_acquire_same_agent
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/double_acquire.py"
+      agent_id: "agent-1"
+      reason: "duplicate acquire"
+    expect:
+      status: 409
+
+  - id: verify_single_lock_row
+    transport: db
+    sql: "SELECT COUNT(*) as cnt FROM file_locks WHERE file_path = 'src/double_acquire.py'"
+    expect:
+      rows: 1
+      row:
+        cnt: 1
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/double_acquire.py"
+      agent_id: "agent-1"

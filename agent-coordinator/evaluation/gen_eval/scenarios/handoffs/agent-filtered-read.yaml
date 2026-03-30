@@ -1,0 +1,83 @@
+id: "handoff-agent-filtered-read"
+name: "Read handoffs filtered by agent name"
+description: "Multiple agents write handoffs, then a reader retrieves only a specific agent's handoffs"
+category: "handoffs"
+priority: 2
+interfaces: ["http"]
+tags: ["handoffs", "filtering", "success"]
+
+steps:
+  - id: agent1_writes_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      summary: "Implemented guardrails check for rm -rf detection"
+      completed_work:
+        - "Added regex pattern for recursive delete"
+      next_steps:
+        - "Add patterns for git force push"
+      relevant_files:
+        - "src/guardrails.py"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_writes_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      agent_id: "agent-2"
+      agent_type: "codex"
+      summary: "Updated memory query to support tag filtering"
+      completed_work:
+        - "Added tag-based filtering to recall endpoint"
+      relevant_files:
+        - "src/memory.py"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: read_agent1_only
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_name: "agent-1"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        handoffs:
+          - agent_name: "agent-1"
+            summary: "Implemented guardrails check for rm -rf detection"
+      body_excludes:
+        handoffs:
+          - agent_name: "agent-2"
+
+  - id: read_agent2_only
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      agent_name: "agent-2"
+      limit: 5
+    expect:
+      status: 200
+      body_contains:
+        handoffs:
+          - agent_name: "agent-2"
+            summary: "Updated memory query to support tag filtering"

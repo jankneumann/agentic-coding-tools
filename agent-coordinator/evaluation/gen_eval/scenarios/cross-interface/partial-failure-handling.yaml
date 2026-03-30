@@ -1,0 +1,43 @@
+id: "cross-partial-failure-handling"
+name: "System handles partial failure in multi-step cross-interface operation"
+description: "Submit work via HTTP, claim via MCP, then attempt to complete with an invalid task ID. Verify the system handles the partial failure without corrupting state"
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["cross-interface", "partial-failure", "error-handling", "failure"]
+
+steps:
+  - id: http_submit_work
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "partial_fail_test"
+      task_description: "task for partial failure test"
+      priority: 3
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      real_task_id: "$.task_id"
+
+  - id: mcp_claim_work
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["partial_fail_test"]
+    expect:
+      not_empty: true
+
+  - id: cli_complete_wrong_id
+    transport: cli
+    command: "work complete --task-id nonexistent-task-id-999 --success --result 'this should fail'"
+    expect:
+      exit_code: 1
+
+  - id: cli_complete_correct_id
+    transport: cli
+    command: "work complete --task-id {{ real_task_id }} --success --result 'completed correctly'"
+    expect:
+      exit_code: 0

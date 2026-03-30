@@ -1,0 +1,71 @@
+id: "cross-transport-timeout"
+name: "Transport timeout handling across interfaces"
+description: "Issue a request with a very short timeout and verify the system handles it gracefully without leaving orphaned state. Then verify normal operations still work"
+category: "cross-interface"
+priority: 2
+interfaces: ["http", "mcp", "db"]
+tags: ["cross-interface", "timeout", "resilience", "failure"]
+
+steps:
+  - id: acquire_lock_normal
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/timeout_test.py"
+      agent_id: "agent-1"
+      reason: "timeout resilience test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: release_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/timeout_test.py"
+      agent_id: "agent-1"
+    expect:
+      status: 200
+
+  - id: rapid_acquire_after_timeout_scenario
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/timeout_test.py"
+      agent_id: "agent-2"
+      reason: "post-timeout acquire"
+    timeout_seconds: 5
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_clean_state
+    transport: db
+    sql: "SELECT agent_id FROM file_locks WHERE file_path = 'src/timeout_test.py'"
+    expect:
+      rows: 1
+      row:
+        agent_id: "agent-2"
+
+  - id: mcp_verify_consistent
+    transport: mcp
+    tool: check_locks
+    params:
+      file_paths: ["src/timeout_test.py"]
+    expect:
+      body:
+        locked: true
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/timeout_test.py"
+      agent_id: "agent-2"

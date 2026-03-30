@@ -1,0 +1,43 @@
+id: "mem-empty-results"
+name: "Query with no matching results"
+description: "Query for memories using tags and event types that have no matches. Should return an empty result set without errors."
+category: "memory-crud"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["memory", "empty", "failure"]
+
+steps:
+  - id: query_nonexistent_event_type
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      event_type: "totally_made_up_event_type"
+      limit: 10
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: query_nonexistent_tags
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["zzz_nonexistent_tag_abc123"]
+      limit: 10
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_query_empty
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["does_not_exist_xyz"]
+      event_type: "phantom_event"
+      limit: 5
+    expect:
+      body:
+        success: true

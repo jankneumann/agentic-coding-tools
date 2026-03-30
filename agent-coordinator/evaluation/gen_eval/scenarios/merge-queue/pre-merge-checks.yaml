@@ -1,0 +1,81 @@
+id: "merge-queue-pre-merge-checks"
+name: "Run pre-merge validation checks on a queued feature"
+description: "Register and enqueue a feature, then run pre-merge checks and verify the check results structure"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "validation", "success"]
+
+steps:
+  - id: register_feature
+    transport: http
+    method: POST
+    endpoint: /features/register
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-premerge-test"
+      resource_claims:
+        - "src/config.py"
+      title: "Pre-merge checks test"
+      agent_id: "agent-1"
+      branch_name: "openspec/feat-premerge-test"
+      merge_priority: 3
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: enqueue_feature
+    transport: http
+    method: POST
+    endpoint: /merge-queue/enqueue
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-premerge-test"
+      pr_url: "https://github.com/org/repo/pull/99"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: run_pre_merge_checks
+    transport: http
+    method: POST
+    endpoint: /merge-queue/check/feat-premerge-test
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        feature_id: "feat-premerge-test"
+      body_has_keys:
+        - "passed"
+        - "checks"
+        - "issues"
+        - "conflicts"
+
+  - id: mark_as_merged
+    transport: http
+    method: POST
+    endpoint: /merge-queue/merged/feat-premerge-test
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        success: true
+        feature_id: "feat-premerge-test"
+
+  - id: verify_removed_after_merge
+    transport: http
+    method: GET
+    endpoint: /merge-queue
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_excludes:
+        entries:
+          - feature_id: "feat-premerge-test"

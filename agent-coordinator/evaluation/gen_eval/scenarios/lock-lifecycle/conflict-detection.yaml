@@ -1,0 +1,54 @@
+id: "lock-conflict-detection"
+name: "Lock conflict when second agent tries to acquire held lock"
+description: "Agent-1 acquires a lock, then agent-2 attempts to acquire the same lock and should be rejected with conflict info"
+category: "lock-lifecycle"
+priority: 1
+interfaces: ["http"]
+tags: ["locks", "conflict", "failure"]
+
+steps:
+  - id: agent1_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/config.py"
+      agent_id: "agent-1"
+      reason: "refactoring config"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: agent2_acquire_conflict
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/config.py"
+      agent_id: "agent-2"
+      reason: "also wants config"
+    expect:
+      status: 409
+      body:
+        success: false
+      error_contains: "locked"
+
+  - id: verify_original_holder
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/config.py
+    expect:
+      status: 200
+      body:
+        locked: true
+        agent_id: "agent-1"
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/config.py"
+      agent_id: "agent-1"

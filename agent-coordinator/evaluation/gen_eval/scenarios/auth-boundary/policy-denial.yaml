@@ -1,0 +1,47 @@
+id: "auth-policy-denial"
+name: "Policy engine denies unauthorized actions"
+description: "Use the policy check endpoint to verify that unauthorized principal-action-resource combinations are denied"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http"]
+tags: ["auth", "policy", "authorization", "failure"]
+
+steps:
+  - id: deny_untrusted_deploy
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "untrusted-agent"
+      action: "deploy"
+      resource: "production"
+    expect:
+      status: 200
+      body:
+        allowed: false
+
+  - id: deny_readonly_write
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "readonly-observer"
+      action: "write"
+      resource: "src/main.py"
+    expect:
+      status: 200
+      body:
+        allowed: false
+
+  - id: deny_unknown_principal
+    transport: http
+    method: POST
+    endpoint: /policy/check
+    body:
+      principal: "nonexistent-agent-xyz"
+      action: "lock_acquire"
+      resource: "src/any.py"
+    expect:
+      status: 200
+      body:
+        allowed: false

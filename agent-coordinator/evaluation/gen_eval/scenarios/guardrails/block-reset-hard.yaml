@@ -1,0 +1,50 @@
+id: "gr-block-reset-hard"
+name: "Block git reset --hard commands"
+description: "Verify that guardrails detect and block git reset --hard, which destroys uncommitted work without recovery."
+category: "guardrails"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["guardrails", "git", "destructive", "failure"]
+
+steps:
+  - id: block_reset_hard
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git reset --hard HEAD~3"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: block_reset_hard_origin
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git reset --hard origin/main"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: mcp_block_reset_hard
+    transport: mcp
+    tool: check_guardrails
+    params:
+      operation_text: "git reset --hard"
+    expect:
+      body:
+        safe: false
+
+  - id: allow_soft_reset
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git reset --soft HEAD~1"
+    expect:
+      status: 200
+      body:
+        safe: true

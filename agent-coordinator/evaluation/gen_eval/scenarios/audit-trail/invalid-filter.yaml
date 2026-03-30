@@ -1,0 +1,41 @@
+id: "audit-invalid-filter"
+name: "Audit query with invalid or missing authentication"
+description: "Audit queries without API key should be rejected; queries with invalid limit should be handled gracefully"
+category: "audit-trail"
+priority: 2
+interfaces: ["http"]
+tags: ["audit", "validation", "failure"]
+
+steps:
+  - id: query_without_api_key
+    transport: http
+    method: GET
+    endpoint: /audit
+    params:
+      limit: 5
+    expect:
+      status: 401
+
+  - id: query_with_negative_limit
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      limit: -1
+    expect:
+      status_one_of: [200, 422]
+      # Implementation may clamp to 0 or reject; either is acceptable
+
+  - id: query_with_non_integer_limit
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      limit: "not-a-number"
+    expect:
+      status: 422
+      error_contains: "limit"

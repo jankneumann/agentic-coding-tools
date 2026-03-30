@@ -1,0 +1,63 @@
+id: "lock-cross-interface-verify"
+name: "Lock acquired via HTTP visible in MCP and CLI"
+description: "Acquire a lock via HTTP, then verify it is visible through MCP check_locks and CLI lock status"
+category: "lock-lifecycle"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["locks", "cross-interface", "success"]
+
+steps:
+  - id: http_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/cross_verify.py"
+      agent_id: "agent-1"
+      reason: "cross-interface test"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: mcp_check
+    transport: mcp
+    tool: check_locks
+    params:
+      file_paths: ["src/cross_verify.py"]
+    expect:
+      body:
+        locked: true
+
+  - id: cli_check
+    transport: cli
+    command: "lock status --file-path src/cross_verify.py"
+    expect:
+      exit_code: 0
+
+  - id: mcp_release
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/cross_verify.py"
+    expect:
+      body:
+        success: true
+
+  - id: http_verify_released
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/cross_verify.py
+    expect:
+      status: 200
+      body:
+        locked: false
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/cross_verify.py"
+      agent_id: "agent-1"

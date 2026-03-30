@@ -1,0 +1,46 @@
+id: "mem-store-and-query"
+name: "Store a memory and retrieve it"
+description: "Store an episodic memory via HTTP, then query for it and verify the stored content is returned accurately."
+category: "memory-crud"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["memory", "basic", "success"]
+
+steps:
+  - id: store_memory
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "decision"
+      summary: "Chose PostgreSQL over SQLite for production due to concurrent write requirements"
+      agent_id: "agent-1"
+      tags: ["architecture", "database", "decision"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      memory_id: "$.memory_id"
+
+  - id: query_memory
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      event_type: "decision"
+      tags: ["architecture"]
+      limit: 5
+    expect:
+      status: 200
+      body:
+        success: true
+      not_empty: true
+
+  - id: verify_in_db
+    transport: db
+    sql: "SELECT event_type, summary FROM memory_episodic WHERE id = '{{ memory_id }}'"
+    expect:
+      rows: 1
+      row:
+        event_type: "decision"

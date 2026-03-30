@@ -1,0 +1,63 @@
+id: "lock-re-acquire-after-release"
+name: "Same agent re-acquires lock after releasing it"
+description: "Agent acquires a lock, releases it, then successfully acquires it again to verify clean state after release"
+category: "lock-lifecycle"
+priority: 2
+interfaces: ["http", "db"]
+tags: ["locks", "lifecycle", "success"]
+
+steps:
+  - id: first_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/reacquire.py"
+      agent_id: "agent-1"
+      reason: "first pass"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: first_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/reacquire.py"
+      agent_id: "agent-1"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: second_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/reacquire.py"
+      agent_id: "agent-1"
+      reason: "second pass"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_lock_state
+    transport: db
+    sql: "SELECT agent_id FROM file_locks WHERE file_path = 'src/reacquire.py'"
+    expect:
+      rows: 1
+      row:
+        agent_id: "agent-1"
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/reacquire.py"
+      agent_id: "agent-1"

@@ -1,0 +1,55 @@
+id: "lock-ttl-expiry"
+name: "Lock expires after TTL elapses"
+description: "Acquire a lock, wait for TTL to expire, then verify the lock is no longer held and can be re-acquired by another agent"
+category: "lock-lifecycle"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["locks", "ttl", "expiry", "success"]
+
+steps:
+  - id: acquire_with_short_ttl
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/ttl_test.py"
+      agent_id: "agent-1"
+      reason: "testing TTL"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_lock_held
+    transport: db
+    sql: "SELECT agent_id FROM file_locks WHERE file_path = 'src/ttl_test.py'"
+    expect:
+      rows: 1
+      row:
+        agent_id: "agent-1"
+
+  - id: wait_for_expiry
+    transport: wait
+    seconds: 3.0
+
+  - id: verify_expired_or_reacquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/ttl_test.py"
+      agent_id: "agent-2"
+      reason: "acquiring after TTL expiry"
+    expect:
+      status: 200
+      body:
+        success: true
+
+cleanup:
+  - id: cleanup_release
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/ttl_test.py"
+      agent_id: "agent-2"

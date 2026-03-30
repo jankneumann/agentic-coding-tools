@@ -1,0 +1,61 @@
+id: "auth-cross-interface-auth"
+name: "Auth boundary enforced consistently across interfaces"
+description: "Verify that authentication is enforced on HTTP and that MCP/CLI use their own identity mechanisms. An unauthenticated HTTP call should fail while MCP succeeds with its built-in identity"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http", "mcp"]
+tags: ["auth", "cross-interface", "failure"]
+
+steps:
+  - id: http_no_auth_fails
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "cross_auth_test"
+      summary: "unauthenticated HTTP attempt"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: mcp_succeeds_with_identity
+    transport: mcp
+    tool: remember
+    params:
+      event_type: "cross_auth_test"
+      summary: "MCP has built-in identity"
+      tags: ["auth-cross-test"]
+    expect:
+      body:
+        success: true
+
+  - id: http_with_auth_succeeds
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    headers:
+      X-API-Key: "{{ valid_api_key }}"
+    body:
+      event_type: "cross_auth_test"
+      summary: "authenticated HTTP attempt"
+      agent_id: "agent-1"
+      tags: ["auth-cross-test"]
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_both_stored
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    headers:
+      X-API-Key: "{{ valid_api_key }}"
+    body:
+      tags: ["auth-cross-test"]
+      limit: 10
+    expect:
+      status: 200
+      not_empty: true

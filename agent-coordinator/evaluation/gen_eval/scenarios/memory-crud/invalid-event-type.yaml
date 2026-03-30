@@ -1,0 +1,46 @@
+id: "mem-invalid-event-type"
+name: "Store with invalid or missing event type"
+description: "Attempt to store a memory with an empty event type or missing required fields. The system should reject the request with a clear error."
+category: "memory-crud"
+priority: 2
+interfaces: ["http"]
+tags: ["memory", "validation", "failure"]
+
+steps:
+  - id: store_empty_event_type
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: ""
+      summary: "This should fail"
+      agent_id: "agent-1"
+    expect:
+      status: 422
+      body:
+        success: false
+
+  - id: store_missing_summary
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "decision"
+      summary: ""
+      agent_id: "agent-1"
+    expect:
+      status: 422
+      body:
+        success: false
+
+  - id: store_missing_agent_id
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "decision"
+      summary: "This should also fail"
+    expect:
+      status: 422
+      body:
+        success: false

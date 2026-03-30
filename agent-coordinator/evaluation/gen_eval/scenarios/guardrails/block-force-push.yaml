@@ -1,0 +1,48 @@
+id: "gr-block-force-push"
+name: "Block git force push to protected branches"
+description: "Verify that guardrails detect and block git push --force and git push -f commands, which can destroy remote history."
+category: "guardrails"
+priority: 1
+interfaces: ["http", "cli"]
+tags: ["guardrails", "git", "destructive", "failure"]
+
+steps:
+  - id: block_force_push
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git push --force origin main"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: block_force_push_short_flag
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git push -f origin main"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: block_force_with_lease
+    transport: http
+    method: POST
+    endpoint: /guardrails/check
+    body:
+      operation_text: "git push --force-with-lease origin main"
+    expect:
+      status: 200
+      body:
+        safe: false
+
+  - id: cli_block_force_push
+    transport: cli
+    command: guardrails
+    args: ["check", "--operation", "git push --force origin main"]
+    expect:
+      exit_code: 1

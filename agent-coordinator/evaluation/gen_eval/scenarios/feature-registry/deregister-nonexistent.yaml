@@ -1,0 +1,34 @@
+id: "feature-deregister-nonexistent"
+name: "Deregister a feature that does not exist"
+description: "Attempting to deregister a feature_id that was never registered should fail gracefully"
+category: "feature-registry"
+priority: 2
+interfaces: ["http"]
+tags: ["feature-registry", "not-found", "failure"]
+
+steps:
+  - id: deregister_unknown
+    transport: http
+    method: POST
+    endpoint: /features/deregister
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      feature_id: "feat-never-registered-xyz"
+      status: "completed"
+    expect:
+      status_one_of: [200, 404]
+      body:
+        success: false
+
+  - id: verify_no_side_effects
+    transport: http
+    method: GET
+    endpoint: /features/active
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body_excludes:
+        features:
+          - feature_id: "feat-never-registered-xyz"

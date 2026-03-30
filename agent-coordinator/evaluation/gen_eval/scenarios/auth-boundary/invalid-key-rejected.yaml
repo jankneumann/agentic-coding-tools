@@ -1,0 +1,51 @@
+id: "auth-invalid-key-rejected"
+name: "Request with invalid API key is rejected"
+description: "Send requests with malformed, expired, or fabricated API keys. All should return 401/403"
+category: "auth-boundary"
+priority: 1
+interfaces: ["http"]
+tags: ["auth", "invalid-key", "failure"]
+
+steps:
+  - id: garbage_key
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "totally-fake-garbage-key-12345"
+    body:
+      file_path: "src/invalid_key.py"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: empty_key
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: ""
+    body:
+      file_path: "src/invalid_key.py"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false
+
+  - id: sql_injection_key
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    headers:
+      X-API-Key: "' OR 1=1; --"
+    body:
+      event_type: "test"
+      summary: "sql injection attempt"
+      agent_id: "agent-1"
+    expect:
+      status: 401
+      body:
+        success: false

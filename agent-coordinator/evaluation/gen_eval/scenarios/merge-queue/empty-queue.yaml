@@ -1,0 +1,32 @@
+id: "merge-queue-empty"
+name: "Query merge queue when empty"
+description: "Getting the queue and next-to-merge when no features are enqueued returns empty results"
+category: "merge-queue"
+priority: 2
+interfaces: ["http"]
+tags: ["merge-queue", "empty", "failure"]
+
+steps:
+  - id: get_empty_queue
+    transport: http
+    method: GET
+    endpoint: /merge-queue
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        entries: []
+
+  - id: get_next_when_empty
+    transport: http
+    method: GET
+    endpoint: /merge-queue/next
+    headers:
+      X-API-Key: "test-key-agent1"
+    expect:
+      status: 200
+      body:
+        success: true
+        entry: null
+        reason: "no_features_ready"

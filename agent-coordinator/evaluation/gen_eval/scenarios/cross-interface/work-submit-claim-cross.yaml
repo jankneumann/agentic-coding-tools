@@ -1,0 +1,39 @@
+id: "cross-work-submit-claim-cross"
+name: "Work submitted via HTTP, claimed via MCP, completed via CLI"
+description: "Submit a work item through HTTP, claim it through MCP, then complete it through CLI. Verify each state transition"
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli"]
+tags: ["cross-interface", "work-queue", "success"]
+
+steps:
+  - id: http_submit
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "cross_interface_task"
+      task_description: "task for cross-interface testing"
+      priority: 5
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: mcp_claim
+    transport: mcp
+    tool: get_work
+    params:
+      task_types: ["cross_interface_task"]
+    expect:
+      not_empty: true
+    capture:
+      claimed_task_id: "$.task_id"
+
+  - id: cli_complete
+    transport: cli
+    command: "work complete --task-id {{ claimed_task_id }} --success --result 'completed via CLI'"
+    expect:
+      exit_code: 0

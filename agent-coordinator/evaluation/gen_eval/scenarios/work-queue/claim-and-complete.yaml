@@ -1,0 +1,67 @@
+id: "wq-claim-and-complete"
+name: "Claim a task and mark it complete"
+description: "Submit a task, claim it as an agent, then complete it successfully. Verify state transitions in DB."
+category: "work-queue"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["work-queue", "basic", "success"]
+
+steps:
+  - id: submit_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "implementation"
+      task_description: "Implement user login endpoint"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: claim_task
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["implementation"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      claimed_task_id: "$.task_id"
+
+  - id: verify_claimed_status
+    transport: db
+    sql: "SELECT status, assigned_to FROM work_queue WHERE id = '{{ claimed_task_id }}'"
+    expect:
+      rows: 1
+      row:
+        status: "in_progress"
+        assigned_to: "agent-1"
+
+  - id: complete_task
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ claimed_task_id }}"
+      success: true
+      result: "Login endpoint implemented with JWT auth"
+    expect:
+      status: 200
+      body:
+        success: true
+
+  - id: verify_completed_status
+    transport: db
+    sql: "SELECT status FROM work_queue WHERE id = '{{ claimed_task_id }}'"
+    expect:
+      rows: 1
+      row:
+        status: "completed"
