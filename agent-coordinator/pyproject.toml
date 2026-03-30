@@ -33,6 +33,10 @@ sdk = [
     "openai>=1.50",
     "google-generativeai>=0.8",
 ]
+gen-eval = [
+    "jinja2>=3.1.0",
+    "jsonpath-ng>=1.6.0",
+]
 analysis = [
     "psycopg2-binary>=2.9.0",
 ]
