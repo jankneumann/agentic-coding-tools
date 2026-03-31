@@ -10,7 +10,7 @@ Written by deploy, read by smoke. Dotenv format (parseable by `python-dotenv` or
 | `TEST_ENV_TYPE` | `docker` \| `neon` | Which environment backend is running |
 | `POSTGRES_DSN` | connection string | Full PostgreSQL connection string |
 | `API_BASE_URL` | URL | Base URL for coordination API (e.g., `http://localhost:10003`) |
-| `SEED_STRATEGY` | `dump_restore` \| `migrations` \| `none` | How seed data was applied |
+| `SEED_STRATEGY` | `dump_restore` \| `migrations` | How seed data was applied |
 | `STARTED_AT` | ISO 8601 timestamp | When the environment was started |
 
 ## Optional Fields (Docker-specific)

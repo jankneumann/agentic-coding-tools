@@ -71,13 +71,23 @@ SEED_STRATEGY=migrations  # dump_restore or migrations
 STARTED_AT=2026-03-31T20:00:00Z
 ```
 
-### D3: Port allocator — direct import over MCP call
+### D3: Port allocator — subprocess invocation over direct import
 
-Import `port_allocator` from `agent-coordinator/src/` directly rather than going through the MCP `allocate_ports` tool. The stack launcher runs in the same Python process and doesn't need RPC overhead.
+Invoke `port_allocator` via subprocess calling `agent-coordinator/.venv/bin/python` rather than direct import. The `agent-coordinator` and `skills` venvs are separate (`agent-coordinator/.venv` vs `skills/.venv`), so direct import would require cross-venv package installation.
 
-**Why**: The MCP tool is a thin wrapper around the same `PortAllocator` singleton. Direct import is simpler and avoids requiring a running coordinator just to allocate ports for local testing.
+**Why**: The two venvs have different dependency sets (asyncpg, fastmcp in agent-coordinator; tree-sitter in skills). Merging them would create dependency conflicts. Subprocess invocation respects the venv boundary.
 
-**Fallback**: If the import fails (e.g., running from a different venv), fall back to MCP tool call if coordinator is available.
+**Implementation**: `DockerStackEnvironment.__init__` resolves the path to `agent-coordinator/.venv/bin/python` relative to the worktree root (detected via `git rev-parse --show-toplevel`). It invokes a thin CLI wrapper: `python -c "from src.port_allocator import get_port_allocator; ..."` in the agent-coordinator venv. The wrapper prints JSON with the `PortAllocation` fields.
+
+**Fallback**: If the subprocess fails, fall back to MCP `allocate_ports` tool if coordinator is available.
+
+### D3a: Coordination API runs on host, not in Docker
+
+The Docker compose stack provides only PostgreSQL (ParadeDB) and optionally OpenBao. The coordination API (`coordination_api.py` / FastAPI) runs on the host machine, started by `phase_deploy.py` as a subprocess. Smoke tests hit the host API at `API_BASE_URL=http://localhost:<api_port>`.
+
+**Why**: The existing `docker-compose.yml` doesn't include an API service — it's a DB-only compose file. Adding the API to compose would require building a Docker image for the coordinator, which is unnecessary for local dev testing. The API is a lightweight FastAPI process that starts in <2 seconds.
+
+**Implementation**: `phase_deploy.py` starts the API via `uvicorn` with the allocated `API_PORT`, passing `POSTGRES_DSN` pointing to the Docker PostgreSQL. On teardown, it sends SIGTERM to the uvicorn process.
 
 ### D4: Neon branching via neonctl CLI over API SDK
 
