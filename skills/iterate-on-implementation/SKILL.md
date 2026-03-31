@@ -276,6 +276,54 @@ Review whether the current OpenSpec documents accurately reflect the refined imp
 
 **Do NOT make unnecessary changes** if the OpenSpec documents are still accurate after this iteration's fixes.
 
+### 9.5. Append Session Log
+
+Append an `Implementation Iteration <N>` phase entry to the session log, capturing review findings addressed and changes made.
+
+**Determine iteration number:**
+- Read `openspec/changes/<change-id>/session-log.md` (if it exists)
+- Count existing `## Phase: Implementation Iteration` headers
+- N = count + 1
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Implementation Iteration <N> (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: what review findings were addressed, what changed>
+```
+
+**Focus on**: Review findings addressed, changes made, remaining issues, test improvements.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+The session-log.md is included in `git add .` in the existing commit step.
+
 ### 10. Commit Iteration
 
 ```bash

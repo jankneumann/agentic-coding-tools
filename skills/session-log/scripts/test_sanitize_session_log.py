@@ -204,3 +204,72 @@ We decided to use a file-based approach for session logging.
         result, redactions = sanitize(content)
         assert result == content
         assert len(redactions) == 0
+
+
+# --- Merge-log specific payloads ---
+
+
+class TestMergeLogSanitization:
+    def test_pr_triage_table_preserved(self) -> None:
+        content = """## Session: 14:30 (claude)
+
+### PRs Processed
+
+| PR | Origin | Action | Rationale |
+|----|--------|--------|-----------|
+| #123 | openspec | merged | CI green, approved |
+| #124 | codex | closed | Obsolete fix |
+"""
+        result, redactions = sanitize(content)
+        assert "| #123 |" in result
+        assert "| #124 |" in result
+        assert len(redactions) == 0
+
+    def test_vendor_review_findings_preserved(self) -> None:
+        content = """### Vendor Review Findings
+- PR #126: 2 confirmed findings (both addressed), 1 unconfirmed (accepted as low risk)
+- codex-local: 5 findings in 358.9s (model: gpt-5.4)
+"""
+        result, redactions = sanitize(content)
+        assert "2 confirmed findings" in result
+        assert "gpt-5.4" in result
+
+    def test_user_decisions_preserved(self) -> None:
+        content = """### User Decisions
+- Skipped all Renovate PRs per user request (pinning React 18 until migration)
+- Closed #125 because the dependency is pinned until Q3 2026
+"""
+        result, redactions = sanitize(content)
+        assert "Renovate PRs" in result
+        assert "#125" in result
+
+    def test_secrets_in_pr_comments_redacted(self) -> None:
+        content = """### Observations
+- PR #130 comment contained token ghp_1234567890abcdef1234567890abcdef12345678
+- PR #131 referenced connection string postgresql://user:pass@db.internal:5432/prod
+"""
+        result, redactions = sanitize(content)
+        assert "ghp_" not in result
+        assert "postgresql://" not in result
+        assert len(redactions) >= 2
+
+    def test_in_place_sanitization(self, tmp_path) -> None:
+        """Verify same path for input and output works correctly."""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        script = Path(__file__).parent / "sanitize_session_log.py"
+        log_file = tmp_path / "session-log.md"
+        log_file.write_text(
+            "## Decisions\n1. Used key sk-ant-api03-abcdef1234567890abcd for auth\n"
+        )
+
+        result = subprocess.run(
+            [sys.executable, str(script), str(log_file), str(log_file)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        content = log_file.read_text()
+        assert "sk-ant-" not in content
+        assert "[REDACTED:" in content

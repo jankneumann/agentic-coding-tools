@@ -302,6 +302,49 @@ These phases are environment-safe and run in both cloud and local. Docker-depend
 
 Document patterns, gotchas, and design changes in CLAUDE.md and AGENTS.md.
 
+### 7.5. Append Session Log [all tiers]
+
+Append an `Implementation` phase entry to the session log, capturing the implementation approach, deviations from plan, and issues encountered.
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Implementation (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: what was implemented, any deviations from plan>
+```
+
+**Focus on**: Implementation approach, deviations from the plan, technical issues encountered, patterns chosen.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+The session-log.md is included in `git add .` in Step 8.
+
 ### 8. Commit Changes [all tiers]
 
 ```bash
