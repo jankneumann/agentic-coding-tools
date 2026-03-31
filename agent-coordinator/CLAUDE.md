@@ -57,6 +57,12 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 | `src/policy_engine.py` | Authorization (native or Cedar) |
 | `src/db.py` | Database abstraction (Supabase) |
 | `src/db_postgres.py` | Direct PostgreSQL backend |
+| `src/event_bus.py` | Generalized LISTEN/NOTIFY event bus |
+| `src/notifications/` | Pluggable notifier (Gmail, Telegram, webhook channels) |
+| `src/status.py` | Notification token lifecycle management |
+| `src/watchdog.py` | Periodic health monitoring (stale agents, aging approvals) |
+| `scripts/report_status.py` | Claude/Codex Stop hook for status reporting |
+| `scripts/gemini_wrapper.sh` | Gemini CLI wrapper with lifecycle management |
 | `supabase/migrations/*.sql` | Database schema |
 
 ## Production Cloud API Path
@@ -101,6 +107,7 @@ When this MCP server is configured, these tools are available:
 - `check_guardrails(operation_text, file_paths?)` - Check for destructive patterns
 - `get_my_profile()` - View agent profile
 - `query_audit(agent_id?, operation?, limit?)` - Query audit trail
+- `report_status(agent_id, change_id, phase, ...)` - Report agent status (heartbeat side effect)
 
 ## HTTP API Endpoints
 
@@ -124,12 +131,16 @@ All write endpoints require `X-API-Key` header.
 | `/profiles/me` | GET | Yes | Get agent profile |
 | `/audit` | GET | Yes | Query audit trail |
 | `/health` | GET | No | Health check |
+| `/status/report` | POST | No | Report agent status (heartbeat side effect) |
+| `/notifications/test` | POST | Yes | Send test notification to all channels |
+| `/notifications/status` | GET | No | Channel health and config status |
 
 ## Database Tables
 
 **Core:**
 - `file_locks` - Active locks with TTL
 - `work_queue` - Task assignment
+- `notification_tokens` - Short-lived reply tokens for email/messaging
 
 **Memory:**
 - `memory_episodic` - Past experiences
@@ -157,6 +168,24 @@ API_HOST=0.0.0.0
 API_PORT=8081
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
+
+# Notifications (optional — omit NOTIFICATION_CHANNELS to disable)
+NOTIFICATION_CHANNELS=gmail              # gmail,telegram,webhook (comma-separated)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-app-password
+IMAP_HOST=imap.gmail.com
+IMAP_PORT=993
+IMAP_USER=you@gmail.com
+IMAP_PASSWORD=your-app-password
+NOTIFICATION_SENDER_EMAIL=you@gmail.com
+NOTIFICATION_RECIPIENT_EMAIL=you@gmail.com
+NOTIFICATION_ALLOWED_SENDERS=you@gmail.com
+TELEGRAM_BOT_TOKEN=...                   # Optional: Telegram Bot API token
+TELEGRAM_CHAT_ID=...                     # Optional: Telegram chat to notify
+WEBHOOK_URL=https://ntfy.sh/my-topic     # Optional: generic webhook endpoint
+WATCHDOG_INTERVAL_SECONDS=60             # Watchdog check frequency (default 60)
 ```
 
 ## Current Implementation Status

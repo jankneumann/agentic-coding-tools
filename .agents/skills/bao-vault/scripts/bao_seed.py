@@ -31,8 +31,24 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Default paths relative to the agent-coordinator directory
-COORDINATOR_DIR = Path(__file__).resolve().parent.parent / "agent-coordinator"
+def _repo_root() -> Path:
+    """Find the repository root via git, falling back to path traversal."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5,
+            cwd=Path(__file__).parent,
+        )
+        if result.returncode == 0:
+            return Path(result.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    # Fallback: scripts/ → bao-vault/ → skills/ → repo root
+    return Path(__file__).resolve().parent.parent.parent.parent
+
+
+COORDINATOR_DIR = _repo_root() / "agent-coordinator"
 DEFAULT_SECRETS_PATH = COORDINATOR_DIR / ".secrets.yaml"
 DEFAULT_AGENTS_PATH = COORDINATOR_DIR / "agents.yaml"
 

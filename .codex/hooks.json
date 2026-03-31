@@ -12,12 +12,6 @@
         "command": "python3 agent-coordinator/scripts/report_status.py"
       }
     ],
-    "SubagentStop": [
-      {
-        "type": "command",
-        "command": "python3 agent-coordinator/scripts/report_status.py --subagent"
-      }
-    ],
     "SessionEnd": [
       {
         "type": "command",

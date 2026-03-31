@@ -1,0 +1,142 @@
+{
+  "review_type": "implementation",
+  "target": "remote-control-coordinator",
+  "reviewer_vendor": "claude-opus-4.6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Low-urgency digest batching not implemented. Spec requires collecting low events into a batch and sending every NOTIFICATION_DIGEST_INTERVAL_SECONDS (default 600s). Current implementation delays each low event individually by 300s then sends separately. The render_digest_email template exists but is unused.",
+      "resolution": "Implement a digest queue in NotifierService: accumulate low-urgency events, send batched digest via render_digest_email at configurable interval. Add NOTIFICATION_DIGEST_INTERVAL_SECONDS env var.",
+      "disposition": "accept",
+      "package_id": "wp-notifier-core"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Notification loop prevention not implemented. Spec requires skipping events where context.source == 'notifier' or 'watchdog'. No such check exists in the notifier dispatch path.",
+      "resolution": "Add source check in NotifierService.send() before dispatching: if event.context.get('source') in ('notifier', 'watchdog'), skip. Or add to the event filter logic.",
+      "disposition": "fix",
+      "package_id": "wp-notifier-core"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Confirmation reply emails not implemented. Spec requires sending 'Approved. Agent resuming.' after approval, 'Guidance recorded.' after guidance, and 'Gate check triggered.' after resolved command. The relay routes commands but never sends confirmation emails back.",
+      "resolution": "After successful route_reply(), send a confirmation email via GmailChannel with the appropriate message based on command_type.",
+      "disposition": "accept",
+      "package_id": "wp-gmail-relay"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Error reply emails for expired/used tokens not implemented. Spec requires replying with 'Token expired. Current pending approvals: [list]' for expired tokens and 'Token already used' for reused tokens.",
+      "resolution": "After validate_token returns None in _process_imap_message, distinguish expired vs used tokens and send appropriate error reply.",
+      "disposition": "accept",
+      "package_id": "wp-gmail-relay"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Audit log for unauthorized sender not created. Spec requires audit_log entry with operation: 'unauthorized_reply' when a reply from an unlisted sender is received.",
+      "resolution": "Import AuditService and log unauthorized_reply when validate_sender returns False.",
+      "disposition": "accept",
+      "package_id": "wp-gmail-relay"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "NOTIFICATION_TOKEN_TTL_SECONDS env var not implemented. Token TTL is hardcoded to 3600 in store_token() call. Spec says it should be configurable.",
+      "resolution": "Read from os.environ.get('NOTIFICATION_TOKEN_TTL_SECONDS', '3600') where store_token is called.",
+      "disposition": "accept",
+      "package_id": "wp-notifier-core"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Watchdog not disabled when NOTIFICATION_CHANNELS is empty. Spec says: 'The watchdog SHALL be disabled when NOTIFICATION_CHANNELS is empty.' The watchdog starts unconditionally in the lifespan.",
+      "resolution": "Check NOTIFICATION_CHANNELS before starting watchdog in coordination_api.py lifespan.",
+      "disposition": "accept",
+      "package_id": "wp-watchdog"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Event bus fire-and-forget tasks could be GC'd before completion, causing silent event loss. Fixed in iteration 2 with _pending_tasks tracking set.",
+      "resolution": "Already fixed — tasks are now tracked in _pending_tasks with done callbacks.",
+      "disposition": "accept",
+      "package_id": "wp-event-bus"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "high",
+      "description": "Telegram bot token was exposed in logged exception URLs. Fixed in iteration 2 — now only logs HTTP status code.",
+      "resolution": "Already fixed.",
+      "disposition": "accept",
+      "package_id": "wp-watchdog"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Gmail tokens were generated but not persisted to DB before email dispatch, making all reply tokens invalid. Fixed in review-comment addressing step.",
+      "resolution": "Already fixed — store_token() called before SMTP dispatch.",
+      "disposition": "accept",
+      "package_id": "wp-notifier-core"
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Watchdog deleted expired tokens by non-existent 'id' column instead of 'token' (the actual PK). Fixed in review-comment addressing step.",
+      "resolution": "Already fixed — uses row['token'] now.",
+      "disposition": "accept",
+      "package_id": "wp-watchdog"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "report_status.py sent event_type='phase_transition' without 'status.' prefix, causing urgency classifier to mis-classify all phase transitions as 'low' instead of 'medium'. Fixed in iteration 2.",
+      "resolution": "Already fixed — now sends 'status.phase_transition'.",
+      "disposition": "accept",
+      "package_id": "wp-status-hooks"
+    },
+    {
+      "id": 13,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Heartbeat in report_status updates the coordinator's own session, not the reporting agent's session. DiscoveryService.heartbeat() defaults to the server's config.agent.session_id.",
+      "resolution": "Requires extending heartbeat() to accept an explicit agent_id/session_id, or adding session_id to StatusReportRequest. Deferred — design change needed.",
+      "disposition": "escalate",
+      "package_id": "wp-status-hooks"
+    },
+    {
+      "id": 14,
+      "type": "security",
+      "criticality": "medium",
+      "description": "POST /status/report is unauthenticated with no field-length validation. Partially fixed in iteration 2 by adding Field(max_length) constraints. Still lacks rate limiting.",
+      "resolution": "Rate limiting should be added at reverse proxy level (Railway/nginx). Field validation is sufficient for the application layer.",
+      "disposition": "accept",
+      "package_id": "wp-status-hooks"
+    },
+    {
+      "id": 15,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "report_status.py does not log warning to stderr when loop-state.json is missing or contains invalid JSON, as specified. It silently returns {} and reports phase='UNKNOWN'.",
+      "resolution": "Add sys.stderr.write() in _read_loop_state when file is missing or JSON is invalid.",
+      "disposition": "accept",
+      "package_id": "wp-status-hooks"
+    }
+  ]
+}

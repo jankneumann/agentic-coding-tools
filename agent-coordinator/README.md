@@ -79,17 +79,62 @@ cp .env.example .env
 # Edit .env with your Supabase credentials
 ```
 
-### 4. Configure Claude Code
+### 4. Register MCP Server with CLI Agents
 
 ```bash
-make claude-mcp-setup
+# Register with all agents (Claude Code, Codex CLI, Gemini CLI)
+make mcp-setup
+
+# Or individually:
+make claude-mcp-setup   # Claude Code
+make codex-mcp-setup    # Codex CLI
+make gemini-mcp-setup   # Gemini CLI
 ```
 
-This registers the coordination MCP server with Claude Code (user scope). Restart Claude Code to activate.
+This registers the coordination MCP server at user scope. Restart the CLI to activate.
 
-### 5. Test the Integration
+### 5. Install Lifecycle Hooks (Notifications & Status Reporting)
 
-Restart Claude Code, then try:
+```bash
+# Install hooks/wrappers for all agents
+make hooks-setup
+
+# Or individually:
+make claude-hooks-setup      # ~/.claude/hooks.json
+make codex-hooks-setup       # ~/.codex/hooks.json
+make gemini-wrapper-install  # ~/.local/bin/gemini-coord
+```
+
+Hooks provide:
+- **SessionStart**: Auto-register agent with coordinator
+- **Stop**: Report status and heartbeat after each turn (Claude Code, Codex)
+- **SessionEnd**: Release locks and deregister agent
+
+Gemini CLI has no hooks, so a wrapper script (`gemini-coord`) is installed instead:
+```bash
+gemini-coord "your prompt"   # Wraps gemini with register/report/deregister
+```
+
+### 6. Configure Notifications (Optional)
+
+To receive push notifications for approvals, escalations, and stale agents:
+
+```bash
+# Add to .env or export:
+export NOTIFICATION_CHANNELS=gmail          # gmail, telegram, webhook (comma-separated)
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=you@gmail.com
+export SMTP_PASSWORD=your-app-password      # Gmail App Password
+export NOTIFICATION_RECIPIENT_EMAIL=you@gmail.com
+export NOTIFICATION_ALLOWED_SENDERS=you@gmail.com
+```
+
+Reply to notification emails to approve/deny requests, unblock escalations, or inject guidance — all from your phone.
+
+### 7. Test the Integration
+
+Restart your CLI agent, then try:
 
 ```
 # Check available locks
@@ -124,6 +169,7 @@ Use release_lock on src/main.py
 | `query_audit` | Query the audit trail |
 | `check_policy` | Check operation authorization (Cedar/native) |
 | `validate_cedar_policy` | Validate Cedar policy syntax |
+| `report_status` | Report agent phase/status (heartbeat side effect) |
 
 ## MCP Resources
 
