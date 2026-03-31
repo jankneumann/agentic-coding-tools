@@ -69,3 +69,4 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 - [Architecture Artifacts](docs/architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
 - [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
 - [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
+- [OpenBao Secret Management](docs/openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch

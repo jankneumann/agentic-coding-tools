@@ -95,12 +95,12 @@ bao-dev: ## Start OpenBao dev server + seed from .secrets.yaml
 		&& echo "OpenBao is ready" \
 		|| (echo "ERROR: OpenBao did not become ready within 15s" && exit 1)
 	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
-		python ../scripts/bao_seed.py
+		$(CURDIR)/.venv/bin/python3 ../skills/bao-vault/scripts/bao_seed.py
 
 .PHONY: bao-seed
 bao-seed: ## Re-seed OpenBao from .secrets.yaml and agents.yaml
 	BAO_ADDR=http://localhost:$(BAO_PORT) BAO_TOKEN=dev-root-token \
-		python ../scripts/bao_seed.py
+		$(CURDIR)/.venv/bin/python3 ../skills/bao-vault/scripts/bao_seed.py
 
 # ---------------------------------------------------------------------------
 # Phase: Services
