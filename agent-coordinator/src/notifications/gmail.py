@@ -8,6 +8,7 @@ import logging
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any
 
 import aiosmtplib
 
@@ -30,7 +31,7 @@ try:
 
     _HAS_AIOIMAPLIB = True
 except ImportError:
-    aioimaplib = None  # type: ignore[assignment]
+    aioimaplib = None
     _HAS_AIOIMAPLIB = False
 
 
@@ -210,7 +211,7 @@ class GmailChannel:
 
     async def _process_imap_message(
         self,
-        imap_client: object,
+        imap_client: Any,
         msg_id: bytes,
         allowed_senders: str,
     ) -> None:
@@ -220,7 +221,7 @@ class GmailChannel:
         from src.db import get_db
 
         try:
-            _, msg_data = await imap_client.fetch(msg_id, "(RFC822)")  # type: ignore[union-attr]
+            _, msg_data = await imap_client.fetch(msg_id, "(RFC822)")
             if not msg_data or not msg_data[1]:
                 return
 
@@ -254,19 +255,19 @@ class GmailChannel:
                 logger.info("Invalid or expired token: %s", token)
                 return
 
-            # Get body
+            # Get body (get_payload with decode=True returns bytes|None)
             body = ""
             if msg.is_multipart():
                 for part in msg.walk():
                     if part.get_content_type() == "text/plain":
-                        payload = part.get_payload(decode=True)
-                        if payload:
-                            body = payload.decode("utf-8", errors="replace")
+                        raw = part.get_payload(decode=True)
+                        if isinstance(raw, bytes):
+                            body = raw.decode("utf-8", errors="replace")
                         break
             else:
-                payload = msg.get_payload(decode=True)
-                if payload:
-                    body = payload.decode("utf-8", errors="replace")
+                raw = msg.get_payload(decode=True)
+                if isinstance(raw, bytes):
+                    body = raw.decode("utf-8", errors="replace")
 
             # Parse and route
             command_type, command_value = parse_reply(body)
