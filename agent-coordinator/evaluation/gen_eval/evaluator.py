@@ -412,9 +412,9 @@ class Evaluator:
         """Extract endpoint-specific interface identifiers from steps.
 
         Produces names matching ``InterfaceDescriptor.all_interfaces()``:
-          - HTTP steps  → ``"METHOD /path"``
+          - HTTP steps  → ``"METHOD /path"`` (path stripped of query string)
           - MCP steps   → ``"mcp:tool_name"``
-          - CLI steps   → ``"cli:command_name"`` (first word of command)
+          - CLI steps   → ``"cli:command subcommand"`` (words before first ``--`` flag)
           - DB/Wait     → omitted (not tracked as testable interfaces)
         """
         seen: set[str] = set()
@@ -422,14 +422,22 @@ class Evaluator:
         for step in steps:
             iface: str | None = None
             if step.transport == "http" and step.method and step.endpoint:
-                iface = f"{step.method.upper()} {step.endpoint}"
+                # Strip query string for matching: /audit?limit=10 → /audit
+                path = step.endpoint.split("?")[0]
+                iface = f"{step.method.upper()} {path}"
             elif step.transport == "mcp" and step.tool:
                 iface = f"mcp:{step.tool}"
             elif step.transport == "cli" and step.command:
-                # CLI commands may have subcommands; use the base command name
-                cmd_name = step.command.strip().split()[0] if step.command.strip() else None
-                if cmd_name:
-                    iface = f"cli:{cmd_name}"
+                # Extract command + subcommand (words before the first --flag).
+                # E.g., "lock status --file-path x" → "lock status"
+                parts = step.command.strip().split()
+                cmd_parts = []
+                for part in parts:
+                    if part.startswith("--") or part.startswith("-"):
+                        break
+                    cmd_parts.append(part)
+                if cmd_parts:
+                    iface = f"cli:{' '.join(cmd_parts)}"
             if iface and iface not in seen:
                 seen.add(iface)
                 result.append(iface)

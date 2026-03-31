@@ -1,0 +1,47 @@
+id: "cli-lock-sweep"
+name: "CLI lock command sweep"
+description: "Exercise all CLI lock commands: lock acquire, lock status, lock list, lock release, lock force-release"
+category: "lock-lifecycle"
+priority: 2
+interfaces: ["cli"]
+tags: ["locks", "cli", "sweep"]
+
+steps:
+  - id: cli_acquire
+    transport: cli
+    command: "lock acquire --file-path src/cli_sweep.py --agent-id agent-cli-sweep --reason testing"
+    expect:
+      exit_code: 0
+
+  - id: cli_status
+    transport: cli
+    command: "lock status --file-path src/cli_sweep.py"
+    expect:
+      exit_code: 0
+
+  - id: cli_list
+    transport: cli
+    command: "lock list"
+    expect:
+      exit_code: 0
+
+  - id: cli_release
+    transport: cli
+    command: "lock release --file-path src/cli_sweep.py --agent-id agent-cli-sweep"
+    expect:
+      exit_code: 0
+
+  - id: cli_force_release
+    transport: cli
+    command: "lock force-release --file-path src/cli_sweep_force.py"
+    expect:
+      exit_code: 0
+
+cleanup:
+  - id: cleanup_release
+    transport: cli
+    command: "lock release --file-path src/cli_sweep.py --agent-id agent-cli-sweep"
+
+  - id: cleanup_force
+    transport: cli
+    command: "lock release --file-path src/cli_sweep_force.py --agent-id agent-cli-sweep"

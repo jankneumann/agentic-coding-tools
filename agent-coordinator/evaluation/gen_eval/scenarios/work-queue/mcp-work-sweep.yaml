@@ -1,0 +1,36 @@
+id: "mcp-work-sweep"
+name: "MCP work queue tool sweep"
+description: "Exercise MCP work queue tools: submit_work, list_work, and cancel_work"
+category: "work-queue"
+priority: 3
+interfaces: ["mcp"]
+tags: ["work-queue", "mcp", "sweep"]
+
+steps:
+  - id: submit_work
+    transport: mcp
+    tool: submit_work
+    params:
+      task_type: "test"
+      description: "mcp sweep task"
+    expect:
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: list_work
+    transport: mcp
+    tool: list_work
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: cancel_work
+    transport: mcp
+    tool: cancel_work
+    params:
+      task_id: "{{ task_id }}"
+    expect:
+      body:
+        success: true

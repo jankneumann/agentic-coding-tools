@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import subprocess
 import time
 
@@ -280,6 +281,47 @@ class GenEvalOrchestrator:
     # Report building
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _match_interface_coverage(
+        tested: set[str], descriptor_interfaces: set[str]
+    ) -> set[str]:
+        """Match tested interfaces against descriptor interfaces.
+
+        Handles parametric HTTP paths: a tested interface like
+        ``"GET /locks/status/src/main.py"`` matches a descriptor template
+        ``"GET /locks/status/{path}"``.
+
+        Returns the subset of ``descriptor_interfaces`` that are covered.
+        """
+        # Build regex patterns for descriptor interfaces with path parameters
+        templates: list[tuple[re.Pattern[str], str]] = []
+        exact: set[str] = set()
+
+        for iface in descriptor_interfaces:
+            if "{" in iface:
+                # Convert "GET /locks/status/{path}" → regex "GET /locks/status/.+"
+                pattern_str = re.escape(iface)
+                # Replace escaped template params: \{param\} → .+
+                pattern_str = re.sub(r"\\{[^}]+\\}", ".+", pattern_str)
+                templates.append((re.compile(f"^{pattern_str}$"), iface))
+            else:
+                exact.add(iface)
+
+        covered: set[str] = set()
+
+        for t in tested:
+            # Exact match first
+            if t in exact:
+                covered.add(t)
+                continue
+            # Template match
+            for pattern, template_name in templates:
+                if pattern.match(t):
+                    covered.add(template_name)
+                    break
+
+        return covered
+
     def _build_report(
         self,
         verdicts: list[ScenarioVerdict],
@@ -294,14 +336,15 @@ class GenEvalOrchestrator:
         total = len(verdicts)
 
         # Coverage: unique interfaces tested / total interfaces
+        # Uses template-aware matching so "GET /locks/status/src/main.py"
+        # counts as covering "GET /locks/status/{path}".
         all_interfaces = set(self.descriptor.all_interfaces())
         tested_interfaces: set[str] = set()
         for v in verdicts:
             tested_interfaces.update(v.interfaces_tested)
+        covered = self._match_interface_coverage(tested_interfaces, all_interfaces)
         coverage_pct = (
-            (len(tested_interfaces & all_interfaces) / len(all_interfaces) * 100)
-            if all_interfaces
-            else 0.0
+            (len(covered) / len(all_interfaces) * 100) if all_interfaces else 0.0
         )
 
         # Per-interface aggregation
@@ -324,7 +367,7 @@ class GenEvalOrchestrator:
                 per_category[cat][v.status] += 1
 
         # Unevaluated interfaces
-        unevaluated = sorted(all_interfaces - tested_interfaces)
+        unevaluated = sorted(all_interfaces - covered)
 
         # Cost summary
         cost_summary: dict[str, float] = {

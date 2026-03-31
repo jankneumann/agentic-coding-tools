@@ -1,0 +1,57 @@
+id: "mcp-memory-sweep"
+name: "MCP memory tool sweep"
+description: "Exercise all MCP memory tools: remember, recall, get_working_memory, update_working_memory, and learn_procedure"
+category: "memory-crud"
+priority: 3
+interfaces: ["mcp"]
+tags: ["memory", "mcp", "sweep"]
+
+steps:
+  - id: remember
+    transport: mcp
+    tool: remember
+    params:
+      event_type: "test"
+      summary: "mcp sweep test"
+      tags: ["mcp-sweep"]
+    expect:
+      body:
+        success: true
+
+  - id: recall
+    transport: mcp
+    tool: recall
+    params:
+      tags: ["mcp-sweep"]
+    expect:
+      body:
+        success: true
+      not_empty: true
+
+  - id: update_working_memory
+    transport: mcp
+    tool: update_working_memory
+    params:
+      key: "mcp_sweep_key"
+      value: "test_val"
+    expect:
+      body:
+        success: true
+
+  - id: get_working_memory
+    transport: mcp
+    tool: get_working_memory
+    params:
+      key: "mcp_sweep_key"
+    expect:
+      not_empty: true
+
+  - id: learn_procedure
+    transport: mcp
+    tool: learn_procedure
+    params:
+      name: "mcp_sweep_proc"
+      steps: ["step1"]
+    expect:
+      body:
+        success: true

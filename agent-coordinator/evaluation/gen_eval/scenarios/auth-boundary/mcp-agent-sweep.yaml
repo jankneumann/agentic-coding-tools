@@ -1,0 +1,42 @@
+id: "mcp-agent-sweep"
+name: "MCP agent lifecycle tool sweep"
+description: "Exercise MCP agent tools: register_agent, discover_agents, send_heartbeat, and get_agent_profile"
+category: "auth-boundary"
+priority: 3
+interfaces: ["mcp"]
+tags: ["auth", "agents", "mcp", "sweep"]
+
+steps:
+  - id: register_agent
+    transport: mcp
+    tool: register_agent
+    params:
+      agent_id: "mcp-sweep-agent"
+      agent_type: "test"
+    expect:
+      body:
+        success: true
+
+  - id: discover_agents
+    transport: mcp
+    tool: discover_agents
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: send_heartbeat
+    transport: mcp
+    tool: send_heartbeat
+    params:
+      agent_id: "mcp-sweep-agent"
+    expect:
+      body:
+        success: true
+
+  - id: get_agent_profile
+    transport: mcp
+    tool: get_agent_profile
+    params:
+      agent_id: "mcp-sweep-agent"
+    expect:
+      not_empty: true

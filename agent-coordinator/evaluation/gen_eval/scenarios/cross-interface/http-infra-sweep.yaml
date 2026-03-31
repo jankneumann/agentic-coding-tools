@@ -1,0 +1,55 @@
+id: "http-infra-sweep"
+name: "HTTP infrastructure endpoint sweep"
+description: "Exercise HTTP infrastructure endpoints: GET /audit/{entry_id}, GET /guardrails/patterns, GET /policy/rules, POST /ports/register, GET /ports/lookup, POST /merge-queue/status"
+category: "cross-interface"
+priority: 2
+interfaces: ["http"]
+tags: ["audit", "guardrails", "policy", "ports", "merge-queue", "http", "sweep"]
+
+steps:
+  - id: audit_entry
+    transport: http
+    method: GET
+    endpoint: /audit/sweep-entry-001
+    expect:
+      status: 200
+
+  - id: guardrail_patterns
+    transport: http
+    method: GET
+    endpoint: /guardrails/patterns
+    expect:
+      status: 200
+
+  - id: policy_rules
+    transport: http
+    method: GET
+    endpoint: /policy/rules
+    expect:
+      status: 200
+
+  - id: register_port
+    transport: http
+    method: POST
+    endpoint: /ports/register
+    body:
+      service_name: "sweep-svc"
+      port: 9999
+    expect:
+      status: 200
+
+  - id: lookup_port
+    transport: http
+    method: GET
+    endpoint: /ports/lookup
+    expect:
+      status: 200
+
+  - id: merge_queue_status
+    transport: http
+    method: POST
+    endpoint: /merge-queue/status
+    body:
+      branch: "test-branch"
+    expect:
+      status: 200

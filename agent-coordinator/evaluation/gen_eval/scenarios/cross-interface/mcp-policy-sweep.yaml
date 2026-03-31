@@ -1,0 +1,39 @@
+id: "mcp-policy-sweep"
+name: "MCP policy and guardrail tool sweep"
+description: "Exercise MCP policy and guardrail tools: check_policy, validate_policy, list_policy_rules, and list_guardrail_patterns"
+category: "cross-interface"
+priority: 3
+interfaces: ["mcp"]
+tags: ["policy", "guardrails", "mcp", "sweep"]
+
+steps:
+  - id: check_policy
+    transport: mcp
+    tool: check_policy
+    params:
+      operation: "file_write"
+      file_path: "src/test.py"
+    expect:
+      not_empty: true
+
+  - id: validate_policy
+    transport: mcp
+    tool: validate_policy
+    params:
+      policy_text: "permit agent_type == 'test'"
+    expect:
+      not_empty: true
+
+  - id: list_policy_rules
+    transport: mcp
+    tool: list_policy_rules
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: list_guardrail_patterns
+    transport: mcp
+    tool: list_guardrail_patterns
+    params: {}
+    expect:
+      not_empty: true

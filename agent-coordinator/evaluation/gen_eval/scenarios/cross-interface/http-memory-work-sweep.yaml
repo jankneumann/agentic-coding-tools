@@ -1,0 +1,53 @@
+id: "http-memory-work-sweep"
+name: "HTTP memory and work queue endpoint sweep"
+description: "Exercise HTTP memory and work endpoints: POST /memory/working/update, POST /memory/working/get, GET /work/queue, POST /work/cancel"
+category: "cross-interface"
+priority: 2
+interfaces: ["http"]
+tags: ["memory", "work-queue", "http", "sweep"]
+
+steps:
+  - id: working_update
+    transport: http
+    method: POST
+    endpoint: /memory/working/update
+    body:
+      key: "sweep_key"
+      value: "sweep_val"
+    expect:
+      status: 200
+
+  - id: working_get
+    transport: http
+    method: POST
+    endpoint: /memory/working/get
+    body:
+      key: "sweep_key"
+    expect:
+      status: 200
+
+  - id: work_queue
+    transport: http
+    method: GET
+    endpoint: /work/queue
+    expect:
+      status: 200
+
+  - id: submit_work
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "test"
+      description: "sweep cancel target"
+    expect:
+      status: 200
+
+  - id: cancel_work
+    transport: http
+    method: POST
+    endpoint: /work/cancel
+    body:
+      task_id: "sweep-cancel-task"
+    expect:
+      status: 200

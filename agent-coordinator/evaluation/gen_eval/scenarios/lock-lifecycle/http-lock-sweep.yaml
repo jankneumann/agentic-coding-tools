@@ -1,0 +1,44 @@
+id: "http-lock-sweep"
+name: "HTTP lock endpoint sweep"
+description: "Exercise HTTP lock endpoints: GET /locks/active and POST /locks/force-release"
+category: "lock-lifecycle"
+priority: 2
+interfaces: ["http"]
+tags: ["locks", "http", "sweep"]
+
+steps:
+  - id: http_acquire
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/http_sweep.py"
+      agent_id: "agent-sweep"
+      reason: "http sweep"
+    expect:
+      status: 200
+
+  - id: http_active
+    transport: http
+    method: GET
+    endpoint: /locks/active
+    expect:
+      status: 200
+
+  - id: http_force_release
+    transport: http
+    method: POST
+    endpoint: /locks/force-release
+    body:
+      file_path: "src/http_sweep.py"
+    expect:
+      status: 200
+
+cleanup:
+  - id: cleanup
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/http_sweep.py"
+      agent_id: "agent-sweep"

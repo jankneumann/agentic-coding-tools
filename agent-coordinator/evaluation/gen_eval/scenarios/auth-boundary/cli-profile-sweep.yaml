@@ -1,0 +1,26 @@
+id: "cli-profile-sweep"
+name: "CLI profile command sweep"
+description: "Exercise all CLI profile commands: profile me, profile get, profile register"
+category: "auth-boundary"
+priority: 2
+interfaces: ["cli"]
+tags: ["profiles", "cli", "sweep"]
+
+steps:
+  - id: cli_profile_me
+    transport: cli
+    command: "profile me"
+    expect:
+      exit_code: 0
+
+  - id: cli_profile_register
+    transport: cli
+    command: "profile register --agent-id cli-sweep-agent --agent-type test"
+    expect:
+      exit_code: 0
+
+  - id: cli_profile_get
+    transport: cli
+    command: "profile get --agent-id cli-sweep-agent"
+    expect:
+      exit_code: 0

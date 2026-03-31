@@ -1,0 +1,32 @@
+id: "cli-memory-sweep"
+name: "CLI memory command sweep"
+description: "Exercise all CLI memory commands: memory store, memory query, memory working-update, memory working-get"
+category: "memory-crud"
+priority: 2
+interfaces: ["cli"]
+tags: ["memory", "cli", "sweep"]
+
+steps:
+  - id: cli_store
+    transport: cli
+    command: "memory store --event-type test --summary 'cli sweep memory' --tags cli-sweep"
+    expect:
+      exit_code: 0
+
+  - id: cli_query
+    transport: cli
+    command: "memory query --tags cli-sweep --limit 5"
+    expect:
+      exit_code: 0
+
+  - id: cli_working_update
+    transport: cli
+    command: "memory working-update --key cli_sweep_key --value test_val"
+    expect:
+      exit_code: 0
+
+  - id: cli_working_get
+    transport: cli
+    command: "memory working-get --key cli_sweep_key"
+    expect:
+      exit_code: 0

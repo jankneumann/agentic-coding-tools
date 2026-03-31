@@ -1,0 +1,44 @@
+id: "cli-work-sweep"
+name: "CLI work queue command sweep"
+description: "Exercise all CLI work commands: work submit, work list, work claim, work complete, work cancel"
+category: "work-queue"
+priority: 2
+interfaces: ["cli"]
+tags: ["work-queue", "cli", "sweep"]
+
+steps:
+  - id: cli_submit
+    transport: cli
+    command: "work submit --task-type test --description 'cli sweep task'"
+    expect:
+      exit_code: 0
+
+  - id: cli_list
+    transport: cli
+    command: "work list --limit 5"
+    expect:
+      exit_code: 0
+
+  - id: cli_submit2
+    transport: cli
+    command: "work submit --task-type test --description 'cli cancel task'"
+    expect:
+      exit_code: 0
+
+  - id: cli_cancel
+    transport: cli
+    command: "work cancel --task-id cli-sweep-cancel-task"
+    expect:
+      exit_code: 0
+
+  - id: cli_claim
+    transport: cli
+    command: "work claim --task-type test"
+    expect:
+      exit_code: 0
+
+  - id: cli_complete
+    transport: cli
+    command: "work complete --task-id cli-sweep-task --success --result done"
+    expect:
+      exit_code: 0

@@ -1,0 +1,107 @@
+id: "cli-misc-sweep"
+name: "CLI miscellaneous command sweep"
+description: "Exercise remaining CLI commands: audit, handoff, agent, port, approval, feature, and merge-queue"
+category: "cross-interface"
+priority: 2
+interfaces: ["cli"]
+tags: ["audit", "handoff", "agent", "port", "approval", "feature", "merge-queue", "cli", "sweep"]
+
+steps:
+  - id: cli_audit_query
+    transport: cli
+    command: "audit query --limit 5"
+    expect:
+      exit_code: 0
+
+  - id: cli_audit_get
+    transport: cli
+    command: "audit get --entry-id cli-sweep-audit"
+    expect:
+      exit_code: 0
+
+  - id: cli_handoff_write
+    transport: cli
+    command: "handoff write --from-agent cli-sweep-a --to-agent cli-sweep-b --summary 'sweep handoff' --context '{}'"
+    expect:
+      exit_code: 0
+
+  - id: cli_handoff_read
+    transport: cli
+    command: "handoff read --agent-id cli-sweep-b"
+    expect:
+      exit_code: 0
+
+  - id: cli_agent_discover
+    transport: cli
+    command: "agent discover"
+    expect:
+      exit_code: 0
+
+  - id: cli_agent_heartbeat
+    transport: cli
+    command: "agent heartbeat --agent-id cli-sweep-agent"
+    expect:
+      exit_code: 0
+
+  - id: cli_port_register
+    transport: cli
+    command: "port register --service-name cli-sweep-svc --port 9999"
+    expect:
+      exit_code: 0
+
+  - id: cli_port_lookup
+    transport: cli
+    command: "port lookup --service-name cli-sweep-svc"
+    expect:
+      exit_code: 0
+
+  - id: cli_approval_request
+    transport: cli
+    command: "approval request --action merge --resource cli-sweep-pr --reason 'sweep test'"
+    expect:
+      exit_code: 0
+
+  - id: cli_approval_respond
+    transport: cli
+    command: "approval respond --request-id cli-sweep-approval --decision approved"
+    expect:
+      exit_code: 0
+
+  - id: cli_feature_register
+    transport: cli
+    command: "feature register --feature-id cli-sweep-feat --branch openspec/cli-sweep --files src/cli_sweep.py"
+    expect:
+      exit_code: 0
+
+  - id: cli_feature_deregister
+    transport: cli
+    command: "feature deregister --feature-id cli-sweep-feat"
+    expect:
+      exit_code: 0
+
+  - id: cli_feature_conflicts
+    transport: cli
+    command: "feature conflicts --file-path src/cli_sweep.py"
+    expect:
+      exit_code: 0
+
+  - id: cli_merge_queue_enqueue
+    transport: cli
+    command: "merge-queue enqueue --feature-id cli-sweep-feat --branch openspec/cli-sweep --priority 5"
+    expect:
+      exit_code: 0
+
+  - id: cli_merge_queue_status
+    transport: cli
+    command: "merge-queue status"
+    expect:
+      exit_code: 0
+
+cleanup:
+  - id: cleanup_feature_deregister
+    transport: cli
+    command: "feature deregister --feature-id cli-sweep-feat"
+
+  - id: cleanup_port_deregister
+    transport: cli
+    command: "port register --service-name cli-sweep-svc --port 0"

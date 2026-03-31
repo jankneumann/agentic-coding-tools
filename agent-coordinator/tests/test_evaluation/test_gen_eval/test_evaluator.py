@@ -634,10 +634,10 @@ class TestExtractInterfaces:
         result = Evaluator._extract_interfaces(steps)
         assert result == ["mcp:check_locks"]
 
-    def test_cli_step_produces_cli_prefix(self) -> None:
+    def test_cli_step_produces_cli_prefix_with_subcommand(self) -> None:
         steps = [ActionStep(id="s1", transport="cli", command="lock status --file-path x")]
         result = Evaluator._extract_interfaces(steps)
-        assert result == ["cli:lock"]
+        assert result == ["cli:lock status"]
 
     def test_db_and_wait_omitted(self) -> None:
         steps = [
@@ -659,11 +659,21 @@ class TestExtractInterfaces:
         steps = [
             ActionStep(id="s1", transport="http", method="POST", endpoint="/locks/acquire"),
             ActionStep(id="s2", transport="mcp", tool="check_locks"),
-            ActionStep(id="s3", transport="cli", command="lock status"),
+            ActionStep(id="s3", transport="cli", command="lock status --file-path x"),
             ActionStep(id="s4", transport="db", sql="SELECT 1"),
         ]
         result = Evaluator._extract_interfaces(steps)
-        assert result == ["POST /locks/acquire", "mcp:check_locks", "cli:lock"]
+        assert result == ["POST /locks/acquire", "mcp:check_locks", "cli:lock status"]
+
+    def test_cli_base_command_without_subcommand(self) -> None:
+        steps = [ActionStep(id="s1", transport="cli", command="guardrails")]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["cli:guardrails"]
+
+    def test_http_strips_query_string(self) -> None:
+        steps = [ActionStep(id="s1", transport="http", method="GET", endpoint="/audit?limit=10")]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["GET /audit"]
 
     @pytest.mark.asyncio
     async def test_evaluate_produces_endpoint_specific_interfaces(self) -> None:

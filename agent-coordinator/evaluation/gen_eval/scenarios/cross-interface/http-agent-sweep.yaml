@@ -1,0 +1,62 @@
+id: "http-agent-sweep"
+name: "HTTP agent and approval endpoint sweep"
+description: "Exercise HTTP agent endpoints: POST /profiles/register, GET /profiles/{agent_id}, GET /agents/discover, POST /agents/heartbeat, POST /approvals/request, POST /approvals/respond"
+category: "cross-interface"
+priority: 2
+interfaces: ["http"]
+tags: ["agents", "profiles", "approvals", "http", "sweep"]
+
+steps:
+  - id: register_profile
+    transport: http
+    method: POST
+    endpoint: /profiles/register
+    body:
+      agent_id: "http-sweep-agent"
+      agent_type: "test"
+    expect:
+      status: 200
+
+  - id: get_profile
+    transport: http
+    method: GET
+    endpoint: /profiles/http-sweep-agent
+    expect:
+      status: 200
+
+  - id: discover_agents
+    transport: http
+    method: GET
+    endpoint: /agents/discover
+    expect:
+      status: 200
+
+  - id: heartbeat
+    transport: http
+    method: POST
+    endpoint: /agents/heartbeat
+    body:
+      agent_id: "http-sweep-agent"
+    expect:
+      status: 200
+
+  - id: request_approval
+    transport: http
+    method: POST
+    endpoint: /approvals/request
+    body:
+      operation: "file_write"
+      file_path: "src/test.py"
+      agent_id: "http-sweep-agent"
+    expect:
+      status: 200
+
+  - id: respond_approval
+    transport: http
+    method: POST
+    endpoint: /approvals/respond
+    body:
+      approval_id: "test-approval"
+      decision: "approved"
+    expect:
+      status: 200

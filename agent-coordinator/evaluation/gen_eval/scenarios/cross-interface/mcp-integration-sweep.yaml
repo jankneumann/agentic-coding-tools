@@ -1,0 +1,142 @@
+id: "mcp-integration-sweep"
+name: "MCP integration tool sweep"
+description: "Exercise remaining MCP tools in a single multi-step scenario: handoffs, audit, feature registry, merge queue, port registry, approvals, and health"
+category: "cross-interface"
+priority: 3
+interfaces: ["mcp"]
+tags: ["integration", "mcp", "sweep"]
+
+steps:
+  - id: write_handoff
+    transport: mcp
+    tool: write_handoff
+    params:
+      target_agent: "agent-2"
+      context: "mcp sweep handoff context"
+    expect:
+      body:
+        success: true
+
+  - id: read_handoffs
+    transport: mcp
+    tool: read_handoffs
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: query_audit
+    transport: mcp
+    tool: query_audit
+    params:
+      limit: 5
+    expect:
+      not_empty: true
+
+  - id: get_audit_entry
+    transport: mcp
+    tool: get_audit_entry
+    params:
+      entry_id: "latest"
+    expect:
+      not_empty: true
+
+  - id: register_feature
+    transport: mcp
+    tool: register_feature
+    params:
+      feature_id: "mcp-sweep-feature"
+      description: "sweep test feature"
+    expect:
+      body:
+        success: true
+
+  - id: check_feature_conflicts
+    transport: mcp
+    tool: check_feature_conflicts
+    params:
+      feature_id: "mcp-sweep-feature"
+    expect:
+      not_empty: true
+
+  - id: deregister_feature
+    transport: mcp
+    tool: deregister_feature
+    params:
+      feature_id: "mcp-sweep-feature"
+    expect:
+      body:
+        success: true
+
+  - id: enqueue_merge
+    transport: mcp
+    tool: enqueue_merge
+    params:
+      branch: "test/mcp-sweep-branch"
+      priority: 1
+    expect:
+      body:
+        success: true
+    capture:
+      merge_id: "$.merge_id"
+
+  - id: get_merge_queue_status
+    transport: mcp
+    tool: get_merge_queue_status
+    params: {}
+    expect:
+      not_empty: true
+
+  - id: pre_merge_check
+    transport: mcp
+    tool: pre_merge_check
+    params:
+      branch: "test/mcp-sweep-branch"
+    expect:
+      not_empty: true
+
+  - id: register_port
+    transport: mcp
+    tool: register_port
+    params:
+      port: 9999
+      service: "mcp-sweep-service"
+    expect:
+      body:
+        success: true
+
+  - id: lookup_port
+    transport: mcp
+    tool: lookup_port
+    params:
+      service: "mcp-sweep-service"
+    expect:
+      not_empty: true
+
+  - id: request_approval
+    transport: mcp
+    tool: request_approval
+    params:
+      action: "deploy"
+      description: "mcp sweep approval test"
+    expect:
+      body:
+        success: true
+    capture:
+      approval_id: "$.approval_id"
+
+  - id: respond_to_approval
+    transport: mcp
+    tool: respond_to_approval
+    params:
+      approval_id: "{{ approval_id }}"
+      approved: true
+    expect:
+      body:
+        success: true
+
+  - id: get_health
+    transport: mcp
+    tool: get_health
+    params: {}
+    expect:
+      not_empty: true

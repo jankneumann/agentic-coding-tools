@@ -1,0 +1,38 @@
+id: "cli-policy-sweep"
+name: "CLI guardrails and policy command sweep"
+description: "Exercise all CLI guardrails and policy commands: guardrails check, guardrails patterns, policy check, policy validate, policy rules"
+category: "cross-interface"
+priority: 2
+interfaces: ["cli"]
+tags: ["guardrails", "policy", "cli", "sweep"]
+
+steps:
+  - id: cli_guardrails_check
+    transport: cli
+    command: "guardrails check --operation 'git add .'"
+    expect:
+      exit_code: 0
+
+  - id: cli_guardrails_patterns
+    transport: cli
+    command: "guardrails patterns"
+    expect:
+      exit_code: 0
+
+  - id: cli_policy_check
+    transport: cli
+    command: "policy check --operation file_write --file-path src/test.py"
+    expect:
+      exit_code: 0
+
+  - id: cli_policy_validate
+    transport: cli
+    command: "policy validate --policy-text 'permit all'"
+    expect:
+      exit_code: 0
+
+  - id: cli_policy_rules
+    transport: cli
+    command: "policy rules"
+    expect:
+      exit_code: 0

@@ -1,0 +1,68 @@
+id: "mcp-lock-sweep"
+name: "MCP lock tool sweep"
+description: "Exercise all MCP lock tools: acquire_lock, check_locks, release_lock, and force_release_lock"
+category: "lock-lifecycle"
+priority: 3
+interfaces: ["mcp"]
+tags: ["locks", "mcp", "sweep"]
+
+steps:
+  - id: acquire_lock
+    transport: mcp
+    tool: acquire_lock
+    params:
+      file_path: "src/mcp_sweep.py"
+      reason: "mcp sweep test"
+    expect:
+      body:
+        success: true
+
+  - id: check_locks
+    transport: mcp
+    tool: check_locks
+    params:
+      file_paths: ["src/mcp_sweep.py"]
+    expect:
+      body:
+        locked: true
+
+  - id: release_lock
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/mcp_sweep.py"
+    expect:
+      body:
+        success: true
+
+  - id: force_acquire_for_force_release
+    transport: mcp
+    tool: acquire_lock
+    params:
+      file_path: "src/mcp_sweep_force.py"
+      reason: "force release test setup"
+    expect:
+      body:
+        success: true
+
+  - id: force_release_lock
+    transport: mcp
+    tool: force_release_lock
+    params:
+      file_path: "src/mcp_sweep_force.py"
+    expect:
+      body:
+        success: true
+
+cleanup:
+  - id: cleanup_release
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/mcp_sweep.py"
+
+  - id: cleanup_force_release
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/mcp_sweep_force.py"
