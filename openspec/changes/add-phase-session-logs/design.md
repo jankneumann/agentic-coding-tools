@@ -16,6 +16,10 @@ Phase 6: /cleanup-feature       → appends "Cleanup" section (replaces current 
 
 Each phase appends; no phase overwrites. The file grows incrementally across sessions and agents.
 
+### Concurrency Model
+
+In parallel execution, each agent works in its own worktree on a separate branch. Each agent appends to its own copy of `session-log.md`. During the integration merge step (`merge_worktrees.py`), session-log.md entries from different branches are combined. Since the file is append-only, git merge handles most cases automatically. For true conflicts (two agents appending at the same position), the integration merge resolves by chronological ordering based on the phase entry date in each header.
+
 ### Merge Log as Dated Entries
 
 ```
@@ -65,6 +69,16 @@ Each phase appends a section following this structure:
 | iterate-on-implementation | `Implementation Iteration <N>` |
 | validate-feature | `Validation` |
 | cleanup-feature | `Cleanup` |
+
+### Iteration Numbering
+
+For phase names with `<N>` (Plan Iteration, Implementation Iteration), the iteration number is auto-incremented:
+
+1. Read `session-log.md` (if it exists)
+2. Count existing `## Phase: Plan Iteration` (or `Implementation Iteration`) headers
+3. N = count + 1
+
+This is scoped to the change-id (the file itself). No external counter needed.
 
 ### File Initialization
 
@@ -121,10 +135,14 @@ Every skill follows the same 3-step pattern at its session-log step:
 
 ```
 1. APPEND: Agent writes phase entry to session-log.md (or merge-log)
-2. SANITIZE: Run sanitize_session_log.py on the file
-3. VERIFY: Agent reads sanitized output and confirms it's coherent
-   - If over-redacted: agent rewrites the affected section without secrets
+2. SANITIZE: Run sanitize_session_log.py on the file (in-place)
+3. VERIFY: Agent reads sanitized output and checks:
+   a. All phase entry sections are present (or intentionally omitted per "no decisions" rule)
+   b. No [REDACTED:*] markers in narrative prose where original had no secrets
+   c. Markdown structure is intact (headers, lists, tables parseable)
+   - If over-redacted: rewrite the affected section without the triggering pattern, re-sanitize (one attempt max)
    - If clean: proceed to commit
+   - If sanitization exits non-zero: skip session log, log warning, continue workflow
 ```
 
 ### Sanitization Integration

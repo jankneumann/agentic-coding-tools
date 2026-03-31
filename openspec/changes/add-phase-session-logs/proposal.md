@@ -22,7 +22,7 @@ Refactor session-log from a retroactive extraction tool into a **living artifact
 
 ## Scope
 
-- **In scope**: Refactor session-log skill, add append steps to 7 workflow skills, create merge-log pattern, update delta spec
+- **In scope**: Refactor session-log skill, add append steps to 6 workflow skills (plan, iterate-plan, implement, iterate-implementation, validate, cleanup), create merge-log pattern for merge-pull-requests, update delta spec
 - **Out of scope**: Changing the sanitization logic, modifying coordinator handoff format, adding session-log to non-workflow skills (bug-scrub, fix-scrub, explore-feature)
 
 ## Risks
