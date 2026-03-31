@@ -63,6 +63,24 @@ See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development
 - **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
 - **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
 
+### Sync-Point Skills
+
+Some skills operate directly on the shared checkout / main branch rather than in worktrees. These are **sync-point skills** — convergence operations that integrate work back into main.
+
+| Skill | Why main is safe |
+|---|---|
+| `/merge-pull-requests` | User-invoked merge of approved PRs; inherently sequential |
+| `/update-specs` | Post-merge documentation commit; no concurrent conflict risk |
+| `/cleanup-feature` | Uses a worktree internally but touches main at the end |
+
+**Contract for sync-point skills:**
+- **Exclusive access**: Must not run while other agents hold active worktrees. Use `shared.check_no_active_agents()` to verify before proceeding.
+- **User-invoked only**: Never triggered automatically by the coordinator or other skills.
+- **Dirty-state check**: Must verify the working directory is clean before touching main.
+- **`--force` escape hatch**: Allow the user to override the active-agent guard when they know it's safe (e.g., stale registry entries from crashed agents).
+
+The active-agent guard checks `.git-worktrees/.registry.json` for non-stale entries (heartbeat within the last hour). If active agents are found, it aborts with guidance on how to proceed.
+
 ## Documentation
 
 - [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns

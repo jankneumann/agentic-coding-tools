@@ -17,7 +17,7 @@ Discover, triage, and merge open pull requests from multiple sources. Handles Op
 
 ## Arguments
 
-`$ARGUMENTS` - Optional flags: `--dry-run` (report only, no mutations)
+`$ARGUMENTS` - Optional flags: `--dry-run` (report only, no mutations), `--force` (proceed even if active agents detected)
 
 ## Script Location
 
@@ -47,6 +47,17 @@ git status
 - If `gh` is not authenticated, stop and ask the user to run `gh auth login`.
 - If the working directory has uncommitted changes, **stop and warn the user**. Do not run `git checkout main` with a dirty working directory — it could silently carry or lose uncommitted work. Ask the user to commit, stash, or discard changes first.
 - If not on `main`, check for uncommitted changes before switching.
+
+**Active-agent guard:** This skill is a **sync-point** — it operates directly on the shared checkout / main branch rather than in a worktree. Before proceeding, check for active agents:
+
+```bash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/shared.py check-agents [--force]
+```
+
+Or programmatically via `shared.check_no_active_agents(force=<bool>)`. If active agents are detected (non-stale worktree registry entries with heartbeats within the last hour), **stop and warn the user**. Active agents may be modifying branches that this skill will merge or interact with. Options:
+- Wait for active agents to finish
+- Use `--force` to proceed anyway
+- Run `python3 skills/worktree/scripts/worktree.py gc` to clean stale entries
 
 **Write access check:** Before proceeding, verify the token has write access:
 

@@ -4,11 +4,15 @@ Provides common functions for gh CLI interaction, argument parsing,
 and author extraction used across discover, staleness, comment, and merge scripts.
 """
 
+import json
 import subprocess
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
 GH_TIMEOUT = 30
 GIT_TIMEOUT = 60
+ACTIVE_AGENT_STALE_HOURS = 1.0
 
 
 def _truncate_cmd(parts: list[str], max_len: int = 200) -> str:
@@ -180,3 +184,116 @@ def check_clean_worktree() -> bool:
         return False
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# Active-agent guard for sync-point skills
+# ---------------------------------------------------------------------------
+
+def _resolve_main_repo() -> Path | None:
+    """Resolve the main repository root, returning None on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
+        )
+        if result.returncode != 0:
+            return None
+        git_common = result.stdout.strip()
+        if git_common == ".git":
+            toplevel = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT,
+            )
+            return Path(toplevel.stdout.strip()) if toplevel.returncode == 0 else None
+        # Inside a worktree: git-common-dir is /path/to/main/.git
+        main_git = git_common.split("/.git")[0]
+        return Path(main_git)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+
+def _load_worktree_registry(main_repo: Path) -> dict | None:
+    """Load .git-worktrees/.registry.json, returning None if absent."""
+    registry_path = main_repo / ".git-worktrees" / ".registry.json"
+    if not registry_path.is_file():
+        return None
+    try:
+        with open(registry_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def check_no_active_agents(force: bool = False) -> bool:
+    """Check the worktree registry for active agents.
+
+    Sync-point skills (merge-pull-requests, update-specs) operate on the
+    shared checkout / main branch. They must not run while other agents
+    hold active worktrees, as concurrent git operations on main could
+    interfere with worktree-based work.
+
+    Returns True if safe to proceed (no active agents or registry
+    unavailable). Returns False if active agents are detected.
+
+    When force=True, prints a warning but returns True anyway.
+    """
+    main_repo = _resolve_main_repo()
+    if main_repo is None:
+        return True  # Can't resolve repo — skip guard
+
+    registry = _load_worktree_registry(main_repo)
+    if registry is None or not registry.get("entries"):
+        return True  # No registry or no entries — safe
+
+    now = datetime.now(timezone.utc)
+    active_agents = []
+
+    for entry in registry["entries"]:
+        try:
+            hb = datetime.fromisoformat(entry["last_heartbeat"])
+        except (KeyError, ValueError):
+            continue
+        age_hours = (now - hb).total_seconds() / 3600
+
+        # Skip stale entries (heartbeat older than threshold)
+        if age_hours > ACTIVE_AGENT_STALE_HOURS:
+            continue
+
+        # Skip entries whose worktree directory no longer exists
+        wt_path = entry.get("worktree_path", "")
+        if wt_path and not Path(wt_path).is_dir():
+            continue
+
+        label = entry.get("change_id", "unknown")
+        agent_id = entry.get("agent_id")
+        if agent_id:
+            label = f"{label}/{agent_id}"
+        active_agents.append(label)
+
+    if not active_agents:
+        return True
+
+    agent_list = ", ".join(active_agents)
+    if force:
+        print(
+            f"Warning: {len(active_agents)} active agent(s) detected "
+            f"({agent_list}). Proceeding anyway (--force).",
+            file=sys.stderr,
+        )
+        return True
+
+    print(
+        f"Error: {len(active_agents)} active agent(s) detected in worktree "
+        f"registry: {agent_list}.\n"
+        "Sync-point skills (merge-pull-requests, update-specs) require "
+        "exclusive access to the shared checkout. Running them while other "
+        "agents are active may cause interference.\n"
+        "Options:\n"
+        "  - Wait for active agents to finish\n"
+        "  - Use --force to proceed anyway\n"
+        "  - Run 'python3 skills/worktree/scripts/worktree.py gc' to clean "
+        "stale entries",
+        file=sys.stderr,
+    )
+    return False

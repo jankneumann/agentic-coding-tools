@@ -38,6 +38,14 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **Result aggregation**: After parallel tasks complete, the orchestrator collects results via TaskOutput, verifies work, and commits. Don't let agents commit directly—the orchestrator should control the commit.
 
+### Sync-Point vs. Worktree Isolation
+
+- **Two strategies for concurrent safety**: Worktrees provide **isolation** (each actor gets its own copy), while sync-point skills use **serialization** (only one actor at a time on main). Use worktrees for "fan-out" phases (plan, implement) and main-branch access for "fan-in" phases (merge, spec update).
+
+- **Sync-point skills need an active-agent guard**: Skills that operate on the shared checkout (`/merge-pull-requests`, `/update-specs`) must check `check_no_active_agents()` before proceeding. This reads the worktree registry for non-stale heartbeats and aborts if other agents are actively working. The `--force` flag overrides the guard for stale/crashed agent entries.
+
+- **Not all writes need worktrees**: The launcher invariant ("shared checkout is read-only") protects against *concurrent* modification. Sync-point skills are safe on main because they run alone and are user-invoked. The guard enforces this assumption rather than relying on documentation alone.
+
 ## OpenSpec Integration
 
 - **Agent-native OpenSpec first**: For planning/implementation/validation/archive internals, prefer generated OpenSpec assets for the active runtime:
