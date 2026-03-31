@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any
 
 from src.event_bus import CoordinatorEvent
 
@@ -53,6 +52,15 @@ class NotifierService:
         if not self._channels:
             return {}
 
+        # Build filtered channel list first (before any delay)
+        filtered: dict[str, NotificationChannel] = {}
+        for channel_id, channel in self._channels.items():
+            if _passes_filter(channel_id, event):
+                filtered[channel_id] = channel
+
+        if not filtered:
+            return {}
+
         # Apply urgency delay (high = immediate)
         if event.urgency == "medium":
             await asyncio.sleep(_MEDIUM_DELAY_SECONDS)
@@ -60,10 +68,7 @@ class NotifierService:
             await asyncio.sleep(_LOW_DELAY_SECONDS)
 
         tasks: dict[str, asyncio.Task[bool]] = {}
-        for channel_id, channel in self._channels.items():
-            # Per-channel event filter
-            if not _passes_filter(channel_id, event):
-                continue
+        for channel_id, channel in filtered.items():
             tasks[channel_id] = asyncio.create_task(
                 self._send_with_retry(channel, event)
             )
@@ -111,6 +116,12 @@ class NotifierService:
                 "Channel %s exhausted retries: %s",
                 channel.channel_id,
                 last_exc,
+            )
+        else:
+            logger.warning(
+                "Channel %s exhausted retries: send returned False on all %d attempts",
+                channel.channel_id,
+                _RETRY_MAX_ATTEMPTS,
             )
         return False
 

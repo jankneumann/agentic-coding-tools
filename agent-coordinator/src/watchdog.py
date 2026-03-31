@@ -7,7 +7,6 @@ expired tokens, and event bus health. Emits notifications via pg_notify.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import time

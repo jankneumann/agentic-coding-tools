@@ -111,6 +111,8 @@ class EventBusService:
     to listen on multiple channels and dispatch CoordinatorEvent objects.
     """
 
+    _MAX_BACKOFF_SECONDS = 60.0
+
     def __init__(
         self,
         dsn: str | None = None,
@@ -131,6 +133,8 @@ class EventBusService:
         self._listen_task: asyncio.Task[None] | None = None
         self._running = False
         self._failed = False
+        self._pending_tasks: set[asyncio.Task[Any]] = set()
+        self._lifecycle_lock = asyncio.Lock()
 
     @property
     def running(self) -> bool:
@@ -154,30 +158,36 @@ class EventBusService:
 
     async def start(self) -> None:
         """Start listening on all configured channels."""
-        if self._running:
-            return
-        self._running = True
-        self._failed = False
-        self._listen_task = asyncio.create_task(self._listen_loop())
-        logger.info(
-            "EventBus: started LISTEN on %d channels: %s",
-            len(self._channels),
-            ", ".join(self._channels),
-        )
+        async with self._lifecycle_lock:
+            if self._running:
+                return
+            self._running = True
+            self._failed = False
+            self._listen_task = asyncio.create_task(self._listen_loop())
+            logger.info(
+                "EventBus: started LISTEN on %d channels: %s",
+                len(self._channels),
+                ", ".join(self._channels),
+            )
 
     async def stop(self) -> None:
-        """Stop listening and close the dedicated connection."""
-        self._running = False
-        if self._listen_task and not self._listen_task.done():
-            self._listen_task.cancel()
-            try:
-                await self._listen_task
-            except asyncio.CancelledError:
-                pass
-        if self._connection and not self._connection.is_closed():
-            await self._connection.close()
-            self._connection = None
-        logger.info("EventBus: stopped")
+        """Stop listening, drain pending callbacks, and close the connection."""
+        async with self._lifecycle_lock:
+            self._running = False
+            if self._listen_task and not self._listen_task.done():
+                self._listen_task.cancel()
+                try:
+                    await self._listen_task
+                except asyncio.CancelledError:
+                    pass
+            # Drain in-flight callback tasks
+            if self._pending_tasks:
+                await asyncio.gather(*self._pending_tasks, return_exceptions=True)
+                self._pending_tasks.clear()
+            if self._connection and not self._connection.is_closed():
+                await self._connection.close()
+                self._connection = None
+            logger.info("EventBus: stopped")
 
     async def restart(self) -> None:
         """Restart the event bus (e.g., after watchdog detects failure)."""
@@ -203,7 +213,10 @@ class EventBusService:
                     self._failed = True
                     self._running = False
                     break
-                wait = self._backoff_seconds * (2 ** (retries - 1))
+                wait = min(
+                    self._backoff_seconds * (2 ** (retries - 1)),
+                    self._MAX_BACKOFF_SECONDS,
+                )
                 logger.warning(
                     "EventBus: connection lost (%s), retry %d/%d in %.1fs",
                     exc,
@@ -217,12 +230,23 @@ class EventBusService:
         """Establish connection and listen on all channels."""
         import asyncpg
 
-        self._connection = await asyncpg.connect(self._dsn)
+        self._connection = await asyncpg.connect(
+            self._dsn,
+            server_settings={
+                "tcp_keepalives_idle": "30",
+                "tcp_keepalives_interval": "10",
+                "tcp_keepalives_count": "3",
+            },
+        )
 
         def _notification_handler(
             _conn: Any, _pid: int, channel: str, payload: str
         ) -> None:
-            asyncio.create_task(self._dispatch(channel, payload))
+            # asyncpg calls this synchronously from the event loop thread,
+            # so create_task is safe here. Track the task to prevent GC.
+            task = asyncio.create_task(self._dispatch(channel, payload))
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
 
         for ch in self._channels:
             await self._connection.add_listener(ch, _notification_handler)
@@ -236,26 +260,37 @@ class EventBusService:
             while self._running and not self._connection.is_closed():
                 await asyncio.sleep(1.0)
         finally:
-            if self._connection and not self._connection.is_closed():
-                for ch in self._channels:
-                    await self._connection.remove_listener(ch, _notification_handler)
-                await self._connection.close()
-            self._connection = None
+            try:
+                if self._connection and not self._connection.is_closed():
+                    for ch in self._channels:
+                        await self._connection.remove_listener(ch, _notification_handler)
+                    await self._connection.close()
+            except Exception as exc:
+                logger.warning("EventBus: cleanup error: %s", exc)
+            finally:
+                self._connection = None
 
     async def _dispatch(self, channel: str, payload: str) -> None:
         """Parse event and dispatch to registered callbacks."""
         try:
             event = CoordinatorEvent.from_json(payload)
-        except (json.JSONDecodeError, TypeError) as exc:
-            logger.error("EventBus: invalid payload on '%s': %s", channel, exc)
+        except (json.JSONDecodeError, TypeError, KeyError) as exc:
+            logger.error(
+                "EventBus: invalid payload on '%s': %s: %s",
+                channel,
+                type(exc).__name__,
+                exc,
+            )
             return
 
+        # Snapshot both callback lists to avoid mutation during iteration
         callbacks = list(self._global_callbacks)
-        if channel in self._callbacks:
-            callbacks.extend(self._callbacks[channel])
+        callbacks.extend(list(self._callbacks.get(channel, [])))
 
         for cb in callbacks:
-            asyncio.create_task(self._safe_callback(cb, event))
+            task = asyncio.create_task(self._safe_callback(cb, event))
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
 
     @staticmethod
     async def _safe_callback(callback: EventCallback, event: CoordinatorEvent) -> None:

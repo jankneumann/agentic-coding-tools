@@ -75,7 +75,7 @@ def main() -> None:
         message = "Phase transition"
 
     needs_human = phase == "ESCALATE"
-    event_type = "status.escalated" if needs_human else "phase_transition"
+    event_type = "status.escalated" if needs_human else "status.phase_transition"
 
     # Check cache to avoid duplicate reports
     cache = _read_status_cache()
@@ -107,7 +107,10 @@ def main() -> None:
 
         with httpx.Client(timeout=5.0) as client:
             response = client.post(url, json=payload, headers=headers)
-            if response.status_code == 200:
+            if response.is_success:
+                _write_status_cache({"last_phase": phase, "change_id": change_id})
+            elif response.status_code == 422:
+                # Validation error will never recover; cache to prevent infinite retries
                 _write_status_cache({"last_phase": phase, "change_id": change_id})
     except ImportError:
         # httpx not available

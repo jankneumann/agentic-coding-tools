@@ -69,9 +69,9 @@ class TestTelegramChannel:
 
         call_kwargs = mock_client.post.call_args.kwargs
         payload = call_kwargs["json"]
-        assert payload["parse_mode"] == "Markdown"
-        assert "*approval.submitted*" in payload["text"]
-        assert "`agent-1`" in payload["text"]
+        assert payload["parse_mode"] == "MarkdownV2"
+        assert "*approval\\.submitted*" in payload["text"]
+        assert "`agent\\-1`" in payload["text"]
 
     async def test_test_method_calls_getme(self):
         mock_response = MagicMock()

@@ -16,7 +16,7 @@ import time
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .approval import get_approval_service
 from .config import get_config
@@ -164,12 +164,12 @@ class FeatureConflictsRequest(BaseModel):
 
 
 class StatusReportRequest(BaseModel):
-    agent_id: str
-    change_id: str = ""
-    phase: str = "UNKNOWN"
-    message: str = ""
+    agent_id: str = Field(max_length=128)
+    change_id: str = Field(default="", max_length=128)
+    phase: str = Field(default="UNKNOWN", max_length=64)
+    message: str = Field(default="", max_length=500)
     needs_human: bool = False
-    event_type: str = "phase_transition"
+    event_type: str = Field(default="status.phase_transition", max_length=64)
     metadata: dict[str, Any] | None = None
 
 

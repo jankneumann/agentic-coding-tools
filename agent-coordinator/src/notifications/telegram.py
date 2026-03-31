@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 import httpx
 
 from src.event_bus import CoordinatorEvent
 
 logger = logging.getLogger(__name__)
+
+# Telegram callback_data has a 64-byte hard limit
+_MAX_CALLBACK_DATA_BYTES = 64
 
 
 class TelegramChannel:
@@ -43,28 +47,33 @@ class TelegramChannel:
     async def send(self, event: CoordinatorEvent) -> bool:
         """Send an event notification as a Telegram message with Markdown formatting."""
         text = self._format_message(event)
-        payload: dict = {
+        payload: dict[str, str | object] = {
             "chat_id": self.chat_id,
             "text": text,
-            "parse_mode": "Markdown",
+            "parse_mode": "MarkdownV2",
         }
 
         # For approval events, add inline keyboard with Approve/Deny buttons
         if event.event_type.startswith("approval."):
             token = event.context.get("token", event.entity_id)
+            # Truncate token to fit within Telegram's 64-byte callback_data limit
+            # Reserve ~30 bytes for the JSON envelope {"action":"approve","t":""}
+            max_token_len = _MAX_CALLBACK_DATA_BYTES - 30
+            if len(token) > max_token_len:
+                token = token[:max_token_len]
             payload["reply_markup"] = json.dumps({
                 "inline_keyboard": [
                     [
                         {
                             "text": "Approve",
                             "callback_data": json.dumps(
-                                {"action": "approve", "token": token}
+                                {"action": "approve", "t": token}
                             ),
                         },
                         {
                             "text": "Deny",
                             "callback_data": json.dumps(
-                                {"action": "deny", "token": token}
+                                {"action": "deny", "t": token}
                             ),
                         },
                     ]
@@ -83,8 +92,15 @@ class TelegramChannel:
                 event.entity_id,
             )
             return True
+        except httpx.HTTPStatusError as exc:
+            # Log status code only — URL contains the bot token
+            logger.error(
+                "Telegram: sendMessage failed with HTTP %d",
+                exc.response.status_code,
+            )
+            return False
         except Exception as exc:
-            logger.error("Telegram: failed to send message: %s", exc)
+            logger.error("Telegram: failed to send message: %s", type(exc).__name__)
             return False
 
     async def test(self) -> bool:
@@ -93,27 +109,39 @@ class TelegramChannel:
             response = await self.client.get(self._api_url("getMe"))
             response.raise_for_status()
             return True
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "Telegram: connection test failed with HTTP %d",
+                exc.response.status_code,
+            )
+            return False
         except Exception as exc:
-            logger.warning("Telegram: connection test failed: %s", exc)
+            logger.warning("Telegram: connection test failed: %s", type(exc).__name__)
             return False
 
     def supports_reply(self) -> bool:
         return True
 
     @staticmethod
-    def _format_message(event: CoordinatorEvent) -> str:
-        """Format a CoordinatorEvent as a Markdown message for Telegram."""
+    def _escape_markdown(text: str) -> str:
+        """Escape special characters for Telegram MarkdownV2."""
+        return re.sub(r"([_*\[\]()~`>#+\-=|{}.!\\])", r"\\\1", text)
+
+    @classmethod
+    def _format_message(cls, event: CoordinatorEvent) -> str:
+        """Format a CoordinatorEvent as a MarkdownV2 message for Telegram."""
+        esc = cls._escape_markdown
         urgency_icon = {"high": "\u26a0\ufe0f", "medium": "\u2139\ufe0f", "low": "\u2705"}.get(
             event.urgency, ""
         )
         lines = [
-            f"{urgency_icon} *{event.event_type}*",
-            f"Agent: `{event.agent_id}`",
-            f"Entity: `{event.entity_id}`",
+            f"{urgency_icon} *{esc(event.event_type)}*",
+            f"Agent: `{esc(event.agent_id)}`",
+            f"Entity: `{esc(event.entity_id)}`",
         ]
         if event.change_id:
-            lines.append(f"Change: `{event.change_id}`")
-        lines.append(f"\n{event.summary}")
+            lines.append(f"Change: `{esc(event.change_id)}`")
+        lines.append(f"\n{esc(event.summary)}")
         return "\n".join(lines)
 
 
