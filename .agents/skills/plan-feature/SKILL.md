@@ -243,6 +243,28 @@ openspec instructions design --change "<change-id>"  # When complexity warrants 
 
 **Critical**: The selected approach from Gate 1 MUST drive all artifact content. Tasks must implement the selected approach specifically, not a generic solution. Specs must reflect the chosen approach's behavior.
 
+**Task ordering — TDD test-first**: Within each phase of `tasks.md`, list test
+tasks *before* the implementation tasks they verify. Each implementation task
+should declare a dependency on its corresponding test task. This ensures
+`/implement-feature` writes tests (RED) before writing code to make them pass
+(GREEN).
+
+**Test tasks must reference the artifacts they validate**:
+- **Spec scenarios**: Each test task lists the spec scenario IDs (e.g., `agent-coordinator.3`) it encodes. Every SHALL/MUST scenario in specs must be covered by at least one test task.
+- **Contracts**: If contracts exist (local-parallel+ tiers), test tasks reference the contract files they assert against — OpenAPI endpoint schemas, DB schema constraints, event payload JSON schemas. This ensures tests validate the contracted interface, not just internal behavior.
+- **Design decisions**: If `design.md` exists, test tasks reference the decision IDs (e.g., `D3`) they verify. This catches cases where the implementation accidentally uses an approach that was explicitly rejected.
+
+Example:
+```markdown
+- [ ] 1.1 Write tests for EventBusService — callback dispatch, reconnection
+  **Spec scenarios**: agent-coordinator.1 (event delivery), agent-coordinator.2 (reconnection)
+  **Contracts**: contracts/events/coordinator.schema.json
+  **Design decisions**: D3 (pg_notify over polling)
+  **Dependencies**: None
+- [ ] 1.2 Create event_bus.py — EventBusService with on_event() registration
+  **Dependencies**: 1.1
+```
+
 Expected artifacts:
 - `openspec/changes/<change-id>/specs/<capability>/spec.md`
 - `openspec/changes/<change-id>/tasks.md`
