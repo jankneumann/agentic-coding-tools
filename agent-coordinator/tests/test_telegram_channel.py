@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
-import pytest
 
 from src.event_bus import CoordinatorEvent
 from src.notifications.telegram import TelegramChannel

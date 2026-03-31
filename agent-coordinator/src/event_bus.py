@@ -13,7 +13,7 @@ import logging
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class CoordinatorEvent:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+            self.timestamp = datetime.now(UTC).isoformat()
         # Enforce summary length
         if len(self.summary) > 200:
             self.summary = self.summary[:197] + "..."

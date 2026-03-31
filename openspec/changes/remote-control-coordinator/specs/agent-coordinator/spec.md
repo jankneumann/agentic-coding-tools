@@ -18,11 +18,11 @@ All events flowing through the event bus and notifier SHALL conform to this sche
 | `context` | `dict[str, Any]` | No | Structured event-specific details (operation, resource, findings, etc.) |
 | `timestamp` | `str (ISO 8601)` | Yes | Event creation time |
 
-## ADDED: Event Bus Service
+## ADDED Requirements
+
+### Requirement: Event Bus Service
 
 The coordinator SHALL provide a generalized event bus built on PostgreSQL LISTEN/NOTIFY that extends the existing `policy_sync.py` pattern to multiple channels.
-
-### Requirements
 
 - The event bus SHALL listen on the following PostgreSQL NOTIFY channels:
   - `coordinator_approval` — approval request submitted, decided, or expired (trigger on `approval_queue`)
@@ -62,11 +62,9 @@ THEN the watchdog (if running) SHALL detect the failed flag within one check int
 AND emit a `high` urgency notification via direct `pg_notify` call (bypassing the failed listener)
 AND the event bus SHALL NOT attempt further reconnections until manually restarted or the API server restarts.
 
-## ADDED: Notification Service
+### Requirement: Notification Service
 
 The coordinator SHALL provide a pluggable notification service that subscribes to the event bus and dispatches notifications through configured channels.
-
-### Requirements
 
 - The notifier SHALL implement a `NotificationChannel` protocol with methods: `send(event) -> bool`, `test() -> bool`, `supports_reply() -> bool`.
 - The notifier SHALL maintain a registry of enabled channels, configured via the `NOTIFICATION_CHANNELS` environment variable (comma-separated list, e.g., `gmail,telegram,webhook`).
@@ -116,11 +114,11 @@ WHEN 5 low-urgency events arrive within a 10-minute window
 THEN the notifier SHALL NOT send them immediately
 AND after 10 minutes (or `NOTIFICATION_DIGEST_INTERVAL_SECONDS`), the notifier SHALL send a single digest email containing all 5 event summaries.
 
-## ADDED: Gmail Notification Channel
+### Requirement: Gmail Notification Channel
 
 The coordinator SHALL provide a Gmail-compatible email channel with SMTP outbound and IMAP IDLE inbound for bidirectional communication.
 
-### Requirements — Outbound (SMTP)
+Outbound (SMTP):
 
 - The Gmail channel SHALL send notifications via SMTP using `aiosmtplib`.
 - The Gmail channel SHALL support Gmail App Passwords for authentication, configured via `SMTP_HOST` (default: `smtp.gmail.com`), `SMTP_PORT` (default: `587`), `SMTP_USER`, `SMTP_PASSWORD` environment variables. OAuth2 support is deferred to a future change.
@@ -136,7 +134,7 @@ THEN it sends an email with subject `[coordinator] Approval needed: <operation> 
 AND the body includes agent name, operation description, resource, and reply instructions
 AND a notification token is generated and stored with 1-hour TTL.
 
-### Requirements — Inbound (IMAP IDLE)
+Inbound (IMAP IDLE):
 
 - The Gmail channel SHALL monitor an IMAP mailbox using IMAP IDLE for near-real-time reply detection.
 - The Gmail channel SHALL use `aioimaplib` for async IMAP operations.
@@ -154,7 +152,7 @@ AND a notification token is generated and stored with 1-hour TTL.
 - The Gmail channel SHALL validate the sender by extracting the email address from the IMAP envelope and matching case-insensitively against `NOTIFICATION_ALLOWED_SENDERS` (comma-separated email allowlist). No domain wildcards.
 - Invalid tokens (expired, already used, not found) SHALL result in a reply email explaining the specific error. If expired, the reply SHALL include a list of current pending approvals (if any).
 
-### Security Prohibitions
+Security Prohibitions:
 
 - The relay MUST NOT execute arbitrary shell commands or code derived from email content.
 - The relay MUST NOT allow approval decisions from addresses not in `NOTIFICATION_ALLOWED_SENDERS`.
@@ -208,11 +206,9 @@ AND the token is valid
 THEN the relay SHALL store the text via `MemoryService.remember()` with tags `["human-feedback", "<change_id>"]`
 AND a confirmation email SHALL be sent: "Guidance recorded. Will be available in next review round."
 
-## ADDED: Notification Tokens
+### Requirement: Notification Tokens
 
 The coordinator SHALL manage short-lived, single-use tokens for secure reply-based interactions.
-
-### Requirements
 
 - Tokens SHALL be 8-character alphanumeric strings generated via `secrets.token_urlsafe`.
 - Tokens SHALL be stored in a `notification_tokens` table with columns: `token`, `event_type`, `entity_id`, `change_id`, `created_at`, `expires_at`, `used_at`.
@@ -232,11 +228,9 @@ AND `used_at` is set to the current timestamp.
 WHEN a reply contains a token that has already been used (`used_at IS NOT NULL`)
 THEN validation fails with "Token already used".
 
-## ADDED: Status Reporting
+### Requirement: Status Reporting
 
 The coordinator SHALL accept status reports from agents via both Claude Code hooks and HTTP API.
-
-### Requirements
 
 - A new `POST /status/report` endpoint SHALL accept: `agent_id`, `change_id`, `phase`, `message`, `needs_human` (boolean), `event_type` (optional, default: `"phase_transition"`), `metadata` (optional JSON).
 - The endpoint SHALL update the agent's heartbeat timestamp as a side effect.
@@ -273,11 +267,9 @@ WHEN a Codex agent calls `POST /status/report` with `{"agent_id": "codex-1", "ph
 THEN the coordinator stores the status and updates the heartbeat
 AND emits a `coordinator_status` NOTIFY event with urgency `medium`.
 
-## ADDED: Watchdog Service
+### Requirement: Watchdog Service
 
 The coordinator SHALL run a periodic health monitoring loop as an asyncio background task.
-
-### Requirements
 
 - The watchdog SHALL run within the `coordination_api.py` FastAPI lifespan (not a separate process).
 - The watchdog SHALL check every 60 seconds (configurable via `WATCHDOG_INTERVAL_SECONDS`, range 10-3600, default: 60).
@@ -305,19 +297,31 @@ WHEN the watchdog finds a pending approval older than 15 minutes
 AND no reminder has been sent in the last 30 minutes for this approval
 THEN it emits a `coordinator_approval` event with `event_type: "reminder"` and urgency `medium`.
 
-## MODIFIED: Coordination API
+## MODIFIED Requirements
 
-### Requirements
+### Requirement: Coordination API
 
 - The `coordination_api.py` SHALL register the event bus and notifier in its FastAPI `lifespan` context manager.
 - The `coordination_api.py` SHALL start the watchdog background task in the lifespan.
 - A new `POST /notifications/test` endpoint SHALL send a test notification through all enabled channels and return per-channel success/failure.
 - A new `GET /notifications/status` endpoint SHALL return the status of each configured channel (enabled, connected, last_sent).
 
-## MODIFIED: Claude Code Hooks
+#### Scenario: API lifespan starts event bus and notifier
 
-### Requirements
+WHEN the FastAPI application starts
+THEN the event bus connects and begins listening on all channels
+AND the notifier subscribes to the event bus
+AND the watchdog background task begins periodic checks.
+
+### Requirement: Claude Code Hooks
 
 - `.claude/hooks.json` SHALL add `Stop` and `SubagentStop` hook entries pointing to `agent-coordinator/scripts/report_status.py`.
 - The hook script SHALL fail gracefully (exit 0) if the coordinator is not configured or unreachable.
 - The hook script SHALL not block Claude Code for more than 5 seconds.
+
+#### Scenario: Hook fires on Stop event
+
+WHEN Claude Code fires a Stop event
+AND `loop-state.json` exists with a new phase
+THEN `report_status.py` sends a status report to the coordinator
+AND exits with code 0 regardless of coordinator response.

@@ -15,7 +15,7 @@ from src.db import get_db
 from src.event_bus import CoordinatorEvent
 from src.status import generate_token, store_token, validate_token
 
-from .relay import clean_reply_body, extract_token, parse_reply, route_reply, validate_sender
+from .relay import extract_token, parse_reply, route_reply, validate_sender
 from .templates import (
     render_approval_email,
     render_escalation_email,
@@ -286,7 +286,7 @@ class GmailChannel:
         """Select the appropriate template based on event type."""
         if event.event_type.startswith("approval."):
             return render_approval_email(event, token)
-        elif event.event_type.startswith("status.escalated") or event.event_type == "status.escalated":
+        elif "escalated" in event.event_type:
             return render_escalation_email(event, token)
         elif event.event_type == "agent.stale":
             return render_stale_agent_email(event)

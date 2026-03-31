@@ -14,7 +14,6 @@ from src.notifications.relay import (
     validate_sender,
 )
 
-
 # --- extract_token ---
 
 
@@ -172,8 +171,8 @@ class TestRouteReply:
         mock_request = MagicMock()
         mock_request.status = "approved"
 
-        with patch("src.approval.ApprovalService") as MockApprovalSvc:
-            instance = MockApprovalSvc.return_value
+        with patch("src.approval.ApprovalService") as mock_approval_svc:
+            instance = mock_approval_svc.return_value
             instance.decide_request = AsyncMock(return_value=mock_request)
 
             result = await route_reply("approval", "approved", token_data, mock_db)
@@ -188,8 +187,8 @@ class TestRouteReply:
         mock_request = MagicMock()
         mock_request.status = "denied"
 
-        with patch("src.approval.ApprovalService") as MockApprovalSvc:
-            instance = MockApprovalSvc.return_value
+        with patch("src.approval.ApprovalService") as mock_approval_svc:
+            instance = mock_approval_svc.return_value
             instance.decide_request = AsyncMock(return_value=mock_request)
 
             result = await route_reply("approval", "denied", token_data, mock_db)
@@ -200,8 +199,8 @@ class TestRouteReply:
     async def test_route_reply_approval_not_found(
         self, mock_db: AsyncMock, token_data: dict
     ) -> None:
-        with patch("src.approval.ApprovalService") as MockApprovalSvc:
-            instance = MockApprovalSvc.return_value
+        with patch("src.approval.ApprovalService") as mock_approval_svc:
+            instance = mock_approval_svc.return_value
             instance.decide_request = AsyncMock(return_value=None)
 
             result = await route_reply("approval", "approved", token_data, mock_db)
@@ -226,8 +225,8 @@ class TestRouteReply:
         mock_mem_result.success = True
         mock_mem_result.memory_id = "mem-789"
 
-        with patch("src.memory.MemoryService") as MockMemSvc:
-            instance = MockMemSvc.return_value
+        with patch("src.memory.MemoryService") as mock_mem_svc:
+            instance = mock_mem_svc.return_value
             instance.remember = AsyncMock(return_value=mock_mem_result)
 
             result = await route_reply(

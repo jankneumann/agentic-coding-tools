@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from email.mime.multipart import MIMEMultipart
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, patch
 
 from src.event_bus import CoordinatorEvent
 from src.notifications.gmail import GmailChannel, _thread_message_id
@@ -102,8 +99,8 @@ class TestGmailChannel:
     async def test_test_method_returns_false_on_connection_error(self):
         channel = _make_channel()
 
-        with patch("src.notifications.gmail.aiosmtplib.SMTP") as MockSMTP:
-            instance = MockSMTP.return_value
+        with patch("src.notifications.gmail.aiosmtplib.SMTP") as mock_smtp:
+            instance = mock_smtp.return_value
             instance.connect = AsyncMock(side_effect=ConnectionRefusedError("refused"))
 
             result = await channel.test()

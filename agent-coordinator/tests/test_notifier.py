@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock
-
 import pytest
 
 from src.event_bus import CoordinatorEvent
-from src.notifications.base import GmailChannelFake, NotificationChannel
+from src.notifications.base import GmailChannelFake
 from src.notifications.notifier import NotifierService, reset_notifier
 
 

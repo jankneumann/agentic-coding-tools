@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.coordination_api import StatusReportRequest, create_coordination_api
+from src.coordination_api import create_coordination_api
 
 # =============================================================================
 # Fixtures
@@ -215,6 +214,7 @@ def test_hook_script_reads_loop_state(tmp_path: Path, monkeypatch: pytest.Monkey
     try:
         # Force reimport to pick up new cwd
         import importlib
+
         import scripts.report_status as rs_mod
         importlib.reload(rs_mod)
 
@@ -226,12 +226,15 @@ def test_hook_script_reads_loop_state(tmp_path: Path, monkeypatch: pytest.Monkey
             sys.path.remove(str(_SCRIPTS_DIR.parent))
 
 
-def test_hook_script_handles_missing_loop_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_hook_script_handles_missing_loop_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Hook script reports phase=UNKNOWN when loop-state.json is missing."""
     monkeypatch.chdir(tmp_path)
     sys.path.insert(0, str(_SCRIPTS_DIR.parent))
     try:
         import importlib
+
         import scripts.report_status as rs_mod
         importlib.reload(rs_mod)
 
@@ -251,6 +254,7 @@ def test_hook_script_handles_corrupt_json(tmp_path: Path, monkeypatch: pytest.Mo
     sys.path.insert(0, str(_SCRIPTS_DIR.parent))
     try:
         import importlib
+
         import scripts.report_status as rs_mod
         importlib.reload(rs_mod)
 
@@ -316,7 +320,7 @@ def test_status_fn_callback_in_auto_dev_loop(tmp_path: Path) -> None:
         def mock_converge(**kwargs: Any) -> dict[str, Any]:
             return {"converged": True, "findings_count": 0, "blocking_findings": []}
 
-        # Run with stubs that complete quickly: INIT -> PLAN -> PLAN_REVIEW -> IMPLEMENT -> IMPL_REVIEW -> VALIDATE -> SUBMIT_PR -> DONE
+        # Run with stubs that complete the full phase chain
         state = run_loop(
             change_id="test-change",
             change_dir=str(change_dir),

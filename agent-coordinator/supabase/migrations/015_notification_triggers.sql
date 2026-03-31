@@ -84,7 +84,7 @@ BEGIN
                 'coordinator_task',
                 'task.' || NEW.status,
                 NEW.id::text,
-                COALESCE(NEW.claimed_by, NEW.submitted_by, 'unknown'),
+                COALESCE(NEW.claimed_by, 'unknown'),
                 CASE NEW.status
                     WHEN 'completed' THEN 'Task completed: '
                     WHEN 'failed' THEN 'Task failed: '

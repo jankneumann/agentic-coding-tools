@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-from src.watchdog import WatchdogService, reset_watchdog
+from src.watchdog import WatchdogService
 
 
 class FakeTime:
@@ -78,7 +76,7 @@ class TestStaleAgentDetection:
         mock_get_bus.return_value = mock_bus
 
         db = _make_mock_db()
-        stale_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        stale_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
             "agent_discovery": [
                 {"agent_id": "stale-agent-1", "status": "active", "last_heartbeat": stale_time}
@@ -107,7 +105,7 @@ class TestAgingApprovalReminder:
         mock_get_bus.return_value = mock_bus
 
         db = _make_mock_db()
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        old_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
             "agent_discovery": [],
             "approval_queue": [
@@ -144,7 +142,7 @@ class TestApprovalReminderDebounce:
         mock_get_bus.return_value = mock_bus
 
         db = _make_mock_db()
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+        old_time = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
             "agent_discovery": [],
             "approval_queue": [
@@ -191,7 +189,7 @@ class TestExpiringLockWarning:
         mock_get_bus.return_value = mock_bus
 
         db = _make_mock_db()
-        soon = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+        soon = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
             "agent_discovery": [],
             "approval_queue": [],
@@ -225,7 +223,7 @@ class TestExpiredTokenCleanup:
         mock_get_bus.return_value = mock_bus
 
         db = _make_mock_db()
-        expired_time = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        expired_time = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         db.query = AsyncMock(side_effect=lambda table, *args, **kwargs: {
             "agent_discovery": [],
             "approval_queue": [],

@@ -8,7 +8,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
-import pytest
 
 from src.event_bus import CoordinatorEvent
 from src.notifications.webhook import WebhookChannel

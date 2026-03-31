@@ -4,19 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.event_bus import (
-    CHANNELS,
     CoordinatorEvent,
     EventBusService,
     classify_urgency,
     get_event_bus,
     reset_event_bus,
 )
-
 
 # --- CoordinatorEvent tests ---
 

@@ -10,7 +10,7 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .db import DatabaseClient, get_db
@@ -101,7 +101,7 @@ class WatchdogService:
         try:
             from datetime import timedelta
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             threshold = (now - timedelta(minutes=_STALE_AGENT_THRESHOLD_MINUTES)).isoformat()
             rows = await self.db.query(
                 "agent_discovery",
@@ -115,7 +115,10 @@ class WatchdogService:
                     entity_id=agent_id,
                     agent_id=agent_id,
                     urgency="high",
-                    summary=f"Agent {agent_id} has not sent a heartbeat in over {_STALE_AGENT_THRESHOLD_MINUTES} minutes",
+                    summary=(
+                        f"Agent {agent_id} has not sent a heartbeat "
+                        f"in over {_STALE_AGENT_THRESHOLD_MINUTES} minutes"
+                    ),
                 )
                 logger.warning("Watchdog: stale agent detected: %s", agent_id)
 
@@ -157,7 +160,7 @@ class WatchdogService:
         try:
             from datetime import timedelta
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             threshold = (now - timedelta(minutes=_AGING_APPROVAL_THRESHOLD_MINUTES)).isoformat()
             rows = await self.db.query(
                 "approval_queue",
@@ -178,7 +181,10 @@ class WatchdogService:
                     entity_id=approval_id,
                     agent_id=agent_id,
                     urgency="medium",
-                    summary=f"Approval request {approval_id} for '{operation}' has been pending for over {_AGING_APPROVAL_THRESHOLD_MINUTES} minutes",
+                    summary=(
+                        f"Approval {approval_id} for '{operation}' "
+                        f"pending > {_AGING_APPROVAL_THRESHOLD_MINUTES}min"
+                    ),
                 )
                 self._last_reminders[approval_id] = current_time
 
@@ -193,7 +199,7 @@ class WatchdogService:
     async def _check_expiring_locks(self) -> None:
         """Find locks within 10 min of TTL, warn holder."""
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             from datetime import timedelta
 
             soon = (now + timedelta(minutes=_LOCK_EXPIRY_WARNING_MINUTES)).isoformat()
@@ -210,7 +216,10 @@ class WatchdogService:
                     entity_id=file_path,
                     agent_id=locked_by,
                     urgency="medium",
-                    summary=f"Lock on '{file_path}' held by {locked_by} expires within {_LOCK_EXPIRY_WARNING_MINUTES} minutes",
+                    summary=(
+                        f"Lock '{file_path}' by {locked_by} "
+                        f"expires in <{_LOCK_EXPIRY_WARNING_MINUTES}min"
+                    ),
                 )
         except Exception as exc:
             logger.error("Watchdog: _check_expiring_locks failed: %s", exc)
@@ -218,7 +227,7 @@ class WatchdogService:
     async def _cleanup_expired_tokens(self) -> None:
         """Delete expired notification tokens."""
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             expired = await self.db.query(
                 "notification_tokens",
                 f"expires_at=lt.{now.isoformat()}",

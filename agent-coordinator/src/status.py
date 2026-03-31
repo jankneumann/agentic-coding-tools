@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.db import DatabaseClient
@@ -32,9 +32,9 @@ async def store_token(
         change_id: Optional OpenSpec change ID.
         ttl_seconds: Time-to-live in seconds (default 1 hour).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = datetime.fromtimestamp(
-        now.timestamp() + ttl_seconds, tz=timezone.utc
+        now.timestamp() + ttl_seconds, tz=UTC
     )
     await db.insert(
         "notification_tokens",
@@ -55,7 +55,7 @@ async def validate_token(db: DatabaseClient, token: str) -> dict[str, Any] | Non
     Checks that the token exists, is unused (used_at IS NULL), and has not
     expired before marking it as used. Returns the token row or None.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Query with full conditions: unused AND not expired
     rows = await db.query(
@@ -83,7 +83,7 @@ async def cleanup_expired_tokens(db: DatabaseClient) -> int:
     Note: The DatabaseClient.delete() doesn't return count, so we query
     first to know how many will be deleted.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Find expired tokens
     expired = await db.query(
