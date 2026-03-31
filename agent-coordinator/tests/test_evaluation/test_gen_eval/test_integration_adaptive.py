@@ -317,7 +317,8 @@ class TestCoordinatorIntegrationUnit:
         coord._available = True
 
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status_code = 201
+        mock_response.is_success = True
         mock_response.json.return_value = {"task_id": "task-123"}
 
         mock_client = AsyncMock()
@@ -376,6 +377,84 @@ class TestCoordinatorIntegrationUnit:
         coord._available = True
         coord.reset()
         assert coord._available is None
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager(self) -> None:
+        """CoordinatorIntegration can be used as an async context manager."""
+        async with CoordinatorIntegration() as coord:
+            assert isinstance(coord, CoordinatorIntegration)
+            # Should not have a client yet (lazy init)
+            assert coord._client is None
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_closes_client(self) -> None:
+        """Exiting async context manager closes the HTTP client."""
+        coord = CoordinatorIntegration()
+        mock_client = AsyncMock()
+        coord._client = mock_client
+
+        async with coord:
+            pass
+
+        mock_client.aclose.assert_awaited_once()
+        assert coord._client is None
+
+    @pytest.mark.asyncio
+    async def test_distribute_scenarios_accepts_non_200_success(self) -> None:
+        """distribute_scenarios accepts any 2xx status via is_success."""
+        coord = CoordinatorIntegration()
+        coord._available = True
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.is_success = True
+        mock_response.json.return_value = {"task_id": "task-201"}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        coord._client = mock_client
+
+        scenarios = [
+            Scenario(
+                id="test-1",
+                name="Test",
+                description="A test",
+                category="test",
+                interfaces=["http"],
+                steps=[],
+            )
+        ]
+
+        result = await coord.distribute_scenarios(scenarios)
+        assert result == ["task-201"]
+
+    @pytest.mark.asyncio
+    async def test_distribute_scenarios_rejects_failure_status(self) -> None:
+        """distribute_scenarios skips scenarios with 4xx/5xx responses."""
+        coord = CoordinatorIntegration()
+        coord._available = True
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.is_success = False
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        coord._client = mock_client
+
+        scenarios = [
+            Scenario(
+                id="test-1",
+                name="Test",
+                description="A test",
+                category="test",
+                interfaces=["http"],
+                steps=[],
+            )
+        ]
+
+        result = await coord.distribute_scenarios(scenarios)
+        assert result == []
 
     def test_build_findings_summary(self) -> None:
         """_build_findings_summary produces a readable string."""

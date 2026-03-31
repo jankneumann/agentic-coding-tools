@@ -98,7 +98,12 @@ class StateVerifier(BaseModel):
 
 
 class StartupConfig(BaseModel):
-    """How to start/stop services for evaluation."""
+    """How to start/stop services for evaluation.
+
+    Security: ``command``, ``teardown``, and ``seed_command`` are executed via
+    ``subprocess.run(..., shell=True)`` in the orchestrator.  Descriptor files
+    must come from trusted sources — never load an untrusted descriptor.
+    """
 
     command: str  # e.g., "docker-compose up -d"
     health_check: str  # URL or command to verify readiness

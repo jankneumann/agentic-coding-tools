@@ -7,8 +7,12 @@ failing interfaces, under-tested categories, and near-miss scenarios.
 
 from __future__ import annotations
 
+import logging
+
 from evaluation.gen_eval.descriptor import InterfaceDescriptor
 from evaluation.gen_eval.models import EvalFeedback, ScenarioVerdict
+
+logger = logging.getLogger(__name__)
 
 # Thresholds
 _UNDER_TESTED_THRESHOLD = 0.50  # category coverage below 50%
@@ -149,8 +153,13 @@ class FeedbackSynthesizer:
             if v.status != "pass":
                 continue
             is_near_miss = False
-            # High latency
-            if v.duration_seconds > _NEAR_MISS_DURATION_S:
+            # High latency (skip when duration is 0.0 — evaluator didn't set timing)
+            if v.duration_seconds == 0.0:
+                logger.debug(
+                    "Skipping latency near-miss check for %s: duration not set",
+                    v.scenario_id,
+                )
+            elif v.duration_seconds > _NEAR_MISS_DURATION_S:
                 is_near_miss = True
             # Partial match: step passed but has diff
             for step in v.steps:

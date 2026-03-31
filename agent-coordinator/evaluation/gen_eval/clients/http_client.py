@@ -92,7 +92,7 @@ class HttpClient:
                 method,
                 url,
                 headers=headers,
-                json=body if body else None,
+                json=body if body is not None else None,
                 timeout=httpx.Timeout(timeout),
             )
 

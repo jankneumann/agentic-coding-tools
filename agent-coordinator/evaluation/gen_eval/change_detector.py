@@ -30,7 +30,7 @@ class ChangeDetector:
         """
         try:
             result = subprocess.run(
-                ["git", "diff", "--name-only", base_ref],
+                ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
                 capture_output=True,
                 text=True,
                 timeout=30,

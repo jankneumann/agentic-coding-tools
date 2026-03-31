@@ -65,6 +65,21 @@ class TestSDKBackend:
         backend = SDKBackend()
         assert backend.is_subscription_covered is False
 
+    def test_default_api_key_env_anthropic(self) -> None:
+        """L5: Default api_key_env should be ANTHROPIC_API_KEY for anthropic provider."""
+        backend = SDKBackend(provider="anthropic")
+        assert backend.api_key_env == "ANTHROPIC_API_KEY"
+
+    def test_default_api_key_env_openai(self) -> None:
+        """L5: Default api_key_env should be OPENAI_API_KEY for openai provider."""
+        backend = SDKBackend(provider="openai")
+        assert backend.api_key_env == "OPENAI_API_KEY"
+
+    def test_explicit_api_key_env_overrides_default(self) -> None:
+        """L5: Explicit api_key_env should override the provider-based default."""
+        backend = SDKBackend(provider="openai", api_key_env="MY_CUSTOM_KEY")
+        assert backend.api_key_env == "MY_CUSTOM_KEY"
+
     @pytest.mark.asyncio
     async def test_is_available_with_key(self) -> None:
         backend = SDKBackend(api_key_env="TEST_KEY_FOR_SDK")

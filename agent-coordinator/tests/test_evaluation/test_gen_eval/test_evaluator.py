@@ -437,6 +437,27 @@ class TestCleanupSteps:
         assert len(verdict.cleanup_warnings) == 1
         assert "cleanup" in verdict.cleanup_warnings[0]
 
+    @pytest.mark.asyncio
+    async def test_cleanup_failure_preserves_original_status(self) -> None:
+        """L1: Cleanup step verdict should keep its original failure status for debugging."""
+        main_result = _make_result(status_code=200, body={"ok": True})
+        cleanup_result = _make_result(status_code=500, error="cleanup failed")
+        registry = _mock_registry(main_result, cleanup_result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        main_step = _make_step(step_id="main", expect=ExpectBlock(status=200, body={"ok": True}))
+        cleanup_step = _make_step(step_id="cleanup")
+        scenario = _make_scenario(steps=[main_step], cleanup=[cleanup_step])
+
+        verdict = await evaluator.evaluate(scenario)
+
+        # Overall scenario should still pass (cleanup doesn't taint it)
+        assert verdict.status == "pass"
+        # But the cleanup step verdict should retain its original error status
+        cleanup_verdict = [v for v in verdict.steps if v.is_cleanup][0]
+        assert cleanup_verdict.status == "error"
+        assert cleanup_verdict.is_cleanup is True
+
 
 class TestStepTimeout:
     """Step timeout produces error verdict."""

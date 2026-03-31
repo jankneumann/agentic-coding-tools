@@ -17,7 +17,14 @@ class WaitClient:
         """Sleep for ``step.seconds`` (default 1.0)."""
         seconds = step.seconds if step.seconds is not None else 1.0
         start = time.perf_counter()
-        await asyncio.sleep(seconds)
+        try:
+            await asyncio.wait_for(asyncio.sleep(seconds), timeout=context.timeout_seconds)
+        except TimeoutError:
+            elapsed = (time.perf_counter() - start) * 1000
+            return StepResult(
+                error=f"Wait of {seconds}s exceeded step timeout of {context.timeout_seconds}s",
+                duration_ms=elapsed,
+            )
         elapsed = (time.perf_counter() - start) * 1000
         return StepResult(
             body={"waited_seconds": seconds},

@@ -127,7 +127,12 @@ class GenEvalOrchestrator:
     # ------------------------------------------------------------------
 
     def _run_startup(self) -> None:
-        """Run the startup command from the descriptor."""
+        """Run the startup command from the descriptor.
+
+        Security: The command is executed with ``shell=True`` and comes directly
+        from the interface descriptor file.  Descriptor files must be treated as
+        trusted input — never load a descriptor from an untrusted source.
+        """
         cmd = self.descriptor.startup.command
         logger.info("Starting services: %s", cmd)
         subprocess.run(cmd, shell=True, check=True, capture_output=True, timeout=120)
@@ -164,7 +169,12 @@ class GenEvalOrchestrator:
         raise HealthCheckError(f"Health check failed after {retries} attempts: {health_target}")
 
     def _seed_data(self) -> None:
-        """Run seed command if configured."""
+        """Run seed command if configured.
+
+        Security: The command is executed with ``shell=True`` and comes directly
+        from the interface descriptor file.  Descriptor files must be treated as
+        trusted input — never load a descriptor from an untrusted source.
+        """
         seed_cmd = self.descriptor.startup.seed_command
         if not seed_cmd or not self.config.seed_data:
             return
@@ -172,7 +182,12 @@ class GenEvalOrchestrator:
         subprocess.run(seed_cmd, shell=True, check=True, capture_output=True, timeout=120)
 
     def _run_teardown(self) -> None:
-        """Run teardown command. Always called, even on failure."""
+        """Run teardown command. Always called, even on failure.
+
+        Security: The command is executed with ``shell=True`` and comes directly
+        from the interface descriptor file.  Descriptor files must be treated as
+        trusted input — never load a descriptor from an untrusted source.
+        """
         cmd = self.descriptor.startup.teardown
         logger.info("Tearing down services: %s", cmd)
         try:

@@ -95,8 +95,6 @@ class Evaluator:
                         f"Cleanup step '{step.id}' {verdict.status}: "
                         f"{verdict.error_message or verdict.diff}"
                     )
-                    # Reset to pass so cleanup failures don't taint the verdict
-                    verdict.status = "pass"
                 step_verdicts.append(verdict)
 
         # --- Determine overall status ---

@@ -207,6 +207,29 @@ class TestHttpClient:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_empty_dict_body_sent_as_json(self) -> None:
+        """L4: An intentional empty dict body {} should be sent as JSON, not None."""
+        client = HttpClient(base_url="http://localhost:8081")
+        step = ActionStep(id="s1", transport="http", method="POST", endpoint="/test", body={})
+        ctx = StepContext()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"ok": True}
+        mock_response.headers = {"content-type": "application/json"}
+
+        import httpx
+
+        client._client = httpx.AsyncClient(base_url="http://localhost:8081")
+        with patch.object(client._client, "request", new_callable=AsyncMock) as m:
+            m.return_value = mock_response
+            await client.execute(step, ctx)
+            # Verify json={} was passed, not json=None
+            call_kwargs = m.call_args
+            assert call_kwargs.kwargs.get("json") == {} or call_kwargs[1].get("json") == {}
+        await client.cleanup()
+
+    @pytest.mark.asyncio
     async def test_execute_error(self) -> None:
         client = HttpClient(base_url="http://localhost:8081")
         step = ActionStep(id="s1", transport="http", method="GET", endpoint="/fail")
@@ -584,11 +607,23 @@ class TestWaitClient:
         client = WaitClient()
         step = ActionStep(id="s1", transport="wait")
         ctx = StepContext()
-        # Don't actually wait 1 second; just verify it accepts None
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        # Patch asyncio.sleep to return immediately, but wrap in wait_for still
+        with patch(
+            "evaluation.gen_eval.clients.wait_client.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             result = await client.execute(step, ctx)
             mock_sleep.assert_awaited_once_with(1.0)
         assert result.body["waited_seconds"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_execute_exceeds_step_timeout(self) -> None:
+        """L3: WaitClient should respect step timeout via asyncio.wait_for."""
+        client = WaitClient()
+        step = ActionStep(id="s1", transport="wait", seconds=10.0)
+        ctx = StepContext(timeout_seconds=0.1)
+        result = await client.execute(step, ctx)
+        assert result.error is not None
+        assert "exceeded step timeout" in result.error.lower()
 
     @pytest.mark.asyncio
     async def test_health_check(self) -> None:

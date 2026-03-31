@@ -10,11 +10,9 @@ import logging
 import os
 from typing import Any, Literal
 
-import yaml
-from pydantic import ValidationError
-
 from .config import GenEvalConfig
 from .descriptor import InterfaceDescriptor
+from .llm_generator_base import LLMGeneratorMixin
 from .models import EvalFeedback, Scenario
 
 logger = logging.getLogger(__name__)
@@ -30,10 +28,12 @@ class SDKBackend:
         self,
         provider: Literal["anthropic", "openai"] = "anthropic",
         model: str = "claude-sonnet-4-6",
-        api_key_env: str = "ANTHROPIC_API_KEY",
+        api_key_env: str | None = None,
     ) -> None:
         self.provider = provider
         self.model = model
+        if api_key_env is None:
+            api_key_env = "OPENAI_API_KEY" if provider == "openai" else "ANTHROPIC_API_KEY"
         self.api_key_env = api_key_env
 
     @property
@@ -122,12 +122,12 @@ class SDKBackendError(Exception):
     """Raised when an SDK backend call fails."""
 
 
-class SDKGenerator:
+class SDKGenerator(LLMGeneratorMixin):
     """Generates scenarios via direct SDK calls.
 
-    Uses the same prompt-building and parsing logic as CLIGenerator,
-    but sends requests through the Anthropic/OpenAI SDK instead of
-    a CLI subprocess.
+    Uses the same prompt-building and parsing logic as CLIGenerator
+    (both inherited from LLMGeneratorMixin), but sends requests through
+    the Anthropic/OpenAI SDK instead of a CLI subprocess.
 
     Implements the ScenarioGenerator protocol.
     """
@@ -164,71 +164,3 @@ class SDKGenerator:
             raise
 
         return self._parse_output(raw_output)
-
-    def _build_system_prompt(self) -> str:
-        return (
-            "You are a test scenario generator. Output ONLY valid YAML — a list "
-            "of scenario objects. No markdown fences, no commentary. "
-            "Each scenario must have: id, name, description, category, interfaces, "
-            "steps (each with id, transport, and transport-specific fields). "
-            'Set generated_by to "llm".'
-        )
-
-    def _build_prompt(self, focus_areas: list[str] | None, count: int) -> str:
-        parts: list[str] = []
-        parts.append(f"Generate {count} test scenarios for: {self.descriptor.project}")
-        parts.append(f"\nInterfaces:\n{self._format_interfaces()}")
-
-        if focus_areas:
-            parts.append(f"\nFocus on: {', '.join(focus_areas)}")
-
-        if self.feedback:
-            parts.append(self._format_feedback())
-
-        return "\n".join(parts)
-
-    def _format_interfaces(self) -> str:
-        lines: list[str] = []
-        for iface in self.descriptor.all_interfaces():
-            lines.append(f"  - {iface}")
-        return "\n".join(lines) or "  (none)"
-
-    def _format_feedback(self) -> str:
-        if not self.feedback:
-            return ""
-        parts: list[str] = ["\nPrevious evaluation feedback:"]
-        if self.feedback.failing_interfaces:
-            parts.append(f"  Failing: {', '.join(self.feedback.failing_interfaces)}")
-        if self.feedback.under_tested_categories:
-            parts.append(f"  Under-tested: {', '.join(self.feedback.under_tested_categories)}")
-        if self.feedback.suggested_focus:
-            parts.append(f"  Focus on: {', '.join(self.feedback.suggested_focus)}")
-        return "\n".join(parts)
-
-    def _parse_output(self, raw: str) -> list[Scenario]:
-        """Parse YAML output from LLM into validated Scenario objects."""
-        text = raw.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            lines = [line for line in lines if not line.strip().startswith("```")]
-            text = "\n".join(lines)
-
-        try:
-            data = yaml.safe_load(text)
-        except yaml.YAMLError as e:
-            logger.warning("Failed to parse SDK YAML output: %s", e)
-            return []
-
-        if data is None:
-            return []
-
-        items: list[dict[str, Any]] = data if isinstance(data, list) else [data]
-        scenarios: list[Scenario] = []
-        for item in items:
-            try:
-                item["generated_by"] = "llm"
-                scenarios.append(Scenario(**item))
-            except (ValidationError, TypeError) as e:
-                logger.warning("Invalid SDK scenario %s: %s", item.get("id", "?"), e)
-
-        return scenarios

@@ -261,6 +261,39 @@ class TestFeedbackSynthesizer:
 
         assert "s1" not in feedback.near_miss_scenarios
 
+    def test_near_miss_skips_latency_when_duration_zero(
+        self, descriptor: InterfaceDescriptor
+    ) -> None:
+        """duration_seconds=0.0 means timing was not set; latency near-miss should be skipped."""
+        verdicts = [
+            _make_verdict("s1", "pass", "locks", ["POST /locks/acquire"], duration_seconds=0.0),
+        ]
+        synth = FeedbackSynthesizer()
+        feedback = synth.synthesize(verdicts, descriptor)
+
+        # Should NOT be near-miss from latency alone (0.0 means unset)
+        assert "s1" not in feedback.near_miss_scenarios
+
+    def test_near_miss_zero_duration_with_diff_still_detected(
+        self, descriptor: InterfaceDescriptor
+    ) -> None:
+        """Even with duration_seconds=0.0, partial diffs should trigger near-miss."""
+        verdicts = [
+            _make_verdict(
+                "s1",
+                "pass",
+                "locks",
+                ["POST /locks/acquire"],
+                duration_seconds=0.0,
+                steps=[_make_step("step1", "pass", diff={"body.x": "expected 1, got 2"})],
+            ),
+        ]
+        synth = FeedbackSynthesizer()
+        feedback = synth.synthesize(verdicts, descriptor)
+
+        # Should still be near-miss because of the diff
+        assert "s1" in feedback.near_miss_scenarios
+
     def test_near_miss_not_triggered_by_empty_diff(self, descriptor: InterfaceDescriptor) -> None:
         """Empty diff dict should not trigger near-miss."""
         verdicts = [
@@ -374,8 +407,15 @@ class TestChangeDetector:
             },
         )()
 
-        with patch("evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result):
+        with patch(
+            "evaluation.gen_eval.change_detector.subprocess.run", return_value=mock_result
+        ) as mock_run:
             result = detector.detect_from_git_diff("main")
+
+        # Verify merge-base comparison syntax (base_ref...HEAD)
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        assert cmd == ["git", "diff", "--name-only", "main...HEAD"]
 
         assert "POST /locks/acquire" in result
         assert "POST /locks/release" in result

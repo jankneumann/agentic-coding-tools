@@ -42,6 +42,17 @@ class CoordinatorIntegration:
         self._available: bool | None = None
         self._client: Any | None = None
 
+    async def __aenter__(self) -> CoordinatorIntegration:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        await self.close()
+
     async def _ensure_client(self) -> Any:
         """Lazily create an httpx.AsyncClient."""
         if self._client is None:
@@ -104,7 +115,7 @@ class CoordinatorIntegration:
                         "priority": scenario.priority,
                     },
                 )
-                if resp.status_code == 200:
+                if resp.is_success:
                     data = resp.json()
                     task_id = data.get("task_id", "")
                     if task_id:
