@@ -283,3 +283,47 @@ class TestBudgetExhaustedFlag:
         report = _make_report(budget_exhausted=True)
         md = generate_markdown_report(report)
         assert "True" in md
+
+
+class TestToMetrics:
+    """Test GenEvalReport.to_metrics() integration with evaluation.metrics."""
+
+    def test_converts_verdicts_to_metrics(self) -> None:
+        report = _make_report()
+        metrics = report.to_metrics()
+
+        assert len(metrics) == 4
+        assert metrics[0].scenario_id == "s1"
+        assert metrics[0].interface == "POST /locks/acquire"
+        assert metrics[0].verdict == "pass"
+        assert metrics[1].verdict == "fail"
+        assert metrics[2].verdict == "error"
+        assert metrics[2].interface == "GET /health"
+
+    def test_empty_report_produces_empty_metrics(self) -> None:
+        report = _make_report(verdicts=[])
+        metrics = report.to_metrics()
+        assert metrics == []
+
+    def test_metrics_have_to_dict(self) -> None:
+        report = _make_report()
+        metrics = report.to_metrics()
+        d = metrics[0].to_dict()
+        assert d["scenario_id"] == "s1"
+        assert d["interface"] == "POST /locks/acquire"
+        assert d["verdict"] == "pass"
+        assert "duration_seconds" in d
+        assert "backend_used" in d
+
+    def test_unknown_interface_for_empty_interfaces_tested(self) -> None:
+        verdict = ScenarioVerdict(
+            scenario_id="x",
+            scenario_name="X",
+            status="pass",
+            steps=[],
+            interfaces_tested=[],
+            category="test",
+        )
+        report = _make_report(verdicts=[verdict])
+        metrics = report.to_metrics()
+        assert metrics[0].interface == "unknown"

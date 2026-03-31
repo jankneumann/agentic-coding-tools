@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass
 
 from evaluation.gen_eval.models import ScenarioVerdict
+from evaluation.metrics import GenEvalMetrics
 
 
 @dataclass
@@ -32,6 +33,23 @@ class GenEvalReport:
     unevaluated_interfaces: list[str]
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
     iterations_completed: int
+
+    def to_metrics(self) -> list[GenEvalMetrics]:
+        """Convert verdicts to GenEvalMetrics for integration with MetricsCollector."""
+        metrics: list[GenEvalMetrics] = []
+        for v in self.verdicts:
+            primary_interface = v.interfaces_tested[0] if v.interfaces_tested else "unknown"
+            metrics.append(
+                GenEvalMetrics(
+                    scenario_id=v.scenario_id,
+                    interface=primary_interface,
+                    verdict=v.status,
+                    duration_seconds=v.duration_seconds,
+                    category=v.category or "uncategorized",
+                    backend_used=v.backend_used,
+                )
+            )
+        return metrics
 
 
 def generate_markdown_report(report: GenEvalReport) -> str:

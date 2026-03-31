@@ -6,6 +6,7 @@ Usage:
 
 import argparse
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -207,6 +208,15 @@ async def main(args: argparse.Namespace) -> int:
         json_path = output_dir / "gen-eval-report.json"
         json_path.write_text(generate_json_report(report))
         output_paths.append(json_path)
+
+    # Write metrics for integration with evaluation/metrics.py pipeline
+    metrics = report.to_metrics()
+    if metrics:
+        metrics_path = output_dir / "gen-eval-metrics.json"
+        metrics_path.write_text(
+            json.dumps([m.to_dict() for m in metrics], indent=2)
+        )
+        output_paths.append(metrics_path)
 
     for path in output_paths:
         print(f"gen-eval: report written to {path}")

@@ -619,3 +619,67 @@ class TestTransportError:
 
         assert verdict.status == "error"
         assert "Transport error" in (verdict.steps[0].error_message or "")
+
+
+class TestExtractInterfaces:
+    """Test endpoint-specific interface extraction from scenario steps."""
+
+    def test_http_step_produces_method_path(self) -> None:
+        steps = [ActionStep(id="s1", transport="http", method="POST", endpoint="/locks/acquire")]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["POST /locks/acquire"]
+
+    def test_mcp_step_produces_mcp_prefix(self) -> None:
+        steps = [ActionStep(id="s1", transport="mcp", tool="check_locks")]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["mcp:check_locks"]
+
+    def test_cli_step_produces_cli_prefix(self) -> None:
+        steps = [ActionStep(id="s1", transport="cli", command="lock status --file-path x")]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["cli:lock"]
+
+    def test_db_and_wait_omitted(self) -> None:
+        steps = [
+            ActionStep(id="s1", transport="db", sql="SELECT 1"),
+            ActionStep(id="s2", transport="wait", seconds=1.0),
+        ]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == []
+
+    def test_deduplicates(self) -> None:
+        steps = [
+            ActionStep(id="s1", transport="http", method="POST", endpoint="/locks/acquire"),
+            ActionStep(id="s2", transport="http", method="POST", endpoint="/locks/acquire"),
+        ]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["POST /locks/acquire"]
+
+    def test_mixed_transports(self) -> None:
+        steps = [
+            ActionStep(id="s1", transport="http", method="POST", endpoint="/locks/acquire"),
+            ActionStep(id="s2", transport="mcp", tool="check_locks"),
+            ActionStep(id="s3", transport="cli", command="lock status"),
+            ActionStep(id="s4", transport="db", sql="SELECT 1"),
+        ]
+        result = Evaluator._extract_interfaces(steps)
+        assert result == ["POST /locks/acquire", "mcp:check_locks", "cli:lock"]
+
+    @pytest.mark.asyncio
+    async def test_evaluate_produces_endpoint_specific_interfaces(self) -> None:
+        """End-to-end: evaluator verdict has endpoint-specific interfaces_tested."""
+        ok_result = _make_result(body={"success": True})
+        registry = _mock_registry(ok_result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        step = _make_step(
+            step_id="s1",
+            transport="http",
+            method="POST",
+            endpoint="/locks/acquire",
+            expect=ExpectBlock(status=200, body={"success": True}),
+        )
+        scenario = _make_scenario(steps=[step])
+        verdict = await evaluator.evaluate(scenario)
+
+        assert verdict.interfaces_tested == ["POST /locks/acquire"]

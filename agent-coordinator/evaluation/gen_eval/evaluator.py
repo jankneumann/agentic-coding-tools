@@ -118,13 +118,21 @@ class Evaluator:
                 )
 
         elapsed = time.monotonic() - start
+
+        # Compute endpoint-specific interface identifiers from steps,
+        # matching the format returned by InterfaceDescriptor.all_interfaces():
+        #   HTTP  → "METHOD /path"  (e.g. "POST /locks/acquire")
+        #   MCP   → "mcp:tool_name" (e.g. "mcp:check_locks")
+        #   CLI   → "cli:command"   (e.g. "cli:lock")
+        interfaces_tested = self._extract_interfaces(scenario.steps)
+
         return ScenarioVerdict(
             scenario_id=scenario.id,
             scenario_name=scenario.name,
             status=overall_status,  # type: ignore[arg-type]
             steps=step_verdicts,
             duration_seconds=elapsed,
-            interfaces_tested=scenario.interfaces,
+            interfaces_tested=interfaces_tested,
             failure_summary=failure_summary,
             cleanup_warnings=cleanup_warnings,
             category=scenario.category,
@@ -398,6 +406,34 @@ class Evaluator:
                 captured[var_name] = None
 
         return captured, None
+
+    @staticmethod
+    def _extract_interfaces(steps: list[ActionStep]) -> list[str]:
+        """Extract endpoint-specific interface identifiers from steps.
+
+        Produces names matching ``InterfaceDescriptor.all_interfaces()``:
+          - HTTP steps  → ``"METHOD /path"``
+          - MCP steps   → ``"mcp:tool_name"``
+          - CLI steps   → ``"cli:command_name"`` (first word of command)
+          - DB/Wait     → omitted (not tracked as testable interfaces)
+        """
+        seen: set[str] = set()
+        result: list[str] = []
+        for step in steps:
+            iface: str | None = None
+            if step.transport == "http" and step.method and step.endpoint:
+                iface = f"{step.method.upper()} {step.endpoint}"
+            elif step.transport == "mcp" and step.tool:
+                iface = f"mcp:{step.tool}"
+            elif step.transport == "cli" and step.command:
+                # CLI commands may have subcommands; use the base command name
+                cmd_name = step.command.strip().split()[0] if step.command.strip() else None
+                if cmd_name:
+                    iface = f"cli:{cmd_name}"
+            if iface and iface not in seen:
+                seen.add(iface)
+                result.append(iface)
+        return result
 
     def _detect_cross_interface_mismatch(
         self,
