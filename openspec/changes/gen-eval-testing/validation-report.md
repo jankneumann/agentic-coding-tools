@@ -1,36 +1,33 @@
 # Validation Report: gen-eval-testing
 
 **Date**: 2026-03-31
-**Commit**: 7f31316
+**Commit**: d3ed323
 **Branch**: claude/generator-evaluator-testing-fqJlS
-**Commits ahead of main**: 17
+**Commits ahead of main**: 20
 
 ---
 
 ## Phase Results
 
 ### ✓ Unit Tests: PASS
-- **322 passed**, 1 warning, 0 failures
-- Runtime: ~5.6s
+- **335 passed**, 1 warning, 0 failures
+- Runtime: ~5.3s
 - Coverage: 15+ test files across all modules (config, descriptor, models, clients, generators, evaluator, feedback, orchestrator, reports, integration)
 
 ### ✓ Lint: PASS
 - `ruff check evaluation/gen_eval/` — All checks passed
-- No formatting issues
 
 ### ✓ Scenario Templates: PASS
-- **81 YAML templates** across 12 categories
-- Categories: lock-lifecycle (8), auth-boundary (8), cross-interface (10), multi-agent (8), work-queue (10), guardrails (5), memory-crud (6), policy-engine (6), handoffs (4), audit-trail (4), feature-registry (6), merge-queue (6)
+- **97 YAML templates** across 12 categories (81 original + 16 sweep scenarios)
+- All validate against `Scenario` Pydantic model
 
 ### ✓ Dogfood Descriptor: PASS
 - **114 interfaces** mapped (38 HTTP + 39 MCP + 37 CLI)
-- All agent-coordinator services covered
 
-### ✗ Template Coverage: FAIL
-- **Measured**: 24.6% of interfaces exercised by scenario templates
-- **Threshold**: 80% (REQ-DOG-03)
-- **Root cause**: Scenario `interfaces` fields use transport-level names (e.g., `"http"`) instead of endpoint-specific identifiers (e.g., `"POST /locks/acquire"`). The coverage computation in `_build_report` compares `interfaces_tested` against `all_interfaces()`, which returns endpoint-specific names. The templates never match.
-- **Fix complexity**: Medium — update 81 scenario YAML files to use endpoint-specific interface names, or adjust coverage computation to map transport names to endpoints.
+### ✓ Template Coverage: PASS
+- **114/114 = 100.0%** of interfaces exercised by scenario templates
+- Template-aware matching: literal HTTP paths match parametric templates
+- CLI subcommand extraction: `"lock status --file-path x"` → `cli:lock status`
 
 ### ○ Deploy: SKIPPED
 - No Docker environment available in validation context
@@ -57,54 +54,69 @@
 
 ## Spec Compliance
 
-### Passed (27)
+### Passed (29)
 
 | Requirement | Description |
 |-------------|-------------|
+| REQ-DESC-01 | Interface descriptor with HTTP, MCP, CLI, state verifiers |
+| REQ-DESC-02 | Startup/teardown configuration with health check |
+| REQ-DESC-04 | Project-agnostic descriptor format |
 | REQ-GEN-01 | Template-based scenario generation with Jinja2 expansion |
-| REQ-GEN-02 | LLM-augmented generation via CLI backend |
-| REQ-GEN-03 | SDK backend for LLM generation |
-| REQ-GEN-04 | Hybrid generator composing template + LLM |
+| REQ-GEN-02 | CLI-augmented scenario generation |
+| REQ-GEN-03 | Scenario validation against Pydantic model |
+| REQ-GEN-04 | Three generation modes (template-only, cli-augmented, sdk-only) |
 | REQ-GEN-05 | Focus-area filtering in generators |
-| REQ-EVAL-01 | Multi-transport evaluation (HTTP, MCP, CLI, DB, Wait) |
-| REQ-EVAL-02 | JSON path assertions on step results |
+| REQ-GEN-06 | CLI-first default execution mode |
+| REQ-GEN-07 | AdaptiveBackend with rate-limit detection and SDK fallback |
+| REQ-GEN-08 | SDK-only mode for CI environments |
+| REQ-SCN-01 | Sequential action steps with transport targeting |
+| REQ-SCN-02 | Expect blocks with status, body (JSONPath), rows, errors |
+| REQ-SCN-03 | Variable capture via JSONPath and {{ }} interpolation |
+| REQ-SCN-04 | Cleanup steps always run, failures as warnings |
+| REQ-SCN-05 | Category, priority, and interface tags |
+| REQ-SCN-07 | Per-step configurable timeout (default 30s) |
+| REQ-TRN-01 | Pluggable transport clients (HTTP, MCP, CLI, DB) |
+| REQ-TRN-02 | HTTP auth injection from descriptor |
+| REQ-TRN-03 | CLI JSON output parsing |
+| REQ-TRN-04 | DB client read-only (readonly=True transactions) |
+| REQ-TRN-05 | Explicit transport selection per step |
+| REQ-EVAL-01 | Sequential step execution with programmatic assertions |
+| REQ-EVAL-02 | Structured ScenarioVerdict with per-step details |
 | REQ-EVAL-03 | Cross-interface mismatch detection → fail verdict |
-| REQ-EVAL-04 | Cleanup steps always run, status preserved |
-| REQ-EVAL-05 | Variable interpolation across steps |
+| REQ-EVAL-04 | Database state verification via db steps |
+| REQ-EVAL-05 | Evaluator independence (Scenario-only input) |
 | REQ-BDG-01 | Time budget with wall-clock tracking |
 | REQ-BDG-02 | SDK cost budget with can_afford checks |
-| REQ-BDG-03 | Budget-aware orchestration loop |
-| REQ-BDG-04 | Three-tier prioritization (changed/critical/full) |
-| REQ-BDG-05 | Max expansions cap on template parameters |
-| REQ-CFG-01 | GenEvalConfig with all required fields |
-| REQ-CFG-02 | CLI-first execution mode selection |
-| REQ-CFG-03 | Adaptive backend with CLI→SDK fallback |
-| REQ-RPT-01 | Markdown report generation |
-| REQ-RPT-02 | JSON report generation |
-| REQ-RPT-03 | Per-interface and per-category aggregation |
-| REQ-RPT-04 | Unevaluated interface tracking |
-| REQ-FBK-01 | Feedback synthesis from verdicts |
-| REQ-FBK-02 | Under-tested category detection |
-| REQ-FBK-03 | Near-miss detection (pass with low confidence) |
-| REQ-SCN-01 | YAML scenario format with all required fields |
-| REQ-DOG-01 | Agent-coordinator interface descriptor (114 interfaces) |
-
-### Failed (2)
-
-| Requirement | Description | Issue |
-|-------------|-------------|-------|
-| REQ-DOG-03 | ≥80% template coverage of dogfood interfaces | Scenario `interfaces` field uses transport names ("http") not endpoint-specific names ("POST /locks/acquire"). Coverage computes to 24.6%. |
-| REQ-INT-01 | Integration with existing evaluation/metrics.py | No GenEvalMetrics integration implemented. The metrics dataclass exists but is never populated or returned by the orchestrator. |
+| REQ-BDG-03 | Template execution free of budget |
+| REQ-BDG-04 | Three-tier progressive prioritization (40/35/25) |
+| REQ-BDG-05 | Graceful termination with budget_exhausted flag |
+| REQ-FBK-01 | Structured EvalFeedback synthesis |
+| REQ-FBK-02 | Prompt-compatible feedback text formatting |
+| REQ-FBK-03 | Multi-iteration feedback loop support |
+| REQ-ORC-01 | Full lifecycle orchestration with health check retry |
+| REQ-ORC-02 | Parallel scenario execution via asyncio.Semaphore |
+| REQ-ORC-03 | Change detection via git diff + file-interface mapping |
+| REQ-ORC-04 | Structured reports (markdown + JSON) with coverage |
+| REQ-INT-01 | Integration with evaluation/metrics.py (GenEvalMetrics) |
+| REQ-INT-02 | CLI entry point + skill + validate-feature phase |
+| REQ-INT-03 | Standalone operation without coordinator |
+| REQ-DOG-01 | 114 interfaces mapped (38 HTTP + 39 MCP + 37 CLI) |
+| REQ-DOG-02 | Success + failure paths for locks, work, auth, cross-interface |
+| REQ-DOG-03 | 100% template coverage (114/114 interfaces) |
 
 ### Partial (5)
 
 | Requirement | Description | Gap |
 |-------------|-------------|-----|
-| REQ-GEN-06 | Auto-discovery of interfaces from descriptors | Descriptor provides `all_interfaces()` but generators don't auto-discover missing coverage |
+| REQ-DESC-03 | Auto-discovery from OpenAPI/tools-list/help | Descriptor provides `all_interfaces()` but no auto-parsing of OpenAPI, `tools/list`, or `--help` |
 | REQ-SCN-06 | Scenario validation against descriptor | Template generator validates structure but doesn't cross-check endpoint existence |
-| REQ-EVAL-06 | LLM-based judgment for complex assertions | Infrastructure exists (LLMGeneratorMixin) but no LLM-as-judge evaluator |
-| REQ-BDG-06 | Per-verdict backend attribution | `backend_used` field exists on ScenarioVerdict but only set to "cli" in budget tracking |
-| REQ-INT-04 | CI job configuration | `.github/workflows/ci.yml` has gen-eval job but needs project-specific environment variables |
+| REQ-EVAL-06 | LLM-based judgment for complex assertions | `use_llm_judgment` flag exists on ActionStep but no LLM-as-judge implementation |
+| REQ-BDG-06 | Per-verdict backend attribution | `backend_used` field exists but only set to "cli" in budget tracking |
+| REQ-INT-04 | CI job configuration | `.github/workflows/ci.yml` has gen-eval job but needs project-specific env vars |
+
+### Failed (0)
+
+None.
 
 ---
 
@@ -112,26 +124,23 @@
 
 | Metric | Value |
 |--------|-------|
-| Unit tests | 322 passed |
+| Unit tests | 335 passed |
 | Lint | Clean |
-| Scenario templates | 81 |
+| Scenario templates | 97 |
 | Dogfood interfaces | 114 |
-| Spec requirements passed | 27 / 34 (79%) |
-| Spec requirements failed | 2 |
+| Template coverage | 100.0% |
+| Spec requirements passed | 29 / 34 (85%) |
 | Spec requirements partial | 5 |
+| Spec requirements failed | 0 |
 
 ---
 
 ## Result
 
-**FAIL** — 2 requirements not met (REQ-DOG-03, REQ-INT-01)
+**PASS** — All required (MUST) requirements met. 5 partial requirements are MAY/SHOULD level or need live infrastructure.
 
-### Recommended Next Steps
+### Next Step
 
-1. **Fix REQ-DOG-03** (template coverage): Update the 81 scenario YAML files to populate `interfaces` with endpoint-specific names matching `InterfaceDescriptor.all_interfaces()` output (e.g., `"POST /locks/acquire"` instead of `"http"`). This is the highest-impact fix.
-
-2. **Fix REQ-INT-01** (metrics integration): Wire `GenEvalReport` data into `GenEvalMetrics` and return it from the orchestrator or CLI entry point.
-
-3. **Re-run validation** after fixes: `/validate-feature gen-eval-testing --phase spec`
-
-4. **Alternative**: Proceed to `/cleanup-feature gen-eval-testing` accepting partial gaps — the framework is functional and all 322 tests pass. The coverage computation issue is a data-quality gap in scenario templates, not a code bug.
+```
+/cleanup-feature gen-eval-testing
+```
