@@ -2,7 +2,7 @@
 
 ## 1. Refactor session-log infrastructure skill
 
-- [ ] 1.1 Refactor `extract_session_log.py`: remove Tier 1 (JSONL transcript parsing — `try_extract_claude_transcript`, `_parse_jsonl_messages`, `_format_transcript_as_session_log`) and Tier 2 (handoff compilation — `try_extract_from_handoffs`, `_format_handoffs_as_session_log`) and the 3-tier `main()` CLI. Add `append_phase_entry(change_id, phase_name, content, session_log_path)` and `append_merge_entry(date, content, merge_log_path)` functions that handle: file creation with header, phase section appending with `---` separator, directory creation via `mkdir -p`, and iteration number auto-increment (count existing `## Phase: <prefix>` headers in the file + 1). Keep `generate_self_summary_prompt()` as a reference utility.
+- [ ] 1.1 Refactor `extract_session_log.py`: remove Tier 1 (JSONL transcript parsing — `try_extract_claude_transcript`, `_parse_jsonl_messages`, `_format_transcript_as_session_log`) and Tier 2 (handoff compilation — `try_extract_from_handoffs`, `_format_handoffs_as_session_log`) and the 3-tier `main()` CLI. Add `append_phase_entry(change_id, phase_name, content, session_log_path)` and `append_merge_entry(date, content, merge_log_path)` functions that handle: file creation with header, phase section appending with `---` separator, directory creation via `mkdir -p`, and iteration number auto-increment (count existing `## Phase: <prefix>` headers in the file + 1). Keep `generate_self_summary_prompt()` as a callable utility (agents may use it to structure their phase entries, but it is not required).
   **Dependencies**: None
   **Files**: `skills/session-log/scripts/extract_session_log.py`
 

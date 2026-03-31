@@ -142,7 +142,7 @@ Every skill follows the same 3-step pattern at its session-log step:
    c. Markdown structure is intact (headers, lists, tables parseable)
    - If over-redacted: rewrite the affected section without the triggering pattern, re-sanitize (one attempt max)
    - If clean: proceed to commit
-   - If sanitization exits non-zero: skip session log, log warning, continue workflow
+   - If sanitization exits non-zero: do NOT commit session-log.md, log warning, continue workflow
 ```
 
 ### Sanitization Integration

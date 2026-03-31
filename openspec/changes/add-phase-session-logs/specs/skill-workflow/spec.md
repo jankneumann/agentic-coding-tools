@@ -186,8 +186,8 @@ Each workflow skill SHALL use a consistent phase name when appending to session-
 
 #### Scenario: Iteration number auto-increment
 - **WHEN** a skill uses an iteration phase name (`Plan Iteration <N>` or `Implementation Iteration <N>`)
-- **THEN** it SHALL determine N by counting existing entries in session-log.md with the same phase prefix and adding 1
-- **AND** if no prior iteration entries exist, N SHALL be 1
+- **THEN** it SHALL determine N by counting existing `## Phase: <exact-prefix>` headers in session-log.md (e.g., count `## Phase: Plan Iteration` headers for Plan Iteration, count `## Phase: Implementation Iteration` headers for Implementation Iteration — each prefix counted independently) and adding 1
+- **AND** if no prior iteration entries exist for that prefix, N SHALL be 1
 - **AND** iteration numbering SHALL be scoped to the change-id (not per-agent or per-branch)
 
 ### Requirement: Session Log Committed with Phase Artifacts
