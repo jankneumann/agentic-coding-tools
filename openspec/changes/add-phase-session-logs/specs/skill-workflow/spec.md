@@ -9,7 +9,7 @@ The system SHALL provide a `session-log.md` artifact that captures a structured 
 #### Scenario: Session log appended at each workflow phase
 - **WHEN** any workflow skill (`/plan-feature`, `/iterate-on-plan`, `/implement-feature`, `/iterate-on-implementation`, `/validate-feature`, `/cleanup-feature`) completes its substantive work
 - **THEN** the skill SHALL append a phase entry to `openspec/changes/<change-id>/session-log.md`
-- **AND** the entry SHALL identify the phase name, date, agent type, and session ID
+- **AND** the entry SHALL identify the phase name, date, agent type, and session ID (if available; omit or write "N/A" when the runtime does not expose a session identifier)
 - **AND** the entry SHALL contain: Decisions, Alternatives Considered, Trade-offs, Open Questions, and Context sections
 
 #### Scenario: Session log created on first phase
@@ -195,11 +195,11 @@ Each workflow skill SHALL use a consistent phase name when appending to session-
 Session log updates SHALL be committed alongside other phase artifacts, not in separate commits.
 
 #### Scenario: Skills that commit artifacts
-- **WHEN** a skill already commits artifacts (plan-feature, implement-feature, cleanup-feature)
+- **WHEN** a skill already commits artifacts (plan-feature, implement-feature, cleanup-feature, iterate-on-plan, iterate-on-implementation)
 - **THEN** the session-log.md SHALL be included in the same commit via `git add`
 - **AND** SHALL NOT require a separate commit
 
 #### Scenario: Skills that don't normally commit
-- **WHEN** a skill does not normally commit artifacts but updates session-log.md (iterate-on-plan, iterate-on-implementation, validate-feature)
+- **WHEN** a skill does not normally commit artifacts but updates session-log.md (validate-feature)
 - **THEN** the skill SHALL commit the session-log.md update as a small dedicated commit
 - **AND** SHALL push to the feature branch

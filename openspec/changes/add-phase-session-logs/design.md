@@ -185,19 +185,17 @@ Note: sanitize_session_log.py already supports in-place operation (same input/ou
 
 ## Integration Points
 
-### Skills That Commit (append before final commit)
+### Skills That Commit (include session-log.md in existing commit)
 
-1. **plan-feature** — New Step 8.5 between "Commit, Push, Pin" and "Present for Approval"
-   - Actually: include session-log.md in Step 8's `git add` so it's part of the planning commit
-2. **implement-feature** — New Step 8.5 between "Evidence Collection" and "Push and Create PR"
-   - Include session-log.md in the PR commit
+1. **plan-feature** — Include session-log.md in Step 8's `git add` (planning commit)
+2. **implement-feature** — Include session-log.md in the PR commit
 3. **cleanup-feature** — Replace existing Step 5b with the new append pattern
+4. **iterate-on-plan** — Include session-log.md in the iteration commit (`git add openspec/changes/$CHANGE_ID/`)
+5. **iterate-on-implementation** — Include session-log.md in the iteration commit (`git add .`)
 
-### Skills That Don't Commit (append + commit as new step)
+### Skills That Don't Commit (append + dedicated commit)
 
-4. **iterate-on-plan** — New final step after "Present Summary" (Step 11.5)
-5. **iterate-on-implementation** — New final step after "Present Summary" (Step 12.5)
-6. **validate-feature** — New final step after "PR Comment" (Step 13.5)
+6. **validate-feature** — New final step after "PR Comment" (Step 13.5); needs a dedicated session-log commit since validate-feature is read-only with respect to git
 
 ### Merge Log (separate artifact)
 

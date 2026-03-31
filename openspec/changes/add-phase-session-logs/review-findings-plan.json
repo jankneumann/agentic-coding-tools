@@ -1,0 +1,70 @@
+{
+  "review_type": "plan",
+  "target": "add-phase-session-logs",
+  "reviewer_vendor": "claude_opus_4_6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Design.md Section 'Integration Points' and Spec Requirement 'Session Log Committed with Phase Artifacts' incorrectly classify iterate-on-plan and iterate-on-implementation as 'skills that don't normally commit'. Both skills already have git add/commit steps (iterate-on-plan commits to openspec/changes/$CHANGE_ID/, iterate-on-implementation commits with git add .). This means session-log.md should be included in their existing commits, not added as a separate dedicated commit.",
+      "resolution": "Move iterate-on-plan and iterate-on-implementation from the 'Skills That Don't Commit' category to 'Skills That Commit'. Update the spec scenario to list them alongside plan-feature, implement-feature, and cleanup-feature. Only validate-feature truly needs a dedicated session-log commit.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/design.md",
+      "line_range": {"start": 196, "end": 200}
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The sanitize-then-verify flow runs sanitization in-place (same path for input and output). While this works because Python reads the entire file before writing, the sanitize_session_log.py script was not designed or documented for in-place use. The 'input' and 'output' arguments are separate positional args with no documented support for same-path usage. If the script implementation changes to stream reads, in-place would break silently.",
+      "resolution": "Add a task to document and test in-place operation in sanitize_session_log.py: (1) add a note to the script docstring, (2) add a test case that passes the same path for both args and verifies content is sanitized correctly. Alternatively, write to a .tmp file and rename, which is atomic.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/design.md",
+      "line_range": {"start": 148, "end": 162}
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The append_phase_entry() and append_merge_entry() Python functions add a code dependency between all 7 workflow skills and the session-log infrastructure module. Currently skills are loosely coupled — they reference scripts via relative paths in bash. The new functions require Python imports, which means skills need the session-log module on sys.path. This works in the main repo but may not work in all worktree configurations or when skills are synced to other runtimes.",
+      "resolution": "Keep the Python utility functions as optional helpers. SKILL.md instructions should describe the append pattern directly (write markdown, run sanitize script) so agents can execute without importing the module. The Python functions provide consistency but must not be required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-phase-session-logs/design.md",
+      "line_range": {"start": 180, "end": 184}
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Merge Log Artifact requirement has no scenario for merge sessions with zero PRs processed (e.g., all PRs are drafts or all fail CI). Should a merge-log entry still be written? An empty triage table with an observation like 'No actionable PRs found' is still useful context for understanding why nothing was merged.",
+      "resolution": "Add scenario: 'WHEN merge-pull-requests completes but no PRs were merged, closed, or skipped, THEN the skill MAY omit the merge-log entry OR write a brief entry noting no actionable PRs were found.'",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The 80-line-per-entry and 500-line-total limits in the Content Structure requirement use SHALL but provide an escape hatch ('unless the agent documents a rationale'). This is effectively SHOULD with documentation. The inconsistency may confuse strict validators. Consider either making them SHOULD or removing the escape hatch.",
+      "resolution": "Change to SHOULD for both limits, which is the intent. SHALL with an escape hatch is not a true SHALL.",
+      "disposition": "accept"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The plan does not address what happens to the existing session-log test file (test_extract_session_log.py) for functions that are being kept (generate_self_summary_prompt). Task 1.3 says 'remove tests for retired Tier 1/2 functions' but doesn't mention keeping existing tests for generate_self_summary_prompt().",
+      "resolution": "Update task 1.3 to explicitly state: keep tests for generate_self_summary_prompt() and add new tests for append functions.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/tasks.md"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 6.1 (final validation) depends on all skill tasks (2.1-5.1), but the delta spec was already written during planning. Task 6.1 is really 'run validation and fix issues', not 'write the spec'. The dependency is correct for validation timing but the task description could be clearer.",
+      "resolution": "Minor wording improvement. No structural change needed.",
+      "disposition": "accept"
+    }
+  ]
+}

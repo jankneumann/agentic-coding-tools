@@ -20,7 +20,7 @@
   **Dependencies**: 1.1
   **Files**: `skills/plan-feature/SKILL.md`
 
-- [ ] 2.2 Add session-log append step to `iterate-on-plan/SKILL.md` — new final step after Step 11 (Present Summary). Agent writes `Plan Iteration <N>` phase entry (auto-increment N by counting existing "Plan Iteration" entries in session-log.md + 1) with what changed and why. Commit session-log.md and push to feature branch.
+- [ ] 2.2 Add session-log append step to `iterate-on-plan/SKILL.md` — before the existing iteration commit step (Step 9). Agent writes `Plan Iteration <N>` phase entry (auto-increment N by counting existing "Plan Iteration" entries in session-log.md + 1) with what changed and why. Include session-log.md in the existing `git add openspec/changes/$CHANGE_ID/` commit.
   **Dependencies**: 1.1
   **Files**: `skills/iterate-on-plan/SKILL.md`
 
@@ -30,7 +30,7 @@
   **Dependencies**: 1.1
   **Files**: `skills/implement-feature/SKILL.md`
 
-- [ ] 3.2 Add session-log append step to `iterate-on-implementation/SKILL.md` — new final step after Step 12 (Present Summary). Agent writes `Implementation Iteration <N>` phase entry (auto-increment N) with review findings addressed and changes made. Commit session-log.md and push.
+- [ ] 3.2 Add session-log append step to `iterate-on-implementation/SKILL.md` — before the existing iteration commit step. Agent writes `Implementation Iteration <N>` phase entry (auto-increment N) with review findings addressed and changes made. Include session-log.md in the existing `git add .` commit.
   **Dependencies**: 1.1
   **Files**: `skills/iterate-on-implementation/SKILL.md`
 
@@ -50,8 +50,16 @@
   **Dependencies**: 1.1
   **Files**: `skills/merge-pull-requests/SKILL.md`, `docs/merge-logs/.gitkeep`
 
-## 6. Validation
+## 6. Testing and validation
 
-- [ ] 6.1 Run `openspec validate add-phase-session-logs --strict` and fix any issues.
+- [ ] 6.1 Add sanitizer regression tests for merge-log payloads: test `sanitize_session_log.py` with representative merge-log content containing PR comments, vendor-review text, user-provided content, and mixed secret patterns. Also add an explicit in-place operation test (same path for input and output). Keep existing tests for `generate_self_summary_prompt()`.
+  **Dependencies**: 1.1
+  **Files**: `skills/session-log/scripts/test_sanitize_session_log.py`
+
+- [ ] 6.2 Run `skills/.venv/bin/python -m pytest skills/session-log/scripts/` to verify all session-log tests pass (both extract and sanitize).
+  **Dependencies**: 1.3, 6.1
+  **Files**: N/A
+
+- [ ] 6.3 Run `openspec validate add-phase-session-logs --strict` and fix any issues.
   **Dependencies**: 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 5.1
   **Files**: N/A

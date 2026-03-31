@@ -1,0 +1,72 @@
+{
+  "review_type": "plan",
+  "target": "add-phase-session-logs",
+  "reviewer_vendor": "gpt-5-codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "design.md says concurrent session-log.md edits will be combined during merge_worktrees.py and true conflicts will be resolved chronologically, but the task list never updates merge_worktrees.py or its tests. The current integrator aborts on merge conflicts, so the parallel-agent path described by the spec has no implementation route.",
+      "resolution": "Add explicit work to implement and test deterministic session-log conflict handling in skills/worktree/scripts/merge_worktrees.py, or revise the design/spec to require a documented manual integration step instead of implying automatic resolution.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/design.md",
+      "line_range": {
+        "start": 19,
+        "end": 22
+      }
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "high",
+      "description": "The proposal explicitly keeps sanitize_session_log.py unchanged while expanding committed artifacts to merge logs that can contain arbitrary PR comments, vendor-review text, and user-provided content. The plan adds no task to broaden secret-pattern coverage or add merge-log-specific regression tests, so the claim that committed logs cannot leak secrets is not supported by the implementation plan.",
+      "resolution": "Either narrow the security guarantee, or add sanitizer/test work for additional secret families and representative merge-log payloads before relying on committed merge logs.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/proposal.md",
+      "line_range": {
+        "start": 15,
+        "end": 20
+      }
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Tasks 3.2 and 4.1 require iterate-on-implementation and validate-feature to commit session-log.md, but the existing worktree-aware skills already resolve OpenSpec artifacts via $OPENSPEC_PATH outside the active worktree when running in worktree mode. The plan does not specify how these new writes will stay on the feature branch, so the design does not align with the current worktree-isolation pattern.",
+      "resolution": "Add an explicit artifact-locality decision for worktree mode: either materialize OpenSpec artifacts inside the feature worktree before committing, or change these skills to run their log-writing step from the feature worktree instead of the main checkout.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/tasks.md",
+      "line_range": {
+        "start": 33,
+        "end": 41
+      }
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The delta spec is inconsistent about session IDs: the phase-append scenario requires every entry to identify a session ID, but the content-structure requirement and the design template treat session ID as optional. Agents without a stable session identifier will not know whether omitting it is compliant.",
+      "resolution": "Make session ID optional everywhere and define the fallback rendering explicitly, such as omitting the value or writing N/A when the runtime does not expose one.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 9,
+        "end": 14
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Task 1.3 adds new tests for the refactored session-log helpers, but the only validation task is openspec validate --strict. No task runs the Python test suite for the security-sensitive script refactor, so the plan leaves the highest-risk code path unverified.",
+      "resolution": "Add a validation task that runs the targeted pytest suite for skills/session-log/scripts and make it depend on the new test updates before closing the change.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-phase-session-logs/tasks.md",
+      "line_range": {
+        "start": 53,
+        "end": 56
+      }
+    }
+  ]
+}
