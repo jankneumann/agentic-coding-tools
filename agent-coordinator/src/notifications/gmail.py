@@ -11,8 +11,9 @@ from email.mime.text import MIMEText
 
 import aiosmtplib
 
+from src.db import get_db
 from src.event_bus import CoordinatorEvent
-from src.status import generate_token, validate_token
+from src.status import generate_token, store_token, validate_token
 
 from .relay import clean_reply_body, extract_token, parse_reply, route_reply, validate_sender
 from .templates import (
@@ -61,6 +62,17 @@ class GmailChannel:
     async def send(self, event: CoordinatorEvent) -> bool:
         """Send an HTML email notification for the event."""
         token = generate_token()
+
+        # Persist token before dispatch so replies can be validated
+        db = get_db()
+        await store_token(
+            db,
+            token=token,
+            event_type=event.event_type,
+            entity_id=event.entity_id,
+            change_id=event.change_id,
+        )
+
         subject, html_body = self._render(event, token)
 
         msg = MIMEMultipart("alternative")

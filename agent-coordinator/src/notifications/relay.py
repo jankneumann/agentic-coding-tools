@@ -162,11 +162,17 @@ async def route_reply(
             )
         except Exception:
             logger.warning(
-                "pg_notify failed for %s on entity %s, falling back to insert",
+                "pg_notify failed for %s on entity %s",
                 command_type,
                 entity_id,
                 exc_info=True,
             )
+            return {
+                "status": "failed",
+                "command_type": command_type,
+                "entity_id": entity_id,
+                "reason": "pg_notify_failed",
+            }
         return {
             "status": "routed",
             "command_type": command_type,

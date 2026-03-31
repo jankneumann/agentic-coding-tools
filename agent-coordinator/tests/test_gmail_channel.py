@@ -38,10 +38,11 @@ def _make_event(
 
 
 class TestGmailChannel:
+    @patch("src.notifications.gmail.store_token", new_callable=AsyncMock)
     @patch("src.notifications.gmail.aiosmtplib.send", new_callable=AsyncMock)
     @patch("src.notifications.gmail.generate_token", return_value="abc12345")
     async def test_send_constructs_email_with_correct_headers(
-        self, mock_token, mock_send
+        self, mock_token, mock_send, mock_store
     ):
         channel = _make_channel()
         event = _make_event()
@@ -49,6 +50,7 @@ class TestGmailChannel:
         result = await channel.send(event)
 
         assert result is True
+        mock_store.assert_called_once()
         mock_send.assert_called_once()
         msg = mock_send.call_args[0][0]
 
@@ -58,9 +60,10 @@ class TestGmailChannel:
         assert msg["From"] == "sender@gmail.com"
         assert msg["To"] == "recipient@gmail.com"
 
+    @patch("src.notifications.gmail.store_token", new_callable=AsyncMock)
     @patch("src.notifications.gmail.aiosmtplib.send", new_callable=AsyncMock)
     @patch("src.notifications.gmail.generate_token", return_value="tok98765")
-    async def test_send_includes_token_in_subject(self, mock_token, mock_send):
+    async def test_send_includes_token_in_subject(self, mock_token, mock_send, mock_store):
         channel = _make_channel()
         event = _make_event()
 
@@ -69,9 +72,10 @@ class TestGmailChannel:
         msg = mock_send.call_args[0][0]
         assert "[#tok98765]" in msg["Subject"]
 
+    @patch("src.notifications.gmail.store_token", new_callable=AsyncMock)
     @patch("src.notifications.gmail.aiosmtplib.send", new_callable=AsyncMock)
     @patch("src.notifications.gmail.generate_token", return_value="threadtk")
-    async def test_send_threads_by_change_id(self, mock_token, mock_send):
+    async def test_send_threads_by_change_id(self, mock_token, mock_send, mock_store):
         channel = _make_channel()
         event = _make_event(change_id="feature-xyz")
 
@@ -82,9 +86,10 @@ class TestGmailChannel:
         assert msg["In-Reply-To"] == expected_thread_id
         assert msg["References"] == expected_thread_id
 
+    @patch("src.notifications.gmail.store_token", new_callable=AsyncMock)
     @patch("src.notifications.gmail.aiosmtplib.send", new_callable=AsyncMock)
     @patch("src.notifications.gmail.generate_token", return_value="nothread")
-    async def test_send_no_threading_without_change_id(self, mock_token, mock_send):
+    async def test_send_no_threading_without_change_id(self, mock_token, mock_send, mock_store):
         channel = _make_channel()
         event = _make_event(change_id=None)
 

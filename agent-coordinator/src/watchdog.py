@@ -225,9 +225,9 @@ class WatchdogService:
                 f"expires_at=lt.{now.isoformat()}",
             )
             for row in expired:
-                token_id = row.get("id")
-                if token_id:
-                    await self.db.delete("notification_tokens", {"id": token_id})
+                token_val = row.get("token")
+                if token_val:
+                    await self.db.delete("notification_tokens", {"token": token_val})
             if expired:
                 logger.info("Watchdog: cleaned up %d expired notification tokens", len(expired))
         except Exception as exc:

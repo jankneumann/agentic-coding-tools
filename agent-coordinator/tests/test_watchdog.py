@@ -231,8 +231,8 @@ class TestExpiredTokenCleanup:
             "approval_queue": [],
             "file_locks": [],
             "notification_tokens": [
-                {"id": "token-1", "expires_at": expired_time},
-                {"id": "token-2", "expires_at": expired_time},
+                {"token": "token-1", "expires_at": expired_time},
+                {"token": "token-2", "expires_at": expired_time},
             ],
         }.get(table, []))
 
