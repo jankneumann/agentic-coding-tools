@@ -52,6 +52,11 @@ class NotifierService:
         if not self._channels:
             return {}
 
+        # Prevent notification loops: skip events from notifier/watchdog
+        source = event.context.get("source", "")
+        if source in ("notifier", "watchdog"):
+            return {}
+
         # Build filtered channel list first (before any delay)
         filtered: dict[str, NotificationChannel] = {}
         for channel_id, channel in self._channels.items():
