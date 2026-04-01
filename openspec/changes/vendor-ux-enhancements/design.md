@@ -4,22 +4,21 @@
 
 ## Design Decisions
 
-### D1: Adversarial mode as a dispatch_mode, not a finding type
+### D1: Adversarial mode is a prompt modification, not a new dispatch_mode
 
-**Decision**: Add `adversarial` as a new `dispatch_mode` in `agents.yaml` CLI configs, alongside existing `review` and `alternative` modes. Do NOT add a new finding type to the schema.
+**Decision**: Adversarial review reuses the existing `review` dispatch mode unchanged. The only difference is the **prompt content** — the review skills prepend an adversarial framing prefix before passing the prompt to `review_dispatcher.py --mode review`. No changes to `agents.yaml`, `CliVendorAdapter`, or `ReviewOrchestrator`.
 
-**Rationale**: The review findings schema already has `architecture` and `correctness` types that cover adversarial findings semantically. What makes adversarial review different is the *prompt persona*, not the *output schema*. Adding it as a dispatch mode means:
-- Each vendor's adversarial CLI args can differ (e.g., Claude might use `--print` with a different system prompt, Codex might use a different model)
-- The consensus pipeline requires zero changes — adversarial findings are structurally identical to standard findings
-- Equal-weight consensus naturally falls out: a confirmed finding needs 2+ vendors to agree regardless of which mode produced it
+**Rationale**: The `dispatch_mode` in `agents.yaml` controls CLI args (e.g., `--print --allowedTools Read,Grep,Glob`). Adversarial review needs the same CLI args as standard review — it's read-only analysis with the same tools. The only difference is *what the prompt asks for*. Adding a new dispatch_mode would duplicate identical CLI configs across all vendors for zero benefit.
 
-**Rejected alternative**: New finding type `adversarial_challenge`. This would require schema migration, consensus synthesizer changes, and downstream consumers to handle a new type. The prompt-level approach achieves the same effect with zero schema changes.
+**Rejected alternatives**:
+- New `adversarial` dispatch_mode in agents.yaml — duplicates `review` mode CLI args with no behavioral difference
+- New finding type `adversarial_challenge` — requires schema migration and consensus synthesizer changes
 
-### D2: Adversarial prompt template lives in review_dispatcher.py
+### D2: Adversarial prompt prefix lives in the review skills, not the dispatcher
 
-**Decision**: Add a `ADVERSARIAL_PROMPT_PREFIX` constant to `review_dispatcher.py` that wraps the standard review prompt with a contrarian persona. The dispatcher prepends this prefix when `--mode adversarial` is used.
+**Decision**: The adversarial prompt prefix is a constant in a shared location (e.g., `skills/parallel-infrastructure/scripts/adversarial_prompt.py` or inline in the skill SKILL.md). The review skills prepend it when `--adversarial` flag is set, then call the dispatcher normally.
 
-**Rationale**: Prompts are already constructed in the dispatcher (it builds the full prompt string before passing to `CliVendorAdapter.dispatch()`). Adding adversarial framing at this layer means all vendors receive the same adversarial context, ensuring comparable findings for consensus matching.
+**Rationale**: The dispatcher is a generic vendor routing engine — it shouldn't know about review strategies. The skills already construct the review prompt before passing it to the dispatcher. Adding the adversarial framing at the skill level keeps the dispatcher simple and strategy-agnostic.
 
 ### D3: Quick-task uses a new `quick` dispatch_mode
 
@@ -59,31 +58,30 @@
 ## Component Interactions
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    agents.yaml                        │
-│  (adds: adversarial + quick dispatch_modes per vendor)│
-└──────────┬───────────────────────────┬────────────────┘
-           │                           │
-           ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────┐
-│  review_dispatcher   │    │   vendor_health.py       │
-│  .py                 │    │   (new script)           │
-│                      │    │                          │
-│  + adversarial       │    │  check_all_vendors()     │
-│    prompt prefix     │    │  check_vendor(agent_id)  │
-│  + dispatch_and_wait │    │  CLI: --json output      │
-│    (mode=adversarial)│    │                          │
-└──────────┬───────────┘    └──────────┬──────────────┘
-           │                           │
-           ▼                           ▼
-┌─────────────────────┐    ┌─────────────────────────┐
-│ parallel-review-*    │    │  WatchdogService         │
-│ skills               │    │                          │
-│                      │    │  + _check_vendor_health()│
-│  --adversarial flag  │    │  + vendor.unavailable    │
-│  dispatches with     │    │    event emission        │
-│  mode=adversarial    │    │                          │
-└──────────────────────┘    └──────────────────────────┘
+┌─────────────────────────────────┐
+│    agents.yaml                   │
+│    (adds: quick dispatch_mode)   │
+│    (adversarial: NO changes)     │
+└──────────┬──────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────┐     ┌─────────────────────────┐
+│  review_dispatcher.py            │     │  vendor_health.py        │
+│  (UNCHANGED for adversarial)     │     │  (new script)            │
+│                                  │     │                          │
+│  dispatch_and_wait(mode="review")│     │  check_all_vendors()     │
+│  dispatch_and_wait(mode="quick") │     │  check_vendor(agent_id)  │
+└──────────┬───────────────────────┘     │  CLI: --json output      │
+           │                             └──────────┬──────────────┘
+           ▼                                        │
+┌─────────────────────────────────┐                 ▼
+│ parallel-review-* skills         │     ┌─────────────────────────┐
+│                                  │     │  WatchdogService         │
+│  --adversarial flag              │     │                          │
+│  → prepends adversarial prompt   │     │  + _check_vendor_health()│
+│  → calls dispatcher with         │     │  + vendor.unavailable    │
+│    mode="review" (unchanged)     │     │    event emission        │
+└──────────────────────────────────┘     └──────────────────────────┘
 
 ┌──────────────────────────────────────────────────────┐
 │              /quick-task skill (new)                   │

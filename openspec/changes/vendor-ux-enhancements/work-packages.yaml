@@ -20,37 +20,35 @@ packages:
     title: "Adversarial Review Mode"
     task_type: implementation
     description: >
-      Add adversarial dispatch mode to agents.yaml, adversarial prompt prefix to
-      review_dispatcher.py, --adversarial flag to review skills, and mixed-mode
-      dispatch support. Tasks 1.1-1.5.
+      Add adversarial prompt prefix and --adversarial flag to parallel-review-plan
+      and parallel-review-implementation skills. Prompt-only change — reuses existing
+      review dispatch mode, no agents.yaml or dispatcher modifications needed. Tasks 1.1-1.2.
     depends_on: []
     priority: 5
     role: backend
     metadata:
-      loc_estimate: 250
+      loc_estimate: 80
       package_kind: feature
     locks:
       files:
-        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "agent-coordinator/agents.yaml"
-      keys:
-        - "feature:adversarial-review"
-      ttl_minutes: 120
-      reason: "Adversarial review mode implementation"
-    scope:
-      write_allow:
-        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/parallel-infrastructure/tests/**"
         - "skills/parallel-review-plan/SKILL.md"
         - "skills/parallel-review-implementation/SKILL.md"
-        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:adversarial-review"
+      ttl_minutes: 60
+      reason: "Adversarial review mode — prompt-level change only"
+    scope:
+      write_allow:
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/parallel-infrastructure/scripts/adversarial_prompt.py"
+        - "skills/parallel-infrastructure/tests/**"
       read_allow:
         - "skills/**"
-        - "agent-coordinator/**"
         - "openspec/schemas/**"
       deny:
         - "skills/quick-task/**"
-        - "agent-coordinator/src/**"
+        - "agent-coordinator/**"
     worktree:
       name: wp-adversarial-review
       mode: isolated

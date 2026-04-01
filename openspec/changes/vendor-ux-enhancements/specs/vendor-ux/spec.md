@@ -4,19 +4,19 @@
 
 ## 1. Adversarial Review Mode
 
-### 1.1 Dispatch Mode Registration
+### 1.1 Adversarial Prompt Prefix
 
-The system SHALL support an `adversarial` dispatch mode in `agents.yaml` CLI configs, alongside existing `review` and `alternative` modes.
-
-### 1.2 Adversarial Prompt Construction
-
-When `review_dispatcher.py` dispatches with `mode=adversarial`, it SHALL prepend an adversarial prompt prefix to the standard review prompt. The prefix SHALL instruct the reviewer to:
+The system SHALL define an adversarial prompt prefix that wraps a standard review prompt with contrarian framing. The prefix SHALL instruct the reviewer to:
 - Challenge design decisions and question whether the chosen approach is optimal
 - Identify edge cases, failure modes, and scalability concerns
 - Question assumptions that the standard review would take at face value
 - Suggest alternative approaches that might be superior
 
-### 1.3 Adversarial Findings Schema Compliance
+### 1.2 No New Dispatch Mode Required
+
+Adversarial review SHALL reuse the existing `review` dispatch mode. The adversarial framing is applied at the prompt level, not the dispatch level. No changes to `agents.yaml` CLI configs are required.
+
+### 1.3 Findings Schema Compliance
 
 Adversarial review findings SHALL conform to the existing `review-findings.schema.json` without modifications. Finding types SHALL use existing enum values (`architecture`, `correctness`, `performance`, `security`).
 
@@ -26,11 +26,7 @@ Adversarial findings SHALL have equal weight in the consensus synthesis pipeline
 
 ### 1.5 Review Skill Integration
 
-Both `parallel-review-plan` and `parallel-review-implementation` skills SHALL accept an `--adversarial` flag. When set, the skill SHALL dispatch with `mode=adversarial` instead of `mode=review` to `review_dispatcher.py`.
-
-### 1.6 Mixed-Mode Dispatch
-
-When the review orchestrator dispatches to multiple vendors, it SHALL support mixed-mode dispatch: some vendors in `review` mode, others in `adversarial` mode. The orchestrator SHALL accept a `--adversarial-ratio` parameter (default: 0, range: 0.0-1.0) controlling what fraction of vendors receive adversarial prompts.
+Both `parallel-review-plan` and `parallel-review-implementation` skills SHALL accept an `--adversarial` flag. When set, the skill SHALL prepend the adversarial prompt prefix to the review prompt before calling `review_dispatcher.py` with `--mode review` (unchanged).
 
 ## 2. Micro-Task Quick Dispatch
 
