@@ -32,6 +32,7 @@ testpaths = [
     "validate-flows/scripts/tests",
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
+    "changelog-version/tests",
 ]
 
 [tool.ruff]
