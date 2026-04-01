@@ -128,8 +128,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_agent_discovery_notify ON agent_discovery;
+DROP TRIGGER IF EXISTS trg_agent_discovery_notify ON agent_sessions;
 CREATE TRIGGER trg_agent_discovery_notify
-    AFTER INSERT OR UPDATE ON agent_discovery
+    AFTER INSERT OR UPDATE ON agent_sessions
     FOR EACH ROW
     EXECUTE FUNCTION notify_agent_discovery_change();
