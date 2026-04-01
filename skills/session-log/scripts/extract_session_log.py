@@ -56,14 +56,16 @@ def append_phase_entry(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    entry = f"\n---\n\n## Phase: {phase_name} ({date_str})\n\n{content.rstrip()}\n"
+    phase_header = f"## Phase: {phase_name} ({date_str})\n\n{content.rstrip()}\n"
 
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        path.write_text(existing.rstrip() + entry + "\n", encoding="utf-8")
+        path.write_text(
+            existing.rstrip() + f"\n\n---\n\n{phase_header}\n", encoding="utf-8"
+        )
     else:
         header = SESSION_LOG_HEADER.format(change_id=change_id)
-        path.write_text(header + entry, encoding="utf-8")
+        path.write_text(header + f"\n{phase_header}\n", encoding="utf-8")
 
     return path
 
@@ -92,14 +94,14 @@ def append_merge_entry(
     )
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    entry = f"\n---\n\n{content.rstrip()}\n"
-
     if path.exists():
         existing = path.read_text(encoding="utf-8")
-        path.write_text(existing.rstrip() + entry + "\n", encoding="utf-8")
+        path.write_text(
+            existing.rstrip() + f"\n\n---\n\n{content.rstrip()}\n\n", encoding="utf-8"
+        )
     else:
         header = MERGE_LOG_HEADER.format(date=date)
-        path.write_text(header + entry, encoding="utf-8")
+        path.write_text(header + f"\n{content.rstrip()}\n\n", encoding="utf-8")
 
     return path
 
@@ -126,7 +128,11 @@ def count_phase_iterations(
         return 0
 
     content = path.read_text(encoding="utf-8")
-    pattern = re.compile(rf"^## Phase: {re.escape(phase_prefix)}\s", re.MULTILINE)
+    # Match prefix followed by a digit (for "Plan Iteration 1") or "(" for date
+    # This prevents "Plan" from matching "Plan Iteration" entries
+    pattern = re.compile(
+        rf"^## Phase: {re.escape(phase_prefix)}\s*[\d(]", re.MULTILINE
+    )
     return len(pattern.findall(content))
 
 

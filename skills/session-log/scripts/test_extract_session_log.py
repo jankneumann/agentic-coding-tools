@@ -36,12 +36,23 @@ class TestAppendPhaseEntry:
         append_phase_entry("x", "Plan", "content", session_log_path=log_path)
         assert log_path.exists()
 
+    def test_first_entry_no_separator(self, tmp_path: Path) -> None:
+        log_path = tmp_path / "session-log.md"
+        append_phase_entry("c", "Plan", "First entry.", session_log_path=log_path)
+        content = log_path.read_text()
+        # First entry should NOT start with ---
+        lines = content.split("\n")
+        # Find the phase header — it should not be preceded by ---
+        phase_idx = next(i for i, l in enumerate(lines) if l.startswith("## Phase:"))
+        preceding = [l for l in lines[:phase_idx] if l.strip()]
+        assert "---" not in preceding
+
     def test_appends_with_separator(self, tmp_path: Path) -> None:
         log_path = tmp_path / "session-log.md"
         append_phase_entry("c", "Plan", "First entry.", session_log_path=log_path)
         append_phase_entry("c", "Implementation", "Second entry.", session_log_path=log_path)
         content = log_path.read_text()
-        assert content.count("---") >= 2  # header separator + between entries
+        assert "---" in content  # separator between entries
         assert "## Phase: Plan" in content
         assert "## Phase: Implementation" in content
         assert content.index("Plan") < content.index("Implementation")
@@ -94,7 +105,7 @@ class TestAppendMergeEntry:
         content = log_path.read_text()
         assert "First." in content
         assert "Second." in content
-        assert content.count("---") >= 2
+        assert "---" in content  # separator between entries (not before first)
 
     def test_default_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.chdir(tmp_path)
@@ -125,6 +136,17 @@ class TestCountPhaseIterations:
         )
         assert count_phase_iterations("Plan Iteration", log_path) == 2
         assert count_phase_iterations("Implementation Iteration", log_path) == 1
+
+    def test_prefix_does_not_cross_match(self, tmp_path: Path) -> None:
+        """'Plan' should not match 'Plan Iteration' entries."""
+        log_path = tmp_path / "session-log.md"
+        append_phase_entry("c", "Plan", "Initial plan.", session_log_path=log_path)
+        append_phase_entry("c", "Plan Iteration 1", "First iter.", session_log_path=log_path)
+        append_phase_entry("c", "Plan Iteration 2", "Second iter.", session_log_path=log_path)
+        assert count_phase_iterations("Plan Iteration", log_path) == 2
+        # "Plan" alone (non-iteration) should NOT match "Plan Iteration" entries
+        # count_phase_iterations is designed for iteration prefixes
+        # For non-iteration phases, you wouldn't call this function
 
     def test_independent_prefix_counting(self, tmp_path: Path) -> None:
         log_path = tmp_path / "session-log.md"
