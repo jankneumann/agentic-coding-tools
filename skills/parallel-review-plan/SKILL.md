@@ -21,6 +21,9 @@ Receive plan artifacts as read-only input and produce structured findings confor
 
 `$ARGUMENTS` - OpenSpec change-id to review (e.g., "add-user-authentication")
 
+Optional flags:
+- `--adversarial` — Use adversarial review mode: challenges design decisions instead of standard review
+
 ## Prerequisites
 
 - OpenSpec proposal exists at `openspec/changes/<change-id>/`
@@ -146,6 +149,15 @@ If `CAN_HANDOFF=true`, write a review handoff with:
 After writing your own findings, dispatch reviews to other vendor CLIs and synthesize consensus.
 
 **Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`.
+
+**Adversarial mode**: If `--adversarial` flag was passed, wrap the review prompt with adversarial framing before dispatch:
+
+```python
+from adversarial_prompt import wrap_adversarial
+prompt = wrap_adversarial(prompt)  # Prepends contrarian persona instructions
+```
+
+The dispatch still uses `--mode review` (unchanged) — only the prompt content differs. Adversarial findings flow through the same consensus pipeline with equal weight (Design Decision D1).
 
 **Dispatch to other vendors** (excluding the current agent's vendor):
 
