@@ -1,0 +1,30 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.4"
+      ],
+      "elapsed_seconds": 600.0138469589874,
+      "error": "Timeout after 600s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "gemini",
+      "success": false,
+      "model_used": "auto",
+      "models_attempted": [
+        "auto"
+      ],
+      "elapsed_seconds": 40.37530420802068,
+      "error": "Invalid JSON output",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 0
+}
