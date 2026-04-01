@@ -28,10 +28,24 @@ def _read_loop_state() -> dict:
     """Read loop-state.json from the current directory. Returns {} on failure."""
     path = Path.cwd() / "loop-state.json"
     if not path.exists():
+        print(
+            f"report_status: loop-state.json not found at {path}, using phase=UNKNOWN",
+            file=sys.stderr,
+        )
         return {}
     try:
         return json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError as exc:
+        print(
+            f"report_status: invalid JSON in {path}: {exc}, using phase=UNKNOWN",
+            file=sys.stderr,
+        )
+        return {}
+    except OSError as exc:
+        print(
+            f"report_status: cannot read {path}: {exc}, using phase=UNKNOWN",
+            file=sys.stderr,
+        )
         return {}
 
 

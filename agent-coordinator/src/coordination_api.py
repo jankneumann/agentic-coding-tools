@@ -11,6 +11,7 @@ This ensures:
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from typing import Any
@@ -307,9 +308,39 @@ def create_coordination_api() -> FastAPI:
                 exc_info=True,
             )
 
+        # Start notifier digest loop and watchdog (only when channels configured)
+        from .notifications.notifier import get_notifier
+        from .watchdog import get_watchdog
+
+        notifier = get_notifier()
+        watchdog = get_watchdog()
+        notification_channels = os.environ.get("NOTIFICATION_CHANNELS", "")
+
+        if notification_channels.strip():
+            try:
+                await notifier.start_digest_loop()
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "Notifier digest loop startup failed.", exc_info=True,
+                )
+            try:
+                await watchdog.start()
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "Watchdog startup failed.", exc_info=True,
+                )
+
         yield
 
-        # Shutdown event bus
+        # Shutdown watchdog, notifier, event bus
+        try:
+            await watchdog.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            await notifier.stop_digest_loop()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             await event_bus.stop()
         except Exception:  # noqa: BLE001
@@ -1324,10 +1355,10 @@ def create_coordination_api() -> FastAPI:
 
         _log = _logging.getLogger(__name__)
 
-        # Update heartbeat via discovery service (best-effort)
+        # Update heartbeat for the reporting agent (not the coordinator itself)
         try:
             discovery = get_discovery_service()
-            await discovery.heartbeat()
+            await discovery.heartbeat(agent_id=request.agent_id)
         except Exception:  # noqa: BLE001
             _log.debug("Heartbeat update failed for status report", exc_info=True)
 

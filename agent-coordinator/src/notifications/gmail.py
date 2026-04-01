@@ -14,7 +14,7 @@ import aiosmtplib
 
 from src.db import get_db
 from src.event_bus import CoordinatorEvent
-from src.status import generate_token, store_token, validate_token
+from src.status import generate_token, lookup_token_failure, store_token, validate_token
 
 from .relay import extract_token, parse_reply, route_reply, validate_sender
 from .templates import (
@@ -23,6 +23,14 @@ from .templates import (
     render_stale_agent_email,
     render_status_email,
 )
+
+# Confirmation messages per command type
+_CONFIRMATION_MESSAGES: dict[str, str] = {
+    "approval": "Approved. Agent resuming.",
+    "gate_check": "Gate check triggered.",
+    "phase_skip": "Phase skip triggered.",
+    "guidance": "Guidance recorded.",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +74,14 @@ class GmailChannel:
 
         # Persist token before dispatch so replies can be validated
         db = get_db()
+        token_ttl = int(os.environ.get("NOTIFICATION_TOKEN_TTL_SECONDS", "3600"))
         await store_token(
             db,
             token=token,
             event_type=event.event_type,
             entity_id=event.entity_id,
             change_id=event.change_id,
+            ttl_seconds=token_ttl,
         )
 
         subject, html_body = self._render(event, token)
@@ -237,9 +247,23 @@ class GmailChannel:
             if "<" in sender and ">" in sender:
                 sender = sender.split("<")[1].split(">")[0]
 
-            # Validate sender
+            db = get_db()
+
+            # Validate sender — audit unauthorized attempts
             if allowed_senders and not validate_sender(sender, allowed_senders):
                 logger.info("Rejected reply from unlisted sender: %s", sender)
+                try:
+                    from src.audit import AuditService
+
+                    audit = AuditService(db=db)
+                    await audit.log_operation(
+                        agent_id=sender,
+                        operation="unauthorized_reply",
+                        parameters={"sender": sender},
+                        success=False,
+                    )
+                except Exception:
+                    logger.debug("Failed to log unauthorized_reply audit", exc_info=True)
                 return
 
             # Extract token from subject
@@ -248,11 +272,42 @@ class GmailChannel:
                 logger.debug("No token found in subject: %s", subject)
                 return
 
-            # Validate token
-            db = get_db()
+            # Validate token — send error replies for expired/used tokens
             token_data = await validate_token(db, token)
             if not token_data:
-                logger.info("Invalid or expired token: %s", token)
+                failure_reason = await lookup_token_failure(db, token)
+                if failure_reason == "used":
+                    logger.info("Token already used: %s", token)
+                    await self._send_reply_email(
+                        sender, f"Re: {subject}", "Token already used."
+                    )
+                elif failure_reason == "expired":
+                    logger.info("Token expired: %s", token)
+                    # List current pending approvals for context
+                    pending_list = ""
+                    try:
+                        pending = await db.query(
+                            "approval_queue",
+                            query_params="status=eq.pending",
+                            select="id,operation,agent_id",
+                        )
+                        if pending:
+                            items = [
+                                f"- {r.get('operation', '?')} (agent: {r.get('agent_id', '?')})"
+                                for r in pending[:10]
+                            ]
+                            pending_list = (
+                                "\n\nCurrent pending approvals:\n" + "\n".join(items)
+                            )
+                    except Exception:
+                        logger.debug("Failed to fetch pending approvals", exc_info=True)
+                    await self._send_reply_email(
+                        sender,
+                        f"Re: {subject}",
+                        f"Token expired.{pending_list}",
+                    )
+                else:
+                    logger.info("Invalid token: %s", token)
                 return
 
             # Get body (get_payload with decode=True returns bytes|None)
@@ -279,8 +334,35 @@ class GmailChannel:
                 result.get("status"),
             )
 
+            # Send confirmation reply email
+            if result.get("status") == "routed":
+                confirmation = _CONFIRMATION_MESSAGES.get(command_type)
+                if confirmation:
+                    if command_type == "approval" and command_value == "denied":
+                        confirmation = "Denied. Agent notified."
+                    await self._send_reply_email(sender, f"Re: {subject}", confirmation)
+
         except Exception:
             logger.error("Failed to process IMAP message %s", msg_id, exc_info=True)
+
+    async def _send_reply_email(self, to: str, subject: str, body_text: str) -> None:
+        """Send a plain-text reply email (for confirmations and errors)."""
+        msg = MIMEMultipart("alternative")
+        msg["From"] = self.sender_email
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body_text, "plain"))
+        try:
+            await aiosmtplib.send(
+                msg,
+                hostname=self.smtp_host,
+                port=self.smtp_port,
+                username=self.smtp_user,
+                password=self.smtp_password,
+                start_tls=True,
+            )
+        except Exception:
+            logger.warning("Failed to send reply email to %s", to, exc_info=True)
 
     @staticmethod
     def _render(event: CoordinatorEvent, token: str) -> tuple[str, str]:

@@ -77,6 +77,26 @@ async def validate_token(db: DatabaseClient, token: str) -> dict[str, Any] | Non
     return updated[0]
 
 
+async def lookup_token_failure(db: DatabaseClient, token: str) -> str:
+    """Determine why a token validation failed.
+
+    Returns:
+        'expired' if the token exists but is past its expires_at,
+        'used' if the token exists but used_at is set,
+        'not_found' if the token does not exist.
+    """
+    rows = await db.query(
+        "notification_tokens",
+        query_params=f"token=eq.{token}",
+    )
+    if not rows:
+        return "not_found"
+    row = rows[0]
+    if row.get("used_at"):
+        return "used"
+    return "expired"
+
+
 async def cleanup_expired_tokens(db: DatabaseClient) -> int:
     """Delete expired tokens. Returns count of deleted tokens.
 
