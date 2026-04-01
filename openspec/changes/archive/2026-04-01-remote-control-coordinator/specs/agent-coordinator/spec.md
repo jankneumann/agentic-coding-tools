@@ -80,7 +80,7 @@ The coordinator SHALL provide a pluggable notification service that subscribes t
 - Low-urgency events SHALL be collected into a digest batch and sent every `NOTIFICATION_DIGEST_INTERVAL_SECONDS` seconds (default: 600, i.e., 10 minutes). The digest SHALL contain: event count, per-type summary, and the 5 most recent event summaries. Max batch size: 100 events (oldest dropped if exceeded).
 - The notifier MUST NOT dispatch notifications for events originating from the notifier itself or the watchdog (preventing notification loops). Events with `context.source == "notifier"` or `context.source == "watchdog"` SHALL be skipped.
 
-### Testing Strategy
+**Testing Strategy:**
 
 - All channel implementations SHALL have a corresponding `Fake` test double implementing the `NotificationChannel` protocol (e.g., `GmailChannelFake`) that buffers sent events in a list for assertion.
 - `NotifierService` unit tests SHALL use fake channels exclusively (no real SMTP/IMAP).
@@ -297,7 +297,7 @@ WHEN the watchdog finds a pending approval older than 15 minutes
 AND no reminder has been sent in the last 30 minutes for this approval
 THEN it emits a `coordinator_approval` event with `event_type: "reminder"` and urgency `medium`.
 
-## MODIFIED Requirements
+## ADDED Requirements (Coordination API + Hooks)
 
 ### Requirement: Coordination API
 
