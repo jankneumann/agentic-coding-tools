@@ -11,6 +11,7 @@ import logging
 import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from .db import DatabaseClient, get_db
@@ -24,6 +25,7 @@ _STALE_AGENT_THRESHOLD_MINUTES = 15
 _AGING_APPROVAL_THRESHOLD_MINUTES = 15
 _REMINDER_DEBOUNCE_SECONDS = 30 * 60  # 30 minutes
 _LOCK_EXPIRY_WARNING_MINUTES = 10
+_DEFAULT_VENDOR_HEALTH_INTERVAL = 300  # 5 minutes
 
 
 class WatchdogService:
@@ -43,6 +45,11 @@ class WatchdogService:
         self._running = False
         self._task: asyncio.Task[None] | None = None
         self._last_reminders: dict[str, float] = {}  # approval_id -> last_reminder_timestamp
+        self._vendor_health_interval = int(
+            os.environ.get("VENDOR_HEALTH_INTERVAL_SECONDS", str(_DEFAULT_VENDOR_HEALTH_INTERVAL))
+        )
+        self._last_vendor_check: float = 0.0
+        self._previous_vendor_state: dict[str, bool] = {}  # agent_id -> healthy
 
     @property
     def db(self) -> DatabaseClient:
@@ -81,6 +88,7 @@ class WatchdogService:
         await self._check_expiring_locks()
         await self._cleanup_expired_tokens()
         await self._check_event_bus_health()
+        await self._check_vendor_health()
 
     async def _loop(self) -> None:
         """Main loop: run checks at the configured interval."""
@@ -263,6 +271,77 @@ class WatchdogService:
                     logger.error("Watchdog: event bus restart failed: %s", exc)
         except Exception as exc:
             logger.error("Watchdog: _check_event_bus_health failed: %s", exc)
+
+    async def _check_vendor_health(self) -> None:
+        """Check vendor CLI/API availability, emit events on state changes.
+
+        Runs at a separate interval (VENDOR_HEALTH_INTERVAL_SECONDS, default 5m)
+        to avoid excessive probing. Skips first run (no baseline).
+        """
+        current_time = self._time_fn()
+        if current_time - self._last_vendor_check < self._vendor_health_interval:
+            return
+        self._last_vendor_check = current_time
+
+        try:
+            # Import from parallel-infrastructure scripts
+            import importlib.util
+
+            vendor_health_path = (
+                Path(__file__).resolve().parent.parent.parent
+                / "skills"
+                / "parallel-infrastructure"
+                / "scripts"
+                / "vendor_health.py"
+            )
+            if not vendor_health_path.exists():
+                return
+
+            spec = importlib.util.spec_from_file_location("vendor_health", vendor_health_path)
+            if not spec or not spec.loader:
+                return
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+            report = mod.check_all_vendors()
+            current_state = {v.agent_id: v.healthy for v in report.vendors}
+
+            # Skip first run (no baseline to compare)
+            if not self._previous_vendor_state:
+                self._previous_vendor_state = current_state
+                return
+
+            # Detect state changes
+            for agent_id, healthy in current_state.items():
+                was_healthy = self._previous_vendor_state.get(agent_id)
+                if was_healthy is None:
+                    continue  # New vendor, skip
+
+                if was_healthy and not healthy:
+                    await self._emit_event(
+                        channel="coordinator_agent",
+                        event_type="vendor.unavailable",
+                        entity_id=agent_id,
+                        agent_id="watchdog",
+                        urgency="medium",
+                        summary=f"Vendor {agent_id} is no longer available",
+                    )
+                    logger.warning("Watchdog: vendor %s became unavailable", agent_id)
+                elif not was_healthy and healthy:
+                    await self._emit_event(
+                        channel="coordinator_agent",
+                        event_type="vendor.recovered",
+                        entity_id=agent_id,
+                        agent_id="watchdog",
+                        urgency="low",
+                        summary=f"Vendor {agent_id} has recovered",
+                    )
+                    logger.info("Watchdog: vendor %s recovered", agent_id)
+
+            self._previous_vendor_state = current_state
+
+        except Exception as exc:
+            logger.error("Watchdog: _check_vendor_health failed: %s", exc)
 
     async def _emit_event(
         self,
