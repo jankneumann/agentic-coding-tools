@@ -1,0 +1,287 @@
+schema_version: 1
+
+feature:
+  id: vendor-ux-enhancements
+  title: "Vendor UX Enhancements: Adversarial Review, Quick Dispatch, Health Check"
+  plan_revision: 1
+  created_by: claude
+  created_at: "2026-04-01"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-adversarial-review
+    title: "Adversarial Review Mode"
+    task_type: implementation
+    description: >
+      Add adversarial dispatch mode to agents.yaml, adversarial prompt prefix to
+      review_dispatcher.py, --adversarial flag to review skills, and mixed-mode
+      dispatch support. Tasks 1.1-1.5.
+    depends_on: []
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 250
+      package_kind: feature
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:adversarial-review"
+      ttl_minutes: 120
+      reason: "Adversarial review mode implementation"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/tests/**"
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "agent-coordinator/agents.yaml"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/**"
+        - "openspec/schemas/**"
+      deny:
+        - "skills/quick-task/**"
+        - "agent-coordinator/src/**"
+    worktree:
+      name: wp-adversarial-review
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: unit-tests
+          kind: command
+          evidence:
+            artifacts:
+              - "skills/parallel-infrastructure/tests/test_adversarial.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: schema-validation
+          kind: command
+          evidence:
+            artifacts: []
+            result_keys:
+              - "findings_schema_valid"
+    inputs:
+      - "openspec/schemas/review-findings.schema.json"
+      - "openspec/schemas/consensus-report.schema.json"
+    outputs:
+      result_keys:
+        - "adversarial_mode_functional"
+        - "consensus_equal_weight_verified"
+      artifacts:
+        - "skills/parallel-infrastructure/tests/test_adversarial.py"
+
+  - package_id: wp-quick-task
+    title: "Micro-Task Quick Dispatch"
+    task_type: implementation
+    description: >
+      Create /quick-task skill with SKILL.md and scripts/quick_task.py. Add quick
+      dispatch mode to agents.yaml. Bypasses OpenSpec, returns freeform vendor output.
+      Tasks 2.1-2.3.
+    depends_on: []
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 200
+      package_kind: feature
+    locks:
+      files:
+        - "skills/quick-task/SKILL.md"
+        - "skills/quick-task/scripts/quick_task.py"
+      keys:
+        - "feature:quick-task"
+      ttl_minutes: 120
+      reason: "Quick-task skill implementation"
+    scope:
+      write_allow:
+        - "skills/quick-task/**"
+        - "agent-coordinator/agents.yaml"
+      read_allow:
+        - "skills/parallel-infrastructure/**"
+        - "agent-coordinator/**"
+        - "openspec/schemas/**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/**"
+        - "agent-coordinator/src/**"
+    worktree:
+      name: wp-quick-task
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: unit-tests
+          kind: command
+          evidence:
+            artifacts:
+              - "skills/quick-task/tests/test_quick_task.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: skill-validation
+          kind: command
+          evidence:
+            artifacts:
+              - "skills/quick-task/SKILL.md"
+            result_keys:
+              - "skill_md_valid"
+    outputs:
+      result_keys:
+        - "quick_dispatch_functional"
+        - "no_openspec_artifacts_created"
+      artifacts:
+        - "skills/quick-task/SKILL.md"
+        - "skills/quick-task/scripts/quick_task.py"
+        - "skills/quick-task/tests/test_quick_task.py"
+
+  - package_id: wp-vendor-health
+    title: "Vendor Health Check"
+    task_type: implementation
+    description: >
+      Create vendor_health.py standalone script with CLI and importable interface.
+      Create /vendor:status skill wrapper. Add _check_vendor_health() to WatchdogService.
+      Tasks 3.1-3.5.
+    depends_on: []
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 300
+      package_kind: feature
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "feature:vendor-health"
+      ttl_minutes: 120
+      reason: "Vendor health check implementation"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "skills/parallel-infrastructure/tests/test_vendor_health.py"
+        - "skills/vendor-status/**"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/test_watchdog*.py"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/quick-task/**"
+    worktree:
+      name: wp-vendor-health
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: unit-tests-health
+          kind: command
+          evidence:
+            artifacts:
+              - "skills/parallel-infrastructure/tests/test_vendor_health.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: unit-tests-watchdog
+          kind: command
+          evidence:
+            artifacts:
+              - "agent-coordinator/tests/test_watchdog_vendor.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: cli-smoke-test
+          kind: command
+          evidence:
+            artifacts: []
+            result_keys:
+              - "cli_json_output_valid"
+    outputs:
+      result_keys:
+        - "health_check_functional"
+        - "watchdog_events_emitted"
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "skills/vendor-status/SKILL.md"
+
+  - package_id: wp-integration
+    title: "Integration Testing"
+    task_type: integration
+    description: >
+      End-to-end tests for all three features: adversarial consensus, quick-task dispatch,
+      vendor health CLI + watchdog events. Update documentation. Tasks 4.1-4.4.
+    depends_on:
+      - wp-adversarial-review
+      - wp-quick-task
+      - wp-vendor-health
+    priority: 3
+    role: integration
+    metadata:
+      loc_estimate: 150
+      package_kind: integration
+    locks:
+      files: []
+      keys:
+        - "feature:vendor-ux-integration"
+      ttl_minutes: 60
+      reason: "Integration testing across all three features"
+    scope:
+      write_allow:
+        - "tests/e2e/**"
+        - "docs/lessons-learned.md"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/**"
+        - "openspec/**"
+        - "docs/**"
+    worktree:
+      name: wp-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: e2e-adversarial
+          kind: command
+          evidence:
+            artifacts:
+              - "tests/e2e/test_adversarial_review.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: e2e-quick-task
+          kind: command
+          evidence:
+            artifacts:
+              - "tests/e2e/test_quick_task.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: e2e-vendor-health
+          kind: command
+          evidence:
+            artifacts:
+              - "tests/e2e/test_vendor_health.py"
+            result_keys:
+              - "pytest_exit_code"
+    outputs:
+      result_keys:
+        - "all_e2e_tests_pass"
+      artifacts:
+        - "tests/e2e/test_adversarial_review.py"
+        - "tests/e2e/test_quick_task.py"
+        - "tests/e2e/test_vendor_health.py"
