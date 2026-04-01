@@ -629,6 +629,46 @@ else
 fi
 ```
 
+### 14. Append Session Log
+
+Append a `Validation` phase entry to the session log, then commit and push.
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Validation (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Context
+<2-3 sentences: what was validated, pass/fail summary, any waivers granted>
+```
+
+**Focus on**: Validation results, phases run, any waivers or deferred issues. For clean validation passes, use "No significant decisions required" in Decisions and focus on Context.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+**Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
+
+```bash
+git add "openspec/changes/<change-id>/session-log.md"
+git commit -m "chore: append validation session log for <change-id>"
+git push
+```
+
 ---
 
 ## After Validation

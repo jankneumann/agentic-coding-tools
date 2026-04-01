@@ -247,6 +247,54 @@ Additionally verify:
 
 Fix any failures before proceeding. If fixes introduce new issues, address them within this iteration.
 
+### 8.5. Append Session Log
+
+Append a `Plan Iteration <N>` phase entry to the session log, capturing what changed in this iteration and why.
+
+**Determine iteration number:**
+- Read `openspec/changes/<change-id>/session-log.md` (if it exists)
+- Count existing `## Phase: Plan Iteration` headers
+- N = count + 1
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Plan Iteration <N> (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: what findings were addressed, what changed>
+```
+
+**Focus on**: Which findings were addressed, which were deferred, key decisions about proposal changes.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+The session-log.md is inside `openspec/changes/$CHANGE_ID/` so it will be picked up by the existing `git add` in Step 9.
+
 ### 9. Commit Iteration
 
 ```bash
