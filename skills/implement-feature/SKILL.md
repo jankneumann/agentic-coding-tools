@@ -283,6 +283,18 @@ Task(subagent_type="Bash", prompt="Run validate_flows.py --diff main...HEAD", ru
 
 Fix all failures before proceeding.
 
+### 6.4. Live Service Smoke Tests (Soft Gate) [all tiers]
+
+Run live service smoke tests if a test environment is available:
+
+```bash
+python3 skills/validate-feature/scripts/phase_deploy.py --env docker --timeout 120
+python3 skills/validate-feature/scripts/phase_smoke.py
+python3 skills/validate-feature/scripts/stack_launcher.py teardown
+```
+
+If Docker/Neon is unavailable, log a WARNING and continue with smoke status "skipped" in validation-report.md. This is a **soft gate** — implementation proceeds regardless.
+
 ### 6.5. Artifact Validation [local-parallel+]
 
 **Skip if TIER is "sequential".**

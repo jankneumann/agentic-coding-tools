@@ -111,6 +111,19 @@ If Docker is not available, warn the operator that deployment validation was ski
 
 If any phase **fails**, present findings and let the operator decide: fix, re-validate, or proceed anyway.
 
+### 2.5a. Smoke Test Hard Gate
+
+Check `validation-report.md` for smoke test results:
+
+1. Parse `## Smoke Tests` section for `Status:` line
+2. If `Status: pass` → proceed to merge
+3. If `Status: fail`, `Status: skipped`, or section missing:
+   a. Re-run: `phase_deploy.py --env docker && phase_smoke.py && stack_launcher.py teardown`
+   b. If re-run passes → proceed to merge
+   c. If re-run fails or no runtime available → **HALT** (do not merge)
+
+This is a **hard gate** — merge is blocked until smoke tests pass.
+
 ### 2.6. Merge Queue Integration [coordinated only]
 
 These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY` capabilities.

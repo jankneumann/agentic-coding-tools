@@ -1,0 +1,307 @@
+schema_version: 1
+
+feature:
+  id: live-service-testing
+  title: "Live Service Testing Pipeline"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/live-service-testing/contracts/test_environment_protocol.py
+    files:
+      - openspec/changes/live-service-testing/contracts/test_environment_protocol.py
+      - openspec/changes/live-service-testing/contracts/test_env_file.md
+      - openspec/changes/live-service-testing/contracts/validation_report_smoke.md
+
+packages:
+  - package_id: wp-contracts
+    task_type: contracts
+    title: "Contracts and Protocol"
+    description: "TestEnvironment protocol, .test-env file format, validation report contract. Contracts are already written as planning artifacts — this package validates them."
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:test-environment-protocol"
+        - "contract:test-env-file"
+        - "contract:validation-report-smoke"
+      ttl_minutes: 120
+      reason: "Contract definitions for live service testing"
+    scope:
+      write_allow:
+        - "openspec/changes/live-service-testing/contracts/**"
+      read_allow:
+        - "openspec/**"
+        - "agent-coordinator/src/port_allocator.py"
+    worktree:
+      name: wp-contracts
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Type-check protocol"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import ast; ast.parse(open(\"openspec/changes/live-service-testing/contracts/test_environment_protocol.py\").read())'"
+          evidence:
+            artifacts: []
+            result_keys: ["contracts.type_check"]
+    outputs:
+      result_keys: ["contracts.validated"]
+      artifacts:
+        - openspec/changes/live-service-testing/contracts/test_environment_protocol.py
+
+  - package_id: wp-stack-launcher
+    task_type: implementation
+    title: "Stack Launcher + Docker Environment"
+    description: "TestEnvironment protocol impl, DockerStackEnvironment, stack_launcher.py CLI. Wires port_allocator to docker compose for isolated test stacks."
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - skills/validate-feature/scripts/stack_launcher.py
+      keys:
+        - "feature:validate-feature:launcher"
+        - "feature:validate-feature:docker"
+      ttl_minutes: 120
+      reason: "Docker stack launcher implementation"
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/stack_launcher.py"
+        - "skills/validate-feature/scripts/environments/__init__.py"
+        - "skills/validate-feature/scripts/environments/protocol.py"
+        - "skills/validate-feature/scripts/environments/docker_stack.py"
+        - "skills/validate-feature/scripts/tests/test_docker_stack.py"
+        - "skills/validate-feature/scripts/tests/test_stack_launcher.py"
+      read_allow:
+        - "agent-coordinator/src/port_allocator.py"
+        - "agent-coordinator/docker-compose.yml"
+        - "openspec/changes/live-service-testing/contracts/**"
+        - "skills/validate-feature/**"
+      deny:
+        - "skills/validate-feature/scripts/smoke_tests/**"
+    worktree:
+      name: wp-stack-launcher
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_docker_stack.py skills/validate-feature/scripts/tests/test_stack_launcher.py -v"
+          evidence:
+            artifacts:
+              - skills/validate-feature/scripts/tests/test_docker_stack.py
+              - skills/validate-feature/scripts/tests/test_stack_launcher.py
+            result_keys: ["stack_launcher.unit_tests"]
+    outputs:
+      result_keys: ["stack_launcher.implemented"]
+      artifacts:
+        - skills/validate-feature/scripts/stack_launcher.py
+        - skills/validate-feature/scripts/environments/docker_stack.py
+        - skills/validate-feature/scripts/environments/protocol.py
+
+  - package_id: wp-smoke-tests
+    task_type: implementation
+    title: "Smoke Test Suite"
+    description: "Pytest smoke tests parametrized by API_BASE_URL and POSTGRES_DSN: health, auth, CORS, error sanitization."
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files: []
+      keys:
+        - "feature:validate-feature:smoke"
+      ttl_minutes: 120
+      reason: "Smoke test suite implementation"
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/smoke_tests/**"
+      read_allow:
+        - "agent-coordinator/tests/e2e/**"
+        - "openspec/changes/live-service-testing/contracts/**"
+        - "skills/validate-feature/SKILL.md"
+    worktree:
+      name: wp-smoke-tests
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Smoke test lint"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest --collect-only skills/validate-feature/scripts/smoke_tests/"
+          evidence:
+            artifacts:
+              - skills/validate-feature/scripts/smoke_tests/test_health.py
+              - skills/validate-feature/scripts/smoke_tests/test_auth.py
+              - skills/validate-feature/scripts/smoke_tests/test_cors.py
+              - skills/validate-feature/scripts/smoke_tests/test_error_sanitization.py
+            result_keys: ["smoke_tests.collected"]
+    outputs:
+      result_keys: ["smoke_tests.implemented"]
+      artifacts:
+        - skills/validate-feature/scripts/smoke_tests/conftest.py
+        - skills/validate-feature/scripts/smoke_tests/test_health.py
+        - skills/validate-feature/scripts/smoke_tests/test_auth.py
+        - skills/validate-feature/scripts/smoke_tests/test_cors.py
+        - skills/validate-feature/scripts/smoke_tests/test_error_sanitization.py
+
+  - package_id: wp-seed-data
+    task_type: implementation
+    title: "Seed Data + Migration Compat"
+    description: "seed.sql fixtures for all 7 cleanable tables, migration graceful degradation for non-ParadeDB PostgreSQL."
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - agent-coordinator/supabase/seed.sql
+      keys:
+        - "db:schema:seed_data"
+        - "db:migration-slot"
+      ttl_minutes: 120
+      reason: "Seed data and migration compatibility"
+    scope:
+      write_allow:
+        - "agent-coordinator/supabase/seed.sql"
+        - "agent-coordinator/supabase/migrations/**"
+        - "skills/validate-feature/scripts/tests/test_seed_data.py"
+        - "skills/validate-feature/scripts/tests/test_migration_compat.py"
+      read_allow:
+        - "agent-coordinator/supabase/**"
+        - "agent-coordinator/src/migrations.py"
+        - "openspec/changes/live-service-testing/contracts/**"
+    worktree:
+      name: wp-seed-data
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Seed data tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_seed_data.py skills/validate-feature/scripts/tests/test_migration_compat.py -v"
+          evidence:
+            artifacts:
+              - agent-coordinator/supabase/seed.sql
+              - skills/validate-feature/scripts/tests/test_seed_data.py
+            result_keys: ["seed_data.tests_pass"]
+    outputs:
+      result_keys: ["seed_data.implemented"]
+      artifacts:
+        - agent-coordinator/supabase/seed.sql
+
+  - package_id: wp-neon-branch
+    task_type: implementation
+    title: "Neon Branch Environment"
+    description: "NeonBranchEnvironment impl with pg_dump/restore seeding and Neon-to-Neon branching via neonctl CLI."
+    priority: 3
+    depends_on:
+      - wp-contracts
+      - wp-seed-data
+    locks:
+      files: []
+      keys:
+        - "feature:validate-feature:neon"
+      ttl_minutes: 120
+      reason: "Neon branch environment implementation"
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/environments/neon_branch.py"
+        - "skills/validate-feature/scripts/tests/test_neon_branch.py"
+        - "skills/validate-feature/scripts/tests/test_pg_dump_seed.py"
+      read_allow:
+        - "skills/validate-feature/scripts/environments/protocol.py"
+        - "agent-coordinator/supabase/**"
+        - "agent-coordinator/src/migrations.py"
+        - "openspec/changes/live-service-testing/contracts/**"
+        - "skills/neon-postgres/SKILL.md"
+    worktree:
+      name: wp-neon-branch
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Neon environment unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_neon_branch.py skills/validate-feature/scripts/tests/test_pg_dump_seed.py -v"
+          evidence:
+            artifacts:
+              - skills/validate-feature/scripts/tests/test_neon_branch.py
+              - skills/validate-feature/scripts/tests/test_pg_dump_seed.py
+            result_keys: ["neon_branch.unit_tests"]
+    outputs:
+      result_keys: ["neon_branch.implemented"]
+      artifacts:
+        - skills/validate-feature/scripts/environments/neon_branch.py
+
+  - package_id: wp-integration
+    task_type: integration
+    title: "Phase Runners + Gate Integration"
+    description: "phase_deploy.py, phase_smoke.py, SKILL.md gate updates for implement-feature (soft) and cleanup-feature (hard), E2E validation."
+    priority: 4
+    depends_on:
+      - wp-stack-launcher
+      - wp-smoke-tests
+      - wp-seed-data
+      - wp-neon-branch
+    locks:
+      files:
+        - skills/implement-feature/SKILL.md
+        - skills/cleanup-feature/SKILL.md
+      keys:
+        - "feature:validate-feature:phases"
+        - "feature:implement-feature:gate"
+        - "feature:cleanup-feature:gate"
+      ttl_minutes: 120
+      reason: "Phase runner integration and gate enforcement"
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/phase_deploy.py"
+        - "skills/validate-feature/scripts/phase_smoke.py"
+        - "skills/validate-feature/scripts/tests/**"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+      read_allow:
+        - "skills/validate-feature/**"
+        - "openspec/changes/live-service-testing/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: wp-integration
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Phase runner unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_phase_deploy.py skills/validate-feature/scripts/tests/test_phase_smoke.py skills/validate-feature/scripts/tests/test_gate_logic.py -v"
+          evidence:
+            artifacts:
+              - skills/validate-feature/scripts/tests/test_phase_deploy.py
+              - skills/validate-feature/scripts/tests/test_phase_smoke.py
+              - skills/validate-feature/scripts/tests/test_gate_logic.py
+            result_keys: ["integration.unit_tests"]
+        - name: "Docker E2E integration"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/integration/ -v -m 'not neon'"
+          evidence:
+            artifacts: []
+            result_keys: ["integration.docker_e2e"]
+    outputs:
+      result_keys: ["integration.complete"]
+      artifacts:
+        - skills/validate-feature/scripts/phase_deploy.py
+        - skills/validate-feature/scripts/phase_smoke.py
