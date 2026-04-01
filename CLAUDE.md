@@ -33,7 +33,7 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 - **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
 - **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and auto-dev-loop)
 
-See [Two-Level Parallel Development](docs/two-level-parallel-agentic-development.md) for the full design.
+See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the full implementation reference.
 
 ## Python Environment
 

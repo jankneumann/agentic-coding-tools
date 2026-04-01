@@ -22,11 +22,15 @@ artifacts:
   - id: proposal
     generates: proposal.md
     template: proposal.md
-    description: Define why the change is needed and what it changes
+    description: Define why the change is needed, explore approaches, and describe what changes
     instruction: >
       Write a proposal with Why (1-2 sentences on problem/opportunity), What Changes
-      (bullet list, mark breaking changes with **BREAKING**), and Impact (affected specs
-      and code). Use a verb-led kebab-case change-id.
+      (bullet list, mark breaking changes with **BREAKING**), Approaches Considered
+      (2-3 distinct approaches with pros/cons/effort, one marked as Recommended; 3-5
+      in --explore mode), and Impact (affected specs and code). The Approaches Considered
+      section is mandatory. After the user selects an approach at Gate 1, add a Selected
+      Approach subsection recording the choice and any modifications requested. Use a
+      verb-led kebab-case change-id.
     requires: []
 
   - id: specs
@@ -97,8 +101,11 @@ artifacts:
     instruction: >
       Append an iteration section with a findings table (columns: #, Type, Criticality,
       Description, Resolution). Types: completeness, clarity, feasibility, scope,
-      consistency, testability, parallelizability. Include a parallelizability assessment
-      with independent task count, sequential chains, and max parallel width.
+      consistency, testability, parallelizability, assumptions. Include a parallelizability
+      assessment with independent task count, sequential chains, and max parallel width.
+      Assumption-type findings that could reasonably go either way (e.g., authentication
+      mechanism, data format, deployment target, backward-compatibility) MUST be surfaced
+      to the user via AskUserQuestion rather than resolved autonomously.
     requires: [proposal, tasks]
 
   - id: impl-findings

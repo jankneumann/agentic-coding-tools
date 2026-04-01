@@ -1,6 +1,6 @@
 # Parallel Agentic Development — Implementation Reference
 
-This document describes the **implemented** parallel agentic development system as it exists today. It serves as the authoritative reference for how multiple AI coding agents coordinate on shared codebases. For the original design proposal, see [two-level-parallel-agentic-development.md](two-level-parallel-agentic-development.md).
+This document describes the **implemented** parallel agentic development system as it exists today. It serves as the authoritative reference for how multiple AI coding agents coordinate on shared codebases. For the original design proposal, see [`docs/archive/two-level-parallel-agentic-development.md`](archive/two-level-parallel-agentic-development.md). For the user-facing workflow guide, see [`docs/skills-workflow.md`](skills-workflow.md).
 
 ## Table of Contents
 
@@ -177,6 +177,17 @@ Contracts define the coordination boundary between parallel agents. The contract
 | Pact contracts | Consumer-driven contract tests | Config in schema, agent-executed |
 
 **Contract revision semantics**: any contract file modification after implementation dispatch triggers `CONTRACT_REVISION_REQUIRED` escalation — the orchestrator bumps `contracts.revision`, regenerates types/mocks, and resubmits impacted packages. Handled by [`escalation_handler.py`](../skills/parallel-implement-feature/scripts/escalation_handler.py).
+
+### Contract-Aware TDD
+
+Contracts feed directly into test planning via a structured traceability chain:
+
+1. **Planning** (`/plan-feature`): Test tasks in `tasks.md` are ordered *before* implementation tasks and reference the artifacts they validate — spec scenarios, contract files, and design decisions.
+2. **Phase 1 — TDD RED** (`/implement-feature`): The `change-context.md` Requirement Traceability Matrix maps each spec requirement to its **Contract Ref** (e.g., `contracts/openapi/v1.yaml#/paths/~1users`) and **Design Decision** (e.g., `D3`). Failing tests are written that assert against contracted interfaces and architectural choices.
+3. **Phase 2 — TDD GREEN**: Implementation code makes tests pass. Tests that reference contracts validate the contracted API surface, not just internal behavior.
+4. **Phase 3 — Validation**: `/validate-feature` populates evidence in `change-context.md`.
+
+This ensures tests at contract boundaries verify that module A's output matches module B's expected input per the contract — not just that each module works in isolation.
 
 ### DAG Scheduling
 
@@ -616,7 +627,7 @@ Immutable, append-only logging of all coordination operations. Best-effort (non-
 
 ## References
 
-- **Original Proposal**: [`docs/two-level-parallel-agentic-development.md`](two-level-parallel-agentic-development.md)
+- **Original Proposal** (archived): [`docs/archive/two-level-parallel-agentic-development.md`](archive/two-level-parallel-agentic-development.md)
 - **Lock Key Namespaces**: [`docs/lock-key-namespaces.md`](lock-key-namespaces.md)
 - **Skills Workflow**: [`docs/skills-workflow.md`](skills-workflow.md)
 - **Coordinator Overview**: [`docs/agent-coordinator.md`](agent-coordinator.md)

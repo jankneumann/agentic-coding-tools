@@ -1,5 +1,9 @@
 # Two-Level Parallel Agentic Development
 
+> **ARCHIVED** — This is the original design proposal. For the current implementation reference,
+> see [`docs/parallel-agentic-development.md`](../parallel-agentic-development.md).
+> For the workflow guide, see [`docs/skills-workflow.md`](../skills-workflow.md).
+
 ## Part 1: Proposal
 
 ### Context

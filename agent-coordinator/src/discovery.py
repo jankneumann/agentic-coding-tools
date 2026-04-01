@@ -203,22 +203,45 @@ class DiscoveryService:
     async def heartbeat(
         self,
         session_id: str | None = None,
+        agent_id: str | None = None,
     ) -> HeartbeatResult:
         """Send a heartbeat to indicate the agent is still alive.
 
         Args:
-            session_id: Session to heartbeat (default: from config)
+            session_id: Session to heartbeat (takes priority if set).
+            agent_id: Agent whose most recent active session should be
+                heartbeated.  Ignored when *session_id* is provided.
+                Falls back to the coordinator's own config when both are None.
 
         Returns:
             HeartbeatResult indicating success
         """
         config = get_config()
+        resolved_session_id = session_id
+
+        # Resolve agent_id → session_id via DB lookup
+        if resolved_session_id is None and agent_id is not None:
+            try:
+                rows = await self.db.query(
+                    "agent_sessions",
+                    query_params=(
+                        f"agent_id=eq.{agent_id}"
+                        "&status=eq.active"
+                        "&order=last_heartbeat.desc"
+                        "&limit=1"
+                    ),
+                    select="id",
+                )
+                if rows:
+                    resolved_session_id = str(rows[0]["id"])
+            except Exception:
+                pass  # Fall through to config default
 
         try:
             result = await self.db.rpc(
                 "agent_heartbeat",
                 {
-                    "p_session_id": session_id or config.agent.session_id,
+                    "p_session_id": resolved_session_id or config.agent.session_id,
                 },
             )
         except Exception:

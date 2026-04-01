@@ -1531,7 +1531,9 @@ The `change-context.md` artifact SHALL be built incrementally across three workf
 
 #### Scenario: Phase 1 — Test plan (pre-implementation)
 - **WHEN** the agent reads spec delta files before implementing tasks
-- **THEN** the system SHALL populate Req ID, Spec Source, Description, and Test(s) columns
+- **THEN** the system SHALL populate Req ID, Spec Source, Description, Contract Ref, Design Decision, and Test(s) columns
+- **AND** Contract Ref SHALL reference the contract file the requirement maps to (e.g., `contracts/openapi/v1.yaml#/paths/~1users`), or `---` if no contract applies
+- **AND** Design Decision SHALL reference the decision from `design.md` (e.g., `D3`) that the requirement validates, or `---` if none applies
 - **AND** Files Changed SHALL be set to `---`
 - **AND** Evidence SHALL be set to `---`
 - **AND** the agent SHALL write failing tests (RED) for each row in the matrix
@@ -1560,6 +1562,8 @@ The implementation workflow SHALL enforce test-driven development structurally t
 #### Scenario: Tests encode spec scenarios
 - **WHEN** the agent writes tests in Phase 1
 - **THEN** each test function SHALL encode the corresponding spec scenario's WHEN/THEN/AND clauses as assertions
+- **AND** tests for requirements with a Contract Ref SHALL assert against the contracted interface (e.g., validate response schemas match OpenAPI spec, event payloads match JSON schema, DB operations respect schema constraints)
+- **AND** tests for requirements with a Design Decision SHALL verify the chosen approach (e.g., if D3 chose pg_notify over polling, test that NOTIFY is used, not SELECT loops)
 - **AND** tests for scenarios requiring live services SHALL use `@pytest.mark.integration` or `@pytest.mark.e2e` markers
 
 #### Scenario: Existing TDD advisory replaced
