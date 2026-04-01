@@ -2299,51 +2299,69 @@ The convergence state SHALL conform to `convergence-state.schema.json` including
 
 ### Requirement: Session Log Artifact
 
-The system SHALL provide a `session-log.md` artifact that captures a structured summary of the agent conversation/session history for each OpenSpec change. The artifact SHALL focus on decision rationale, trade-offs, alternatives considered, and key discussion points — not on replicating code diffs already stored in git.
+The system SHALL provide a `session-log.md` artifact that captures a structured summary of agent decisions at each workflow phase boundary for each OpenSpec change. The artifact is a **living document** — each phase appends a dated, agent-attributed section rather than generating the file once at cleanup. The artifact SHALL focus on decision rationale, trade-offs, alternatives considered, and key discussion points — not on replicating code diffs already stored in git.
 
-#### Scenario: Session log generated during cleanup
-- **WHEN** `/cleanup-feature <change-id>` or `/linear-cleanup-feature <change-id>` executes
-- **AND** agent session context is available (conversation history, handoff documents, or session transcript)
-- **THEN** the skill SHALL generate `openspec/changes/<change-id>/session-log.md`
-- **AND** the artifact SHALL contain structured sections: Summary, Key Decisions, Alternatives Considered, Trade-offs, Open Questions, and Session Metadata
+#### Scenario: Session log appended at each workflow phase
+- **WHEN** any workflow skill (`/plan-feature`, `/iterate-on-plan`, `/implement-feature`, `/iterate-on-implementation`, `/validate-feature`, `/cleanup-feature`) completes its substantive work
+- **THEN** the skill SHALL append a phase entry to `openspec/changes/<change-id>/session-log.md`
+- **AND** the entry SHALL identify the phase name, date, agent type, and session ID (if available; omit or write "N/A" when the runtime does not expose a session identifier)
+- **AND** the entry SHALL contain: Decisions, Alternatives Considered, Trade-offs, Open Questions, and Context sections
 
-#### Scenario: Session log generated during parallel cleanup
-- **WHEN** `/parallel-cleanup-feature <change-id>` executes
-- **AND** multiple agent sessions contributed to the change
-- **THEN** the skill SHALL generate a consolidated `session-log.md` combining context from all contributing agent sessions
-- **AND** each entry SHALL identify the originating agent/session
+#### Scenario: Session log created on first phase
+- **WHEN** the first workflow skill runs for a change and no `session-log.md` exists
+- **THEN** the skill SHALL create the file with a header (`# Session Log: <change-id>` and a brief description)
+- **AND** SHALL create the parent directory (`openspec/changes/<change-id>/`) if it does not exist
+- **AND** append the first phase entry
 
-#### Scenario: No session context available
-- **WHEN** cleanup executes but no agent session context is accessible (e.g., session expired, agent type doesn't support history export)
-- **THEN** the skill SHALL skip session log generation with an informational message
-- **AND** cleanup SHALL proceed without error
+#### Scenario: Session log appended on subsequent phases
+- **WHEN** a workflow skill runs and `session-log.md` already exists
+- **THEN** the skill SHALL append a new phase entry separated by a horizontal rule (`---`)
+- **AND** SHALL NOT modify or overwrite previous phase entries
 
-#### Scenario: Session log is optional
-- **WHEN** a change is archived without a `session-log.md`
+#### Scenario: Parallel agents contributing to same change
+- **WHEN** multiple agent sessions contribute to the same change (e.g., parallel implementation)
+- **THEN** each agent SHALL append its own phase entry in its own worktree branch
+- **AND** session-log.md merge conflicts SHALL be resolved during the integration merge step (append-only files merge cleanly in most cases; manual resolution uses chronological ordering by phase entry date)
+
+#### Scenario: No decisions to record
+- **WHEN** a phase completes but the agent made no significant decisions (e.g., validation passed cleanly)
+- **THEN** the phase entry SHALL still be appended with a Context section noting the outcome
+- **AND** the Decisions section MAY state "No significant decisions required"
+- **AND** the Alternatives Considered, Trade-offs, and Open Questions sections MAY be omitted
+
+#### Scenario: Session log is optional for archival
+- **WHEN** a change is archived without a `session-log.md` (e.g., change abandoned mid-workflow, or pre-existing change from before this feature)
 - **THEN** OpenSpec validation SHALL NOT report an error
 - **AND** the change SHALL be considered complete
 
 ### Requirement: Session Log Content Structure
 
-The `session-log.md` artifact SHALL follow a structured format with the following sections:
+Each phase entry in `session-log.md` SHALL follow this structure:
 
-- **Summary**: 2-3 sentence overview of what was discussed and decided during the session(s)
-- **Key Decisions**: Numbered list of significant decisions with brief rationale for each
-- **Alternatives Considered**: For each key decision, alternatives that were discussed and why they were rejected
-- **Trade-offs**: Explicit trade-offs accepted in the implementation (e.g., "chose simplicity over performance because...")
-- **Open Questions**: Unresolved questions or concerns raised during the session that may need future attention
-- **Session Metadata**: Agent type, session ID(s), date range, number of interactions
+- **Phase header**: Phase name, date (YYYY-MM-DD), agent type, and session ID (if available)
+- **Decisions**: Numbered list of significant decisions with brief rationale
+- **Alternatives Considered**: Alternatives discussed and why they were rejected
+- **Trade-offs**: Explicit trade-offs accepted
+- **Open Questions**: Unresolved questions as checklist items
+- **Context**: 2-3 sentences describing the phase goal and outcome
 
 #### Scenario: Content focuses on rationale not code
-- **WHEN** the session log is generated
+- **WHEN** a phase entry is written
 - **THEN** it SHALL NOT include raw code blocks, full file contents, or diff output
 - **AND** it SHALL reference files by path when relevant context requires it
 - **AND** it SHALL focus on the reasoning behind decisions, not the mechanical steps taken
 
-#### Scenario: Content is concise
-- **WHEN** the session log is generated from a long conversation
-- **THEN** the artifact SHALL be a summarized distillation, not a full transcript
-- **AND** the total length SHOULD NOT exceed 500 lines
+#### Scenario: Content is concise per phase
+- **WHEN** a phase entry is written after a long session
+- **THEN** the entry SHALL be a summarized distillation, not a full transcript
+- **AND** each phase entry SHALL NOT exceed 80 lines
+- **AND** the total session-log.md SHALL NOT exceed 500 lines unless the agent documents a rationale for exceeding the limit in the entry itself
+
+#### Scenario: Template consistency across skills
+- **WHEN** multiple workflow skills include session-log steps
+- **THEN** all skills SHALL use identical section names (Decisions, Alternatives Considered, Trade-offs, Open Questions, Context)
+- **AND** skill-specific guidance (e.g., "focus on architecture decisions" for plan-feature) MAY vary in the SKILL.md instructions
+- **AND** the rendered output structure SHALL be identical across all skills
 
 ### Requirement: Session Log Sanitization
 
@@ -2367,7 +2385,7 @@ All session log content SHALL be sanitized before being committed to git to prev
 - **WHEN** the sanitization script runs
 - **THEN** it SHALL exit 0 if no secrets were found or all were successfully redacted
 - **AND** it SHALL exit 1 if sanitization encountered an error that could allow secrets through
-- **AND** cleanup SHALL abort committing the session log if the script exits non-zero
+- **AND** the workflow SHALL abort committing the session log if the script exits non-zero
 
 #### Scenario: No false positives on common patterns
 - **WHEN** the session log contains UUIDs, git SHAs, OpenSpec change-ids, or file paths
@@ -2375,47 +2393,137 @@ All session log content SHALL be sanitized before being committed to git to prev
 
 ### Requirement: Session Log Extraction
 
-The system SHALL support extracting session context from multiple agent types using a provider-agnostic approach.
+The system SHALL use **direct agent authorship** at phase boundaries as the primary session log generation mechanism. This replaces the previous 3-tier extraction strategy. The following legacy scenarios are RETIRED: "Claude Code session extraction" (Tier 1 transcript parsing), "Handoff documents as fallback source" (Tier 2 handoff compilation), and "Manual session log" (Tier 3 agent prompt). Direct agent authorship subsumes all three — the agent writes from its context window at each phase boundary.
 
-#### Scenario: Claude Code session extraction
-- **WHEN** the active agent is Claude Code
-- **THEN** the extraction script SHALL attempt to read the session transcript from Claude Code's local session storage
-- **AND** SHALL extract key decisions, user confirmations, and rationale discussions
-- **AND** SHALL summarize the conversation into the structured session-log format
+#### Scenario: Agent writes phase entry directly
+- **WHEN** a workflow skill reaches its session-log step
+- **THEN** the agent SHALL write the phase entry from its current context window
+- **AND** SHALL NOT rely on external transcript parsing or handoff document compilation
 
-#### Scenario: Handoff documents as fallback source
-- **WHEN** direct session transcript access is not available
-- **AND** `CAN_HANDOFF=true` and handoff documents exist for the change
-- **THEN** the extraction script SHALL compile session context from handoff document history (summary, decisions, completed_work fields)
-- **AND** SHALL note in Session Metadata that the log was derived from handoff documents
-
-#### Scenario: Manual session log
-- **WHEN** automated extraction is not possible (unsupported agent type, no handoff documents)
-- **THEN** the cleanup skill SHALL prompt the agent to generate a session log from its current context window
-- **AND** the agent SHALL produce the structured summary from its available conversation memory
+#### Scenario: Phase entry template embedded in skill
+- **WHEN** a workflow skill includes a session-log step
+- **THEN** the SKILL.md SHALL contain the phase entry template with clear guidance on what to capture for that specific phase
+- **AND** the template SHALL use the same section names as defined in Session Log Content Structure
 
 ### Requirement: Cleanup Skill Session Log Integration
 
-The cleanup skills SHALL integrate session log generation as a step before archiving.
+The cleanup skill SHALL append its own phase entry and ensure session-log.md is included in the archive, replacing the previous extraction-based approach.
 
-#### Scenario: Linear cleanup generates session log
-- **WHEN** `/linear-cleanup-feature <change-id>` reaches the archive step
-- **THEN** it SHALL first attempt to generate `session-log.md` via the extraction and sanitization pipeline
-- **AND** SHALL commit the session log with the archive commit
-- **AND** the session log SHALL be included in the archived change directory
+#### Scenario: Cleanup appends final phase entry
+- **WHEN** `/cleanup-feature <change-id>` reaches the session-log step
+- **THEN** it SHALL append a Cleanup phase entry covering merge strategy and task migration decisions
+- **AND** SHALL run sanitization on the complete session-log.md
+- **AND** SHALL include the sanitized file in the archive commit
 
-#### Scenario: Parallel cleanup consolidates session logs
-- **WHEN** `/parallel-cleanup-feature <change-id>` reaches the archive step
-- **AND** multiple agent worktrees contributed to the implementation
-- **THEN** it SHALL collect session context from each agent's handoff documents
-- **AND** consolidate into a single `session-log.md` with per-agent sections
-- **AND** commit and archive as with linear cleanup
+#### Scenario: Cleanup without prior session-log
+- **WHEN** `/cleanup-feature <change-id>` runs and no `session-log.md` exists from prior phases
+- **THEN** it SHALL create the file with the header and append a Cleanup phase entry
+- **AND** the entry SHALL summarize the change from the agent's available context
 
 #### Scenario: Session log generation failure does not block cleanup
-- **WHEN** session log generation or sanitization fails
+- **WHEN** session log append or sanitization fails
 - **THEN** the cleanup skill SHALL log a warning
 - **AND** SHALL proceed with archive without the session log
 - **AND** SHALL NOT retry or block the cleanup workflow
+
+### Requirement: Sanitize-Then-Verify Flow
+
+After every session-log append, the workflow SHALL run sanitization and agent verification to catch both secret leaks and over-redaction.
+
+#### Scenario: Sanitization runs after every append
+- **WHEN** an agent appends a phase entry to session-log.md or a merge-log entry
+- **THEN** the skill SHALL run `sanitize_session_log.py` on the file (in-place: same path for input and output)
+- **AND** the agent SHALL read the sanitized output and verify: (1) all phase entry sections are present and non-empty or intentionally omitted, (2) no `[REDACTED:*]` markers appear in narrative prose where the original content contained no secrets, (3) the markdown structure is intact
+
+#### Scenario: Over-redaction detected
+- **WHEN** the agent reads the sanitized output and finds meaningful content was incorrectly redacted (e.g., a technical term flagged as high-entropy)
+- **THEN** the agent SHALL rewrite the affected section to convey the same information without including the triggering pattern
+- **AND** SHALL re-run sanitization on the corrected content
+- **AND** SHALL make at most one rewrite attempt; if sanitization still flags the rewrite, the skill SHALL proceed without the session log for that phase
+
+#### Scenario: Sanitization failure on any skill
+- **WHEN** `sanitize_session_log.py` exits non-zero during any workflow skill (not just cleanup)
+- **THEN** the skill SHALL NOT commit the session-log.md
+- **AND** SHALL log a warning and proceed without the session log for that phase
+- **AND** SHALL NOT block the workflow
+
+### Requirement: Merge Log Artifact
+
+The `/merge-pull-requests` skill SHALL produce a dated merge log capturing cross-PR triage reasoning, user decisions, and observations.
+
+#### Scenario: Merge log written to dated file
+- **WHEN** `/merge-pull-requests` completes a merge session
+- **THEN** it SHALL write to `docs/merge-logs/YYYY-MM-DD.md` (using the current date)
+- **AND** the entry SHALL contain: session timestamp (HH:MM), agent type, PR triage table (PR number, origin, action, rationale), vendor review findings, user decisions, and observations
+
+#### Scenario: Merge log directory auto-creation
+- **WHEN** `/merge-pull-requests` attempts to write the merge log and `docs/merge-logs/` does not exist
+- **THEN** the skill SHALL create the directory before writing
+- **AND** the repository SHALL contain `docs/merge-logs/.gitkeep` to ensure directory persistence after initial setup
+
+#### Scenario: Multiple merge sessions on same day
+- **WHEN** multiple merge sessions occur on the same day
+- **THEN** each session SHALL append to the existing day's file separated by a horizontal rule
+- **AND** each entry SHALL include its own session timestamp
+
+#### Scenario: Merge log captures cross-PR reasoning
+- **WHEN** merge triage decisions span multiple PRs
+- **THEN** the merge log SHALL capture the reasoning that connects them (e.g., "merged A and B together because related", "skipped C due to conflict with A")
+- **AND** SHALL record user steering decisions (e.g., "user requested skipping all Renovate PRs")
+
+#### Scenario: Merge log captures vendor review findings
+- **WHEN** vendor reviews were dispatched during the merge session
+- **THEN** the merge log SHALL summarize confirmed findings, unconfirmed findings, and blocking issues per PR
+
+#### Scenario: Vendor review incomplete or timed out
+- **WHEN** vendor reviews were dispatched but one or more vendors did not respond or timed out
+- **THEN** the merge log SHALL note which vendors responded and which timed out
+- **AND** SHALL record findings from responding vendors only
+
+#### Scenario: PR comments for contributor visibility
+- **WHEN** a PR is closed or skipped during merge triage
+- **THEN** the skill SHALL still post a brief PR comment explaining the action
+- **AND** the detailed rationale SHALL be in the merge log, not duplicated in the PR comment
+
+#### Scenario: Merge log sanitization
+- **WHEN** a merge-log entry is written
+- **THEN** the skill SHALL run `sanitize_session_log.py` on the file before committing
+- **AND** the agent SHALL verify the sanitized output using the same criteria as session-log verification
+
+### Requirement: Phase Names for Session Log Entries
+
+Each workflow skill SHALL use a consistent phase name when appending to session-log.md.
+
+#### Scenario: Phase name mapping
+- **WHEN** a workflow skill appends a session-log entry
+- **THEN** it SHALL use the following phase names:
+  - `/plan-feature` → `Plan`
+  - `/iterate-on-plan` → `Plan Iteration <N>`
+  - `/implement-feature` → `Implementation`
+  - `/iterate-on-implementation` → `Implementation Iteration <N>`
+  - `/validate-feature` → `Validation`
+  - `/cleanup-feature` → `Cleanup`
+  - `/merge-pull-requests` → (uses merge-log, not session-log)
+
+#### Scenario: Iteration number auto-increment
+- **WHEN** a skill uses an iteration phase name (`Plan Iteration <N>` or `Implementation Iteration <N>`)
+- **THEN** it SHALL determine N by counting existing `## Phase: <exact-prefix>` headers in session-log.md (e.g., count `## Phase: Plan Iteration` headers for Plan Iteration, count `## Phase: Implementation Iteration` headers for Implementation Iteration — each prefix counted independently) and adding 1
+- **AND** if no prior iteration entries exist for that prefix, N SHALL be 1
+- **AND** iteration numbering SHALL be scoped to the change-id (not per-agent or per-branch)
+
+### Requirement: Session Log Committed with Phase Artifacts
+
+Session log updates SHALL be committed alongside other phase artifacts, not in separate commits.
+
+#### Scenario: Skills that commit artifacts
+- **WHEN** a skill already commits artifacts (plan-feature, implement-feature, cleanup-feature, iterate-on-plan, iterate-on-implementation)
+- **THEN** the session-log.md SHALL be included in the same commit via `git add`
+- **AND** SHALL NOT require a separate commit
+
+#### Scenario: Skills that don't normally commit
+- **WHEN** a skill does not normally commit artifacts but updates session-log.md (validate-feature)
+- **THEN** the skill SHALL commit the session-log.md update as a small dedicated commit
+- **AND** SHALL push to the feature branch
 
 ### Requirement: Bug-scrub parallel collector execution
 
