@@ -154,9 +154,6 @@ jobs:
 
   gen-eval:
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(join(github.event.pull_request.changed_files.*.filename, ' '), 'agent-coordinator/')
     timeout-minutes: 10
     defaults:
       run:
