@@ -149,20 +149,38 @@ Produce a **structured improvement analysis** with findings in this format:
 
 | # | Type | Criticality | Description | Proposed Fix |
 |---|------|-------------|-------------|--------------|
-| 1 | bug/edge-case/workflow/performance/UX | critical/high/medium/low | What the issue is | How to fix it |
+| 1 | bug/security/edge-case/workflow/performance/UX/observability/resilience | critical/high/medium/low | What the issue is | How to fix it |
 
 **Type categories:**
-- **bug**: Incorrect behavior, crashes, security issues
+- **bug**: Incorrect behavior, crashes, data corruption, logic errors
+- **security**: Authentication/authorization bypass, input validation gaps at system boundaries, secrets exposure, SQL injection, XSS, command injection, missing TLS, OWASP top-10 vulnerabilities
 - **edge-case**: Unhandled inputs, boundary conditions, error paths
 - **workflow**: Developer experience, tooling integration, process issues
-- **performance**: Unnecessary work, slow paths, resource waste
+- **performance**: Unnecessary work, slow paths, resource waste, N+1 queries, unbounded loops, missing pagination
 - **UX**: Confusing output, missing feedback, poor error messages
+- **observability**: Missing structured logging for key operations, no error context in catch blocks, missing health/readiness endpoints for new services, no metrics for SLI-relevant paths, missing trace propagation
+- **resilience**: Missing retry with backoff for external calls, no timeout configuration, non-idempotent operations that should be idempotent, missing circuit breakers for external dependencies, no graceful degradation on dependency failure
 
 **Criticality levels:**
-- **critical**: Security vulnerabilities, data loss, crashes, incorrect core behavior
-- **high**: Unhandled error paths, missing validation at system boundaries, race conditions
-- **medium**: Missing edge cases, suboptimal error messages, incomplete logging
-- **low**: Code style, minor naming, documentation polish, minor performance
+- **critical**: Authentication bypass, data loss, crashes, incorrect core behavior, secrets in code or logs, missing TLS for sensitive data
+- **high**: Unhandled error paths, missing validation at system boundaries, race conditions, no retry on critical external calls, missing health endpoint for new service
+- **medium**: Missing edge cases, suboptimal error messages, incomplete logging, missing structured log fields, no timeout on external calls
+- **low**: Code style, minor naming, documentation polish, minor performance, verbose logging that could be reduced
+
+**Schema type mapping** (for translating implementation findings to `review-findings.schema.json` types at the dispatch/consensus boundary):
+
+| Impl Dimension | Schema Type(s) | Notes |
+|---|---|---|
+| bug | `correctness` | Logic errors and crashes |
+| security | `security` | Direct mapping |
+| edge-case | `correctness`, `resilience` | Unhandled error recovery → resilience; boundary conditions → correctness |
+| workflow | `style`, `architecture` | DX/tooling concerns |
+| performance | `performance` | Direct mapping |
+| UX | `style`, `correctness` | Bad error messages = style; wrong output = correctness |
+| observability | `observability` | Direct mapping |
+| resilience | `resilience` | Direct mapping |
+
+Schema types `spec_gap`, `contract_mismatch`, and `compatibility` have no matching implementation dimension — these are evaluated by `parallel-review-implementation` (spec/contract compliance) and `iterate-on-plan` (compatibility) respectively.
 
 ### 5. Check Termination Conditions
 

@@ -206,7 +206,7 @@ For each finding, output JSON conforming to this structure:
   "findings": [
     {{
       "id": 1,
-      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch",
+      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch|observability|compatibility|resilience",
       "criticality": "low|medium|high|critical",
       "description": "What the issue is",
       "resolution": "How to fix it",
