@@ -35,6 +35,8 @@ Default Colima VM resources: 2 CPU, 4 GiB memory, 30 GiB disk. These are conserv
 
 The `apple_virt: true` default enables the Apple Virtualization framework with Rosetta x86 emulation, which provides near-native performance for `amd64` container images on Apple Silicon. This is preferred over the older QEMU backend.
 
+**Architecture detection**: The `--arch aarch64 --vm-type=vz --vz-rosetta` flags are only passed when `platform.machine()` returns `"arm64"` or `"aarch64"`. On Intel Macs (`x86_64`), these flags are silently skipped regardless of the `apple_virt` setting — the QEMU backend is used instead. This avoids requiring users to set different profile values per machine architecture.
+
 ### D5: _ensure_colima_vm() is idempotent
 
 Calling `_ensure_colima_vm()` when the VM is already running is a no-op (checked via `colima status`). This prevents unnecessary VM restarts when `detect_runtime()` is called multiple times during a session.
@@ -49,8 +51,9 @@ start_container(docker_config)
   ├─ detect_runtime(preferred)
   │    │
   │    ├─ preferred == "colima"?
-  │    │    ├─ macOS? → _ensure_colima_vm(colima_config) → try docker
-  │    │    └─ not macOS? → log warning → try docker → try podman
+  │    │    ├─ macOS + colima installed? → _ensure_colima_vm(colima_config) → try docker
+  │    │    ├─ macOS + colima NOT installed? → log warning → return None
+  │    │    └─ not macOS? → log warning → behave like "auto" (try docker → try podman)
   │    │
   │    ├─ preferred == "auto"?
   │    │    ├─ try docker → success? → return "docker"
