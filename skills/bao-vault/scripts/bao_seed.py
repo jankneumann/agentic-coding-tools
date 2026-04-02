@@ -187,17 +187,17 @@ def seed_db_engine(
     Sets up a connection to PostgreSQL and creates a role template for
     generating per-agent dynamic credentials.
     """
+    if dry_run:
+        print("[DRY RUN] Would enable database secrets engine at 'database/'")
+        print("[DRY RUN] Would configure PostgreSQL connection from POSTGRES_DSN")
+        print("[DRY RUN] Would create role 'coordinator-agent' (TTL: 1h, max: 24h)")
+        return
+
     db_dsn = os.environ.get("POSTGRES_DSN")
     if not db_dsn:
         raise ValueError(
             "POSTGRES_DSN env var required for database secrets engine setup"
         )
-
-    if dry_run:
-        print("[DRY RUN] Would enable database secrets engine at 'database/'")
-        print(f"[DRY RUN] Would configure PostgreSQL connection: {db_dsn}")
-        print("[DRY RUN] Would create role 'coordinator-agent' (TTL: 1h, max: 24h)")
-        return
 
     # Enable the database secrets engine if not already enabled
     secrets_engines = client.sys.list_mounted_secrets_engines()

@@ -12,7 +12,6 @@ from src.policy_sync import (
     reset_policy_sync_service,
 )
 
-
 TEST_DSN = "postgresql://test:test@localhost:5432/test"
 
 
