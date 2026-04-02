@@ -243,6 +243,14 @@ openspec instructions design --change "<change-id>"  # When complexity warrants 
 
 **Critical**: The selected approach from Gate 1 MUST drive all artifact content. Tasks must implement the selected approach specifically, not a generic solution. Specs must reflect the chosen approach's behavior.
 
+**Spec format — strict delta headers**: The `openspec validate` CI check will reject specs that don't follow this exact format. Every spec file MUST use:
+- `## ADDED Requirements` (or `MODIFIED`/`REMOVED`/`RENAMED`) as the top-level section — NOT `## Requirements`
+- `### Requirement: <Name>` for each requirement block — NOT `### REQ-ID:` or other heading styles
+- `#### Scenario: <name>` with WHEN/THEN/AND structure under each requirement — at least one per requirement
+- `SHALL` or `MUST` language for normative statements
+
+Verify after generating: `openspec validate <change-id>`. If it fails, fix the spec before proceeding.
+
 **Task ordering — TDD test-first**: Within each phase of `tasks.md`, list test
 tasks *before* the implementation tasks they verify. Each implementation task
 should declare a dependency on its corresponding test task. This ensures

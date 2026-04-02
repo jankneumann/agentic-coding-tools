@@ -1,10 +1,13 @@
 #!/bin/sh
 #
-# bd (beads) pre-commit hook (chained)
+# Pre-commit hook (chained)
 #
-# This hook chains bd functionality with your existing pre-commit hook.
+# Chain order:
+#   1. pre-commit.old (home-path leak detection)
+#   2. ruff import sorting (auto-fix staged Python files)
+#   3. bd beads sync
 
-# Run existing hook first
+# --- 1. Run existing hook first ---
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -x "$HOOK_DIR/pre-commit.old" ]; then
     "$HOOK_DIR/pre-commit.old" "$@"
@@ -14,6 +17,33 @@ if [ -x "$HOOK_DIR/pre-commit.old" ]; then
     fi
 fi
 
+# --- 2. Auto-fix ruff import sorting on staged Python files ---
+# Find staged .py files (Added, Copied, Modified, Renamed)
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
+if [ -n "$STAGED_PY" ]; then
+    # Try ruff from known venv locations, then PATH
+    RUFF=""
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    for candidate in \
+        "$REPO_ROOT/agent-coordinator/.venv/bin/ruff" \
+        "$REPO_ROOT/skills/.venv/bin/ruff"; do
+        if [ -x "$candidate" ]; then
+            RUFF="$candidate"
+            break
+        fi
+    done
+    if [ -z "$RUFF" ] && command -v ruff >/dev/null 2>&1; then
+        RUFF="ruff"
+    fi
+
+    if [ -n "$RUFF" ]; then
+        # Auto-fix import sorting in-place, then re-stage
+        echo "$STAGED_PY" | xargs "$RUFF" check --select I --fix --quiet 2>/dev/null
+        echo "$STAGED_PY" | xargs git add 2>/dev/null
+    fi
+fi
+
+# --- 3. bd beads sync ---
 # Check if bd is available
 if ! command -v bd >/dev/null 2>&1; then
     echo "Warning: bd command not found, skipping pre-commit flush" >&2
