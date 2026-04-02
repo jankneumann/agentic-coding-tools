@@ -27,7 +27,7 @@ Deploy the feature locally with DEBUG logging, run security scans and behavioral
 - `--skip-security` — skip the Security Scan phase
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
 
-Valid phase names: `deploy`, `smoke`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
+Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
 ## Prerequisites
 
@@ -239,6 +239,54 @@ The smoke tests cover:
 - **Security headers**: Content-Type set correctly, Server header not overly detailed, no X-Powered-By
 
 If Smoke fails (SMOKE_EXIT != 0 and != 5), stop validation and skip to Teardown.
+
+### 4b. Gen-Eval Phase (Optional)
+
+**Phase name:** `gen-eval`
+**Criticality:** Non-critical (continues on failure)
+
+Run generator-evaluator testing when interface descriptors exist for the project. This phase auto-detects descriptor files and runs in `template-only` mode by default, requiring no CLI or SDK dependencies.
+
+```bash
+# Auto-detect gen-eval descriptors
+GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null)
+
+if [ -z "$GENEVAL_DESCRIPTORS" ]; then
+  echo "SKIP: No gen-eval descriptors found. Skipping gen-eval phase."
+  GENEVAL_RESULT="skip"
+else
+  echo "Running gen-eval testing (template-only mode)..."
+  GENEVAL_FAILED=false
+
+  for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
+    echo "  Descriptor: $DESCRIPTOR"
+    python -m evaluation.gen_eval \
+      --descriptor "$DESCRIPTOR" \
+      --mode template-only \
+      --no-services \
+      --report-format both \
+      --output-dir "$PROJECT_ROOT/openspec/changes/$CHANGE_ID" 2>&1
+    GENEVAL_EXIT=$?
+
+    if [ $GENEVAL_EXIT -ne 0 ]; then
+      GENEVAL_FAILED=true
+      echo "  gen-eval: FAIL for $DESCRIPTOR (exit $GENEVAL_EXIT)"
+    else
+      echo "  gen-eval: PASS for $DESCRIPTOR"
+    fi
+  done
+
+  if [ "$GENEVAL_FAILED" = true ]; then
+    GENEVAL_RESULT="fail"
+    echo "Gen-eval: FAIL — One or more descriptors had failures (non-blocking)"
+  else
+    GENEVAL_RESULT="pass"
+    echo "Gen-eval: PASS — All descriptors passed"
+  fi
+fi
+```
+
+Gen-eval failures are non-critical and do not block validation. Results are included in the validation report for informational purposes.
 
 ### 5. Security Phase
 
@@ -551,6 +599,7 @@ Produce a structured summary of all phases:
 
 ✓ Deploy: Services started (N containers, DEBUG logging enabled)
 ✓ Smoke: All health checks passed (API, MCP, database)
+○ Gen-Eval: Skipped (no descriptors found) _or_ ✓ Gen-Eval: 12/12 scenarios passed (template-only)
 ✓ Security: PASS — No threshold findings (dependency-check: ok, zap: ok)
 ✗ E2E: 3/5 tests passed, 2 failures
   - test_login_flow: TimeoutError on /api/auth
@@ -627,6 +676,46 @@ else
   echo "SKIP: No PR found for openspec/$CHANGE_ID — report not posted"
   echo "  Create a PR first, then re-run to post the report"
 fi
+```
+
+### 14. Append Session Log
+
+Append a `Validation` phase entry to the session log, then commit and push.
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Validation (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Context
+<2-3 sentences: what was validated, pass/fail summary, any waivers granted>
+```
+
+**Focus on**: Validation results, phases run, any waivers or deferred issues. For clean validation passes, use "No significant decisions required" in Decisions and focus on Context.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+**Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
+
+```bash
+git add "openspec/changes/<change-id>/session-log.md"
+git commit -m "chore: append validation session log for <change-id>"
+git push
 ```
 
 ---

@@ -111,6 +111,19 @@ If Docker is not available, warn the operator that deployment validation was ski
 
 If any phase **fails**, present findings and let the operator decide: fix, re-validate, or proceed anyway.
 
+### 2.5a. Smoke Test Hard Gate
+
+Check `validation-report.md` for smoke test results:
+
+1. Parse `## Smoke Tests` section for `Status:` line
+2. If `Status: pass` → proceed to merge
+3. If `Status: fail`, `Status: skipped`, or section missing:
+   a. Re-run: `phase_deploy.py --env docker && phase_smoke.py && stack_launcher.py teardown`
+   b. If re-run passes → proceed to merge
+   c. If re-run fails or no runtime available → **HALT** (do not merge)
+
+This is a **hard gate** — merge is blocked until smoke tests pass.
+
 ### 2.6. Merge Queue Integration [coordinated only]
 
 These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY` capabilities.
@@ -206,42 +219,52 @@ Open tasks migrated to [beads issues labeled `openspec:<change-id>`] | [follow-u
 
 This annotation is preserved in the archive for traceability.
 
-### 5b. Generate Session Log
+### 5b. Append Session Log
 
-Capture agent session context as a structured `session-log.md` artifact before archiving. This preserves decision rationale, trade-offs, and alternatives alongside the change.
+Append a `Cleanup` phase entry to the session log, capturing merge strategy and task migration decisions. If no `session-log.md` exists from prior phases, create it and summarize the change from context.
 
-```bash
-# Step 1: Extract session context (3-tier: transcript → handoffs → self-summary)
-EXTRACT_EXIT=0
-python3 "<skill-base-dir>/../session-log/scripts/extract_session_log.py" \
-  --change-id "<change-id>" \
-  --agent-type claude \
-  --output "openspec/changes/<change-id>/session-log.raw.md" || EXTRACT_EXIT=$?
+**Phase entry template:**
 
-if [ "$EXTRACT_EXIT" -eq 2 ]; then
-  # Tier 3: No transcript or handoffs found — agent should self-summarize
-  # The extraction script outputs a structured prompt; use it to generate the log
-  # (The agent reads the prompt and writes session-log.raw.md from its context window)
-fi
+```markdown
+---
 
-# Step 2: Sanitize to remove secrets before committing
-if [ -f "openspec/changes/<change-id>/session-log.raw.md" ]; then
-  python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-    "openspec/changes/<change-id>/session-log.raw.md" \
-    "openspec/changes/<change-id>/session-log.md"
+## Phase: Cleanup (<YYYY-MM-DD>)
 
-  if [ $? -eq 0 ]; then
-    rm "openspec/changes/<change-id>/session-log.raw.md"
-    git add "openspec/changes/<change-id>/session-log.md"
-  else
-    echo "WARNING: Session log sanitization failed — skipping session log"
-    rm -f "openspec/changes/<change-id>/session-log.raw.md"
-    rm -f "openspec/changes/<change-id>/session-log.md"
-  fi
-fi
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: merge strategy, task migration decisions, archive outcome>
 ```
 
-If extraction or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
+**Focus on**: Merge strategy (squash vs regular), open task migration decisions, any cleanup issues encountered.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+```bash
+git add "openspec/changes/<change-id>/session-log.md"
+```
+
+If session log append or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
 
 ### 6. Archive OpenSpec Proposal
 

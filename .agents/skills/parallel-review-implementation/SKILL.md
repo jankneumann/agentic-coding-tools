@@ -21,6 +21,9 @@ Receive a work package diff as read-only input and produce structured findings c
 
 `$ARGUMENTS` - `<change-id> <package-id>` (e.g., "add-user-auth wp-backend")
 
+Optional flags:
+- `--adversarial` — Use adversarial review mode: challenges design decisions instead of standard review
+
 ## Prerequisites
 
 - Work package implementation is complete
@@ -98,6 +101,17 @@ If work-queue result is available:
 - [ ] `verification.passed` is consistent with step results
 - [ ] Test count is reasonable for the scope of changes
 - [ ] No escalations are unaddressed
+
+### 5.5. Adversarial Mode (Optional)
+
+If `--adversarial` flag was passed, the review prompt should be wrapped with adversarial framing:
+
+```python
+from adversarial_prompt import wrap_adversarial
+prompt = wrap_adversarial(prompt)  # Prepends contrarian persona instructions
+```
+
+This changes the review persona to challenge design decisions rather than just checking correctness. The dispatch mode remains `review` (unchanged) and findings use the standard schema.
 
 ### 6. Produce Findings
 

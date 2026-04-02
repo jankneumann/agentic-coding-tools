@@ -374,6 +374,60 @@ After processing all PRs, present a summary:
 - Merge-time validation: #38 (deploy: pass, smoke: pass, security: skip, e2e: skip)
 ```
 
+### 13. Append Merge Log
+
+Write a merge-log entry to `docs/merge-logs/YYYY-MM-DD.md` capturing the triage decisions, vendor review findings, and user steering from this session.
+
+**Create directory if needed:**
+
+```bash
+mkdir -p docs/merge-logs
+touch docs/merge-logs/.gitkeep
+```
+
+**Merge-log entry template:**
+
+```markdown
+---
+
+## Session: <HH:MM> (<agent-type>)
+
+### PRs Processed
+
+| PR | Origin | Action | Rationale |
+|----|--------|--------|-----------|
+| #<number> | <origin> | <merged/closed/skipped> | <brief rationale> |
+
+### Vendor Review Findings
+- <PR #N>: <N> confirmed findings (<disposition>), <N> unconfirmed (<disposition>)
+
+### User Decisions
+- <User steering decisions captured during the session>
+
+### Observations
+- <Cross-PR patterns, recurring issues, notable observations>
+```
+
+**Focus on**: Cross-PR reasoning (why PRs were processed in this order, how they relate), user steering decisions, vendor review outcomes, and observations about patterns.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "docs/merge-logs/<date>.md" \
+  "docs/merge-logs/<date>.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip merge log and proceed.
+
+**Commit and push:**
+
+```bash
+git add docs/merge-logs/
+git commit -m "chore: merge-log <YYYY-MM-DD>"
+git push
+```
+
 ## Dry-Run Mode
 
 When invoked with `--dry-run`, the skill runs all discovery and analysis steps but performs no mutations (no merges, no closes, no comments). Pass `--dry-run` to each script:

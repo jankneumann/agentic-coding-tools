@@ -283,6 +283,18 @@ Task(subagent_type="Bash", prompt="Run validate_flows.py --diff main...HEAD", ru
 
 Fix all failures before proceeding.
 
+### 6.4. Live Service Smoke Tests (Soft Gate) [all tiers]
+
+Run live service smoke tests if a test environment is available:
+
+```bash
+python3 skills/validate-feature/scripts/phase_deploy.py --env docker --timeout 120
+python3 skills/validate-feature/scripts/phase_smoke.py
+python3 skills/validate-feature/scripts/stack_launcher.py teardown
+```
+
+If Docker/Neon is unavailable, log a WARNING and continue with smoke status "skipped" in validation-report.md. This is a **soft gate** — implementation proceeds regardless.
+
 ### 6.5. Artifact Validation [local-parallel+]
 
 **Skip if TIER is "sequential".**
@@ -302,6 +314,49 @@ These phases are environment-safe and run in both cloud and local. Docker-depend
 ### 7. Document Lessons Learned [all tiers]
 
 Document patterns, gotchas, and design changes in CLAUDE.md and AGENTS.md.
+
+### 7.5. Append Session Log [all tiers]
+
+Append an `Implementation` phase entry to the session log, capturing the implementation approach, deviations from plan, and issues encountered.
+
+**Phase entry template:**
+
+```markdown
+---
+
+## Phase: Implementation (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: what was implemented, any deviations from plan>
+```
+
+**Focus on**: Implementation approach, deviations from the plan, technical issues encountered, patterns chosen.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+
+The session-log.md is included in `git add .` in Step 8.
 
 ### 8. Commit Changes [all tiers]
 

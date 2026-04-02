@@ -1,88 +1,125 @@
 # Session Log — Infrastructure Skill
 
-Extracts, sanitizes, and stores agent conversation/session history as a structured `session-log.md` artifact within OpenSpec changes. This preserves decision rationale, trade-offs, and alternatives considered alongside the change artifacts that are committed to git.
+Provides utilities for appending structured decision records to `session-log.md` (per-change) and `docs/merge-logs/YYYY-MM-DD.md` (per-merge-session). Each workflow skill calls these at phase boundaries to build a living decision record.
 
 ## Scripts
 
 ### `scripts/extract_session_log.py`
 
-Extracts session context using a 3-tier strategy:
+Append-based utilities for session log and merge log management.
 
-1. **Tier 1 — Session transcript**: Reads Claude Code's local session storage (JSONL) for conversations mentioning the change-id
-2. **Tier 2 — Handoff documents**: Compiles context from coordinator handoff document history (JSON)
-3. **Tier 3 — Self-summary prompt**: Generates a structured prompt for the agent to summarize from its context window
+**Functions:**
 
-```bash
-# Full extraction (tries tiers 1 → 2 → 3)
-python3 scripts/extract_session_log.py \
-  --change-id <change-id> \
-  --agent-type claude \
-  --output session-log.md
+- `append_phase_entry(change_id, phase_name, content, session_log_path=None)` — Append a phase entry to `session-log.md`. Creates the file with header if missing. Returns the Path.
+- `append_merge_entry(date, content, merge_log_path=None)` — Append a merge session entry to a dated merge-log file. Creates the file with header if missing. Returns the Path.
+- `count_phase_iterations(phase_prefix, session_log_path)` — Count existing iteration entries for auto-incrementing `<N>` in phase names like "Plan Iteration 2".
+- `generate_self_summary_prompt(change_id)` — Reference template for structuring phase entries (optional utility).
 
-# With handoff documents
-python3 scripts/extract_session_log.py \
-  --change-id <change-id> \
-  --handoff-source /path/to/handoffs.json \
-  --output session-log.md
+**Usage from Python:**
 
-# Self-summary prompt only (tier 3)
-python3 scripts/extract_session_log.py \
-  --change-id <change-id> \
-  --prompt-only
+```python
+from extract_session_log import append_phase_entry, count_phase_iterations
+
+n = count_phase_iterations("Plan Iteration", "openspec/changes/my-change/session-log.md") + 1
+append_phase_entry("my-change", f"Plan Iteration {n}", content)
 ```
 
-**Arguments**:
-- `--change-id` (required): OpenSpec change-id to extract history for
-- `--agent-type`: Agent type — `claude`, `codex`, `gemini`, or `other` (default: `claude`)
-- `--handoff-source`: Path to handoff documents JSON file for tier 2 extraction
-- `--output`: Output file path (default: stdout)
-- `--prompt-only`: Skip tiers 1-2, output self-summary prompt directly
+**Usage from SKILL.md (agent writes directly):**
 
-**Exit codes**: 0 = extracted, 1 = error, 2 = self-summary prompt generated (no transcript/handoffs found)
+Skills embed the phase entry template directly. The agent writes the markdown content, then the skill runs sanitization. The Python functions are optional consistency helpers.
 
 ### `scripts/sanitize_session_log.py`
 
-Detects and redacts secrets, high-entropy strings, and environment-specific paths from session log content before it is committed to git.
+Detects and redacts secrets, high-entropy strings, and environment-specific paths from session log content before it is committed to git. Supports in-place operation (same path for input and output).
 
 ```bash
+# In-place sanitization (recommended)
+python3 scripts/sanitize_session_log.py session-log.md session-log.md
+
+# Separate output
 python3 scripts/sanitize_session_log.py input.md output.md
+
+# Dry run
 python3 scripts/sanitize_session_log.py input.md output.md --dry-run
 ```
 
-**Arguments**:
-- `input`: Path to raw session-log file
-- `output`: Path to write sanitized output
-- `--dry-run`: Print redaction summary without writing output
+**What gets redacted**: AWS keys, GitHub tokens, Anthropic/OpenAI keys, connection strings, private key headers, password fields, high-entropy strings (>4.5 bits/char, >20 chars).
 
-**What gets redacted**:
-- AWS access keys and secret keys
-- GitHub tokens (`ghp_`, `gho_`, etc.)
-- Anthropic API keys (`sk-ant-`)
-- OpenAI API keys (`sk-`)
-- Connection strings (postgresql://, mysql://, etc.)
-- Private key headers
-- Password/secret fields
-- High-entropy strings (>4.5 bits/char, >20 chars)
+**What is preserved**: Git SHAs, UUIDs, OpenSpec change-ids, file paths (normalized), kebab-case identifiers.
 
-**What is preserved**:
-- Git SHAs, UUIDs, OpenSpec change-ids
-- File paths (normalized: `/home/user/` → `~/`)
-- Hostnames (internal ones normalized to `[HOST]`)
+**Exit codes**: 0 = success, 1 = sanitization error (do NOT commit the output).
 
-**Exit codes**: 0 = success, 1 = sanitization error (do NOT commit the output)
+## Phase Entry Template
+
+Each workflow phase appends a section following this structure:
+
+```markdown
+---
+
+## Phase: <phase-name> (<YYYY-MM-DD>)
+
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
+
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: what was the goal, what happened>
+```
+
+**Section names must be identical across all skills**: Decisions, Alternatives Considered, Trade-offs, Open Questions, Context.
+
+**When no decisions were made** (e.g., validation passed cleanly): include Context, write "No significant decisions required" in Decisions, omit other sections.
+
+## Append-Sanitize-Verify Flow
+
+Every skill follows this 3-step pattern:
+
+1. **APPEND**: Agent writes phase entry to session-log.md (or merge-log)
+2. **SANITIZE**: Run `sanitize_session_log.py` on the file (in-place)
+3. **VERIFY**: Agent reads sanitized output and checks:
+   - All phase entry sections are present (or intentionally omitted)
+   - No `[REDACTED:*]` markers in prose where original had no secrets
+   - Markdown structure is intact
+   - If over-redacted: rewrite without the triggering pattern, re-sanitize (one attempt max)
+   - If sanitization exits non-zero: do NOT commit, log warning, continue workflow
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+## Phase Names
+
+| Skill | Phase Name |
+|-------|-----------|
+| plan-feature | `Plan` |
+| iterate-on-plan | `Plan Iteration <N>` |
+| implement-feature | `Implementation` |
+| iterate-on-implementation | `Implementation Iteration <N>` |
+| validate-feature | `Validation` |
+| cleanup-feature | `Cleanup` |
+| merge-pull-requests | (uses merge-log, not session-log) |
 
 ## Integration
 
-This skill is called by `linear-cleanup-feature` and `parallel-cleanup-feature` during the session log generation step (between task migration and archive). The cleanup skills handle the orchestration:
-
-1. Call `extract_session_log.py` to get raw session log content
-2. Call `sanitize_session_log.py` to redact secrets
-3. Commit the sanitized `session-log.md` with the change
-4. On any failure, skip and proceed with archive (non-blocking)
+This skill is called by workflow skills at phase boundaries:
+- **Skills that commit**: plan-feature, implement-feature, cleanup-feature, iterate-on-plan, iterate-on-implementation — include session-log.md in existing commit
+- **Skills that need a dedicated commit**: validate-feature — commit session-log.md separately
+- **Merge log**: merge-pull-requests writes to `docs/merge-logs/YYYY-MM-DD.md`
 
 ## Tests
 
 ```bash
-# Run from the worktree or repo root
 skills/.venv/bin/python -m pytest skills/session-log/scripts/ -v
 ```
