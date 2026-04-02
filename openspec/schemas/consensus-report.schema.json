@@ -99,7 +99,7 @@
           },
           "agreed_type": {
             "type": "string",
-            "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness"]
+            "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"]
           },
           "agreed_criticality": {
             "type": "string",

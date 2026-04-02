@@ -15,7 +15,7 @@
         "required": ["id", "type", "criticality", "description", "disposition"],
         "properties": {
           "id": { "type": "integer" },
-          "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness"] },
+          "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"] },
           "criticality": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
           "description": { "type": "string" },
           "resolution": { "type": "string" },
