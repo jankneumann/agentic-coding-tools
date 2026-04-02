@@ -30,6 +30,12 @@ docker:
   container_name: paradedb
   auto_start: false
   health_timeout: 60
+  colima:
+    cpu: 2
+    memory: 4
+    disk: 30
+    apple_virt: true
+    auto_start: true
 
 providers:
   agents_yaml: agents.yaml
