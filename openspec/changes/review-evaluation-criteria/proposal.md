@@ -76,7 +76,7 @@ Update the hardcoded finding type enum in the PR review prompt to include the 3 
 ## Impact
 
 ### Affected Specs
-- `skill-workflow` — Review dimension definitions are part of skill workflow
+- `skill-workflow` — Spec delta updates the Structured Improvement Analysis requirement (type enum: bug, edge-case, workflow, performance, UX → bug, security, edge-case, workflow, performance, UX, observability, resilience) and adds Schema Type Mapping and Expanded Review Finding Types requirements
 
 ### Affected Skills
 - `iterate-on-plan/SKILL.md` — New dimensions, smells, mapping
@@ -88,6 +88,10 @@ Update the hardcoded finding type enum in the PR review prompt to include the 3 
 ### Affected Schemas
 - `openspec/schemas/review-findings.schema.json` — 3 new type enum values
 - `openspec/schemas/consensus-report.schema.json` — 3 new agreed_type enum values
+
+### Affected Tests
+- `skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py` — Add test fixtures for new finding types
+- `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py` — Add test data for new finding types
 
 ### Non-goals
 - Changing the consensus synthesizer algorithm (it already handles arbitrary type values)
