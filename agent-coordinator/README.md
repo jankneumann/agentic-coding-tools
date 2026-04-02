@@ -203,6 +203,50 @@ Cedar provides declarative policies using the PARC model (Principal/Action/Resou
 - Entry point: `python -m src.coordination_api`
 - Legacy `verification_gateway/` is retired and not part of the runtime path.
 
+## Colima (macOS Docker Alternative)
+
+On macOS, [Colima](https://github.com/abiosoft/colima) provides a free, open-source Docker-compatible runtime. The coordinator auto-detects and manages Colima when no Docker daemon is available.
+
+### Install
+
+```bash
+brew install colima docker
+```
+
+### How It Works
+
+When `docker info` fails on macOS, the coordinator automatically:
+1. Checks if Colima is installed (`which colima`)
+2. Starts the VM with configured resources (`colima start --cpu 2 --memory 4 --disk 30`)
+3. On Apple Silicon, uses the Virtualization framework with Rosetta (`--vm-type=vz --vz-rosetta`)
+4. Verifies the Docker socket is accessible
+
+No configuration needed — the defaults in `profiles/base.yaml` work out of the box.
+
+### Configuration
+
+Override Colima resource defaults in your profile's `docker.colima` block:
+
+```yaml
+docker:
+  container_runtime: auto  # or "colima" to force Colima
+  colima:
+    cpu: 4
+    memory: 8
+    disk: 60
+    apple_virt: true    # Use Apple Virtualization framework (Apple Silicon)
+    auto_start: true    # Auto-start VM when Docker unavailable
+```
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| `colima start` hangs | Run `colima delete` then retry; check `colima status` |
+| Docker socket not found | Verify `docker context ls` shows colima context |
+| Rosetta errors on Intel Mac | Set `apple_virt: false` or leave default (auto-detected) |
+| Want Docker Desktop instead | Set `container_runtime: docker` — Colima is only used when Docker isn't available |
+
 ## Development
 
 ```bash
