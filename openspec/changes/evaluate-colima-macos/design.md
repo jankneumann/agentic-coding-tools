@@ -37,7 +37,15 @@ The `apple_virt: true` default enables the Apple Virtualization framework with R
 
 **Architecture detection**: The `--arch aarch64 --vm-type=vz --vz-rosetta` flags are only passed when `platform.machine()` returns `"arm64"` or `"aarch64"`. On Intel Macs (`x86_64`), these flags are silently skipped regardless of the `apple_virt` setting — the QEMU backend is used instead. This avoids requiring users to set different profile values per machine architecture.
 
-### D5: _ensure_colima_vm() is idempotent
+### D5: colima_started propagation without return type changes
+
+`start_container()` needs to include `"colima_started": true` in its result when Colima was auto-started. However, `detect_runtime()` returns `str | None` and changing this would break the interface.
+
+**Solution**: `start_container()` calls `is_colima_running()` before `detect_runtime()`. If Colima wasn't running before but `detect_runtime()` returns `"docker"` on a macOS platform, Colima must have been started by `_ensure_colima_vm()` inside `detect_runtime()`. This avoids any return type changes or side-channel state.
+
+**Rejected alternative**: Having `detect_runtime()` return a richer type (namedtuple or dataclass) would propagate the info directly but breaks backward compatibility and over-engineers the interface for a single metadata field.
+
+### D6: _ensure_colima_vm() is idempotent
 
 Calling `_ensure_colima_vm()` when the VM is already running is a no-op (checked via `colima status`). This prevents unnecessary VM restarts when `detect_runtime()` is called multiple times during a session.
 

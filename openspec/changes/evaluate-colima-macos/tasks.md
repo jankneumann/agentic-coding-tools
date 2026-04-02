@@ -5,7 +5,7 @@
 - [ ] 1.1 Write unit tests for `is_colima_installed()`, `is_colima_running()`, and `_ensure_colima_vm()` in `test_docker_manager.py`
   **Scope**: Tests for the three new helper functions ONLY — mock `shutil.which`, `subprocess.run`, `platform.machine()`. Cover: installed/not-installed, running/stopped, start success/failure/timeout, auto_start disabled, Apple Silicon vs Intel flag selection, idempotent no-op when already running.
   **Spec scenarios**: docker-lifecycle.colima-vm-already-running, docker-lifecycle.colima-installed-but-stopped, docker-lifecycle.colima-not-installed, docker-lifecycle.colima-installed-but-auto-start-disabled, docker-lifecycle.colima-vm-started-successfully, docker-lifecycle.colima-vm-startup-fails, docker-lifecycle.colima-vm-startup-times-out, docker-lifecycle.apple-silicon-mac, docker-lifecycle.intel-mac
-  **Design decisions**: D1, D2, D4, D5
+  **Design decisions**: D1, D2, D4, D5, D6
   **Dependencies**: None
 
 - [ ] 1.2 Add `is_colima_installed()` function to `docker_manager.py` — check `which colima`
@@ -14,12 +14,12 @@
 
 - [ ] 1.3 Add `is_colima_running()` function to `docker_manager.py` — check `colima status`
   **Spec scenarios**: docker-lifecycle.colima-vm-already-running, docker-lifecycle.colima-installed-but-stopped
-  **Design decisions**: D5 (idempotent)
+  **Design decisions**: D6 (idempotent)
   **Dependencies**: 1.1
 
 - [ ] 1.4 Add `_ensure_colima_vm(colima_config)` function to `docker_manager.py` — check auto_start setting, check if already running (no-op), start VM with resource args, detect Apple Silicon via `platform.machine()`, verify `docker info` afterward. Returns `bool`.
   **Spec scenarios**: docker-lifecycle.colima-vm-started-successfully, docker-lifecycle.colima-vm-already-running-idempotent, docker-lifecycle.colima-vm-startup-fails, docker-lifecycle.colima-vm-startup-times-out, docker-lifecycle.auto-start-disabled, docker-lifecycle.apple-silicon-mac, docker-lifecycle.intel-mac
-  **Design decisions**: D1 (daemon provider), D4 (resource defaults), D5 (idempotent)
+  **Design decisions**: D1 (daemon provider), D4 (resource defaults), D6 (idempotent)
   **Dependencies**: 1.2, 1.3
 
 ## Phase 2: Runtime Detection Integration
@@ -40,6 +40,7 @@
   **Dependencies**: 1.4, 2.2
 
 - [ ] 2.4 Update `start_container()` to pass `docker_config` to `detect_runtime()`, and include `"colima_started": true` in result dict when Colima VM was started
+  **Approach**: Call `is_colima_running()` before `detect_runtime()`. If Colima wasn't running before but `detect_runtime()` returns `"docker"` on macOS, infer Colima was auto-started. No return type changes to `detect_runtime()` needed. (Design decision D5)
   **Dependencies**: 2.3
 
 ## Phase 3: Profile Configuration
