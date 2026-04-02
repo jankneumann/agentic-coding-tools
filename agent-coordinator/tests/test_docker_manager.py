@@ -140,15 +140,12 @@ class TestDetectRuntimeColima:
             assert detect_runtime("auto") == "podman"
 
     def test_explicit_colima_on_macos(self) -> None:
-        """Explicit 'colima' preferred: ensures VM and returns docker."""
+        """Explicit 'colima' preferred: ensures VM and returns docker directly."""
         with (
             patch("sys.platform", "darwin"),
             patch("src.docker_manager.is_colima_installed", return_value=True),
             patch("src.docker_manager._ensure_colima_vm", return_value=True),
-            patch("shutil.which", return_value="/usr/bin/docker"),
-            patch("subprocess.run") as mock_run,
         ):
-            mock_run.return_value = sp.CompletedProcess([], 0)
             result = detect_runtime("colima", docker_config={"colima": {}})
             assert result == "docker"
 
@@ -331,6 +328,14 @@ class TestEnsureColimaVm:
             assert "--vm-type=vz" not in start_cmd
             assert "--vz-rosetta" not in start_cmd
 
+    def test_colima_binary_not_found(self) -> None:
+        """FileNotFoundError during colima start is handled gracefully."""
+        with (
+            patch("src.docker_manager.is_colima_running", return_value=False),
+            patch("subprocess.run", side_effect=FileNotFoundError),
+        ):
+            assert _ensure_colima_vm({}) is False
+
     def test_start_failure(self) -> None:
         with (
             patch("src.docker_manager.is_colima_running", return_value=False),
@@ -507,22 +512,24 @@ class TestStartContainer:
         compose.write_text("version: '3'\n")
         cfg = {
             "enabled": True,
+            "container_runtime": "auto",
             "container_name": "paradedb",
             "compose_file": "docker-compose.yml",
         }
-        colima_call_count = 0
+        colima_running_calls = 0
 
         def _is_colima_running() -> bool:
-            nonlocal colima_call_count
-            colima_call_count += 1
-            # First call (before detect): not running; second call (after): running
-            return colima_call_count > 1
+            nonlocal colima_running_calls
+            colima_running_calls += 1
+            # First call (snapshot before detect): not running
+            # Second call (check after detect): running
+            return colima_running_calls > 1
 
         with (
-            patch("sys.platform", "darwin"),
             patch("src.docker_manager.sys") as mock_sys,
-            patch("src.docker_manager.detect_runtime", return_value="docker"),
+            patch("src.docker_manager.is_colima_installed", return_value=True),
             patch("src.docker_manager.is_colima_running", side_effect=_is_colima_running),
+            patch("src.docker_manager.detect_runtime", return_value="docker"),
             patch("src.docker_manager.is_container_running", return_value=False),
             patch("subprocess.run") as mock_run,
         ):

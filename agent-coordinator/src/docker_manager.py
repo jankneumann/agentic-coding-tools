@@ -72,6 +72,9 @@ def _ensure_colima_vm(colima_config: dict[str, Any]) -> bool:
 
     try:
         subprocess.run(cmd, capture_output=True, timeout=120, check=True)
+    except FileNotFoundError:
+        logger.warning("Colima binary not found")
+        return False
     except subprocess.CalledProcessError as exc:
         logger.warning("Colima start failed: %s", exc)
         return False
@@ -126,10 +129,9 @@ def detect_runtime(
         else:
             colima_cfg = (docker_config or {}).get("colima", {})
             if _ensure_colima_vm(colima_cfg):
-                # VM is running; try the Docker socket it provides
-                preferred = "docker"
-            else:
-                return None
+                # VM is running and docker info verified inside _ensure_colima_vm
+                return "docker"
+            return None
 
     candidates = (
         ["docker", "podman"]
@@ -157,19 +159,8 @@ def detect_runtime(
             ):
                 colima_cfg = (docker_config or {}).get("colima", {})
                 if _ensure_colima_vm(colima_cfg):
-                    try:
-                        subprocess.run(
-                            ["docker", "info"],
-                            capture_output=True,
-                            timeout=15,
-                            check=True,
-                        )
-                        return "docker"
-                    except (
-                        subprocess.CalledProcessError,
-                        subprocess.TimeoutExpired,
-                    ):
-                        pass
+                    # _ensure_colima_vm already verified docker info works
+                    return "docker"
             continue
     return None
 
@@ -210,8 +201,16 @@ def start_container(
     if base_dir is None:
         base_dir = Path(__file__).resolve().parent.parent
 
-    # Snapshot Colima state before detection (D5: infer auto-start)
-    colima_was_running = is_colima_running() if sys.platform == "darwin" else False
+    # Snapshot Colima state before detection (D5: infer auto-start).
+    # Only check when on macOS and Colima is installed — avoids unnecessary
+    # subprocess calls for Docker Desktop users.
+    preferred_rt = str(docker_config.get("container_runtime", "auto"))
+    colima_was_running = (
+        sys.platform == "darwin"
+        and preferred_rt in ("auto", "colima")
+        and is_colima_installed()
+        and is_colima_running()
+    )
 
     runtime = detect_runtime(
         str(docker_config.get("container_runtime", "auto")),
