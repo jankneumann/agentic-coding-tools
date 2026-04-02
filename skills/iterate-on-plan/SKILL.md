@@ -151,6 +151,7 @@ Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for C
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for CLARITY and CONSISTENCY issues: ambiguous wording, vague scenarios, contradictions between documents", run_in_background=true)
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/tasks.md for FEASIBILITY and PARALLELIZABILITY: task size, dependencies, file overlap that would cause merge conflicts", run_in_background=true)
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for TESTABILITY: scenarios that can't be verified, subjective language like 'properly' or 'correctly'", run_in_background=true)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for SECURITY and PERFORMANCE issues: missing auth/authorization for endpoints, secrets in config, unvalidated inputs, unbounded queries, missing pagination, sync where async needed", run_in_background=true)
 ```
 
 **Analysis Synthesis:**
