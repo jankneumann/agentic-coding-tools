@@ -164,6 +164,7 @@ async def main(args: argparse.Namespace) -> int:
     registry.register("wait", WaitClient())
 
     # 4. Create generator based on mode
+    generator: TemplateGenerator | HybridGenerator
     if config.mode == "template-only":
         generator = TemplateGenerator(descriptor, config)
     else:

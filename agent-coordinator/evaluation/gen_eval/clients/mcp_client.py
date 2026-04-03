@@ -23,7 +23,7 @@ class McpClient:
             from fastmcp import Client as FastMCPClient
 
             self._client = FastMCPClient(self._mcp_url)
-            await self._client.__aenter__()
+            await self._client.__aenter__()  # type: ignore[no-untyped-call]
         return self._client
 
     # ------------------------------------------------------------------

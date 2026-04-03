@@ -86,7 +86,7 @@ class SDKBackend:
             # Extract text from response
             if not response.content or not hasattr(response.content[0], 'text'):
                 raise SDKBackendError("Empty or non-text response from API")
-            return response.content[0].text  # type: ignore[union-attr]
+            return str(response.content[0].text)
         except Exception as e:
             raise SDKBackendError(f"Anthropic API error: {e}") from e
 
