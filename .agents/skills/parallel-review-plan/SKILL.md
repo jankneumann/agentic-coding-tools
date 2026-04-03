@@ -77,6 +77,31 @@ Evaluate the plan against these dimensions:
 - [ ] No secrets in configuration or code
 - [ ] OWASP top-10 considerations addressed
 
+#### Performance Review
+- [ ] No unbounded queries or loops in design
+- [ ] List operations have pagination or size limits
+- [ ] Synchronous operations that should be async are identified
+- [ ] Caching strategy defined for hot paths (if applicable)
+- [ ] Rate limiting considered for public endpoints
+
+#### Observability Review
+- [ ] Monitoring requirements defined for new services/endpoints
+- [ ] Structured logging requirements for key operations
+- [ ] Alerting criteria specified for failure conditions
+- [ ] Health/readiness endpoint requirements for new services
+
+#### Compatibility Review
+- [ ] Breaking changes to existing APIs are identified and justified
+- [ ] Data migration plan is reversible (rollback path exists)
+- [ ] Consumer impact analysis for changed interfaces
+- [ ] Deprecation notices for removed or changed APIs
+
+#### Resilience Review
+- [ ] Retry/timeout/fallback requirements for external dependencies
+- [ ] Failure mode analysis for critical paths
+- [ ] Idempotency requirements for operations that may be retried
+- [ ] Graceful degradation strategy when dependencies are unavailable
+
 #### Work Package Validity (if work-packages.yaml exists)
 - [ ] DAG has no cycles
 - [ ] Parallel packages have non-overlapping write scopes
@@ -114,6 +139,9 @@ Generate findings as a JSON array conforming to `review-findings.schema.json`:
 - `performance` — Potential performance issue
 - `style` — Code style or convention violation
 - `correctness` — Logical error in the plan
+- `observability` — Missing monitoring, logging, or alerting requirements
+- `compatibility` — Breaking change to existing API or missing migration plan
+- `resilience` — Missing retry, timeout, or fallback requirements
 
 #### Dispositions
 - `fix` — Author should fix before implementation

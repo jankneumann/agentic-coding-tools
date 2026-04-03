@@ -206,7 +206,7 @@ For each finding, output JSON conforming to this structure:
   "findings": [
     {{
       "id": 1,
-      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch",
+      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch|observability|compatibility|resilience",
       "criticality": "low|medium|high|critical",
       "description": "What the issue is",
       "resolution": "How to fix it",
@@ -263,12 +263,12 @@ def dispatch_vendor_reviews(
 
     sys.path.insert(0, str(dispatcher_dir))
     try:
-        from review_dispatcher import ReviewOrchestrator, ReviewResult
         from consensus_synthesizer import (
             ConsensusSynthesizer,
             Finding,
             VendorResult,
         )
+        from review_dispatcher import ReviewOrchestrator, ReviewResult
     except ImportError as e:
         return {
             "dispatched": False,

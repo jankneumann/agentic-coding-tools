@@ -136,12 +136,14 @@ These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `C
 ### 3. Merge PR
 
 ```bash
-# Squash merge (recommended)
-gh pr merge openspec/<change-id> --squash --delete-branch
+# Rebase merge (default for OpenSpec PRs — preserves granular commit history)
+gh pr merge openspec/<change-id> --rebase --delete-branch
 
-# Or merge commit
-gh pr merge openspec/<change-id> --merge --delete-branch
+# Squash merge (use for noisy history or non-agent PRs)
+gh pr merge openspec/<change-id> --squash --delete-branch
 ```
+
+**Strategy rationale**: OpenSpec PRs use rebase-merge by default because agent-authored commits follow conventional format and encode design intent (interface → implementation → tests). Preserving this history improves `git blame` and `git bisect` for future agents. Use squash only if the PR has noisy WIP commits.
 
 ### 3.5. Mark Merged in Registry [coordinated only]
 

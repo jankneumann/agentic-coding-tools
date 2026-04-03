@@ -151,6 +151,7 @@ Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for C
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for CLARITY and CONSISTENCY issues: ambiguous wording, vague scenarios, contradictions between documents", run_in_background=true)
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/tasks.md for FEASIBILITY and PARALLELIZABILITY: task size, dependencies, file overlap that would cause merge conflicts", run_in_background=true)
 Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for TESTABILITY: scenarios that can't be verified, subjective language like 'properly' or 'correctly'", run_in_background=true)
+Task(subagent_type="Explore", prompt="Analyze openspec/changes/$CHANGE_ID/ for SECURITY and PERFORMANCE issues: missing auth/authorization for endpoints, secrets in config, unvalidated inputs, unbounded queries, missing pagination, sync where async needed", run_in_background=true)
 ```
 
 **Analysis Synthesis:**
@@ -162,7 +163,7 @@ Produce a **structured plan analysis** with findings in this format:
 
 | # | Type | Criticality | Description | Proposed Fix |
 |---|------|-------------|-------------|--------------|
-| 1 | completeness/clarity/feasibility/scope/consistency/testability/parallelizability | critical/high/medium/low | What the issue is | How to fix it |
+| 1 | completeness/clarity/feasibility/scope/consistency/testability/parallelizability/assumptions/security/performance | critical/high/medium/low | What the issue is | How to fix it |
 
 **Type categories:**
 - **completeness**: Missing requirements, unaddressed edge cases, gaps in impact analysis, missing spec deltas for affected capabilities, requirements without scenarios
@@ -173,12 +174,14 @@ Produce a **structured plan analysis** with findings in this format:
 - **testability**: Scenarios that can't be verified, requirements without measurable acceptance criteria, WHEN/THEN using subjective language ("properly", "correctly", "as expected")
 - **parallelizability**: How well the task decomposition supports parallel multi-agent execution via `/parallel-implement`. Evaluates whether tasks have explicit dependency declarations, whether task scopes are isolated to separate modules/files (no shared-file overlap that would cause merge conflicts), whether tasks are granular enough for independent agent assignment, and whether sequencing maximizes concurrent execution width
 - **assumptions**: Implicit decisions that could reasonably go either way — assumed authentication mechanism, data format, deployment target, backward-compatibility requirement, performance threshold, technology choice, or scope boundary. When an assumption is identified that has multiple valid interpretations, it MUST be surfaced to the user via **AskUserQuestion** rather than documented and moved on from. Present the assumption, the alternatives, and ask the user to decide.
+- **security**: Missing authentication/authorization for new endpoints, secrets in configuration or code, unvalidated inputs at system boundaries, OWASP top-10 considerations not addressed, missing threat model for new attack surface, no encryption for sensitive data in transit or at rest
+- **performance**: Unbounded queries or loops in design, missing pagination for list operations, synchronous processing where async is needed, missing caching strategy for hot paths, no rate limiting for public endpoints, O(n^2) or worse algorithms in design without justification
 
 **Criticality levels:**
-- **critical**: `openspec validate --strict` failures, missing spec deltas for capabilities listed in Impact, requirements without any scenarios, proposal.md missing required sections (Why, What Changes, Impact)
-- **high**: Ambiguous requirements that could be implemented multiple valid ways, tasks not traceable to requirements, scenarios using subjective/unmeasurable criteria, contradictions between documents, tasks with implicit shared-state or shared-file dependencies that would cause merge conflicts if parallelized, unstated assumptions about scope or technology choice that could invalidate the plan if wrong
-- **medium**: Missing edge-case scenarios (only success path covered), tasks too coarse for single-commit implementation, design.md needed but absent, incomplete impact analysis, tasks missing explicit dependency annotations, tasks that could be split into independent units for better parallelism
-- **low**: Wording polish, minor formatting, task ordering optimization for parallel execution, optional design.md sections
+- **critical**: `openspec validate --strict` failures, missing spec deltas for capabilities listed in Impact, requirements without any scenarios, proposal.md missing required sections (Why, What Changes, Impact), authentication bypass or missing auth on endpoints handling sensitive data
+- **high**: Ambiguous requirements that could be implemented multiple valid ways, tasks not traceable to requirements, scenarios using subjective/unmeasurable criteria, contradictions between documents, tasks with implicit shared-state or shared-file dependencies that would cause merge conflicts if parallelized, unstated assumptions about scope or technology choice that could invalidate the plan if wrong, secrets in configuration without secret management, unbounded queries on large datasets
+- **medium**: Missing edge-case scenarios (only success path covered), tasks too coarse for single-commit implementation, design.md needed but absent, incomplete impact analysis, tasks missing explicit dependency annotations, tasks that could be split into independent units for better parallelism, missing pagination for list endpoints, missing monitoring requirements for new services
+- **low**: Wording polish, minor formatting, task ordering optimization for parallel execution, optional design.md sections, missing caching considerations
 
 **Plan smells to check for:**
 - Giant task (spans multiple systems or modules)
@@ -194,6 +197,26 @@ Produce a **structured plan analysis** with findings in this format:
 - Missing dependency graph (tasks lack explicit dependency annotations needed by `/parallel-implement` and Beads `--blocked-by`)
 - Coupled scope (tasks that modify overlapping files or modules, preventing isolated worktree execution)
 - Unstated assumption (plan proceeds on an assumption about scope, technology choice, or constraint that was never confirmed with the user — could validly go multiple ways)
+- Unprotected endpoint (new API endpoint without authentication/authorization requirement stated)
+- Secret in config (credentials or API keys referenced in configuration without secret management)
+- Missing input validation (system boundary input accepted without validation requirement in spec)
+- Missing pagination (list operation returning unbounded results without pagination or size limits)
+- Missing observability (new service or endpoint without monitoring, logging, or alerting requirements)
+
+**Schema type mapping** (for translating plan findings to `review-findings.schema.json` types at the dispatch/consensus boundary):
+
+| Plan Dimension | Schema Type(s) | Notes |
+|---|---|---|
+| completeness | `spec_gap` | Missing requirements = spec gap. Use `observability`/`resilience`/`compatibility` when the missing content is specifically about those concerns. |
+| clarity | `spec_gap`, `style` | Ambiguous wording = spec_gap; formatting = style |
+| feasibility | `architecture`, `performance` | Infeasible designs are usually architectural or performance-bound |
+| scope | `spec_gap`, `correctness` | Scope creep = spec_gap; scope leak = correctness |
+| consistency | `contract_mismatch`, `correctness` | Cross-document contradictions |
+| testability | `spec_gap` | Untestable requirement = incomplete spec |
+| parallelizability | `architecture` | Task decomposition is architectural |
+| assumptions | `architecture`, `security`, `compatibility` | Map to the schema type matching the assumption's subject |
+| security | `security` | Direct mapping |
+| performance | `performance` | Direct mapping |
 
 ### 6. Check Termination Conditions
 

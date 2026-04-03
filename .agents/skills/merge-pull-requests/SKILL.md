@@ -289,17 +289,36 @@ Process each remaining PR one at a time **in the order determined above**. Skip 
 
 Then offer actions:
 
-1. **Merge** - Merge the PR (squash by default)
+1. **Merge** - Merge the PR (strategy selected by origin — see table below)
 2. **Skip** - Move to the next PR
 3. **Close** - Close the PR with a comment
 4. **Address comments** - Work through unresolved review feedback
 5. **Wait** - (if checks pending) Wait for CI to complete, then re-validate
 6. **Re-run CI** - (if checks failed) Re-run failed workflow runs
 
+#### Merge Strategy Selection
+
+The merge strategy is selected based on PR origin to balance history preservation with cleanliness:
+
+| Origin | Default Strategy | Rationale |
+|--------|-----------------|-----------|
+| `openspec`, `codex` | **rebase** | Agent PRs with structured commits — preserve granular history for `git blame`/`bisect` |
+| `sentinel`, `bolt`, `palette` | squash | Jules automation — typically single-purpose fixes |
+| `dependabot`, `renovate` | squash | Dependency bumps — one logical change |
+| `other` | squash | Manual PRs — unknown commit quality, safe default |
+
+The operator can override any default by passing `--strategy <squash|merge|rebase>`.
+
 #### Merge a PR
 
 ```bash
-python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --strategy squash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --origin <origin>
+```
+
+Pass `--origin` using the `origin` field from `discover_prs.py` output so the script selects the appropriate strategy automatically. To override:
+
+```bash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --origin <origin> --strategy squash
 ```
 
 The script validates CI status (distinguishing failed from pending), draft status, merge conflicts, and mergeability before merging. It handles:

@@ -92,6 +92,9 @@ Standard code review criteria:
 - [ ] Error handling is complete (no bare except/catch)
 - [ ] No security vulnerabilities (SQL injection, XSS, command injection)
 - [ ] Performance considerations (N+1 queries, unbounded loops, missing pagination)
+- [ ] Observability: structured logging for key operations, error context in exception handlers, health/readiness endpoints for new services
+- [ ] Compatibility: no unannounced breaking changes to existing APIs, migration scripts are reversible, deprecation notices for changed interfaces
+- [ ] Resilience: timeout configuration for external calls, retry with backoff where appropriate, idempotent operations for retryable paths
 - [ ] Code follows existing project conventions
 
 ### 5. Verification Result Cross-Check
@@ -144,6 +147,9 @@ Generate findings as JSON conforming to `review-findings.schema.json`:
 - `performance` — Performance concern
 - `style` — Code style or convention issue
 - `correctness` — Bug or logical error
+- `observability` — Missing logging, metrics, or health endpoints
+- `compatibility` — Breaking change to existing API or missing migration rollback
+- `resilience` — Missing retry, timeout, or idempotency handling
 
 #### Dispositions
 - `fix` — Must fix before integration merge

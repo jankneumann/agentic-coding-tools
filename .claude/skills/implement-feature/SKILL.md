@@ -360,6 +360,13 @@ The session-log.md is included in `git add .` in Step 8.
 
 ### 8. Commit Changes [all tiers]
 
+**Commit quality matters**: OpenSpec PRs use rebase-merge by default, so every commit appears individually on main. Structure commits as logical, self-contained units:
+
+- **One commit per task** (or per logical sub-task) — not one giant commit, not WIP fragments
+- **Conventional commit format**: `feat(scope):`, `fix(scope):`, `test(scope):`, `docs(scope):`
+- **No WIP/fixup commits**: If you need to iterate, amend or fixup before pushing
+- **Reference the change-id** in the commit body for traceability
+
 ```bash
 git add .
 git commit -m "$(cat <<'EOF'

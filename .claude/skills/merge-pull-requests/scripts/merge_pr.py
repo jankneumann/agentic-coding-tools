@@ -33,6 +33,35 @@ from shared import (
 # Use a longer timeout for merge operations which can be slow
 MERGE_TIMEOUT = 60
 
+# Origin-to-strategy mapping: agent-authored PRs use rebase to preserve
+# granular commit history; everything else uses squash.
+ORIGIN_STRATEGY_MAP: dict[str, str] = {
+    "openspec": "rebase",
+    "codex": "rebase",
+}
+FALLBACK_STRATEGY = "squash"
+
+
+def get_default_strategy(origin: str) -> str:
+    """Return the default merge strategy for a given PR origin."""
+    return ORIGIN_STRATEGY_MAP.get(origin, FALLBACK_STRATEGY)
+
+
+def resolve_strategy(
+    explicit_strategy: str | None, origin: str | None,
+) -> str:
+    """Resolve the effective merge strategy.
+
+    If the operator provided an explicit --strategy, use it (override).
+    Otherwise, look up the default for the PR origin.
+    If no origin is provided, fall back to squash.
+    """
+    if explicit_strategy is not None:
+        return explicit_strategy
+    if origin is not None:
+        return get_default_strategy(origin)
+    return FALLBACK_STRATEGY
+
 
 def get_pr_status(pr_number: int) -> dict:
     try:
@@ -613,8 +642,15 @@ def main():
     merge_parser = subparsers.add_parser("merge", help="Merge a single PR")
     merge_parser.add_argument("pr_number", type=int, help="PR number to merge")
     merge_parser.add_argument(
-        "--strategy", default="squash", choices=["squash", "merge", "rebase"],
-        help="Merge strategy (default: squash)",
+        "--strategy", default=None, choices=["squash", "merge", "rebase"],
+        help=(
+            "Merge strategy override. If omitted, strategy is selected by "
+            "origin: openspec/codex use rebase, all others use squash."
+        ),
+    )
+    merge_parser.add_argument(
+        "--origin", default=None,
+        help="PR origin (openspec, codex, dependabot, etc.) for strategy selection",
     )
     merge_parser.add_argument("--dry-run", action="store_true")
 
@@ -647,7 +683,8 @@ def main():
     check_gh()
 
     if args.action == "merge":
-        result = merge_pr(args.pr_number, args.strategy, args.dry_run)
+        strategy = resolve_strategy(args.strategy, args.origin)
+        result = merge_pr(args.pr_number, strategy, args.dry_run)
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)
     elif args.action == "batch-close":
