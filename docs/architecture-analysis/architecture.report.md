@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-04-03T14:10:34.519183+00:00  
-Git SHA: `1c557e31bcc46be4af9aae9bf717bb4b1a9a5804`
+Generated: 2026-04-03T21:23:08.199824+00:00  
+Git SHA: `3a1f688a0389ecac2053ee83b9eaed14d1333d7f`
 
 ## System Overview
 
@@ -99,17 +99,17 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 - `config` — imported by 19 modules
 - `db` — imported by 18 modules
 - `audit` — imported by 13 modules
-- `telemetry` — imported by 6 modules
 - `policy_engine` — imported by 6 modules
-- `guardrails` — imported by 4 modules
-- `feature_registry` — imported by 4 modules
+- `telemetry` — imported by 6 modules
 - `profiles` — imported by 4 modules
+- `feature_registry` — imported by 4 modules
+- `guardrails` — imported by 4 modules
+- `merge_queue` — imported by 3 modules
+- `memory` — imported by 3 modules
+- `locks` — imported by 3 modules
+- `work_queue` — imported by 3 modules
 - `event_bus` — imported by 3 modules
 - `handoffs` — imported by 3 modules
-- `locks` — imported by 3 modules
-- `memory` — imported by 3 modules
-- `work_queue` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
 
 ## Entry Points
 
@@ -229,53 +229,60 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**813 findings** across 4 categories:
+**1479 findings** across 5 categories:
 
-### Orphan — 339
+### Orphan — 609
 
-339 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+609 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
+- 'approval' is unreachable from any entrypoint or test
 - 'assurance' is unreachable from any entrypoint or test
 - 'audit' is unreachable from any entrypoint or test
-- 'config' is unreachable from any entrypoint or test
-- ... and 334 more
+- ... and 604 more
 
-### Reachability — 48
+### Pattern Consistency — 2
 
-48 entrypoints have downstream dependencies but no DB writes or side effects.
+2 unclassified findings.
 
-Breakdown: 46 info, 2 warning.
+- 'IF' uses PascalCase but most columns use snake_case
+- 'IF' uses PascalCase but most columns use snake_case
+
+### Reachability — 90
+
+90 entrypoints have downstream dependencies but no DB writes or side effects.
+
+Breakdown: 88 info, 2 warning.
 
 - Entrypoint 'acquire_lock' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'release_lock' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'check_lock_status' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'store_memory' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
-- ... and 43 more
+- ... and 85 more
 
-### Test Coverage — 378
+### Test Coverage — 688
 
-378 functions lack test references — consider adding tests for critical paths.
+688 functions lack test references — consider adding tests for critical paths.
 
+- Function 'PollConfig' has no corresponding test references
+- Function 'ModeConfig' has no corresponding test references
+- Function 'CliConfig' has no corresponding test references
+- Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- Function 'AuditEntry' has no corresponding test references
-- Function 'AuditResult' has no corresponding test references
-- Function 'AuditService' has no corresponding test references
-- Function 'AuditTimer' has no corresponding test references
-- ... and 373 more
+- ... and 683 more
 
-### Disconnected Flow (expected) — 48
+### Disconnected Flow (expected) — 90
 
-48 MCP routes have no frontend callers — expected (clients are AI agents).
+90 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'get_my_profile' has no frontend callers
-- Backend route 'coordinate_file_edit' has no frontend callers
-- Backend route 'acquire_lock' has no frontend callers
-- Backend route 'health' has no frontend callers
-- Backend route 'get_work' has no frontend callers
-- ... and 43 more
+- Backend route 'release_lock' has no frontend callers
+- Backend route 'check_guardrails' has no frontend callers
+- Backend route 'check_approval' has no frontend callers
+- Backend route 'read_handoff' has no frontend callers
+- Backend route 'request_permission' has no frontend callers
+- ... and 85 more
 
 ## High-Impact Nodes
 

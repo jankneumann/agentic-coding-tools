@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-03T10:00:00Z",
+  "generated_at": "2026-04-03T16:00:00Z",
   "focus_area": "general",
   "history_adjustment_applied": true,
   "weights": {
@@ -27,28 +27,12 @@
       "change_id_hint": "gen-eval-testing",
       "blocked_by": [],
       "recommended_action": "/implement-feature gen-eval-testing",
-      "why_now": "Only active OpenSpec change with work remaining. Fully planned with validated proposal, design, specs, tasks, and work-packages. All infrastructure dependencies (Docker lifecycle, live service testing, SDK dispatch) shipped in the last 2 weeks."
-    },
-    {
-      "id": "refresh-architecture-analysis",
-      "title": "Refresh stale architecture analysis artifacts",
-      "problem_statement": "Architecture analysis is 110 commits stale (from 2ea5afb, March 6). Summary, diagnostics, and parallel zones don't reflect recent skills infrastructure, observability, merge strategy, or tiered execution work. Stale artifacts reduce accuracy of explore-feature and parallel planning.",
-      "impact": "med",
-      "strategic_fit": "high",
-      "effort": "S",
-      "risk": "low",
-      "score": 2.50,
-      "bucket": "quick-win",
-      "suggested_change_prefix": "refresh-",
-      "change_id_hint": "refresh-architecture",
-      "blocked_by": [],
-      "recommended_action": "/refresh-architecture",
-      "why_now": "110 commits behind. Every subsequent explore-feature and parallel-plan invocation uses stale data. Quick automated refresh."
+      "why_now": "Only active OpenSpec change with work remaining. Fully planned with validated proposal, design, specs, tasks, and work-packages. All infrastructure dependencies (Docker lifecycle, live service testing, SDK dispatch, hybrid merge strategy) shipped. No blockers remain."
     },
     {
       "id": "add-coordination-api-hardening",
       "title": "Add CORS middleware and /ready endpoint to coordination API",
-      "problem_statement": "Two beads tasks ready (act-58o, act-99c): CORS middleware for cross-origin API access and /ready endpoint for orchestration health checks. Both are standard production-readiness improvements.",
+      "problem_statement": "Two beads tasks ready (act-58o, act-99c): CORS middleware for cross-origin API access and /ready endpoint for orchestration health checks. Both are standard production-readiness improvements that gen-eval-testing will benefit from.",
       "impact": "med",
       "strategic_fit": "med",
       "effort": "S",
@@ -59,12 +43,44 @@
       "change_id_hint": "add-api-hardening",
       "blocked_by": [],
       "recommended_action": "bd update act-58o --status=in_progress, then implement both tasks",
-      "why_now": "Zero blockers, small scope, improves API usability for gen-eval-testing and external consumers."
+      "why_now": "Zero blockers, small scope. /ready endpoint directly supports gen-eval-testing live service verification."
+    },
+    {
+      "id": "update-skill-consolidation",
+      "title": "Consolidate and deduplicate skill infrastructure",
+      "problem_statement": "The skill-consolidation spec has 11 requirements but no active change. Skills have grown organically — some share patterns (review dispatch, DAG scheduling, consensus) that could be extracted into shared infrastructure. install.sh syncs to 4 runtimes but the sync/testing model has rough edges.",
+      "impact": "med",
+      "strategic_fit": "high",
+      "effort": "M",
+      "risk": "med",
+      "score": 2.10,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "update-",
+      "change_id_hint": "update-skill-consolidation",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature 'Consolidate skill infrastructure per skill-consolidation spec (11 requirements)'",
+      "why_now": "Growing skill count (40+) makes consolidation increasingly valuable. Each new skill inherits pattern inconsistencies."
+    },
+    {
+      "id": "refactor-parallel-architecture",
+      "title": "Reduce merge conflict surface through architectural separation",
+      "problem_statement": "Multiple agents editing the same files creates merge conflicts even when changes are logically independent. Fresh architecture data now available (refreshed today). Needs hotspot analysis from git blame/merge-conflict history to identify worst offenders.",
+      "impact": "high",
+      "strategic_fit": "high",
+      "effort": "M",
+      "risk": "med",
+      "score": 2.35,
+      "bucket": "big-bet",
+      "suggested_change_prefix": "refactor-",
+      "change_id_hint": "refactor-parallel-architecture",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature 'Analyze and refactor merge conflict hotspots for parallel agent isolation'",
+      "why_now": "Architecture analysis freshly refreshed. Hybrid merge strategy shipped. Good time to identify structural improvements while parallel execution patterns are actively used."
     },
     {
       "id": "add-coordinator-assurance-verification",
       "title": "Complete behavioral verification suite for coordinator",
-      "problem_statement": "No property tests, behavioral verification, or differential testing (Cedar vs native policy engine). Previously blocked on complete-missing-coordination-features which is now fully archived.",
+      "problem_statement": "No property tests, behavioral verification, or differential testing (Cedar vs native policy engine). Gen-eval-testing will cover live behavioral verification, but dedicated property tests for edge cases remain unaddressed.",
       "impact": "high",
       "strategic_fit": "high",
       "effort": "L",
@@ -75,46 +91,32 @@
       "change_id_hint": "add-coordinator-assurance-verification",
       "blocked_by": ["gen-eval-testing"],
       "recommended_action": "defer — gen-eval-testing covers much of this through live-service testing",
-      "why_now": "Blocker resolved but gen-eval-testing is higher-leverage. The gen-eval framework may reduce the scope needed for dedicated property tests."
+      "why_now": "Wait for gen-eval-testing results to assess remaining verification gaps."
     },
     {
-      "id": "refactor-parallel-architecture",
-      "title": "Reduce merge conflict surface through architectural separation",
-      "problem_statement": "Multiple agents editing the same files creates merge conflicts even when changes are logically independent. Needs hotspot analysis from git blame/merge-conflict history to identify worst offenders, then targeted refactors.",
-      "impact": "high",
-      "strategic_fit": "high",
+      "id": "add-observability-dashboards",
+      "title": "Add observability dashboards and alerting for coordinator",
+      "problem_statement": "Observability spec has 5 requirements. OTEL instrumentation was added recently (add-otel-observability) but no dashboards, alerting rules, or SLO definitions exist yet. Running gen-eval workloads will need observability to interpret results.",
+      "impact": "med",
+      "strategic_fit": "med",
       "effort": "M",
-      "risk": "med",
-      "score": 2.35,
+      "risk": "low",
+      "score": 2.10,
       "bucket": "big-bet",
-      "suggested_change_prefix": "refactor-",
-      "change_id_hint": "refactor-parallel-architecture",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-observability-dashboards",
       "blocked_by": [],
-      "recommended_action": "defer — identify hotspot files first via architecture refresh",
-      "why_now": "Structural root cause of merge conflicts. Worth analyzing after architecture refresh provides fresh data."
+      "recommended_action": "defer — ship gen-eval-testing first, then build dashboards around observed metrics",
+      "why_now": "OTEL instrumentation exists but lacks visualization layer. Lower priority until gen-eval produces workloads worth observing."
     }
   ],
   "top_recommendation": "implement-gen-eval-testing",
   "completed_since_last": [
+    "refresh-architecture-analysis",
     "hybrid-merge-strategy",
     "evaluate-colima-macos",
     "review-evaluation-criteria",
-    "live-service-testing",
-    "remote-control-coordinator",
-    "add-phase-session-logs",
     "interactive-plan-feature",
-    "vendor-ux-enhancements",
-    "clean-up-dispatch-add-sdk-fallback",
-    "unify-skill-tiers",
-    "parallel-scrub-pipeline",
-    "add-otel-observability",
-    "store-conversation-history",
-    "automated-dev-loop",
-    "multi-vendor-review-orchestration",
-    "script-to-skill-migration",
-    "expose-coordinator-apis",
-    "add-change-context-traceability",
-    "unify-worktree-isolation",
-    "add-e2e-integration-ci"
+    "vendor-ux-enhancements"
   ]
 }

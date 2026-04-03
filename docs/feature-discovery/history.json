@@ -1,35 +1,47 @@
 {
-  "updated_at": "2026-04-03T10:00:00Z",
+  "updated_at": "2026-04-03T16:00:00Z",
   "recommendations": [
     {
       "opportunity_id": "implement-gen-eval-testing",
-      "recommended_at": "2026-04-03T10:00:00Z",
+      "recommended_at": "2026-04-03T16:00:00Z",
       "status": "recommended",
-      "reason": "Only active OpenSpec change with work remaining. 56 tasks fully planned. All infrastructure dependencies shipped. Top recommendation."
-    },
-    {
-      "opportunity_id": "refresh-architecture-analysis",
-      "recommended_at": "2026-04-03T10:00:00Z",
-      "status": "recommended",
-      "reason": "Architecture analysis 110 commits stale. Quick automated refresh before big-bet implementation."
+      "reason": "Only active OpenSpec change with work remaining. 56 tasks fully planned. All infrastructure dependencies shipped. Top recommendation — consecutive top pick."
     },
     {
       "opportunity_id": "add-coordination-api-hardening",
-      "recommended_at": "2026-04-03T10:00:00Z",
+      "recommended_at": "2026-04-03T16:00:00Z",
       "status": "recommended",
-      "reason": "Two beads tasks ready (CORS + /ready endpoint). Quick-win API hardening."
+      "reason": "Two beads tasks ready (CORS + /ready endpoint). Quick-win API hardening. /ready endpoint benefits gen-eval live service checks."
+    },
+    {
+      "opportunity_id": "update-skill-consolidation",
+      "recommended_at": "2026-04-03T16:00:00Z",
+      "status": "recommended",
+      "reason": "11-requirement spec with no active change. 40+ skills with growing pattern inconsistencies. New this cycle."
+    },
+    {
+      "opportunity_id": "refactor-parallel-architecture",
+      "recommended_at": "2026-04-03T16:00:00Z",
+      "status": "recommended",
+      "reason": "Architecture refresh completed — fresh data available for hotspot analysis. Unblocked since last cycle."
     },
     {
       "opportunity_id": "add-coordinator-assurance-verification",
-      "recommended_at": "2026-04-03T10:00:00Z",
+      "recommended_at": "2026-04-03T16:00:00Z",
       "status": "deferred",
       "reason": "Deferred until gen-eval-testing completes. Gen-eval covers much of the behavioral verification gap."
     },
     {
-      "opportunity_id": "refactor-parallel-architecture",
-      "recommended_at": "2026-04-03T10:00:00Z",
+      "opportunity_id": "add-observability-dashboards",
+      "recommended_at": "2026-04-03T16:00:00Z",
       "status": "deferred",
-      "reason": "Needs hotspot analysis from fresh architecture data. Defer until after architecture refresh."
+      "reason": "OTEL instrumentation exists but no dashboards. Lower priority until gen-eval produces workloads worth observing."
+    },
+    {
+      "opportunity_id": "refresh-architecture-analysis",
+      "recommended_at": "2026-04-03T10:00:00Z",
+      "status": "completed",
+      "reason": "Refreshed in commit 3a1f688 on 2026-04-03."
     },
     {
       "opportunity_id": "add-worktree-bootstrap",
