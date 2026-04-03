@@ -28,3 +28,29 @@
 
 ### Context
 Planning session to make contracts and work-packages universal across all execution tiers. The goal is to ensure that later stages (review, implementation, validation) can always rely on these artifacts existing, eliminating conditional paths and enabling richer reviews for all PRs regardless of how they were planned.
+
+---
+
+## Phase: Plan Iteration 1 (2026-04-03)
+
+**Agent**: claude-opus-4-6 | **Session**: N/A
+
+### Decisions
+1. **No-interface features get README stub** — When a feature has no API, DB, or event interfaces, `contracts/` is created with a `README.md` documenting which sub-types were evaluated and why none apply. User chose this over skipping contracts entirely or requiring at least one contract type.
+2. **Replaced "full-fidelity" with precise language** — Contracts use "the same directory structure and file format as parallel tiers" with only applicable sub-types included.
+3. **Test tasks rephrased as acceptance criteria** — Tasks 1.1, 1.3, 1.5 are verification checklists (not unit test code), since this is a SKILL.md change.
+4. **Removed spec sync tasks (2.3, 2.4)** — Delta spec syncing to main specs is handled by `/cleanup-feature` after PR merge, not during implementation.
+5. **Added failure/edge-case scenarios** — Partial contracts, malformed contract files, malformed work-packages.yaml, whole-branch review with contracts but no work-packages.
+
+### Alternatives Considered
+- Skip contracts/ entirely for no-interface features: rejected because consuming skills would need fallback paths, defeating the "universal" goal
+- Require at least one contract type: rejected because some features (documentation, skill definitions, pure refactors) genuinely have no interfaces
+
+### Trade-offs
+- Accepted a `contracts/README.md` stub (adds a file with no machine-readable value) over the simplicity of no directory, to keep the "contracts/ always exists" invariant
+
+### Open Questions
+- [ ] The `validate_work_packages.py` field mismatch (`id` vs `package_id`) is pre-existing and out of scope — but task 3.1 depends on it working
+
+### Context
+Four parallel analysis agents reviewed the plan for completeness, clarity/consistency, feasibility/parallelizability, and testability/assumptions. 10 findings were identified (1 assumption requiring user input, 2 high, 5 medium, 2 low). All high and medium findings were addressed: added 4 new spec scenarios (no applicable contracts, partial contracts, malformed contracts, malformed work-packages), rephrased test tasks as acceptance criteria, removed misplaced spec-sync tasks, expanded task 1.4 with contract compliance skip, added context slicing table update to task 1.2, documented parallel execution strategy.

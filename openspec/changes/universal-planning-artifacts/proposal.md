@@ -20,7 +20,8 @@ The current tiered planning model skips contracts and work-packages for sequenti
 
 - Remove `[local-parallel+]` tier gate from Steps 7 and 8 — make them `[all tiers]`
 - For sequential-tier plans, work-packages contain a single `wp-main` package covering the full feature scope (no parallelization, but the artifact exists for reviews and constraints)
-- Contracts are full-fidelity regardless of tier — same OpenAPI, DB schema, event schema artifacts
+- Contracts use the same directory structure and file format as parallel tiers — include only sub-types applicable to the feature (OpenAPI if API endpoints, DB schema if migrations, event schemas if events)
+- For features with no applicable interfaces, create `contracts/README.md` stub documenting which sub-types were evaluated and why none apply
 
 ### 2. Whole-branch review fallback in parallel-review-implementation
 
@@ -43,7 +44,7 @@ The current tiered planning model skips contracts and work-packages for sequenti
 
 ### Approach 1: Universal Artifacts with Single-Package Fallback (Recommended)
 
-**Description**: Always generate full-fidelity contracts and work-packages during planning. Sequential-tier features get a single `wp-main` package that encompasses the entire feature scope, using the same artifact format as parallel tiers.
+**Description**: Always generate contracts and work-packages during planning using the same directory structure and format as parallel tiers. Sequential-tier features get a single `wp-main` package that encompasses the entire feature scope. Contract sub-types are included only when applicable; features with no interfaces get a `contracts/README.md` stub.
 
 **Pros**:
 - Unified artifact format — every change has contracts and work-packages regardless of tier
