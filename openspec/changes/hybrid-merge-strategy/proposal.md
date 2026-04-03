@@ -32,9 +32,13 @@ Adopt a **hybrid merge strategy** where the merge method varies by PR origin and
 - Add merge strategy rationale to `docs/lessons-learned.md`
 
 **Out of scope:**
-- Formal spec requirement changes (doc-only approach confirmed)
+- Changes to `skill-workflow` spec (merge strategy is documented in skill docs, not formalized as workflow requirements)
 - Automated commit quality linting (future work)
 - Changes to merge queue configuration
+
+## Impact
+
+- **merge-pull-requests**: Modified — adds origin-aware strategy selection requirement with 5 scenarios
 
 ## Approaches Considered
 

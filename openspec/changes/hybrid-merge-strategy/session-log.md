@@ -25,3 +25,26 @@
 
 ### Context
 The planning session originated from a merge-pull-requests triage where 23 stale branches and 15 stale worktrees were discovered — all caused by squash-merge breaking `git branch --merged` detection. The discussion identified that squash-merge's primary benefit (cognitive clutter reduction) doesn't apply to AI assistants, while its costs (lost history, broken branch detection) are amplified in agentic workflows.
+
+---
+
+## Phase: Plan Iteration 1 (2026-04-02)
+
+**Agent**: claude | **Session**: N/A
+
+### Decisions
+1. **Expanded spec coverage** — Added scenarios for all origin groups (agent, dependency, automation), conflict failure, and CLI override. Original spec only covered openspec and dependabot.
+2. **Explicit parallelizability annotation** — Added parallelizability section to tasks.md showing 4-wide parallel potential
+3. **Corrected function references** — Fixed `merge()` → `merge_pr()` to match actual codebase (line 354)
+
+### Alternatives Considered
+- Auto-fallback to squash on rebase conflict: rejected — operator should decide, not the tool
+
+### Trade-offs
+- Added 2 more scenarios (5 total) for completeness at the cost of slightly more implementation work in tests
+
+### Open Questions
+- None new
+
+### Context
+9 findings identified (2 high, 5 medium, 2 low). All high and medium findings addressed: missing failure scenario, missing codex coverage, wrong function name, missing Impact section, incorrect spec references in tasks, missing parallelizability assessment. Low findings (help text wording, scenario WHEN precision) also addressed.
