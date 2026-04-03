@@ -84,6 +84,28 @@ Look for:
 - Code smell clusters and maintainability risks
 - Usability gaps, reliability risks, performance/cost hotspots
 
+### 2.5. Analyze Gen-Eval Signals (if available)
+
+Check for recent gen-eval reports. These provide empirical evidence of interface reliability and coverage gaps:
+
+```bash
+# Look for gen-eval reports in the project
+GENEVAL_REPORT=$(find . -name "gen-eval-report.json" -type f -newer docs/feature-discovery/opportunities.json 2>/dev/null | head -1)
+```
+
+If a report exists, extract:
+- **Failing interfaces**: Endpoints/tools with `fail` or `error` verdicts — these represent concrete bugs or regressions that could become fix opportunities
+- **Coverage gaps**: Interfaces in the descriptor with 0% scenario coverage — these are untested and risky
+- **Category pass rates**: Categories with pass rates below 95% indicate areas needing attention
+- **Cross-interface inconsistencies**: Scenarios where the same operation produces different results across transports (HTTP vs MCP vs CLI)
+
+Incorporate these signals into opportunity ranking:
+- A failing interface that matches an existing opportunity **increases its impact score**
+- A coverage gap with no existing opportunity **creates a new `add-` opportunity** with `quick-win` bucket (writing scenarios is low effort)
+- Cross-interface inconsistencies suggest `fix-` opportunities targeting the inconsistent service layer
+
+If no report exists, skip this step and note "No gen-eval data available" in the output.
+
 ### 3. Produce Ranked Opportunities
 
 Generate a ranked shortlist (3-7 items), each with:
@@ -147,6 +169,7 @@ Write/update machine-readable discovery artifacts:
 Rules:
 - If an opportunity from recent history is still deferred and unchanged, lower its default priority unless new evidence justifies reranking
 - Include stable IDs so `/prioritize-proposals` can reference opportunities without text matching
+- If gen-eval signals were available (step 2.5), include a `gen_eval_signals` field in `opportunities.json` with: `{ "report_path": "<path>", "failing_interfaces": [...], "coverage_pct": <float>, "categories_below_threshold": [...] }`
 
 ## Output
 
