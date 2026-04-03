@@ -28,8 +28,8 @@ class GenEvalReport:
     duration_seconds: float
     budget_exhausted: bool
     verdicts: list[ScenarioVerdict]
-    per_interface: dict[str, dict]  # interface -> {pass, fail, error counts}
-    per_category: dict[str, dict]  # category -> {pass, fail, error, total}
+    per_interface: dict[str, dict[str, int]]  # interface -> {pass, fail, error counts}
+    per_category: dict[str, dict[str, int]]  # category -> {pass, fail, error, total}
     unevaluated_interfaces: list[str]
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
     iterations_completed: int
@@ -139,7 +139,7 @@ def generate_markdown_report(report: GenEvalReport) -> str:
 
 def generate_json_report(report: GenEvalReport) -> str:
     """Generate a JSON-formatted report."""
-    data: dict = {
+    data: dict[str, object] = {
         "total_scenarios": report.total_scenarios,
         "passed": report.passed,
         "failed": report.failed,
