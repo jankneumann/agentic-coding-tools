@@ -48,3 +48,26 @@ The planning session originated from a merge-pull-requests triage where 23 stale
 
 ### Context
 9 findings identified (2 high, 5 medium, 2 low). All high and medium findings addressed: missing failure scenario, missing codex coverage, wrong function name, missing Impact section, incorrect spec references in tasks, missing parallelizability assessment. Low findings (help text wording, scenario WHEN precision) also addressed.
+
+---
+
+## Phase: Implementation (2026-04-02)
+
+**Agent**: claude | **Session**: N/A
+
+### Decisions
+1. **Strategy resolution at CLI level** — `resolve_strategy()` runs in `main()` before calling `merge_pr()`, keeping the core function signature unchanged. This is the least invasive change.
+2. **None sentinel for --strategy** — Changed default from `"squash"` to `None` so the code can distinguish "operator didn't specify" from "operator chose squash"
+3. **No repo settings change needed** — `allow_rebase_merge` was already `true` in the GitHub repo settings. Task 4.1 became a verification-only step.
+
+### Alternatives Considered
+- Passing origin into `merge_pr()` function: rejected because it would change the function signature and affect all callers. CLI-level resolution is cleaner.
+
+### Trade-offs
+- Kept the pre-existing lint issues in merge_pr.py untouched (unused `safe_author` import, unused `raw` variable) to minimize diff scope
+
+### Open Questions
+- None
+
+### Context
+Implementation followed the plan exactly. Three commits: core script change with tests (16 tests, all pass), documentation updates across 6 files, and a lint fix for the test file. All quality checks pass (pytest, openspec validate, ruff on new code).
