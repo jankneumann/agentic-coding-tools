@@ -57,6 +57,7 @@ PYTHON         ?= python3
 
 .PHONY: architecture architecture-setup scripts-setup architecture-diff architecture-feature \
         architecture-validate architecture-views architecture-report architecture-clean \
+        gen-eval gen-eval-augmented \
         help _analyze-python _analyze-postgres _analyze-typescript \
         _compile _validate _views _parallel-zones _report \
         _enrich-treesitter _comment-linker _pattern-reporter
@@ -86,6 +87,9 @@ help: ## Show available make targets with descriptions
 	@echo "  make architecture"
 	@echo "  make architecture-diff BASE_SHA=abc123"
 	@echo '  make architecture-feature FEATURE="src/locks.py,src/db.py"'
+	@echo "  make gen-eval"
+	@echo "  make gen-eval GENEVAL_CATEGORIES=lock-lifecycle"
+	@echo "  make gen-eval-augmented"
 	@echo ""
 
 # ---------------------------------------------------------------------------
@@ -348,3 +352,35 @@ architecture-clean: ## Remove all generated architecture artifacts
 		$(ARCH_DIR)/views \
 		$(ARCH_DIR)/tmp
 	@echo "Cleaned. Committed artifacts in $(ARCH_DIR)/ may remain (e.g., README.md)."
+
+# ---------------------------------------------------------------------------
+# Gen-Eval — generator-evaluator testing
+# ---------------------------------------------------------------------------
+
+GENEVAL_DIR        ?= agent-coordinator
+GENEVAL_DESCRIPTOR ?= $(GENEVAL_DIR)/evaluation/gen_eval/descriptors/agent-coordinator.yaml
+GENEVAL_PYTHON     ?= $(GENEVAL_DIR)/.venv/bin/python
+GENEVAL_OUTPUT     ?= .
+GENEVAL_MODE       ?= template-only
+GENEVAL_PARALLEL   ?= 5
+GENEVAL_CATEGORIES ?=
+
+gen-eval: ## Run gen-eval in template-only mode (fast, no LLM)
+	@if [ ! -f "$(GENEVAL_DESCRIPTOR)" ]; then \
+		echo "ERROR: Descriptor not found at $(GENEVAL_DESCRIPTOR)"; \
+		echo "  Set GENEVAL_DESCRIPTOR=<path> or create one with /gen-eval-scenario"; \
+		exit 1; \
+	fi
+	@echo "=== Gen-Eval ($(GENEVAL_MODE)) ==="
+	@cd $(GENEVAL_DIR) && $(GENEVAL_PYTHON) -m evaluation.gen_eval \
+		--descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
+		--mode $(GENEVAL_MODE) \
+		--parallel $(GENEVAL_PARALLEL) \
+		--no-services \
+		--report-format both \
+		--output-dir $(GENEVAL_OUTPUT) \
+		$(if $(GENEVAL_CATEGORIES),--categories $(GENEVAL_CATEGORIES),) \
+		--verbose
+
+gen-eval-augmented: ## Run gen-eval with CLI-augmented LLM generation (subscription-covered)
+	@$(MAKE) gen-eval GENEVAL_MODE=cli-augmented
