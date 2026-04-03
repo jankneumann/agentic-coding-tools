@@ -1,7 +1,7 @@
 ---
 name: gen-eval
 description: Run generator-evaluator testing against live services
-category: Git Workflow
+category: Testing
 tags: [testing, gen-eval, evaluation, scenarios, generator, evaluator]
 triggers:
   - "gen eval"
@@ -13,108 +13,137 @@ triggers:
 
 # Gen-Eval
 
-Run the generator-evaluator testing framework against live or local services. Generates test scenarios from interface descriptors, executes them against running services, and evaluates results against expected behavior.
+Run the generator-evaluator testing framework against live or local services. Generates test scenarios from interface descriptors, executes them, and evaluates results against expected behavior.
 
 ## Arguments
 
-`$ARGUMENTS` - Required and optional flags:
-- `--descriptor <path>` (required) — Path to interface descriptor YAML
-- `--mode <mode>` (default: `template-only`) — Generator mode: `template-only`, `cli-augmented`, or `sdk-only`
-- `--cli-command <cmd>` (default: `claude`) — CLI tool for cli-augmented mode (`claude` or `codex`)
-- `--time-budget <minutes>` (default: `60`) — Time budget in minutes for CLI mode
+`$ARGUMENTS` - Optional flags:
+- `--descriptor <path>` — Path to interface descriptor YAML (auto-detected if omitted)
+- `--mode <mode>` (default: `template-only`) — `template-only`, `cli-augmented`, or `sdk-only`
+- `--cli-command <cmd>` (default: `claude`) — CLI tool for cli-augmented mode
+- `--time-budget <minutes>` (default: `60`) — Time budget for CLI mode
 - `--sdk-budget <usd>` — USD budget cap for SDK mode
-- `--max-iterations <n>` (default: `1`) — Number of feedback loop iterations
-- `--parallel <n>` (default: `5`) — Concurrent scenario execution count
-- `--changed-features-ref <git-ref>` — Git ref for change detection (filters to changed features only)
-- `--categories <cat1> [cat2 ...]` — Filter to specific scenario categories
-- `--report-format <format>` (default: `both`) — Output format: `markdown`, `json`, or `both`
-- `--output-dir <path>` (default: `.`) — Directory for report output
-- `--change-id <id>` — OpenSpec change-id (for validate-feature integration)
+- `--max-iterations <n>` (default: `1`) — Feedback loop iterations
+- `--parallel <n>` (default: `5`) — Concurrent scenario execution
+- `--changed-features-ref <git-ref>` — Git ref for change detection
+- `--categories <cat1> [cat2 ...]` — Filter to specific categories
+- `--report-format <format>` (default: `both`) — `markdown`, `json`, or `both`
+- `--output-dir <path>` (default: `.`) — Report output directory
+- `--no-services` — Skip service startup/teardown
 - `--verbose` — Enable verbose output
-- `--no-services` — Skip service startup/teardown (assume services already running)
 
-## Prerequisites
+## Steps
 
-- Python 3.11+ with the `agent-coordinator` package installed (`cd agent-coordinator && uv sync --all-extras`)
-- Interface descriptor YAML file for the target project
-- For `template-only` mode: no additional dependencies
-- For `cli-augmented` mode: `claude` or `codex` CLI installed and configured
-- For `sdk-only` mode: API key configured for the target SDK
+### 1. Auto-Detect Descriptor
 
-## Usage Examples
-
-### Basic template-only run
+If `--descriptor` is not provided, find the nearest descriptor YAML:
 
 ```bash
-cd agent-coordinator
-python -m evaluation.gen_eval \
-  --descriptor evaluation/gen_eval/descriptors/coordinator-api.yaml \
-  --mode template-only \
-  --output-dir /tmp/gen-eval-reports
+DESCRIPTOR=$(find . -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null | head -1)
+
+if [ -z "$DESCRIPTOR" ]; then
+  echo "ERROR: No gen-eval descriptor found. Provide --descriptor <path> or create one with /gen-eval-scenario."
+  exit 1
+fi
+echo "Auto-detected descriptor: $DESCRIPTOR"
 ```
 
-### CLI-augmented with change detection
+### 2. Detect Project Root and Activate Venv
 
 ```bash
-python -m evaluation.gen_eval \
-  --descriptor evaluation/gen_eval/descriptors/coordinator-api.yaml \
-  --mode cli-augmented \
-  --cli-command claude \
-  --time-budget 30 \
-  --changed-features-ref main \
-  --verbose
+# Find the project root (directory containing the descriptor's evaluation/ parent)
+PROJECT_ROOT=$(dirname "$(dirname "$(dirname "$(dirname "$DESCRIPTOR")")")")
+echo "Project root: $PROJECT_ROOT"
+
+# Activate the project venv
+if [ -f "$PROJECT_ROOT/.venv/bin/python" ]; then
+  PYTHON="$PROJECT_ROOT/.venv/bin/python"
+else
+  PYTHON="python3"
+fi
 ```
 
-### SDK-only with budget cap
+### 3. Parse Mode and Build Command
+
+Parse `$ARGUMENTS` for mode and flags. Build the CLI command:
 
 ```bash
-python -m evaluation.gen_eval \
-  --descriptor evaluation/gen_eval/descriptors/coordinator-api.yaml \
-  --mode sdk-only \
-  --sdk-budget 5.00 \
-  --max-iterations 3 \
-  --parallel 10
+# Defaults
+MODE="${MODE:-template-only}"
+PARALLEL="${PARALLEL:-5}"
+MAX_ITER="${MAX_ITER:-1}"
+REPORT_FORMAT="${REPORT_FORMAT:-both}"
+OUTPUT_DIR="${OUTPUT_DIR:-.}"
+
+CMD="$PYTHON -m evaluation.gen_eval --descriptor $DESCRIPTOR --mode $MODE --parallel $PARALLEL --max-iterations $MAX_ITER --report-format $REPORT_FORMAT --output-dir $OUTPUT_DIR"
+
+# Append optional flags from arguments
+if [ -n "$TIME_BUDGET" ]; then CMD="$CMD --time-budget $TIME_BUDGET"; fi
+if [ -n "$SDK_BUDGET" ]; then CMD="$CMD --sdk-budget $SDK_BUDGET"; fi
+if [ -n "$CLI_COMMAND" ]; then CMD="$CMD --cli-command $CLI_COMMAND"; fi
+if [ -n "$CHANGED_REF" ]; then CMD="$CMD --changed-features-ref $CHANGED_REF"; fi
+if [ -n "$CATEGORIES" ]; then CMD="$CMD --categories $CATEGORIES"; fi
+if [ "$NO_SERVICES" = "true" ]; then CMD="$CMD --no-services"; fi
+if [ "$VERBOSE" = "true" ]; then CMD="$CMD --verbose"; fi
 ```
 
-### Filter to specific categories
+### 4. Run Gen-Eval
+
+Execute from the project root:
 
 ```bash
-python -m evaluation.gen_eval \
-  --descriptor evaluation/gen_eval/descriptors/coordinator-api.yaml \
-  --categories auth crud error-handling \
-  --report-format markdown
+cd "$PROJECT_ROOT"
+echo "Running: $CMD"
+$CMD
+EXIT_CODE=$?
 ```
 
-## How It Works
+### 5. Report Results
 
-1. **Load descriptor** — Parses the interface descriptor YAML that defines features, transports, and scenario templates
-2. **Create generator** — Based on `--mode`, selects template-based, CLI-augmented, or SDK-only scenario generation
-3. **Generate scenarios** — Produces concrete test scenarios from descriptor feature definitions
-4. **Execute scenarios** — Runs scenarios concurrently (up to `--parallel`) against live services
-5. **Evaluate results** — Compares actual responses against expected behavior using evaluator rules
-6. **Feedback loop** — If `--max-iterations > 1`, feeds failures back to the generator for refinement
-7. **Write reports** — Produces markdown and/or JSON reports with pass rates, timing, and failure details
+After execution, display a summary:
 
-## Integration with validate-feature
-
-Gen-eval runs as an optional `gen-eval` phase in `/validate-feature`. When a descriptor file exists for the project, validate-feature automatically invokes gen-eval in `template-only` mode between the smoke and e2e phases.
-
-- **Phase name:** `gen-eval`
-- **Criticality:** Non-critical (failure does not block validation)
-- **Auto-detection:** Runs when `evaluation/gen_eval/descriptors/*.yaml` files exist
-- **Default mode:** `template-only` (no CLI or SDK dependencies required)
-
-To include gen-eval in a validation run:
+- If reports were generated, read and summarize the markdown report
+- Show pass rate, coverage %, and any failures
+- If `EXIT_CODE != 0`, highlight failing scenarios and suggest `/gen-eval-scenario` for authoring targeted scenarios
 
 ```bash
-/validate-feature <change-id> --phase smoke,gen-eval,e2e
+if [ -f "$OUTPUT_DIR/gen-eval-report.md" ]; then
+  echo ""
+  echo "=== Gen-Eval Report ==="
+  cat "$OUTPUT_DIR/gen-eval-report.md"
+fi
 ```
 
-Or it runs automatically when descriptors are detected during a full validation pass.
+## Quick Start
+
+The simplest invocation — auto-detects the descriptor and runs template-only:
+
+```bash
+/gen-eval
+```
+
+With CLI-augmented generation (subscription-covered):
+
+```bash
+/gen-eval --mode cli-augmented --time-budget 30
+```
+
+Against specific categories:
+
+```bash
+/gen-eval --categories lock-lifecycle auth-boundary
+```
+
+## Integration Points
+
+- **`/validate-feature`**: Gen-eval runs as phase `4b` (between smoke and e2e). Auto-detected when descriptors exist.
+- **`/explore-feature`**: Gen-eval report signals (failing interfaces, coverage gaps) feed into feature opportunity ranking.
+- **`/gen-eval-scenario`**: Create new scenario YAML files interactively.
+- **`make gen-eval`**: Makefile shorthand for the most common invocation.
 
 ## Output
 
-- Markdown report: `<output-dir>/gen-eval-report.md`
-- JSON report: `<output-dir>/gen-eval-report.json`
-- Exit code 0 if pass rate meets threshold, 1 otherwise
-- When run via validate-feature, results appear in the validation report under the gen-eval phase
+- `gen-eval-report.md` — Markdown report with pass/fail summary
+- `gen-eval-report.json` — Machine-readable results
+- `gen-eval-metrics.json` — Per-scenario metrics for pipeline integration
+- Exit code 0 if pass rate meets threshold (default 95%), 1 otherwise
