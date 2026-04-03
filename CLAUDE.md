@@ -46,6 +46,8 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 
 - **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
 - **Commit format**: Reference the OpenSpec change-id in commit messages
+- **Commit quality**: Agent-authored PRs use rebase-merge (commits appear individually on main). Write logical, conventional commits — one per task, no WIP fragments. Use `feat(scope):`, `fix(scope):`, `test(scope):`, `docs(scope):` prefixes.
+- **Merge strategy (hybrid)**: Strategy varies by PR origin. Agent PRs (`openspec`, `codex`) default to **rebase-merge** to preserve granular history. Dependency updates (`dependabot`, `renovate`) and automation PRs (`sentinel`, `bolt`, `palette`) default to **squash-merge**. Manual PRs default to squash. Operator can override per-PR via `--strategy` flag.
 - **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
 - **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.

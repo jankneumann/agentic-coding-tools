@@ -408,6 +408,12 @@ Task decomposition in proposals explicitly identifies dependencies and maximizes
 
 Every non-trivial feature starts with an [OpenSpec](https://github.com/fission-ai/openspec) proposal. This creates a traceable record of decisions and requirements. Spec deltas ensure specifications stay updated as features are built.
 
+### Merge strategy is origin-aware
+
+PRs use a **hybrid merge strategy** that varies by origin. Agent-authored PRs (`openspec`, `codex`) use **rebase-merge** to preserve granular commit history — this makes `git blame` point to specific sub-changes and `git bisect` work at commit granularity rather than PR granularity. Dependency updates (`dependabot`, `renovate`) and automation PRs use **squash-merge** to keep main clean. The operator can override per-PR.
+
+This hybrid approach is motivated by the observation that squash-merge's primary benefit (reducing cognitive clutter for humans scanning `git log`) is irrelevant for AI assistants, while its costs (lost history, broken `git branch --merged` detection causing stale branch accumulation) are amplified in agentic workflows. To support rebase-merge, `/implement-feature` requires clean conventional commits — one logical commit per task, not WIP fragments.
+
 ### Cross-agent parity is explicit
 
 Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to plan/apply/validate/archive intent. If one runtime drifts, docs and skill mappings should be corrected before rollout.

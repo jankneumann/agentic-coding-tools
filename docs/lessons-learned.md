@@ -107,3 +107,11 @@ Accumulated patterns and conventions from building and operating this project.
 - **Formal verification as documentation**: Even without TLC/Lake installed locally, TLA+ models and Lean proofs serve as precise, machine-checkable documentation of invariants. The abstract model in `ParallelCoordination.lean` clearly defines what "lock exclusivity" and "dependency safety" mean.
 
 - **Feasibility thresholds need tuning**: The `SEQUENTIAL_THRESHOLD = 0.5` for determining when features must run sequentially vs. partially parallel is a policy knob. Starting conservative (50% overlap → sequential) is safer; teams can relax it as they gain confidence in the conflict resolution mechanisms.
+
+## Git Merge Strategy
+
+- **Squash-merge breaks branch detection in agentic workflows**: `git branch --merged` cannot detect squash-merged branches because the original commits are rewritten into a single new commit. In multi-agent workflows where branches accumulate fast, this causes stale branch buildup — observed during a cleanup session with 23 stale local branches and 15 stale worktrees, all from squash-merged PRs.
+
+- **Origin-aware hybrid strategy**: Agent-authored PRs (`openspec`, `codex`) use rebase-merge to preserve granular commit history; dependency updates and automation PRs use squash-merge. This preserves the benefits of both strategies: agents get richer `git blame`/`bisect` context while dependency bumps stay clean. The strategy is implemented in `merge_pr.py` via `get_default_strategy(origin)`.
+
+- **Commit quality enables rebase-merge**: Rebase-merge only works well when commits are clean. `/implement-feature` requires conventional commits (one per task, `feat(scope):` format) so that preserved history is meaningful. Squash-merge was a workaround for messy human commit habits — agents can just write clean history directly.
