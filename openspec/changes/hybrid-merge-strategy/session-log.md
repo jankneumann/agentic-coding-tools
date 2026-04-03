@@ -71,3 +71,26 @@ The planning session originated from a merge-pull-requests triage where 23 stale
 
 ### Context
 Implementation followed the plan exactly. Three commits: core script change with tests (16 tests, all pass), documentation updates across 6 files, and a lint fix for the test file. All quality checks pass (pytest, openspec validate, ruff on new code).
+
+---
+
+## Phase: Implementation Iteration 1 (2026-04-02)
+
+**Agent**: claude | **Session**: N/A
+
+### Decisions
+1. **Use args.origin directly** — Removed unnecessary `getattr()` wrapper since the argument is always defined via `add_argument`
+2. **Connect origin to discovery output** — Added note in SKILL.md linking `--origin` to `discover_prs.py` output field
+3. **Fix test docstring grouping** — Converted bare string literals to comments for clarity
+
+### Alternatives Considered
+- Adding origin parameter to `merge_pr()` function signature: rejected to minimize scope — CLI-level resolution is sufficient
+
+### Trade-offs
+- Left 2 pre-existing lint issues untouched (unused `safe_author` import, unused `raw` variable) to keep diff focused
+
+### Open Questions
+- None
+
+### Context
+5 findings (3 medium, 2 low). All addressed: removed defensive getattr, clarified SKILL.md origin source, cleaned up test organization. 16 tests still pass.

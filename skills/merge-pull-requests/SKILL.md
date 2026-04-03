@@ -315,7 +315,7 @@ The operator can override any default by passing `--strategy <squash|merge|rebas
 python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --origin <origin>
 ```
 
-Pass `--origin` so the script selects the appropriate strategy automatically. To override:
+Pass `--origin` using the `origin` field from `discover_prs.py` output so the script selects the appropriate strategy automatically. To override:
 
 ```bash
 python3 <agent-skills-dir>/merge-pull-requests/scripts/merge_pr.py merge <pr_number> --origin <origin> --strategy squash

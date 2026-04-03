@@ -18,7 +18,9 @@ from merge_pr import get_default_strategy, resolve_strategy
 
 
 class TestGetDefaultStrategy:
-    """Scenario: Agent-authored PR uses rebase-merge by default."""
+    """Test origin-to-strategy mapping for all PR origins."""
+
+    # Agent-authored origins → rebase
 
     def test_openspec_origin_returns_rebase(self) -> None:
         assert get_default_strategy("openspec") == "rebase"
@@ -26,7 +28,7 @@ class TestGetDefaultStrategy:
     def test_codex_origin_returns_rebase(self) -> None:
         assert get_default_strategy("codex") == "rebase"
 
-    """Scenario: Dependency PR uses squash-merge by default."""
+    # Dependency origins → squash
 
     def test_dependabot_origin_returns_squash(self) -> None:
         assert get_default_strategy("dependabot") == "squash"
@@ -34,7 +36,7 @@ class TestGetDefaultStrategy:
     def test_renovate_origin_returns_squash(self) -> None:
         assert get_default_strategy("renovate") == "squash"
 
-    """Scenario: Automation PR uses squash-merge by default."""
+    # Automation origins → squash
 
     def test_sentinel_origin_returns_squash(self) -> None:
         assert get_default_strategy("sentinel") == "squash"

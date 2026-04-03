@@ -683,7 +683,7 @@ def main():
     check_gh()
 
     if args.action == "merge":
-        strategy = resolve_strategy(args.strategy, getattr(args, "origin", None))
+        strategy = resolve_strategy(args.strategy, args.origin)
         result = merge_pr(args.pr_number, strategy, args.dry_run)
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)
