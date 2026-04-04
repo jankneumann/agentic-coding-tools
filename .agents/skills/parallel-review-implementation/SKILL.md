@@ -44,6 +44,44 @@ The reviewer MUST NOT modify any files.
 
 ## Steps
 
+### 0. Detect Review Mode
+
+Before loading review context, determine the review mode:
+
+```bash
+if [ -f "openspec/changes/$CHANGE_ID/work-packages.yaml" ]; then
+  # Verify the file is valid YAML
+  python3 -c "import yaml; yaml.safe_load(open('openspec/changes/$CHANGE_ID/work-packages.yaml'))" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    REVIEW_MODE="per-package"
+  else
+    REVIEW_MODE="whole-branch"
+    echo "WARNING: work-packages.yaml exists but cannot be parsed. Falling back to whole-branch review."
+  fi
+else
+  REVIEW_MODE="whole-branch"
+fi
+```
+
+**Whole-branch mode**: When `work-packages.yaml` is missing or malformed, treat the entire branch diff as a single review unit. Use `package_id: "whole-branch"` in findings output. Skip Steps 2 (Scope Verification) and conditionally skip Step 3 (Contract Compliance) based on contract availability.
+
+**Per-package mode**: When `work-packages.yaml` exists and is valid, use existing per-package review logic (Steps 1-6 unchanged).
+
+If `REVIEW_MODE` is "whole-branch", skip to Step 1-WB below. Otherwise, continue with Step 1 as normal.
+
+### 1-WB. Load Whole-Branch Review Context
+
+When in whole-branch mode:
+
+1. Compute the full branch diff: `git diff <base>...<head>`
+2. Check for contracts:
+   - If `contracts/` exists AND contains files other than `README.md`: load contract artifacts for compliance review
+   - If `contracts/` is missing or contains only `README.md`: skip contract compliance (Step 3)
+3. Read traced requirements from `specs/**/spec.md`
+4. Set `PACKAGE_ID="whole-branch"` for all findings output
+
+After loading context, skip to Step 3 (if contracts exist) or Step 4 (if no contracts).
+
 ### 1. Load Review Context
 
 Parse the package-id argument and load:
@@ -56,6 +94,8 @@ Parse the package-id argument and load:
 
 ### 2. Scope Verification
 
+**Skip this step in whole-branch mode** (no package scopes to verify).
+
 Before reviewing code quality, verify scope compliance:
 
 - [ ] All modified files are within the package's `write_allow` globs
@@ -65,6 +105,8 @@ Before reviewing code quality, verify scope compliance:
 If scope violations are found, emit a `correctness` finding with `critical` criticality.
 
 ### 3. Contract Compliance Review
+
+**In whole-branch mode**: Skip this step if `contracts/` is missing or contains only `README.md`. If machine-readable contract artifacts exist, perform compliance review against the full branch diff instead of per-package diff.
 
 Check that the implementation matches declared contracts:
 

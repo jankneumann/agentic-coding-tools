@@ -278,9 +278,15 @@ Expected artifacts:
 - `openspec/changes/<change-id>/tasks.md`
 - Optional `openspec/changes/<change-id>/design.md`
 
-### 7. Generate Contracts [local-parallel+]
+### 7. Generate Contracts [all tiers]
 
-**Skip this step if TIER is "sequential".**
+For sequential-tier plans, include only contract sub-types applicable to the feature:
+- OpenAPI contracts if the feature introduces or modifies API endpoints
+- Database contracts if the feature introduces or modifies database schemas
+- Event contracts if the feature introduces or modifies events
+- Type generation stubs derived from the contracts above
+
+If no contract sub-types are applicable (e.g., pure documentation or skill-definition changes), create `contracts/README.md` with a stub documenting which sub-types were evaluated and why none apply. Consuming skills treat a `contracts/` directory containing only `README.md` as "no contracts applicable".
 
 Produce machine-readable interface definitions in `contracts/`. Contracts become the coordination boundary between parallel agents.
 
@@ -314,9 +320,27 @@ contracts/generated/models.py    # Pydantic models from OpenAPI schemas
 contracts/generated/types.ts     # TypeScript interfaces from OpenAPI schemas
 ```
 
-### 8. Generate Work Packages [local-parallel+]
+### 8. Generate Work Packages [all tiers]
 
-**Skip this step if TIER is "sequential".**
+For sequential-tier plans, generate a single `wp-main` package encompassing the full feature scope:
+
+```yaml
+packages:
+  - id: wp-main
+    name: "<feature-name> — full scope"
+    description: "<feature description>"
+    tasks: [all task IDs from tasks.md]
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow: ["**"]
+      read_allow: ["**"]
+    verification: tier_b
+```
+
+This provides a uniform artifact format across all tiers. The `wp-main` package can later be split into parallel packages if the feature is upgraded to local-parallel tier.
+
+For local-parallel and coordinated tiers, decompose tasks into agent-scoped work packages as described below.
 
 Decompose tasks into agent-scoped work packages in `work-packages.yaml`. Follow the schema at `openspec/schemas/work-packages.schema.json`.
 
@@ -373,7 +397,7 @@ Assign verification tier per package: Tier A (full), Tier B (CI), Tier C (static
 
 ### 9. Validate All Artifacts [all tiers]
 
-**Sequential tier:**
+**All tiers:**
 ```bash
 openspec validate <change-id> --strict
 ```
@@ -407,7 +431,7 @@ Use `ttl_minutes=0` for planning claims -- they signal intent without expiring.
 
 ```bash
 git add openspec/changes/<change-id>/
-git commit -m "plan: <change-id> -- proposal, design, specs, tasks$([ "$TIER" != "sequential" ] && echo ", contracts, work-packages")"
+git commit -m "plan: <change-id> -- proposal, design, specs, tasks, contracts, work-packages"
 git push -u origin openspec/<change-id>
 
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
@@ -463,9 +487,9 @@ Present the complete plan to the user:
 - `design.md` -- How (if applicable)
 - `tasks.md` -- Implementation plan
 
-**Additional for local-parallel+ tiers:**
-- `contracts/` -- Machine-readable interfaces
-- `work-packages.yaml` -- Execution plan with DAG
+**All tiers (including sequential):**
+- `contracts/` -- Machine-readable interfaces (or README stub if no interfaces apply)
+- `work-packages.yaml` -- Execution plan (single `wp-main` for sequential, DAG for parallel)
 
 Highlight any assumptions made during artifact generation that were not explicitly confirmed by the user.
 
@@ -489,8 +513,8 @@ If `CAN_HANDOFF=true`, write completion handoff.
 - `openspec/changes/<change-id>/design.md`
 - `openspec/changes/<change-id>/tasks.md`
 - `openspec/changes/<change-id>/specs/**/spec.md`
-- `openspec/changes/<change-id>/contracts/` (local-parallel+ only)
-- `openspec/changes/<change-id>/work-packages.yaml` (local-parallel+ only)
+- `openspec/changes/<change-id>/contracts/`
+- `openspec/changes/<change-id>/work-packages.yaml`
 
 ## Context Slicing for Implementation
 
@@ -502,6 +526,7 @@ When `/implement-feature` dispatches work packages, each agent receives only the
 | Backend packages | `design.md` (backend section) + `contracts/openapi/` + package scope |
 | Frontend packages | `design.md` (frontend section) + `contracts/generated/types.ts` + package scope |
 | `wp-integration` | Full `work-packages.yaml` + all contract artifacts |
+| `wp-main` (sequential) | `proposal.md` + `design.md` (if exists) + `contracts/` + full task list |
 
 ## Next Step
 

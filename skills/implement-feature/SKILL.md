@@ -98,9 +98,13 @@ git branch --show-current  # Should show openspec/<change-id>
 Before implementing, create the traceability skeleton and write failing tests:
 
 1. Read spec delta files from `openspec/changes/<change-id>/specs/`. For each SHALL/MUST clause, create a row in the Requirement Traceability Matrix.
-2. For each row, populate the **Contract Ref** column: map the requirement to the contract file it validates (e.g., `contracts/openapi/v1.yaml#/paths/~1users`, `contracts/events/coordinator.schema.json`). Use `---` if no contract applies.
+2. For each row, populate the **Contract Ref** column:
+   - If `contracts/` exists and contains machine-readable artifacts (not just `README.md`): map the requirement to the contract file it validates (e.g., `contracts/openapi/v1.yaml#/paths/~1users`, `contracts/events/coordinator.schema.json`). Use `---` if no contract applies to this specific requirement.
+   - If `contracts/` exists but contains only `README.md` (no applicable interfaces): use `---` for all contract refs.
+   - If `contracts/` does not exist (legacy change predating universal artifacts): log a warning that contract-based validation was skipped. Use `---` for all contract refs.
+   - If a contract file exists but cannot be parsed (invalid YAML/JSON): log an error identifying the malformed file, skip validation for that contract sub-type, and use `---` for affected contract refs. Do not block implementation on parse failures.
 3. For each row, populate the **Design Decision** column: link to the decision from `design.md` (e.g., `D3`) that this requirement validates. Use `---` if none applies. If `design.md` exists, also populate the Design Decision Trace section.
-4. Write failing tests (RED) for each row in the matrix. Tests MUST assert against contract schemas and design decisions where referenced — not just internal behavior.
+4. Write failing tests (RED) for each row in the matrix. Tests MUST assert against contract schemas and design decisions where referenced — not just internal behavior. For partial contracts (e.g., OpenAPI exists but no DB schema), validate only against the sub-types present.
 
 Use template from `openspec/schemas/feature-workflow/templates/change-context.md`. Write to `openspec/changes/<change-id>/change-context.md`.
 

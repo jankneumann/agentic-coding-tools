@@ -206,9 +206,12 @@ python3 <agent-skills-dir>/merge-pull-requests/scripts/vendor_review.py <pr_numb
 The script:
 1. Computes PR size (additions, deletions, file count)
 2. Checks eligibility against the rules above
-3. If eligible, dispatches to available vendor CLIs (Codex, Gemini) in read-only mode
-4. Synthesizes a consensus report from vendor findings
-5. Outputs JSON with eligibility status and review findings
+3. If eligible, checks for OpenSpec planning artifacts (contracts, work-packages) in the change directory:
+   - If artifacts exist: includes contract and scope information in the review prompt for richer vendor context
+   - If artifacts are missing (legacy PRs, external contributions, non-OpenSpec PRs): proceeds with PR diff and metadata only — review does not fail or skip due to missing artifacts
+4. Dispatches to available vendor CLIs (Codex, Gemini) in read-only mode
+5. Synthesizes a consensus report from vendor findings
+6. Outputs JSON with eligibility status and review findings
 
 **Present findings to the operator** alongside the existing comment analysis in the interactive review step:
 

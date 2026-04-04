@@ -9,7 +9,7 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 |------|------|-------------------|-----------|
 | **Coordinated** | Coordinator available | Contracts + work-packages + resource claims | Multi-agent DAG via coordinator |
 | **Local parallel** | No coordinator, complex feature | Contracts + work-packages (no claims) | DAG via built-in Agent parallelism |
-| **Sequential** | Simple feature | Tasks.md only | Single-agent sequential |
+| **Sequential** | Simple feature | Tasks.md + contracts + work-packages (single package) | Single-agent sequential |
 
 ```
 /explore-feature [focus-area] (optional)               → Candidate shortlist for next work
