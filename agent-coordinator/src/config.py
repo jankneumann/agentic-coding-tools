@@ -336,6 +336,40 @@ class ObservabilityConfig:
 
 
 @dataclass
+class LangfuseConfig:
+    """Langfuse observability configuration.
+
+    Environment variables:
+        LANGFUSE_ENABLED: Enable Langfuse tracing (default: false)
+        LANGFUSE_PUBLIC_KEY: Project public key
+        LANGFUSE_SECRET_KEY: Project secret key
+        LANGFUSE_HOST: Langfuse server URL (default: http://localhost:3050)
+        LANGFUSE_TRACE_API_REQUESTS: Trace coordinator HTTP API requests (default: true)
+        LANGFUSE_DEBUG: Enable debug logging for Langfuse SDK (default: false)
+    """
+
+    enabled: bool = False
+    public_key: str = ""
+    secret_key: str = ""
+    host: str = "http://localhost:3050"
+    trace_api_requests: bool = True
+    debug: bool = False
+
+    @classmethod
+    def from_env(cls) -> LangfuseConfig:
+        return cls(
+            enabled=os.environ.get("LANGFUSE_ENABLED", "false").lower() == "true",
+            public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", "pk-lf-local-coding-agents"),
+            secret_key=os.environ.get("LANGFUSE_SECRET_KEY", "sk-lf-local-coding-agents"),
+            host=os.environ.get("LANGFUSE_HOST", "http://localhost:3050"),
+            trace_api_requests=os.environ.get(
+                "LANGFUSE_TRACE_API_REQUESTS", "true"
+            ).lower() == "true",
+            debug=os.environ.get("LANGFUSE_DEBUG", "false").lower() == "true",
+        )
+
+
+@dataclass
 class PortAllocatorConfig:
     """Port allocator configuration for parallel docker-compose stacks."""
 
@@ -529,6 +563,7 @@ class Config:
     observability: ObservabilityConfig = field(
         default_factory=ObservabilityConfig.from_env
     )
+    langfuse: LangfuseConfig = field(default_factory=LangfuseConfig.from_env)
     openbao: OpenBaoConfig = field(default_factory=OpenBaoConfig.from_env)
     active_profile: str | None = None
     transport: str = "none"

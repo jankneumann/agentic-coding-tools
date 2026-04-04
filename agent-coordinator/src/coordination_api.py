@@ -275,9 +275,11 @@ def create_coordination_api() -> FastAPI:
     from collections.abc import AsyncIterator
     from contextlib import asynccontextmanager
 
+    from .langfuse_tracing import init_langfuse, shutdown_langfuse
     from .telemetry import get_prometheus_app, init_telemetry
 
     init_telemetry()
+    init_langfuse()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -332,7 +334,7 @@ def create_coordination_api() -> FastAPI:
 
         yield
 
-        # Shutdown watchdog, notifier, event bus
+        # Shutdown watchdog, notifier, event bus, langfuse
         try:
             await watchdog.stop()
         except Exception:  # noqa: BLE001
@@ -343,6 +345,10 @@ def create_coordination_api() -> FastAPI:
             pass
         try:
             await event_bus.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            shutdown_langfuse()
         except Exception:  # noqa: BLE001
             pass
 
@@ -357,6 +363,14 @@ def create_coordination_api() -> FastAPI:
     prometheus_app = get_prometheus_app()
     if prometheus_app is not None:
         app.mount("/metrics", prometheus_app)
+
+    # Langfuse request tracing middleware (cloud agent observability)
+    from .langfuse_tracing import get_langfuse
+
+    if get_langfuse() is not None:
+        from .langfuse_middleware import LangfuseTracingMiddleware
+
+        app.add_middleware(LangfuseTracingMiddleware)
 
     # --------------------------------------------------------------------- #
     # FILE LOCKS

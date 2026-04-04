@@ -36,8 +36,143 @@ services:
     profiles:
       - openbao
 
+  # --- Langfuse observability stack ---
+  # Langfuse v3 uses the same Postgres instance (separate database).
+  # Init container creates the langfuse database before the web service starts.
+  langfuse-init-db:
+    image: paradedb/paradedb:v0.22.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        until pg_isready -h postgres -U postgres; do sleep 1; done;
+        psql -h postgres -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'langfuse'\" | grep -q 1 ||
+        psql -h postgres -U postgres -c 'CREATE DATABASE langfuse;'
+      "
+    environment:
+      PGPASSWORD: postgres
+    profiles:
+      - langfuse
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    depends_on:
+      langfuse-init-db:
+        condition: service_completed_successfully
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_started
+    ports:
+      - "${LANGFUSE_PORT:-3050}:3000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/langfuse"
+      NEXTAUTH_URL: "http://localhost:${LANGFUSE_PORT:-3050}"
+      NEXTAUTH_SECRET: "${LANGFUSE_NEXTAUTH_SECRET:-langfuse-dev-secret-change-me}"
+      SALT: "${LANGFUSE_SALT:-langfuse-dev-salt-change-me}"
+      CLICKHOUSE_URL: "http://langfuse-clickhouse:8123"
+      CLICKHOUSE_MIGRATION_URL: "clickhouse://langfuse-clickhouse:9000"
+      REDIS_HOST: "langfuse-redis"
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ""
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: "langfuse"
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: "us-east-1"
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: "langfuse"
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: "langfuse-dev"
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: "http://langfuse-minio:9000"
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_INIT_ORG_ID: "coding-agents"
+      LANGFUSE_INIT_ORG_NAME: "Coding Agents"
+      LANGFUSE_INIT_PROJECT_ID: "agent-coordinator"
+      LANGFUSE_INIT_PROJECT_NAME: "Agent Coordinator"
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: "pk-lf-local-coding-agents"
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: "${LANGFUSE_SECRET_KEY:-sk-lf-local-coding-agents}"
+      LANGFUSE_INIT_USER_EMAIL: "${LANGFUSE_USER_EMAIL:-admin@localhost}"
+      LANGFUSE_INIT_USER_PASSWORD: "${LANGFUSE_USER_PASSWORD:-admin}"
+      LANGFUSE_INIT_USER_NAME: "Admin"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles:
+      - langfuse
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    depends_on:
+      langfuse-web:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/langfuse"
+      CLICKHOUSE_URL: "http://langfuse-clickhouse:8123"
+      CLICKHOUSE_MIGRATION_URL: "clickhouse://langfuse-clickhouse:9000"
+      REDIS_HOST: "langfuse-redis"
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ""
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: "langfuse"
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: "us-east-1"
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: "langfuse"
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: "langfuse-dev"
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: "http://langfuse-minio:9000"
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+    profiles:
+      - langfuse
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:24
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - langfuse
+
+  langfuse-redis:
+    image: redis:7-alpine
+    volumes:
+      - langfuse-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - langfuse
+
+  langfuse-minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: langfuse
+      MINIO_ROOT_PASSWORD: langfuse-dev
+    volumes:
+      - langfuse-minio-data:/data
+    entrypoint: >
+      sh -c "
+        minio server /data --console-address ':9001' &
+        sleep 2;
+        mc alias set local http://localhost:9000 langfuse langfuse-dev;
+        mc mb --ignore-existing local/langfuse;
+        wait
+      "
+    profiles:
+      - langfuse
+
 volumes:
   postgres-data:
+  langfuse-clickhouse-data:
+  langfuse-redis-data:
+  langfuse-minio-data:
 
 # Development notes:
 # - Single-service setup using ParadeDB (Postgres + pg_search + pgvector)
@@ -49,3 +184,11 @@ volumes:
 # For local development, set:
 #   DB_BACKEND=postgres
 #   POSTGRES_DSN=postgresql://postgres:postgres@localhost:54322/postgres
+#
+# Langfuse observability stack (enabled with --profile langfuse):
+#   docker compose --profile langfuse up -d
+# - Reuses the existing Postgres instance (creates a separate 'langfuse' database)
+# - Adds ClickHouse (analytics), Redis (queue), MinIO (blob storage)
+# - Langfuse UI: http://localhost:${LANGFUSE_PORT:-3050}
+# - Default credentials: admin@localhost / admin
+# - API keys: pk-lf-local-coding-agents / sk-lf-local-coding-agents
