@@ -58,7 +58,11 @@ class TestSanitize:
 
     def test_redacts_jwt_tokens(self, hook_module):
         # JWT outside a key=value context
-        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+            ".eyJzdWIiOiIxMjM0NTY3ODkwIn0"
+            ".dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        )
         result = hook_module.sanitize(f"header: {jwt}")
         assert "eyJhbGciOi" not in result
         assert "JWT-REDACTED" in result
