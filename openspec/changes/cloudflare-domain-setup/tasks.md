@@ -2,7 +2,7 @@
 
 ## Phase 1: Cloudflare Zone & DNS Proxy to Railway (Production Path)
 
-- [ ] 1.1 Create `docs/cloudflare-setup.md` — Cloudflare zone setup section
+- [x] 1.1 Create `docs/cloudflare-setup.md` — Cloudflare zone setup section
   **Files**: `docs/cloudflare-setup.md`
   **Spec scenarios**: Cloudflare Zone and DNS Configuration (DNS proxy to Railway, SSL/TLS mode)
   **Description**:
@@ -14,7 +14,7 @@
   - DNS propagation troubleshooting
   **Dependencies**: None
 
-- [ ] 1.2 Document Railway custom domain configuration in `docs/cloudflare-setup.md`
+- [x] 1.2 Document Railway custom domain configuration in `docs/cloudflare-setup.md`
   **Files**: `docs/cloudflare-setup.md`
   **Spec scenarios**: Railway Custom Domain Configuration (Railway accepts custom domain traffic)
   **Description**:
@@ -25,11 +25,11 @@
   - Document fallback: Railway-assigned domain continues working
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write tests for Cloudflare deployment profile loading and inheritance
+- [x] 1.3 Write tests for Cloudflare deployment profile loading and inheritance
   **Spec scenarios**: Cloudflare Deployment Profile (profile loads, inheritance from Railway)
   **Dependencies**: None
 
-- [ ] 1.4 Create `agent-coordinator/profiles/cloudflare.yaml` — deployment profile
+- [x] 1.4 Create `agent-coordinator/profiles/cloudflare.yaml` — deployment profile
   **Files**: `agent-coordinator/profiles/cloudflare.yaml`
   **Spec scenarios**: Cloudflare Deployment Profile (profile loads, inheritance from Railway)
   **Description**:
@@ -39,11 +39,11 @@
   - Documents required environment variables (`CUSTOM_DOMAIN`)
   **Dependencies**: 1.3
 
-- [ ] 1.5 Write tests for custom domain SSRF allowlist validation
+- [x] 1.5 Write tests for custom domain SSRF allowlist validation
   **Spec scenarios**: SSRF Allowlist Custom Domain Support (custom domain, wildcard pattern)
   **Dependencies**: None
 
-- [ ] 1.6 Update SSRF allowlist documentation and examples
+- [x] 1.6 Update SSRF allowlist documentation and examples
   **Files**: `skills/coordination-bridge/scripts/coordination_bridge.py`, `agent-coordinator/.env.example`
   **Spec scenarios**: SSRF Allowlist Custom Domain Support (custom domain, wildcard pattern)
   **Description**:
@@ -52,7 +52,7 @@
   - Test wildcard subdomain pattern (`*.domain.com`) in `_validate_url()`
   **Dependencies**: 1.5
 
-- [ ] 1.7 Update `docs/cloud-deployment.md` — add Cloudflare section
+- [x] 1.7 Update `docs/cloud-deployment.md` — add Cloudflare section
   **Files**: `docs/cloud-deployment.md`
   **Description**:
   - Add "Cloudflare Domain" section alongside existing Railway section
@@ -62,11 +62,11 @@
 
 ## Phase 2: Named Tunnel Configuration (Testing Path)
 
-- [ ] 2.1 Write tests for Cloudflare Tunnel config template validation
+- [x] 2.1 Write tests for Cloudflare Tunnel config template validation
   **Spec scenarios**: Cloudflare Tunnel Configuration (multi-service ingress, catch-all safety)
   **Dependencies**: None
 
-- [ ] 2.2 Create `agent-coordinator/cloudflared/config.yaml` — tunnel config template
+- [x] 2.2 Create `agent-coordinator/cloudflared/config.yaml` — tunnel config template
   **Files**: `agent-coordinator/cloudflared/config.yaml`
   **Spec scenarios**: Cloudflare Tunnel Configuration (multi-service ingress, catch-all safety)
   **Description**:
@@ -76,7 +76,7 @@
   - Comments explaining each section and how to customize
   **Dependencies**: 2.1
 
-- [ ] 2.3 Create `agent-coordinator/cloudflared/.gitignore` — exclude credentials
+- [x] 2.3 Create `agent-coordinator/cloudflared/.gitignore` — exclude credentials
   **Files**: `agent-coordinator/cloudflared/.gitignore`
   **Description**:
   - Ignore `*.json` (credentials files)
@@ -84,11 +84,11 @@
   - Keep `config.yaml` tracked
   **Dependencies**: None
 
-- [ ] 2.4 Write tests for docker-compose cloudflared service configuration
+- [x] 2.4 Write tests for docker-compose cloudflared service configuration
   **Spec scenarios**: Docker Compose Cloudflared Service (start with profile, default excludes)
   **Dependencies**: None
 
-- [ ] 2.5 Add `cloudflared` service to `agent-coordinator/docker-compose.yml`
+- [x] 2.5 Add `cloudflared` service to `agent-coordinator/docker-compose.yml`
   **Files**: `agent-coordinator/docker-compose.yml`
   **Spec scenarios**: Docker Compose Cloudflared Service (start with profile, default excludes)
   **Description**:
@@ -99,7 +99,7 @@
   - Depends on postgres (start order)
   **Dependencies**: 2.2, 2.4
 
-- [ ] 2.6 Add tunnel setup section to `docs/cloudflare-setup.md`
+- [x] 2.6 Add tunnel setup section to `docs/cloudflare-setup.md`
   **Files**: `docs/cloudflare-setup.md`
   **Spec scenarios**: Cloudflare Tunnel Configuration (multi-service ingress), Tunnel Health Verification (health check, MCP SSE)
   **Description**:
@@ -114,7 +114,7 @@
 
 ## Phase 3: Agent Configuration & Secret Management
 
-- [ ] 3.1 Add cloud agent connection examples to `docs/cloudflare-setup.md`
+- [x] 3.1 Add cloud agent connection examples to `docs/cloudflare-setup.md`
   **Files**: `docs/cloudflare-setup.md`
   **Description**:
   - Example: `COORDINATION_API_URL=https://coord.<domain>`
@@ -123,7 +123,7 @@
   - Document that agent configs are the same regardless of whether backend is Railway or tunnel
   **Dependencies**: 1.1
 
-- [ ] 3.2 Document secret management strategy in `docs/cloudflare-setup.md`
+- [x] 3.2 Document secret management strategy in `docs/cloudflare-setup.md`
   **Files**: `docs/cloudflare-setup.md`
   **Description**:
   - Recommended path: Railway env vars for production secrets
@@ -134,14 +134,14 @@
 
 ## Phase 4: Verification
 
-- [ ] 4.1 Run SSRF allowlist tests to confirm custom domain acceptance
+- [x] 4.1 Run SSRF allowlist tests to confirm custom domain acceptance
   **Dependencies**: 1.5, 1.6
 
-- [ ] 4.2 Validate profile loading with cloudflare profile
+- [x] 4.2 Validate profile loading with cloudflare profile
   **Dependencies**: 1.3, 1.4
 
-- [ ] 4.3 Validate docker-compose config with `docker compose --profile cloudflared config`
+- [x] 4.3 Validate docker-compose config with `docker compose --profile cloudflared config`
   **Dependencies**: 2.5
 
-- [ ] 4.4 Validate openspec specs: `openspec validate cloudflare-domain-setup --strict`
+- [x] 4.4 Validate openspec specs: `openspec validate cloudflare-domain-setup --strict`
   **Dependencies**: All previous phases
