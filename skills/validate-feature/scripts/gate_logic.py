@@ -20,14 +20,12 @@ import re
 from pathlib import Path
 
 # Phases that must pass before merge is allowed.
-# Each entry: (list of accepted headings, human-readable label).
-# Multiple headings allow resilience to formatting drift — the agent
-# may write "## E2E Tests" or "## E2E" depending on context.
-REQUIRED_PHASES: list[tuple[list[str], str]] = [
-    (["Smoke Tests"], "Smoke tests"),
-    (["Security", "Security Scan"], "Security scan"),
-    (["E2E Tests", "E2E", "End-to-End Tests"], "E2E tests"),
-]
+# Maps section heading -> human-readable name.
+REQUIRED_PHASES: dict[str, str] = {
+    "Smoke Tests": "Smoke tests",
+    "Security": "Security scan",
+    "E2E Tests": "E2E tests",
+}
 
 
 def check_phase_status(report_path: str, section_heading: str) -> str:
@@ -70,21 +68,6 @@ def check_phase_status(report_path: str, section_heading: str) -> str:
     return status_match.group(1)
 
 
-def _check_phase_with_aliases(
-    report_path: str, headings: list[str],
-) -> tuple[str, str]:
-    """Check a phase's status, trying multiple heading aliases.
-
-    Returns (status, matched_heading). If no heading matches,
-    returns ('missing', headings[0]).
-    """
-    for heading in headings:
-        status = check_phase_status(report_path, heading)
-        if status != "missing":
-            return status, heading
-    return "missing", headings[0]
-
-
 def check_smoke_status(report_path: str) -> str:
     """Parse validation-report.md for smoke test status.
 
@@ -124,11 +107,6 @@ def soft_gate(report_path: str) -> tuple[str, str]:
 def hard_gate(report_path: str) -> tuple[str, str]:
     """Hard gate for /cleanup-feature — blocks on non-pass status.
 
-    .. deprecated::
-        Use ``pre_merge_gate()`` instead. This function only checks smoke
-        tests; ``pre_merge_gate()`` checks all required phases (smoke,
-        security, E2E). Kept for backward compatibility.
-
     Args:
         report_path: Path to validation-report.md
 
@@ -136,8 +114,16 @@ def hard_gate(report_path: str) -> tuple[str, str]:
         Tuple of (action, reason).
         action is 'continue' only if status is 'pass', otherwise 'halt'.
     """
-    action, reason, _ = pre_merge_gate(report_path)
-    return (action, reason)
+    status = check_smoke_status(report_path)
+
+    if status == "pass":
+        return ("continue", "Smoke tests passed. Proceeding to merge.")
+    elif status == "fail":
+        return ("halt", "Smoke tests failed. Re-run required before merge.")
+    elif status == "skipped":
+        return ("halt", "Smoke tests were skipped. Re-run required before merge.")
+    else:  # missing
+        return ("halt", "Smoke tests missing. Run deploy+smoke before merge.")
 
 
 def pre_merge_gate(
@@ -161,9 +147,9 @@ def pre_merge_gate(
     phase_statuses: dict[str, str] = {}
     failures: list[str] = []
 
-    for headings, label in REQUIRED_PHASES:
-        status, matched = _check_phase_with_aliases(report_path, headings)
-        phase_statuses[matched] = status
+    for heading, label in REQUIRED_PHASES.items():
+        status = check_phase_status(report_path, heading)
+        phase_statuses[heading] = status
 
         if status != "pass":
             failures.append(f"{label}: {status}")

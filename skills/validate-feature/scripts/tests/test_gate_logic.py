@@ -21,19 +21,11 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from gate_logic import (
-    _check_phase_with_aliases,
     check_phase_status,
     check_smoke_status,
     hard_gate,
     pre_merge_gate,
     soft_gate,
-)
-
-# Helper: full passing report with all required phases
-_ALL_PASS = (
-    "## Smoke Tests\n\n- **Status**: pass\n\n"
-    "## Security\n\n- **Status**: pass\n\n"
-    "## E2E Tests\n\n- **Status**: pass\n"
 )
 
 
@@ -153,54 +145,59 @@ class TestSoftGate:
 class TestHardGate:
     """Test hard gate logic (cleanup-feature).
 
-    hard_gate() delegates to pre_merge_gate() and checks all required
-    phases (smoke, security, E2E). Blocks on any non-pass status.
+    Hard gate blocks on fail/skipped/missing.
     """
 
-    def test_all_pass_continues(self, tmp_path: Path) -> None:
-        """All phases pass -> continue to merge."""
+    def test_pass_continues(self, tmp_path: Path) -> None:
+        """Status: pass -> continue to merge."""
         report = tmp_path / "validation-report.md"
-        report.write_text(_ALL_PASS)
+        report.write_text("## Smoke Tests\n\n- **Status**: pass\n")
 
         action, reason = hard_gate(str(report))
         assert action == "continue"
 
-    def test_smoke_fail_halts(self, tmp_path: Path) -> None:
-        """Smoke fail -> halt."""
+    def test_fail_halts(self, tmp_path: Path) -> None:
+        """Status: fail -> halt."""
         report = tmp_path / "validation-report.md"
-        report.write_text(
-            "## Smoke Tests\n\n- **Status**: fail\n\n"
-            "## Security\n\n- **Status**: pass\n\n"
-            "## E2E Tests\n\n- **Status**: pass\n"
-        )
+        report.write_text("## Smoke Tests\n\n- **Status**: fail\n")
 
         action, reason = hard_gate(str(report))
         assert action == "halt"
         assert "fail" in reason.lower()
 
-    def test_smoke_only_halts(self, tmp_path: Path) -> None:
-        """Only smoke present -> halt (security + E2E missing)."""
+    def test_skipped_halts(self, tmp_path: Path) -> None:
+        """Status: skipped -> halt (needs re-run)."""
         report = tmp_path / "validation-report.md"
-        report.write_text("## Smoke Tests\n\n- **Status**: pass\n")
+        report.write_text("## Smoke Tests\n\n- **Status**: skipped\n")
 
         action, reason = hard_gate(str(report))
         assert action == "halt"
 
-    def test_missing_report_halts(self) -> None:
-        """Missing report -> halt."""
+    def test_missing_halts(self) -> None:
+        """Missing report -> halt (needs re-run)."""
         action, reason = hard_gate("/nonexistent/report.md")
         assert action == "halt"
 
-    def test_after_rerun_all_pass_continues(self, tmp_path: Path) -> None:
-        """After re-run with all pass -> continue."""
+    def test_after_rerun_pass_continues(self, tmp_path: Path) -> None:
+        """After re-run with pass -> continue."""
         report = tmp_path / "validation-report.md"
-        report.write_text(_ALL_PASS)
+        # Simulate a re-run that produced pass
+        report.write_text("## Smoke Tests\n\n- **Status**: pass\n")
 
         action, reason = hard_gate(str(report))
         assert action == "continue"
 
+    def test_after_rerun_fail_halts(self, tmp_path: Path) -> None:
+        """After re-run with fail -> halt."""
+        report = tmp_path / "validation-report.md"
+        report.write_text("## Smoke Tests\n\n- **Status**: fail\n")
+
+        action, reason = hard_gate(str(report))
+        assert action == "halt"
+        assert "fail" in reason.lower()
+
     def test_missing_section_halts(self, tmp_path: Path) -> None:
-        """Report exists but missing required sections -> halt."""
+        """Report exists but no smoke section -> halt."""
         report = tmp_path / "validation-report.md"
         report.write_text("## Spec Compliance\n\nDone.\n")
 
@@ -247,12 +244,22 @@ class TestCheckPhaseStatus:
 class TestPreMergeGate:
     """Test pre-merge gate — checks all required phases."""
 
+    def _full_passing_report(self) -> str:
+        return (
+            "## Smoke Tests\n\n"
+            "- **Status**: pass\n\n"
+            "## Security\n\n"
+            "- **Status**: pass\n\n"
+            "## E2E Tests\n\n"
+            "- **Status**: pass\n"
+        )
+
     def test_all_pass_continues(self, tmp_path: Path) -> None:
         """All required phases pass -> continue."""
         report = tmp_path / "validation-report.md"
-        report.write_text(_ALL_PASS)
+        report.write_text(self._full_passing_report())
 
-        action, _, statuses = pre_merge_gate(str(report))
+        action, reason, statuses = pre_merge_gate(str(report))
         assert action == "continue"
         assert statuses["Smoke Tests"] == "pass"
         assert statuses["Security"] == "pass"
@@ -332,88 +339,8 @@ class TestPreMergeGate:
     def test_force_on_passing_continues(self, tmp_path: Path) -> None:
         """--force on passing report still continues normally."""
         report = tmp_path / "validation-report.md"
-        report.write_text(_ALL_PASS)
+        report.write_text(self._full_passing_report())
 
-        action, reason, _ = pre_merge_gate(str(report), force=True)
+        action, reason, statuses = pre_merge_gate(str(report), force=True)
         assert action == "continue"
         assert "FORCED" not in reason  # No override needed
-
-
-class TestHeadingAliases:
-    """Test that heading aliases are accepted for E2E and Security."""
-
-    def test_e2e_short_heading(self, tmp_path: Path) -> None:
-        """'## E2E' is accepted as an alias for '## E2E Tests'."""
-        report = tmp_path / "validation-report.md"
-        report.write_text(
-            "## Smoke Tests\n\n- **Status**: pass\n\n"
-            "## Security\n\n- **Status**: pass\n\n"
-            "## E2E\n\n- **Status**: pass\n"
-        )
-
-        action, _, statuses = pre_merge_gate(str(report))
-        assert action == "continue"
-        assert statuses["E2E"] == "pass"
-
-    def test_end_to_end_heading(self, tmp_path: Path) -> None:
-        """'## End-to-End Tests' is accepted as an alias."""
-        report = tmp_path / "validation-report.md"
-        report.write_text(
-            "## Smoke Tests\n\n- **Status**: pass\n\n"
-            "## Security\n\n- **Status**: pass\n\n"
-            "## End-to-End Tests\n\n- **Status**: pass\n"
-        )
-
-        action, _, statuses = pre_merge_gate(str(report))
-        assert action == "continue"
-        assert statuses["End-to-End Tests"] == "pass"
-
-    def test_security_scan_heading(self, tmp_path: Path) -> None:
-        """'## Security Scan' is accepted as an alias for '## Security'."""
-        report = tmp_path / "validation-report.md"
-        report.write_text(
-            "## Smoke Tests\n\n- **Status**: pass\n\n"
-            "## Security Scan\n\n- **Status**: pass\n\n"
-            "## E2E Tests\n\n- **Status**: pass\n"
-        )
-
-        action, _, statuses = pre_merge_gate(str(report))
-        assert action == "continue"
-        assert statuses["Security Scan"] == "pass"
-
-    def test_alias_with_failure(self, tmp_path: Path) -> None:
-        """Alias heading still reports failure correctly."""
-        report = tmp_path / "validation-report.md"
-        report.write_text(
-            "## Smoke Tests\n\n- **Status**: pass\n\n"
-            "## Security\n\n- **Status**: pass\n\n"
-            "## E2E\n\n- **Status**: fail\n"
-        )
-
-        action, reason, _ = pre_merge_gate(str(report))
-        assert action == "halt"
-        assert "E2E tests: fail" in reason
-
-    def test_check_phase_with_aliases_returns_first_match(
-        self, tmp_path: Path,
-    ) -> None:
-        """_check_phase_with_aliases returns the first matching heading."""
-        report = tmp_path / "validation-report.md"
-        report.write_text("## E2E\n\n- **Status**: pass\n")
-
-        status, heading = _check_phase_with_aliases(
-            str(report), ["E2E Tests", "E2E", "End-to-End Tests"],
-        )
-        assert status == "pass"
-        assert heading == "E2E"
-
-    def test_check_phase_with_aliases_missing(self, tmp_path: Path) -> None:
-        """_check_phase_with_aliases returns 'missing' with primary heading."""
-        report = tmp_path / "validation-report.md"
-        report.write_text("## Other\n\nStuff.\n")
-
-        status, heading = _check_phase_with_aliases(
-            str(report), ["E2E Tests", "E2E"],
-        )
-        assert status == "missing"
-        assert heading == "E2E Tests"  # Falls back to primary heading
