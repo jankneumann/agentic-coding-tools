@@ -24,3 +24,37 @@
 
 ### Context
 Planned Cloudflare Tunnel setup for coordinator service mesh. User has a domain on Cloudflare already. The codebase's SSRF allowlist and profile system already support custom domains, so this change is primarily infrastructure config, Docker Compose integration, and documentation.
+
+---
+
+## Phase: Plan Revision 2 (2026-04-04)
+
+**Agent**: claude_code | **Session**: current
+
+### Decisions
+1. **Flipped approach priority** — DNS Proxy to Railway is now the primary production path (not a fallback). Operator has no always-on home server for the next 2-3 months, so Railway must remain the backend.
+2. **Both paths in parallel** — DNS proxy to Railway (production) + Named Tunnel to laptop (testing). Both implemented simultaneously so they can be validated side-by-side.
+3. **Cloudflare profile extends Railway** — New `profiles/cloudflare.yaml` inherits from `railway.yaml` (not base), adding only the custom domain SSRF allowlist override. Railway settings (DSN, host, port, workers) are inherited.
+4. **Railway env vars for secrets** — Not running shared OpenBao behind Cloudflare. Railway dashboard for production secrets, local `.env` + OpenBao for dev. Revisit when home server is available.
+5. **Cloudflare zone setup needed** — Domain exists but is not yet added to Cloudflare. Runbook includes zone setup steps.
+6. **Tailscale Funnel evaluated and rejected** — Cannot proxy to Railway (Funnel only exposes local services), single hostname with path-based routing, no edge security. Tailscale is complementary for private mesh, not suitable as public edge.
+7. **Local-only users unaffected** — Cloudflare setup is purely additive. `profiles/local.yaml` and `check_coordinator.py` defaults continue working unchanged.
+8. **Coordinated tier** — Coordinator available, but feature is mostly config/docs with two parallel work packages (DNS proxy + tunnel).
+
+### Alternatives Considered
+- Named Tunnel as primary (original plan): deferred because no always-on server for 2-3 months
+- Tailscale Funnel: rejected — cannot proxy to Railway, port restrictions (443/8443/10000 only), no edge security
+- Railway-only custom domain (no Cloudflare proxy): rejected — no edge security, no tunnel testing path
+
+### Trade-offs
+- Accepted continued Railway hosting cost (2-3 months) over coordinator downtime when laptop is off
+- Accepted two deployment configs (proxy + tunnel) over a single path — enables parallel validation
+- Accepted Railway env vars over shared OpenBao — simpler, sufficient for single-service deployment
+
+### Open Questions
+- [ ] Does Railway plan support custom domains? Need to verify before implementation
+- [ ] MCP SSE through Cloudflare proxy — needs testing for buffering/timeout behavior
+- [ ] Wildcard subdomain matching in SSRF allowlist code (`*.domain.com`)
+
+### Context
+Revised the plan from PR #67 based on operator constraint: no always-on home server for 2-3 months. Flipped DNS proxy to Railway as primary production path, kept named tunnel as parallel testing path. Added Cloudflare zone setup (domain not yet added to CF), Tailscale comparison, and secret management strategy. The future migration to own server is a DNS record swap — no agent config changes needed.

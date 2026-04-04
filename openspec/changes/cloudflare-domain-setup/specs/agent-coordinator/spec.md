@@ -2,6 +2,51 @@
 
 ## ADDED Requirements
 
+### Requirement: Cloudflare Zone and DNS Configuration
+
+The operator runbook SHALL document how to add a domain to Cloudflare, configure the DNS zone, and create subdomain records pointing to the Railway backend through Cloudflare's proxy.
+
+#### Scenario: DNS proxy to Railway
+- **WHEN** the operator creates a CNAME record for `coord.<domain>` pointing to the Railway domain
+- **AND** Cloudflare proxy is enabled (orange cloud)
+- **THEN** traffic to `coord.<domain>` SHALL be proxied through Cloudflare to Railway
+- **AND** the response SHALL include a `CF-Ray` header confirming Cloudflare edge routing
+
+#### Scenario: SSL/TLS mode
+- **WHEN** the Cloudflare zone is configured with SSL mode "Full (Strict)"
+- **THEN** traffic between Cloudflare and Railway SHALL be encrypted end-to-end
+- **AND** Cloudflare SHALL terminate TLS at the edge and re-encrypt to the origin
+
+---
+
+### Requirement: Cloudflare Deployment Profile
+
+The coordinator SHALL provide a deployment profile (`profiles/cloudflare.yaml`) that extends the Railway profile and configures environment variables for Cloudflare-proxied access.
+
+#### Scenario: Profile loads with custom domain
+- **WHEN** the profile is loaded with `CUSTOM_DOMAIN` set
+- **THEN** `coordination_allowed_hosts` SHALL include the coordinator subdomain (e.g., `coord.<domain>`)
+- **AND** the transport SHALL be set to `http`
+
+#### Scenario: Profile inheritance from Railway
+- **WHEN** the cloudflare profile is loaded
+- **THEN** it SHALL inherit Railway settings (Postgres DSN, API host/port, workers)
+- **AND** it SHALL override only Cloudflare-specific fields (allowed hosts)
+
+---
+
+### Requirement: Railway Custom Domain Configuration
+
+The operator runbook SHALL document how to configure Railway to accept traffic on the custom domain, including any required DNS verification and TLS certificate setup.
+
+#### Scenario: Railway accepts custom domain traffic
+- **WHEN** the custom domain is configured in Railway's service settings
+- **AND** DNS verification is complete
+- **THEN** Railway SHALL serve coordinator API responses for requests to `coord.<domain>`
+- **AND** the existing Railway-assigned domain SHALL continue to work as a fallback
+
+---
+
 ### Requirement: Cloudflare Tunnel Configuration
 
 The coordinator project SHALL include a templateable Cloudflare Tunnel configuration file that routes multiple subdomains to local coordinator services through a single named tunnel.
@@ -20,25 +65,9 @@ The coordinator project SHALL include a templateable Cloudflare Tunnel configura
 
 ---
 
-### Requirement: Cloudflare Tunnel Deployment Profile
-
-The coordinator SHALL provide a deployment profile (`profiles/cloudflare-tunnel.yaml`) that extends the base profile and configures environment variables for tunnel-based access.
-
-#### Scenario: Profile loads with custom domain
-- **WHEN** the profile is loaded with `CUSTOM_DOMAIN` set
-- **THEN** `coordination_allowed_hosts` SHALL include the coordinator subdomain
-- **AND** the transport SHALL be set to `http`
-
-#### Scenario: Profile inheritance
-- **WHEN** the cloudflare-tunnel profile is loaded
-- **THEN** it SHALL inherit all settings from the base profile
-- **AND** it SHALL override only tunnel-specific fields (allowed hosts, transport)
-
----
-
 ### Requirement: Docker Compose Cloudflared Service
 
-The docker-compose configuration SHALL include a `cloudflared` service under an optional Docker Compose profile, so operators can start the tunnel alongside other services.
+The docker-compose configuration SHALL include a `cloudflared` service under an optional Docker Compose profile, so operators can start the tunnel alongside other services for local testing.
 
 #### Scenario: Start tunnel with Docker Compose profile
 - **WHEN** `docker compose --profile cloudflared up` is executed
@@ -52,26 +81,9 @@ The docker-compose configuration SHALL include a `cloudflared` service under an 
 
 ---
 
-### Requirement: Standalone Tunnel Service Documentation
-
-The operator runbook SHALL document how to install cloudflared as a standalone system service on Linux (systemd) and macOS (launchd).
-
-#### Scenario: Systemd service installation
-- **WHEN** the operator follows the systemd installation steps
-- **THEN** cloudflared SHALL be registered as a system service
-- **AND** it SHALL start automatically on boot
-- **AND** it SHALL use the project's tunnel config file
-
-#### Scenario: Launchd service installation
-- **WHEN** the operator follows the launchd installation steps
-- **THEN** cloudflared SHALL be registered as a launch agent
-- **AND** it SHALL start automatically on login
-
----
-
 ### Requirement: SSRF Allowlist Custom Domain Support
 
-The coordination bridge's SSRF allowlist documentation SHALL include examples for Cloudflare custom domains alongside the existing Railway examples.
+The coordination bridge's SSRF allowlist SHALL accept Cloudflare custom domains when configured via `COORDINATION_ALLOWED_HOSTS`, with documentation examples alongside the existing Railway examples.
 
 #### Scenario: Custom domain in SSRF allowlist
 - **WHEN** `COORDINATION_ALLOWED_HOSTS` includes `coord.customdomain.com`
@@ -86,15 +98,20 @@ The coordination bridge's SSRF allowlist documentation SHALL include examples fo
 
 ### Requirement: Tunnel Health Verification
 
-The operator runbook SHALL include verification steps to confirm the tunnel is working correctly for all exposed services.
+The operator runbook SHALL include verification steps to confirm connectivity works correctly through both the DNS proxy path and the tunnel path.
 
-#### Scenario: Health check through tunnel
+#### Scenario: Health check through Cloudflare proxy
 - **WHEN** the operator runs `curl https://coord.<domain>/health`
 - **THEN** the response SHALL be HTTP 200 with a valid health payload
-- **AND** the response SHALL be served through Cloudflare (CF-Ray header present)
+- **AND** the response SHALL include a `CF-Ray` header
+
+#### Scenario: Health check through tunnel
+- **WHEN** the tunnel is running and the operator runs `curl https://coord.<domain>/health`
+- **THEN** the response SHALL be HTTP 200 served from the local coordinator
+- **AND** the response SHALL include a `CF-Ray` header
 
 #### Scenario: MCP SSE through tunnel
-- **WHEN** a cloud agent connects to `https://mcp.<domain>/sse`
+- **WHEN** a cloud agent connects to `https://mcp.<domain>/sse` through the tunnel
 - **THEN** the SSE connection SHALL be established successfully
 - **AND** the agent SHALL be able to send and receive MCP messages
 
@@ -104,14 +121,14 @@ The operator runbook SHALL include verification steps to confirm the tunnel is w
 
 ### Requirement: SSRF Allowlist Documentation
 
-The coordination bridge MUST document how to configure `COORDINATION_ALLOWED_HOSTS` for cloud deployment URLs beyond the default localhost allowlist.
+The coordination bridge MUST document how to configure `COORDINATION_ALLOWED_HOSTS` for cloud deployment URLs, covering Railway domains, Cloudflare custom domains, and wildcard patterns.
 
 #### Scenario: Cloud URL in SSRF allowlist
 - **WHEN** `COORDINATION_ALLOWED_HOSTS` includes the deployment hostname (Railway or custom domain)
 - **THEN** the coordination bridge SHALL allow HTTP requests to that host
 - **AND** requests to unlisted hosts SHALL still be blocked
 
-#### Scenario: Cloudflare Tunnel domain in SSRF allowlist
-- **WHEN** `COORDINATION_ALLOWED_HOSTS` includes a Cloudflare Tunnel custom domain
+#### Scenario: Cloudflare custom domain in SSRF allowlist
+- **WHEN** `COORDINATION_ALLOWED_HOSTS` includes a Cloudflare custom domain
 - **THEN** the coordination bridge SHALL allow HTTP requests to that domain
 - **AND** the existing Railway hostname support SHALL remain unchanged
