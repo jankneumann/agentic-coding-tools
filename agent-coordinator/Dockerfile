@@ -12,11 +12,11 @@ WORKDIR /app
 # Install uv package manager
 RUN pip install --no-cache-dir uv
 
-# Copy dependency manifests first (layer caching)
+# Copy dependency manifests (layer caching)
 COPY pyproject.toml uv.lock* ./
 
-# Install production dependencies (all extras, no dev deps)
-RUN uv sync --all-extras --no-dev
+# hatchling requires README.md for metadata validation even with --no-install-project
+RUN touch README.md && uv sync --all-extras --no-dev --no-install-project
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only venv + source

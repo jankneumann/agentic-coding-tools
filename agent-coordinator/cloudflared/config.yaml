@@ -1,0 +1,27 @@
+# Cloudflare Tunnel configuration for coordinator service mesh.
+#
+# Replace placeholders before use:
+#   TUNNEL_UUID       — from `cloudflared tunnel create coordinator`
+#   CREDENTIALS_FILE  — path to <tunnel-uuid>.json (created during tunnel create)
+#   CUSTOM_DOMAIN     — your Cloudflare domain (e.g., example.com)
+#
+# See docs/cloudflare-setup.md for full setup instructions.
+
+tunnel: ${TUNNEL_UUID}
+credentials-file: ${CREDENTIALS_FILE}
+
+ingress:
+  # Coordinator HTTP API (FastAPI on port 8081)
+  - hostname: coord.${CUSTOM_DOMAIN}
+    service: http://localhost:8081
+
+  # MCP SSE transport (for cloud agents using MCP over SSE)
+  - hostname: mcp.${CUSTOM_DOMAIN}
+    service: http://localhost:8082
+
+  # OpenBao secret manager (dev mode on port 8200)
+  - hostname: vault.${CUSTOM_DOMAIN}
+    service: http://localhost:8200
+
+  # Catch-all: return 404 for unrecognized hostnames
+  - service: http_status:404
