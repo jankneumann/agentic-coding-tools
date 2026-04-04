@@ -373,7 +373,7 @@ gen-eval: ## Run gen-eval in template-only mode (fast, no LLM)
 	fi
 	@echo "=== Gen-Eval ($(GENEVAL_MODE)) ==="
 	@cd $(GENEVAL_DIR) && $(GENEVAL_PYTHON) -m evaluation.gen_eval \
-		--descriptor evaluation/gen_eval/descriptors/agent-coordinator.yaml \
+		--descriptor $(patsubst $(GENEVAL_DIR)/%,%,$(GENEVAL_DESCRIPTOR)) \
 		--mode $(GENEVAL_MODE) \
 		--parallel $(GENEVAL_PARALLEL) \
 		--no-services \

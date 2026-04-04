@@ -290,3 +290,155 @@ class TestGetReportSummary:
         assert result["pass_rate"] == 0.9
         assert result["failing_interfaces"] == ["/locks/release"]
         assert "lock-lifecycle" in result["categories_below_threshold"]
+
+    @pytest.mark.asyncio
+    async def test_corrupted_report(self) -> None:
+        """Corrupted JSON report should return None, not crash."""
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        base = root / "evaluation" / "gen_eval"
+        base.mkdir(parents=True)
+        (root / "gen-eval-report.json").write_text("{invalid json content")
+
+        svc = GenEvalMCPService(base_dir=base)
+        result = await svc.get_report_summary()
+        assert result is None
+
+
+class TestListScenariosEdgeCases:
+    @pytest.mark.asyncio
+    async def test_malformed_yaml(self, tmp_path: Path) -> None:
+        """Malformed YAML files should be skipped, not crash."""
+        scenarios_dir = tmp_path / "scenarios" / "bad-category"
+        scenarios_dir.mkdir(parents=True)
+        (scenarios_dir / "broken.yaml").write_text(": [invalid yaml {{")
+
+        svc = GenEvalMCPService(base_dir=tmp_path)
+        result = await svc.list_scenarios()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_non_dict_yaml(self, tmp_path: Path) -> None:
+        """YAML that parses to a non-dict should be skipped."""
+        scenarios_dir = tmp_path / "scenarios" / "bad-category"
+        scenarios_dir.mkdir(parents=True)
+        (scenarios_dir / "list.yaml").write_text("- item1\n- item2\n")
+
+        svc = GenEvalMCPService(base_dir=tmp_path)
+        result = await svc.list_scenarios()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_empty_scenarios_dir(self, tmp_path: Path) -> None:
+        """Empty scenarios directory should return empty list."""
+        (tmp_path / "scenarios").mkdir()
+        svc = GenEvalMCPService(base_dir=tmp_path)
+        result = await svc.list_scenarios()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_no_scenarios_dir(self, tmp_path: Path) -> None:
+        """Missing scenarios directory should return empty list."""
+        svc = GenEvalMCPService(base_dir=tmp_path)
+        result = await svc.list_scenarios()
+        assert result == []
+
+
+class TestValidateScenarioEdgeCases:
+    @pytest.mark.asyncio
+    async def test_structured_pydantic_errors(self, service: GenEvalMCPService) -> None:
+        """Pydantic errors should produce structured field-level messages."""
+        yaml_content = textwrap.dedent("""\
+            id: bad
+            name: Missing fields
+            description: Test
+            category: test
+            interfaces: [http]
+            steps:
+              - id: s1
+                transport: invalid_transport
+        """)
+        result = await service.validate_scenario(yaml_content)
+        assert result.valid is False
+        assert len(result.errors) > 0
+        # Errors should mention the field path
+        error_text = " ".join(result.errors)
+        assert "transport" in error_text.lower() or "input" in error_text.lower()
+
+    @pytest.mark.asyncio
+    async def test_yaml_parse_error(self, service: GenEvalMCPService) -> None:
+        """YAML syntax errors should mention 'YAML parse error'."""
+        result = await service.validate_scenario("key: [bad: yaml: {{")
+        assert result.valid is False
+        assert any("YAML parse error" in e for e in result.errors)
+
+
+class TestCreateScenarioEdgeCases:
+    @pytest.mark.asyncio
+    async def test_cli_interface_gets_cleanup(self, service: GenEvalMCPService) -> None:
+        """Scenarios with CLI transport should include cleanup steps."""
+        result = await service.create_scenario(
+            category="work-queue",
+            description="Submit task via CLI",
+            interfaces=["cli"],
+        )
+        assert "cleanup" in result["yaml"]
+
+    @pytest.mark.asyncio
+    async def test_db_only_no_cleanup(self, service: GenEvalMCPService) -> None:
+        """DB-only scenarios should not include cleanup (read-only)."""
+        result = await service.create_scenario(
+            category="test",
+            description="Verify row count",
+            interfaces=["db"],
+        )
+        assert "cleanup" not in result["yaml"]
+
+    @pytest.mark.asyncio
+    async def test_slugify_special_chars(self, service: GenEvalMCPService) -> None:
+        """Descriptions with special chars should produce safe slugs."""
+        result = await service.create_scenario(
+            category="test",
+            description="Test with $pecial & chars!",
+            interfaces=["http"],
+        )
+        assert result["scenario_id"] == "test-test-with-pecial-chars"
+        validate = await service.validate_scenario(result["yaml"])
+        assert validate.valid is True
+
+    @pytest.mark.asyncio
+    async def test_empty_description_slug(self, service: GenEvalMCPService) -> None:
+        """Empty or all-special-char descriptions should get 'unnamed' slug."""
+        result = await service.create_scenario(
+            category="test",
+            description="!!!",
+            interfaces=["http"],
+        )
+        assert "unnamed" in result["scenario_id"]
+
+
+class TestRunEvaluation:
+    @pytest.mark.asyncio
+    async def test_invalid_mode(self, service: GenEvalMCPService) -> None:
+        """Invalid mode should return structured error."""
+        result = await service.run_evaluation(mode="invalid")
+        assert result["success"] is False
+        assert "Invalid mode" in result["error"]
+        assert result["report"] is None
+
+    @pytest.mark.asyncio
+    async def test_invalid_category(self, service: GenEvalMCPService) -> None:
+        """Categories with special chars should be rejected."""
+        result = await service.run_evaluation(
+            categories=["valid", "has spaces"],
+        )
+        assert result["success"] is False
+        assert "Invalid category" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_missing_descriptor(self, tmp_path: Path) -> None:
+        """Missing descriptor should return structured error."""
+        svc = GenEvalMCPService(base_dir=tmp_path)
+        result = await svc.run_evaluation()
+        assert result["success"] is False
+        assert "No descriptor found" in result["error"]

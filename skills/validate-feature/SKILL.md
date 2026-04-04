@@ -260,7 +260,7 @@ else
 
   for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
     echo "  Descriptor: $DESCRIPTOR"
-    python -m evaluation.gen_eval \
+    python3 -m evaluation.gen_eval \
       --descriptor "$DESCRIPTOR" \
       --mode template-only \
       --no-services \

@@ -8,9 +8,15 @@ Follows the singleton pattern used by other coordination services.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+_VALID_MODES = frozenset({"template-only", "cli-augmented", "sdk-only"})
+_CATEGORY_PATTERN_RE: str = r"^[a-zA-Z0-9_-]+$"
 
 
 @dataclass
@@ -116,6 +122,10 @@ class GenEvalMCPService:
                 try:
                     data = yaml.safe_load(yaml_file.read_text())
                     if not isinstance(data, dict):
+                        logger.warning(
+                            "Skipping %s: YAML root is %s, expected dict",
+                            yaml_file, type(data).__name__,
+                        )
                         continue
 
                     interfaces = data.get("interfaces", [])
@@ -133,7 +143,8 @@ class GenEvalMCPService:
                         has_cleanup=bool(data.get("cleanup")),
                         file_path=str(yaml_file.relative_to(scenarios_dir.parent)),
                     ))
-                except Exception:
+                except (yaml.YAMLError, OSError) as e:
+                    logger.warning("Skipping %s: %s", yaml_file, e)
                     continue
 
         return scenarios
@@ -180,8 +191,11 @@ class GenEvalMCPService:
                         for svc in desc.get("services", [])
                         if isinstance(svc, dict)
                     )
-            except Exception:
-                pass
+            except (Exception,):  # noqa: BLE001
+                logger.warning(
+                    "Failed to parse descriptor at %s, using default interface count",
+                    descriptor_path,
+                )
 
         return CoverageSummary(
             total_scenarios=len(scenarios),
@@ -212,10 +226,24 @@ class GenEvalMCPService:
                 step_count=len(scenario.steps),
                 interfaces=list(scenario.interfaces),
             )
-        except Exception as e:
+        except yaml_lib.YAMLError as e:
             return ValidationResult(
                 valid=False,
-                errors=[str(e)],
+                errors=[f"YAML parse error: {e}"],
+            )
+        except Exception as e:
+            # Extract structured errors from Pydantic ValidationError
+            error_messages: list[str] = []
+            if hasattr(e, "errors") and callable(e.errors):
+                for err in e.errors():
+                    loc = " → ".join(str(x) for x in err.get("loc", []))
+                    msg = err.get("msg", str(err))
+                    error_messages.append(f"{loc}: {msg}" if loc else msg)
+            else:
+                error_messages.append(str(e))
+            return ValidationResult(
+                valid=False,
+                errors=error_messages,
             )
 
     async def create_scenario(
@@ -261,8 +289,8 @@ class GenEvalMCPService:
                 step["seconds"] = 1.0
             steps.append(step)
 
-        # Add a cleanup step for transports that create state
-        if any(t in interfaces for t in ("http", "mcp")):
+        # Add cleanup for transports that create state
+        if any(t in interfaces for t in ("http", "mcp", "cli")):
             cleanup.append({
                 "id": "cleanup_state",
                 "transport": "http",
@@ -322,16 +350,21 @@ class GenEvalMCPService:
                 "coverage_pct": data.get("coverage_pct", 0),
                 "budget_exhausted": data.get("budget_exhausted", False),
                 "failing_interfaces": [
-                    iface for iface, stats in data.get("per_interface", {}).items()
-                    if stats.get("fail", 0) > 0 or stats.get("error", 0) > 0
+                    iface
+                    for iface, stats in data.get("per_interface", {}).items()
+                    if isinstance(stats, dict)
+                    and (stats.get("fail", 0) > 0 or stats.get("error", 0) > 0)
                 ],
                 "categories_below_threshold": [
-                    cat for cat, stats in data.get("per_category", {}).items()
-                    if stats.get("total", 0) > 0
+                    cat
+                    for cat, stats in data.get("per_category", {}).items()
+                    if isinstance(stats, dict)
+                    and stats.get("total", 0) > 0
                     and (stats.get("pass", 0) / stats["total"]) < 0.95
                 ],
             }
-        except Exception:
+        except (json.JSONDecodeError, OSError, KeyError, TypeError) as e:
+            logger.warning("Failed to read gen-eval report at %s: %s", report_path, e)
             return None
 
     async def run_evaluation(
@@ -347,14 +380,35 @@ class GenEvalMCPService:
         it can take the full time budget.
         """
         import asyncio
-        import subprocess
+        import re
+
+        # Validate mode
+        if mode not in _VALID_MODES:
+            return {
+                "success": False,
+                "error": (
+                    f"Invalid mode '{mode}'. "
+                    f"Must be one of: {', '.join(sorted(_VALID_MODES))}"
+                ),
+                "report": None,
+            }
+
+        # Validate categories are safe identifiers
+        if categories:
+            for cat in categories:
+                if not re.match(_CATEGORY_PATTERN_RE, cat):
+                    return {
+                        "success": False,
+                        "error": f"Invalid category '{cat}'. Must match [a-zA-Z0-9_-]+",
+                        "report": None,
+                    }
 
         base = self._find_base_dir()
         project_root = base.parent.parent  # evaluation/gen_eval -> agent-coordinator
         descriptor = base / "descriptors" / "agent-coordinator.yaml"
 
         if not descriptor.exists():
-            return {"success": False, "error": "No descriptor found"}
+            return {"success": False, "error": "No descriptor found", "report": None}
 
         python = project_root / ".venv" / "bin" / "python"
         if not python.exists():
@@ -377,22 +431,22 @@ class GenEvalMCPService:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=str(project_root),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            _, stderr = await proc.communicate()
 
             if proc.returncode == 0:
                 summary = await self.get_report_summary()
-                return {"success": True, "report": summary}
+                return {"success": True, "error": None, "report": summary}
             else:
                 return {
                     "success": False,
-                    "exit_code": proc.returncode,
-                    "stderr": stderr.decode()[-500:] if stderr else "",
+                    "error": stderr.decode()[-500:] if stderr else "Unknown error",
+                    "report": None,
                 }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": str(e), "report": None}
 
 
 def _slugify(text: str) -> str:
@@ -402,7 +456,8 @@ def _slugify(text: str) -> str:
     slug = re.sub(r"[^a-z0-9\s-]", "", slug)
     slug = re.sub(r"[\s_]+", "-", slug)
     slug = re.sub(r"-+", "-", slug)
-    return slug[:60].rstrip("-")
+    result = slug[:60].rstrip("-")
+    return result or "unnamed"
 
 
 _gen_eval_service: GenEvalMCPService | None = None
