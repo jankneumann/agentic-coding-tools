@@ -1,0 +1,14 @@
+# cloudflare.yaml — Railway backend behind Cloudflare DNS proxy.
+# Inherits all Railway settings; adds custom domain to SSRF allowlist.
+#
+# Required environment variables:
+#   CUSTOM_DOMAIN     — your Cloudflare domain (e.g., example.com)
+#   POSTGRES_DSN      — Railway Postgres connection string
+#   COORDINATION_API_KEYS — API keys for cloud agents
+#
+# The SSRF allowlist accepts wildcard patterns: *.example.com matches
+# coord.example.com, mcp.example.com, etc.
+extends: railway
+
+api:
+  coordination_allowed_hosts: "*.${CUSTOM_DOMAIN}"
