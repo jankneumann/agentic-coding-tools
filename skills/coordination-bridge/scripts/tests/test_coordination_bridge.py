@@ -244,6 +244,13 @@ def test_validate_url_allows_wildcard_subdomain(monkeypatch) -> None:
     assert coordination_bridge._validate_url("https://evil.other.com") is None
 
 
+def test_validate_url_wildcard_deep_subdomain(monkeypatch) -> None:
+    """Wildcard *.domain.com matches multi-level subdomains (a.b.domain.com)."""
+    monkeypatch.setenv("COORDINATION_ALLOWED_HOSTS", "*.example.com")
+    assert coordination_bridge._validate_url("https://deep.sub.example.com") is not None
+    assert coordination_bridge._validate_url("https://a.b.c.example.com") is not None
+
+
 def test_validate_url_wildcard_mixed_with_exact(monkeypatch) -> None:
     """Wildcard and exact entries can coexist in COORDINATION_ALLOWED_HOSTS."""
     monkeypatch.setenv(

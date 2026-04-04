@@ -102,14 +102,14 @@ def _validate_url(url: str) -> str | None:
     allowed = set(_ALLOWED_HOSTS)
     wildcards: list[str] = []
     if extra_hosts_raw:
-        for h in extra_hosts_raw.split(","):
-            h = h.strip().lower()
-            if not h:
+        for entry in extra_hosts_raw.split(","):
+            entry = entry.strip().lower()
+            if not entry:
                 continue
-            if h.startswith("*."):
-                wildcards.append(h[1:])  # store ".domain.com"
+            if entry.startswith("*."):
+                wildcards.append(entry[1:])  # store ".domain.com"
             else:
-                allowed.add(h)
+                allowed.add(entry)
 
     if hostname in allowed:
         return url
