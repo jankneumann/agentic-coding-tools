@@ -1,7 +1,7 @@
 # Test and documentation
 tests/
 docs/
-README.md
+# README.md is needed by hatchling during uv sync
 CLAUDE.md
 
 # Version control
