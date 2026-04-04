@@ -1,29 +1,47 @@
 {
-  "updated_at": "2026-04-03T16:00:00Z",
+  "updated_at": "2026-04-04T10:00:00Z",
   "recommendations": [
     {
-      "opportunity_id": "implement-gen-eval-testing",
-      "recommended_at": "2026-04-03T16:00:00Z",
+      "opportunity_id": "add-cloudflare-tunnel",
+      "recommended_at": "2026-04-04T10:00:00Z",
       "status": "recommended",
-      "reason": "Only active OpenSpec change with work remaining. 56 tasks fully planned. All infrastructure dependencies shipped. Top recommendation — consecutive top pick."
+      "reason": "Cloudflare domain already set up. Tunnel exposes local coordinator to cloud agents without Railway. Combined with DNS for stable URLs. Top recommendation for Cloudflare-focused exploration."
+    },
+    {
+      "opportunity_id": "add-custom-domain-urls",
+      "recommended_at": "2026-04-04T10:00:00Z",
+      "status": "recommended",
+      "reason": "Complementary to tunnel. Decouples service URLs from deployment provider. 30+ hardcoded localhost references benefit from stable domain."
+    },
+    {
+      "opportunity_id": "implement-gen-eval-testing",
+      "recommended_at": "2026-04-04T10:00:00Z",
+      "status": "recommended",
+      "reason": "Consecutive top pick (3rd cycle). 56 tasks fully planned. Cloudflare tunnel would provide reliable cloud agent access for live service testing."
+    },
+    {
+      "opportunity_id": "add-cloudflare-access",
+      "recommended_at": "2026-04-04T10:00:00Z",
+      "status": "recommended",
+      "reason": "Zero Trust layer for coordinator API. Builds on tunnel/DNS. Defense-in-depth replacing raw API key auth."
     },
     {
       "opportunity_id": "add-coordination-api-hardening",
-      "recommended_at": "2026-04-03T16:00:00Z",
+      "recommended_at": "2026-04-04T10:00:00Z",
       "status": "recommended",
-      "reason": "Two beads tasks ready (CORS + /ready endpoint). Quick-win API hardening. /ready endpoint benefits gen-eval live service checks."
+      "reason": "CORS + /ready endpoint. Custom domain makes CORS origin predictable. Carried forward from previous cycle."
     },
     {
-      "opportunity_id": "update-skill-consolidation",
-      "recommended_at": "2026-04-03T16:00:00Z",
-      "status": "recommended",
-      "reason": "11-requirement spec with no active change. 40+ skills with growing pattern inconsistencies. New this cycle."
+      "opportunity_id": "add-webhook-domain",
+      "recommended_at": "2026-04-04T10:00:00Z",
+      "status": "deferred",
+      "reason": "Deferred until tunnel/DNS are in place. Natural extension for inbound webhooks."
     },
     {
-      "opportunity_id": "refactor-parallel-architecture",
-      "recommended_at": "2026-04-03T16:00:00Z",
-      "status": "recommended",
-      "reason": "Architecture refresh completed — fresh data available for hotspot analysis. Unblocked since last cycle."
+      "opportunity_id": "add-multi-env-dns",
+      "recommended_at": "2026-04-04T10:00:00Z",
+      "status": "deferred",
+      "reason": "Deferred until single-environment DNS is proven. Needed before gen-eval runs against production."
     },
     {
       "opportunity_id": "add-coordinator-assurance-verification",
