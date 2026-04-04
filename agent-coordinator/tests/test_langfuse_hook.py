@@ -43,6 +43,26 @@ class TestSanitize:
         result = hook_module.sanitize(text)
         assert "super_secret_123" not in result
 
+    def test_redacts_langfuse_keys(self, hook_module):
+        # Standalone Langfuse key (not in a key=value context)
+        text = "using key pk-lf-local-coding-agents for tracing"
+        result = hook_module.sanitize(text)
+        assert "pk-lf-local" not in result
+        assert "LF-KEY-REDACTED" in result
+
+    def test_redacts_langfuse_secret_in_env(self, hook_module):
+        # Langfuse key inside a key=value pair — either specific or generic pattern redacts it
+        text = "LANGFUSE_SECRET_KEY=sk-lf-local-coding-agents"
+        result = hook_module.sanitize(text)
+        assert "sk-lf-local-coding-agents" not in result
+
+    def test_redacts_jwt_tokens(self, hook_module):
+        # JWT outside a key=value context
+        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        result = hook_module.sanitize(f"header: {jwt}")
+        assert "eyJhbGciOi" not in result
+        assert "JWT-REDACTED" in result
+
     def test_preserves_normal_text(self, hook_module):
         text = "This is a normal message about code"
         assert hook_module.sanitize(text) == text

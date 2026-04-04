@@ -266,10 +266,23 @@ def _truncate(text: str, max_len: int) -> str:
 
 
 def sanitize(text: str) -> str:
-    """Redact common secret patterns from text."""
-    text = re.sub(r"sk-[a-zA-Z0-9]{20,}", "SK-REDACTED", text)
+    """Redact common secret patterns from text.
+
+    Patterns are ordered from most specific to most general to prevent
+    the generic key=value rule from masking more descriptive replacements.
+    """
+    # Langfuse keys (pk-lf-*, sk-lf-*) — before generic sk- pattern
+    text = re.sub(r"[ps]k-lf-[a-zA-Z0-9_-]{10,}", "LF-KEY-REDACTED", text)
+    # Anthropic / OpenAI style API keys
+    text = re.sub(r"sk-[a-zA-Z0-9_-]{20,}", "SK-REDACTED", text)
+    # Supabase service keys (sbp_*)
+    text = re.sub(r"sbp_[a-zA-Z0-9]{20,}", "SBP-REDACTED", text)
+    # JWT tokens (eyJ* base64url segments separated by dots)
+    text = re.sub(r"eyJ[a-zA-Z0-9_.-]{50,}", "JWT-REDACTED", text)
+    # Bearer tokens
     text = re.sub(r"Bearer [a-zA-Z0-9._-]+", "Bearer REDACTED", text)
-    text = re.sub(r"(?i)(password|secret|token)\s*[:=]\s*\S+", r"\1=REDACTED", text)
+    # Generic key=value secret patterns (last — catches remaining secrets)
+    text = re.sub(r"(?i)(password|secret|token|api_key|apikey)\s*[:=]\s*\S+", r"\1=REDACTED", text)
     return text
 
 
@@ -290,12 +303,17 @@ def send_turns_to_langfuse(
         logger.error("langfuse package not available")
         return 0
 
-    lf = Langfuse(
-        public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", ""),
-        secret_key=os.environ.get("LANGFUSE_SECRET_KEY", ""),
-        host=os.environ.get("LANGFUSE_HOST", "http://localhost:3050"),
-        debug=os.environ.get("LANGFUSE_DEBUG", "").lower() == "true",
-    )
+    try:
+        lf = Langfuse(
+            public_key=os.environ.get("LANGFUSE_PUBLIC_KEY", ""),
+            secret_key=os.environ.get("LANGFUSE_SECRET_KEY", ""),
+            host=os.environ.get("LANGFUSE_HOST", "http://localhost:3050"),
+            debug=os.environ.get("LANGFUSE_DEBUG", "").lower() == "true",
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.warning("Failed to create Langfuse client: %s", exc)
+        return 0
 
     agent_id = os.environ.get("AGENT_ID", os.environ.get("USER", "unknown"))
     count = 0
@@ -397,6 +415,9 @@ def main() -> None:
 
     turns = group_into_turns(messages)
     if not turns:
+        # Still advance cursor past consumed lines to avoid re-reading
+        state["last_line"] = state["last_line"] + lines_consumed
+        save_state(session_id, state)
         logger.debug("No complete turns found")
         return
 

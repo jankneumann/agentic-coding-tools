@@ -65,7 +65,7 @@ def init_langfuse() -> None:
         logger.info(
             "Langfuse initialized (host=%s, project_key=%s...)",
             lf_config.host,
-            lf_config.public_key[:12],
+            lf_config.public_key[:12] if lf_config.public_key else "(empty)",
         )
     except ImportError:
         logger.warning(

@@ -118,7 +118,7 @@ def _finalize_trace(
     duration_ms: float,
     operation: str,
 ) -> None:
-    """Update trace and span with response info, then flush."""
+    """Update trace and span with response info."""
     level = "ERROR" if status_code >= 500 else "WARNING" if status_code >= 400 else "DEFAULT"
 
     if span is not None:
@@ -141,11 +141,6 @@ def _finalize_trace(
         except Exception:
             pass
 
-    from .langfuse_tracing import get_langfuse
-
-    lf = get_langfuse()
-    if lf is not None:
-        try:
-            lf.flush()
-        except Exception:
-            pass
+    # Note: No per-request flush here. The Langfuse SDK batches events
+    # and flushes periodically. Per-request flushing adds unnecessary
+    # latency. Events are flushed on shutdown via shutdown_langfuse().
