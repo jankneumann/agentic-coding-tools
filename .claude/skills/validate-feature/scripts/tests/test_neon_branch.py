@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+
 # ---------------------------------------------------------------------------
 # Protocol compliance tests
 # ---------------------------------------------------------------------------
