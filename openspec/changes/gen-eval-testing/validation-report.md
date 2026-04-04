@@ -1,146 +1,68 @@
 # Validation Report: gen-eval-testing
 
-**Date**: 2026-03-31
-**Commit**: d3ed323
-**Branch**: claude/generator-evaluator-testing-fqJlS
-**Commits ahead of main**: 20
-
----
+**Date**: 2026-04-04 01:15:00
+**Commit**: 13d678f
+**Branch**: openspec/gen-eval-testing
 
 ## Phase Results
 
-### ✓ Unit Tests: PASS
-- **335 passed**, 1 warning, 0 failures
-- Runtime: ~5.3s
-- Coverage: 15+ test files across all modules (config, descriptor, models, clients, generators, evaluator, feedback, orchestrator, reports, integration)
+| Phase | Status | Details |
+|-------|--------|---------|
+| Deploy | -- | Skipped (environment-safe validation only) |
+| Smoke | -- | Skipped (no live services) |
+| Gen-Eval (unit) | PASS | 359 tests passed, 8 deselected (integration) |
+| Security | -- | Skipped (requires Docker services) |
+| E2E | -- | Skipped (no live services) |
+| Architecture | PASS | Architecture analysis current (refreshed 2026-04-03) |
+| Spec (OpenSpec) | PASS | `openspec validate gen-eval-testing` — valid |
+| Spec (mypy) | PASS | 68 source files, strict mode, no errors |
+| Spec (ruff) | PASS | All checks passed |
+| CI/CD | PASS (degraded) | 7/8 checks pass. SonarCloud fails (external service issue, not gen-eval related) |
 
-### ✓ Lint: PASS
-- `ruff check evaluation/gen_eval/` — All checks passed
+### CI Check Detail
 
-### ✓ Scenario Templates: PASS
-- **97 YAML templates** across 12 categories (81 original + 16 sweep scenarios)
-- All validate against `Scenario` Pydantic model
+| Check | Status | Duration |
+|-------|--------|----------|
+| formal-coordination | PASS | 6s |
+| gen-eval | PASS | 58s |
+| test | PASS | 1m2s |
+| test-infra-skills | PASS | 13s |
+| test-integration | PASS | 55s |
+| test-skills | PASS | 23s |
+| validate-specs | PASS | 10s |
+| SonarCloud Code Analysis | FAIL | 53s (pre-existing, external) |
 
-### ✓ Dogfood Descriptor: PASS
-- **114 interfaces** mapped (38 HTTP + 39 MCP + 37 CLI)
+### Known Pre-existing Issue
 
-### ✓ Template Coverage: PASS
-- **114/114 = 100.0%** of interfaces exercised by scenario templates
-- Template-aware matching: literal HTTP paths match parametric templates
-- CLI subcommand extraction: `"lock status --file-path x"` → `cli:lock status`
+- `test_docker_manager.py::test_auto_falls_back_to_podman` fails locally because Docker is available (test expects podman fallback). Pre-existing, unrelated to gen-eval-testing.
 
-### ○ Deploy: SKIPPED
-- No Docker environment available in validation context
+## Test Coverage Summary
 
-### ○ Smoke: SKIPPED
-- Depends on Deploy phase
+- **359 gen-eval unit tests** (327 original + 14 MCP service + 18 edge case/review remediation)
+- **68 source files** pass mypy strict
+- **81 template scenarios** across 12 categories
+- **735-line dogfood descriptor** covering 105+ coordinator interfaces
 
-### ○ Security: SKIPPED
-- No live services to scan
+## What Was Validated
 
-### ○ E2E: SKIPPED
-- No Playwright/live services available
+- Core framework: config, descriptor, models, generator, evaluator, orchestrator, feedback, reports
+- Transport clients: HTTP, MCP, CLI, DB, Wait
+- Generators: Template, CLI, SDK, Hybrid with AdaptiveBackend
+- MCP service layer: list, validate, create, run scenarios + 2 resources
+- Skills: /gen-eval (auto-execute), /gen-eval-scenario (authoring), explore-feature integration
+- Makefile targets: gen-eval, gen-eval-augmented
+- Validate-feature integration: gen-eval phase 4b
 
-### ○ Architecture: SKIPPED
-- No architecture graph artifact available
+## What Was NOT Validated (Deferred)
 
-### ○ Logs: SKIPPED
-- No log file (Deploy skipped)
-
-### ○ CI/CD: SKIPPED
-- No PR created yet
-
----
-
-## Spec Compliance
-
-### Passed (29)
-
-| Requirement | Description |
-|-------------|-------------|
-| REQ-DESC-01 | Interface descriptor with HTTP, MCP, CLI, state verifiers |
-| REQ-DESC-02 | Startup/teardown configuration with health check |
-| REQ-DESC-04 | Project-agnostic descriptor format |
-| REQ-GEN-01 | Template-based scenario generation with Jinja2 expansion |
-| REQ-GEN-02 | CLI-augmented scenario generation |
-| REQ-GEN-03 | Scenario validation against Pydantic model |
-| REQ-GEN-04 | Three generation modes (template-only, cli-augmented, sdk-only) |
-| REQ-GEN-05 | Focus-area filtering in generators |
-| REQ-GEN-06 | CLI-first default execution mode |
-| REQ-GEN-07 | AdaptiveBackend with rate-limit detection and SDK fallback |
-| REQ-GEN-08 | SDK-only mode for CI environments |
-| REQ-SCN-01 | Sequential action steps with transport targeting |
-| REQ-SCN-02 | Expect blocks with status, body (JSONPath), rows, errors |
-| REQ-SCN-03 | Variable capture via JSONPath and {{ }} interpolation |
-| REQ-SCN-04 | Cleanup steps always run, failures as warnings |
-| REQ-SCN-05 | Category, priority, and interface tags |
-| REQ-SCN-07 | Per-step configurable timeout (default 30s) |
-| REQ-TRN-01 | Pluggable transport clients (HTTP, MCP, CLI, DB) |
-| REQ-TRN-02 | HTTP auth injection from descriptor |
-| REQ-TRN-03 | CLI JSON output parsing |
-| REQ-TRN-04 | DB client read-only (readonly=True transactions) |
-| REQ-TRN-05 | Explicit transport selection per step |
-| REQ-EVAL-01 | Sequential step execution with programmatic assertions |
-| REQ-EVAL-02 | Structured ScenarioVerdict with per-step details |
-| REQ-EVAL-03 | Cross-interface mismatch detection → fail verdict |
-| REQ-EVAL-04 | Database state verification via db steps |
-| REQ-EVAL-05 | Evaluator independence (Scenario-only input) |
-| REQ-BDG-01 | Time budget with wall-clock tracking |
-| REQ-BDG-02 | SDK cost budget with can_afford checks |
-| REQ-BDG-03 | Template execution free of budget |
-| REQ-BDG-04 | Three-tier progressive prioritization (40/35/25) |
-| REQ-BDG-05 | Graceful termination with budget_exhausted flag |
-| REQ-FBK-01 | Structured EvalFeedback synthesis |
-| REQ-FBK-02 | Prompt-compatible feedback text formatting |
-| REQ-FBK-03 | Multi-iteration feedback loop support |
-| REQ-ORC-01 | Full lifecycle orchestration with health check retry |
-| REQ-ORC-02 | Parallel scenario execution via asyncio.Semaphore |
-| REQ-ORC-03 | Change detection via git diff + file-interface mapping |
-| REQ-ORC-04 | Structured reports (markdown + JSON) with coverage |
-| REQ-INT-01 | Integration with evaluation/metrics.py (GenEvalMetrics) |
-| REQ-INT-02 | CLI entry point + skill + validate-feature phase |
-| REQ-INT-03 | Standalone operation without coordinator |
-| REQ-DOG-01 | 114 interfaces mapped (38 HTTP + 39 MCP + 37 CLI) |
-| REQ-DOG-02 | Success + failure paths for locks, work, auth, cross-interface |
-| REQ-DOG-03 | 100% template coverage (114/114 interfaces) |
-
-### Partial (5)
-
-| Requirement | Description | Gap |
-|-------------|-------------|-----|
-| REQ-DESC-03 | Auto-discovery from OpenAPI/tools-list/help | Descriptor provides `all_interfaces()` but no auto-parsing of OpenAPI, `tools/list`, or `--help` |
-| REQ-SCN-06 | Scenario validation against descriptor | Template generator validates structure but doesn't cross-check endpoint existence |
-| REQ-EVAL-06 | LLM-based judgment for complex assertions | `use_llm_judgment` flag exists on ActionStep but no LLM-as-judge implementation |
-| REQ-BDG-06 | Per-verdict backend attribution | `backend_used` field exists but only set to "cli" in budget tracking |
-| REQ-INT-04 | CI job configuration | `.github/workflows/ci.yml` has gen-eval job but needs project-specific env vars |
-
-### Failed (0)
-
-None.
-
----
-
-## Summary
-
-| Metric | Value |
-|--------|-------|
-| Unit tests | 335 passed |
-| Lint | Clean |
-| Scenario templates | 97 |
-| Dogfood interfaces | 114 |
-| Template coverage | 100.0% |
-| Spec requirements passed | 29 / 34 (85%) |
-| Spec requirements partial | 5 |
-| Spec requirements failed | 0 |
-
----
+- Live service smoke tests (requires `docker-compose up`)
+- Cross-interface consistency against live services
+- Security scan (OWASP Dependency-Check, ZAP)
+- E2E Playwright tests
+- CLI-augmented and SDK-only modes against live LLM backends
 
 ## Result
 
-**PASS** — All required (MUST) requirements met. 5 partial requirements are MAY/SHOULD level or need live infrastructure.
+**PASS** (environment-safe phases) — Ready for `/cleanup-feature gen-eval-testing`
 
-### Next Step
-
-```
-/cleanup-feature gen-eval-testing
-```
+Docker-dependent phases (deploy, smoke, security, E2E) are deferred to the merge-time validation gate in `/cleanup-feature`.
