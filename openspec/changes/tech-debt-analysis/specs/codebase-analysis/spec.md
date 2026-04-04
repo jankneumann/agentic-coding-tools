@@ -3,7 +3,7 @@
 **Change ID**: `tech-debt-analysis`
 **Target Spec**: `codebase-analysis` (extends)
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Complexity Analysis via AST
 
