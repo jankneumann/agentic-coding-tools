@@ -80,6 +80,15 @@ The docker manager SHALL detect Colima as an available Docker daemon provider on
 - Colima VM status SHALL be checked via `colima status` (exit code 0 = running)
 - When `docker.container_runtime` is `"colima"`, the manager SHALL ensure the Colima VM is running before returning `"docker"` as the runtime
 
+#### Scenario: Colima detected on macOS
+- **WHEN** `which colima` succeeds on macOS
+- **THEN** Colima SHALL be considered an available Docker daemon provider
+
+#### Scenario: Colima not available
+- **WHEN** `which colima` fails
+- **THEN** Colima SHALL not be considered as a provider
+- **AND** detection SHALL proceed with other runtimes
+
 ### Requirement: Colima VM Lifecycle Management
 
 The docker manager SHALL manage the Colima VM lifecycle when Colima is the selected or auto-detected provider.
@@ -92,6 +101,20 @@ The docker manager SHALL manage the Colima VM lifecycle when Colima is the selec
 - Default resources SHALL be: 2 CPU, 4 GiB memory, 30 GiB disk
 - After VM start, the manager SHALL verify `docker info` succeeds before returning `True`
 
+#### Scenario: Colima VM already running
+- **WHEN** `colima status` returns exit code 0
+- **THEN** `_ensure_colima_vm()` SHALL return `True` without starting the VM
+
+#### Scenario: Colima VM started successfully
+- **WHEN** `colima status` indicates the VM is not running
+- **AND** `colima start` succeeds within 120 seconds
+- **AND** `docker info` succeeds after VM start
+- **THEN** `_ensure_colima_vm()` SHALL return `True`
+
+#### Scenario: Colima VM start fails
+- **WHEN** `colima start` fails or times out
+- **THEN** `_ensure_colima_vm()` SHALL return `False`
+
 ### Requirement: Colima Profile Configuration
 
 The profile schema SHALL support a `docker.colima` configuration block.
@@ -101,4 +124,9 @@ The profile schema SHALL support a `docker.colima` configuration block.
 - `docker.colima.disk` — Disk in GiB (default: 30)
 - `docker.colima.apple_virt` — Use Apple Virtualization framework with Rosetta on Apple Silicon (default: true)
 - `docker.colima.auto_start` — Auto-start the VM when Docker daemon is unavailable (default: true)
+
+#### Scenario: Colima profile fields applied
+- **WHEN** a profile has `docker.colima` configuration
+- **THEN** `colima start` SHALL use the specified cpu, memory, and disk values
+- **AND** `--arch aarch64 --vm-type=vz --vz-rosetta` SHALL be passed only when `apple_virt` is `true` on ARM64
 
