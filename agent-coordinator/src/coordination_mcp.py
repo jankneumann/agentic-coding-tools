@@ -1869,6 +1869,228 @@ async def get_merge_queue_resource() -> str:
 
 
 # =============================================================================
+# GEN-EVAL: Generator-evaluator testing tools
+# =============================================================================
+
+
+@mcp.tool()
+async def list_scenarios(
+    category: str | None = None,
+    interface: str | None = None,
+) -> str:
+    """
+    List gen-eval test scenarios, optionally filtered by category or interface.
+
+    Args:
+        category: Filter to a specific category (e.g., "lock-lifecycle", "auth-boundary")
+        interface: Filter to scenarios using a specific transport (e.g., "http", "mcp", "cli", "db")
+
+    Returns:
+        JSON list of scenarios with id, name, category, priority, interfaces, step count, and tags.
+    """
+    import json as json_mod
+
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    scenarios = await service.list_scenarios(category=category, interface=interface)
+
+    return json_mod.dumps([
+        {
+            "id": s.id,
+            "name": s.name,
+            "category": s.category,
+            "priority": s.priority,
+            "interfaces": s.interfaces,
+            "step_count": s.step_count,
+            "tags": s.tags,
+            "has_cleanup": s.has_cleanup,
+        }
+        for s in scenarios
+    ])
+
+
+@mcp.tool()
+async def validate_scenario(
+    yaml_content: str,
+) -> str:
+    """
+    Validate gen-eval scenario YAML against the Scenario model schema.
+
+    Use this to check that a scenario YAML is well-formed before saving it.
+
+    Args:
+        yaml_content: The scenario YAML content to validate.
+
+    Returns:
+        Validation result: valid (bool), scenario_id, step_count, interfaces, and any errors.
+    """
+    import json as json_mod
+
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    result = await service.validate_scenario(yaml_content)
+
+    return json_mod.dumps({
+        "valid": result.valid,
+        "scenario_id": result.scenario_id,
+        "step_count": result.step_count,
+        "interfaces": result.interfaces,
+        "errors": result.errors,
+    })
+
+
+@mcp.tool()
+async def create_scenario(
+    category: str,
+    description: str,
+    interfaces: list[str],
+    scenario_type: str = "success",
+    priority: int = 2,
+) -> str:
+    """
+    Generate a scaffold scenario YAML from a description.
+
+    Produces a YAML template with TODO placeholders for endpoints, tools, and
+    assertions. Edit the TODO fields to complete the scenario. Does NOT write
+    the file — use the returned YAML and suggested_path to save it.
+
+    Args:
+        category: Scenario category (e.g., "lock-lifecycle", "auth-boundary", "cross-interface")
+        description: Human-readable description of what the scenario tests
+        interfaces: List of transports to exercise (e.g., ["http", "mcp", "db"])
+        scenario_type: "success" for happy-path or "failure" for error/edge-case scenarios
+        priority: 1=critical, 2=important, 3=coverage
+
+    Returns:
+        Generated YAML string, suggested file path, step count, and interfaces.
+    """
+    import json as json_mod
+
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    result = await service.create_scenario(
+        category=category,
+        description=description,
+        interfaces=interfaces,
+        scenario_type=scenario_type,
+        priority=priority,
+    )
+
+    return json_mod.dumps(result)
+
+
+@mcp.tool()
+async def run_gen_eval(
+    mode: str = "template-only",
+    categories: list[str] | None = None,
+    time_budget_minutes: float = 60.0,
+) -> str:
+    """
+    Run gen-eval testing against the coordinator's interfaces.
+
+    Executes test scenarios from the interface descriptor and returns a
+    pass/fail summary. In template-only mode (default), this runs instantly
+    with no LLM calls. In cli-augmented mode, it uses CLI tools covered by
+    subscription for scenario generation.
+
+    Args:
+        mode: Execution mode — "template-only" (fast, no LLM), "cli-augmented"
+              (subscription-covered LLM), or "sdk-only" (per-token cost)
+        categories: Filter to specific categories (e.g., ["lock-lifecycle", "auth-boundary"]).
+                    Omit to run all categories.
+        time_budget_minutes: Time budget in minutes for CLI/SDK modes (default: 60)
+
+    Returns:
+        Success status and report summary (pass rate, coverage, failing interfaces).
+    """
+    import json as json_mod
+
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    result = await service.run_evaluation(
+        mode=mode,
+        categories=categories,
+        time_budget_minutes=time_budget_minutes,
+    )
+
+    return json_mod.dumps(result)
+
+
+@mcp.resource("gen-eval://coverage")
+async def get_gen_eval_coverage() -> str:
+    """
+    Gen-eval scenario coverage summary by category.
+
+    Shows how many scenarios exist per category, which transports
+    they exercise, and overall interface coverage percentage.
+    """
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    coverage = await service.get_coverage()
+
+    lines = ["# Gen-Eval Scenario Coverage\n"]
+    lines.append(f"**Total scenarios**: {coverage.total_scenarios}")
+    lines.append(f"**Interface coverage**: {coverage.coverage_pct:.0f}% "
+                 f"({coverage.interfaces_covered}/{coverage.total_interfaces})\n")
+
+    lines.append("| Category | Scenarios | Success | Failure | Transports |")
+    lines.append("|----------|-----------|---------|---------|------------|")
+    for cat in sorted(coverage.categories, key=lambda c: c.category):
+        transports = ", ".join(cat.interfaces)
+        lines.append(
+            f"| {cat.category} | {cat.scenario_count} | "
+            f"{cat.success_count} | {cat.failure_count} | {transports} |"
+        )
+
+    return "\n".join(lines)
+
+
+@mcp.resource("gen-eval://report")
+async def get_gen_eval_report() -> str:
+    """
+    Latest gen-eval report summary.
+
+    Shows pass rate, coverage, failing interfaces, and categories
+    below the 95% pass threshold from the most recent evaluation run.
+    """
+    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+    service = get_gen_eval_service()
+    summary = await service.get_report_summary()
+
+    if not summary:
+        return "No gen-eval report found. Run `/gen-eval` or `make gen-eval` to generate one."
+
+    lines = ["# Latest Gen-Eval Report\n"]
+    lines.append(f"**Pass rate**: {summary['pass_rate']:.1%}")
+    lines.append(f"**Coverage**: {summary['coverage_pct']:.0f}%")
+    lines.append(f"**Scenarios**: {summary['passed']} passed, "
+                 f"{summary['failed']} failed, {summary['errors']} errors "
+                 f"(of {summary['total_scenarios']} total)")
+    lines.append(f"**Budget exhausted**: {'Yes' if summary['budget_exhausted'] else 'No'}\n")
+
+    if summary["failing_interfaces"]:
+        lines.append("**Failing interfaces:**")
+        for iface in summary["failing_interfaces"]:
+            lines.append(f"- {iface}")
+        lines.append("")
+
+    if summary["categories_below_threshold"]:
+        lines.append("**Categories below 95% threshold:**")
+        for cat in summary["categories_below_threshold"]:
+            lines.append(f"- {cat}")
+        lines.append("")
+
+    lines.append(f"*Report: {summary['report_path']}*")
+    return "\n".join(lines)
+
+
+# =============================================================================
 # MCP PROMPTS: Reusable prompt templates
 # =============================================================================
 
