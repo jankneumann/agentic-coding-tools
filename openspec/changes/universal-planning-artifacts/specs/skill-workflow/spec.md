@@ -1,6 +1,6 @@
 # skill-workflow Specification Delta
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Universal Planning Artifact Generation
 

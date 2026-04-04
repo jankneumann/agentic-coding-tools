@@ -1,6 +1,6 @@
 # merge-pull-requests Specification Delta
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Vendor Review Artifact Resilience
 
