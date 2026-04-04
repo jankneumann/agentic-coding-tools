@@ -168,6 +168,24 @@ services:
     profiles:
       - langfuse
 
+  # Cloudflare Tunnel (opt-in: docker compose --profile cloudflared up)
+  # Requires: cloudflared/credentials.json (from `cloudflared tunnel create`)
+  # If CREDENTIALS_FILE is unset, defaults to ./cloudflared/credentials.json.
+  # The credentials file MUST exist before starting — Docker creates an empty
+  # directory if the source path is missing, which breaks cloudflared.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yaml run
+    volumes:
+      - ./cloudflared/config.yaml:/etc/cloudflared/config.yaml:ro
+      - ${CREDENTIALS_FILE:-./cloudflared/credentials.json}:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - cloudflared
+
 volumes:
   postgres-data:
   langfuse-clickhouse-data:

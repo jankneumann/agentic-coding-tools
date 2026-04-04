@@ -1,0 +1,8 @@
+# Tunnel credentials (created by `cloudflared tunnel create`)
+*.json
+
+# TLS certificates
+*.pem
+
+# Keep the config template tracked
+!config.yaml
