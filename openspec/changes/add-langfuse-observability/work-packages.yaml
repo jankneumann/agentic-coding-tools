@@ -1,0 +1,36 @@
+packages:
+  - id: wp-main
+    name: "Langfuse cross-agent observability — full scope"
+    description: >
+      Add Langfuse v3 integration for coding session observability across local
+      and cloud agents. Includes coordinator SDK module, FastAPI middleware,
+      Claude Code Stop hook, Docker infrastructure, setup script, and tests.
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "2.1"
+      - "2.2"
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "4.1"
+      - "4.2"
+      - "5.1"
+      - "6.1"
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "agent-coordinator/src/langfuse_tracing.py"
+        - "agent-coordinator/src/langfuse_middleware.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/scripts/langfuse_hook.py"
+        - "agent-coordinator/scripts/setup_langfuse.sh"
+        - "agent-coordinator/docker-compose.yml"
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/tests/test_langfuse_*.py"
+      read_allow:
+        - "agent-coordinator/**"
+    verification: tier_b
