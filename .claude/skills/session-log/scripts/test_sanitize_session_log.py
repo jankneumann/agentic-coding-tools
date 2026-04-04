@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from sanitize_session_log import (
     is_allowlisted,
     normalize_paths,
@@ -11,6 +12,7 @@ from sanitize_session_log import (
     sanitize,
     shannon_entropy,
 )
+
 
 # --- Shannon entropy ---
 
