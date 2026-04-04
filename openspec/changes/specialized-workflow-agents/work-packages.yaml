@@ -1,0 +1,359 @@
+schema_version: 1
+
+feature:
+  id: specialized-workflow-agents
+  title: "Specialized Workflow Agents"
+  plan_revision: 1
+  created_by: claude-local
+  created_at: "2026-04-04T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+
+packages:
+  # ──────────────────────────────────────────────────────
+  # Phase 1: Static model hints (no infra changes)
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-skill-model-hints
+    task_type: implement
+    description: "Add model= parameter to all Task() calls across 5 skill SKILL.md files"
+    role: skill-update
+    priority: 1
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+        - "tests/skills/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/specialized-workflow-agents/**"
+      deny: []
+    worktree:
+      name: wp-skill-model-hints
+      mode: isolated
+    locks:
+      files:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+      keys: []
+    verification:
+      tier_required: B
+      steps:
+        - name: "Validate Task() model params"
+          kind: command
+          command: "grep -c 'model=' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/iterate-on-plan/SKILL.md skills/iterate-on-implementation/SKILL.md skills/fix-scrub/SKILL.md"
+          evidence:
+            artifacts: []
+            result_keys: ["task_calls_modified"]
+    outputs:
+      result_keys: ["skills_updated", "task_calls_modified"]
+      artifacts:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+    metadata:
+      loc_estimate: 50
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 2: Archetype registry (config + loader)
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-archetype-config
+    task_type: implement
+    description: "Create archetypes.yaml, ArchetypeConfig dataclass, loader, validator, escalation logic, and JSON schema"
+    role: backend
+    priority: 2
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    depends_on:
+      - wp-skill-model-hints
+    scope:
+      write_allow:
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/**"
+        - "openspec/schemas/archetypes.schema.json"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/schemas/**"
+        - "openspec/changes/specialized-workflow-agents/**"
+      deny: []
+    worktree:
+      name: wp-archetype-config
+      mode: isolated
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/archetypes.yaml"
+      keys:
+        - "contract:archetypes-schema"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for archetype config"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -k archetype -v"
+          evidence:
+            artifacts: []
+            result_keys: ["archetypes_created", "loader_implemented"]
+        - name: "Type check agents_config changes"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/agents_config.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["escalation_implemented"]
+    outputs:
+      result_keys: ["archetypes_created", "loader_implemented", "escalation_implemented"]
+      artifacts:
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "openspec/schemas/archetypes.schema.json"
+    metadata:
+      loc_estimate: 350
+      package_kind: config
+
+  - package_id: wp-skill-archetype-refs
+    task_type: implement
+    description: "Update skill SKILL.md files to use archetype= instead of model= in Task() calls"
+    role: skill-update
+    priority: 3
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on:
+      - wp-archetype-config
+    scope:
+      write_allow:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/archetypes.yaml"
+        - "openspec/changes/specialized-workflow-agents/**"
+      deny: []
+    worktree:
+      name: wp-skill-archetype-refs
+      mode: isolated
+    locks:
+      files:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
+      keys: []
+    verification:
+      tier_required: C
+      steps:
+        - name: "Verify archetype references"
+          kind: command
+          command: "grep -c 'archetype=' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_updated"]
+    outputs:
+      result_keys: ["skills_updated"]
+      artifacts:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+    metadata:
+      loc_estimate: 30
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 3: Coordinator routing
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-queue-routing
+    task_type: implement
+    description: "Add agent_requirements to work queue Task, update submit/claim, create DB migration"
+    role: backend
+    priority: 4
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    depends_on:
+      - wp-archetype-config
+    scope:
+      write_allow:
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/supabase/migrations/**"
+        - "agent-coordinator/tests/**"
+        - "openspec/schemas/work-packages.schema.json"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/schemas/**"
+        - "openspec/changes/specialized-workflow-agents/**"
+      deny: []
+    worktree:
+      name: wp-queue-routing
+      mode: isolated
+    locks:
+      files:
+        - "agent-coordinator/src/work_queue.py"
+        - "openspec/schemas/work-packages.schema.json"
+      keys:
+        - "db:schema:work_queue"
+        - "api:POST /work/submit"
+        - "api:POST /work/claim"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for queue routing"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -k work_queue -v"
+          evidence:
+            artifacts: []
+            result_keys: ["queue_updated", "migration_created"]
+        - name: "Validate work-packages schema"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/schemas/feature-workflow/templates/work-packages.yaml"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_updated"]
+    outputs:
+      result_keys: ["queue_updated", "migration_created", "schema_updated"]
+      artifacts:
+        - "agent-coordinator/src/work_queue.py"
+        - "openspec/schemas/work-packages.schema.json"
+    metadata:
+      loc_estimate: 200
+      package_kind: data_model
+
+  - package_id: wp-api-mcp-integration
+    task_type: implement
+    description: "Expose archetype routing in coordination API and MCP, update review dispatcher fallback"
+    role: backend
+    priority: 5
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    depends_on:
+      - wp-queue-routing
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "skills/parallel-infrastructure/**"
+        - "openspec/changes/specialized-workflow-agents/**"
+      deny: []
+    worktree:
+      name: wp-api-mcp-integration
+      mode: isolated
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "api:POST /work/submit"
+        - "api:POST /work/claim"
+    verification:
+      tier_required: B
+      steps:
+        - name: "API and MCP integration tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -k 'coordination' -v"
+          evidence:
+            artifacts: []
+            result_keys: ["mcp_updated", "api_updated"]
+        - name: "Type check coordination modules"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy src/coordination_api.py src/coordination_mcp.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["dispatcher_updated"]
+    outputs:
+      result_keys: ["mcp_updated", "api_updated", "dispatcher_updated"]
+      artifacts:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+    metadata:
+      loc_estimate: 150
+      package_kind: crud
+
+  # ──────────────────────────────────────────────────────
+  # Integration
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-integration
+    task_type: integrate
+    description: "Merge all package branches, run full test suite, validate end-to-end"
+    role: integration
+    priority: 6
+    timeout_minutes: 60
+    retry_budget: 0
+    min_trust_level: 3
+    depends_on:
+      - wp-skill-model-hints
+      - wp-archetype-config
+      - wp-skill-archetype-refs
+      - wp-queue-routing
+      - wp-api-mcp-integration
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: wp-integration
+      mode: isolated
+    locks:
+      files: []
+      keys:
+        - "feature:specialized-workflow-agents:integration"
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full test suite"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -v --tb=short"
+          evidence:
+            artifacts: []
+            result_keys: ["tests_pass"]
+        - name: "Full lint check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m ruff check ."
+          evidence:
+            artifacts: []
+            result_keys: ["lint_clean"]
+        - name: "Full type check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/"
+          evidence:
+            artifacts: []
+            result_keys: ["types_clean"]
+    outputs:
+      result_keys: ["tests_pass", "lint_clean", "types_clean"]
+      artifacts: []
+    metadata:
+      loc_estimate: 0
+      package_kind: integration
