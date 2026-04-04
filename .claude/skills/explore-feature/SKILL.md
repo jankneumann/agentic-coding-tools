@@ -90,7 +90,12 @@ Check for recent gen-eval reports. These provide empirical evidence of interface
 
 ```bash
 # Look for gen-eval reports in the project
-GENEVAL_REPORT=$(find . -name "gen-eval-report.json" -type f -newer docs/feature-discovery/opportunities.json 2>/dev/null | head -1)
+# Use -newer filter only if opportunities.json exists; otherwise find any report
+if [ -f docs/feature-discovery/opportunities.json ]; then
+  GENEVAL_REPORT=$(find . -name "gen-eval-report.json" -type f -newer docs/feature-discovery/opportunities.json 2>/dev/null | head -1)
+else
+  GENEVAL_REPORT=$(find . -name "gen-eval-report.json" -type f 2>/dev/null | sort -t/ -k1 | head -1)
+fi
 ```
 
 If a report exists, extract:
