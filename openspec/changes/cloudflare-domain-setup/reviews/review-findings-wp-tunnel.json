@@ -1,0 +1,34 @@
+{
+  "review_type": "implementation",
+  "target": "wp-tunnel",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Docker Compose cloudflared service has no restart policy. If the tunnel process crashes, the container stays down until manually restarted. Other services in the compose file also lack restart policies, so this is consistent — but the tunnel is the most likely to need auto-restart (network interruptions, credential refresh).",
+      "resolution": "Add 'restart: unless-stopped' to the cloudflared service definition. Consider adding it to postgres too for consistency.",
+      "disposition": "fix",
+      "package_id": "wp-tunnel"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Tunnel config template uses ${VARIABLE} placeholders that look like shell variables but are not interpolated by cloudflared. The operator must manually edit the file. This is documented in comments but could confuse users who expect automatic substitution.",
+      "resolution": "Accept. The comments clearly state placeholders must be replaced manually. Alternative approaches (envsubst, Jinja) add complexity without much benefit for a one-time setup file.",
+      "disposition": "accept",
+      "package_id": "wp-tunnel"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "No health check defined for the cloudflared Docker Compose service. Docker cannot detect if the tunnel connection is actually working (vs. the process running but tunnel disconnected).",
+      "resolution": "Accept for now. Cloudflared provides its own metrics endpoint but configuring a health check for tunnel connectivity is non-trivial. Can be added as a follow-up.",
+      "disposition": "accept",
+      "package_id": "wp-tunnel"
+    }
+  ]
+}
