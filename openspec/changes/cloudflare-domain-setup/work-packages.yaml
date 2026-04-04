@@ -1,0 +1,115 @@
+schema_version: 1
+
+feature:
+  id: cloudflare-domain-setup
+  title: "Cloudflare Tunnel and Custom Domain DNS for Coordinator Services"
+  plan_revision: 1
+  created_by: claude-code
+  created_at: "2026-04-04T10:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/cloudflare-domain-setup/contracts/README.md"
+    files:
+      - "openspec/changes/cloudflare-domain-setup/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Cloudflare domain setup — full scope"
+    task_type: config
+    description: |
+      Single work package encompassing all tasks for the cloudflare-domain-setup change.
+      Includes tunnel config template, deployment profile, Docker Compose service,
+      SSRF allowlist documentation updates, operator runbook, and verification.
+    role: infrastructure-implementer
+    priority: 5
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/docker-compose.yml"
+        - "agent-coordinator/profiles/cloudflare-tunnel.yaml"
+        - "agent-coordinator/cloudflared/config.yaml"
+        - "docs/cloudflare-tunnel-setup.md"
+        - "docs/cloud-deployment.md"
+      keys:
+        - "env:CUSTOM_DOMAIN"
+        - "env:TUNNEL_UUID"
+        - "env:CREDENTIALS_FILE"
+      ttl_minutes: 120
+      reason: "Cloudflare tunnel and custom domain infrastructure setup"
+    scope:
+      write_allow:
+        - "agent-coordinator/cloudflared/**"
+        - "agent-coordinator/profiles/cloudflare-tunnel.yaml"
+        - "agent-coordinator/docker-compose.yml"
+        - "docs/cloudflare-tunnel-setup.md"
+        - "docs/cloud-deployment.md"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "skills/coordination-bridge/**"
+        - "docs/**"
+        - "openspec/**"
+    worktree:
+      name: cloudflare-domain-setup
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "SSRF allowlist tests"
+          kind: command
+          command: "cd skills && ../.venv/bin/python -m pytest coordination-bridge/scripts/tests/ -v"
+          cwd: "skills"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "skills/coordination-bridge/scripts/tests/test_results.xml"
+            result_keys:
+              - "ssrf_tests_passed"
+        - name: "Profile validation"
+          kind: command
+          command: "cd agent-coordinator && python -c \"from src.profile_loader import load_profile; load_profile('cloudflare-tunnel')\""
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "profile_loads"
+        - name: "Docker compose config validation"
+          kind: command
+          command: "cd agent-coordinator && docker compose --profile cloudflared config --quiet"
+          cwd: "agent-coordinator"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "compose_valid"
+    metadata:
+      loc_estimate: 250
+      alternatives_count: 3
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "tunnel_config_created"
+        - "profile_created"
+        - "compose_updated"
+        - "docs_written"
+        - "ssrf_tests_passed"
+      artifacts:
+        - "agent-coordinator/cloudflared/config.yaml"
+        - "agent-coordinator/profiles/cloudflare-tunnel.yaml"
+        - "docs/cloudflare-tunnel-setup.md"
