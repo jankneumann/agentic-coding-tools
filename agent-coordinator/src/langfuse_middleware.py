@@ -82,9 +82,14 @@ class LangfuseTracingMiddleware(BaseHTTPMiddleware):
         except Exception:
             logger.debug("Failed to create Langfuse trace for %s", path, exc_info=True)
 
-        response = await call_next(request)
-        duration_ms = (time.time() - start) * 1000
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.time() - start) * 1000
+            _finalize_trace(trace, span, 500, duration_ms, operation)
+            raise
 
+        duration_ms = (time.time() - start) * 1000
         _finalize_trace(trace, span, response.status_code, duration_ms, operation)
 
         return response

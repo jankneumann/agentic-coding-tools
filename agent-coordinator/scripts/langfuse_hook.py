@@ -152,14 +152,22 @@ def save_state(session_id: str, state: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def parse_transcript_lines(transcript_path: Path, start_line: int) -> list[dict[str, Any]]:
-    """Read new lines from a transcript file starting at a given offset."""
+def parse_transcript_lines(
+    transcript_path: Path, start_line: int
+) -> tuple[list[dict[str, Any]], int]:
+    """Read new lines from a transcript file starting at a given offset.
+
+    Returns (messages, lines_consumed) where lines_consumed counts all lines
+    read (including blank/invalid ones) so the cursor advances correctly.
+    """
     messages: list[dict[str, Any]] = []
+    lines_consumed = 0
     try:
         with open(transcript_path, encoding="utf-8") as f:
             for i, line in enumerate(f):
                 if i < start_line:
                     continue
+                lines_consumed += 1
                 line = line.strip()
                 if not line:
                     continue
@@ -169,7 +177,7 @@ def parse_transcript_lines(transcript_path: Path, start_line: int) -> list[dict[
                     continue
     except OSError as exc:
         logger.error("Failed to read transcript: %s", exc)
-    return messages
+    return messages, lines_consumed
 
 
 def group_into_turns(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -378,8 +386,12 @@ def main() -> None:
         session_id, project_name, state["last_line"],
     )
 
-    messages = parse_transcript_lines(transcript, state["last_line"])
+    messages, lines_consumed = parse_transcript_lines(transcript, state["last_line"])
     if not messages:
+        # Still advance past any blank/invalid lines we consumed
+        if lines_consumed > 0:
+            state["last_line"] = state["last_line"] + lines_consumed
+            save_state(session_id, state)
         logger.debug("No new messages to process")
         return
 
@@ -390,9 +402,8 @@ def main() -> None:
 
     count = send_turns_to_langfuse(turns, session_id, project_name)
 
-    # Update state
-    total_lines = state["last_line"] + len(messages)
-    state["last_line"] = total_lines
+    # Update state — advance by lines consumed (not messages parsed)
+    state["last_line"] = state["last_line"] + lines_consumed
     state["trace_count"] = state.get("trace_count", 0) + count
     state["last_run"] = time.time()
     save_state(session_id, state)

@@ -63,7 +63,12 @@ cmd_cloud() {
         die "Set LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY for your Langfuse Cloud project"
     fi
 
-    LANGFUSE_HOST="${LANGFUSE_HOST:-https://cloud.langfuse.com}"
+    # Override the default localhost host — the script-level default would
+    # have already set LANGFUSE_HOST to localhost, so we must check whether
+    # the user explicitly exported a custom host or fall back to cloud URL.
+    if [ "$LANGFUSE_HOST" = "http://localhost:3050" ]; then
+        LANGFUSE_HOST="https://cloud.langfuse.com"
+    fi
     cmd_install_hook
     info "Cloud setup complete! Using ${LANGFUSE_HOST}"
 }

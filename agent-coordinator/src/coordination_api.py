@@ -367,7 +367,7 @@ def create_coordination_api() -> FastAPI:
     # Langfuse request tracing middleware (cloud agent observability)
     from .langfuse_tracing import get_langfuse
 
-    if get_langfuse() is not None:
+    if get_langfuse() is not None and get_config().langfuse.trace_api_requests:
         from .langfuse_middleware import LangfuseTracingMiddleware
 
         app.add_middleware(LangfuseTracingMiddleware)

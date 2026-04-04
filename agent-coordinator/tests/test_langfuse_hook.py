@@ -6,7 +6,6 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -150,20 +149,23 @@ class TestParseTranscriptLines:
         transcript.write_text("\n".join(lines) + "\n")
 
         # Skip first 2 lines
-        messages = hook_module.parse_transcript_lines(transcript, 2)
+        messages, lines_consumed = hook_module.parse_transcript_lines(transcript, 2)
         assert len(messages) == 1
         assert messages[0]["content"] == "msg2"
+        assert lines_consumed == 1
 
     def test_handles_missing_file(self, hook_module, tmp_path):
         missing = tmp_path / "nonexistent.jsonl"
-        messages = hook_module.parse_transcript_lines(missing, 0)
+        messages, lines_consumed = hook_module.parse_transcript_lines(missing, 0)
         assert messages == []
+        assert lines_consumed == 0
 
     def test_skips_invalid_json(self, hook_module, tmp_path):
         transcript = tmp_path / "test.jsonl"
         transcript.write_text('{"valid": true}\nnot json\n{"also": "valid"}\n')
-        messages = hook_module.parse_transcript_lines(transcript, 0)
+        messages, lines_consumed = hook_module.parse_transcript_lines(transcript, 0)
         assert len(messages) == 2
+        assert lines_consumed == 3  # all 3 lines read, 1 was invalid JSON
 
 
 class TestStateManagement:

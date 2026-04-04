@@ -54,9 +54,6 @@ class TestInitLangfuse:
         mock_langfuse_cls.return_value = mock_client
 
         with patch("src.langfuse_tracing.Langfuse", mock_langfuse_cls):
-            # Need to patch within the module's import scope
-            import importlib
-
             import src.langfuse_tracing as mod
             mod._initialized = False
             mod._langfuse = None
@@ -181,7 +178,7 @@ class TestTraceOperation:
         mod._langfuse = mock_client
 
         with pytest.raises(ValueError, match="boom"):
-            with trace_operation(name="test-op") as trace:
+            with trace_operation(name="test-op") as _trace:
                 raise ValueError("boom")
 
         mock_trace.update.assert_called_once()
