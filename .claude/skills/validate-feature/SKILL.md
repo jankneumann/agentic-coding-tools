@@ -260,12 +260,16 @@ else
 
   for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
     echo "  Descriptor: $DESCRIPTOR"
-    python3 -m evaluation.gen_eval \
+    # Resolve the module root (parent of evaluation/) and cd into it
+    GENEVAL_MODULE_ROOT=$(dirname "$(dirname "$(dirname "$(dirname "$DESCRIPTOR")")")")
+    GENEVAL_PYTHON="$GENEVAL_MODULE_ROOT/.venv/bin/python"
+    if [ ! -f "$GENEVAL_PYTHON" ]; then GENEVAL_PYTHON="python3"; fi
+    (cd "$GENEVAL_MODULE_ROOT" && "$GENEVAL_PYTHON" -m evaluation.gen_eval \
       --descriptor "$DESCRIPTOR" \
       --mode template-only \
       --no-services \
       --report-format both \
-      --output-dir "$PROJECT_ROOT/openspec/changes/$CHANGE_ID" 2>&1
+      --output-dir "$PROJECT_ROOT/openspec/changes/$CHANGE_ID" 2>&1)
     GENEVAL_EXIT=$?
 
     if [ $GENEVAL_EXIT -ne 0 ]; then
@@ -341,7 +345,7 @@ if [ "$SKIP_E2E" = true ]; then
   echo "SKIP: E2E phase skipped (--skip-e2e flag)"
 else
   # Check if pytest-playwright is installed
-  if python -c "import playwright" 2>/dev/null; then
+  if python3 -c "import playwright" 2>/dev/null; then
     PLAYWRIGHT_AVAILABLE=true
   else
     PLAYWRIGHT_AVAILABLE=false
@@ -391,8 +395,8 @@ if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f
 
   if [ $ARCH_EXIT -eq 0 ]; then
     ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
       ARCH_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then

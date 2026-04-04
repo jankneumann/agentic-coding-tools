@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 _VALID_MODES = frozenset({"template-only", "cli-augmented", "sdk-only"})
 _CATEGORY_PATTERN_RE: str = r"^[a-zA-Z0-9_-]+$"
+_MAX_TIME_BUDGET_MINUTES: float = 480.0  # 8 hours hard cap
 
 
 @dataclass
@@ -154,10 +155,10 @@ class GenEvalMCPService:
         scenarios = await self.list_scenarios()
 
         categories: dict[str, CategoryCoverage] = {}
-        all_interfaces: set[str] = set()
+        all_transports: set[str] = set()
 
         for s in scenarios:
-            all_interfaces.update(s.interfaces)
+            all_transports.update(s.interfaces)
             if s.category not in categories:
                 categories[s.category] = CategoryCoverage(
                     category=s.category,
@@ -176,33 +177,27 @@ class GenEvalMCPService:
                 if iface not in cat.interfaces:
                     cat.interfaces.append(iface)
 
-        # Estimate total interfaces from descriptor
-        total_interfaces = 4  # http, mcp, cli, db (default)
-        descriptor_path = self._descriptors_dir() / "agent-coordinator.yaml"
-        if descriptor_path.exists():
-            try:
-                import yaml
-                desc = yaml.safe_load(descriptor_path.read_text())
-                if isinstance(desc, dict):
-                    total_interfaces = sum(
-                        len(svc.get("endpoints", []))
-                        + len(svc.get("tools", []))
-                        + len(svc.get("commands", []))
-                        for svc in desc.get("services", [])
-                        if isinstance(svc, dict)
-                    )
-            except (Exception,):  # noqa: BLE001
-                logger.warning(
-                    "Failed to parse descriptor at %s, using default interface count",
-                    descriptor_path,
-                )
+        # Count total categories in the scenario directory as the
+        # coverage denominator. This is consistent with the numerator
+        # (number of categories that have at least one scenario).
+        total_categories = 0
+        scenarios_dir = self._scenarios_dir()
+        if scenarios_dir.exists():
+            total_categories = sum(
+                1 for d in scenarios_dir.iterdir() if d.is_dir()
+            )
+        total_categories = max(total_categories, len(categories))
+
+        categories_with_scenarios = len(categories)
 
         return CoverageSummary(
             total_scenarios=len(scenarios),
             categories=list(categories.values()),
-            total_interfaces=total_interfaces,
-            interfaces_covered=len(all_interfaces),
-            coverage_pct=(len(all_interfaces) / max(total_interfaces, 1)) * 100,
+            total_interfaces=total_categories,
+            interfaces_covered=categories_with_scenarios,
+            coverage_pct=(
+                (categories_with_scenarios / max(total_categories, 1)) * 100
+            ),
         )
 
     async def validate_scenario(self, yaml_content: str) -> ValidationResult:
@@ -259,7 +254,20 @@ class GenEvalMCPService:
         Returns a dict with the generated YAML string and suggested file path.
         Does NOT write the file — the caller decides whether to persist.
         """
+        import re
+
         import yaml as yaml_lib
+
+        # Validate category to prevent path traversal in suggested_path
+        if not re.match(_CATEGORY_PATTERN_RE, category):
+            return {
+                "scenario_id": None,
+                "yaml": "",
+                "suggested_path": "",
+                "step_count": 0,
+                "interfaces": interfaces,
+                "error": f"Invalid category '{category}'. Must match [a-zA-Z0-9_-]+",
+            }
 
         # Build a scaffold scenario
         scenario_id = f"{category}-{_slugify(description)}"
@@ -381,6 +389,7 @@ class GenEvalMCPService:
         """
         import asyncio
         import re
+        import time
 
         # Validate mode
         if mode not in _VALID_MODES:
@@ -393,13 +402,21 @@ class GenEvalMCPService:
                 "report": None,
             }
 
+        # Clamp time budget to safe bounds
+        if time_budget_minutes < 0:
+            time_budget_minutes = 0
+        time_budget_minutes = min(time_budget_minutes, _MAX_TIME_BUDGET_MINUTES)
+
         # Validate categories are safe identifiers
         if categories:
             for cat in categories:
                 if not re.match(_CATEGORY_PATTERN_RE, cat):
                     return {
                         "success": False,
-                        "error": f"Invalid category '{cat}'. Must match [a-zA-Z0-9_-]+",
+                        "error": (
+                            f"Invalid category '{cat}'. "
+                            "Must match [a-zA-Z0-9_-]+"
+                        ),
                         "report": None,
                     }
 
@@ -427,6 +444,14 @@ class GenEvalMCPService:
         if mode != "template-only":
             cmd.extend(["--time-budget", str(time_budget_minutes)])
 
+        # Subprocess timeout: budget + 60s grace for startup/teardown
+        timeout_seconds = time_budget_minutes * 60 + 60
+        logger.info(
+            "run_evaluation: mode=%s categories=%s timeout=%.0fs cmd=%s",
+            mode, categories, timeout_seconds, " ".join(cmd[:6]) + "...",
+        )
+        start = time.monotonic()
+
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -434,12 +459,36 @@ class GenEvalMCPService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            _, stderr = await proc.communicate()
+            try:
+                _, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout_seconds,
+                )
+            except TimeoutError:
+                proc.kill()
+                await proc.wait()
+                elapsed = time.monotonic() - start
+                logger.warning(
+                    "run_evaluation: timed out after %.1fs", elapsed,
+                )
+                return {
+                    "success": False,
+                    "error": f"Timed out after {elapsed:.0f}s",
+                    "report": None,
+                }
+
+            elapsed = time.monotonic() - start
 
             if proc.returncode == 0:
+                logger.info(
+                    "run_evaluation: completed in %.1fs", elapsed,
+                )
                 summary = await self.get_report_summary()
                 return {"success": True, "error": None, "report": summary}
             else:
+                logger.warning(
+                    "run_evaluation: failed (exit %d) after %.1fs",
+                    proc.returncode, elapsed,
+                )
                 return {
                     "success": False,
                     "error": stderr.decode()[-500:] if stderr else "Unknown error",

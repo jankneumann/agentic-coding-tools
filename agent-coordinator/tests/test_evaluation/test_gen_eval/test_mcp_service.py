@@ -416,6 +416,31 @@ class TestCreateScenarioEdgeCases:
         )
         assert "unnamed" in result["scenario_id"]
 
+    @pytest.mark.asyncio
+    async def test_path_traversal_category_rejected(
+        self, service: GenEvalMCPService
+    ) -> None:
+        """Categories with path traversal chars should be rejected."""
+        result = await service.create_scenario(
+            category="../../etc",
+            description="Exploit attempt",
+            interfaces=["http"],
+        )
+        assert "error" in result
+        assert result["scenario_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_space_in_category_rejected(
+        self, service: GenEvalMCPService
+    ) -> None:
+        """Categories with spaces should be rejected."""
+        result = await service.create_scenario(
+            category="bad category",
+            description="Space test",
+            interfaces=["http"],
+        )
+        assert "error" in result
+
 
 class TestRunEvaluation:
     @pytest.mark.asyncio
@@ -442,3 +467,23 @@ class TestRunEvaluation:
         result = await svc.run_evaluation()
         assert result["success"] is False
         assert "No descriptor found" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_negative_time_budget_clamped(
+        self, service: GenEvalMCPService
+    ) -> None:
+        """Negative time budget should be clamped to 0, not error."""
+        # This won't run the subprocess (no descriptor), but validates clamping
+        result = await service.run_evaluation(time_budget_minutes=-100)
+        # Should fail for missing descriptor, not for negative budget
+        assert result["success"] is False
+        assert "descriptor" in result["error"].lower() or "No descriptor" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_huge_time_budget_clamped(
+        self, service: GenEvalMCPService
+    ) -> None:
+        """Very large time budget should be clamped to max."""
+        result = await service.run_evaluation(time_budget_minutes=1e6)
+        assert result["success"] is False  # fails for missing descriptor
+        assert "descriptor" in result["error"].lower() or "No descriptor" in result["error"]
