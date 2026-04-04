@@ -5,38 +5,25 @@
 **Author**: Claude Code
 **Date**: 2026-04-04
 
-## Summary
+## Why
+
+Martin Fowler's Design Stamina Hypothesis observes that good design pays off by keeping development speed high over time. Without periodic assessment, design quality degrades silently — functions grow longer, modules accumulate responsibilities, duplication spreads, and coupling increases. By the time these problems become visible (through bugs, slow features, or integration failures), the remediation cost has multiplied.
+
+The existing skill ecosystem has strong runtime diagnostics (`/bug-scrub`: test failures, lint errors, type errors) and structural analysis (`/refresh-architecture`: call graphs, cross-layer flows, parallel zones), but lacks a **design-quality diagnostic** that surfaces code smells, structural duplication, coupling metrics, and import complexity.
+
+## What Changes
 
 Add a structural tech-debt analysis skill that scans the codebase for design quality degradation using principles from Martin Fowler's *Refactoring* catalog, the *Design Stamina Hypothesis*, and the AWS Builders' Library. The skill produces actionable reports identifying code smells, complexity hotspots, coupling problems, and duplicated code.
 
 This skill complements the existing `/bug-scrub` (runtime signals) and `/refresh-architecture` (structural graph) skills by providing a **design quality** layer that surfaces where development velocity is at risk due to accumulated tech debt.
 
-## Motivation
-
-### The Design Stamina Hypothesis
-
-Martin Fowler's Design Stamina Hypothesis observes that good design pays off by keeping development speed high over time. Without periodic assessment, design quality degrades silently — functions grow longer, modules accumulate responsibilities, duplication spreads, and coupling increases. By the time these problems become visible (through bugs, slow features, or integration failures), the remediation cost has multiplied.
-
-### Current Gaps
-
-The existing skill ecosystem has strong runtime diagnostics (`/bug-scrub`: test failures, lint errors, type errors) and structural analysis (`/refresh-architecture`: call graphs, cross-layer flows, parallel zones), but lacks a **design-quality diagnostic** that surfaces:
-
-1. **Code smells** — Long Methods, Large Classes, Complex Functions, Long Parameter Lists
-2. **Structural duplication** — copy-pasted logic across files
-3. **Coupling metrics** — fan-in/fan-out analysis, hub nodes (God Objects)
-4. **Import complexity** — circular dependencies, star imports, import fan-out
-
 ### Integration with Existing Skills
-
-The tech-debt-analysis skill builds on existing artifacts rather than duplicating analysis:
 
 - **Reads from** `/refresh-architecture` artifacts (architecture.graph.json, high_impact_nodes.json) for coupling analysis
 - **Complements** `/bug-scrub` findings — together they provide a complete codebase health picture
 - **Feeds into** `/plan-feature` for prioritizing refactoring work
 
-## Goals
-
-### Primary Goals
+### Goals
 
 1. **Detect code smells** from Fowler's *Refactoring* catalog using AST-based analysis (Long Method, Large Class, Complex Function, Deep Nesting, Long Parameter List, Duplicated Code)
 2. **Measure coupling** from architecture graph artifacts (fan-in, fan-out, hub nodes, blast radius)
