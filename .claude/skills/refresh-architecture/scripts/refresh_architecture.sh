@@ -45,6 +45,31 @@ AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-true}"
 SCRIPTS_ABS_DIR="$(cd "${SCRIPTS_DIR}" 2>/dev/null && pwd || true)"
 TOOLS_ROOT_DIR="${SCRIPTS_ABS_DIR%/scripts}"
 
+# Skills root: parent of SCRIPTS_DIR's skill directory (e.g. skills/)
+# Used to locate scripts in sibling skill directories (e.g. validate-flows).
+SKILLS_ROOT="${SCRIPTS_ABS_DIR%/refresh-architecture/scripts}"
+
+# find_script <filename> — resolve a script path, searching SCRIPTS_DIR first,
+# then sibling skill directories under SKILLS_ROOT.
+find_script() {
+    local name="$1"
+    # Direct match in SCRIPTS_DIR
+    if [ -f "${SCRIPTS_DIR}/${name}" ]; then
+        echo "${SCRIPTS_DIR}/${name}"
+        return 0
+    fi
+    # Search sibling skill script directories
+    if [ -d "${SKILLS_ROOT}" ] && [ "${SKILLS_ROOT}" != "${SCRIPTS_ABS_DIR}" ]; then
+        local candidate
+        candidate="$(find "${SKILLS_ROOT}" -maxdepth 3 -name "${name}" -path "*/scripts/*" -type f 2>/dev/null | head -1)"
+        if [ -n "${candidate}" ]; then
+            echo "${candidate}"
+            return 0
+        fi
+    fi
+    return 1
+}
+
 # ---------------------------------------------------------------------------
 # Parse flags
 # ---------------------------------------------------------------------------
@@ -409,11 +434,12 @@ info "--- [2.2] Flow Validator ---"
 if [ ! -f "${GRAPH_FILE}" ]; then
     warn "Graph file not found — skipping validation"
     skip "validator"
-elif [ ! -f "${SCRIPTS_DIR}/validate_flows.py" ]; then
-    warn "Validator script not found: ${SCRIPTS_DIR}/validate_flows.py"
-    fail "validator"
 else
-    if ${PYTHON} "${SCRIPTS_DIR}/validate_flows.py" \
+    VALIDATE_FLOWS_SCRIPT="$(find_script validate_flows.py || true)"
+    if [ -z "${VALIDATE_FLOWS_SCRIPT}" ]; then
+        warn "Validator script not found in ${SCRIPTS_DIR}/ or sibling skills"
+        fail "validator"
+    elif PYTHONPATH="${SCRIPTS_ABS_DIR}:${PYTHONPATH:-}" ${PYTHON} "${VALIDATE_FLOWS_SCRIPT}" \
         --graph "${GRAPH_FILE}" \
         --output "${DIAG_FILE}" 2>&1; then
         info "Diagnostics written to ${DIAG_FILE}"

@@ -23,6 +23,7 @@ from datetime import date, datetime
 from enum import IntEnum
 from pathlib import Path
 
+
 # ---------------------------------------------------------------------------
 # Domain types
 # ---------------------------------------------------------------------------

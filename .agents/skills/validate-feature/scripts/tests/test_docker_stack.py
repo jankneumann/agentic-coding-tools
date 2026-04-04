@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, call, mock_open, patch
 
 import pytest
 
+
 # ---------------------------------------------------------------------------
 # Protocol compliance tests
 # ---------------------------------------------------------------------------
