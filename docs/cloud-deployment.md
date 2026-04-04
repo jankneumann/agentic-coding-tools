@@ -110,6 +110,8 @@ postgresql://postgres:<password>@<postgres-service>.railway.internal:5432/coordi
 
 The Coordination API is exposed publicly via Railway's HTTPS URL (e.g., `https://your-app.railway.app`).
 
+For stable custom domain access through Cloudflare, see [Cloudflare Domain Setup](cloudflare-setup.md).
+
 ## 7. Verify Deployment
 
 ### Health Check
@@ -180,4 +182,6 @@ python3 agent-coordinator/run_mcp.py
 ### SSRF Blocking Cloud URL
 - Add Railway hostname to `COORDINATION_ALLOWED_HOSTS` environment variable
 - Format: comma-separated hostnames without scheme or port
-- Example: `COORDINATION_ALLOWED_HOSTS=your-app.railway.app`
+- Exact host: `COORDINATION_ALLOWED_HOSTS=your-app.railway.app`
+- Wildcard: `COORDINATION_ALLOWED_HOSTS=*.yourdomain.com` (matches all subdomains)
+- Mixed: `COORDINATION_ALLOWED_HOSTS=*.yourdomain.com,your-app.railway.app`
