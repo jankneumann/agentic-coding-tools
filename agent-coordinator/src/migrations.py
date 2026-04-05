@@ -71,7 +71,7 @@ async def run_migrations(
     """
     import asyncpg
 
-    conn = await asyncpg.connect(dsn)
+    conn = await asyncpg.connect(dsn, timeout=10)
     try:
         # Ensure tracking table exists
         await conn.execute(_BOOTSTRAP_SQL)

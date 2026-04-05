@@ -24,8 +24,8 @@ __pycache__/
 .env
 .env.example
 
-# Database migrations (applied separately via psql)
-supabase/
+# Supabase seed data (migrations are copied into the image for auto-apply)
+supabase/seed.sql
 
 # Local development only
 docker-compose.yml

@@ -1478,10 +1478,13 @@ def create_coordination_api() -> FastAPI:
 
     @app.get("/health")
     async def health() -> Any:
-        """Health check endpoint with database connectivity check."""
-        import asyncio
+        """Health check endpoint with database connectivity check.
 
-        from fastapi.responses import JSONResponse
+        Always returns 200 so Railway/load-balancer liveness checks pass.
+        The ``db`` field reports connectivity for observability — a value of
+        ``"unreachable"`` signals degraded state without failing the probe.
+        """
+        import asyncio
 
         db_status = "connected"
         cfg = get_config()
@@ -1500,12 +1503,8 @@ def create_coordination_api() -> FastAPI:
             except Exception:
                 db_status = "unreachable"
 
-        if db_status == "unreachable":
-            return JSONResponse(
-                status_code=503,
-                content={"status": "degraded", "db": "unreachable", "version": "0.2.0"},
-            )
-        return {"status": "ok", "db": db_status, "version": "0.2.0"}
+        status = "ok" if db_status == "connected" else "degraded"
+        return {"status": status, "db": db_status, "version": "0.2.0"}
 
     return app
 
