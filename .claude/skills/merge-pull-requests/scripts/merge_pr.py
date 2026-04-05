@@ -8,7 +8,7 @@ Actions:
   rerun-checks - Re-run failed CI workflow runs for a PR
 
 Usage:
-  python merge_pr.py merge <pr_number> [--strategy squash|merge|rebase] [--dry-run]
+  python merge_pr.py merge <pr_number> [--strategy squash|merge|rebase] [--validation-report PATH] [--force] [--dry-run]
   python merge_pr.py close <pr_number> --reason <text> [--dry-run]
   python merge_pr.py batch-close <pr_numbers_comma_sep> --reason <text> [--dry-run]
   python merge_pr.py rerun-checks <pr_number> [--dry-run]
@@ -20,6 +20,7 @@ import argparse
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 from shared import (
     GH_TIMEOUT,
@@ -380,18 +381,80 @@ def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
     }
 
 
+def _check_pre_merge_gate(
+    report_path: str, *, force: bool = False,
+) -> dict:
+    """Run pre-merge gate check via gate_logic script.
+
+    Returns dict with 'action', 'reason', and 'phase_statuses'.
+    Falls back gracefully if gate_logic is not available.
+    """
+    gate_script = Path(__file__).resolve().parent.parent.parent / (
+        "validate-feature/scripts/gate_logic.py"
+    )
+    if not gate_script.exists():
+        return {
+            "action": "continue",
+            "reason": "Gate script not found — skipping gate check",
+            "phase_statuses": {},
+        }
+
+    cmd = [sys.executable, str(gate_script), report_path]
+    if force:
+        cmd.append("--force")
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=10,
+        )
+        return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
+        # Gate script failure is treated as halt (fail-closed)
+        return {
+            "action": "halt",
+            "reason": f"Gate check failed: {e}",
+            "phase_statuses": {},
+        }
+
+
 def merge_pr(pr_number: int, strategy: str = "squash",
-             dry_run: bool = False) -> dict:
+             dry_run: bool = False,
+             validation_report: str | None = None,
+             force: bool = False) -> dict:
     validation = validate_pr(pr_number)
 
+    # Pre-merge gate: if a validation report is provided, check all required
+    # phases passed before allowing merge. Use --force for explicit override.
+    gate_result = None
+    if validation_report:
+        gate_result = _check_pre_merge_gate(
+            validation_report, force=force,
+        )
+
     if dry_run:
-        return {
+        result = {
             "action": "merge",
             "dry_run": True,
             "pr_number": pr_number,
             "strategy": strategy,
             "validation": validation,
             "would_merge": validation["can_merge"],
+        }
+        if gate_result:
+            result["gate"] = gate_result
+            if gate_result["action"] == "halt":
+                result["would_merge"] = False
+        return result
+
+    # Gate check: block merge if gate halted (and not forced)
+    if gate_result and gate_result["action"] == "halt":
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": gate_result["reason"],
+            "gate": gate_result,
+            "validation": validation,
         }
 
     if validation["is_draft"]:
@@ -458,6 +521,10 @@ def merge_pr(pr_number: int, strategy: str = "squash",
         result["warning"] += (
             "Approval may be stale — commits were pushed after the last approval"
         )
+
+    # Include gate result if present
+    if gate_result:
+        result["gate"] = gate_result
 
     return result
 
@@ -652,6 +719,14 @@ def main():
         "--origin", default=None,
         help="PR origin (openspec, codex, dependabot, etc.) for strategy selection",
     )
+    merge_parser.add_argument(
+        "--validation-report", default=None,
+        help="Path to validation-report.md for pre-merge gate check",
+    )
+    merge_parser.add_argument(
+        "--force", action="store_true",
+        help="Override pre-merge gate (explicit user bypass)",
+    )
     merge_parser.add_argument("--dry-run", action="store_true")
 
     # close subcommand
@@ -684,7 +759,11 @@ def main():
 
     if args.action == "merge":
         strategy = resolve_strategy(args.strategy, args.origin)
-        result = merge_pr(args.pr_number, strategy, args.dry_run)
+        result = merge_pr(
+            args.pr_number, strategy, args.dry_run,
+            validation_report=args.validation_report,
+            force=args.force,
+        )
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)
     elif args.action == "batch-close":

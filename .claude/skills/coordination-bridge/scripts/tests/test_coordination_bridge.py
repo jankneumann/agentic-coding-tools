@@ -223,6 +223,45 @@ def test_try_submit_work_passes_payload(monkeypatch) -> None:
     assert payload["depends_on"] == ["a", "b"]
 
 
+def test_validate_url_allows_custom_domain(monkeypatch) -> None:
+    """Custom domain in COORDINATION_ALLOWED_HOSTS is accepted."""
+    monkeypatch.setenv("COORDINATION_ALLOWED_HOSTS", "coord.example.com")
+    assert coordination_bridge._validate_url("https://coord.example.com/health") is not None
+    assert coordination_bridge._validate_url("https://coord.example.com:443/health") is not None
+    # Unlisted hosts still blocked
+    assert coordination_bridge._validate_url("https://evil.example.com") is None
+
+
+def test_validate_url_allows_wildcard_subdomain(monkeypatch) -> None:
+    """Wildcard *.domain.com matches any subdomain."""
+    monkeypatch.setenv("COORDINATION_ALLOWED_HOSTS", "*.example.com")
+    assert coordination_bridge._validate_url("https://coord.example.com") is not None
+    assert coordination_bridge._validate_url("https://mcp.example.com") is not None
+    assert coordination_bridge._validate_url("https://vault.example.com:8200") is not None
+    # Bare domain should NOT match wildcard (*.example.com != example.com)
+    assert coordination_bridge._validate_url("https://example.com") is None
+    # Unlisted domains still blocked
+    assert coordination_bridge._validate_url("https://evil.other.com") is None
+
+
+def test_validate_url_wildcard_deep_subdomain(monkeypatch) -> None:
+    """Wildcard *.domain.com matches multi-level subdomains (a.b.domain.com)."""
+    monkeypatch.setenv("COORDINATION_ALLOWED_HOSTS", "*.example.com")
+    assert coordination_bridge._validate_url("https://deep.sub.example.com") is not None
+    assert coordination_bridge._validate_url("https://a.b.c.example.com") is not None
+
+
+def test_validate_url_wildcard_mixed_with_exact(monkeypatch) -> None:
+    """Wildcard and exact entries can coexist in COORDINATION_ALLOWED_HOSTS."""
+    monkeypatch.setenv(
+        "COORDINATION_ALLOWED_HOSTS",
+        "*.example.com,specific.railway.app",
+    )
+    assert coordination_bridge._validate_url("https://coord.example.com") is not None
+    assert coordination_bridge._validate_url("https://specific.railway.app") is not None
+    assert coordination_bridge._validate_url("https://other.railway.app") is None
+
+
 def test_try_recall_skips_when_coordinator_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(
         coordination_bridge,

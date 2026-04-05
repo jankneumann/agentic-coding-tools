@@ -1,3 +1,14 @@
+---
+name: auto-dev-loop
+description: "Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor review convergence"
+category: Git Workflow
+tags: [automation, lifecycle, multi-vendor, review, convergence]
+triggers:
+  - "auto dev loop"
+  - "run dev loop"
+  - "full lifecycle"
+---
+
 # Auto Dev Loop
 
 Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor review convergence. For simple features, runs fully automatically from proposal to PR. Stops at merge for human approval.

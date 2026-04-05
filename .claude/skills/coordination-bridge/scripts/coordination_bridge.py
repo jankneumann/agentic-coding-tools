@@ -61,11 +61,16 @@ _HANDOFF_READ_ENDPOINTS: list[tuple[str, str]] = [
 # SSRF Protection: URL Allowlist
 #
 # By default, only localhost addresses are allowed for coordinator URLs.
-# For cloud deployments (e.g., Railway), add external hostnames via the
-# COORDINATION_ALLOWED_HOSTS environment variable.
+# For cloud deployments (e.g., Railway, Cloudflare custom domains), add
+# external hostnames via the COORDINATION_ALLOWED_HOSTS environment variable.
 #
 # Format: comma-separated hostnames (no scheme, no port)
-# Example: COORDINATION_ALLOWED_HOSTS=your-app.railway.app,your-app-production.up.railway.app
+# Exact:    COORDINATION_ALLOWED_HOSTS=your-app.railway.app
+# Wildcard: COORDINATION_ALLOWED_HOSTS=*.yourdomain.com
+# Mixed:    COORDINATION_ALLOWED_HOSTS=*.yourdomain.com,specific.railway.app
+#
+# Wildcard entries (*.domain.com) match any subdomain (coord.domain.com,
+# mcp.domain.com) but NOT the bare domain itself (domain.com).
 #
 # The _validate_url() function merges COORDINATION_ALLOWED_HOSTS with the
 # built-in localhost allowlist. Requests to unlisted hosts are blocked.
@@ -95,13 +100,26 @@ def _validate_url(url: str) -> str | None:
 
     extra_hosts_raw = os.environ.get("COORDINATION_ALLOWED_HOSTS", "").strip()
     allowed = set(_ALLOWED_HOSTS)
+    wildcards: list[str] = []
     if extra_hosts_raw:
-        allowed.update(h.strip().lower() for h in extra_hosts_raw.split(",") if h.strip())
+        for entry in extra_hosts_raw.split(","):
+            entry = entry.strip().lower()
+            if not entry:
+                continue
+            if entry.startswith("*."):
+                wildcards.append(entry[1:])  # store ".domain.com"
+            else:
+                allowed.add(entry)
 
-    if hostname not in allowed:
-        return None
+    if hostname in allowed:
+        return url
 
-    return url
+    # Check wildcard patterns: *.domain.com matches sub.domain.com
+    for suffix in wildcards:
+        if hostname.endswith(suffix) and hostname != suffix.lstrip("."):
+            return url
+
+    return None
 
 
 def _coordinator_state(

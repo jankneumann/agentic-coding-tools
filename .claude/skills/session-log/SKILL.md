@@ -1,3 +1,13 @@
+---
+name: session-log
+description: "Structured decision records for session logs and merge logs at phase boundaries"
+category: Infrastructure
+tags: [logging, session, merge-log, decision-record, infrastructure]
+triggers:
+  - "session log"
+  - "log session"
+---
+
 # Session Log — Infrastructure Skill
 
 Provides utilities for appending structured decision records to `session-log.md` (per-change) and `docs/merge-logs/YYYY-MM-DD.md` (per-merge-session). Each workflow skill calls these at phase boundaries to build a living decision record.

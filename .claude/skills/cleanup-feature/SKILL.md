@@ -111,36 +111,61 @@ If Docker is not available, warn the operator that deployment validation was ski
 
 If any phase **fails**, present findings and let the operator decide: fix, re-validate, or proceed anyway.
 
-### 2.5a. Smoke Test Hard Gate
+### 2.5a. Pre-Merge Validation Gate
 
-Check `validation-report.md` for smoke test results:
+**Programmatic enforcement** — run the gate check script before merge:
 
-1. Parse `## Smoke Tests` section for `Status:` line
-2. If `Status: pass` → proceed to merge
-3. If `Status: fail`, `Status: skipped`, or section missing:
-   a. Re-run: `phase_deploy.py --env docker && phase_smoke.py && stack_launcher.py teardown`
-   b. If re-run passes → proceed to merge
-   c. If re-run fails or no runtime available → **HALT** (do not merge)
+```bash
+python3 skills/validate-feature/scripts/gate_logic.py \
+  openspec/changes/<change-id>/validation-report.md
+```
 
-This is a **hard gate** — merge is blocked until smoke tests pass.
+This checks **all required phases** (smoke tests, security scan, E2E tests) in `validation-report.md`:
+- Exit code 0 → all phases passed, proceed to merge
+- Exit code 1 → one or more phases failed/missing/skipped → **HALT**
+
+If the gate halts:
+1. Re-run the failing phases: `/validate-feature <change-id> --phase deploy,smoke,security,e2e`
+2. Re-check the gate
+3. Only if re-run fails AND the user explicitly requests override: add `--force`
+
+```bash
+# Explicit user override (must be requested by user, never autonomous)
+python3 skills/validate-feature/scripts/gate_logic.py \
+  openspec/changes/<change-id>/validation-report.md --force
+```
+
+This is a **hard gate** — merge is blocked until all required phases pass or the user explicitly overrides.
 
 ### 2.6. Merge Queue Integration [coordinated only]
 
 These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY` capabilities.
 
-**2.5a. Enqueue**: `enqueue_merge(feature_id="<change-id>", pr_url="<pr-url>")`
-**2.5b. Pre-merge checks**: `run_pre_merge_checks(feature_id="<change-id>")` -- verifies no new resource conflicts
-**2.5c. Check merge order**: `get_next_merge()` -- inform user if another feature has higher priority
-**2.5d. Cross-feature rebase**: If other features merged since branching, rebase on origin/main
+**2.6a. Enqueue**: `enqueue_merge(feature_id="<change-id>", pr_url="<pr-url>")`
+**2.6b. Pre-merge checks**: `run_pre_merge_checks(feature_id="<change-id>")` -- verifies no new resource conflicts
+**2.6c. Check merge order**: `get_next_merge()` -- inform user if another feature has higher priority
+**2.6d. Cross-feature rebase**: If other features merged since branching, rebase on origin/main
 
 ### 3. Merge PR
 
-```bash
-# Rebase merge (default for OpenSpec PRs — preserves granular commit history)
-gh pr merge openspec/<change-id> --rebase --delete-branch
+The merge command integrates the pre-merge gate — it will refuse to merge unless the gate passes:
 
-# Squash merge (use for noisy history or non-agent PRs)
-gh pr merge openspec/<change-id> --squash --delete-branch
+```bash
+# Via merge_pr.py with gate enforcement (preferred)
+python3 skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> \
+  --origin openspec \
+  --validation-report openspec/changes/<change-id>/validation-report.md
+
+# Direct gh merge (only if gate already passed in step 2.5a)
+gh pr merge openspec/<change-id> --rebase --delete-branch
+```
+
+**Explicit user override** (only when user explicitly requests):
+```bash
+python3 skills/merge-pull-requests/scripts/merge_pr.py merge <pr_number> \
+  --origin openspec \
+  --validation-report openspec/changes/<change-id>/validation-report.md \
+  --force
 ```
 
 **Strategy rationale**: OpenSpec PRs use rebase-merge by default because agent-authored commits follow conventional format and encode design intent (interface → implementation → tests). Preserving this history improves `git blame` and `git bisect` for future agents. Use squash only if the PR has noisy WIP commits.

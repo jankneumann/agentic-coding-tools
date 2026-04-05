@@ -1,10 +1,11 @@
-"""Tests for gate logic — soft and hard gates for validation pipeline.
+"""Tests for gate logic — soft, hard, and pre-merge gates for validation pipeline.
 
 TDD tests written before implementation (task 5.5).
 Tests cover:
-- check_smoke_status parsing of validation-report.md
+- check_phase_status parsing of validation-report.md (generic + smoke)
 - Soft gate: always returns 'continue' regardless of status
 - Hard gate: returns 'halt' on fail/skipped/missing, 'continue' on pass
+- Pre-merge gate: checks all required phases, supports --force override
 """
 
 from __future__ import annotations
@@ -19,7 +20,13 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from gate_logic import check_smoke_status, hard_gate, soft_gate
+from gate_logic import (
+    check_phase_status,
+    check_smoke_status,
+    hard_gate,
+    pre_merge_gate,
+    soft_gate,
+)
 
 
 class TestCheckSmokeStatus:
@@ -196,3 +203,144 @@ class TestHardGate:
 
         action, reason = hard_gate(str(report))
         assert action == "halt"
+
+
+class TestCheckPhaseStatus:
+    """Test generic phase status parsing."""
+
+    def test_security_pass(self, tmp_path: Path) -> None:
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Security\n\n"
+            "- **Status**: pass\n"
+        )
+        assert check_phase_status(str(report), "Security") == "pass"
+
+    def test_security_fail(self, tmp_path: Path) -> None:
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Security\n\n"
+            "- **Status**: fail\n"
+        )
+        assert check_phase_status(str(report), "Security") == "fail"
+
+    def test_e2e_pass(self, tmp_path: Path) -> None:
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## E2E Tests\n\n"
+            "- **Status**: pass\n"
+        )
+        assert check_phase_status(str(report), "E2E Tests") == "pass"
+
+    def test_missing_section(self, tmp_path: Path) -> None:
+        report = tmp_path / "validation-report.md"
+        report.write_text("## Other\n\nStuff.\n")
+        assert check_phase_status(str(report), "Security") == "missing"
+
+    def test_missing_file(self) -> None:
+        assert check_phase_status("/nonexistent", "Security") == "missing"
+
+
+class TestPreMergeGate:
+    """Test pre-merge gate — checks all required phases."""
+
+    def _full_passing_report(self) -> str:
+        return (
+            "## Smoke Tests\n\n"
+            "- **Status**: pass\n\n"
+            "## Security\n\n"
+            "- **Status**: pass\n\n"
+            "## E2E Tests\n\n"
+            "- **Status**: pass\n"
+        )
+
+    def test_all_pass_continues(self, tmp_path: Path) -> None:
+        """All required phases pass -> continue."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(self._full_passing_report())
+
+        action, reason, statuses = pre_merge_gate(str(report))
+        assert action == "continue"
+        assert statuses["Smoke Tests"] == "pass"
+        assert statuses["Security"] == "pass"
+        assert statuses["E2E Tests"] == "pass"
+
+    def test_smoke_fail_halts(self, tmp_path: Path) -> None:
+        """Smoke tests fail -> halt."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Smoke Tests\n\n- **Status**: fail\n\n"
+            "## Security\n\n- **Status**: pass\n\n"
+            "## E2E Tests\n\n- **Status**: pass\n"
+        )
+
+        action, reason, statuses = pre_merge_gate(str(report))
+        assert action == "halt"
+        assert "Smoke tests: fail" in reason
+
+    def test_security_missing_halts(self, tmp_path: Path) -> None:
+        """Security section missing -> halt."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Smoke Tests\n\n- **Status**: pass\n\n"
+            "## E2E Tests\n\n- **Status**: pass\n"
+        )
+
+        action, reason, statuses = pre_merge_gate(str(report))
+        assert action == "halt"
+        assert "Security scan: missing" in reason
+
+    def test_e2e_skipped_halts(self, tmp_path: Path) -> None:
+        """E2E skipped -> halt."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Smoke Tests\n\n- **Status**: pass\n\n"
+            "## Security\n\n- **Status**: pass\n\n"
+            "## E2E Tests\n\n- **Status**: skipped\n"
+        )
+
+        action, reason, statuses = pre_merge_gate(str(report))
+        assert action == "halt"
+        assert "E2E tests: skipped" in reason
+
+    def test_multiple_failures_reported(self, tmp_path: Path) -> None:
+        """Multiple failures are all reported."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Smoke Tests\n\n- **Status**: fail\n\n"
+            "## Security\n\n- **Status**: fail\n"
+        )
+
+        action, reason, statuses = pre_merge_gate(str(report))
+        assert action == "halt"
+        assert "Smoke tests: fail" in reason
+        assert "Security scan: fail" in reason
+        assert "E2E tests: missing" in reason
+
+    def test_missing_report_halts(self) -> None:
+        """No report file -> halt (all phases missing)."""
+        action, reason, statuses = pre_merge_gate("/nonexistent/report.md")
+        assert action == "halt"
+        assert all(s == "missing" for s in statuses.values())
+
+    def test_force_overrides_failures(self, tmp_path: Path) -> None:
+        """--force allows merge despite failures."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(
+            "## Smoke Tests\n\n- **Status**: fail\n\n"
+            "## Security\n\n- **Status**: fail\n"
+        )
+
+        action, reason, statuses = pre_merge_gate(str(report), force=True)
+        assert action == "continue"
+        assert "FORCED OVERRIDE" in reason
+        assert "Smoke tests: fail" in reason
+
+    def test_force_on_passing_continues(self, tmp_path: Path) -> None:
+        """--force on passing report still continues normally."""
+        report = tmp_path / "validation-report.md"
+        report.write_text(self._full_passing_report())
+
+        action, reason, statuses = pre_merge_gate(str(report), force=True)
+        assert action == "continue"
+        assert "FORCED" not in reason  # No override needed
