@@ -2,16 +2,32 @@
 
 Produces structured reports in markdown and JSON formats from
 GenEvalReport data. Reports include pass/fail summaries, coverage
-metrics, per-interface and per-category breakdowns, and cost summaries.
+metrics, per-interface and per-category breakdowns, cost summaries,
+and visibility-grouped results when a manifest is available.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from evaluation.gen_eval.models import ScenarioVerdict
 from evaluation.metrics import GenEvalMetrics
+
+
+@dataclass
+class VisibilityBreakdown:
+    """Pass/fail/error/skip counts for a single visibility bucket."""
+
+    total: int = 0
+    passed: int = 0
+    failed: int = 0
+    errors: int = 0
+    skipped: int = 0
+
+    @property
+    def pass_rate(self) -> float:
+        return self.passed / self.total if self.total > 0 else 0.0
 
 
 @dataclass
@@ -33,6 +49,8 @@ class GenEvalReport:
     unevaluated_interfaces: list[str]
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
     iterations_completed: int
+    # Visibility-grouped results (populated when manifest is available)
+    per_visibility: dict[str, VisibilityBreakdown] = field(default_factory=dict)
 
     def to_metrics(self) -> list[GenEvalMetrics]:
         """Convert verdicts to GenEvalMetrics for integration with MetricsCollector."""
@@ -111,6 +129,23 @@ def generate_markdown_report(report: GenEvalReport) -> str:
             )
         lines.append("")
 
+    # Visibility breakdown
+    if report.per_visibility:
+        lines.append("## Visibility Breakdown")
+        lines.append("")
+        lines.append("| Visibility | Total | Pass | Fail | Error | Skip | Pass Rate |")
+        lines.append("|------------|-------|------|------|-------|------|-----------|")
+        for vis, breakdown in sorted(report.per_visibility.items()):
+            lines.append(
+                f"| {vis} | {breakdown.total} "
+                f"| {breakdown.passed} "
+                f"| {breakdown.failed} "
+                f"| {breakdown.errors} "
+                f"| {breakdown.skipped} "
+                f"| {breakdown.pass_rate:.1%} |"
+            )
+        lines.append("")
+
     # Unevaluated interfaces
     if report.unevaluated_interfaces:
         lines.append("## Unevaluated Interfaces")
@@ -156,4 +191,16 @@ def generate_json_report(report: GenEvalReport) -> str:
         "unevaluated_interfaces": report.unevaluated_interfaces,
         "verdicts": [v.model_dump() for v in report.verdicts],
     }
+    if report.per_visibility:
+        data["per_visibility"] = {
+            vis: {
+                "total": b.total,
+                "passed": b.passed,
+                "failed": b.failed,
+                "errors": b.errors,
+                "skipped": b.skipped,
+                "pass_rate": b.pass_rate,
+            }
+            for vis, b in report.per_visibility.items()
+        }
     return json.dumps(data, indent=2, default=str)
