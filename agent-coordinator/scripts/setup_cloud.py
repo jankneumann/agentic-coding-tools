@@ -7,7 +7,8 @@ Railway service env vars that must be set in the dashboard.
 Usage:
     python3 scripts/setup_cloud.py --domain coord.yourdomain.com
     python3 scripts/setup_cloud.py --domain your-app.railway.app --verify
-    python3 scripts/setup_cloud.py --domain coord.yourdomain.com --claude-key <key> --codex-key <key>
+    python3 scripts/setup_cloud.py --domain coord.yourdomain.com \\
+        --claude-key <key> --codex-key <key>
 
 Then:
     source .env.cloud   # activate in current shell
@@ -29,7 +30,10 @@ PROJECT_DIR = SCRIPT_DIR.parent
 
 # Agent definitions: id, type, key-env-name
 AGENTS = [
-    {"id": "claude-remote", "type": "claude_code", "key_flag": "claude_key", "label": "Claude Code"},
+    {
+        "id": "claude-remote", "type": "claude_code",
+        "key_flag": "claude_key", "label": "Claude Code",
+    },
     {"id": "codex-remote", "type": "codex", "key_flag": "codex_key", "label": "Codex"},
     {"id": "gemini-remote", "type": "gemini", "key_flag": "gemini_key", "label": "Gemini"},
 ]
@@ -123,7 +127,10 @@ def main() -> None:
     parser.add_argument("--claude-key", help="Claude Code API key (generated if omitted)")
     parser.add_argument("--codex-key", help="Codex API key (generated if omitted)")
     parser.add_argument("--gemini-key", help="Gemini API key (generated if omitted)")
-    parser.add_argument("--verify", action="store_true", help="Test /health after generating config")
+    parser.add_argument(
+        "--verify", action="store_true",
+        help="Test /health after generating config",
+    )
     parser.add_argument(
         "--output", default=str(PROJECT_DIR / ".env.cloud"),
         help="Output file path (default: agent-coordinator/.env.cloud)",
@@ -168,10 +175,13 @@ def main() -> None:
     print("\n3. Per-agent API keys:")
     for agent in AGENTS:
         key = keys.get(agent["key_flag"], "")
-        generated = "(generated)" if not getattr(args, agent["key_flag"].replace("_key", "_key"), None) else "(provided)"
+        provided = getattr(
+            args, agent["key_flag"].replace("_key", "_key"), None,
+        )
+        generated = "(provided)" if provided else "(generated)"
         print(f"   {agent['label']:15s} ({agent['id']}): {key[:12]}... {generated}")
 
-    print(f"\n4. Install lifecycle hooks (from agent-coordinator/):")
+    print("\n4. Install lifecycle hooks (from agent-coordinator/):")
     print("   make hooks-setup")
 
     if args.verify:
