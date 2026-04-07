@@ -1,32 +1,32 @@
 ---
-name: openspec-beads-worktree
-version: 1.0.0
-description: Coordinate OpenSpec proposals with Beads task tracking and isolated git worktree execution. Implements systematic spec-driven development with parallel agent coordination.
+name: openspec-coordinator-worktree
+version: 2.0.0
+description: Coordinate OpenSpec proposals with coordinator issue tracking and isolated git worktree execution. Implements systematic spec-driven development with parallel agent coordination.
 author: Enterprise AI Strategy
-tags: [openspec, beads, git-worktree, multi-agent, coordination]
+tags: [openspec, coordinator, git-worktree, multi-agent, coordination, issues]
 requires:
   - openspec (CLI or manual)
-  - beads (bd CLI >= 0.21.5)
+  - coordinator (MCP or HTTP)
   - git (2.x with worktree support)
 triggers:
   - "implement openspec proposal"
-  - "convert openspec to beads"
+  - "convert openspec to issues"
   - "setup worktree for"
   - "coordinate openspec work"
   - "parallel implementation"
 ---
 
-# OpenSpec + Beads + Git Worktree Coordination
+# OpenSpec + Coordinator Issues + Git Worktree Coordination
 
 ## Purpose
 
-This skill coordinates the complete workflow from OpenSpec proposal through Beads task creation to isolated git worktree execution. It enables systematic spec-driven development with support for parallel agent coordination.
+This skill coordinates the complete workflow from OpenSpec proposal through coordinator issue creation to isolated git worktree execution. It enables systematic spec-driven development with support for parallel agent coordination.
 
 ## When to Use This Skill
 
 Activate this skill when:
 - Starting work on an OpenSpec proposal
-- Converting OpenSpec tasks to Beads issues
+- Converting OpenSpec tasks to coordinator issues
 - Setting up isolated execution environments
 - Coordinating multiple agents on one feature
 - Implementing complex changes that span multiple sessions
@@ -34,9 +34,9 @@ Activate this skill when:
 ## Workflow Overview
 
 ```
-OpenSpec Proposal → Beads Issues → Git Worktrees → Execution → Merge → Archive
-       ↓                ↓              ↓              ↓          ↓        ↓
-   Planning        Tracking      Isolation      Implementation Review  Knowledge
+OpenSpec Proposal → Coordinator Issues → Git Worktrees → Execution → Merge → Archive
+       ↓                   ↓                  ↓              ↓          ↓        ↓
+   Planning            Tracking          Isolation      Implementation Review  Knowledge
 ```
 
 ## Phase 1: OpenSpec Proposal Review
@@ -78,84 +78,47 @@ Read and validate:
 - [ ] Acceptance criteria are defined
 - [ ] Estimated complexity is reasonable
 
-## Phase 2: Convert OpenSpec to Beads
+## Phase 2: Convert OpenSpec to Coordinator Issues
 
-### Step 2.1: Initialize Beads (if needed)
+### Step 2.1: Verify Coordinator Available
+
+Check that the coordinator is running and issue tools are available:
 
 ```bash
-# Check if Beads is initialized
-if [ -d ".beads" ]; then
-  echo "✓ Beads initialized"
-  bd version
-else
-  echo "Initializing Beads..."
-  bd init
-fi
-
-# Verify Beads is working
-bd list --status open --json
+python3 skills/coordination-bridge/scripts/check_coordinator.py --json
 ```
+
+If coordinator is unavailable, fall back to tracking tasks only in `tasks.md` without issue creation.
 
 ### Step 2.2: Create Epic from Proposal
 
-```bash
+Use the coordinator's `issue_create` MCP tool:
+
+```
 # Create epic for the OpenSpec proposal
-PROPOSAL_NAME="<proposal-name>"
-EPIC_TITLE="OpenSpec: $(grep -m 1 '^#' openspec/changes/$PROPOSAL_NAME/proposal.md | sed 's/^# //')"
-
-# Create epic and capture ID
-EPIC_ID=$(bd create "$EPIC_TITLE" \
-  --type epic \
-  --priority 1 \
-  --description "Implementing OpenSpec proposal: $PROPOSAL_NAME" \
-  --label "openspec,$PROPOSAL_NAME" \
-  --json | jq -r '.id')
-
-echo "Created epic: $EPIC_ID"
-
-# Add reference to OpenSpec proposal
-bd update $EPIC_ID --description "$(cat <<EOF
-OpenSpec Proposal: $PROPOSAL_NAME
-Location: openspec/changes/$PROPOSAL_NAME/
-
-Proposal Summary:
-$(head -n 10 openspec/changes/$PROPOSAL_NAME/proposal.md)
-
-[Full proposal: openspec/changes/$PROPOSAL_NAME/proposal.md]
-EOF
-)"
+issue_create(
+  title="OpenSpec: <proposal title>",
+  issue_type="epic",
+  priority=1,
+  description="Implementing OpenSpec proposal: <proposal-name>\nLocation: openspec/changes/<proposal-name>/",
+  labels=["openspec", "<proposal-name>"]
+)
 ```
 
-### Step 2.3: Parse Tasks and Create Beads Issues
+Record the returned `issue_id` as `EPIC_ID` for linking children.
 
-```bash
-# Function to parse OpenSpec tasks.md and create Beads issues
-create_beads_from_tasks() {
-  local proposal=$1
-  local epic_id=$2
-  local tasks_file="openspec/changes/$proposal/tasks.md"
-  
-  # Parse tasks.md structure
-  # Format: ## Task X.Y: Title
-  #         - Subtask details
-  #         - Dependencies: Task X.Z
-  
-  while IFS= read -r line; do
-    if [[ $line =~ ^##\ Task\ ([0-9.]+):\ (.+)$ ]]; then
-      task_num="${BASH_REMATCH[1]}"
-      task_title="${BASH_REMATCH[2]}"
-      
-      # Read description until next ## or end
-      description=""
-      while IFS= read -r desc_line; do
-        [[ $desc_line =~ ^## ]] && break
-        description+="$desc_line\n"
-      done
-      
-      # Create Beads issue
-      priority=$([[ $task_num =~ ^1\. ]] && echo "0" || echo "1")
-      
-      issue_id=$(bd create "$task_title" \
+### Step 2.3: Parse Tasks and Create Issues
+
+For each task in `tasks.md`, create a coordinator issue:
+
+```
+issue_create(
+  title="<task title>",
+  issue_type="task",
+  priority=<priority>,
+  description="<task description and file scope>",
+  labels=["openspec", "<proposal-name>", "task-<number>"],
+  parent_id="<EPIC_ID>"
         --type task \
         --priority $priority \
         --parent $epic_id \
@@ -166,22 +129,22 @@ create_beads_from_tasks() {
       echo "Created: $issue_id - Task $task_num: $task_title"
       
       # Store mapping for dependency linking
-      echo "$task_num:$issue_id" >> /tmp/beads_task_map_$proposal.txt
+      echo "$task_num:$issue_id" >> /tmp/coordinator_task_map_$proposal.txt
     fi
   done < "$tasks_file"
 }
 
 # Execute conversion
-create_beads_from_tasks "$PROPOSAL_NAME" "$EPIC_ID"
+create_coordinator_from_tasks "$PROPOSAL_NAME" "$EPIC_ID"
 ```
 
 ### Step 2.4: Link Dependencies
 
 ```bash
-# Parse dependencies from tasks.md and create Beads deps
+# Parse dependencies from tasks.md and create Coordinator deps
 link_dependencies() {
   local proposal=$1
-  local map_file="/tmp/beads_task_map_$proposal.txt"
+  local map_file="/tmp/coordinator_task_map_$proposal.txt"
   local tasks_file="openspec/changes/$proposal/tasks.md"
   
   # Look for "Dependencies: Task X.Y" patterns
@@ -193,14 +156,14 @@ link_dependencies() {
     # Extract dependency task numbers
     dep_tasks=$(echo "$dep_line" | grep -o "Task [0-9.]*" | cut -d' ' -f2)
     
-    # Get Beads IDs from map
+    # Get Coordinator IDs from map
     task_id=$(grep "^$task_num:" "$map_file" | cut -d: -f2)
     
     for dep_task in $dep_tasks; do
       dep_id=$(grep "^$dep_task:" "$map_file" | cut -d: -f2)
       
       if [[ -n "$dep_id" ]] && [[ -n "$task_id" ]]; then
-        bd dep add "$task_id" "$dep_id" --type blocks
+        issue_update (with depends_on) "$task_id" "$dep_id" --type blocks
         echo "Linked: $task_id blocks on $dep_id"
       fi
     done
@@ -210,21 +173,21 @@ link_dependencies() {
 link_dependencies "$PROPOSAL_NAME"
 ```
 
-### Step 2.5: Validate Beads Structure
+### Step 2.5: Validate Coordinator Structure
 
 ```bash
 # Show the created structure
 echo -e "\n=== Epic and Tasks ==="
-bd show $EPIC_ID
-bd list --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.title)"'
+issue_show $EPIC_ID
+issue_list --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.title)"'
 
 # Show ready work
 echo -e "\n=== Ready Tasks (no blockers) ==="
-bd ready --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.title)"'
+issue_ready --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.title)"'
 
 # Visualize dependencies
 echo -e "\n=== Dependency Graph ==="
-bd deps $EPIC_ID --graph
+issue_blocked $EPIC_ID --graph
 ```
 
 ## Phase 3: Git Worktree Setup
@@ -233,7 +196,7 @@ bd deps $EPIC_ID --graph
 
 ```bash
 # Determine worktree strategy based on task count
-TASK_COUNT=$(bd list --parent $EPIC_ID --status open --json | jq '. | length')
+TASK_COUNT=$(issue_list --parent $EPIC_ID --status open --json | jq '. | length')
 
 if [ $TASK_COUNT -le 3 ]; then
   STRATEGY="single"
@@ -279,8 +242,8 @@ create_task_worktree() {
   # Create worktree via worktree skill (creates .git-worktrees/<proposal>/<agent-id>/)
   eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "${PROPOSAL_NAME}" --branch "${branch}" --agent-id "${agent_id}")"
 
-  # Store worktree info in Beads
-  bd update "$task_id" --description "$(bd show $task_id --json | jq -r '.description')
+  # Store worktree info in Coordinator
+  issue_update "$task_id" --description "$(issue_show $task_id --json | jq -r '.description')
 
 Worktree: $WORKTREE_PATH
 Branch: $branch
@@ -292,10 +255,10 @@ Base: $FEATURE_BRANCH"
 }
 
 # Create worktrees for ready tasks
-bd ready --parent $EPIC_ID --json | jq -r '.[] | "\(.id)|\(.title)"' | \
+issue_ready --parent $EPIC_ID --json | jq -r '.[] | "\(.id)|\(.title)"' | \
 while IFS='|' read -r task_id task_title; do
   # Extract task number from labels
-  task_num=$(bd show $task_id --json | jq -r '.labels[]' | grep -o 'task-[0-9.]*' | cut -d- -f2)
+  task_num=$(issue_show $task_id --json | jq -r '.labels[]' | grep -o 'task-[0-9.]*' | cut -d- -f2)
   
   create_task_worktree "$task_id" "$task_title" "$task_num"
 done
@@ -310,7 +273,7 @@ setup_worktree_context() {
   local task_id=$2
   
   # Get task details
-  local task_info=$(bd show $task_id --json)
+  local task_info=$(issue_show $task_id --json)
   local task_title=$(echo "$task_info" | jq -r '.title')
   local task_desc=$(echo "$task_info" | jq -r '.description')
   
@@ -318,7 +281,7 @@ setup_worktree_context() {
   cat > "$worktree_path/CLAUDE.md" <<EOF
 # Task Context: $task_title
 
-## Beads Task ID: $task_id
+## Coordinator Task ID: $task_id
 
 ## Objective
 $task_desc
@@ -330,13 +293,13 @@ See: openspec/changes/$PROPOSAL_NAME/
 
 1. **Check Dependencies**
    \`\`\`bash
-   bd show $task_id
+   issue_show $task_id
    # Verify all blockers are resolved
    \`\`\`
 
 2. **Update Status**
    \`\`\`bash
-   bd update $task_id --status in_progress
+   issue_update $task_id --status in_progress
    \`\`\`
 
 3. **Reference Specs**
@@ -352,17 +315,17 @@ See: openspec/changes/$PROPOSAL_NAME/
    git add .
    git commit -m "$task_title"
    
-   # Update Beads
-   bd close $task_id --reason "Implementation complete"
+   # Update Coordinator
+   issue_close $task_id --reason "Implementation complete"
    
    # Push branch
    git push origin HEAD
    \`\`\`
 
 5. **Coordination**
-   - Use \`bd list --parent $EPIC_ID\` to see other tasks
-   - Check \`bd ready --parent $EPIC_ID\` for next work
-   - Communicate via Beads comments if blocked
+   - Use \`issue_list --parent $EPIC_ID\` to see other tasks
+   - Check \`issue_ready --parent $EPIC_ID\` for next work
+   - Communicate via Coordinator comments if blocked
 
 ## Implementation Checklist
 $(echo "$task_desc" | grep -E '^- \[ \]' || echo "- [ ] Implement feature\n- [ ] Write tests\n- [ ] Update documentation")
@@ -372,9 +335,9 @@ Generated: $(date)
 Worktree: $worktree_path
 EOF
 
-  # Initialize Beads in worktree (links to main .beads)
+  # Initialize Coordinator in worktree (links to main .coordinator)
   cd "$worktree_path"
-  bd onboard
+  # coordinator issues are accessible via MCP - no onboard needed
   cd - > /dev/null
   
   echo "✓ Setup context in $worktree_path"
@@ -415,10 +378,10 @@ execute_task() {
   cd "$worktree_path"
   
   # Update status
-  bd update $task_id --status in_progress --assignee "@claude-$(hostname)"
+  issue_update $task_id --status in_progress --assignee "@claude-$(hostname)"
   
   # Launch Claude Code
-  claude -p "Review CLAUDE.md and implement this task. Follow all instructions in the file. When done, update Beads status."
+  claude -p "Review CLAUDE.md and implement this task. Follow all instructions in the file. When done, update Coordinator status."
   
   # Return to main directory
   cd - > /dev/null
@@ -446,7 +409,7 @@ esac
 
 echo ""
 echo "=== Execution Complete ==="
-bd list --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.status)"'
+issue_list --parent $EPIC_ID --json | jq -r '.[] | "\(.id): \(.status)"'
 EOF
 
 chmod +x "execute_${PROPOSAL_NAME}.sh"
@@ -465,7 +428,7 @@ cat > "monitor_${PROPOSAL_NAME}.sh" <<'EOF'
 #!/bin/bash
 
 PROPOSAL_NAME="${1:-$PROPOSAL_NAME}"
-EPIC_ID=$(bd list --label "openspec,$PROPOSAL_NAME" --type epic --json | jq -r '.[0].id')
+EPIC_ID=$(issue_list --label "openspec,$PROPOSAL_NAME" --type epic --json | jq -r '.[0].id')
 
 while true; do
   clear
@@ -477,22 +440,22 @@ while true; do
   
   # Status summary
   echo "Status Summary:"
-  bd list --parent $EPIC_ID --json | \
+  issue_list --parent $EPIC_ID --json | \
     jq -r 'group_by(.status) | map({status: .[0].status, count: length}) | .[] | "  \(.status): \(.count)"'
   
   echo ""
   echo "Active Tasks:"
-  bd list --parent $EPIC_ID --status in_progress --json | \
+  issue_list --parent $EPIC_ID --status in_progress --json | \
     jq -r '.[] | "  [\(.id)] \(.title) - \(.assignee // "unassigned")"'
   
   echo ""
   echo "Ready Work:"
-  bd ready --parent $EPIC_ID --limit 5 --json | \
+  issue_ready --parent $EPIC_ID --limit 5 --json | \
     jq -r '.[] | "  [\(.id)] \(.title)"'
   
   echo ""
   echo "Blocked:"
-  bd list --parent $EPIC_ID --status blocked --json | \
+  issue_list --parent $EPIC_ID --status blocked --json | \
     jq -r '.[] | "  [\(.id)] \(.title)"'
   
   echo ""
@@ -521,24 +484,24 @@ merge_worktrees() {
   echo "=== Merging Completed Tasks ==="
   
   # Get completed tasks
-  bd list --parent $epic_id --status closed --json | jq -r '.[] | .id' | \
+  issue_list --parent $epic_id --status closed --json | jq -r '.[] | .id' | \
   while read -r task_id; do
     # Get worktree info
-    worktree_info=$(bd show $task_id --json | jq -r '.description' | grep -A2 "Worktree:")
+    worktree_info=$(issue_show $task_id --json | jq -r '.description' | grep -A2 "Worktree:")
     branch=$(echo "$worktree_info" | grep "Branch:" | cut -d: -f2- | xargs)
     
     if [[ -n "$branch" ]]; then
       echo "→ Merging $branch into $feature_branch"
       
       git checkout "$feature_branch"
-      git merge --no-ff "$branch" -m "Merge task $task_id: $(bd show $task_id --json | jq -r '.title')"
+      git merge --no-ff "$branch" -m "Merge task $task_id: $(issue_show $task_id --json | jq -r '.title')"
       
       if [ $? -eq 0 ]; then
         echo "  ✓ Merged successfully"
-        bd update $task_id --label "+merged"
+        issue_update $task_id --label "+merged"
       else
         echo "  ✗ Merge conflict - manual resolution needed"
-        bd update $task_id --status blocked --label "+merge-conflict"
+        issue_update $task_id --status blocked --label "+merge-conflict"
       fi
     fi
   done
@@ -559,12 +522,12 @@ cleanup_worktrees() {
 
   while IFS='|' read -r task_id worktree_path branch agent_id; do
     # Check if task is merged
-    if bd show $task_id --json | jq -e '.labels[] | select(. == "merged")' > /dev/null; then
+    if issue_show $task_id --json | jq -e '.labels[] | select(. == "merged")' > /dev/null; then
       echo "Removing worktree: $worktree_path (agent-id: $agent_id)"
       python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${proposal}" --agent-id "${agent_id}"
       git branch -d "$branch"
 
-      bd update $task_id --description "$(bd show $task_id --json | jq -r '.description')
+      issue_update $task_id --description "$(issue_show $task_id --json | jq -r '.description')
 
 [Worktree cleaned up: $(date)]"
     fi
@@ -591,9 +554,9 @@ validate_completion() {
   echo "=== Completion Validation ==="
   
   # Check for open tasks
-  open_count=$(bd list --parent $epic_id --status open --json | jq '. | length')
-  in_progress=$(bd list --parent $epic_id --status in_progress --json | jq '. | length')
-  blocked=$(bd list --parent $epic_id --status blocked --json | jq '. | length')
+  open_count=$(issue_list --parent $epic_id --status open --json | jq '. | length')
+  in_progress=$(issue_list --parent $epic_id --status in_progress --json | jq '. | length')
+  blocked=$(issue_list --parent $epic_id --status blocked --json | jq '. | length')
   
   if [[ $open_count -gt 0 ]] || [[ $in_progress -gt 0 ]] || [[ $blocked -gt 0 ]]; then
     echo "✗ Not ready for archive:"
@@ -664,11 +627,11 @@ fi
 
 ```bash
 # Close the epic
-bd close $EPIC_ID --reason "OpenSpec proposal implemented and archived"
+issue_close $EPIC_ID --reason "OpenSpec proposal implemented and archived"
 
 # Add summary
 bd comment $EPIC_ID "Implementation Summary:
-- Total tasks: $(bd list --parent $EPIC_ID --json | jq '. | length')
+- Total tasks: $(issue_list --parent $EPIC_ID --json | jq '. | length')
 - Duration: [manual entry]
 - Worktrees used: $(wc -l < /tmp/worktree_map_$PROPOSAL_NAME.txt)
 - Final branch: openspec/$PROPOSAL_NAME
@@ -680,17 +643,17 @@ echo "✓ Epic closed: $EPIC_ID"
 
 ## Best Practices
 
-### Beads Discipline
+### Coordinator Discipline
 
 1. **Always update status**
    ```bash
-   bd update <id> --status in_progress  # When starting
-   bd close <id>                         # When done
+   issue_update <id> --status in_progress  # When starting
+   issue_close <id>                         # When done
    ```
 
 2. **Track blockers immediately**
    ```bash
-   bd update <id> --status blocked
+   issue_update <id> --status blocked
    bd comment <id> "Blocked by: [reason]"
    ```
 
@@ -723,11 +686,11 @@ echo "✓ Epic closed: $EPIC_ID"
 ### OpenSpec Integration
 
 1. **Keep specs as source of truth**
-   - Reference `openspec/changes/<name>/specs/` in all Beads issues
-   - Don't duplicate spec content in Beads descriptions
+   - Reference `openspec/changes/<name>/specs/` in all Coordinator issues
+   - Don't duplicate spec content in Coordinator descriptions
 
 2. **Archive only when complete**
-   - All Beads closed
+   - All Coordinator closed
    - All tests passing
    - Feature branch merged
 
@@ -740,16 +703,16 @@ echo "✓ Epic closed: $EPIC_ID"
 
 ## Troubleshooting
 
-### Beads Issues
+### Coordinator Issues
 
 **Problem**: Can't find issue
 ```bash
-bd list --json | grep -i "search-term"
+issue_list --json | grep -i "search-term"
 ```
 
 **Problem**: Dependency cycle
 ```bash
-bd deps <id> --graph  # Visualize
+issue_blocked <id> --graph  # Visualize
 bd dep remove <id1> <id2>  # Break cycle
 ```
 
@@ -770,10 +733,10 @@ git merge --continue
 
 ### OpenSpec Issues
 
-**Problem**: Tasks out of sync with Beads
+**Problem**: Tasks out of sync with Coordinator
 ```bash
 # Re-run Phase 2 with --force flag
-# Or manually update Beads to match
+# Or manually update Coordinator to match
 ```
 
 ## Quick Reference
@@ -782,11 +745,11 @@ git merge --continue
 
 ```bash
 # Check status
-bd ready --parent <epic-id>
-bd list --parent <epic-id> --status in_progress
+issue_ready --parent <epic-id>
+issue_list --parent <epic-id> --status in_progress
 
 # Update task
-bd update <id> --status <status>
+issue_update <id> --status <status>
 bd comment <id> "Progress update"
 
 # Worktree management
@@ -802,7 +765,7 @@ openspec archive <proposal>
 ### Workflow Checklist
 
 - [ ] Phase 1: Review OpenSpec proposal
-- [ ] Phase 2: Convert to Beads epic + tasks
+- [ ] Phase 2: Convert to Coordinator epic + tasks
 - [ ] Phase 3: Create git worktrees
 - [ ] Phase 4: Execute in parallel/sequence
 - [ ] Phase 5: Merge and integrate
@@ -811,8 +774,8 @@ openspec archive <proposal>
 ## Performance Tips
 
 1. **Limit parallel execution**: 3-5 concurrent agents max
-2. **Use `bd ready` filtering**: Only show relevant tasks
-3. **Batch Beads operations**: Update multiple issues at once
+2. **Use `issue_ready` filtering**: Only show relevant tasks
+3. **Batch Coordinator operations**: Update multiple issues at once
 4. **Reuse worktrees**: Keep active for related tasks
 
 ## Integration with Other Tools
@@ -820,22 +783,22 @@ openspec archive <proposal>
 ### CI/CD
 ```bash
 # In CI pipeline
-bd list --label "openspec,$PROPOSAL" --status closed --json
+issue_list --label "openspec,$PROPOSAL" --status closed --json
 # Verify all tasks complete before deploy
 ```
 
 ### Slack/Notifications
 ```bash
 # On task completion
-bd close <id> && \
+issue_close <id> && \
   slack-cli chat send --channel dev \
-  --text "Task completed: $(bd show <id> --json | jq -r '.title')"
+  --text "Task completed: $(issue_show <id> --json | jq -r '.title')"
 ```
 
 ### Monitoring
 ```bash
 # Export metrics
-bd list --parent <epic-id> --json | \
+issue_list --parent <epic-id> --json | \
   jq '{total: length, by_status: group_by(.status) | map({status: .[0].status, count: length})}'
 ```
 
@@ -848,10 +811,10 @@ bd list --parent <epic-id> --json | \
 openspec show add-user-authentication
 
 # 2. Invoke this skill
-# "Implement the add-user-authentication OpenSpec proposal using Beads and worktrees"
+# "Implement the add-user-authentication OpenSpec proposal using Coordinator and worktrees"
 
 # 3. Claude will:
-#    - Convert OpenSpec tasks to Beads issues
+#    - Convert OpenSpec tasks to Coordinator issues
 #    - Create git worktrees for parallel work
 #    - Set up execution environment
 #    - Coordinate implementation
@@ -868,4 +831,4 @@ openspec show add-user-authentication
 
 **Last Updated**: January 2026  
 **Skill Version**: 1.0.0  
-**Compatibility**: OpenSpec 1.x, Beads 0.21+, Git 2.x
+**Compatibility**: OpenSpec 1.x, Coordinator 0.21+, Git 2.x
