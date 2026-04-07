@@ -31,7 +31,7 @@ Add first-class scenario-pack support for external projects:
   - incidents and escaped defects
 - Teach gen-eval to filter, report, and gate by scenario visibility.
 
-This makes “dev-spec vs test holdout” a native workflow concept rather than a convention hidden in filenames.
+Scenarios are organized into `public/` and `holdout/` directories, with manifest metadata confirming visibility and skill logic enforcing the boundary at runtime. This makes “dev-spec vs test holdout” a native workflow concept with three reinforcing layers: directory structure, manifest metadata, and runtime filtering.
 
 ### Feature 2: DTU Scaffold From Public Docs
 

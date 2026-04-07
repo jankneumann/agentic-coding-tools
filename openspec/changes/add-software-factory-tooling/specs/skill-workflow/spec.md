@@ -29,6 +29,11 @@ Given `rework-report.json` includes a failed holdout scenario with recommended a
 When `/cleanup-feature` evaluates merge readiness
 Then cleanup stops and reports the holdout failure as a blocking issue
 
+#### Scenario: All scenarios pass produces empty rework report
+Given validation runs scenario-based checks and all scenarios pass
+When validation completes
+Then `rework-report.json` is written with an empty failures list and recommended action `none`
+
 ### Requirement: Process Analysis Artifact
 
 The workflow SHALL support optional `process-analysis.md` and `process-analysis.json` artifacts summarizing convergence behavior for a change.

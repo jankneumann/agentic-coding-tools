@@ -32,6 +32,11 @@ Given an archived change with linked requirement refs and change-id
 When indexing completes
 Then the normalized output preserves those references for downstream retrieval
 
+#### Scenario: Incremental indexing skips already-indexed changes
+Given an existing archive index with 10 indexed changes and 2 new archived changes
+When archive mining runs
+Then only the 2 new changes are processed and appended to the index
+
 ### Requirement: Exemplar Registry
 
 The system SHALL derive reusable exemplars from the archive-intelligence index, including scenario seeds, repair patterns, DTU edge cases, and implementation patterns.
@@ -77,4 +82,4 @@ Then the generated guidance references the existing change workflow rather than 
 #### Scenario: Bootstrap includes dogfood-ready example for this repository
 Given this repository is the target project
 When bootstrap runs
-Then it can scaffold the `agent-coordinator` dogfood layout using the repository’s existing gen-eval assets
+Then it creates scenario-pack manifests under `agent-coordinator/evaluation/gen_eval/manifests/`, DTU placeholder directories under `agent-coordinator/evaluation/gen_eval/dtu/`, and references existing scenario YAML files in the generated manifest

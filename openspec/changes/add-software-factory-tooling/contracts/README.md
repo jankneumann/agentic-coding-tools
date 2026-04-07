@@ -16,4 +16,4 @@ Internal machine-readable artifacts planned by this change:
 - `archive-intelligence index`
 - `DTU fidelity report`
 
-These artifact schemas will be defined during implementation and treated as internal workflow contracts.
+Required fields for each artifact are defined in the spec deltas (`gen-eval-framework`, `skill-workflow`, `software-factory-tooling`). Concrete JSON schemas will be formalized during implementation and treated as internal workflow contracts.

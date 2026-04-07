@@ -96,3 +96,13 @@ Then it emits a new draft scenario with `source=archive`
 Given an OpenAPI or schema contract
 When scenario bootstrap runs
 Then it emits scenario seeds that reference the contract path in their metadata
+
+#### Scenario: Bootstrap from empty spec delta produces no scenarios
+Given a spec delta with no requirement scenarios defined
+When the bootstrap flow runs
+Then it produces zero scenario seeds and logs a warning indicating no source material
+
+#### Scenario: Bootstrap from malformed source skips gracefully
+Given a corrupt or unparseable archived artifact
+When scenario bootstrap runs
+Then the malformed source is skipped with a warning and remaining sources are processed normally

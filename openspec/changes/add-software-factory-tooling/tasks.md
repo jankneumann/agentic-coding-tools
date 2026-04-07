@@ -18,7 +18,7 @@
 
 - [ ] 1.3 Extend `/gen-eval-scenario` to bootstrap scenarios from specs, contracts, incidents, and archived exemplars
   **Files**: `skills/gen-eval-scenario/SKILL.md`, `skills/gen-eval-scenario/scripts/bootstrap.py`, `skills/gen-eval-scenario/tests/test_bootstrap.py`
-  **Spec scenarios**: `gen-eval-framework.4.1-4.3`, `software-factory-tooling.3.1-3.2`
+  **Spec scenarios**: `gen-eval-framework.4.1-4.3`
   **Design decisions**: `D1`, `D6`
   **Dependencies**: `1.1`, `1.2`
 
@@ -62,11 +62,23 @@
   **Design decisions**: `D5`
   **Dependencies**: `3.1`
 
-- [ ] 3.4 Update `/iterate-on-implementation`, `/cleanup-feature`, and `/merge-pull-requests` to consume rework/process-analysis artifacts
-  **Files**: `skills/iterate-on-implementation/SKILL.md`, `skills/cleanup-feature/SKILL.md`, `skills/merge-pull-requests/SKILL.md`
-  **Spec scenarios**: `skill-workflow.1.2-1.3`, `skill-workflow.2.1-2.3`, `skill-workflow.3.1-3.3`
+- [ ] 3.4a Update `/iterate-on-implementation` to consume `rework-report.json` as primary rework input
+  **Files**: `skills/iterate-on-implementation/SKILL.md`
+  **Spec scenarios**: `skill-workflow.1.2`
+  **Design decisions**: `D4`
+  **Dependencies**: `3.2`
+
+- [ ] 3.4b Update `/cleanup-feature` to gate on holdout failures and consume `process-analysis` read-only
+  **Files**: `skills/cleanup-feature/SKILL.md`
+  **Spec scenarios**: `skill-workflow.1.3`, `skill-workflow.2.1-2.3`
   **Design decisions**: `D4`, `D5`
   **Dependencies**: `3.2`, `3.3`
+
+- [ ] 3.4c Update `/merge-pull-requests` to check holdout gate status from rework artifacts
+  **Files**: `skills/merge-pull-requests/SKILL.md`
+  **Spec scenarios**: `skill-workflow.3.1-3.3`
+  **Design decisions**: `D4`
+  **Dependencies**: `3.2`
 
 ## Phase 4: Archive Intelligence
 
@@ -110,8 +122,9 @@
 
 ## Phase 6: Integration
 
-- [ ] 6.1 Run end-to-end validation for scenario packs, DTU scaffolds, workflow rework gates, archive intelligence, and dogfood fixtures
-  **Files**: `agent-coordinator/tests/test_evaluation/`, `skills/validate-feature/scripts/tests/`, `skills/explore-feature/tests/`, `docs/software-factory-tooling.md`
-  **Spec scenarios**: `gen-eval-framework.1.1-4.3`, `skill-workflow.1.1-3.3`, `software-factory-tooling.1.1-3.3`
+- [ ] 6.1 Run cross-phase integration smoke test and collect evidence artifacts
+  **Files**: `docs/software-factory-tooling.md`, `openspec/changes/add-software-factory-tooling/validation-report.md`
+  **Spec scenarios**: Cross-phase integration coverage (individual scenario verification is in phase tasks)
   **Design decisions**: `D1-D7`
-  **Dependencies**: `1.3`, `2.3`, `3.4`, `4.3`, `5.3`
+  **Dependencies**: `1.3`, `2.3`, `3.4c`, `4.3`, `5.3`
+  **Note**: This task runs a single end-to-end pass verifying that artifacts from each phase connect correctly (manifest → filtering → rework → archive). It does NOT re-run all individual phase test suites — those are already verified in their respective tasks.
