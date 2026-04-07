@@ -86,6 +86,48 @@ class WorkGetTaskRequest(BaseModel):
     task_id: str
 
 
+class IssueCreateRequest(BaseModel):
+    title: str
+    description: str | None = None
+    issue_type: str = "task"
+    priority: int = 5
+    labels: list[str] | None = None
+    parent_id: str | None = None
+    assignee: str | None = None
+    depends_on: list[str] | None = None
+
+
+class IssueListRequest(BaseModel):
+    status: str | None = None
+    issue_type: str | None = None
+    labels: list[str] | None = None
+    parent_id: str | None = None
+    assignee: str | None = None
+    limit: int = 50
+
+
+class IssueUpdateRequest(BaseModel):
+    issue_id: str
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    priority: int | None = None
+    labels: list[str] | None = None
+    assignee: str | None = None
+    issue_type: str | None = None
+
+
+class IssueCloseRequest(BaseModel):
+    issue_id: str | None = None
+    issue_ids: list[str] | None = None
+    reason: str | None = None
+
+
+class IssueCommentRequest(BaseModel):
+    issue_id: str
+    body: str
+
+
 class GuardrailsCheckRequest(BaseModel):
     operation_text: str
     file_paths: list[str] | None = None
@@ -684,6 +726,157 @@ def create_coordination_api() -> FastAPI:
                 "completed_at": task.completed_at.isoformat() if task.completed_at else None,
             },
         }
+
+    # --------------------------------------------------------------------- #
+    # ISSUE TRACKING
+    # --------------------------------------------------------------------- #
+
+    @app.post("/issues/create")
+    async def create_issue(
+        request: IssueCreateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Create a new issue."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        parent_uuid = UUID(request.parent_id) if request.parent_id else None
+        depends_uuids = (
+            [UUID(d) for d in request.depends_on] if request.depends_on else None
+        )
+
+        try:
+            issue = await service.create(
+                title=request.title,
+                description=request.description,
+                issue_type=request.issue_type,
+                priority=request.priority,
+                labels=request.labels,
+                parent_id=parent_uuid,
+                assignee=request.assignee,
+                depends_on=depends_uuids,
+            )
+            return {"success": True, "issue": issue.to_dict()}
+        except ValueError as e:
+            return {"success": False, "reason": str(e)}
+
+    @app.post("/issues/list")
+    async def list_issues(
+        request: IssueListRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List issues with optional filters."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        parent_uuid = UUID(request.parent_id) if request.parent_id else None
+
+        issues = await service.list(
+            status=request.status,
+            issue_type=request.issue_type,
+            labels=request.labels,
+            parent_id=parent_uuid,
+            assignee=request.assignee,
+            limit=request.limit,
+        )
+        return {
+            "success": True,
+            "issues": [i.to_dict() for i in issues],
+            "count": len(issues),
+        }
+
+    @app.get("/issues/{issue_id}")
+    async def show_issue(
+        issue_id: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Get full issue details."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        issue = await service.show(UUID(issue_id))
+
+        if issue is None:
+            return {"success": False, "reason": "issue_not_found"}
+        return {"success": True, "issue": issue.to_dict()}
+
+    @app.post("/issues/update")
+    async def update_issue(
+        request: IssueUpdateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Update an issue."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        try:
+            issue = await service.update(
+                issue_id=UUID(request.issue_id),
+                title=request.title,
+                description=request.description,
+                status=request.status,
+                priority=request.priority,
+                labels=request.labels,
+                assignee=request.assignee,
+                issue_type=request.issue_type,
+            )
+        except ValueError as e:
+            return {"success": False, "reason": str(e)}
+
+        if issue is None:
+            return {"success": False, "reason": "issue_not_found"}
+        return {"success": True, "issue": issue.to_dict()}
+
+    @app.post("/issues/close")
+    async def close_issue(
+        request: IssueCloseRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Close one or more issues."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        id_uuid = UUID(request.issue_id) if request.issue_id else None
+        ids_uuids = [UUID(i) for i in request.issue_ids] if request.issue_ids else None
+
+        try:
+            results = await service.close(
+                issue_id=id_uuid,
+                issue_ids=ids_uuids,
+                reason=request.reason,
+            )
+        except ValueError as e:
+            return {"success": False, "reason": str(e)}
+
+        return {
+            "success": True,
+            "closed": [i.to_dict() for i in results],
+            "count": len(results),
+        }
+
+    @app.post("/issues/comment")
+    async def comment_issue(
+        request: IssueCommentRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Add a comment to an issue."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        comment = await service.comment(UUID(request.issue_id), request.body)
+        return {"success": True, "comment": comment.to_dict()}
 
     # --------------------------------------------------------------------- #
     # GUARDRAILS

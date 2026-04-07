@@ -358,6 +358,356 @@ async def get_task(task_id: str) -> dict[str, Any]:
 
 
 # =============================================================================
+# MCP TOOLS: Issue Tracking
+# =============================================================================
+
+
+@mcp.tool()
+async def issue_create(
+    title: str,
+    description: str | None = None,
+    issue_type: str = "task",
+    priority: int = 5,
+    labels: list[str] | None = None,
+    parent_id: str | None = None,
+    assignee: str | None = None,
+    depends_on: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Create a new issue in the coordinator's issue tracker.
+
+    Issues are stored in the work_queue with task_type='issue' so they
+    won't be accidentally claimed by get_work().
+
+    Args:
+        title: Issue title (required)
+        description: Detailed description
+        issue_type: task, epic, bug, or feature (default: task)
+        priority: 1 (highest) to 10 (lowest), default 5
+        labels: List of label strings for categorization
+        parent_id: Parent issue UUID (for epic children)
+        assignee: Who is assigned to this issue
+        depends_on: List of issue UUIDs that must complete first
+
+    Returns:
+        success: Whether the issue was created
+        issue: The created issue details
+
+    Example:
+        issue_create(
+            title="Add CORS middleware",
+            issue_type="bug",
+            priority=3,
+            labels=["api", "followup"]
+        )
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+
+    parent_uuid = UUID(parent_id) if parent_id else None
+    depends_uuids = [UUID(d) for d in depends_on] if depends_on else None
+
+    try:
+        issue = await service.create(
+            title=title,
+            description=description,
+            issue_type=issue_type,
+            priority=priority,
+            labels=labels,
+            parent_id=parent_uuid,
+            assignee=assignee,
+            depends_on=depends_uuids,
+        )
+        return {"success": True, "issue": issue.to_dict()}
+    except ValueError as e:
+        return {"success": False, "reason": str(e)}
+
+
+@mcp.tool()
+async def issue_list(
+    status: str | None = None,
+    issue_type: str | None = None,
+    labels: list[str] | None = None,
+    parent_id: str | None = None,
+    assignee: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """
+    List issues with optional filters.
+
+    Args:
+        status: Filter by status (open, in_progress, closed, all)
+        issue_type: Filter by type (task, epic, bug, feature)
+        labels: Filter by labels (issues must have ALL specified labels)
+        parent_id: Filter by parent issue UUID
+        assignee: Filter by assignee
+        limit: Max results (default 50, max 100)
+
+    Returns:
+        success: true
+        issues: List of issue objects
+        count: Number of issues returned
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    parent_uuid = UUID(parent_id) if parent_id else None
+
+    issues = await service.list(
+        status=status,
+        issue_type=issue_type,
+        labels=labels,
+        parent_id=parent_uuid,
+        assignee=assignee,
+        limit=limit,
+    )
+
+    return {
+        "success": True,
+        "issues": [i.to_dict() for i in issues],
+        "count": len(issues),
+    }
+
+
+@mcp.tool()
+async def issue_show(issue_id: str) -> dict[str, Any]:
+    """
+    Get full details of an issue, including comments and children.
+
+    Args:
+        issue_id: UUID of the issue
+
+    Returns:
+        success: Whether the issue was found
+        issue: Full issue details with comments array and children (for epics)
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    issue = await service.show(UUID(issue_id))
+
+    if issue is None:
+        return {"success": False, "reason": "issue_not_found"}
+
+    return {"success": True, "issue": issue.to_dict()}
+
+
+@mcp.tool()
+async def issue_update(
+    issue_id: str,
+    title: str | None = None,
+    description: str | None = None,
+    status: str | None = None,
+    priority: int | None = None,
+    labels: list[str] | None = None,
+    assignee: str | None = None,
+    issue_type: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update one or more fields on an issue.
+
+    Args:
+        issue_id: UUID of the issue to update
+        title: New title
+        description: New description
+        status: New status (open, in_progress, closed)
+        priority: New priority (1-10)
+        labels: Replace labels array
+        assignee: New assignee
+        issue_type: New type (task, epic, bug, feature)
+
+    Returns:
+        success: Whether the update succeeded
+        issue: Updated issue details
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+
+    try:
+        issue = await service.update(
+            issue_id=UUID(issue_id),
+            title=title,
+            description=description,
+            status=status,
+            priority=priority,
+            labels=labels,
+            assignee=assignee,
+            issue_type=issue_type,
+        )
+    except ValueError as e:
+        return {"success": False, "reason": str(e)}
+
+    if issue is None:
+        return {"success": False, "reason": "issue_not_found"}
+
+    return {"success": True, "issue": issue.to_dict()}
+
+
+@mcp.tool()
+async def issue_close(
+    issue_id: str | None = None,
+    issue_ids: list[str] | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """
+    Close one or more issues.
+
+    Args:
+        issue_id: UUID of a single issue to close
+        issue_ids: List of UUIDs for batch close
+        reason: Closure reason (e.g., "Implemented in PR #42")
+
+    Returns:
+        success: Whether the close succeeded
+        closed: List of closed issue details
+        count: Number of issues closed
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+
+    id_uuid = UUID(issue_id) if issue_id else None
+    ids_uuids = [UUID(i) for i in issue_ids] if issue_ids else None
+
+    try:
+        results = await service.close(
+            issue_id=id_uuid,
+            issue_ids=ids_uuids,
+            reason=reason,
+        )
+    except ValueError as e:
+        return {"success": False, "reason": str(e)}
+
+    return {
+        "success": True,
+        "closed": [i.to_dict() for i in results],
+        "count": len(results),
+    }
+
+
+@mcp.tool()
+async def issue_comment(
+    issue_id: str,
+    body: str,
+) -> dict[str, Any]:
+    """
+    Add a comment to an issue.
+
+    Args:
+        issue_id: UUID of the issue
+        body: Comment text
+
+    Returns:
+        success: true
+        comment: The created comment details
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    comment = await service.comment(UUID(issue_id), body)
+
+    return {"success": True, "comment": comment.to_dict()}
+
+
+@mcp.tool()
+async def issue_ready(
+    parent_id: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """
+    List issues with no unresolved dependencies (ready to work on).
+
+    Args:
+        parent_id: Optional parent UUID to scope to epic children
+        limit: Max results (default 50)
+
+    Returns:
+        success: true
+        issues: List of ready issue objects
+        count: Number of ready issues
+    """
+    from uuid import UUID
+
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    parent_uuid = UUID(parent_id) if parent_id else None
+
+    issues = await service.ready(parent_id=parent_uuid, limit=limit)
+
+    return {
+        "success": True,
+        "issues": [i.to_dict() for i in issues],
+        "count": len(issues),
+    }
+
+
+@mcp.tool()
+async def issue_blocked() -> dict[str, Any]:
+    """
+    List issues blocked by unresolved dependencies.
+
+    Returns:
+        success: true
+        issues: List of blocked issue objects
+        count: Number of blocked issues
+    """
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    issues = await service.blocked()
+
+    return {
+        "success": True,
+        "issues": [i.to_dict() for i in issues],
+        "count": len(issues),
+    }
+
+
+@mcp.tool()
+async def issue_search(
+    query: str,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """
+    Search issues by text matching in title and description.
+
+    Args:
+        query: Search string (case-insensitive substring match)
+        limit: Max results (default 50)
+
+    Returns:
+        success: true
+        issues: List of matching issues
+        count: Number of matches
+    """
+    from .issue_service import get_issue_service
+
+    service = get_issue_service()
+    issues = await service.search(query=query, limit=limit)
+
+    return {
+        "success": True,
+        "issues": [i.to_dict() for i in issues],
+        "count": len(issues),
+    }
+
+
+# =============================================================================
 # MCP TOOLS: Handoff Documents (Session Continuity)
 # =============================================================================
 
