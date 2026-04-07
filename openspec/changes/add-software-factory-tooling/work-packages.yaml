@@ -1,0 +1,380 @@
+schema_version: 1
+
+feature:
+  id: add-software-factory-tooling
+  title: "Software Factory Tooling"
+  plan_revision: 1
+  created_by: codex
+  created_at: "2026-04-06T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-software-factory-tooling/contracts/README.md"
+    files:
+      - "openspec/changes/add-software-factory-tooling/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-scenario-packs
+    title: "Scenario Pack Management"
+    task_type: implementation
+    description: >
+      Add scenario-pack manifest support, visibility-aware filtering, and scenario
+      bootstrap from specs, contracts, incidents, and archived exemplars. Covers tasks 1.1-1.3.
+    depends_on: []
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 350
+      package_kind: data_model
+    locks:
+      files:
+        - "agent-coordinator/evaluation/gen_eval/models.py"
+        - "agent-coordinator/evaluation/gen_eval/generator.py"
+        - "agent-coordinator/evaluation/gen_eval/reports.py"
+        - "skills/gen-eval-scenario/SKILL.md"
+      keys:
+        - "feature:add-software-factory-tooling:scenarios"
+        - "contract:openspec/changes/add-software-factory-tooling/contracts/README.md"
+      ttl_minutes: 120
+      reason: "Scenario visibility and authoring infrastructure"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
+        - "skills/gen-eval-scenario/**"
+      read_allow:
+        - "openspec/**"
+        - "docs/**"
+        - "skills/**"
+      deny:
+        - "skills/validate-feature/**"
+        - "skills/explore-feature/**"
+    worktree:
+      name: wp-scenario-packs
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "gen-eval unit tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_evaluation/test_gen_eval/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "gen_eval_tests_passed"
+    outputs:
+      result_keys:
+        - "scenario_manifest_supported"
+        - "visibility_filtering_supported"
+      artifacts:
+        - "skills/gen-eval-scenario/SKILL.md"
+
+  - package_id: wp-dtu-scaffold
+    title: "DTU Scaffold"
+    task_type: implementation
+    description: >
+      Add DTU-lite scaffold generation from public docs and fidelity reporting.
+      Covers tasks 2.1-2.3.
+    depends_on:
+      - wp-scenario-packs
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 260
+      package_kind: config
+    locks:
+      files:
+        - "agent-coordinator/evaluation/gen_eval/descriptor.py"
+        - "agent-coordinator/evaluation/gen_eval/__main__.py"
+      keys:
+        - "feature:add-software-factory-tooling:dtu"
+      ttl_minutes: 120
+      reason: "DTU scaffold and fidelity report implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
+        - "docs/software-factory-tooling.md"
+      read_allow:
+        - "openspec/**"
+        - "skills/**"
+        - "docs/**"
+      deny:
+        - "skills/validate-feature/**"
+        - "skills/explore-feature/**"
+    worktree:
+      name: wp-dtu-scaffold
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "DTU scaffold tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_evaluation/test_gen_eval/test_dtu_scaffold.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dtu_tests_passed"
+    outputs:
+      result_keys:
+        - "dtu_scaffold_supported"
+        - "fidelity_report_supported"
+      artifacts:
+        - "docs/software-factory-tooling.md"
+
+  - package_id: wp-workflow-rework
+    title: "Workflow Rework Loop"
+    task_type: implementation
+    description: >
+      Add visibility-aware workflow gates, rework-report.json, and process-analysis artifacts.
+      Covers tasks 3.1-3.4.
+    depends_on:
+      - wp-scenario-packs
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 320
+      package_kind: config
+    locks:
+      files:
+        - "skills/validate-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+        - "openspec/schemas/feature-workflow/schema.yaml"
+      keys:
+        - "feature:add-software-factory-tooling:rework"
+      ttl_minutes: 120
+      reason: "Rework report and process-analysis workflow integration"
+    scope:
+      write_allow:
+        - "skills/validate-feature/**"
+        - "skills/iterate-on-implementation/**"
+        - "skills/cleanup-feature/**"
+        - "skills/merge-pull-requests/**"
+        - "skills/session-log/**"
+        - "openspec/schemas/feature-workflow/**"
+      read_allow:
+        - "openspec/**"
+        - "docs/**"
+        - "agent-coordinator/evaluation/gen_eval/**"
+      deny:
+        - "skills/explore-feature/**"
+        - "agent-coordinator/evaluation/gen_eval/scenarios/**"
+    worktree:
+      name: wp-workflow-rework
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "workflow gate tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "workflow_tests_passed"
+    outputs:
+      result_keys:
+        - "rework_report_supported"
+        - "process_analysis_supported"
+      artifacts:
+        - "openspec/schemas/feature-workflow/templates/process-analysis.md"
+
+  - package_id: wp-archive-intelligence
+    title: "Archive Intelligence"
+    task_type: implementation
+    description: >
+      Mine archived OpenSpec changes into normalized exemplar registries and integrate
+      results into exploration and scenario authoring. Covers tasks 4.1-4.3.
+    depends_on:
+      - wp-workflow-rework
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 300
+      package_kind: algorithm
+    locks:
+      files:
+        - "skills/explore-feature/SKILL.md"
+        - "skills/plan-feature/SKILL.md"
+        - "docs/feature-discovery/README.md"
+      keys:
+        - "feature:add-software-factory-tooling:archive"
+      ttl_minutes: 120
+      reason: "Archive mining and exemplar registry"
+    scope:
+      write_allow:
+        - "skills/explore-feature/**"
+        - "skills/plan-feature/SKILL.md"
+        - "skills/gen-eval-scenario/**"
+        - "docs/feature-discovery/**"
+        - "docs/factory-intelligence/**"
+      read_allow:
+        - "openspec/changes/archive/**"
+        - "openspec/**"
+        - "docs/**"
+      deny:
+        - "skills/validate-feature/**"
+        - "agent-coordinator/evaluation/gen_eval/scenarios/**"
+    worktree:
+      name: wp-archive-intelligence
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "archive intelligence tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/explore-feature/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "archive_tests_passed"
+    outputs:
+      result_keys:
+        - "archive_index_supported"
+        - "exemplar_registry_supported"
+      artifacts:
+        - "docs/factory-intelligence/archive-index.json"
+
+  - package_id: wp-dogfood
+    title: "Dogfood Software Factory Tooling"
+    task_type: implementation
+    description: >
+      Apply the new tooling to this repository: classify scenario packs, add DTU-lite
+      fixtures, run dogfood validation, and document lessons learned. Covers tasks 5.1-5.3.
+    depends_on:
+      - wp-scenario-packs
+      - wp-dtu-scaffold
+      - wp-workflow-rework
+      - wp-archive-intelligence
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 220
+      package_kind: integration
+    locks:
+      files:
+        - "agent-coordinator/evaluation/gen_eval/scenarios/"
+        - "agent-coordinator/evaluation/gen_eval/descriptors/agent-coordinator.yaml"
+        - "docs/lessons-learned.md"
+      keys:
+        - "feature:add-software-factory-tooling:dogfood"
+      ttl_minutes: 120
+      reason: "Dogfood pack classification and DTU fixtures"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "docs/lessons-learned.md"
+        - "docs/factory-intelligence/**"
+        - "openspec/changes/add-software-factory-tooling/**"
+      read_allow:
+        - "openspec/**"
+        - "docs/**"
+        - "skills/**"
+      deny:
+        - "skills/validate-feature/scripts/**"
+    worktree:
+      name: wp-dogfood
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "dogfood gen-eval validation"
+          kind: command
+          command: "make gen-eval"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dogfood_gen_eval_passed"
+    outputs:
+      result_keys:
+        - "dogfood_public_holdout_supported"
+        - "dogfood_dtu_supported"
+      artifacts:
+        - "docs/lessons-learned.md"
+
+  - package_id: wp-integration
+    title: "Integration And Documentation"
+    task_type: integration
+    description: >
+      Run end-to-end validation across scenario packs, DTUs, workflow gates, archive
+      mining, and dogfood assets. Finalize docs and evidence. Covers task 6.1.
+    depends_on:
+      - wp-dogfood
+    priority: 5
+    role: integrator
+    metadata:
+      loc_estimate: 150
+      package_kind: integration
+    locks:
+      files:
+        - "docs/software-factory-tooling.md"
+        - "openspec/changes/add-software-factory-tooling/validation-report.md"
+      keys:
+        - "feature:add-software-factory-tooling:integration"
+      ttl_minutes: 120
+      reason: "Final integration validation and documentation"
+    scope:
+      write_allow:
+        - "docs/software-factory-tooling.md"
+        - "docs/factory-intelligence/**"
+        - "openspec/changes/add-software-factory-tooling/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "openspec validate"
+          kind: command
+          command: "openspec validate add-software-factory-tooling --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    outputs:
+      result_keys:
+        - "integration_complete"
+      artifacts:
+        - "docs/software-factory-tooling.md"
