@@ -17,7 +17,7 @@ triggers:
 
 # Cleanup Feature
 
-Merge an approved PR, migrate any open tasks to beads or a follow-up proposal, archive the OpenSpec proposal, and cleanup branches.
+Merge an approved PR, migrate any open tasks to coordinator issues or a follow-up proposal, archive the OpenSpec proposal, and cleanup branches.
 
 ## Arguments
 
@@ -207,17 +207,24 @@ If there are **open tasks**, collect them with their context:
 
 Ask the user which migration strategy to use:
 
-**Option A — Beads issues** (if `.beads/` directory exists):
+**Option A — Coordinator issues** (if coordinator is available):
 
-For each open task group that has unchecked items:
-```bash
-# Create a beads issue per open task
-bd create "<task description>" \
-  --label "followup,openspec:<change-id>" \
-  --priority medium
+For each open task group that has unchecked items, use the coordinator's issue tracking MCP tools:
+```
+issue_create(
+  title="<task description>",
+  description="Followup from OpenSpec <change-id>. File scope: <files>",
+  issue_type="task",
+  priority=5,
+  labels=["followup", "openspec:<change-id>"]
+)
 
-# If tasks have dependencies on each other, link them
-bd dep add <child-id> <parent-id>
+# If tasks have dependencies on each other, create with depends_on
+issue_create(
+  title="<dependent task>",
+  depends_on=["<parent-issue-id>"],
+  labels=["followup", "openspec:<change-id>"]
+)
 ```
 
 Include in each issue description:
@@ -225,7 +232,7 @@ Include in each issue description:
 - The file scope from the task group
 - Any relevant context from `proposal.md` or `design.md`
 
-**Option B — Follow-up OpenSpec proposal** (default if beads is not initialized):
+**Option B — Follow-up OpenSpec proposal** (default if coordinator is not available):
 
 Create a new proposal using runtime-native new/continue workflow (or CLI fallback) with:
 - **Change-id**: `followup-<original-change-id>` (e.g., `followup-add-retry-logic`)
@@ -241,7 +248,7 @@ After migration, annotate the original `tasks.md` to record where open tasks wen
 
 ```markdown
 ## Migration Notes
-Open tasks migrated to [beads issues labeled `openspec:<change-id>`] | [follow-up proposal `followup-<change-id>`] on YYYY-MM-DD.
+Open tasks migrated to [coordinator issues labeled `openspec:<change-id>`] | [follow-up proposal `followup-<change-id>`] on YYYY-MM-DD.
 ```
 
 This annotation is preserved in the archive for traceability.
@@ -381,7 +388,7 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 ## Output
 
 - PR merged to main
-- Open tasks migrated to beads issues or follow-up OpenSpec proposal (if any)
+- Open tasks migrated to coordinator issues or follow-up OpenSpec proposal (if any)
 - OpenSpec proposal archived
 - Specs updated in `openspec/specs/`
 - Branches cleaned up
