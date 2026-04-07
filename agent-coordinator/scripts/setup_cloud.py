@@ -33,9 +33,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 
 AGENTS = [
-    {"id": "claude-remote", "type": "claude_code", "key_flag": "claude_key", "label": "Claude Code"},
-    {"id": "codex-remote", "type": "codex", "key_flag": "codex_key", "label": "Codex"},
-    {"id": "gemini-remote", "type": "gemini", "key_flag": "gemini_key", "label": "Gemini"},
+    # Local CLI agents using HTTP instead of MCP
+    {"id": "claude-local", "type": "claude_code", "key_flag": "claude_local_key", "label": "Claude (local)"},
+    {"id": "codex-local", "type": "codex", "key_flag": "codex_local_key", "label": "Codex (local)"},
+    {"id": "gemini-local", "type": "gemini", "key_flag": "gemini_local_key", "label": "Gemini (local)"},
+    # Cloud/remote agents
+    {"id": "claude-remote", "type": "claude_code", "key_flag": "claude_remote_key", "label": "Claude (remote)"},
+    {"id": "codex-remote", "type": "codex", "key_flag": "codex_remote_key", "label": "Codex (remote)"},
+    {"id": "gemini-remote", "type": "gemini", "key_flag": "gemini_remote_key", "label": "Gemini (remote)"},
 ]
 
 
@@ -65,14 +70,16 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
         f'export COORDINATOR_URL="{url}"',
         "",
     ]
+    lines.append("# Per-agent keys (uncomment the one matching your agent)")
     for agent in AGENTS:
         key = keys.get(agent["key_flag"])
         if key:
             lines.append(f'# export COORDINATION_API_KEY="{key}"  # {agent["id"]}')
-    claude_key = keys.get("claude_key", "")
-    if claude_key:
+    local_claude_key = keys.get("claude_local_key", "")
+    if local_claude_key:
         lines.append("")
-        lines.append(f'export COORDINATION_API_KEY="{claude_key}"')
+        lines.append("# Default: local Claude Code CLI")
+        lines.append(f'export COORDINATION_API_KEY="{local_claude_key}"')
         lines.append("")
     output.write_text("\n".join(lines) + "\n")
 
@@ -213,9 +220,12 @@ def verify_connectivity(domain: str, api_key: str | None = None) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Cloud coordinator setup")
     parser.add_argument("--domain", required=True, help="Coordinator domain")
-    parser.add_argument("--claude-key", help="Claude API key (generated if omitted)")
-    parser.add_argument("--codex-key", help="Codex API key (generated if omitted)")
-    parser.add_argument("--gemini-key", help="Gemini API key (generated if omitted)")
+    parser.add_argument("--claude-local-key", help="Claude local CLI key (generated if omitted)")
+    parser.add_argument("--codex-local-key", help="Codex local CLI key (generated if omitted)")
+    parser.add_argument("--gemini-local-key", help="Gemini local CLI key (generated if omitted)")
+    parser.add_argument("--claude-remote-key", help="Claude remote/web key (generated if omitted)")
+    parser.add_argument("--codex-remote-key", help="Codex cloud key (generated if omitted)")
+    parser.add_argument("--gemini-remote-key", help="Gemini cloud key (generated if omitted)")
     parser.add_argument("--railway", action="store_true", help="Push env vars to Railway")
     parser.add_argument("--railway-service", help="Railway service name (auto-detected if omitted)")
     parser.add_argument("--verify", action="store_true", help="Test /health after setup")
@@ -226,9 +236,12 @@ def main() -> None:
     domain = args.domain.removeprefix("https://").removeprefix("http://").rstrip("/")
 
     keys = {
-        "claude_key": args.claude_key or generate_key(),
-        "codex_key": args.codex_key or generate_key(),
-        "gemini_key": args.gemini_key or generate_key(),
+        "claude_local_key": args.claude_local_key or generate_key(),
+        "codex_local_key": args.codex_local_key or generate_key(),
+        "gemini_local_key": args.gemini_local_key or generate_key(),
+        "claude_remote_key": args.claude_remote_key or generate_key(),
+        "codex_remote_key": args.codex_remote_key or generate_key(),
+        "gemini_remote_key": args.gemini_remote_key or generate_key(),
     }
 
     identities = build_identities(keys)
@@ -256,17 +269,19 @@ def main() -> None:
         print("   " + "-" * 60)
 
     print("\n3. Per-agent API keys:")
+    print(f"   {'Agent':<20s} {'Key':>14s}  Source")
+    print(f"   {'-'*20} {'-'*14}  {'-'*10}")
     for agent in AGENTS:
         key = keys.get(agent["key_flag"], "")
         flag = agent["key_flag"].replace("_", "-")
         src = "(provided)" if getattr(args, agent["key_flag"]) else "(generated)"
-        print(f"   {agent['label']:15s}: {key[:12]}... {src}")
-        print(f"     Re-use: --{flag} {key}")
+        print(f"   {agent['label']:<20s} {key[:12]}...  {src}")
+        print(f"     --{flag} {key}")
 
     print("\n4. Install hooks: make hooks-setup")
 
     if args.verify:
-        ok = verify_connectivity(domain, keys["claude_key"])
+        ok = verify_connectivity(domain, keys["claude_local_key"])
         print("\n[ok] Healthy" if ok else "\n[fail] Unreachable")
         if not ok:
             sys.exit(1)
