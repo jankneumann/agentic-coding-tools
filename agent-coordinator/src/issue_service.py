@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Issue tracking service for Agent Coordinator.
 
 Extends the work_queue table with issue-tracking features: labels, epics,
@@ -10,6 +8,8 @@ This service delegates to DatabaseClient directly (not WorkQueueService)
 to avoid inheriting agent-coordination semantics (policy checks, guardrails)
 that are inappropriate for issue CRUD.
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -66,7 +66,7 @@ class Issue:
     comments: list[dict[str, Any]] | None = None
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> "Issue":
+    def from_row(cls, row: dict[str, Any]) -> Issue:
         def parse_dt(val: Any) -> datetime | None:
             if val is None:
                 return None
@@ -133,7 +133,7 @@ class Comment:
     created_at: datetime | None = None
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> "Comment":
+    def from_row(cls, row: dict[str, Any]) -> Comment:
         created_at = row.get("created_at")
         if created_at and isinstance(created_at, str):
             created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
@@ -220,7 +220,7 @@ class IssueService:
         row = await self.db.insert("work_queue", data)
         return Issue.from_row(row)
 
-    async def list(
+    async def list_issues(
         self,
         status: str | None = None,
         issue_type: str | None = None,
@@ -266,7 +266,7 @@ class IssueService:
 
         issues = [Issue.from_row(r) for r in rows]
 
-        # Post-filter by labels (requires array containment, not supported in PostgREST query syntax)
+        # Post-filter by labels (array containment not in PostgREST syntax)
         if labels:
             issues = [
                 i for i in issues

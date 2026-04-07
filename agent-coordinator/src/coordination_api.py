@@ -775,7 +775,7 @@ def create_coordination_api() -> FastAPI:
         service = get_issue_service()
         parent_uuid = UUID(request.parent_id) if request.parent_id else None
 
-        issues = await service.list(
+        issues = await service.list_issues(
             status=request.status,
             issue_type=request.issue_type,
             labels=request.labels,

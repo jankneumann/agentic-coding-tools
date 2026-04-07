@@ -458,7 +458,7 @@ async def issue_list(
     service = get_issue_service()
     parent_uuid = UUID(parent_id) if parent_id else None
 
-    issues = await service.list(
+    issues = await service.list_issues(
         status=status,
         issue_type=issue_type,
         labels=labels,

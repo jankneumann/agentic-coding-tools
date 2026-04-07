@@ -166,7 +166,7 @@ class TestIssueList:
             _make_issue_row(title="Issue 2"),
         ]
 
-        issues = await service.list()
+        issues = await service.list_issues()
 
         assert len(issues) == 2
         query = mock_db.query.call_args[0][1]
@@ -179,7 +179,7 @@ class TestIssueList:
             _make_issue_row(title="Open", status="pending"),
         ]
 
-        await service.list(status="open")
+        await service.list_issues(status="open")
 
         query = mock_db.query.call_args[0][1]
         assert "status=in.(pending,claimed)" in query
@@ -192,7 +192,7 @@ class TestIssueList:
             _make_issue_row(title="No match", labels=["api"]),
         ]
 
-        issues = await service.list(labels=["api", "followup"])
+        issues = await service.list_issues(labels=["api", "followup"])
 
         assert len(issues) == 1
         assert issues[0].title == "Match"
@@ -205,7 +205,7 @@ class TestIssueList:
             _make_issue_row(title="Child", parent_id=parent_id),
         ]
 
-        await service.list(parent_id=parent_id)
+        await service.list_issues(parent_id=parent_id)
 
         query = mock_db.query.call_args[0][1]
         assert f"parent_id=eq.{parent_id}" in query
@@ -215,7 +215,7 @@ class TestIssueList:
         """Limit is capped at MAX_PAGE_SIZE."""
         mock_db.query.return_value = []
 
-        await service.list(limit=500)
+        await service.list_issues(limit=500)
 
         query = mock_db.query.call_args[0][1]
         assert "limit=100" in query
