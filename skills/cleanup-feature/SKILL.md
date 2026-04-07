@@ -137,6 +137,34 @@ python3 skills/validate-feature/scripts/gate_logic.py \
 
 This is a **hard gate** — merge is blocked until all required phases pass or the user explicitly overrides.
 
+### 2.5b. Holdout Gate Check (If Rework Report Exists)
+
+If `openspec/changes/<change-id>/rework-report.json` exists, check whether holdout scenario failures block cleanup:
+
+```bash
+REWORK_REPORT="openspec/changes/$CHANGE_ID/rework-report.json"
+if [[ -f "$REWORK_REPORT" ]]; then
+  python3 -c "
+import json, sys
+data = json.load(open('$REWORK_REPORT'))
+summary = data.get('summary', {})
+if summary.get('has_blocking_holdout'):
+    holdout_ids = [f['scenario_id'] for f in data.get('failures', [])
+                   if f.get('visibility') == 'holdout' and f.get('recommended_action') == 'block-cleanup']
+    print(f'HALT: Holdout scenario failures block cleanup: {holdout_ids}')
+    sys.exit(1)
+print('Holdout gate: clear')
+"
+fi
+```
+
+If the holdout gate halts:
+1. Return to `/iterate-on-implementation` to address holdout failures
+2. Re-run `/validate-feature` to regenerate the rework report
+3. Only proceed if the rework report no longer contains blocking holdout failures
+
+The `process-analysis.md` artifact, if present, is consumed **read-only** at this stage for inclusion in the PR description and session log. It is NOT regenerated during cleanup.
+
 ### 2.6. Merge Queue Integration [coordinated only]
 
 These steps run only when coordinator is available with `CAN_MERGE_QUEUE` and `CAN_FEATURE_REGISTRY` capabilities.

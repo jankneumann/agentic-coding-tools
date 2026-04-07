@@ -126,6 +126,26 @@ openspec status --change "$CHANGE_ID"
 
 Ensure `openspec/changes/<change-id>/impl-findings.md` exists and append each iteration's findings there.
 
+### 2.6. Consume Rework Report (If Available)
+
+If `openspec/changes/<change-id>/rework-report.json` exists, load it as the primary input for prioritizing fixes. The rework report provides machine-readable failure routing: scenario IDs, visibility, requirement refs, implicated files, and recommended actions.
+
+```bash
+REWORK_REPORT="openspec/changes/$CHANGE_ID/rework-report.json"
+if [[ -f "$REWORK_REPORT" ]]; then
+  echo "Rework report found — using as primary iteration input"
+  # Parse failures with recommended_action == "iterate"
+  # Prioritize those failures over code-review-discovered findings
+fi
+```
+
+When a rework report is present:
+- **Prioritize** failures with `recommended_action: "iterate"` over self-discovered findings
+- **Skip** failures with `recommended_action: "defer"` unless the threshold is set to "low"
+- **Flag** failures with `recommended_action: "revise-spec"` for spec revision rather than code changes
+- **Public scenario failures** are soft signals — fix if possible, defer if not critical
+- **Holdout scenario failures** are not visible here (they route through `/cleanup-feature`)
+
 ### 3. Begin Iteration Loop
 
 ```

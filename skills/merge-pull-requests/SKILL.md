@@ -265,6 +265,28 @@ Merge-Time Validation (OpenSpec: <change-id>):
 
 If any phase **fails**, flag the PR with a warning but do not hard-block — the operator decides whether to merge, fix, or skip. Critical failures (deploy crash, smoke test failures) should be highlighted prominently.
 
+### 9.6. Check Holdout Gate (OpenSpec PRs Only)
+
+If `openspec/changes/<change-id>/rework-report.json` exists, check whether holdout scenario failures block the merge:
+
+```bash
+REWORK_REPORT="openspec/changes/$CHANGE_ID/rework-report.json"
+if [[ -f "$REWORK_REPORT" ]]; then
+  HAS_BLOCKING=$(python3 -c "
+import json
+data = json.load(open('$REWORK_REPORT'))
+print(data.get('summary', {}).get('has_blocking_holdout', False))
+")
+  if [[ "$HAS_BLOCKING" == "True" ]]; then
+    echo "WARNING: Holdout scenario failures detected in rework report"
+    echo "The rework report indicates blocking holdout failures."
+    echo "Consider running /iterate-on-implementation and /validate-feature before merge."
+  fi
+fi
+```
+
+Holdout gate status is presented as a **warning** during the interactive review — it does not auto-block. The operator decides whether the holdout failures are acceptable for this merge or need resolution first.
+
 ### 10. Determine Merge Order
 
 Before the interactive review, sort remaining PRs for optimal merge order:
