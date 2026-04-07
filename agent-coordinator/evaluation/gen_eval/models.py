@@ -126,6 +126,49 @@ class EvalFeedback(BaseModel):
     coverage_summary: dict[str, float] = Field(default_factory=dict)
 
 
+class ManifestEntry(BaseModel):
+    """A single entry in a scenario-pack manifest.
+
+    Records visibility, provenance, determinism, ownership, and promotion
+    status for a scenario or scenario group. The manifest is the source of
+    truth for scenario classification — not file paths or naming conventions.
+    """
+
+    scenario_id: str
+    visibility: Literal["public", "holdout"]
+    source: Literal["spec", "contract", "doc", "incident", "archive", "manual"] = "manual"
+    determinism: Literal[
+        "deterministic", "bounded-nondeterministic", "exploratory"
+    ] = "deterministic"
+    owner: str = ""
+    promotion_status: Literal["draft", "candidate", "approved"] = "draft"
+    incident_ref: str | None = None
+
+
+class ScenarioPackManifest(BaseModel):
+    """Machine-readable scenario-pack manifest.
+
+    Classifies scenarios by visibility (public vs holdout), provenance,
+    and promotion status. Used by generators to filter scenarios based
+    on execution context, and by reports to group results by visibility.
+    """
+
+    version: int = 1
+    entries: list[ManifestEntry] = Field(default_factory=list)
+
+    def public_ids(self) -> set[str]:
+        """Return scenario IDs classified as public."""
+        return {e.scenario_id for e in self.entries if e.visibility == "public"}
+
+    def holdout_ids(self) -> set[str]:
+        """Return scenario IDs classified as holdout."""
+        return {e.scenario_id for e in self.entries if e.visibility == "holdout"}
+
+    def ids_by_visibility(self, visibility: str) -> set[str]:
+        """Return scenario IDs matching the given visibility."""
+        return {e.scenario_id for e in self.entries if e.visibility == visibility}
+
+
 class ScenarioGenerator(Protocol):
     """Protocol for scenario generators.
 
