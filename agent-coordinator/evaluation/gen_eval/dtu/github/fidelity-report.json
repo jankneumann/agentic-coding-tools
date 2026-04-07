@@ -1,0 +1,14 @@
+{
+  "system_name": "github-api",
+  "sources_ingested": ["GitHub REST API v3 docs", "PR/review/check-run endpoints"],
+  "unsupported_surfaces": [
+    "OAuth2 app installation flow: requires live GitHub App",
+    "Webhook event delivery: requires live webhook registration",
+    "Rate limiting (5000 req/hr): timing-dependent, needs live probes"
+  ],
+  "conformance_score": 0.36,
+  "holdout_eligible": false,
+  "operator_approved": false,
+  "has_probes": false,
+  "notes": "Doc-derived scaffold covering PR/review/check-run flows. No live probes yet."
+}

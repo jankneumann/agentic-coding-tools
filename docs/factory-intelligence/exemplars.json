@@ -1,0 +1,1275 @@
+{
+  "version": 1,
+  "total_exemplars": 79,
+  "by_type": {
+    "dtu_edge_case": 0,
+    "scenario_seed": 62,
+    "repair_pattern": 1,
+    "implementation_pattern": 16
+  },
+  "exemplars": [
+    {
+      "exemplar_id": "seed-2026-02-01-add-improve-and-iterate-skill-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-01-add-improve-and-iterate-skill",
+      "title": "Scenarios from skill-workflow (Change: Add improve-and-iterate skill for iterative refinement after implementation)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-01-add-improve-and-iterate-skill",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-01-add-merge-pull-requests-skill-merge-pull-requests",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-01-add-merge-pull-requests-skill",
+      "title": "Scenarios from merge-pull-requests (Change: Add merge-pull-requests skill)",
+      "description": "Spec capability merge-pull-requests from archived change 2026-02-01-add-merge-pull-requests-skill",
+      "confidence": 0.52,
+      "tags": [
+        "merge-pull-requests",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "merge-pull-requests",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-05-parallelize-skills-with-task-tool-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-05-parallelize-skills-with-task-tool",
+      "title": "Scenarios from skill-workflow (Parallelize Skills with Task Tool)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-05-parallelize-skills-with-task-tool",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 3
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-06-add-worktree-isolation-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-06-add-worktree-isolation",
+      "title": "Scenarios from skill-workflow (Add Per-Feature Worktree Isolation)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-06-add-worktree-isolation",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 2
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-07-add-validate-feature-skill-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-07-add-validate-feature-skill",
+      "title": "Scenarios from skill-workflow (Change: Add validate-feature skill)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-07-add-validate-feature-skill",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-08-add-prioritize-proposals-skill-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-08-add-prioritize-proposals-skill",
+      "title": "Scenarios from skill-workflow (Change: Add prioritize-proposals skill)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-08-add-prioritize-proposals-skill",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-08-adopt-agent-relay-patterns-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-08-adopt-agent-relay-patterns",
+      "title": "Scenarios from agent-coordinator (Change: Adopt Agent Relay Patterns for Agentic Coordination)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-08-adopt-agent-relay-patterns",
+      "confidence": 0.52,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 7
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-11-add-evaluation-framework-evaluation-framework",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-11-add-evaluation-framework",
+      "title": "Scenarios from evaluation-framework (Change: Add Evaluation Framework for Agent Coordination Benchmarking)",
+      "description": "Spec capability evaluation-framework from archived change 2026-02-11-add-evaluation-framework",
+      "confidence": 0.52,
+      "tags": [
+        "evaluation-framework",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "evaluation-framework",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-14-add-codebase-analysis-architecture-codebase-analysis",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-14-add-codebase-analysis-architecture",
+      "title": "Scenarios from codebase-analysis (Change: Add Codebase Analysis Architecture)",
+      "description": "Spec capability codebase-analysis from archived change 2026-02-14-add-codebase-analysis-architecture",
+      "confidence": 0.52,
+      "tags": [
+        "codebase-analysis",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "codebase-analysis",
+        "requirement_count": 12
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-16-add-report-config-report-configuration",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-16-add-report-config",
+      "title": "Scenarios from report-configuration (Add Architecture Report Configuration File)",
+      "description": "Spec capability report-configuration from archived change 2026-02-16-add-report-config",
+      "confidence": 0.76,
+      "tags": [
+        "report-configuration",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "report-configuration",
+        "requirement_count": 1
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-02-16-add-report-config",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-02-16-add-report-config",
+      "title": "Implementation exemplar: Add Architecture Report Configuration File",
+      "description": "Complex change with 28 tasks and 4 artifacts",
+      "confidence": 0.76,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 28,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-16-refactor-analysis-architecture-codebase-analysis",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-16-refactor-analysis-architecture",
+      "title": "Scenarios from codebase-analysis (Change: Refactor Analysis into Clean 3-Layer Architecture)",
+      "description": "Spec capability codebase-analysis from archived change 2026-02-16-refactor-analysis-architecture",
+      "confidence": 0.52,
+      "tags": [
+        "codebase-analysis",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "codebase-analysis",
+        "requirement_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-17-cleanup-verification-gateway-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-17-cleanup-verification-gateway",
+      "title": "Scenarios from agent-coordinator (Clean Up verification_gateway/)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-17-cleanup-verification-gateway",
+      "confidence": 0.48,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 1
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-22-add-bug-scrub-skill-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-22-add-bug-scrub-skill",
+      "title": "Scenarios from skill-workflow (Add Bug Scrub and Fix Scrub Skills)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-22-add-bug-scrub-skill",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 16
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-22-add-port-allocator-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-22-add-port-allocator",
+      "title": "Scenarios from agent-coordinator (Change: add-port-allocator)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-22-add-port-allocator",
+      "confidence": 0.48,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-23-coordinator-skill-integration-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-23-coordinator-skill-integration",
+      "title": "Scenarios from agent-coordinator (Change: coordinator-skill-integration)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-23-coordinator-skill-integration",
+      "confidence": 0.52,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 10
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-23-coordinator-skill-integration-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-23-coordinator-skill-integration",
+      "title": "Scenarios from skill-workflow (Change: coordinator-skill-integration)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-23-coordinator-skill-integration",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 10
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-23-fix-scrub-isolation-and-script-paths-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-23-fix-scrub-isolation-and-script-paths",
+      "title": "Scenarios from skill-workflow (Change: fix-scrub-isolation-and-script-paths)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-23-fix-scrub-isolation-and-script-paths",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-23-integrate-security-into-validation-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-23-integrate-security-into-validation",
+      "title": "Scenarios from skill-workflow (Change: integrate-security-into-validation)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-23-integrate-security-into-validation",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 3
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-25-cloud-deployment-strategy-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-25-cloud-deployment-strategy",
+      "title": "Scenarios from agent-coordinator (Change: cloud-deployment-strategy)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-25-cloud-deployment-strategy",
+      "confidence": 0.72,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-25-streamline-worktree-permissions-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-25-streamline-worktree-permissions",
+      "title": "Scenarios from skill-workflow (Streamline Worktree Permissions)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-25-streamline-worktree-permissions",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 3
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-28-add-treesitter-architecture-enrichment-codebase-analysis",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-28-add-treesitter-architecture-enrichment",
+      "title": "Scenarios from codebase-analysis (Change: add-treesitter-architecture-enrichment)",
+      "description": "Spec capability codebase-analysis from archived change 2026-02-28-add-treesitter-architecture-enrichment",
+      "confidence": 0.48,
+      "tags": [
+        "codebase-analysis",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "codebase-analysis",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-28-add-two-level-parallel-development-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-28-add-two-level-parallel-development",
+      "title": "Scenarios from agent-coordinator (Change: add-two-level-parallel-development)",
+      "description": "Spec capability agent-coordinator from archived change 2026-02-28-add-two-level-parallel-development",
+      "confidence": 0.52,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 15
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-02-28-add-two-level-parallel-development-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-02-28-add-two-level-parallel-development",
+      "title": "Scenarios from skill-workflow (Change: add-two-level-parallel-development)",
+      "description": "Spec capability skill-workflow from archived change 2026-02-28-add-two-level-parallel-development",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 15
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-01-add-coordinator-profiles-agent-identity",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-01-add-coordinator-profiles",
+      "title": "Scenarios from agent-identity (Change: add-coordinator-profiles)",
+      "description": "Spec capability agent-identity from archived change 2026-03-01-add-coordinator-profiles",
+      "confidence": 0.72,
+      "tags": [
+        "agent-identity",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-identity",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-01-add-coordinator-profiles-configuration",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-01-add-coordinator-profiles",
+      "title": "Scenarios from configuration (Change: add-coordinator-profiles)",
+      "description": "Spec capability configuration from archived change 2026-03-01-add-coordinator-profiles",
+      "confidence": 0.72,
+      "tags": [
+        "configuration",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "configuration",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-01-add-coordinator-profiles-docker-lifecycle",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-01-add-coordinator-profiles",
+      "title": "Scenarios from docker-lifecycle (Change: add-coordinator-profiles)",
+      "description": "Spec capability docker-lifecycle from archived change 2026-03-01-add-coordinator-profiles",
+      "confidence": 0.72,
+      "tags": [
+        "docker-lifecycle",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "docker-lifecycle",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-01-add-coordinator-profiles-setup-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-01-add-coordinator-profiles",
+      "title": "Scenarios from setup-coordinator (Change: add-coordinator-profiles)",
+      "description": "Spec capability setup-coordinator from archived change 2026-03-01-add-coordinator-profiles",
+      "confidence": 0.72,
+      "tags": [
+        "setup-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "setup-coordinator",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-add-architecture-cli-wrapper-codebase-analysis",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-add-architecture-cli-wrapper",
+      "title": "Scenarios from codebase-analysis (Change: Add Architecture CLI Wrapper for External Target Directories)",
+      "description": "Spec capability codebase-analysis from archived change 2026-03-05-add-architecture-cli-wrapper",
+      "confidence": 0.72,
+      "tags": [
+        "codebase-analysis",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "codebase-analysis",
+        "requirement_count": 1
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-add-ci-skills-tests-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-add-ci-skills-tests",
+      "title": "Scenarios from skill-workflow (Change: add-ci-skills-tests)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-05-add-ci-skills-tests",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 1
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-add-parallel-git-workflow-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-add-parallel-git-workflow",
+      "title": "Scenarios from skill-workflow (Change: add-parallel-git-workflow)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-05-add-parallel-git-workflow",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 3
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-add-security-review-skill-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-add-security-review-skill",
+      "title": "Scenarios from skill-workflow (Change: add-security-review-skill)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-05-add-security-review-skill",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 9
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-adopt-opsx-1.0-workflow-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-adopt-opsx-1.0-workflow",
+      "title": "Scenarios from skill-workflow (Change: Adopt OpenSpec 1.0 OPSX Workflow)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-05-adopt-opsx-1.0-workflow",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-complete-missing-coordination-features-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-complete-missing-coordination-features",
+      "title": "Scenarios from agent-coordinator (Change: Complete Missing Coordination Features (Phases 2-4))",
+      "description": "Spec capability agent-coordinator from archived change 2026-03-05-complete-missing-coordination-features",
+      "confidence": 0.76,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 13
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-05-complete-missing-coordination-features-evaluation-framework",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-05-complete-missing-coordination-features",
+      "title": "Scenarios from evaluation-framework (Change: Complete Missing Coordination Features (Phases 2-4))",
+      "description": "Spec capability evaluation-framework from archived change 2026-03-05-complete-missing-coordination-features",
+      "confidence": 0.76,
+      "tags": [
+        "evaluation-framework",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "evaluation-framework",
+        "requirement_count": 13
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-05-complete-missing-coordination-features",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-05-complete-missing-coordination-features",
+      "title": "Implementation exemplar: Change: Complete Missing Coordination Features (Phases 2-4)",
+      "description": "Complex change with 99 tasks and 4 artifacts",
+      "confidence": 0.76,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 99,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-06-add-coordinator-assurance-verification-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-06-add-coordinator-assurance-verification",
+      "title": "Scenarios from agent-coordinator (Change: Add Coordinator Assurance and Behavioral Verification)",
+      "description": "Spec capability agent-coordinator from archived change 2026-03-06-add-coordinator-assurance-verification",
+      "confidence": 0.52,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 3
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-21-add-dynamic-authorization-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-21-add-dynamic-authorization",
+      "title": "Scenarios from agent-coordinator (Change: Add Dynamic Authorization Layer)",
+      "description": "Spec capability agent-coordinator from archived change 2026-03-21-add-dynamic-authorization",
+      "confidence": 0.56,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-21-add-dynamic-authorization",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-21-add-dynamic-authorization",
+      "title": "Implementation exemplar: Change: Add Dynamic Authorization Layer",
+      "description": "Complex change with 56 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 56,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-21-improve-worktree-management-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-21-improve-worktree-management",
+      "title": "Scenarios from skill-workflow (Change: improve-worktree-management)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-21-improve-worktree-management",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 10
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-22-add-openbao-credential-management-agent-identity",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-22-add-openbao-credential-management",
+      "title": "Scenarios from agent-identity (Change: Add OpenBao Credential Management)",
+      "description": "Spec capability agent-identity from archived change 2026-03-22-add-openbao-credential-management",
+      "confidence": 0.52,
+      "tags": [
+        "agent-identity",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-identity",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-22-add-openbao-credential-management-configuration",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-22-add-openbao-credential-management",
+      "title": "Scenarios from configuration (Change: Add OpenBao Credential Management)",
+      "description": "Spec capability configuration from archived change 2026-03-22-add-openbao-credential-management",
+      "confidence": 0.52,
+      "tags": [
+        "configuration",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "configuration",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-24-add-e2e-integration-ci-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-24-add-e2e-integration-ci",
+      "title": "Scenarios from agent-coordinator (Change: add-e2e-integration-ci)",
+      "description": "Spec capability agent-coordinator from archived change 2026-03-24-add-e2e-integration-ci",
+      "confidence": 0.56,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-24-add-e2e-integration-ci",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-24-add-e2e-integration-ci",
+      "title": "Implementation exemplar: Change: add-e2e-integration-ci",
+      "description": "Complex change with 14 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 14,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-24-unify-worktree-isolation-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-24-unify-worktree-isolation",
+      "title": "Scenarios from skill-workflow (Unify Worktree Isolation for Parallel Agents)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-24-unify-worktree-isolation",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 7
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-24-unify-worktree-isolation",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-24-unify-worktree-isolation",
+      "title": "Implementation exemplar: Unify Worktree Isolation for Parallel Agents",
+      "description": "Complex change with 30 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 30,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-25-add-change-context-traceability-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-25-add-change-context-traceability",
+      "title": "Scenarios from skill-workflow (Add change-context.md Traceability Artifact)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-25-add-change-context-traceability",
+      "confidence": 0.76,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 7
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-25-add-change-context-traceability",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-25-add-change-context-traceability",
+      "title": "Implementation exemplar: Add change-context.md Traceability Artifact",
+      "description": "Complex change with 18 tasks and 4 artifacts",
+      "confidence": 0.76,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 18,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-25-expose-coordinator-apis-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-25-expose-coordinator-apis",
+      "title": "Scenarios from agent-coordinator (Change: expose-coordinator-apis)",
+      "description": "Spec capability agent-coordinator from archived change 2026-03-25-expose-coordinator-apis",
+      "confidence": 0.56,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 9
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-25-expose-coordinator-apis-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-25-expose-coordinator-apis",
+      "title": "Scenarios from skill-workflow (Change: expose-coordinator-apis)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-25-expose-coordinator-apis",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 9
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-25-expose-coordinator-apis",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-25-expose-coordinator-apis",
+      "title": "Implementation exemplar: Change: expose-coordinator-apis",
+      "description": "Complex change with 30 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 30,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-25-script-to-skill-migration-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-25-script-to-skill-migration",
+      "title": "Scenarios from skill-workflow (Migrate All Scripts to Skills \u2014 Eliminate scripts/ Directory)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-25-script-to-skill-migration",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 9
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-25-script-to-skill-migration",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-25-script-to-skill-migration",
+      "title": "Implementation exemplar: Migrate All Scripts to Skills \u2014 Eliminate scripts/ Directory",
+      "description": "Complex change with 69 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 69,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-26-multi-vendor-review-orchestration-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-26-multi-vendor-review-orchestration",
+      "title": "Scenarios from skill-workflow (Multi-Vendor Review Orchestration)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-26-multi-vendor-review-orchestration",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 28
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-26-multi-vendor-review-orchestration",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-26-multi-vendor-review-orchestration",
+      "title": "Implementation exemplar: Multi-Vendor Review Orchestration",
+      "description": "Complex change with 46 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 46,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-28-add-otel-observability-observability",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-28-add-otel-observability",
+      "title": "Scenarios from observability (Add OpenTelemetry Observability Metrics)",
+      "description": "Spec capability observability from archived change 2026-03-28-add-otel-observability",
+      "confidence": 0.56,
+      "tags": [
+        "observability",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "observability",
+        "requirement_count": 5
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-28-add-otel-observability",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-28-add-otel-observability",
+      "title": "Implementation exemplar: Add OpenTelemetry Observability Metrics",
+      "description": "Complex change with 33 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 33,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-28-automated-dev-loop-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-28-automated-dev-loop",
+      "title": "Scenarios from skill-workflow (Automated Development Loop with Review Convergence)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-28-automated-dev-loop",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-28-parallel-scrub-pipeline-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-28-parallel-scrub-pipeline",
+      "title": "Scenarios from skill-workflow (Parallel & Multi-Vendor Scrub Pipeline)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-28-parallel-scrub-pipeline",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-28-parallel-scrub-pipeline",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-28-parallel-scrub-pipeline",
+      "title": "Implementation exemplar: Parallel & Multi-Vendor Scrub Pipeline",
+      "description": "Complex change with 21 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 21,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-28-store-conversation-history-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-28-store-conversation-history",
+      "title": "Scenarios from skill-workflow (Store Conversation History with OpenSpec Changes)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-28-store-conversation-history",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-28-unify-skill-tiers-skill-consolidation",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-28-unify-skill-tiers",
+      "title": "Scenarios from skill-consolidation (Unify Skill Tiers)",
+      "description": "Spec capability skill-consolidation from archived change 2026-03-28-unify-skill-tiers",
+      "confidence": 0.52,
+      "tags": [
+        "skill-consolidation",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-consolidation",
+        "requirement_count": 11
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-29-clean-up-dispatch-add-sdk-fallback-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-29-clean-up-dispatch-add-sdk-fallback",
+      "title": "Scenarios from skill-workflow (Clean Up Dispatch and Add SDK Fallback)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-29-clean-up-dispatch-add-sdk-fallback",
+      "confidence": 0.52,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-03-31-add-phase-session-logs-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-03-31-add-phase-session-logs",
+      "title": "Scenarios from skill-workflow (Add Phase Session Logs)",
+      "description": "Spec capability skill-workflow from archived change 2026-03-31-add-phase-session-logs",
+      "confidence": 0.8,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "repair-2026-03-31-add-phase-session-logs",
+      "type": "repair_pattern",
+      "source_change_id": "2026-03-31-add-phase-session-logs",
+      "title": "Repair pattern from Add Phase Session Logs",
+      "description": "Change went through validation and iteration (13 tasks)",
+      "confidence": 0.8,
+      "tags": [
+        "validated",
+        "iterated"
+      ],
+      "metadata": {
+        "task_count": 13
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-03-31-add-phase-session-logs",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-03-31-add-phase-session-logs",
+      "title": "Implementation exemplar: Add Phase Session Logs",
+      "description": "Complex change with 13 tasks and 5 artifacts",
+      "confidence": 0.8,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 13,
+        "artifact_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-01-live-service-testing-live-service-testing",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-01-live-service-testing",
+      "title": "Scenarios from live-service-testing (Live Service Testing Pipeline)",
+      "description": "Spec capability live-service-testing from archived change 2026-04-01-live-service-testing",
+      "confidence": 0.56,
+      "tags": [
+        "live-service-testing",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "live-service-testing",
+        "requirement_count": 9
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-04-01-live-service-testing",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-04-01-live-service-testing",
+      "title": "Implementation exemplar: Live Service Testing Pipeline",
+      "description": "Complex change with 28 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 28,
+        "artifact_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-01-remote-control-coordinator-agent-coordinator",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-01-remote-control-coordinator",
+      "title": "Scenarios from agent-coordinator (Change: remote-control-coordinator)",
+      "description": "Spec capability agent-coordinator from archived change 2026-04-01-remote-control-coordinator",
+      "confidence": 0.8,
+      "tags": [
+        "agent-coordinator",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "agent-coordinator",
+        "requirement_count": 8
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-04-01-remote-control-coordinator",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-04-01-remote-control-coordinator",
+      "title": "Implementation exemplar: Change: remote-control-coordinator",
+      "description": "Complex change with 48 tasks and 5 artifacts",
+      "confidence": 0.8,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 48,
+        "artifact_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-02-evaluate-colima-macos-docker-lifecycle",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-02-evaluate-colima-macos",
+      "title": "Scenarios from docker-lifecycle (Change: evaluate-colima-macos)",
+      "description": "Spec capability docker-lifecycle from archived change 2026-04-02-evaluate-colima-macos",
+      "confidence": 0.52,
+      "tags": [
+        "docker-lifecycle",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "docker-lifecycle",
+        "requirement_count": 4
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-02-hybrid-merge-strategy-merge-pull-requests",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-02-hybrid-merge-strategy",
+      "title": "Scenarios from merge-pull-requests (Hybrid Merge Strategy for Agentic Workflows)",
+      "description": "Spec capability merge-pull-requests from archived change 2026-04-02-hybrid-merge-strategy",
+      "confidence": 0.52,
+      "tags": [
+        "merge-pull-requests",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "merge-pull-requests",
+        "requirement_count": 1
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-02-review-evaluation-criteria-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-02-review-evaluation-criteria",
+      "title": "Scenarios from skill-workflow (Expand Review Evaluation Criteria)",
+      "description": "Spec capability skill-workflow from archived change 2026-04-02-review-evaluation-criteria",
+      "confidence": 0.48,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 0
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-04-add-langfuse-observability-observability",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-04-add-langfuse-observability",
+      "title": "Scenarios from observability (Add Langfuse Observability)",
+      "description": "Spec capability observability from archived change 2026-04-04-add-langfuse-observability",
+      "confidence": 0.48,
+      "tags": [
+        "observability",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "observability",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-04-gen-eval-testing-gen-eval-framework",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-04-gen-eval-testing",
+      "title": "Scenarios from gen-eval-framework (Generator-Evaluator Testing Framework)",
+      "description": "Spec capability gen-eval-framework from archived change 2026-04-04-gen-eval-testing",
+      "confidence": 0.8,
+      "tags": [
+        "gen-eval-framework",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "gen-eval-framework",
+        "requirement_count": 10
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-04-04-gen-eval-testing",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-04-04-gen-eval-testing",
+      "title": "Implementation exemplar: Generator-Evaluator Testing Framework",
+      "description": "Complex change with 56 tasks and 5 artifacts",
+      "confidence": 0.8,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 56,
+        "artifact_count": 5
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-04-universal-planning-artifacts-merge-pull-requests",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-04-universal-planning-artifacts",
+      "title": "Scenarios from merge-pull-requests (Universal Planning Artifacts)",
+      "description": "Spec capability merge-pull-requests from archived change 2026-04-04-universal-planning-artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "merge-pull-requests",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "merge-pull-requests",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "seed-2026-04-04-universal-planning-artifacts-skill-workflow",
+      "type": "scenario_seed",
+      "source_change_id": "2026-04-04-universal-planning-artifacts",
+      "title": "Scenarios from skill-workflow (Universal Planning Artifacts)",
+      "description": "Spec capability skill-workflow from archived change 2026-04-04-universal-planning-artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "skill-workflow",
+        "archived"
+      ],
+      "metadata": {
+        "capability": "skill-workflow",
+        "requirement_count": 6
+      }
+    },
+    {
+      "exemplar_id": "impl-2026-04-04-universal-planning-artifacts",
+      "type": "implementation_pattern",
+      "source_change_id": "2026-04-04-universal-planning-artifacts",
+      "title": "Implementation exemplar: Universal Planning Artifacts",
+      "description": "Complex change with 10 tasks and 4 artifacts",
+      "confidence": 0.56,
+      "tags": [
+        "complex",
+        "complete"
+      ],
+      "metadata": {
+        "task_count": 10,
+        "artifact_count": 4
+      }
+    }
+  ]
+}

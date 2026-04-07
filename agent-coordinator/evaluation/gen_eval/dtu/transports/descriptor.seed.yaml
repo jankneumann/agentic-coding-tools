@@ -1,0 +1,33 @@
+project: dtu-transport-degradation
+version: "0.1.0"
+services:
+  - name: coordinator-http
+    type: http
+    base_url: http://localhost:8081
+    auth:
+      type: api_key
+      header: X-API-Key
+    endpoints:
+      - path: /health
+        method: GET
+        auth_required: false
+        description: Health check endpoint
+      - path: /locks/acquire
+        method: POST
+        auth_required: true
+        description: Acquire file lock
+      - path: /locks/release
+        method: POST
+        auth_required: true
+        description: Release file lock
+  - name: coordinator-mcp
+    type: mcp
+    transport: sse
+    mcp_url: http://localhost:8082/sse
+    tools:
+      - name: acquire_lock
+        description: Acquire a file lock via MCP
+      - name: release_lock
+        description: Release a file lock via MCP
+scenario_dirs:
+  - scenarios/transports

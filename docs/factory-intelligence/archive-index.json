@@ -1,0 +1,1499 @@
+{
+  "version": 1,
+  "total_changes": 53,
+  "entries": [
+    {
+      "change_id": "2026-02-01-add-improve-and-iterate-skill",
+      "title": "Change: Add improve-and-iterate skill for iterative refinement after implementation",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 11,
+      "requirement_count": 6,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-01-add-merge-pull-requests-skill",
+      "title": "Change: Add merge-pull-requests skill",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "merge-pull-requests"
+      ],
+      "task_count": 20,
+      "requirement_count": 8,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-05-parallelize-skills-with-task-tool",
+      "title": "Parallelize Skills with Task Tool",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 19,
+      "requirement_count": 3,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-06-add-worktree-isolation",
+      "title": "Add Per-Feature Worktree Isolation",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 16,
+      "requirement_count": 2,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-07-add-validate-feature-skill",
+      "title": "Change: Add validate-feature skill",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 30,
+      "requirement_count": 5,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-08-add-prioritize-proposals-skill",
+      "title": "Change: Add prioritize-proposals skill",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 6,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-08-adopt-agent-relay-patterns",
+      "title": "Change: Adopt Agent Relay Patterns for Agentic Coordination",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 30,
+      "requirement_count": 7,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-11-add-evaluation-framework",
+      "title": "Change: Add Evaluation Framework for Agent Coordination Benchmarking",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "evaluation-framework"
+      ],
+      "task_count": 30,
+      "requirement_count": 6,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-14-add-codebase-analysis-architecture",
+      "title": "Change: Add Codebase Analysis Architecture",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "codebase-analysis"
+      ],
+      "task_count": 85,
+      "requirement_count": 12,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-16-add-report-config",
+      "title": "Add Architecture Report Configuration File",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "report-configuration"
+      ],
+      "task_count": 28,
+      "requirement_count": 1,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-16-refactor-analysis-architecture",
+      "title": "Change: Refactor Analysis into Clean 3-Layer Architecture",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "codebase-analysis"
+      ],
+      "task_count": 24,
+      "requirement_count": 5,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-17-cleanup-verification-gateway",
+      "title": "Clean Up verification_gateway/",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 8,
+      "requirement_count": 1,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-22-add-bug-scrub-skill",
+      "title": "Add Bug Scrub and Fix Scrub Skills",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 41,
+      "requirement_count": 16,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-22-add-port-allocator",
+      "title": "Change: add-port-allocator",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 10,
+      "requirement_count": 8,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-23-coordinator-skill-integration",
+      "title": "Change: coordinator-skill-integration",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator",
+        "skill-workflow"
+      ],
+      "task_count": 20,
+      "requirement_count": 10,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-23-fix-scrub-isolation-and-script-paths",
+      "title": "Change: fix-scrub-isolation-and-script-paths",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 10,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-23-integrate-security-into-validation",
+      "title": "Change: integrate-security-into-validation",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 4,
+      "requirement_count": 3,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-25-cloud-deployment-strategy",
+      "title": "Change: cloud-deployment-strategy",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 0,
+      "requirement_count": 8,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-25-streamline-worktree-permissions",
+      "title": "Streamline Worktree Permissions",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 0,
+      "requirement_count": 3,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-28-add-treesitter-architecture-enrichment",
+      "title": "Change: add-treesitter-architecture-enrichment",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "codebase-analysis"
+      ],
+      "task_count": 18,
+      "requirement_count": 11,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-02-28-add-two-level-parallel-development",
+      "title": "Change: add-two-level-parallel-development",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator",
+        "skill-workflow"
+      ],
+      "task_count": 30,
+      "requirement_count": 15,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-01-add-coordinator-profiles",
+      "title": "Change: add-coordinator-profiles",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-identity",
+        "configuration",
+        "docker-lifecycle",
+        "setup-coordinator"
+      ],
+      "task_count": 14,
+      "requirement_count": 11,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-add-architecture-cli-wrapper",
+      "title": "Change: Add Architecture CLI Wrapper for External Target Directories",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "codebase-analysis"
+      ],
+      "task_count": 9,
+      "requirement_count": 1,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-add-ci-skills-tests",
+      "title": "Change: add-ci-skills-tests",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 2,
+      "requirement_count": 1,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-add-parallel-git-workflow",
+      "title": "Change: add-parallel-git-workflow",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 10,
+      "requirement_count": 3,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-add-security-review-skill",
+      "title": "Change: add-security-review-skill",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 15,
+      "requirement_count": 9,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-adopt-opsx-1.0-workflow",
+      "title": "Change: Adopt OpenSpec 1.0 OPSX Workflow",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 22,
+      "requirement_count": 11,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-05-complete-missing-coordination-features",
+      "title": "Change: Complete Missing Coordination Features (Phases 2-4)",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator",
+        "evaluation-framework"
+      ],
+      "task_count": 99,
+      "requirement_count": 13,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-06-add-coordinator-assurance-verification",
+      "title": "Change: Add Coordinator Assurance and Behavioral Verification",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 35,
+      "requirement_count": 3,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-21-add-dynamic-authorization",
+      "title": "Change: Add Dynamic Authorization Layer",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 56,
+      "requirement_count": 6,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-21-improve-worktree-management",
+      "title": "Change: improve-worktree-management",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 26,
+      "requirement_count": 10,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-22-add-openbao-credential-management",
+      "title": "Change: Add OpenBao Credential Management",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "agent-identity",
+        "configuration"
+      ],
+      "task_count": 24,
+      "requirement_count": 8,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-24-add-e2e-integration-ci",
+      "title": "Change: add-e2e-integration-ci",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 14,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-24-unify-worktree-isolation",
+      "title": "Unify Worktree Isolation for Parallel Agents",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 30,
+      "requirement_count": 7,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-25-add-change-context-traceability",
+      "title": "Add change-context.md Traceability Artifact",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 18,
+      "requirement_count": 7,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-25-expose-coordinator-apis",
+      "title": "Change: expose-coordinator-apis",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator",
+        "skill-workflow"
+      ],
+      "task_count": 30,
+      "requirement_count": 9,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-25-script-to-skill-migration",
+      "title": "Migrate All Scripts to Skills \u2014 Eliminate scripts/ Directory",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 69,
+      "requirement_count": 9,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-26-multi-vendor-review-orchestration",
+      "title": "Multi-Vendor Review Orchestration",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 46,
+      "requirement_count": 28,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-28-add-otel-observability",
+      "title": "Add OpenTelemetry Observability Metrics",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "observability"
+      ],
+      "task_count": 33,
+      "requirement_count": 5,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-28-automated-dev-loop",
+      "title": "Automated Development Loop with Review Convergence",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 0,
+      "requirement_count": 11,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-28-parallel-scrub-pipeline",
+      "title": "Parallel & Multi-Vendor Scrub Pipeline",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 21,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-28-store-conversation-history",
+      "title": "Store Conversation History with OpenSpec Changes",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 28,
+      "requirement_count": 5,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-28-unify-skill-tiers",
+      "title": "Unify Skill Tiers",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-consolidation"
+      ],
+      "task_count": 69,
+      "requirement_count": 11,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-29-clean-up-dispatch-add-sdk-fallback",
+      "title": "Clean Up Dispatch and Add SDK Fallback",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 0,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-03-31-add-phase-session-logs",
+      "title": "Add Phase Session Logs",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md",
+        "session-log.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 13,
+      "requirement_count": 8,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": true,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-01-live-service-testing",
+      "title": "Live Service Testing Pipeline",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "live-service-testing"
+      ],
+      "task_count": 28,
+      "requirement_count": 9,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-01-remote-control-coordinator",
+      "title": "Change: remote-control-coordinator",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "agent-coordinator"
+      ],
+      "task_count": 48,
+      "requirement_count": 8,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-02-evaluate-colima-macos",
+      "title": "Change: evaluate-colima-macos",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "docker-lifecycle"
+      ],
+      "task_count": 16,
+      "requirement_count": 4,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "title": "Hybrid Merge Strategy for Agentic Workflows",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "session-log.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "merge-pull-requests"
+      ],
+      "task_count": 10,
+      "requirement_count": 1,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": true,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-02-review-evaluation-criteria",
+      "title": "Expand Review Evaluation Criteria",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "skill-workflow"
+      ],
+      "task_count": 17,
+      "requirement_count": 0,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-04-add-langfuse-observability",
+      "title": "Add Langfuse Observability",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json",
+        "work-packages.yaml"
+      ],
+      "spec_capabilities": [
+        "observability"
+      ],
+      "task_count": 32,
+      "requirement_count": 6,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-04-gen-eval-testing",
+      "title": "Generator-Evaluator Testing Framework",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "design.md",
+        "tasks.md",
+        "validation-report.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "change-context.md",
+        "session-log.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "gen-eval-framework"
+      ],
+      "task_count": 56,
+      "requirement_count": 10,
+      "has_validation": true,
+      "has_process_analysis": false,
+      "has_session_log": false,
+      "metadata": {}
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "title": "Universal Planning Artifacts",
+      "status": "archived",
+      "artifacts_present": [
+        "proposal.md",
+        "tasks.md",
+        "session-log.md",
+        "work-packages.yaml"
+      ],
+      "artifacts_absent": [
+        "design.md",
+        "change-context.md",
+        "validation-report.md",
+        "process-analysis.md",
+        "process-analysis.json",
+        "rework-report.json"
+      ],
+      "spec_capabilities": [
+        "merge-pull-requests",
+        "skill-workflow"
+      ],
+      "task_count": 10,
+      "requirement_count": 6,
+      "has_validation": false,
+      "has_process_analysis": false,
+      "has_session_log": true,
+      "metadata": {}
+    }
+  ]
+}

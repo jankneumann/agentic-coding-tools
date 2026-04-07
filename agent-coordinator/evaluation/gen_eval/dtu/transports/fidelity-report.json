@@ -1,0 +1,13 @@
+{
+  "system_name": "transport-degradation",
+  "sources_ingested": ["agent-coordinator API docs", "MCP transport spec"],
+  "unsupported_surfaces": [
+    "SSE reconnection: timing-dependent, needs live probes",
+    "Connection pool exhaustion: load-dependent, needs live probes"
+  ],
+  "conformance_score": 0.48,
+  "holdout_eligible": false,
+  "operator_approved": false,
+  "has_probes": false,
+  "notes": "Doc-derived scaffold for HTTP/MCP transport degradation scenarios. Auth degradation modeled from existing error codes."
+}

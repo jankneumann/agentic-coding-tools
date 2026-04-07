@@ -1,0 +1,40 @@
+project: dtu-github-api
+version: "0.1.0"
+services:
+  - name: github-api
+    type: http
+    base_url: https://api.github.com
+    auth:
+      type: bearer
+      header: Authorization
+    endpoints:
+      - path: /repos/{owner}/{repo}/pulls
+        method: GET
+        auth_required: true
+        description: List pull requests
+      - path: /repos/{owner}/{repo}/pulls
+        method: POST
+        auth_required: true
+        description: Create a pull request
+      - path: /repos/{owner}/{repo}/pulls/{pull_number}
+        method: GET
+        auth_required: true
+        description: Get a pull request
+      - path: /repos/{owner}/{repo}/pulls/{pull_number}/reviews
+        method: GET
+        auth_required: true
+        description: List reviews on a pull request
+      - path: /repos/{owner}/{repo}/pulls/{pull_number}/reviews
+        method: POST
+        auth_required: true
+        description: Create a review
+      - path: /repos/{owner}/{repo}/check-runs
+        method: POST
+        auth_required: true
+        description: Create a check run
+      - path: /repos/{owner}/{repo}/check-runs/{check_run_id}
+        method: PATCH
+        auth_required: true
+        description: Update a check run
+scenario_dirs:
+  - scenarios/github
