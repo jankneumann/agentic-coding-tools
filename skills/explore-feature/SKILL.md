@@ -111,6 +111,23 @@ Incorporate these signals into opportunity ranking:
 
 If no report exists, skip this step and note "No gen-eval data available" in the output.
 
+### 2.6. Archive Intelligence Signals
+
+Check for an archive-intelligence index that provides exemplars and patterns from completed changes:
+
+```bash
+ARCHIVE_INDEX="docs/factory-intelligence/archive-index.json"
+EXEMPLAR_REGISTRY="docs/factory-intelligence/exemplars.json"
+```
+
+If the archive index exists, use it to:
+- **Identify recurring patterns**: Changes that share capability areas with opportunities suggest proven implementation approaches
+- **Reference exemplars**: Link opportunities to similar past changes for estimation calibration
+- **Detect coverage gaps**: Capabilities with archived changes but no exemplars may need better test coverage
+- **Seed scenario suggestions**: Archived scenario seeds relevant to an opportunity's capability area
+
+Include archive signals in the opportunity output when relevant. If neither file exists, skip and note "No archive intelligence available."
+
 ### 3. Produce Ranked Opportunities
 
 Generate a ranked shortlist (3-7 items), each with:
