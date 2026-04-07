@@ -28,6 +28,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from environments.docker_stack import DockerStackEnvironment
 
+
 # ---------------------------------------------------------------------------
 # .test-env file I/O
 # ---------------------------------------------------------------------------

@@ -2,26 +2,28 @@
 
 from __future__ import annotations
 
-# Import from the scripts directory
-import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+# Import from the scripts directory
+import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from changelog import (
-    COMMIT_TYPE_MAP,
-    CONVENTIONAL_RE,
-    AnalysisResult,
     BumpLevel,
     ParsedCommit,
     bump_version,
     format_changelog_section,
     parse_version,
+    AnalysisResult,
+    CONVENTIONAL_RE,
+    COMMIT_TYPE_MAP,
 )
+
 
 # ---------------------------------------------------------------------------
 # Version parsing

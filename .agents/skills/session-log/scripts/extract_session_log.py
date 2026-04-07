@@ -18,6 +18,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+
 SESSION_LOG_HEADER = """\
 # Session Log: {change_id}
 

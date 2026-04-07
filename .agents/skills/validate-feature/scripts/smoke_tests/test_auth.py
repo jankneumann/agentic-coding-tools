@@ -7,6 +7,7 @@ unauthenticated.
 
 import pytest
 
+
 # POST endpoint that requires X-API-Key authentication
 _AUTH_ENDPOINT = "/memory/store"
 _AUTH_PAYLOAD = {"event_type": "smoke_test", "summary": "auth check"}
