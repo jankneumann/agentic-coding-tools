@@ -1,0 +1,48 @@
+packages:
+  - id: wp-main
+    name: "Side-Effects Validation — full scope"
+    description: >
+      Extend gen-eval framework with formalized assertion types (body_contains,
+      body_excludes, status_one_of, rows_gte/lte, array_contains), declarative
+      side-effect verification (verify/prohibit blocks), semantic LLM-as-judge
+      evaluation, scenario pack management with visibility-aware filtering, and
+      end-to-end user scenario templates. Absorbs relevant parts of
+      add-software-factory-tooling.
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "1.4"
+      - "2.1"
+      - "2.2"
+      - "2.3"
+      - "2.4"
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "3.4"
+      - "4.1"
+      - "4.2"
+      - "4.3"
+      - "4.4"
+      - "4.5"
+      - "5.1"
+      - "5.2"
+      - "5.3"
+      - "5.4"
+      - "5.5"
+      - "5.6"
+      - "6.1"
+      - "6.2"
+      - "6.3"
+      - "7.1"
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
+        - "skills/gen-eval-scenario/**"
+      read_allow:
+        - "**"
+    verification: tier_b
