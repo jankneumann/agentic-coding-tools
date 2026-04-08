@@ -23,7 +23,7 @@ agents:
 
   claude-local:
     type: claude_code
-    profile: claude_code_cli
+    profile: claude_code_local
     trust_level: 3
     transport: mcp
     isolation: worktree
@@ -45,7 +45,7 @@ agents:
 
   claude-remote:
     type: claude_code
-    profile: claude_code_web_implementer
+    profile: claude_code_remote
     trust_level: 2
     transport: http
     isolation: none
@@ -92,7 +92,7 @@ agents:
 
   codex-local:
     type: codex
-    profile: codex_local_worker
+    profile: codex_local
     trust_level: 3
     transport: mcp
     isolation: worktree
@@ -113,7 +113,7 @@ agents:
 
   codex-remote:
     type: codex
-    profile: codex_cloud_worker
+    profile: codex_remote
     trust_level: 2
     transport: http
     isolation: sandbox
@@ -163,7 +163,7 @@ agents:
 
   gemini-local:
     type: gemini
-    profile: gemini_local_worker
+    profile: gemini_local
     trust_level: 3
     transport: mcp
     isolation: worktree
@@ -184,7 +184,7 @@ agents:
 
   gemini-remote:
     type: gemini
-    profile: gemini_cloud_worker
+    profile: gemini_remote
     trust_level: 2
     transport: http
     isolation: none
