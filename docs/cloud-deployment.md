@@ -179,7 +179,21 @@ make cloud-verify DOMAIN=coord.yourdomain.com   # test connectivity
 
 Prerequisites for `RAILWAY=1`: Railway CLI installed, authenticated (`railway login`), and linked (`railway link`). Without `RAILWAY=1`, the script prints the values for manual dashboard entry.
 
-To persist across shell sessions, add `source /path/to/.env.cloud` to `~/.zshrc` or `~/.bashrc`.
+To persist across shell sessions, add to `~/.zshrc` or `~/.bashrc`:
+
+```bash
+source /path/to/agent-coordinator/.env.cloud
+```
+
+This sets the shared coordinator URL and provides per-agent aliases:
+
+```bash
+ccc          # launches 'claude' with claude-local coordinator key
+ccodex       # launches 'codex' with codex-local coordinator key
+cgemini      # launches 'gemini' with gemini-local coordinator key
+```
+
+Each alias overrides `COORDINATION_API_KEY` with the agent-specific key so the coordinator can distinguish agents in audit logs and apply the correct trust level.
 
 ### Connection Modes
 

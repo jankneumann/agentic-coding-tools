@@ -64,23 +64,34 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
         f"# Generated for domain: {domain}",
         "#",
         "# Usage: source this file, or add to ~/.zshrc / ~/.bashrc",
+        "#   Then use: ccc, ccodex, cgemini aliases to launch with coordination",
         "",
+        "# -- Shared coordinator settings --",
         f'export COORDINATION_API_URL="{url}"',
         f'export COORDINATION_ALLOWED_HOSTS="{domain}"',
         f'export COORDINATOR_URL="{url}"',
         "",
+        "# -- Default key (Claude Code local) --",
     ]
-    lines.append("# Per-agent keys (uncomment the one matching your agent)")
-    for agent in AGENTS:
-        key = keys.get(agent["key_flag"])
-        if key:
-            lines.append(f'# export COORDINATION_API_KEY="{key}"  # {agent["id"]}')
     local_claude_key = keys.get("claude_local_key", "")
     if local_claude_key:
-        lines.append("")
-        lines.append("# Default: local Claude Code CLI")
         lines.append(f'export COORDINATION_API_KEY="{local_claude_key}"')
-        lines.append("")
+    lines.append("")
+
+    # Per-agent aliases
+    alias_map = [
+        ("claude_local_key", "ccc", "claude", "Claude Code"),
+        ("codex_local_key", "ccodex", "codex", "Codex"),
+        ("gemini_local_key", "cgemini", "gemini", "Gemini"),
+    ]
+
+    lines.append("# -- CLI aliases (launch with per-agent coordinator key) --")
+    for key_flag, alias, cli, label in alias_map:
+        key = keys.get(key_flag, "")
+        if key:
+            lines.append(f'alias {alias}=\'COORDINATION_API_KEY="{key}" {cli}\'  # {label}')
+    lines.append("")
+
     output.write_text("\n".join(lines) + "\n")
 
 

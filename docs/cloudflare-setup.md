@@ -48,20 +48,21 @@ In Cloudflare dashboard > **DNS** > **Records**, create:
 
 | Type | Name | Target | Proxy |
 |------|------|--------|-------|
-| CNAME | `coord` | `your-service.up.railway.app` | Proxied (orange cloud) |
+| CNAME | `coord` | `your-service.up.railway.app` | **DNS only** (grey cloud) |
 
-**Important**: Keep the orange cloud (Proxy) enabled. This routes traffic through Cloudflare's edge network, providing:
-- Automatic TLS certificate management
-- DDoS protection
-- Future WAF/rate limiting capabilities
+**Use DNS-only mode (grey cloud)** for the coordinator subdomain. The coordinator is a machine-to-machine API — Cloudflare's bot filtering (Browser Integrity Check, Bot Fight Mode, JS challenges) blocks API clients like Claude Code and Codex. DNS-only mode gives you the stable custom domain without interference. Railway already provides TLS and DDoS protection.
+
+> **When to use proxied (orange cloud) instead**: If you need Cloudflare rate limiting or IP restrictions, enable the proxy and add skip rules:
+> 1. **Rules > Configuration Rules**: hostname `coord.yourdomain.com` → Browser Integrity Check: Off, Security Level: Essentially Off
+> 2. **Security > WAF > Custom Rules**: `(http.host eq "coord.yourdomain.com") and (len(http.request.headers["x-api-key"][0]) gt 0)` → Action: Skip all remaining rules
 
 ### 2c. Verify
 
 ```bash
-# Should return 200 with CF-Ray header
+# DNS-only: no CF-Ray header, direct Railway response
 curl -I https://coord.yourdomain.com/health
 
-# Check for Cloudflare headers
+# If proxied: should have CF-Ray header
 curl -sI https://coord.yourdomain.com/health | grep -i "cf-ray"
 ```
 
