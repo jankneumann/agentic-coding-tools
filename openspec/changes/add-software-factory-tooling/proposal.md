@@ -1,7 +1,7 @@
 # Proposal: Software Factory Tooling
 
 **Change ID**: `add-software-factory-tooling`
-**Status**: Draft
+**Status**: Approved
 **Created**: 2026-04-06
 
 ## Why

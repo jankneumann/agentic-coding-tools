@@ -200,7 +200,7 @@ def _build_descriptor_seed(doc_input: PublicDocInput) -> dict[str, Any]:
     service: dict[str, Any] = {
         "name": doc_input.system_name,
         "type": "http",
-        "base_url": doc_input.base_url or f"http://localhost:8080",
+        "base_url": doc_input.base_url or "http://localhost:8080",
         "auth": auth_config,
         "endpoints": endpoints,
     }
