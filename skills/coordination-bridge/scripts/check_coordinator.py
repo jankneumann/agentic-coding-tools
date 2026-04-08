@@ -67,6 +67,7 @@ def check_health(base_url: str, timeout: float = 3.0) -> dict | None:
     """Probe /health and return parsed JSON, or None on failure."""
     url = f"{base_url.rstrip('/')}/health"
     req = Request(url, method="GET")
+    req.add_header("User-Agent", "agentic-coding-tools/0.1")
     try:
         with urlopen(req, timeout=timeout) as resp:
             if resp.status == 200:
@@ -80,6 +81,7 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
     """Return True if the route responds (any 2xx/4xx — not 404 'not found')."""
     url = f"{base_url.rstrip('/')}{path}"
     req = Request(url, method="GET")
+    req.add_header("User-Agent", "agentic-coding-tools/0.1")
     try:
         with urlopen(req, timeout=timeout) as resp:
             return resp.status < 500

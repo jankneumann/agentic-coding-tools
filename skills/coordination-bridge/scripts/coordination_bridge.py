@@ -214,7 +214,7 @@ def _http_request(
 
     if _validate_url(target_url) is None:
         return {"status_code": None, "data": None, "error": "url_not_allowed"}
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": "application/json", "User-Agent": "agentic-coding-tools/0.1"}
     body: bytes | None = None
     if payload is not None:
         headers["Content-Type"] = "application/json"
