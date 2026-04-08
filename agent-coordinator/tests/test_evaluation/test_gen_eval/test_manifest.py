@@ -26,7 +26,6 @@ from evaluation.gen_eval.manifest import (
 from evaluation.gen_eval.models import (
     ManifestEntry,
     ScenarioPackManifest,
-    ScenarioVerdict,
 )
 
 from .conftest import make_scenario, make_verdict
