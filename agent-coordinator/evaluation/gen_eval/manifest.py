@@ -8,8 +8,8 @@ and the orchestrator to enforce visibility boundaries at runtime.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import yaml
 from pydantic import ValidationError
