@@ -1,0 +1,73 @@
+id: "auth-policy-enforcement-e2e"
+name: "Policy enforcement with denied and allowed operations"
+description: "Attempt a restricted operation without auth and verify rejection with no side effects, then retry with valid credentials and verify correct audit trail."
+category: "auth-boundary"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["auth", "policy", "e2e", "side-effects", "success"]
+
+steps:
+  - id: attempt_without_auth
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/restricted_resource.py"
+      agent_id: "agent-unauthorized"
+      reason: "unauthorized access attempt"
+    expect:
+      status_one_of: [401, 403]
+      body:
+        success: false
+    side_effects:
+      prohibit:
+        - id: no_audit_for_denied
+          transport: db
+          sql: "SELECT COUNT(*) as cnt FROM audit_log WHERE agent_id = 'agent-unauthorized' AND operation = 'lock_acquire' AND details::text LIKE '%restricted_resource%'"
+          expect:
+            rows: 1
+            row:
+              cnt: 1
+        - id: no_lock_created
+          transport: db
+          sql: "SELECT COUNT(*) as cnt FROM file_locks WHERE file_path = 'src/restricted_resource.py' AND agent_id = 'agent-unauthorized'"
+          expect:
+            rows: 1
+            row:
+              cnt: 1
+
+  - id: retry_with_valid_auth
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/restricted_resource.py"
+      agent_id: "agent-1"
+      reason: "authorized access"
+    expect:
+      status: 200
+      body:
+        success: true
+    side_effects:
+      verify:
+        - id: audit_for_allowed
+          transport: db
+          sql: "SELECT agent_id, operation FROM audit_log WHERE agent_id = 'agent-1' AND operation = 'lock_acquire' ORDER BY created_at DESC LIMIT 1"
+          expect:
+            rows: 1
+            row:
+              agent_id: "agent-1"
+              operation: "lock_acquire"
+
+cleanup:
+  - id: release_restricted_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/restricted_resource.py"
+      agent_id: "agent-1"

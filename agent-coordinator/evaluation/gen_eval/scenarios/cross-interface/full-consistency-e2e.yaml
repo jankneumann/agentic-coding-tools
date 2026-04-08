@@ -1,0 +1,84 @@
+id: "cross-full-consistency-e2e"
+name: "Cross-interface consistency verification across HTTP, MCP, CLI, and DB"
+description: "Acquire a lock via HTTP, verify its state via MCP, CLI, and DB side-effects. All four transports must report consistent lock state before cleanup."
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli", "db"]
+tags: ["cross-interface", "locks", "e2e", "side-effects", "all-transports", "success"]
+
+steps:
+  - id: http_acquire_lock
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/consistency_check.py"
+      agent_id: "agent-1"
+      reason: "cross-interface consistency test"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      lock_id: "$.lock_id"
+
+  - id: mcp_verify_lock
+    transport: mcp
+    tool: check_locks
+    params:
+      file_paths: ["src/consistency_check.py"]
+    expect:
+      body:
+        locked: true
+      body_contains:
+        agent_id: "agent-1"
+
+  - id: cli_verify_lock
+    transport: cli
+    command: "lock status --file-path src/consistency_check.py"
+    expect:
+      exit_code: 0
+      body_contains:
+        locked: true
+        file_path: "src/consistency_check.py"
+
+  - id: db_verify_lock
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/consistency_check.py
+    expect:
+      status: 200
+      body:
+        locked: true
+        agent_id: "agent-1"
+    side_effects:
+      verify:
+        - id: db_lock_row_exists
+          transport: db
+          sql: "SELECT agent_id, file_path FROM file_locks WHERE file_path = 'src/consistency_check.py'"
+          expect:
+            rows: 1
+            row:
+              agent_id: "agent-1"
+              file_path: "src/consistency_check.py"
+        - id: audit_acquire_logged
+          transport: db
+          sql: "SELECT operation, agent_id FROM audit_log WHERE agent_id = 'agent-1' AND operation = 'lock_acquire' ORDER BY created_at DESC LIMIT 1"
+          expect:
+            rows: 1
+            row:
+              operation: "lock_acquire"
+              agent_id: "agent-1"
+
+cleanup:
+  - id: cleanup_release_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/consistency_check.py"
+      agent_id: "agent-1"

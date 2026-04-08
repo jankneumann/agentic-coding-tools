@@ -1,0 +1,81 @@
+id: "mem-lifecycle-e2e"
+name: "Full memory lifecycle with audit and side-effect verification"
+description: "Store an episodic memory, search for it, verify body content, confirm audit trail recorded the store, and prohibit unintended writes to working memory."
+category: "memory-crud"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["memory", "e2e", "side-effects", "success"]
+
+steps:
+  - id: store_memory
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      event_type: "observation"
+      summary: "Noticed flaky test in CI pipeline for auth module"
+      agent_id: "agent-1"
+      tags: ["ci", "testing", "flaky"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      memory_id: "$.memory_id"
+
+  - id: search_memory
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      event_type: "observation"
+      tags: ["ci", "testing"]
+      limit: 10
+    expect:
+      status: 200
+      body:
+        success: true
+      not_empty: true
+      body_contains:
+        memories:
+          - event_type: "observation"
+            summary: "Noticed flaky test in CI pipeline for auth module"
+
+  - id: verify_audit_and_prohibit_working
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      agent_id: "agent-1"
+      operation: "memory_store"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        entries:
+          - agent_id: "agent-1"
+            operation: "memory_store"
+    side_effects:
+      verify:
+        - id: audit_log_recorded
+          transport: db
+          sql: "SELECT operation, agent_id FROM audit_log WHERE agent_id = 'agent-1' AND operation = 'memory_store' ORDER BY created_at DESC LIMIT 1"
+          expect:
+            rows: 1
+            row:
+              operation: "memory_store"
+              agent_id: "agent-1"
+      prohibit:
+        - id: no_working_memory_leak
+          transport: db
+          sql: "SELECT COUNT(*) as cnt FROM memory_working WHERE agent_id = 'agent-1' AND summary = 'Noticed flaky test in CI pipeline for auth module'"
+          expect:
+            rows: 1
+            row:
+              cnt: 1

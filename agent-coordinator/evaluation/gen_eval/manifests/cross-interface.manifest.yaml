@@ -1,0 +1,14 @@
+pack: cross-interface
+scenarios:
+  - id: cross-full-consistency-e2e
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: cross-lock-http-mcp-cli-db
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved

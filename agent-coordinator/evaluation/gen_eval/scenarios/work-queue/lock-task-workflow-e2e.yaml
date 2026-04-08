@@ -1,0 +1,112 @@
+id: "wq-lock-task-workflow-e2e"
+name: "Lock-protected task lifecycle with state verification"
+description: "Acquire a file lock, submit a task, claim it, complete it, verify all state transitions via side-effects, prohibit stale pending status, and release the lock."
+category: "work-queue"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["work-queue", "locks", "e2e", "side-effects", "success"]
+
+steps:
+  - id: acquire_lock
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/task_target.py"
+      agent_id: "agent-1"
+      reason: "implementing task changes"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      lock_id: "$.lock_id"
+
+  - id: submit_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      task_type: "implementation"
+      task_description: "Add input validation to task_target.py"
+      priority: 2
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      task_id: "$.task_id"
+
+  - id: claim_task
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      task_types: ["implementation"]
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      claimed_task_id: "$.task_id"
+    side_effects:
+      verify:
+        - id: db_status_claimed
+          transport: db
+          sql: "SELECT status, assigned_to FROM work_queue WHERE id = '{{ claimed_task_id }}'"
+          expect:
+            rows: 1
+            row:
+              status: "in_progress"
+              assigned_to: "agent-1"
+
+  - id: complete_task
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      task_id: "{{ claimed_task_id }}"
+      success: true
+      result: "Added input validation with pydantic models"
+    expect:
+      status: 200
+      body:
+        success: true
+    side_effects:
+      verify:
+        - id: db_status_completed
+          transport: db
+          sql: "SELECT status FROM work_queue WHERE id = '{{ claimed_task_id }}'"
+          expect:
+            rows: 1
+            row:
+              status: "completed"
+      prohibit:
+        - id: no_pending_rows_for_task
+          transport: db
+          sql: "SELECT COUNT(*) as cnt FROM work_queue WHERE id = '{{ claimed_task_id }}' AND status = 'pending'"
+          expect:
+            rows: 1
+            row:
+              cnt: 1
+
+cleanup:
+  - id: release_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      file_path: "src/task_target.py"
+      agent_id: "agent-1"

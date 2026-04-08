@@ -1,0 +1,14 @@
+pack: handoffs
+scenarios:
+  - id: handoff-integrity-e2e
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: handoff-write-read
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved

@@ -1,0 +1,20 @@
+pack: lock-lifecycle
+scenarios:
+  - id: lock-acquire-release
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: lock-ttl-expiry
+    visibility: public
+    source: spec
+    determinism: bounded-nondeterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: lock-concurrent-contention
+    visibility: holdout
+    source: spec
+    determinism: bounded-nondeterministic
+    owner: gen-eval-testing
+    promotion_status: approved

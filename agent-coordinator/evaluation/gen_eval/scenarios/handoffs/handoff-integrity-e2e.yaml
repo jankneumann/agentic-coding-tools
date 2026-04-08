@@ -1,0 +1,85 @@
+id: "handoff-integrity-e2e"
+name: "Handoff write-read integrity with audit verification"
+description: "Agent-1 writes a handoff document, agent-2 reads it and verifies content integrity, then side-effects confirm both write and read operations are audited."
+category: "handoffs"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["handoffs", "e2e", "side-effects", "success"]
+
+steps:
+  - id: write_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    headers:
+      X-API-Key: "test-key-agent1"
+    body:
+      agent_id: "agent-1"
+      agent_type: "claude_code"
+      session_id: "session-e2e-handoff-001"
+      summary: "Completed memory service refactoring with new indexing strategy"
+      completed_work:
+        - "Migrated memory_episodic to use GIN index on tags"
+        - "Added semantic similarity search via pgvector"
+      in_progress:
+        - "Performance benchmarking of new index"
+      decisions:
+        - "Chose GIN over GiST for tag queries based on read-heavy workload"
+      next_steps:
+        - "Run load tests against staging"
+        - "Update memory.py docstrings"
+      relevant_files:
+        - "src/memory.py"
+        - "supabase/migrations/005_gin_index.sql"
+    expect:
+      status: 200
+      body:
+        success: true
+    capture:
+      handoff_id: "$.handoff_id"
+
+  - id: read_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    headers:
+      X-API-Key: "test-key-agent2"
+    body:
+      agent_name: "agent-1"
+      limit: 1
+    expect:
+      status: 200
+      body_contains:
+        handoffs:
+          - summary: "Completed memory service refactoring with new indexing strategy"
+            agent_name: "agent-1"
+            session_id: "session-e2e-handoff-001"
+
+  - id: verify_audit_trail
+    transport: http
+    method: GET
+    endpoint: /audit
+    headers:
+      X-API-Key: "test-key-agent1"
+    params:
+      limit: 10
+    expect:
+      status: 200
+      not_empty: true
+    side_effects:
+      verify:
+        - id: audit_write_entry
+          transport: db
+          sql: "SELECT agent_id, operation FROM audit_log WHERE agent_id = 'agent-1' AND operation = 'handoff_write' ORDER BY created_at DESC LIMIT 1"
+          expect:
+            rows: 1
+            row:
+              agent_id: "agent-1"
+              operation: "handoff_write"
+        - id: audit_read_entry
+          transport: db
+          sql: "SELECT operation FROM audit_log WHERE operation = 'handoff_read' ORDER BY created_at DESC LIMIT 1"
+          expect:
+            rows: 1
+            row:
+              operation: "handoff_read"

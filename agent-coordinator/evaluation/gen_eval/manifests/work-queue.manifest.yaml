@@ -1,0 +1,14 @@
+pack: work-queue
+scenarios:
+  - id: wq-lock-task-workflow-e2e
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: wq-claim-and-complete
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved

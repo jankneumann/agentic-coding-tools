@@ -1,0 +1,14 @@
+pack: auth-boundary
+scenarios:
+  - id: auth-policy-enforcement-e2e
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: auth-missing-key-rejected
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved

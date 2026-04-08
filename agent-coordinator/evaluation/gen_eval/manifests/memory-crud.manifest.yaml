@@ -1,0 +1,14 @@
+pack: memory-crud
+scenarios:
+  - id: mem-store-and-query
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
+  - id: mem-lifecycle-e2e
+    visibility: public
+    source: spec
+    determinism: deterministic
+    owner: gen-eval-testing
+    promotion_status: approved
