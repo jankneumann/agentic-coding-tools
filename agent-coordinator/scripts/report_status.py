@@ -6,13 +6,15 @@ It reads loop-state.json from the current directory if it exists, compares
 against a status cache to avoid duplicate reports, and calls POST /status/report
 on the coordinator HTTP API.
 
+Uses only stdlib (urllib) — no third-party dependencies required.
+
 Usage:
     python agent-coordinator/scripts/report_status.py [--subagent]
 
 Environment variables:
     AGENT_ID: Agent identifier
     CHANGE_ID: Fallback change_id if loop-state.json is missing
-    COORDINATION_API_URL: Coordinator HTTP API URL (default http://localhost:8081)
+    COORDINATION_API_URL: Coordinator HTTP API URL (optional; skips if unset)
     COORDINATION_API_KEY: API key for auth header
 """
 
@@ -22,6 +24,14 @@ import json
 import os
 import sys
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import Request, urlopen
+
+
+def _coordinator_url() -> str | None:
+    """Resolve coordinator base URL from environment. Returns None when unset."""
+    url = os.environ.get("COORDINATION_API_URL")
+    return url.rstrip("/") if url else None
 
 
 def _read_loop_state() -> dict:
@@ -73,7 +83,14 @@ def main() -> None:
     is_subagent = "--subagent" in sys.argv
 
     agent_id = os.environ.get("AGENT_ID", "unknown")
-    coordinator_url = os.environ.get("COORDINATION_API_URL", "http://localhost:8081")
+    base_url = _coordinator_url()
+    if not base_url:
+        print(
+            "report_status: COORDINATION_API_URL not set, skipping",
+            file=sys.stderr,
+        )
+        return
+
     api_key = os.environ.get("COORDINATION_API_KEY", "")
 
     # Read loop state
@@ -110,32 +127,34 @@ def main() -> None:
         },
     }
 
-    # Send report
+    # Send report via stdlib urllib
+    url = f"{base_url}/status/report"
+    data = json.dumps(payload).encode()
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "agentic-coding-tools/0.1",
+    }
+    if api_key:
+        headers["X-API-Key"] = api_key
+
+    req = Request(url, data=data, headers=headers, method="POST")
     try:
-        import httpx
-
-        url = f"{coordinator_url.rstrip('/')}/status/report"
-        headers = {}
-        if api_key:
-            headers["X-API-Key"] = api_key
-
-        with httpx.Client(
-            timeout=5.0,
-            headers={"User-Agent": "agentic-coding-tools/0.1"},
-        ) as client:
-            response = client.post(url, json=payload, headers=headers)
-            if response.is_success:
+        with urlopen(req, timeout=5.0) as resp:
+            if resp.status < 300:
                 _write_status_cache({"last_phase": phase, "change_id": change_id})
-            elif response.status_code == 422:
-                # Validation error will never recover; cache to prevent infinite retries
-                _write_status_cache({"last_phase": phase, "change_id": change_id})
-    except ImportError:
-        # httpx not available
-        pass
-    except Exception:
+    except URLError as exc:
+        # HTTPError (subclass of URLError) carries a status code
+        if hasattr(exc, "code") and exc.code == 422:  # type: ignore[attr-defined]
+            # Validation error will never recover; cache to prevent infinite retries
+            _write_status_cache({"last_phase": phase, "change_id": change_id})
+    except (OSError, ValueError):
         # Must not block Claude Code — swallow all errors
         pass
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        # Top-level guard: never block Claude Code
+        pass

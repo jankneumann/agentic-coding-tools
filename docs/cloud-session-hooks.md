@@ -15,46 +15,97 @@ repo.
 The same applies to `.claude/settings.json` (permissions, deny lists, output
 style) and `.claude/skills/` (installed skill copies).
 
-### Hook Script Behavior by Environment
+### Hook Script Behavior
 
-The three hook scripts have different transport dependencies:
+All hook scripts use Python's stdlib `urllib.request` for HTTP calls — no
+third-party packages required. This ensures they work in any Python
+environment, including cloud containers where only the system Python is
+available.
 
-| Hook Event | Script | Transport | Local (MCP/Supabase) | Cloud (HTTP only) |
-|------------|--------|-----------|---------------------|-------------------|
-| `SessionStart` | `register_agent.py` | Supabase SDK | Works | **Silently skipped** |
-| `Stop` / `SubagentStop` | `report_status.py` | HTTP API (`httpx`) | Works | Works |
-| `SessionEnd` | `deregister_agent.py` | Supabase SDK | Works | **Silently skipped** |
+| Hook Event | Script | What It Does | Requires Auth |
+|------------|--------|-------------|---------------|
+| `SessionStart` | `register_agent.py` | Reports session start, loads previous handoff | Yes (`X-API-Key`) |
+| `Stop` / `SubagentStop` | `report_status.py` | Reports phase transitions, heartbeat | No |
+| `SessionEnd` | `deregister_agent.py` | Writes final handoff, reports session end | Yes (`X-API-Key`) |
 
-**Why the gap exists**: `register_agent.py` and `deregister_agent.py` were
-written when the only backend was Supabase. They import `src.config.get_config()`
-which requires `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. Cloud sessions
-typically only have `COORDINATION_API_URL` and `COORDINATION_API_KEY` (HTTP
-transport). The scripts catch the `ValueError` and exit silently — no crash,
-but no registration or lock cleanup either.
+All scripts communicate with the coordinator via its HTTP API. They resolve
+the coordinator URL from environment variables (checked in order):
+`COORDINATION_API_URL` → `COORDINATOR_URL` → `COORDINATOR_HTTP_URL`.
 
-`report_status.py` was written later and uses `httpx` to POST directly to the
-coordinator HTTP API, so it works everywhere.
+If no coordinator URL is configured, scripts skip silently without blocking
+Claude Code.
 
-### Impact of Skipped Hooks
+### Lock Cleanup
 
-| Feature | Impact When Hook Is Skipped | Mitigation |
-|---------|----------------------------|------------|
-| Agent registration | Coordinator doesn't know agent started | Skills call `/profiles/me` on first use |
-| Handoff loading | No automatic context from previous session | Manual `/recall` via coordination bridge |
-| Lock release on exit | Stale locks may persist | Lock TTL (default 120 min) auto-expires them |
-| Final handoff write | No session summary for next agent | Write handoff manually before session end |
+The `deregister_agent.py` script does **not** release locks on session end.
+The HTTP API has no endpoint to list locks by agent (only per-file lookup).
+Instead, locks expire automatically via their TTL (default 120 minutes).
 
-### Future Fix
+If immediate lock release is needed, skills should release locks explicitly
+before session end using the coordination bridge.
 
-To make all hooks work in cloud sessions, `register_agent.py` and
-`deregister_agent.py` should be updated to use the HTTP API (like
-`report_status.py` does) when Supabase env vars are absent. The HTTP API
-already has equivalent endpoints:
+### Agent Identity
 
-- Registration: `POST /status/report` (with `event_type: "session.started"`)
-- Lock release: `POST /locks/release` (per held lock, or add a bulk endpoint)
-- Handoff write: `POST /handoffs/write`
-- Handoff read: `POST /handoffs/read`
+The `AGENT_ID` environment variable controls which agent identity is used for
+handoff read/write operations. If the API key maps to a specific agent via
+`COORDINATION_API_KEY_IDENTITIES` on the server, the `agent_id` in requests
+must match the key's mapped identity (or the server resolves it from the key
+automatically).
+
+For cloud sessions, set `AGENT_ID` to match the key's identity mapping (e.g.,
+`claude-remote`). Without it, handoff endpoints may return 403.
+
+## Tool-Call Tracking (Langfuse)
+
+There are **no** `PreToolUse` / `PostToolUse` hooks configured. Tool-call
+tracking is available via `langfuse_hook.py`, which does **post-hoc transcript
+analysis** on `Stop` events.
+
+### How It Works
+
+1. Claude Code writes session transcripts to `~/.claude/projects/<hash>/<session>.jsonl`
+2. On each `Stop` event, `langfuse_hook.py` reads new transcript lines
+3. It extracts conversation turns and tool invocations into Langfuse traces
+4. State is tracked incrementally (only new messages since last run)
+
+### Cloud Compatibility
+
+| Requirement | Status |
+|-------------|--------|
+| Transcript files exist | Yes (`~/.claude/projects/` is populated in cloud) |
+| `langfuse` package available | No (not in system Python) |
+| `uv` available for dynamic install | Yes |
+| Currently in hooks.json | **No** (optional addition) |
+
+### Enabling Langfuse in Cloud
+
+To enable, add the Langfuse hook to `.claude/hooks.json` using `uv run` for
+dependency resolution:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 agent-coordinator/scripts/report_status.py"
+      },
+      {
+        "type": "command",
+        "command": "uv run --with 'langfuse>=3.0,<4.0' agent-coordinator/scripts/langfuse_hook.py"
+      }
+    ]
+  }
+}
+```
+
+Required environment variables:
+- `LANGFUSE_ENABLED=true`
+- `LANGFUSE_PUBLIC_KEY=pk-lf-...`
+- `LANGFUSE_SECRET_KEY=sk-lf-...`
+- `LANGFUSE_HOST=https://cloud.langfuse.com` (or self-hosted URL)
+
+The Langfuse host must also be in the platform egress allowlist.
 
 ## Network Configuration
 
@@ -110,7 +161,7 @@ COORDINATION_ALLOWED_HOSTS=coord.rotkohl.ai,your-app.railway.app
 
 `.claude/settings.json` can deny specific tool patterns. The current deny
 list includes `Bash(curl *)`, which prevents direct `curl` commands but does
-**not** affect Python's `urllib` or `httpx` (used by all coordinator scripts).
+**not** affect Python's `urllib` (used by all coordinator hook scripts).
 
 ```json
 {
@@ -134,15 +185,14 @@ These must be set in the cloud session environment for coordinator access:
 
 | Variable | Required | Example | Used By |
 |----------|----------|---------|---------|
-| `COORDINATION_API_URL` | Yes | `https://coord.rotkohl.ai` | `check_coordinator.py`, `coordination_bridge.py` |
-| `COORDINATION_API_KEY` | Yes | `91a8925e...` | HTTP `X-API-Key` header |
+| `COORDINATION_API_URL` | Yes | `https://coord.rotkohl.ai` | All hook scripts, `check_coordinator.py`, `coordination_bridge.py` |
+| `COORDINATION_API_KEY` | Yes | `91a8925e...` | HTTP `X-API-Key` header (register, deregister, handoffs) |
 | `COORDINATION_ALLOWED_HOSTS` | Yes | `coord.rotkohl.ai` | SSRF allowlist in bridge |
-| `COORDINATOR_URL` | Optional | `https://coord.rotkohl.ai` | `report_status.py` (fallback for `COORDINATION_API_URL`) |
-| `AGENT_ID` | Optional | `claude-web-1` | Agent identity in status reports |
+| `AGENT_ID` | Recommended | `claude-remote` | Agent identity — must match API key identity mapping |
+| `AGENT_TYPE` | Optional | `claude_code` | Agent type label (default: `claude_code`) |
 
-**Note**: `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are only needed for local
-MCP mode (direct DB access). Cloud sessions should **not** set these — the
-HTTP API handles all DB access server-side.
+**Note**: `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are **not needed** for
+cloud sessions. All hook scripts communicate via the coordinator HTTP API.
 
 ## Maintenance: Updating Allowlists
 
@@ -209,6 +259,10 @@ python3 skills/coordination-bridge/scripts/check_coordinator.py --json
 #   "CAN_QUEUE_WORK": true,
 #   ...all capabilities true...
 # }
+
+# Test hook scripts directly
+AGENT_ID=claude-remote python3 agent-coordinator/scripts/register_agent.py
+AGENT_ID=claude-remote python3 agent-coordinator/scripts/deregister_agent.py
 ```
 
 If `COORDINATOR_AVAILABLE` is `false`, check:

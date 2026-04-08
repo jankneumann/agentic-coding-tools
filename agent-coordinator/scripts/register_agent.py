@@ -2,76 +2,120 @@
 """Register agent session on Claude Code session start.
 
 This script is called by Claude Code's SessionStart lifecycle hook.
-It registers the agent with the coordination system and loads
-the most recent handoff document for context continuity.
+It registers the agent with the coordination system via the HTTP API
+and loads the most recent handoff document for context continuity.
+
+Uses only stdlib (urllib) — no third-party dependencies required.
 
 Usage:
     python agent-coordinator/scripts/register_agent.py
 
 Environment variables:
-    SUPABASE_URL: Supabase project URL
-    SUPABASE_SERVICE_KEY: Service role key
-    AGENT_ID: Agent identifier (auto-generated if not set)
-    AGENT_TYPE: Agent type (default: claude_code)
-    SESSION_ID: Session identifier
-    AGENT_CAPABILITIES: Comma-separated capabilities (optional)
+    COORDINATION_API_URL: Coordinator HTTP API URL (optional; skips if unset)
+    COORDINATION_API_KEY: API key for X-API-Key header
+    AGENT_ID: Agent identifier (default: "unknown")
+    AGENT_TYPE: Agent type (default: "claude_code")
+    SESSION_ID: Session identifier (optional)
 """
 
-import asyncio
+from __future__ import annotations
+
+import json
 import os
 import sys
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+PREFIX = "[register_agent]"
 
 
-async def main() -> None:
+def _coordinator_url() -> str | None:
+    """Resolve coordinator base URL from environment. Returns None when unset."""
+    url = os.environ.get("COORDINATION_API_URL")
+    return url.rstrip("/") if url else None
+
+
+def _api_headers() -> dict[str, str]:
+    """Build HTTP headers including API key if available.
+
+    The User-Agent header is set to bypass Cloudflare bot filtering on
+    proxied hostnames — see docs/cloudflare-setup.md section 6.
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "agentic-coding-tools/0.1",
+    }
+    api_key = os.environ.get("COORDINATION_API_KEY", "")
+    if api_key:
+        headers["X-API-Key"] = api_key
+    return headers
+
+
+def _post(base_url: str, path: str, payload: dict) -> dict | None:
+    """POST JSON to coordinator endpoint. Returns parsed response or None."""
+    url = f"{base_url}{path}"
+    data = json.dumps(payload).encode()
+    req = Request(url, data=data, headers=_api_headers(), method="POST")
     try:
-        from src.config import get_config
-        from src.discovery import get_discovery_service
-        from src.handoffs import get_handoff_service
-    except ImportError as e:
-        print(f"[register_agent] Import error (coordination not installed): {e}", file=sys.stderr)
+        with urlopen(req, timeout=5.0) as resp:
+            return json.loads(resp.read())
+    except (URLError, OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"{PREFIX} HTTP request failed ({path}): {exc}", file=sys.stderr)
+        return None
+
+
+def main() -> None:
+    base_url = _coordinator_url()
+    if not base_url:
+        print(f"{PREFIX} No coordinator URL configured, skipping", file=sys.stderr)
         return
 
-    try:
-        config = get_config()
-    except ValueError:
-        # Missing SUPABASE_URL or SUPABASE_SERVICE_KEY — coordination not configured
-        print("[register_agent] Coordination not configured (missing env vars)", file=sys.stderr)
-        return
+    agent_id = os.environ.get("AGENT_ID", "unknown")
+    agent_type = os.environ.get("AGENT_TYPE", "claude_code")
+    session_id = os.environ.get("SESSION_ID", "")
 
-    # Parse capabilities from environment
-    capabilities_str = os.environ.get("AGENT_CAPABILITIES", "")
-    capabilities = [c.strip() for c in capabilities_str.split(",") if c.strip()]
+    # Register via status report (triggers heartbeat on the coordinator)
+    result = _post(base_url, "/status/report", {
+        "agent_id": agent_id,
+        "change_id": "",
+        "phase": "SESSION_START",
+        "message": f"Session started (type={agent_type})",
+        "needs_human": False,
+        "event_type": "status.phase_transition",
+        "metadata": {
+            "agent_type": agent_type,
+            "session_id": session_id,
+            "event": "session.started",
+        },
+    })
 
-    # Register the agent session
-    discovery = get_discovery_service()
-    result = await discovery.register(capabilities=capabilities)
-
-    if result.success:
-        print(f"[register_agent] Registered session: {result.session_id}")
+    if result:
+        print(f"{PREFIX} Registered session for {agent_id}")
     else:
-        print("[register_agent] Registration failed", file=sys.stderr)
-        return
+        print(f"{PREFIX} Registration failed (coordinator may be unreachable)", file=sys.stderr)
 
     # Load most recent handoff for context continuity
-    handoff_service = get_handoff_service()
-    handoff_result = await handoff_service.read(
-        agent_name=config.agent.agent_id,
-        limit=1,
-    )
+    handoff_result = _post(base_url, "/handoffs/read", {
+        "agent_name": agent_id,
+        "limit": 1,
+    })
 
-    if handoff_result.handoffs:
-        h = handoff_result.handoffs[0]
-        print(f"[register_agent] Previous handoff loaded: {h.summary[:80]}")
-        if h.next_steps:
-            print("[register_agent] Next steps from previous session:")
-            for step in h.next_steps:
+    if handoff_result and handoff_result.get("handoffs"):
+        h = handoff_result["handoffs"][0]
+        summary = h.get("summary", "")[:80]
+        print(f"{PREFIX} Previous handoff loaded: {summary}")
+        next_steps = h.get("next_steps") or []
+        if next_steps:
+            print(f"{PREFIX} Next steps from previous session:")
+            for step in next_steps:
                 print(f"  - {step}")
     else:
-        print("[register_agent] No previous handoff found (first session)")
+        print(f"{PREFIX} No previous handoff found (first session)")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        main()
+    except Exception:
+        # Must never block Claude Code startup
+        pass
