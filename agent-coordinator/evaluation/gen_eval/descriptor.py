@@ -127,6 +127,7 @@ class InterfaceDescriptor(BaseModel):
     state_verifiers: list[StateVerifier] = Field(default_factory=list)
     startup: StartupConfig
     scenario_dirs: list[Path] = Field(default_factory=list)
+    manifest_dirs: list[Path] = Field(default_factory=list)
     budget_defaults: BudgetConfig | None = None
     file_interface_map: list[FileInterfaceMapping] = Field(default_factory=list)
 

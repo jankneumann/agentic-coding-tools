@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from .config import GenEvalConfig
 from .descriptor import InterfaceDescriptor
+from .manifest import ScenarioPackManifest, filter_by_visibility, load_manifests
 from .models import EvalFeedback, Scenario
 
 logger = logging.getLogger(__name__)
@@ -38,12 +39,19 @@ class TemplateGenerator:
         descriptor: InterfaceDescriptor,
         config: GenEvalConfig,
         feedback: EvalFeedback | None = None,
+        *,
+        visibility_filter: str = "public",
     ) -> None:
         self.descriptor = descriptor
         self.config = config
         self.feedback = feedback
         self.max_expansions = config.max_expansions
+        self.visibility_filter = visibility_filter
         self._jinja_env = Environment(loader=BaseLoader(), undefined=StrictUndefined)
+        # Load manifests from manifest_dirs if available
+        self._manifests: dict[str, ScenarioPackManifest] = {}
+        for mdir in getattr(descriptor, "manifest_dirs", []):
+            self._manifests.update(load_manifests(mdir))
 
     async def generate(
         self,
@@ -163,7 +171,17 @@ class TemplateGenerator:
         scenarios: list[Scenario],
         focus_areas: list[str] | None = None,
     ) -> list[Scenario]:
-        """Filter scenarios by focus areas and feedback."""
+        """Filter scenarios by visibility, focus areas, and feedback."""
+        # Visibility filtering (D7): filter in the generator, not the evaluator
+        if self._manifests:
+            visible_ids = filter_by_visibility(
+                self._manifests,
+                [s.id for s in scenarios],
+                self.visibility_filter,
+            )
+            visible_set = set(visible_ids)
+            scenarios = [s for s in scenarios if s.id in visible_set]
+
         if focus_areas:
             scenarios = [
                 s
