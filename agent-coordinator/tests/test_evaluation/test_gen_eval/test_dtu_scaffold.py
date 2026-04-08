@@ -160,7 +160,7 @@ class TestWriteScaffold:
             unsupported_surfaces=["GET /unknown"],
             error_catalog=[{"code": 500}],
         )
-        paths = write_scaffold(scaffold, tmp_path / "dtu")
+        write_scaffold(scaffold, tmp_path / "dtu")
         assert (tmp_path / "dtu" / "descriptor.seed.yaml").exists()
         assert (tmp_path / "dtu" / "fixtures").is_dir()
         assert (tmp_path / "dtu" / "error-catalog.json").exists()
@@ -187,7 +187,7 @@ class TestWriteScaffold:
             unsupported_surfaces=[],
             error_catalog=[],
         )
-        paths = write_scaffold(scaffold, tmp_path / "out")
+        write_scaffold(scaffold, tmp_path / "out")
         assert (tmp_path / "out" / "descriptor.seed.yaml").exists()
 
 
