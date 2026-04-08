@@ -33,6 +33,8 @@ class GenEvalReport:
     unevaluated_interfaces: list[str]
     cost_summary: dict[str, float]  # cli_calls, time_minutes, sdk_cost_usd
     iterations_completed: int
+    # Visibility-grouped counts (optional, populated when manifests are loaded)
+    visibility_summary: dict[str, dict[str, int]] | None = None
 
     def to_metrics(self) -> list[GenEvalMetrics]:
         """Convert verdicts to GenEvalMetrics for integration with MetricsCollector."""
@@ -119,6 +121,20 @@ def generate_markdown_report(report: GenEvalReport) -> str:
             lines.append(f"- {iface}")
         lines.append("")
 
+    # Visibility summary
+    if report.visibility_summary:
+        lines.append("## Visibility Coverage")
+        lines.append("")
+        lines.append("| Visibility | Total | Passed | Failed |")
+        lines.append("|------------|-------|--------|--------|")
+        for vis, counts in sorted(report.visibility_summary.items()):
+            lines.append(
+                f"| {vis} | {counts.get('total', 0)} "
+                f"| {counts.get('passed', 0)} "
+                f"| {counts.get('failed', 0)} |"
+            )
+        lines.append("")
+
     # Failed scenarios
     failed_verdicts = [v for v in report.verdicts if v.status in ("fail", "error")]
     if failed_verdicts:
@@ -132,6 +148,26 @@ def generate_markdown_report(report: GenEvalReport) -> str:
             lines.append(f"- **Duration**: {v.duration_seconds:.3f}s")
             if v.failure_summary:
                 lines.append(f"- **Failure**: {v.failure_summary}")
+
+            # Side-effect sub-verdicts
+            for step in v.steps:
+                if step.side_effect_verdicts:
+                    lines.append(f"- **Side-Effect Verdicts** (step `{step.step_id}`):")
+                    for sev in step.side_effect_verdicts:
+                        lines.append(
+                            f"  - `{sev.step_id}` ({sev.mode}): **{sev.status}**"
+                            + (f" — {sev.error_message}" if sev.error_message else "")
+                        )
+
+                # Semantic verdict
+                if step.semantic_verdict:
+                    sv = step.semantic_verdict
+                    lines.append(
+                        f"- **Semantic Verdict** (step `{step.step_id}`): "
+                        f"**{sv.status}** (confidence: {sv.confidence:.2f})"
+                    )
+                    if sv.reasoning:
+                        lines.append(f"  - {sv.reasoning}")
             lines.append("")
 
     return "\n".join(lines)
@@ -156,4 +192,6 @@ def generate_json_report(report: GenEvalReport) -> str:
         "unevaluated_interfaces": report.unevaluated_interfaces,
         "verdicts": [v.model_dump() for v in report.verdicts],
     }
+    if report.visibility_summary:
+        data["visibility_summary"] = report.visibility_summary
     return json.dumps(data, indent=2, default=str)
