@@ -49,7 +49,9 @@ Deploy the Agent Coordination API to Railway with ParadeDB Postgres.
      ```
      POSTGRES_PASSWORD=<generate-strong-password>
      POSTGRES_DB=coordinator
+     POSTGRES_LISTEN_ADDRESSES=*
      ```
+   > **Important:** `POSTGRES_LISTEN_ADDRESSES=*` is required for private networking. Without it, Postgres only listens on `127.0.0.1` inside the container. Railway's TCP proxy works (it connects from within the container), but private network traffic arrives on the container's external interface and will be refused.
 4. Deploy the service and note the **internal hostname** (e.g., `paradedb.railway.internal`)
 
 ## 3. Apply Database Migrations
@@ -98,7 +100,7 @@ Set these in the Coordination API service settings:
 
 | Variable | Value | Required |
 |----------|-------|----------|
-| `POSTGRES_DSN` | `postgresql://postgres:<password>@<service>.railway.internal:5432/coordinator` | Yes |
+| `POSTGRES_DSN` | `postgresql://postgres:<password>@<service>.railway.internal:5432/coordinator?sslmode=disable` | Yes |
 | `DB_BACKEND` | `postgres` | Yes |
 | `COORDINATION_API_KEYS` | Comma-separated API keys (generate with `openssl rand -hex 32`) | Yes |
 | `COORDINATION_API_KEY_IDENTITIES` | JSON mapping keys to agent identities (see below) | Yes |
@@ -117,11 +119,15 @@ Set these in the Coordination API service settings:
 
 ## 6. Private Networking
 
-Railway services communicate over a private network. The `POSTGRES_DSN` should use the **internal hostname** (not the public URL) for lower latency and no egress charges:
+Railway services communicate over a private network. The `POSTGRES_DSN` should use the **internal hostname** (not the public URL) for lower latency and no egress charges.
+
+**Required DSN format** — append `?sslmode=disable` because Railway's private network does not terminate TLS:
 
 ```
-postgresql://postgres:<password>@<postgres-service>.railway.internal:5432/coordinator
+postgresql://postgres:<password>@<postgres-service>.railway.internal:5432/coordinator?sslmode=disable
 ```
+
+Without `sslmode=disable`, asyncpg attempts an SSL handshake that the private network can't complete, causing a connection timeout.
 
 The Coordination API is exposed publicly via Railway's HTTPS URL (e.g., `https://your-app.railway.app`).
 
@@ -330,6 +336,11 @@ python3 agent-coordinator/run_mcp.py
 ```
 
 ## Troubleshooting
+
+### Connection Timeout on Private Network
+- **`POSTGRES_LISTEN_ADDRESSES=*`** must be set on the ParadeDB service. Without it, Postgres listens only on `localhost` inside the container. The public TCP proxy still works (it proxies from within the container), but private network traffic arrives on the container's external network interface and times out.
+- **`?sslmode=disable`** must be appended to `POSTGRES_DSN`. Railway's private network does not support TLS; asyncpg's default SSL handshake will hang until timeout.
+- Verify both services are in the **same Railway project and environment** — private DNS only resolves within the same environment.
 
 ### Connection Refused
 - Verify the Postgres service is running in Railway dashboard
