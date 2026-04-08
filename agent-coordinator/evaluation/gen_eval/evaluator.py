@@ -4,13 +4,18 @@ The Evaluator takes a scenario (an ordered list of action steps with
 expectations), executes each step through the appropriate transport client,
 compares actual results against expectations, captures variables for use
 in subsequent steps, and produces structured verdicts.
+
+Extended with side-effect verification (D2/D3), semantic evaluation (D4),
+and formalized assertion types (D1/D5).
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 from jsonpath_ng import parse as jsonpath_parse
@@ -23,8 +28,14 @@ from evaluation.gen_eval.models import (
     ExpectBlock,
     Scenario,
     ScenarioVerdict,
+    SemanticVerdict,
+    SideEffectStep,
+    SideEffectVerdict,
     StepVerdict,
 )
+from evaluation.gen_eval.semantic_judge import semantic_judge_evaluate
+
+logger = logging.getLogger(__name__)
 
 # Pattern for variable interpolation: {{ var_name }}
 _VAR_PATTERN = re.compile(r"\{\{\s*([\w.\-]+)\s*\}\}")
@@ -163,14 +174,19 @@ class Evaluator:
     ) -> StepVerdict:
         """Execute a single step and return its verdict."""
         step_start = time.monotonic()
+        step_start_time = datetime.now(UTC).isoformat()
         timeout = step.timeout_seconds or self.default_timeout
 
+        # Inject step_start_time into captured vars for side-effect interpolation
+        step_vars = dict(captured_vars)
+        step_vars["step_start_time"] = step_start_time
+
         # Interpolate variables into step fields
-        interpolated = self._interpolate_step(step, captured_vars)
+        interpolated = self._interpolate_step(step, step_vars)
 
         # Build context
         context = StepContext(
-            variables=dict(captured_vars),
+            variables=step_vars,
             timeout_seconds=timeout,
         )
 
@@ -256,6 +272,31 @@ class Evaluator:
             else:
                 diff["cross_interface"] = cross_diff
 
+        # --- Side-effect verification (D2/D3) ---
+        side_effect_verdicts: list[SideEffectVerdict] = []
+        if status == "pass" and interpolated.side_effects:
+            se_verdicts = await self._execute_side_effects(
+                interpolated.side_effects.verify,
+                interpolated.side_effects.prohibit,
+                step_vars,
+            )
+            side_effect_verdicts = se_verdicts
+            # If any side-effect verdict failed, step fails
+            if any(v.status == "fail" for v in side_effect_verdicts):
+                status = "fail"
+
+        # --- Semantic evaluation (D4) ---
+        semantic_verdict: SemanticVerdict | None = None
+        if status == "pass" and interpolated.semantic and interpolated.semantic.judge:
+            semantic_verdict = await self._evaluate_semantic(
+                interpolated.semantic.criteria,
+                interpolated.semantic.fields,
+                interpolated.semantic.min_confidence,
+                result.body,
+            )
+            if semantic_verdict.status == "fail":
+                status = "fail"
+
         return StepVerdict(
             step_id=step.id,
             transport=step.transport,
@@ -265,6 +306,8 @@ class Evaluator:
             diff=diff,
             duration_ms=elapsed_ms,
             captured_vars=captured,
+            side_effect_verdicts=side_effect_verdicts,
+            semantic_verdict=semantic_verdict,
         )
 
     def _interpolate_step(self, step: ActionStep, variables: dict[str, Any]) -> ActionStep:
@@ -307,6 +350,15 @@ class Evaluator:
                     "actual": result.status_code,
                 }
 
+        # Extended: status_one_of (mutually exclusive with status)
+        if expect.status_one_of is not None:
+            expected["status_one_of"] = expect.status_one_of
+            if result.status_code not in expect.status_one_of:
+                diff["status_one_of"] = {
+                    "expected_one_of": expect.status_one_of,
+                    "actual": result.status_code,
+                }
+
         if expect.exit_code is not None:
             expected["exit_code"] = expect.exit_code
             if result.exit_code != expect.exit_code:
@@ -320,6 +372,24 @@ class Evaluator:
             body_diff = self._compare_body(expect.body, result.body)
             if body_diff:
                 diff["body"] = body_diff
+
+        # Extended: body_contains — deep partial matching (D5)
+        if expect.body_contains is not None:
+            expected["body_contains"] = expect.body_contains
+            if not self._deep_contains(result.body, expect.body_contains):
+                diff["body_contains"] = {
+                    "expected_subset": expect.body_contains,
+                    "actual": result.body,
+                }
+
+        # Extended: body_excludes — negative assertion
+        if expect.body_excludes is not None:
+            expected["body_excludes"] = expect.body_excludes
+            if self._deep_contains(result.body, expect.body_excludes):
+                diff["body_excludes"] = {
+                    "excluded_content_found": expect.body_excludes,
+                    "actual": result.body,
+                }
 
         if expect.error_contains is not None:
             expected["error_contains"] = expect.error_contains
@@ -344,12 +414,39 @@ class Evaluator:
             if actual_rows != expect.rows:
                 diff["rows"] = {"expected": expect.rows, "actual": actual_rows}
 
+        # Extended: rows_gte
+        if expect.rows_gte is not None:
+            expected["rows_gte"] = expect.rows_gte
+            actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
+            if actual_rows is None or actual_rows < expect.rows_gte:
+                diff["rows_gte"] = {
+                    "expected_gte": expect.rows_gte,
+                    "actual": actual_rows,
+                }
+
+        # Extended: rows_lte
+        if expect.rows_lte is not None:
+            expected["rows_lte"] = expect.rows_lte
+            actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
+            if actual_rows is None or actual_rows > expect.rows_lte:
+                diff["rows_lte"] = {
+                    "expected_lte": expect.rows_lte,
+                    "actual": actual_rows,
+                }
+
         if expect.row is not None:
             expected["row"] = expect.row
             actual_row = result.body.get("row") if isinstance(result.body, dict) else None
             row_diff = self._compare_body(expect.row, actual_row or {})
             if row_diff:
                 diff["row"] = row_diff
+
+        # Extended: array_contains
+        if expect.array_contains is not None:
+            expected["array_contains"] = expect.array_contains
+            ac_diff = self._compare_array_contains(expect.array_contains, result.body)
+            if ac_diff:
+                diff["array_contains"] = ac_diff
 
         return expected, diff if diff else None
 
@@ -480,3 +577,253 @@ class Evaluator:
                 "fields": mismatches,
             }
         return None
+
+    # ------------------------------------------------------------------
+    # Deep matching for body_contains / body_excludes (D5)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _deep_contains(actual: Any, expected: Any) -> bool:
+        """Recursive subset matching.
+
+        - Dict: every key in expected exists in actual with a matching value.
+        - List: every item in expected has a distinct matching item in actual
+          (order-independent).
+        - Scalar: direct equality.
+        """
+        if isinstance(expected, dict):
+            if not isinstance(actual, dict):
+                return False
+            return all(
+                k in actual and Evaluator._deep_contains(actual[k], v)
+                for k, v in expected.items()
+            )
+        if isinstance(expected, list):
+            if not isinstance(actual, list):
+                return False
+            # Each expected item must match a distinct actual item
+            used: set[int] = set()
+            for exp_item in expected:
+                found = False
+                for i, act_item in enumerate(actual):
+                    if i not in used and Evaluator._deep_contains(act_item, exp_item):
+                        used.add(i)
+                        found = True
+                        break
+                if not found:
+                    return False
+            return True
+        return actual == expected
+
+    # ------------------------------------------------------------------
+    # array_contains assertion
+    # ------------------------------------------------------------------
+
+    def _compare_array_contains(
+        self, spec: dict[str, Any], body: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Assert a JSON array at a JSONPath contains a matching element.
+
+        spec keys:
+          - path: JSONPath to the array
+          - match: dict of field criteria the element must satisfy
+        """
+        path = spec.get("path", "")
+        match_criteria = spec.get("match", {})
+
+        try:
+            expr = jsonpath_parse(path)
+            matches = expr.find(body)
+        except JsonPathParserError:
+            return {"error": f"Invalid JSONPath: {path}"}
+
+        if not matches:
+            return {"error": f"Path '{path}' not found in response"}
+
+        array = matches[0].value
+        if not isinstance(array, list):
+            return {"error": f"Path '{path}' does not resolve to an array"}
+
+        # Check if any element in the array matches the criteria
+        for element in array:
+            if self._deep_contains(element, match_criteria):
+                return None  # Found a match — pass
+
+        return {
+            "expected_match": match_criteria,
+            "in_array_at": path,
+            "array_length": len(array),
+        }
+
+    # ------------------------------------------------------------------
+    # Side-effect verification (D2/D3)
+    # ------------------------------------------------------------------
+
+    async def _execute_side_effects(
+        self,
+        verify_steps: list[SideEffectStep],
+        prohibit_steps: list[SideEffectStep],
+        captured_vars: dict[str, Any],
+    ) -> list[SideEffectVerdict]:
+        """Execute side-effect verification and prohibit steps."""
+        verdicts: list[SideEffectVerdict] = []
+
+        # Verify steps: expectations MUST match
+        for se_step in verify_steps:
+            verdict = await self._run_side_effect_step(se_step, captured_vars, mode="verify")
+            verdicts.append(verdict)
+
+        # Prohibit steps: expectations MUST NOT match (D3)
+        for se_step in prohibit_steps:
+            verdict = await self._run_side_effect_step(se_step, captured_vars, mode="prohibit")
+            verdicts.append(verdict)
+
+        return verdicts
+
+    async def _run_side_effect_step(
+        self,
+        se_step: SideEffectStep,
+        captured_vars: dict[str, Any],
+        mode: str,
+    ) -> SideEffectVerdict:
+        """Execute a single side-effect step and produce its verdict."""
+        # Convert SideEffectStep to ActionStep for transport execution
+        action = ActionStep(
+            id=se_step.id,
+            transport=se_step.transport,
+            method=se_step.method,
+            endpoint=se_step.endpoint,
+            body=se_step.body,
+            headers=se_step.headers,
+            tool=se_step.tool,
+            params=se_step.params,
+            command=se_step.command,
+            args=se_step.args,
+            sql=se_step.sql,
+            seconds=se_step.seconds,
+            expect=se_step.expect,
+            capture=se_step.capture,
+            timeout_seconds=se_step.timeout_seconds,
+        )
+
+        # Interpolate variables
+        interpolated = self._interpolate_step(action, captured_vars)
+        timeout = interpolated.timeout_seconds or self.default_timeout
+        context = StepContext(variables=dict(captured_vars), timeout_seconds=timeout)
+
+        try:
+            result = await asyncio.wait_for(
+                self.clients.execute(interpolated.transport, interpolated, context),
+                timeout=timeout,
+            )
+        except Exception as exc:
+            return SideEffectVerdict(
+                step_id=se_step.id,
+                mode=mode,  # type: ignore[arg-type]
+                status="error",
+                error_message=f"Side-effect transport error: {exc}",
+            )
+
+        if result.error:
+            return SideEffectVerdict(
+                step_id=se_step.id,
+                mode=mode,  # type: ignore[arg-type]
+                status="error",
+                error_message=result.error,
+            )
+
+        # Compare expectations
+        expected_dict: dict[str, Any] | None = None
+        se_diff: dict[str, Any] | None = None
+        if interpolated.expect:
+            expected_dict, se_diff = self._compare(interpolated.expect, result)
+
+        actual: dict[str, Any] = {"body": result.body}
+        if result.status_code is not None:
+            actual["status"] = result.status_code
+
+        if mode == "verify":
+            # Verify: expectations must match (no diff = pass)
+            return SideEffectVerdict(
+                step_id=se_step.id,
+                mode="verify",
+                status="fail" if se_diff else "pass",
+                actual=actual,
+                expected=expected_dict,
+                diff=se_diff,
+            )
+        else:
+            # Prohibit (D3): expectations MUST NOT match
+            # If diff is None → expectations matched → prohibited state exists → FAIL
+            if se_diff is None:
+                return SideEffectVerdict(
+                    step_id=se_step.id,
+                    mode="prohibit",
+                    status="fail",
+                    actual=actual,
+                    expected=expected_dict,
+                    error_message="Prohibited state detected",
+                )
+            else:
+                return SideEffectVerdict(
+                    step_id=se_step.id,
+                    mode="prohibit",
+                    status="pass",
+                    actual=actual,
+                    expected=expected_dict,
+                )
+
+    # ------------------------------------------------------------------
+    # Semantic evaluation (D4)
+    # ------------------------------------------------------------------
+
+    async def _evaluate_semantic(
+        self,
+        criteria: str,
+        fields: list[str],
+        min_confidence: float,
+        body: dict[str, Any],
+    ) -> SemanticVerdict:
+        """Invoke LLM-as-judge semantic evaluation."""
+        # Extract field values via JSONPath
+        field_values: dict[str, Any] = {}
+        for field_path in fields:
+            try:
+                expr = jsonpath_parse(field_path)
+                matches = expr.find(body)
+                field_values[field_path] = [m.value for m in matches] if matches else None
+            except JsonPathParserError:
+                field_values[field_path] = f"<invalid JSONPath: {field_path}>"
+
+        if not field_values:
+            # If no fields specified, use entire body
+            field_values["$"] = body
+
+        try:
+            judgment = await semantic_judge_evaluate(
+                criteria=criteria,
+                field_values=field_values,
+            )
+        except Exception as exc:
+            logger.warning("Semantic evaluation unavailable: %s", exc)
+            return SemanticVerdict(
+                status="skip",
+                reasoning=f"LLM backend unavailable: {exc}",
+            )
+
+        confidence = judgment.get("confidence", 0.0)
+        verdict_str = judgment.get("verdict", "fail")
+        reasoning = judgment.get("reasoning", "")
+
+        if verdict_str == "pass" and confidence >= min_confidence:
+            return SemanticVerdict(
+                status="pass",
+                confidence=confidence,
+                reasoning=reasoning,
+            )
+        else:
+            return SemanticVerdict(
+                status="fail",
+                confidence=confidence,
+                reasoning=reasoning,
+            )
