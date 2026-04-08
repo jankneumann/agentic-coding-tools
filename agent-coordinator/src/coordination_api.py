@@ -325,6 +325,40 @@ def create_coordination_api() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        # --- Network diagnostic for Railway private networking ---
+        import socket
+        from urllib.parse import urlparse
+
+        from .config import get_config
+
+        _cfg = get_config()
+        _dsn = _cfg.database.postgres.dsn
+        _log = logging.getLogger(__name__)
+
+        if _dsn:
+            parsed = urlparse(_dsn)
+            host = parsed.hostname or "unknown"
+            port = parsed.port or 5432
+            _log.info("DB diagnostic: resolving %s ...", host)
+            try:
+                addrs = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+                _log.info("DB diagnostic: DNS resolved to %s", [a[4] for a in addrs])
+            except socket.gaierror as exc:
+                _log.error("DB diagnostic: DNS resolution FAILED for %s — %s", host, exc)
+
+            # TCP connect test (non-blocking, 5s timeout)
+            for family, _type, _proto, _canon, sockaddr in addrs[:3]:
+                try:
+                    _log.info("DB diagnostic: TCP connect to %s ...", sockaddr)
+                    sock = socket.socket(family, socket.SOCK_STREAM)
+                    sock.settimeout(5)
+                    sock.connect(sockaddr)
+                    sock.close()
+                    _log.info("DB diagnostic: TCP connect to %s SUCCEEDED", sockaddr)
+                except Exception as exc:  # noqa: BLE001
+                    _log.error("DB diagnostic: TCP connect to %s FAILED — %s", sockaddr, exc)
+        # --- End diagnostic ---
+
         # Apply pending database migrations on startup
         from .migrations import ensure_schema
 
