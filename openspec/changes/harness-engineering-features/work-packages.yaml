@@ -1,0 +1,182 @@
+feature:
+  id: harness-engineering-features
+  plan_revision: 1
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: tier_b
+
+packages:
+  - id: wp-context-architecture
+    name: "Progressive Context Architecture"
+    description: "Restructure CLAUDE.md into TOC + topic docs, extend memory tag conventions"
+    tasks: ["1.1", "1.2", "1.3", "1.4"]
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "CLAUDE.md"
+        - "docs/guides/**"
+        - "agent-coordinator/src/memory.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/supabase/**"
+    locks:
+      files:
+        - "CLAUDE.md"
+      keys:
+        - "doc:claude-md"
+        - "doc:guides"
+      ttl_minutes: 120
+      reason: "CLAUDE.md restructuring and memory convention docs"
+    verification: tier_b
+
+  - id: wp-coordinator-extensions
+    name: "Coordinator Extensions — Profiles & Scope Enforcement"
+    description: "Add evaluator profile, session scope enforcement in guardrails"
+    tasks: ["2.1", "2.2", "2.3", "2.4"]
+    priority: 2
+    dependencies: []
+    scope:
+      write_allow:
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/session_grants.py"
+        - "agent-coordinator/supabase/migrations/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/schemas/**"
+      deny:
+        - "skills/**"
+    locks:
+      files:
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/session_grants.py"
+      keys:
+        - "db:schema:agent_profiles"
+        - "api:guardrails"
+        - "api:work_queue"
+      ttl_minutes: 120
+      reason: "Evaluator profile migration and guardrail scope enforcement"
+    verification: tier_b
+
+  - id: wp-review-loops
+    name: "Review Loop Convergence Enhancement"
+    description: "Extend convergence_loop with iteration control, auto-escalation, metrics"
+    tasks: ["3.1", "3.2", "3.3", "3.4"]
+    priority: 3
+    dependencies:
+      - wp-context-architecture  # Needs memory tag conventions from 1.4
+    scope:
+      write_allow:
+        - "skills/auto-dev-loop/scripts/**"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/auto-dev-loop/tests/**"
+        - "skills/parallel-infrastructure/tests/**"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/src/memory.py"
+        - "openspec/schemas/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/supabase/**"
+    locks:
+      files:
+        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+      keys:
+        - "skill:auto-dev-loop"
+        - "skill:parallel-infrastructure:consensus"
+      ttl_minutes: 120
+      reason: "Convergence loop iteration control and metrics"
+    verification: tier_b
+
+  - id: wp-architecture-linters
+    name: "Mechanical Architecture Enforcement"
+    description: "Structural linters with agent-readable remediation, validate-feature integration"
+    tasks: ["4.1", "4.2", "4.3"]
+    priority: 3
+    dependencies: []
+    scope:
+      write_allow:
+        - "skills/validate-feature/scripts/**"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/validate-feature/tests/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/schemas/**"
+        - "agent-coordinator/src/**"
+      deny:
+        - "agent-coordinator/supabase/**"
+        - "CLAUDE.md"
+    locks:
+      files:
+        - "skills/validate-feature/SKILL.md"
+      keys:
+        - "skill:validate-feature:architecture"
+      ttl_minutes: 120
+      reason: "New architecture linters and validation phase integration"
+    verification: tier_b
+
+  - id: wp-new-skills
+    name: "New Skills — improve-harness & agent-metrics"
+    description: "Create /improve-harness and /agent-metrics skills with analysis scripts"
+    tasks: ["5.1", "5.2", "5.3", "5.4"]
+    priority: 4
+    dependencies:
+      - wp-context-architecture  # Needs memory tag conventions
+    scope:
+      write_allow:
+        - "skills/improve-harness/**"
+        - "skills/agent-metrics/**"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/src/**"
+        - "openspec/schemas/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/supabase/**"
+        - "CLAUDE.md"
+    locks:
+      keys:
+        - "skill:improve-harness"
+        - "skill:agent-metrics"
+      ttl_minutes: 120
+      reason: "New harness improvement and metrics skills"
+    verification: tier_b
+
+  - id: wp-integration
+    name: "Integration & Documentation"
+    description: "Update docs, sync skills, run full validation"
+    tasks: ["6.1", "6.2"]
+    priority: 10
+    dependencies:
+      - wp-context-architecture
+      - wp-coordinator-extensions
+      - wp-review-loops
+      - wp-architecture-linters
+      - wp-new-skills
+    scope:
+      write_allow:
+        - "docs/**"
+        - ".claude/skills/**"
+        - ".codex/skills/**"
+        - ".gemini/skills/**"
+      read_allow:
+        - "**"
+      deny: []
+    locks:
+      keys:
+        - "doc:lessons-learned"
+        - "doc:parallel-agentic-development"
+      ttl_minutes: 60
+      reason: "Final integration, documentation, and validation"
+    verification: tier_a
