@@ -74,7 +74,8 @@ def main() -> None:
     agent_type = os.environ.get("AGENT_TYPE", "claude_code")
     session_id = os.environ.get("SESSION_ID", "")
 
-    # Register via status report (triggers heartbeat on the coordinator)
+    # Register via status report (triggers heartbeat on the coordinator).
+    # /status/report has no auth — uses AGENT_ID env var directly.
     result = _post(base_url, "/status/report", {
         "agent_id": agent_id,
         "change_id": "",
@@ -94,9 +95,12 @@ def main() -> None:
     else:
         print(f"{PREFIX} Registration failed (coordinator may be unreachable)", file=sys.stderr)
 
-    # Load most recent handoff for context continuity
+    # Load most recent handoff for context continuity.
+    # Pass agent_name=None to read the most recent handoff regardless of
+    # which agent wrote it — avoids identity mismatch between AGENT_ID
+    # env var and the API key's bound identity on the server.
     handoff_result = _post(base_url, "/handoffs/read", {
-        "agent_name": agent_id,
+        "agent_name": None,
         "limit": 1,
     })
 

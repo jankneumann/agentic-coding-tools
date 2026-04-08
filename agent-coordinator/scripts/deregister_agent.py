@@ -79,10 +79,12 @@ def main() -> None:
     agent_type = os.environ.get("AGENT_TYPE", "claude_code")
     session_id = os.environ.get("SESSION_ID", "")
 
-    # Write a final handoff document
+    # Write a final handoff document.
+    # Use empty agent_id/agent_type to let server resolve from API key,
+    # avoiding 403 when AGENT_ID doesn't match the key's bound identity.
     handoff_result = _post(base_url, "/handoffs/write", {
-        "agent_id": agent_id,
-        "agent_type": agent_type,
+        "agent_id": "",
+        "agent_type": "",
         "session_id": session_id or None,
         "summary": "Session ended.",
     })
@@ -90,6 +92,8 @@ def main() -> None:
     if handoff_result and handoff_result.get("success"):
         handoff_id = handoff_result.get("handoff_id", "?")
         print(f"{PREFIX} Final handoff written: {handoff_id}")
+    elif handoff_result and handoff_result.get("error"):
+        print(f"{PREFIX} Handoff write failed: {handoff_result['error']}", file=sys.stderr)
     else:
         print(f"{PREFIX} Handoff write failed", file=sys.stderr)
 
