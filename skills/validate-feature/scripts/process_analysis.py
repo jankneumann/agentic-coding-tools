@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -112,7 +113,7 @@ def generate_process_analysis(
     """
     analysis = ProcessAnalysis(
         change_id=change_id,
-        generated_at=datetime.utcnow().isoformat() + "Z",
+        generated_at=datetime.now(UTC).isoformat(),
     )
 
     missing: list[str] = []
@@ -167,8 +168,6 @@ def _parse_validation_report(analysis: ProcessAnalysis, path: Path) -> None:
     """Extract iteration and pass/fail data from validation report."""
     content = path.read_text()
     # Count iteration sections
-    import re
-
     iterations = re.findall(r"## (?:Iteration|Run)\s+(\d+)", content)
     if iterations:
         analysis.total_loops = len(iterations)
@@ -191,7 +190,6 @@ def _parse_session_log(analysis: ProcessAnalysis, path: Path) -> None:
     """Extract timing and phase data from session log."""
     # Session logs vary in format; extract what we can
     content = path.read_text()
-    import re
 
     # Count phase entries
     phases = re.findall(r"## Phase:", content)
@@ -202,7 +200,6 @@ def _parse_session_log(analysis: ProcessAnalysis, path: Path) -> None:
 def _parse_impl_findings(analysis: ProcessAnalysis, path: Path) -> None:
     """Extract resolved/deferred finding counts from impl findings."""
     content = path.read_text()
-    import re
 
     resolved = len(re.findall(r"- \[x\]", content))
     deferred = len(re.findall(r"- \[ \]", content))

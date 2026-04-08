@@ -100,9 +100,9 @@ def compute_fidelity(
     Returns:
         FidelityReport with conformance score and holdout eligibility.
     """
-    # Documentation coverage score
+    # Documentation coverage score (clamped to [0.0, 1.0])
     if total_endpoints > 0:
-        doc_coverage = 1.0 - (len(unsupported_surfaces) / max(total_endpoints, 1))
+        doc_coverage = max(0.0, 1.0 - (len(unsupported_surfaces) / total_endpoints))
     else:
         doc_coverage = 0.0
 

@@ -171,6 +171,9 @@ def load_rework_report(path: Path) -> ReworkReport:
 
     failures = []
     for f_data in data.get("failures", []):
+        if not isinstance(f_data, dict):
+            logger.warning("Skipping malformed failure entry: %s", f_data)
+            continue
         failures.append(
             ReworkFailure(
                 scenario_id=f_data.get("scenario_id", "unknown"),
