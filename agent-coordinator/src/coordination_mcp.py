@@ -22,6 +22,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from . import http_proxy
 from .approval import get_approval_service
 from .audit import get_audit_service
 from .config import get_config
@@ -34,6 +35,18 @@ from .port_allocator import get_port_allocator
 from .profiles import get_profiles_service
 from .session_grants import get_session_grant_service
 from .work_queue import get_work_queue_service
+
+# Transport mode — set at startup by main(), read by tool handlers.
+# "db" uses the service layer directly; "http" proxies to coordination_api.
+_transport: str = "db"
+
+# D6: MCP resources are not proxied in HTTP mode (low-value: tools provide
+# the same data). When transport is "http", each resource returns this
+# message instead of attempting a direct DB read.
+_RESOURCE_UNAVAILABLE_IN_PROXY_MODE = (
+    "This MCP resource is unavailable in HTTP proxy mode. "
+    "Use the corresponding tool instead (e.g., check_locks, read_handoff, recall)."
+)
 
 # Create the MCP server
 mcp = FastMCP(
@@ -93,6 +106,12 @@ async def acquire_lock(
             ...
             release_lock("src/main.py")
     """
+    if _transport == "http":
+        return await http_proxy.proxy_acquire_lock(
+            file_path=file_path,
+            reason=reason,
+            ttl_minutes=ttl_minutes,
+        )
     service = get_lock_service()
     result = await service.acquire(
         file_path=file_path,
@@ -126,6 +145,8 @@ async def release_lock(file_path: str) -> dict[str, Any]:
         success: Whether the lock was released
         file_path: The file that was unlocked
     """
+    if _transport == "http":
+        return await http_proxy.proxy_release_lock(file_path=file_path)
     service = get_lock_service()
     result = await service.release(file_path=file_path)
 
@@ -150,6 +171,8 @@ async def check_locks(file_paths: list[str] | None = None) -> list[dict[str, Any
     Returns:
         List of active locks with file_path, locked_by, reason, expires_at
     """
+    if _transport == "http":
+        return await http_proxy.proxy_check_locks(file_paths=file_paths)
     service = get_lock_service()
     locks = await service.check(file_paths=file_paths)
 
@@ -197,6 +220,8 @@ async def get_work(task_types: list[str] | None = None) -> dict[str, Any]:
             # Do the work...
             complete_work(work["task_id"], success=True, result={...})
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_work(task_types=task_types)
     service = get_work_queue_service()
     result = await service.claim(task_types=task_types)
 
@@ -235,6 +260,13 @@ async def complete_work(
         success: Whether the completion was recorded
         status: 'completed' or 'failed'
     """
+    if _transport == "http":
+        return await http_proxy.proxy_complete_work(
+            task_id=task_id,
+            success=success,
+            result=result,
+            error_message=error_message,
+        )
     from uuid import UUID
 
     service = get_work_queue_service()
@@ -286,6 +318,14 @@ async def submit_work(
             priority=3
         )
     """
+    if _transport == "http":
+        return await http_proxy.proxy_submit_work(
+            task_type=task_type,
+            description=description,
+            input_data=input_data,
+            priority=priority,
+            depends_on=depends_on,
+        )
     from uuid import UUID
 
     service = get_work_queue_service()
@@ -328,6 +368,8 @@ async def get_task(task_id: str) -> dict[str, Any]:
         if result["success"]:
             print(result["task"]["status"])
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_task(task_id=task_id)
     from uuid import UUID
 
     service = get_work_queue_service()
@@ -401,6 +443,17 @@ async def issue_create(
             labels=["api", "followup"]
         )
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_create(
+            title=title,
+            description=description,
+            issue_type=issue_type,
+            priority=priority,
+            labels=labels,
+            parent_id=parent_id,
+            assignee=assignee,
+            depends_on=depends_on,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -451,6 +504,15 @@ async def issue_list(
         issues: List of issue objects
         count: Number of issues returned
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_list(
+            status=status,
+            issue_type=issue_type,
+            labels=labels,
+            parent_id=parent_id,
+            assignee=assignee,
+            limit=limit,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -486,6 +548,8 @@ async def issue_show(issue_id: str) -> dict[str, Any]:
         success: Whether the issue was found
         issue: Full issue details with comments array and children (for epics)
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_show(issue_id=issue_id)
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -527,6 +591,17 @@ async def issue_update(
         success: Whether the update succeeded
         issue: Updated issue details
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_update(
+            issue_id=issue_id,
+            title=title,
+            description=description,
+            status=status,
+            priority=priority,
+            labels=labels,
+            assignee=assignee,
+            issue_type=issue_type,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -572,6 +647,12 @@ async def issue_close(
         closed: List of closed issue details
         count: Number of issues closed
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_close(
+            issue_id=issue_id,
+            issue_ids=issue_ids,
+            reason=reason,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -613,6 +694,11 @@ async def issue_comment(
         success: true
         comment: The created comment details
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_comment(
+            issue_id=issue_id,
+            body=body,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -640,6 +726,11 @@ async def issue_ready(
         issues: List of ready issue objects
         count: Number of ready issues
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_ready(
+            parent_id=parent_id,
+            limit=limit,
+        )
     from uuid import UUID
 
     from .issue_service import get_issue_service
@@ -666,6 +757,8 @@ async def issue_blocked() -> dict[str, Any]:
         issues: List of blocked issue objects
         count: Number of blocked issues
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_blocked()
     from .issue_service import get_issue_service
 
     service = get_issue_service()
@@ -695,6 +788,11 @@ async def issue_search(
         issues: List of matching issues
         count: Number of matches
     """
+    if _transport == "http":
+        return await http_proxy.proxy_issue_search(
+            query=query,
+            limit=limit,
+        )
     from .issue_service import get_issue_service
 
     service = get_issue_service()
@@ -749,6 +847,15 @@ async def write_handoff(
             relevant_files=["src/locks.py", "supabase/migrations/001_core_schema.sql"]
         )
     """
+    if _transport == "http":
+        return await http_proxy.proxy_write_handoff(
+            summary=summary,
+            completed_work=completed_work,
+            in_progress=in_progress,
+            decisions=decisions,
+            next_steps=next_steps,
+            relevant_files=relevant_files,
+        )
     service = get_handoff_service()
     result = await service.write(
         summary=summary,
@@ -791,6 +898,11 @@ async def read_handoff(
             previous = result["handoffs"][0]
             print(f"Previous session: {previous['summary']}")
     """
+    if _transport == "http":
+        return await http_proxy.proxy_read_handoff(
+            agent_name=agent_name,
+            limit=limit,
+        )
     service = get_handoff_service()
 
     # Default to current agent if no name specified
@@ -853,6 +965,12 @@ async def register_session(
             current_task="Implementing file locking feature"
         )
     """
+    if _transport == "http":
+        return await http_proxy.proxy_register_session(
+            capabilities=capabilities,
+            current_task=current_task,
+            delegated_from=delegated_from,
+        )
     service = get_discovery_service()
     result = await service.register(
         capabilities=capabilities,
@@ -890,6 +1008,11 @@ async def discover_agents(
         # Find agents that can review code
         result = discover_agents(capability="review")
     """
+    if _transport == "http":
+        return await http_proxy.proxy_discover_agents(
+            capability=capability,
+            status=status,
+        )
     service = get_discovery_service()
     result = await service.discover(
         capability=capability,
@@ -925,6 +1048,8 @@ async def heartbeat() -> dict[str, Any]:
         success: Whether the heartbeat was recorded
         session_id: The session that was updated
     """
+    if _transport == "http":
+        return await http_proxy.proxy_heartbeat()
     service = get_discovery_service()
     result = await service.heartbeat()
 
@@ -953,6 +1078,10 @@ async def cleanup_dead_agents(
         agents_cleaned: Number of agents marked as disconnected
         locks_released: Number of locks released
     """
+    if _transport == "http":
+        return await http_proxy.proxy_cleanup_dead_agents(
+            stale_threshold_minutes=stale_threshold_minutes,
+        )
     service = get_discovery_service()
     result = await service.cleanup_dead_agents(
         stale_threshold_minutes=stale_threshold_minutes,
@@ -998,6 +1127,15 @@ async def remember(
         memory_id: UUID of the stored memory
         action: 'created' or 'deduplicated' (if similar memory exists within 1 hour)
     """
+    if _transport == "http":
+        return await http_proxy.proxy_remember(
+            event_type=event_type,
+            summary=summary,
+            details=details,
+            outcome=outcome,
+            lessons=lessons,
+            tags=tags,
+        )
     service = get_memory_service()
     result = await service.remember(
         event_type=event_type,
@@ -1038,6 +1176,13 @@ async def recall(
     Returns:
         memories: List of relevant memories sorted by relevance
     """
+    if _transport == "http":
+        return await http_proxy.proxy_recall(
+            tags=tags,
+            event_type=event_type,
+            limit=limit,
+            min_relevance=min_relevance,
+        )
     service = get_memory_service()
     result = await service.recall(
         tags=tags,
@@ -1088,6 +1233,11 @@ async def check_guardrails(
         safe: True if no destructive patterns matched
         violations: List of matched patterns with category and severity
     """
+    if _transport == "http":
+        return await http_proxy.proxy_check_guardrails(
+            operation_text=operation_text,
+            file_paths=file_paths,
+        )
     from .policy_engine import get_policy_engine
 
     engine = get_policy_engine()
@@ -1148,6 +1298,8 @@ async def get_my_profile() -> dict[str, Any]:
         profile: Profile details including trust_level, allowed_operations, etc.
         source: How the profile was determined ('assignment', 'default', 'cache')
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_my_profile()
     service = get_profiles_service()
     result = await service.get_profile()
 
@@ -1182,6 +1334,8 @@ async def get_agent_dispatch_configs() -> dict[str, Any]:
     Returns:
         agents: List of agent dispatch configs with cli details
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_agent_dispatch_configs()
     from .agents_config import get_dispatch_configs
 
     return get_dispatch_configs()
@@ -1211,6 +1365,12 @@ async def query_audit(
     Returns:
         entries: List of audit log entries
     """
+    if _transport == "http":
+        return await http_proxy.proxy_query_audit(
+            agent_id=agent_id,
+            operation=operation,
+            limit=limit,
+        )
     service = get_audit_service()
     entries = await service.query(
         agent_id=agent_id,
@@ -1262,6 +1422,12 @@ async def check_policy(
         reason: Explanation of the decision
         engine: Which policy engine made the decision
     """
+    if _transport == "http":
+        return await http_proxy.proxy_check_policy(
+            operation=operation,
+            resource=resource,
+            context=context,
+        )
     from .policy_engine import get_policy_engine
 
     engine = get_policy_engine()
@@ -1296,6 +1462,8 @@ async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
         valid: Whether the policy is valid
         errors: List of validation errors (if any)
     """
+    if _transport == "http":
+        return await http_proxy.proxy_validate_cedar_policy(policy_text=policy_text)
     config = get_config()
     if config.policy_engine.engine != "cedar":
         return {
@@ -1349,6 +1517,8 @@ async def allocate_ports(session_id: str) -> dict[str, Any]:
             # Use result["env_snippet"] to configure docker-compose
             ...
     """
+    if _transport == "http":
+        return await http_proxy.proxy_allocate_ports(session_id=session_id)
     allocator = get_port_allocator()
     allocation = allocator.allocate(session_id)
 
@@ -1388,6 +1558,8 @@ async def release_ports(session_id: str) -> dict[str, Any]:
     Example:
         release_ports("session-abc-123")
     """
+    if _transport == "http":
+        return await http_proxy.proxy_release_ports(session_id=session_id)
     allocator = get_port_allocator()
     allocator.release(session_id)
 
@@ -1414,6 +1586,8 @@ async def ports_status() -> list[dict[str, Any]]:
             print(f"{alloc['session_id']}: db={alloc['db_port']} "
                   f"(TTL: {alloc['remaining_ttl_minutes']:.1f}m)")
     """
+    if _transport == "http":
+        return await http_proxy.proxy_ports_status()
     import time
 
     allocator = get_port_allocator()
@@ -1446,6 +1620,12 @@ async def request_approval(
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Request human approval for a high-risk operation."""
+    if _transport == "http":
+        return await http_proxy.proxy_request_approval(
+            operation=operation,
+            resource=resource,
+            context=context,
+        )
     config = get_config()
     if not config.approval.enabled:
         return {"success": False, "error": "Approval gates are not enabled"}
@@ -1468,6 +1648,8 @@ async def request_approval(
 @mcp.tool()
 async def check_approval(request_id: str) -> dict[str, Any]:
     """Check the status of an approval request."""
+    if _transport == "http":
+        return await http_proxy.proxy_check_approval(request_id=request_id)
     service = get_approval_service()
     request = await service.check_request(request_id)
     if not request:
@@ -1492,6 +1674,11 @@ async def check_approval(request_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def list_policy_versions(policy_name: str, limit: int = 20) -> dict[str, Any]:
     """List version history for a Cedar policy."""
+    if _transport == "http":
+        return await http_proxy.proxy_list_policy_versions(
+            policy_name=policy_name,
+            limit=limit,
+        )
     from .policy_engine import get_policy_engine
 
     engine = get_policy_engine()
@@ -1509,6 +1696,11 @@ async def request_permission(
     operation: str, justification: str | None = None
 ) -> dict[str, Any]:
     """Request a session-scoped permission grant."""
+    if _transport == "http":
+        return await http_proxy.proxy_request_permission(
+            operation=operation,
+            justification=justification,
+        )
     config = get_config()
     if not config.session_grants.enabled:
         return {"success": False, "error": "Session grants are not enabled"}
@@ -1559,6 +1751,15 @@ async def register_feature(
         feature_id: The registered feature ID
         action: 'registered' or 'updated'
     """
+    if _transport == "http":
+        return await http_proxy.proxy_register_feature(
+            feature_id=feature_id,
+            resource_claims=resource_claims,
+            title=title,
+            branch_name=branch_name,
+            merge_priority=merge_priority,
+            metadata=metadata,
+        )
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -1597,6 +1798,11 @@ async def deregister_feature(
         feature_id: The deregistered feature ID
         status: Final status
     """
+    if _transport == "http":
+        return await http_proxy.proxy_deregister_feature(
+            feature_id=feature_id,
+            status=status,
+        )
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -1619,6 +1825,8 @@ async def get_feature(feature_id: str) -> dict[str, Any]:
     Returns:
         Feature details including status, resource claims, and merge priority
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_feature(feature_id=feature_id)
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -1648,6 +1856,8 @@ async def list_active_features() -> dict[str, Any]:
     Returns:
         List of active features with their resource claims and priorities
     """
+    if _transport == "http":
+        return await http_proxy.proxy_list_active_features()
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -1687,6 +1897,11 @@ async def analyze_feature_conflicts(
         feasibility: FULL (no conflicts), PARTIAL (some), or SEQUENTIAL (too many)
         conflicts: List of conflicting features and overlapping keys
     """
+    if _transport == "http":
+        return await http_proxy.proxy_analyze_feature_conflicts(
+            candidate_feature_id=candidate_feature_id,
+            candidate_claims=candidate_claims,
+        )
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -1723,6 +1938,11 @@ async def enqueue_merge(
         success: Whether enqueue succeeded
         entry: Queue entry with status and priority
     """
+    if _transport == "http":
+        return await http_proxy.proxy_enqueue_merge(
+            feature_id=feature_id,
+            pr_url=pr_url,
+        )
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1748,6 +1968,8 @@ async def get_merge_queue() -> dict[str, Any]:
     Returns:
         List of queued features with their merge status and priority
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_merge_queue()
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1777,6 +1999,8 @@ async def get_next_merge() -> dict[str, Any]:
     Returns:
         entry: Next feature to merge, or null if none ready
     """
+    if _transport == "http":
+        return await http_proxy.proxy_get_next_merge()
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1810,6 +2034,8 @@ async def run_pre_merge_checks(feature_id: str) -> dict[str, Any]:
         checks: Individual check results
         issues: List of issues found
     """
+    if _transport == "http":
+        return await http_proxy.proxy_run_pre_merge_checks(feature_id=feature_id)
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1836,6 +2062,8 @@ async def mark_merged(feature_id: str) -> dict[str, Any]:
     Returns:
         success: Whether the operation succeeded
     """
+    if _transport == "http":
+        return await http_proxy.proxy_mark_merged(feature_id=feature_id)
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1855,6 +2083,8 @@ async def remove_from_merge_queue(feature_id: str) -> dict[str, Any]:
     Returns:
         success: Whether the feature was removed
     """
+    if _transport == "http":
+        return await http_proxy.proxy_remove_from_merge_queue(feature_id=feature_id)
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -1896,6 +2126,18 @@ async def report_status(
         JSON string with success status and urgency level
     """
     import json
+
+    if _transport == "http":
+        http_result = await http_proxy.proxy_report_status(
+            agent_id=agent_id,
+            change_id=change_id,
+            phase=phase,
+            message=message,
+            needs_human=needs_human,
+            event_type=event_type,
+            metadata=metadata,
+        )
+        return json.dumps(http_result) if not isinstance(http_result, str) else http_result
     import logging
 
     from .discovery import get_discovery_service
@@ -1963,6 +2205,8 @@ async def get_current_locks() -> str:
 
     Shows which files are locked, by whom, and when they expire.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_lock_service()
     locks = await service.check()
 
@@ -1987,6 +2231,8 @@ async def get_recent_handoffs() -> str:
 
     Shows the latest session continuity documents across all agents.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_handoff_service()
     handoffs = await service.get_recent(limit=5)
 
@@ -2026,6 +2272,8 @@ async def get_pending_work() -> str:
 
     Shows available work organized by priority.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_work_queue_service()
     tasks = await service.get_pending(limit=20)
 
@@ -2056,6 +2304,8 @@ async def get_recent_memories() -> str:
 
     Shows the latest memories with relevance scores and tags.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_memory_service()
     result = await service.recall(limit=10)
 
@@ -2083,6 +2333,8 @@ async def get_guardrail_patterns() -> str:
 
     Shows all patterns that are currently being enforced.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_guardrails_service()
     patterns = await service._load_patterns()
 
@@ -2111,6 +2363,8 @@ async def get_current_profile() -> str:
 
     Shows trust level, allowed operations, and resource limits.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_profiles_service()
     result = await service.get_profile()
 
@@ -2145,6 +2399,8 @@ async def get_recent_audit() -> str:
 
     Shows the latest coordination operations across all agents.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     service = get_audit_service()
     entries = await service.query(limit=20)
 
@@ -2168,6 +2424,8 @@ async def get_recent_audit() -> str:
 @mcp.resource("features://active")
 async def get_active_features_resource() -> str:
     """Active features in the registry with their resource claims and priorities."""
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     from .feature_registry import get_feature_registry_service
 
     service = get_feature_registry_service()
@@ -2198,6 +2456,8 @@ async def get_active_features_resource() -> str:
 @mcp.resource("merge-queue://pending")
 async def get_merge_queue_resource() -> str:
     """Features queued for merge with their status and priority."""
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     from .merge_queue import get_merge_queue_service
 
     service = get_merge_queue_service()
@@ -2240,6 +2500,13 @@ async def list_scenarios(
     """
     import json as json_mod
 
+    if _transport == "http":
+        result = await http_proxy.proxy_list_scenarios(
+            category=category,
+            interface=interface,
+        )
+        return json_mod.dumps(result) if not isinstance(result, str) else result
+
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
@@ -2276,6 +2543,10 @@ async def validate_scenario(
         Validation result: valid (bool), scenario_id, step_count, interfaces, and any errors.
     """
     import json as json_mod
+
+    if _transport == "http":
+        http_result = await http_proxy.proxy_validate_scenario(yaml_content=yaml_content)
+        return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
 
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
@@ -2318,6 +2589,16 @@ async def create_scenario(
     """
     import json as json_mod
 
+    if _transport == "http":
+        http_result = await http_proxy.proxy_create_scenario(
+            category=category,
+            description=description,
+            interfaces=interfaces,
+            scenario_type=scenario_type,
+            priority=priority,
+        )
+        return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
+
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
@@ -2358,6 +2639,14 @@ async def run_gen_eval(
     """
     import json as json_mod
 
+    if _transport == "http":
+        http_result = await http_proxy.proxy_run_gen_eval(
+            mode=mode,
+            categories=categories,
+            time_budget_minutes=time_budget_minutes,
+        )
+        return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
+
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
@@ -2378,6 +2667,8 @@ async def get_gen_eval_coverage() -> str:
     Shows how many scenarios exist per category, which transports
     they exercise, and overall interface coverage percentage.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
@@ -2408,6 +2699,8 @@ async def get_gen_eval_report() -> str:
     Shows pass rate, coverage, failing interfaces, and categories
     below the 95% pass threshold from the most recent evaluation run.
     """
+    if _transport == "http":
+        return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
     from evaluation.gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
@@ -2493,29 +2786,67 @@ After completing work, I'll release locks and mark tasks as done.
 def main() -> None:
     """Entry point for the MCP server."""
     import asyncio
+    import logging
+    import os
 
     from .telemetry import init_telemetry
 
     init_telemetry()
 
-    # Apply any pending database migrations before accepting tool calls
-    from .migrations import ensure_schema
+    # -----------------------------------------------------------------------
+    # D1: Startup transport selection
+    #
+    # Probe the local PostgreSQL DSN and the HTTP API URL. If the DB is
+    # reachable, use the existing "db" service-layer path. If the DB is
+    # unreachable but the HTTP API is reachable, switch to "http" proxy
+    # mode. If neither is reachable, default to "db" so the user sees the
+    # existing DB connection error (preserves current failure mode).
+    # -----------------------------------------------------------------------
+    global _transport
+
+    proxy_config = http_proxy.HttpProxyConfig.from_env()
+    dsn = os.environ.get("POSTGRES_DSN", "")
+    http_base_url = proxy_config.base_url if proxy_config else ""
 
     try:
-        applied = asyncio.run(ensure_schema())
-        if applied:
-            import logging
-
-            logging.getLogger(__name__).info(
-                "Applied %d pending migration(s) at startup.", len(applied)
-            )
+        selected = asyncio.run(
+            http_proxy.select_transport(dsn=dsn, http_base_url=http_base_url)
+        )
     except Exception:  # noqa: BLE001
-        import logging
-
         logging.getLogger(__name__).warning(
-            "Migration check failed — continuing with existing schema.",
+            "Transport probe failed — defaulting to 'db'.",
             exc_info=True,
         )
+        selected = "db"
+
+    if selected == "http" and proxy_config is not None:
+        _transport = "http"
+        http_proxy.init_client(proxy_config)
+        logging.getLogger(__name__).info(
+            "Coordination MCP server running in HTTP proxy mode (target: %s)",
+            proxy_config.base_url,
+        )
+    else:
+        _transport = "db"
+        logging.getLogger(__name__).info(
+            "Coordination MCP server running with direct DB transport."
+        )
+
+        # Apply any pending database migrations before accepting tool calls.
+        # Skip in HTTP proxy mode — migrations require direct DB access.
+        from .migrations import ensure_schema
+
+        try:
+            applied = asyncio.run(ensure_schema())
+            if applied:
+                logging.getLogger(__name__).info(
+                    "Applied %d pending migration(s) at startup.", len(applied)
+                )
+        except Exception:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                "Migration check failed — continuing with existing schema.",
+                exc_info=True,
+            )
 
     # Default to stdio transport (for Claude Code integration)
     transport = "stdio"
