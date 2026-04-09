@@ -75,7 +75,17 @@ class HttpProxyConfig:
 
 ### HTTP Client
 
-Uses `httpx.AsyncClient` (already a project dependency) for async HTTP calls. A single client instance is created at startup and reused across all tool calls.
+Uses `httpx.AsyncClient` (already a project dependency) for async HTTP calls. A single client instance is created at startup and reused across all tool calls. httpx's default connection pooling (max 100 connections, 20 per host) is sufficient for MCP's single-user sequential tool calls.
+
+**Retry strategy**: None — fail fast. The MCP server serves a single Claude Code session; retrying masks transient errors that the user should see. The caller (Claude Code) can retry by calling the tool again.
+
+### SSRF Protection
+
+The proxy MUST validate `COORDINATION_API_URL` before making requests, following the same pattern as `coordination_bridge.py`:
+- Only `http` and `https` schemes allowed
+- Host must be in the built-in allowlist (`localhost`, `127.0.0.1`, `::1`) or `COORDINATION_ALLOWED_HOSTS` env var
+- Wildcard entries (`*.domain.com`) supported for subdomain matching
+- Validation happens once at startup when constructing `HttpProxyConfig`
 
 ### Per-Tool Proxy Functions
 

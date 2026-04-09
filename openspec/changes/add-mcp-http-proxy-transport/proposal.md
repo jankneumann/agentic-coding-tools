@@ -16,7 +16,7 @@ This creates an inconsistent experience: skills work, direct tool calls don't.
 
 ## What Changes
 
-1. **Fill HTTP API gaps**: Add HTTP endpoints for ~13 MCP tools that currently lack them (discovery, gen-eval, issue search/ready/blocked, request_permission, get_task)
+1. **Fill HTTP API gaps**: Add HTTP endpoints for 15 MCP tools that currently lack them (discovery: 4, gen-eval: 4, issues: 3, work: 1, session grants: 1, approvals: 2)
 2. **Build HTTP proxy adapter**: New `src/http_proxy.py` module that maps MCP tool calls to HTTP API requests
 3. **Startup transport selection**: At MCP server startup, probe both POSTGRES_DSN and COORDINATION_API_URL; select the best available backend
 4. **Auth configuration**: Use `COORDINATION_API_KEY` environment variable for HTTP API authentication

@@ -2,8 +2,8 @@
 
 ## Phase 1: Add Missing HTTP Endpoints
 
-- [ ] 1.1 Write tests for new HTTP endpoints — discovery, gen-eval, issues, work, permissions, approvals
-  **Spec scenarios**: agent-coordinator.HTTP-1 (discovery endpoints), agent-coordinator.HTTP-2 (gen-eval endpoints), agent-coordinator.HTTP-3 (issue search/ready/blocked), agent-coordinator.HTTP-4 (get_task), agent-coordinator.HTTP-5 (request_permission), agent-coordinator.HTTP-6 (approval submit/check)
+- [ ] 1.1 Write tests for new HTTP endpoints — discovery, gen-eval, issues, work, permissions, approvals (success + failure paths)
+  **Spec scenarios**: agent-coordinator.HTTP-1 (discovery endpoints), agent-coordinator.HTTP-1a (unauthorized), agent-coordinator.HTTP-2 (gen-eval endpoints), agent-coordinator.HTTP-3 (issue search/ready/blocked), agent-coordinator.HTTP-3a (empty search), agent-coordinator.HTTP-4 (get_task), agent-coordinator.HTTP-4a (not found), agent-coordinator.HTTP-5 (request_permission), agent-coordinator.HTTP-6 (approval submit/check), agent-coordinator.HTTP-6a (not found)
   **Design decisions**: D4 (new HTTP endpoints)
   **Dependencies**: None
 
@@ -24,8 +24,8 @@
 
 ## Phase 2: HTTP Proxy Module
 
-- [ ] 2.1 Write tests for `http_proxy.py` — client init, agent identity injection, response normalization, error handling, timeout behavior
-  **Spec scenarios**: agent-coordinator.PROXY-1 (proxy routes to HTTP), agent-coordinator.PROXY-2 (agent identity injection), agent-coordinator.PROXY-3 (error mapping), agent-coordinator.PROXY-4 (timeout handling)
+- [ ] 2.1 Write tests for `http_proxy.py` — client init, agent identity injection, response normalization, error handling, timeout, auth failure, network errors, SSRF validation
+  **Spec scenarios**: agent-coordinator.PROXY-1 (proxy routes to HTTP), agent-coordinator.PROXY-2 (agent identity injection), agent-coordinator.PROXY-3 (error mapping), agent-coordinator.PROXY-4 (timeout handling), agent-coordinator.PROXY-5 (auth failure), agent-coordinator.PROXY-6 (network errors), agent-coordinator.PROXY-7 (SSRF validation)
   **Design decisions**: D2 (HTTP proxy module)
   **Dependencies**: 1.6
 
@@ -76,8 +76,8 @@
 
 ## Phase 3: Startup Probe and Tool Handler Integration
 
-- [ ] 3.1 Write tests for startup transport selection — DB available, HTTP available, both available (DB wins), neither available
-  **Spec scenarios**: agent-coordinator.STARTUP-1 (DB preferred), agent-coordinator.STARTUP-2 (HTTP fallback), agent-coordinator.STARTUP-3 (neither available)
+- [ ] 3.1 Write tests for startup transport selection — DB available, HTTP available, both available (DB wins), neither available, transport fixed at startup
+  **Spec scenarios**: agent-coordinator.STARTUP-1 (DB preferred), agent-coordinator.STARTUP-2 (HTTP fallback), agent-coordinator.STARTUP-3 (neither available), agent-coordinator.STARTUP-4 (transport fixed at startup)
   **Design decisions**: D1 (startup transport selection)
   **Dependencies**: 2.16
 
