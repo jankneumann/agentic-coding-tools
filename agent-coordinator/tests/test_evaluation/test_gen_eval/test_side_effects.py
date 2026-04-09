@@ -288,10 +288,126 @@ class TestStepStartTime:
                 ]
             ),
         )
-        verdict = await evaluator.evaluate(_make_scenario([step]))
+        await evaluator.evaluate(_make_scenario([step]))
 
         # Verify step_start_time was interpolated (no longer contains {{ }})
         call_args = registry.execute.call_args_list[1]
         executed_step = call_args[0][1]
         assert "{{" not in executed_step.sql
         assert "step_start_time" not in executed_step.sql
+
+
+class TestSameStepCaptureInSideEffects:
+    """Variables captured in the main step must be visible to side-effect steps."""
+
+    @pytest.mark.asyncio
+    async def test_same_step_capture_interpolated_in_side_effect_sql(self) -> None:
+        """Regression: side-effect SQL references vars captured by the same main step."""
+        # Main step returns a body with a task_id that the capture block extracts.
+        main_result = _make_result(body={"task_id": "abc-123", "success": True})
+        verify_result = _make_result(body={"rows": 1})
+        registry = _mock_registry(main_result, verify_result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        step = ActionStep(
+            id="claim_task",
+            transport="http",
+            method="POST",
+            endpoint="/work/claim",
+            expect=ExpectBlock(status=200),
+            capture={"claimed_task_id": "$.task_id"},
+            side_effects=SideEffectsBlock(
+                verify=[
+                    SideEffectStep(
+                        id="verify_claim_row",
+                        transport="db",
+                        sql="SELECT * FROM work_queue WHERE id='{{ claimed_task_id }}'",
+                        expect=ExpectBlock(rows=1),
+                    ),
+                ]
+            ),
+        )
+        verdict = await evaluator.evaluate(_make_scenario([step]))
+
+        assert verdict.status == "pass"
+        # The second registry call is the side-effect. Its interpolated SQL must
+        # contain the captured task id and MUST NOT contain the placeholder.
+        call_args = registry.execute.call_args_list[1]
+        executed_step = call_args[0][1]
+        assert "abc-123" in executed_step.sql
+        assert "{{ claimed_task_id }}" not in executed_step.sql
+
+
+class TestSideEffectErrorPropagation:
+    """A side-effect transport error must downgrade the main step's status."""
+
+    @pytest.mark.asyncio
+    async def test_side_effect_error_downgrades_step_to_error(self) -> None:
+        """Regression: backend unavailable during verification shouldn't silently pass."""
+        main_result = _make_result(body={"success": True})
+        # The side-effect call fails with a transport-level error — this must
+        # surface as an `error` verdict and downgrade the main step.
+        error_result = _make_result(error="Connection refused")
+        registry = _mock_registry(main_result, error_result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        step = ActionStep(
+            id="main_op",
+            transport="http",
+            method="POST",
+            endpoint="/op",
+            expect=ExpectBlock(status=200),
+            side_effects=SideEffectsBlock(
+                verify=[
+                    SideEffectStep(
+                        id="verify_db",
+                        transport="db",
+                        sql="SELECT 1",
+                        expect=ExpectBlock(rows=1),
+                    ),
+                ]
+            ),
+        )
+        verdict = await evaluator.evaluate(_make_scenario([step]))
+
+        assert verdict.steps[0].side_effect_verdicts[0].status == "error"
+        assert verdict.steps[0].status == "error"
+
+    @pytest.mark.asyncio
+    async def test_side_effect_fail_takes_precedence_over_error(self) -> None:
+        """When one verdict fails and another errors, the step status is `fail`."""
+        main_result = _make_result(body={"success": True})
+        fail_result = _make_result(body={"rows": 0})  # expected rows=1 → fail
+        error_result = _make_result(error="Connection refused")
+        registry = _mock_registry(main_result, fail_result, error_result)
+        evaluator = Evaluator(_mock_descriptor(), registry)
+
+        step = ActionStep(
+            id="main_op",
+            transport="http",
+            method="POST",
+            endpoint="/op",
+            expect=ExpectBlock(status=200),
+            side_effects=SideEffectsBlock(
+                verify=[
+                    SideEffectStep(
+                        id="verify_row_count",
+                        transport="db",
+                        sql="SELECT COUNT(*) FROM t",
+                        expect=ExpectBlock(rows=1),
+                    ),
+                    SideEffectStep(
+                        id="verify_secondary",
+                        transport="db",
+                        sql="SELECT 1",
+                        expect=ExpectBlock(rows=1),
+                    ),
+                ]
+            ),
+        )
+        verdict = await evaluator.evaluate(_make_scenario([step]))
+
+        statuses = {v.status for v in verdict.steps[0].side_effect_verdicts}
+        assert statuses == {"fail", "error"}
+        # fail is more specific than error, so the step status is fail.
+        assert verdict.steps[0].status == "fail"

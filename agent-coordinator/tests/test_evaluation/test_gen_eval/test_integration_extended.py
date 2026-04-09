@@ -7,8 +7,6 @@ and semantic evaluation in a single multi-step scenario.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -70,7 +68,11 @@ class TestIntegrationExtended:
             status_code=200,
             body={
                 "memories": [
-                    {"id": "mem-001", "summary": "Project deadline approaching", "tags": ["deadlines"]},
+                    {
+                        "id": "mem-001",
+                        "summary": "Project deadline approaching",
+                        "tags": ["deadlines"],
+                    },
                     {"id": "mem-002", "summary": "Sprint planning notes", "tags": ["planning"]},
                 ],
                 "total": 2,
@@ -192,7 +194,12 @@ class TestIntegrationExtended:
     @pytest.mark.asyncio
     async def test_feedback_includes_all_signal_types(self) -> None:
         """Feedback synthesizer incorporates side-effect and semantic signals."""
-        from evaluation.gen_eval.models import ScenarioVerdict, SemanticVerdict, SideEffectVerdict, StepVerdict
+        from evaluation.gen_eval.models import (
+            ScenarioVerdict,
+            SemanticVerdict,
+            SideEffectVerdict,
+            StepVerdict,
+        )
 
         verdicts = [
             ScenarioVerdict(
@@ -266,7 +273,12 @@ class TestIntegrationExtended:
     @pytest.mark.asyncio
     async def test_report_generation_with_all_features(self) -> None:
         """Report includes side-effect details, semantic confidence, and visibility."""
-        from evaluation.gen_eval.models import ScenarioVerdict, SemanticVerdict, SideEffectVerdict, StepVerdict
+        from evaluation.gen_eval.models import (
+            ScenarioVerdict,
+            SemanticVerdict,
+            SideEffectVerdict,
+            StepVerdict,
+        )
 
         verdict = ScenarioVerdict(
             scenario_id="integration-test",

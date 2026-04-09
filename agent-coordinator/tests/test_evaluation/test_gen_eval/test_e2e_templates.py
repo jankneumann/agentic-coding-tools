@@ -13,7 +13,9 @@ import yaml
 from evaluation.gen_eval.models import Scenario
 
 # Path to scenarios relative to the gen_eval package
-_SCENARIOS_DIR = Path(__file__).parent.parent.parent.parent / "evaluation" / "gen_eval" / "scenarios"
+_SCENARIOS_DIR = (
+    Path(__file__).parent.parent.parent.parent / "evaluation" / "gen_eval" / "scenarios"
+)
 
 _E2E_TEMPLATES = [
     "memory-crud/memory-lifecycle-e2e.yaml",

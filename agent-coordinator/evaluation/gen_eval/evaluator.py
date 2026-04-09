@@ -275,15 +275,24 @@ class Evaluator:
         # --- Side-effect verification (D2/D3) ---
         side_effect_verdicts: list[SideEffectVerdict] = []
         if status == "pass" and interpolated.side_effects:
+            # Merge in variables captured by the current main step so
+            # side-effect steps can reference same-step captures like
+            # "{{ claimed_task_id }}" in their SQL/body/args.
+            side_effect_vars = {**step_vars, **(captured or {})}
             se_verdicts = await self._execute_side_effects(
                 interpolated.side_effects.verify,
                 interpolated.side_effects.prohibit,
-                step_vars,
+                side_effect_vars,
             )
             side_effect_verdicts = se_verdicts
-            # If any side-effect verdict failed, step fails
+            # Downgrade step status on either failed assertions or transport
+            # errors from the side-effect backend. `fail` takes precedence
+            # over `error` (an assertion failure is more specific than an
+            # unreachable backend).
             if any(v.status == "fail" for v in side_effect_verdicts):
                 status = "fail"
+            elif any(v.status == "error" for v in side_effect_verdicts):
+                status = "error"
 
         # --- Semantic evaluation (D4) ---
         semantic_verdict: SemanticVerdict | None = None
