@@ -2163,6 +2163,43 @@ def create_coordination_api() -> FastAPI:
 
         return db_status
 
+    # --------------------------------------------------------------------- #
+    # HELP — Progressive Discovery
+    # --------------------------------------------------------------------- #
+
+    @app.get("/help")
+    async def help_overview() -> dict[str, Any]:
+        """Compact overview of all coordinator capabilities.
+
+        No auth required — this is a discovery endpoint for agents.
+        """
+        from .help_service import get_help_overview
+
+        return get_help_overview()
+
+    @app.get("/help/{topic}")
+    async def help_topic(topic: str) -> Any:
+        """Detailed help for a specific capability group.
+
+        No auth required — this is a discovery endpoint for agents.
+        """
+        from fastapi.responses import JSONResponse
+
+        from .help_service import get_help_topic, list_topic_names
+
+        detail = get_help_topic(topic)
+        if detail is not None:
+            return detail
+
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Unknown topic: {topic!r}",
+                "available_topics": list_topic_names(),
+                "hint": "GET /help for an overview of all topics",
+            },
+        )
+
     @app.get("/live")
     async def live() -> dict[str, str]:
         """Cheap liveness probe for container platforms."""

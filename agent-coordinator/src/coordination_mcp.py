@@ -2194,6 +2194,53 @@ async def report_status(
 
 
 # =============================================================================
+# MCP TOOLS: Help — Progressive Discovery
+# =============================================================================
+
+
+@mcp.tool()
+async def help(topic: str | None = None) -> dict[str, Any]:
+    """
+    Get help on coordinator capabilities with progressive detail.
+
+    Call with no arguments for a compact overview of all capability groups.
+    Call with a topic name for detailed guidance including workflow steps,
+    best practices, and usage examples.
+
+    This is more context-efficient than reading all tool schemas — call this
+    first to understand what's available, then drill into specific topics.
+
+    Args:
+        topic: Capability group name (e.g., 'locks', 'work-queue', 'memory').
+               Omit for an overview of all topics.
+
+    Returns:
+        Overview mode: list of topics with summaries and tool counts
+        Detail mode: full guide with workflow, examples, and best practices
+
+    Example:
+        # Get overview of all capabilities
+        result = help()
+        # Then drill into a specific area
+        result = help(topic="locks")
+    """
+    from .help_service import get_help_overview, get_help_topic, list_topic_names
+
+    if topic is None:
+        return get_help_overview()
+
+    detail = get_help_topic(topic)
+    if detail is not None:
+        return detail
+
+    return {
+        "error": f"Unknown topic: {topic!r}",
+        "available_topics": list_topic_names(),
+        "hint": "Call help() with no arguments to see all topics",
+    }
+
+
+# =============================================================================
 # MCP RESOURCES: Read-only context
 # =============================================================================
 
