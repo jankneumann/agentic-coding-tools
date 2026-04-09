@@ -6,6 +6,13 @@ create_speculative_ref:
     Create a speculative git reference by merging a feature branch onto a base ref.
     The base ref is either 'main' (for position 1) or the preceding entry's
     speculative ref (for position N > 1).
+
+    Internally this runs `git merge-tree --write-tree --messages <base> <branch>`
+    (requires git >= 2.38), which produces a tree OID on success or a conflict
+    report on failure. On success, the adapter creates a git ref pointing to a
+    new commit built from that tree (with base as parent). The tree_oid is
+    surfaced to callers so they can cache intermediate merge results across
+    train positions.
   input:
     base_ref:
       type: string
@@ -20,10 +27,25 @@ create_speculative_ref:
       required: true
       description: "Name for the speculative ref (e.g., refs/speculative/train-abc/pos-1)"
   output:
-    success: boolean
-    ref_sha: string | null
-    conflict_files: array[string]
-    error: string | null
+    success:
+      type: boolean
+      description: True if merge-tree succeeded and ref was created
+    tree_oid:
+      type: string
+      nullable: true
+      description: Git tree OID produced by merge-tree; null on conflict or error
+    commit_sha:
+      type: string
+      nullable: true
+      description: SHA of the new commit pointed to by ref_name; null on conflict or error
+    conflict_files:
+      type: array
+      items: string
+      description: Files with conflict markers; empty on success
+    error:
+      type: string
+      nullable: true
+      description: Error message for non-conflict failures (network, disk, invalid input); null on success or conflict
 
 delete_speculative_refs:
   description: |

@@ -63,7 +63,7 @@ AND the resolved path SHALL be used for the `TEST_COVERS` edge target
 
 ### Requirement: Affected-Test Query
 
-The architecture pipeline SHALL provide a function `affected_tests(changed_files: list[str]) -> list[str]` that returns test file paths affected by the given source file changes.
+The architecture pipeline SHALL provide a function `affected_tests(changed_files: list[str], graph_path: str | None = None) -> list[str] | None` that returns test file paths affected by the given source file changes. The `graph_path` parameter is optional and defaults to the canonical `docs/architecture-analysis/architecture.graph.json` location; callers pass a custom path only in tests. The return type is `list[str]` on success (may be empty) or `None` to signal "run all tests" (see fallback scenarios below).
 
 #### Scenario: Single file change with direct test
 
@@ -83,6 +83,13 @@ AND a warning SHALL be logged identifying the uncovered module
 WHEN `affected_tests()` is called and the architecture graph is older than 24 hours
 THEN the function SHALL return `None` (signaling "run all tests")
 AND a warning SHALL be logged recommending `refresh-architecture`
+
+#### Scenario: Custom graph_path parameter
+
+WHEN `affected_tests(changed_files, graph_path="/tmp/test-graph.json")` is called with an explicit graph_path
+THEN the function SHALL load the graph from the provided path instead of the default location
+AND all other behavior (staleness check, traversal bounds, fallback) SHALL apply to the custom graph
+AND this parameter exists to support unit tests and out-of-tree invocations
 
 #### Scenario: Traversal bound on large graphs
 

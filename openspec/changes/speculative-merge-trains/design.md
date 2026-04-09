@@ -152,10 +152,12 @@ def merge_train(train: Train) -> None:
 
 ### Train Composition Flow
 
+**Triggers**: `compose_train()` runs in two modes: (a) on-demand immediately after each `enqueue` call, and (b) via a periodic background sweep every `MERGE_TRAIN_SWEEP_INTERVAL_SECONDS` (default 60s). The periodic sweep catches work that gets enqueued during a composition (when the on-enqueue trigger races) and recovers from transient failures (e.g., if a prior compose_train raised and the entry is still QUEUED).
+
 ```
 1. Agent calls enqueue_merge(feature_id, pr_url)
 2. MergeQueueService stores QUEUED status in metadata
-3. compose_train() is called (periodically or on enqueue):
+3. compose_train() is called (immediately after enqueue AND by the periodic sweep):
    a. Fetch all QUEUED entries, sorted by merge_priority
    b. Group entries by lock key prefix → compute partitions
    c. Within each partition, assign speculative positions
@@ -217,11 +219,40 @@ def merge_train(train: Train) -> None:
 
 ### D8: Post-speculation claim validation
 
-**Decision**: After each speculative ref is created, compute the actual `git diff` of changed files and map them to lock key namespaces. If the actual changes span partitions not declared in the entry's `resource_claims`, transition the entry to BLOCKED with a claim mismatch error.
+**Decision**: After each speculative ref is created, compute the actual `git diff` of changed files and map them to lock key namespaces via a heuristic `file_path_to_namespaces(path)` function (defined in `merge_train_types.py`, see tasks 1.4a/1.4b). If the actual changes span namespaces not declared in the entry's `resource_claims`, transition the entry to BLOCKED with a claim mismatch error.
 
 **Rationale**: Partition detection trusts agent-provided resource claims (D2). But agents can be wrong — they declare claims at enqueue time based on expected changes, not actual changes. Post-speculation validation catches mismatches before CI runs, preventing unsafe partition assignment. This is a defense-in-depth layer: the pre-merge check (existing) validates claim overlap with other features, and post-speculation validation ensures claims are truthful.
 
-**Rejected alternative**: Coordinator computes claims from git diff at enqueue time (removing agent responsibility). This couples the coordinator to understanding code-to-lock-key mapping, which is currently a planning-time concern.
+**File-path-to-namespace mapping** (the reverse of the 9 namespaces defined in `docs/lock-key-namespaces.md`):
+
+```python
+# Declared at module level in merge_train_types.py — unit-testable
+PATH_TO_NAMESPACE_RULES: list[tuple[str, str]] = [
+    ("contracts/**",                      "contract:"),
+    ("**/migrations/**",                  "db:migration-slot"),
+    ("supabase/migrations/**",            "db:migration-slot"),
+    ("**/schema*.py",                     "db:schema:"),
+    ("**/models/**",                      "db:schema:"),
+    ("**/models.py",                      "db:schema:"),
+    ("src/api/**",                        "api:"),
+    ("**/routes/**",                      "api:"),
+    ("**/endpoints/**",                   "api:"),
+    ("src/events/**",                     "event:"),
+    ("**/event_handlers/**",              "event:"),
+    ("flags.yaml",                        "flag:"),
+]
+
+def file_path_to_namespaces(path: str) -> set[str]:
+    """Return the set of logical namespaces a path COULD belong to.
+    Returns empty set if no rule matches — claim validation treats
+    empty-set paths as 'out-of-scope for logical checking' (file-level
+    locks still apply)."""
+    return {ns for pattern, ns in PATH_TO_NAMESPACE_RULES if fnmatch(path, pattern)}
+```
+
+**Key invariant**: This mapping is HEURISTIC, not authoritative. An empty result does not fail validation — it means "this file is locked at path-level, not namespace-level". A non-empty result is compared against the declared `resource_claims` prefixes. Only a provable mismatch (actual namespace X not in declared set) triggers BLOCKED.
+
+**Rejected alternative**: Coordinator computes claims from git diff at enqueue time (removing agent responsibility). This couples the coordinator to understanding code-to-lock-key mapping for WRITING claims, which is a planning-time concern. The heuristic mapping used here is only for VERIFYING claims post-hoc, which is a narrower, safer coupling.
 
 ### D9: BLOCKED entry recovery lifecycle
 
@@ -242,6 +273,20 @@ def merge_train(train: Train) -> None:
 **Decision**: Train operations use the existing agent profiles trust level system. `compose_train` and `get_train_status` require trust level >= 3 (operator). `eject_from_train` requires either feature ownership (registered_by matches agent_id) or trust level >= 3. `report_spec_result` requires trust level >= 2 (standard agent).
 
 **Rationale**: The coordinator already has an authorization model (profiles + policy engine). Train operations fit naturally into this model. The key constraint is that arbitrary agents should not be able to eject other agents' entries or manipulate train composition.
+
+### D12: Max-eject threshold and ABANDONED terminal state
+
+**Decision**: Each train entry tracks `eject_count: int` in its metadata, incremented on every `eject_from_train` call. When `eject_count` reaches `MAX_EJECT_COUNT` (default 3), the entry transitions to a new terminal state `ABANDONED` instead of being re-queued. ABANDONED entries are removed from train composition until the owner manually re-enqueues them (which resets `eject_count` to 0). The entry owner is notified via the audit trail.
+
+**Rationale**: Without a threshold, an entry that persistently fails CI can be ejected indefinitely, consuming speculative CI cycles and pushing `merge_priority` into arbitrarily negative territory. At 50-1000 agent scale, a single broken entry could absorb significant CI budget. The threshold bounds the failure cost: at most `MAX_EJECT_COUNT` CI runs are wasted on a persistently-broken entry before it is set aside for human investigation.
+
+**Configurable**: `MAX_EJECT_COUNT` is a constant in `merge_train_types.py`, not a per-request parameter. It's tunable per deployment but not per-entry (to prevent gaming).
+
+**Interaction with priority decrement**: The `-10` decrement still applies up to the threshold. So an entry with initial priority 5 will be ejected at priorities 5, -5, -15, then transition to ABANDONED (not re-queued at -25).
+
+**Recovery**: Manual re-enqueue of an ABANDONED entry resets `eject_count = 0` AND restores `merge_priority` to the originally-registered value. This gives the owner a clean slate after fixing the underlying issue.
+
+**Rejected alternative**: Time-based eject cooldown (e.g., "can only re-eject after 1 hour"). This slows the bleed but doesn't bound total CI cost. A count-based threshold is simpler and has a provable upper bound.
 
 ## Security Considerations
 

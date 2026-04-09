@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: speculative-merge-trains
   title: "Speculative Merge Trains with Stacked-Diff Decomposition and Build Graph Analysis"
-  plan_revision: 4
+  plan_revision: 5
   created_by: claude-code
   created_at: "2026-04-09T00:00:00Z"
 
 contracts:
-  revision: 2
+  revision: 3
   openapi:
     primary: contracts/internal/merge-train-api.yaml
     files:
@@ -30,12 +30,14 @@ packages:
   # ──────────────────────────────────────────────────────────────
   - package_id: wp-contracts
     name: "Contracts and Schema Extensions"
-    description: "Git adapter protocol, shared merge train data types (merge_train_types.py), flags schema, work-packages schema extension. Does NOT modify merge_queue.py — that is owned by wp-train-engine."
+    description: "Git adapter protocol, shared merge train data types (merge_train_types.py) including file-path-to-namespace mapping, flags schema, work-packages schema extension. Does NOT modify merge_queue.py — that is owned by wp-train-engine."
     tasks:
       - "1.1"
       - "1.2"
       - "1.3"
       - "1.4"
+      - "1.4a"
+      - "1.4b"
       - "1.5"
       - "1.6"
     priority: 1
@@ -88,8 +90,8 @@ packages:
   # Does NOT write to: git_adapter.py, merge_train_types.py (those are wp-contracts)
   # ──────────────────────────────────────────────────────────────
   - package_id: wp-train-engine
-    name: "Train Engine — Composition, Partitioning, Ejection, Claim Validation, Recovery, Merge Execution"
-    description: "Core merge train logic in merge_train.py: partition detection, train composition, post-speculation claim validation, priority eject, BLOCKED recovery, crash recovery, partition-aware merge executor. Extends merge_queue.py with train integration methods."
+    name: "Train Engine — Composition, Partitioning, Ejection, Claim Validation, Recovery, Merge Execution, Enqueue Extension"
+    description: "Core merge train logic in merge_train.py: partition detection, train composition, post-speculation claim validation, priority eject (with max-eject protection), BLOCKED recovery, crash recovery, partition-aware merge executor. Extends merge_queue.py with train integration methods AND the decomposition-aware enqueue extension that calls feature_flags.create_flag() on first stacked-diff enqueue."
     tasks:
       - "2.1"
       - "2.2"
@@ -105,9 +107,12 @@ packages:
       - "2.12"
       - "2.13"
       - "2.14"
+      - "2.15"
+      - "2.16"
     priority: 2
     depends_on:
       - wp-contracts
+      - wp-feature-flags
     locks:
       files:
         - agent-coordinator/src/merge_train.py
@@ -217,7 +222,7 @@ packages:
   # ──────────────────────────────────────────────────────────────
   - package_id: wp-feature-flags
     name: "Lightweight Feature Flag System"
-    description: "flags.yaml registry, fail-closed env var resolution, flag lifecycle (create/enable/archive), lock key integration, static analysis verification for flagged code"
+    description: "flags.yaml registry, fail-closed env var resolution, flag lifecycle (create/enable — archive deferred to Phase 2), lock key integration via create_flag(), static analysis verification for flagged code. Does NOT modify merge_queue.py — the enqueue-time flag creation call lives in wp-train-engine task 2.16, which imports create_flag from this package."
     tasks:
       - "4.1"
       - "4.2"
@@ -225,7 +230,7 @@ packages:
       - "4.4"
       - "4.5"
       - "4.6"
-    priority: 3
+    priority: 2
     depends_on:
       - wp-contracts
     locks:
@@ -277,6 +282,7 @@ packages:
       - "5.7"
       - "5.8"
       - "5.8a"
+      - "5.9"
     priority: 4
     depends_on:
       - wp-train-engine

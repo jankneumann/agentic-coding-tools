@@ -19,7 +19,8 @@
 | R10 | Partition Detection Performance | ADDED |
 | R11 | Speculative Ref Creation Performance | ADDED |
 | R12 | Automatic Flag Creation for Stacked-Diff Features | ADDED |
-| R13 | Merge Queue Enqueue (Extended) | MODIFIED |
+| R14 | Max-Eject Threshold and ABANDONED State | ADDED |
+| R13 | Merge Queue Enqueue (Extended)                    | MODIFIED |
 
 ## ADDED Requirements
 
@@ -45,6 +46,14 @@ AND entries behind it in any overlapping partition SHALL speculate against a bas
 WHEN no features are queued
 THEN compose_train SHALL return an empty train with no partitions
 
+#### Scenario: Periodic sweep invokes compose_train
+
+WHEN the coordinator is running
+THEN a background task SHALL invoke `compose_train` every `MERGE_TRAIN_SWEEP_INTERVAL_SECONDS` (default 60 seconds)
+AND the sweep task SHALL catch and log exceptions without terminating
+AND the sweep task SHALL be cancellable on coordinator shutdown
+AND the sweep SHALL be a no-op when no QUEUED entries exist
+
 ### Requirement: Speculative Branch Management (R2)
 
 The merge queue service SHALL create speculative git references for each train position, representing the state of main with all preceding entries merged.
@@ -69,7 +78,7 @@ AND no orphaned refs SHALL remain under `refs/speculative/`
 
 ### Requirement: Train Entry State Machine (R3)
 
-The merge queue service SHALL track each train entry through the states: QUEUED, SPECULATING, SPEC_PASSED, MERGING, MERGED, EJECTED, BLOCKED.
+The merge queue service SHALL track each train entry through the states: QUEUED, SPECULATING, SPEC_PASSED, MERGING, MERGED, EJECTED, BLOCKED, ABANDONED.
 
 #### Scenario: Successful train entry lifecycle
 
@@ -110,6 +119,38 @@ AND entry at position 3 has overlapping lock keys with entry 2
 THEN entry 3 SHALL transition to QUEUED
 AND entry 3 SHALL be re-speculated in the next train composition
 AND entries 4 and 5 SHALL be evaluated for overlap with entry 2 independently
+
+### Requirement: Max-Eject Threshold and ABANDONED State (R14)
+
+The merge queue service SHALL track an `eject_count` field per train entry and transition entries to a terminal ABANDONED state after `MAX_EJECT_COUNT` (default 3) consecutive ejections, preventing unbounded CI consumption by persistently-failing entries.
+
+#### Scenario: Entry ejected below max threshold
+
+WHEN an entry has `eject_count < MAX_EJECT_COUNT`
+AND the entry is ejected via `eject_from_train`
+THEN `eject_count` SHALL be incremented by 1
+AND the entry SHALL transition to EJECTED
+AND `merge_priority` SHALL be decremented by 10
+AND the entry SHALL be re-queued for the next train composition
+
+#### Scenario: Entry reaches max eject threshold
+
+WHEN an entry has `eject_count == MAX_EJECT_COUNT - 1`
+AND the entry is ejected via `eject_from_train`
+THEN `eject_count` SHALL be incremented to MAX_EJECT_COUNT
+AND the entry SHALL transition to ABANDONED (not EJECTED)
+AND the entry SHALL NOT be re-queued automatically
+AND the entry owner SHALL be notified via the audit trail with reason "max_eject_exceeded"
+AND the ABANDONED entry SHALL be skipped by subsequent `compose_train` calls
+
+#### Scenario: Manual re-enqueue of ABANDONED entry
+
+WHEN an entry is in ABANDONED state
+AND the entry owner calls enqueue with the same feature_id
+THEN `eject_count` SHALL be reset to 0
+AND `merge_priority` SHALL be restored to the originally-registered value
+AND the entry SHALL transition to QUEUED
+AND the entry SHALL be included in the next train composition
 
 ### Requirement: Partition-Aware Merge (R5)
 
@@ -281,7 +322,7 @@ AND the existing flag state SHALL be preserved
 
 ## MODIFIED Requirements
 
-### Requirement: Merge Queue Enqueue (Extended)
+### Requirement: Merge Queue Enqueue (Extended) (R13)
 
 The existing `enqueue` method SHALL accept an optional `decomposition` parameter indicating whether the entry represents a stacked-diff work package or a traditional feature branch.
 
