@@ -141,9 +141,12 @@ Each target registers the coordination MCP server with:
 - Absolute path to the venv Python binary (`.venv/bin/python -m src.coordination_mcp`)
 - `DB_BACKEND=postgres` and `POSTGRES_DSN` pointing to local ParadeDB
 - `AGENT_ID` and `AGENT_TYPE` for identity
+- `COORDINATION_API_URL` and `COORDINATION_API_KEY` (optional) — enables HTTP proxy fallback when the local DB is unavailable
 - Claude Code also gets `cwd` via `add-json` (Codex/Gemini don't need it — all file lookups use `Path(__file__)`)
 
 Restart each CLI after registration to activate.
+
+**HTTP proxy fallback**: When `POSTGRES_DSN` is unreachable at startup and `COORDINATION_API_URL` is set to a reachable coordinator (e.g., `https://coord.rotkohl.ai`), the MCP server automatically proxies tool calls through the HTTP API instead of the local database. Set `COORDINATION_ALLOWED_HOSTS` to allow remote hosts (e.g., `coord.rotkohl.ai`) past the SSRF allowlist. See `src/http_proxy.py` for details.
 
 #### 3a.1. Install lifecycle hooks (status reporting & notifications)
 

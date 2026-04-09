@@ -47,6 +47,7 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 |------|---------|
 | `src/coordination_mcp.py` | MCP server - tools for local agents |
 | `src/coordination_api.py` | HTTP API - endpoints for cloud agents |
+| `src/http_proxy.py` | HTTP proxy transport for MCP server (fallback when local DB unavailable) |
 | `src/config.py` | Configuration from environment variables |
 | `src/locks.py` | File locking service |
 | `src/memory.py` | Episodic memory service |
@@ -162,6 +163,13 @@ SUPABASE_SERVICE_KEY=...
 # Agent identity
 AGENT_ID=claude-code-1
 AGENT_TYPE=claude_code
+
+# HTTP proxy transport (optional fallback when local DB unavailable)
+# When set, the MCP server probes POSTGRES_DSN at startup; if unreachable,
+# it routes tool calls through the HTTP API at COORDINATION_API_URL instead.
+COORDINATION_API_URL=https://coord.yourdomain.com
+COORDINATION_API_KEY=your-api-key
+COORDINATION_ALLOWED_HOSTS=coord.yourdomain.com  # SSRF allowlist for non-localhost
 
 # HTTP API
 API_HOST=0.0.0.0
