@@ -1,0 +1,184 @@
+openapi: "3.1.0"
+info:
+  title: Agent Coordinator — Help Endpoints
+  version: "0.2.0"
+  description: Progressive discovery help system for coordinator capabilities.
+
+paths:
+  /help:
+    get:
+      operationId: helpOverview
+      summary: Get compact overview of all capability groups
+      description: >
+        Returns a structured listing of all coordinator capability groups.
+        No authentication required — this is a discovery endpoint.
+      security: []
+      responses:
+        "200":
+          description: Overview of all capability topics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpOverview"
+              example:
+                version: "0.2.0"
+                usage: "Call help(topic='<name>') for detailed guidance on any topic"
+                topics:
+                  - topic: locks
+                    summary: "Exclusive file locking to prevent concurrent edits"
+                    tools_count: 3
+                  - topic: work-queue
+                    summary: "Task assignment, tracking, and dependency management"
+                    tools_count: 4
+
+  /help/{topic}:
+    get:
+      operationId: helpTopic
+      summary: Get detailed help for a specific capability group
+      description: >
+        Returns a rich guide including workflow steps, best practices,
+        code examples, and related topics. No authentication required.
+      security: []
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Capability group name (e.g., 'locks', 'work-queue', 'memory')
+          example: locks
+      responses:
+        "200":
+          description: Detailed help for the topic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpTopicDetail"
+              example:
+                topic: locks
+                summary: "Exclusive file locking to prevent concurrent edits"
+                description: "File locks prevent merge conflicts when multiple agents work on the same codebase."
+                tools:
+                  - acquire_lock
+                  - release_lock
+                  - check_locks
+                workflow:
+                  - "1. check_locks() to see if your target files are available"
+                  - "2. acquire_lock(file_path, reason='...') to claim exclusive access"
+                  - "3. Edit the file(s)"
+                  - "4. release_lock(file_path) — ALWAYS release, even on error"
+                best_practices:
+                  - "Always check locks before acquiring"
+                examples:
+                  - description: "Safe file edit pattern"
+                    code: "acquire_lock('src/main.py', reason='refactoring')"
+                related_topics:
+                  - guardrails
+                  - features
+        "404":
+          description: Unknown topic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpTopicNotFound"
+              example:
+                error: "Unknown topic: 'nonexistent'"
+                available_topics:
+                  - locks
+                  - work-queue
+                  - memory
+                hint: "GET /help for an overview of all topics"
+
+components:
+  schemas:
+    HelpOverview:
+      type: object
+      required: [version, usage, topics]
+      properties:
+        version:
+          type: string
+          description: Coordinator version
+          example: "0.2.0"
+        usage:
+          type: string
+          description: Hint on how to drill into specific topics
+        topics:
+          type: array
+          items:
+            $ref: "#/components/schemas/HelpTopicSummary"
+
+    HelpTopicSummary:
+      type: object
+      required: [topic, summary, tools_count]
+      properties:
+        topic:
+          type: string
+          description: Topic identifier
+          example: locks
+        summary:
+          type: string
+          description: One-line description
+          example: "Exclusive file locking to prevent concurrent edits"
+        tools_count:
+          type: integer
+          description: Number of tools in this group
+          example: 3
+
+    HelpTopicDetail:
+      type: object
+      required: [topic, summary, description, tools, workflow, best_practices, examples, related_topics]
+      properties:
+        topic:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+          description: 2-3 sentence overview of the capability
+        tools:
+          type: array
+          items:
+            type: string
+          description: Tool names in this group
+        workflow:
+          type: array
+          items:
+            type: string
+          description: Ordered steps for using this capability
+        best_practices:
+          type: array
+          items:
+            type: string
+          description: Tips and anti-patterns
+        examples:
+          type: array
+          items:
+            $ref: "#/components/schemas/HelpExample"
+        related_topics:
+          type: array
+          items:
+            type: string
+          description: Names of related help topics
+
+    HelpExample:
+      type: object
+      required: [description, code]
+      properties:
+        description:
+          type: string
+        code:
+          type: string
+          description: Code snippet showing usage
+
+    HelpTopicNotFound:
+      type: object
+      required: [error, available_topics]
+      properties:
+        error:
+          type: string
+        available_topics:
+          type: array
+          items:
+            type: string
+        hint:
+          type: string
