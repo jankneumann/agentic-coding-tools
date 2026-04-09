@@ -221,6 +221,76 @@ class MergeQueueEnqueueRequest(BaseModel):
     pr_url: str | None = None
 
 
+class DiscoveryRegisterRequest(BaseModel):
+    agent_id: str
+    agent_type: str
+    session_id: str | None = None
+    capabilities: list[str] | None = None
+    current_task: str | None = None
+    delegated_from: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class DiscoveryHeartbeatRequest(BaseModel):
+    agent_id: str
+    agent_type: str
+    session_id: str | None = None
+
+
+class DiscoveryCleanupRequest(BaseModel):
+    stale_threshold_minutes: int = 15
+    idle_minutes: int | None = None  # alias accepted; mapped to stale_threshold_minutes
+    dry_run: bool = False
+
+
+class GenEvalValidateRequest(BaseModel):
+    yaml_content: str
+
+
+class GenEvalCreateRequest(BaseModel):
+    category: str
+    description: str
+    interfaces: list[str]
+    scenario_type: str = "success"
+    priority: int = 2
+
+
+class GenEvalRunRequest(BaseModel):
+    mode: str = "template-only"
+    categories: list[str] | None = None
+    time_budget_minutes: float = 60.0
+
+
+class IssueSearchRequest(BaseModel):
+    query: str
+    status: str | None = None
+    labels: list[str] | None = None
+    limit: int = 50
+
+
+class IssueReadyRequest(BaseModel):
+    parent_id: str | None = None
+    issue_id: str | None = None
+    agent_id: str | None = None
+    limit: int = 50
+
+
+class PermissionRequestRequest(BaseModel):
+    agent_id: str
+    operation: str
+    justification: str | None = None
+    session_id: str | None = None
+
+
+class ApprovalSubmitRequest(BaseModel):
+    agent_id: str
+    operation: str
+    agent_type: str | None = None
+    resource: str | None = None
+    context: dict[str, Any] | None = None
+    timeout_seconds: int = 3600
+
+
 # =============================================================================
 # Auth helpers
 # =============================================================================
@@ -783,6 +853,23 @@ def create_coordination_api() -> FastAPI:
             assignee=request.assignee,
             limit=request.limit,
         )
+        return {
+            "success": True,
+            "issues": [i.to_dict() for i in issues],
+            "count": len(issues),
+        }
+
+    @app.get("/issues/blocked")
+    async def blocked_issues_early(limit: int = 50) -> dict[str, Any]:
+        """List issues blocked by unresolved dependencies. Read-only, no auth.
+
+        Registered before ``/issues/{issue_id}`` so FastAPI does not match
+        ``blocked`` as an issue_id path parameter.
+        """
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        issues = await service.blocked(limit=limit)
         return {
             "success": True,
             "issues": [i.to_dict() for i in issues],
@@ -1664,6 +1751,390 @@ def create_coordination_api() -> FastAPI:
                 "failed": bus.failed,
             },
         }
+
+    # --------------------------------------------------------------------- #
+    # DISCOVERY
+    # --------------------------------------------------------------------- #
+
+    @app.post("/discovery/register")
+    async def discovery_register(
+        request: DiscoveryRegisterRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Register an agent session for discovery."""
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="register_session",
+            context={"capabilities": request.capabilities or []},
+        )
+
+        from .discovery import get_discovery_service
+
+        result = await get_discovery_service().register(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            session_id=request.session_id,
+            capabilities=request.capabilities,
+            current_task=request.current_task,
+            delegated_from=request.delegated_from,
+        )
+        return {
+            "success": result.success,
+            "session_id": result.session_id,
+        }
+
+    @app.get("/discovery/agents")
+    async def discovery_agents(
+        capability: str | None = None,
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        """Discover agents with optional capability/status filters."""
+        from .discovery import get_discovery_service
+
+        result = await get_discovery_service().discover(
+            capability=capability,
+            status=status,
+        )
+        return {
+            "agents": [
+                {
+                    "agent_id": a.agent_id,
+                    "agent_type": a.agent_type,
+                    "session_id": a.session_id,
+                    "capabilities": a.capabilities,
+                    "status": a.status,
+                    "current_task": a.current_task,
+                    "last_heartbeat": a.last_heartbeat.isoformat()
+                    if a.last_heartbeat
+                    else None,
+                    "started_at": a.started_at.isoformat() if a.started_at else None,
+                }
+                for a in result.agents
+            ],
+        }
+
+    @app.post("/discovery/heartbeat")
+    async def discovery_heartbeat(
+        request: DiscoveryHeartbeatRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Send a heartbeat for an agent session."""
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="heartbeat",
+        )
+
+        from .discovery import get_discovery_service
+
+        result = await get_discovery_service().heartbeat(
+            session_id=request.session_id,
+            agent_id=agent_id,
+        )
+        return {
+            "success": result.success,
+            "session_id": result.session_id,
+            "error": result.error,
+        }
+
+    @app.post("/discovery/cleanup")
+    async def discovery_cleanup(
+        request: DiscoveryCleanupRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Clean up stale agent sessions and release their locks."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="cleanup_dead_agents",
+            context={
+                "stale_threshold_minutes": request.stale_threshold_minutes,
+                "dry_run": request.dry_run,
+            },
+        )
+
+        from .discovery import get_discovery_service
+
+        threshold = (
+            request.idle_minutes
+            if request.idle_minutes is not None
+            else request.stale_threshold_minutes
+        )
+        result = await get_discovery_service().cleanup_dead_agents(
+            stale_threshold_minutes=threshold,
+        )
+        return {
+            "success": result.success,
+            "agents_cleaned": result.agents_cleaned,
+            "locks_released": result.locks_released,
+        }
+
+    # --------------------------------------------------------------------- #
+    # GEN-EVAL
+    # --------------------------------------------------------------------- #
+
+    @app.get("/gen-eval/scenarios")
+    async def gen_eval_list_scenarios(
+        category: str | None = None,
+        interface: str | None = None,
+    ) -> dict[str, Any]:
+        """List gen-eval scenarios, optionally filtered by category or interface."""
+        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+        scenarios = await get_gen_eval_service().list_scenarios(
+            category=category, interface=interface
+        )
+        return {
+            "scenarios": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "category": s.category,
+                    "priority": s.priority,
+                    "interfaces": s.interfaces,
+                    "step_count": s.step_count,
+                    "tags": s.tags,
+                    "has_cleanup": s.has_cleanup,
+                    "file_path": s.file_path,
+                }
+                for s in scenarios
+            ],
+        }
+
+    @app.post("/gen-eval/validate")
+    async def gen_eval_validate(
+        request: GenEvalValidateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Validate a gen-eval scenario YAML document."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="validate_scenario",
+        )
+
+        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+        result = await get_gen_eval_service().validate_scenario(request.yaml_content)
+        return {
+            "valid": result.valid,
+            "scenario_id": result.scenario_id,
+            "step_count": result.step_count,
+            "interfaces": result.interfaces,
+            "errors": result.errors,
+        }
+
+    @app.post("/gen-eval/create")
+    async def gen_eval_create(
+        request: GenEvalCreateRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Generate a scaffold scenario YAML from a description."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="create_scenario",
+            context={"category": request.category, "priority": request.priority},
+        )
+
+        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+        result = await get_gen_eval_service().create_scenario(
+            category=request.category,
+            description=request.description,
+            interfaces=request.interfaces,
+            scenario_type=request.scenario_type,
+            priority=request.priority,
+        )
+        return result if isinstance(result, dict) else {"result": result}
+
+    @app.post("/gen-eval/run")
+    async def gen_eval_run(
+        request: GenEvalRunRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Run gen-eval testing against the coordinator's interfaces."""
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="run_gen_eval",
+            context={
+                "mode": request.mode,
+                "time_budget_minutes": request.time_budget_minutes,
+            },
+        )
+
+        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+
+        result = await get_gen_eval_service().run_evaluation(
+            mode=request.mode,
+            categories=request.categories,
+            time_budget_minutes=request.time_budget_minutes,
+        )
+        return result if isinstance(result, dict) else {"result": result}
+
+    # --------------------------------------------------------------------- #
+    # ISSUE SEARCH / READY / BLOCKED
+    # --------------------------------------------------------------------- #
+
+    @app.post("/issues/search")
+    async def search_issues(
+        request: IssueSearchRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Search issues by text matching in title and description."""
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        issues = await service.search(query=request.query, limit=request.limit)
+        return {
+            "success": True,
+            "issues": [i.to_dict() for i in issues],
+            "count": len(issues),
+        }
+
+    @app.post("/issues/ready")
+    async def ready_issues(
+        request: IssueReadyRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """List issues with no unresolved dependencies (ready to work on)."""
+        from uuid import UUID
+
+        from .issue_service import get_issue_service
+
+        service = get_issue_service()
+        parent_uuid = UUID(request.parent_id) if request.parent_id else None
+        issues = await service.ready(parent_id=parent_uuid, limit=request.limit)
+        return {
+            "success": True,
+            "issues": [i.to_dict() for i in issues],
+            "count": len(issues),
+        }
+
+    # NOTE: GET /issues/blocked is registered earlier (before /issues/{issue_id})
+    # to prevent FastAPI from matching "blocked" as an issue_id parameter.
+
+    # --------------------------------------------------------------------- #
+    # SESSION GRANTS
+    # --------------------------------------------------------------------- #
+
+    @app.post("/permissions/request")
+    async def request_permission_endpoint(
+        request: PermissionRequestRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Request a session-scoped permission grant."""
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="request_permission",
+            context={"requested_operation": request.operation},
+        )
+
+        config = get_config()
+        if not config.session_grants.enabled:
+            raise HTTPException(
+                status_code=400, detail="Session grants are not enabled"
+            )
+
+        from .session_grants import get_session_grant_service
+
+        grant = await get_session_grant_service().request_grant(
+            session_id=request.session_id or agent_id,
+            agent_id=agent_id,
+            operation=request.operation,
+            justification=request.justification,
+        )
+        return {
+            "success": True,
+            "granted": True,
+            "grant_id": grant.id,
+            "operation": grant.operation,
+        }
+
+    # --------------------------------------------------------------------- #
+    # APPROVALS (request + check)
+    # --------------------------------------------------------------------- #
+
+    @app.post("/approvals/request")
+    async def request_approval_endpoint(
+        request: ApprovalSubmitRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Submit a human-in-the-loop approval request."""
+        agent_id, agent_type = resolve_identity(
+            principal, request.agent_id, request.agent_type
+        )
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="request_approval",
+            resource=request.resource or "",
+            context={"requested_operation": request.operation},
+        )
+
+        config = get_config()
+        if not config.approval.enabled:
+            raise HTTPException(
+                status_code=400, detail="Approval gates are not enabled"
+            )
+
+        service = get_approval_service()
+        approval_request = await service.submit_request(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation=request.operation,
+            resource=request.resource,
+            context=request.context,
+            timeout_seconds=request.timeout_seconds,
+        )
+        return {
+            "success": True,
+            "request_id": approval_request.id,
+            "status": approval_request.status,
+            "expires_at": approval_request.expires_at.isoformat(),
+        }
+
+    @app.get("/approvals/{request_id}")
+    async def check_approval_endpoint(
+        request_id: str,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Check the status of an approval request."""
+        service = get_approval_service()
+        approval_request = await service.check_request(request_id)
+        if approval_request is None:
+            raise HTTPException(status_code=404, detail="Approval request not found")
+
+        result: dict[str, Any] = {
+            "success": True,
+            "request_id": approval_request.id,
+            "status": approval_request.status,
+            "agent_id": approval_request.agent_id,
+            "operation": approval_request.operation,
+            "created_at": approval_request.created_at.isoformat(),
+            "expires_at": approval_request.expires_at.isoformat(),
+        }
+        if approval_request.resource:
+            result["resource"] = approval_request.resource
+        if approval_request.decided_by:
+            result["decided_by"] = approval_request.decided_by
+        if approval_request.reason:
+            result["reason"] = approval_request.reason
+        return result
 
     # --------------------------------------------------------------------- #
     # HEALTH
