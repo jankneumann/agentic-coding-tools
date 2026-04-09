@@ -275,6 +275,17 @@
         "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
         "role": { "type": "string", "minLength": 1, "maxLength": 60 },
         "priority": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "decomposition": {
+          "type": "string",
+          "enum": ["stacked", "branch"],
+          "default": "branch",
+          "description": "Merge strategy hint: 'stacked' means the package lands on main independently (gated by a feature flag); 'branch' means it merges via a feature branch. Read by the merge train engine at enqueue time."
+        },
+        "stack_position": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position of this package in a stacked-diff ordering (0-indexed). Optional; only meaningful when decomposition == 'stacked'."
+        },
         "depends_on": {
           "type": "array",
           "items": { "$ref": "#/$defs/PackageId" },
