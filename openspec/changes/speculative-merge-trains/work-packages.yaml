@@ -1,0 +1,277 @@
+schema_version: 1
+
+feature:
+  id: speculative-merge-trains
+  title: "Speculative Merge Trains with Stacked-Diff Decomposition and Build Graph Analysis"
+  plan_revision: 1
+  created_by: claude-code
+  created_at: "2026-04-09T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: contracts/internal/merge-train-api.yaml
+    files:
+      - contracts/internal/merge-train-api.yaml
+      - contracts/internal/git-adapter-api.yaml
+      - contracts/internal/test-linker-output.yaml
+
+defaults:
+  priority: 5
+  timeout_minutes: 120
+  retry_budget: 1
+
+packages:
+  - package_id: wp-contracts
+    name: "Contracts and Schema Extensions"
+    description: "Git adapter protocol, merge train state extensions, flags schema, work-packages schema extension"
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "1.4"
+      - "1.5"
+      - "1.6"
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - agent-coordinator/src/git_adapter.py
+        - agent-coordinator/src/merge_queue.py
+        - openspec/schemas/work-packages.schema.json
+      keys:
+        - "contract:internal/merge-train-api.yaml"
+        - "contract:internal/git-adapter-api.yaml"
+        - "db:schema:feature_registry"
+      ttl_minutes: 180
+      reason: "Schema and contract definitions for merge train"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/git_adapter.py"
+        - "agent-coordinator/src/merge_queue.py"
+        - "openspec/schemas/work-packages.schema.json"
+        - "openspec/schemas/flags.schema.json"
+        - "agent-coordinator/tests/test_git_adapter.py"
+        - "agent-coordinator/tests/test_merge_queue.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "openspec/schemas/**"
+        - "contracts/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for git adapter"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_git_adapter.py -v"
+        - name: "Unit tests for merge queue extensions"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_merge_queue.py -v"
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/git_adapter.py src/merge_queue.py"
+
+  - package_id: wp-train-engine
+    name: "Train Engine — Composition, Partitioning, Ejection, Merge Execution"
+    description: "Core merge train logic: partition detection, train composition, priority eject, partition-aware merge executor"
+    tasks:
+      - "2.1"
+      - "2.2"
+      - "2.3"
+      - "2.4"
+      - "2.5"
+      - "2.6"
+      - "2.7"
+      - "2.8"
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - agent-coordinator/src/merge_queue.py
+        - agent-coordinator/src/merge_train.py
+      keys:
+        - "feature:speculative-merge-trains:train-engine"
+      ttl_minutes: 240
+      reason: "Train composition and execution engine"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/merge_train.py"
+        - "agent-coordinator/src/merge_queue.py"
+        - "agent-coordinator/tests/test_merge_train.py"
+        - "agent-coordinator/tests/test_merge_queue.py"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "contracts/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-train-engine
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for merge train"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_merge_train.py -v"
+        - name: "Unit tests for merge queue (including new methods)"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_merge_queue.py -v"
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/merge_train.py src/merge_queue.py"
+
+  - package_id: wp-build-graph
+    name: "Build Graph Extension — Test Linker and Affected-Test Query"
+    description: "Extend architecture refresh pipeline with test node extraction, TEST_COVERS edges, and affected_tests() query"
+    tasks:
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "3.4"
+      - "3.5"
+      - "3.6"
+      - "3.7"
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - skills/refresh-architecture/scripts/insights/test_linker.py
+        - skills/refresh-architecture/scripts/compile_architecture_graph.py
+      keys:
+        - "feature:speculative-merge-trains:build-graph"
+      ttl_minutes: 180
+      reason: "Build graph test analysis extension"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/scripts/insights/test_linker.py"
+        - "skills/refresh-architecture/scripts/compile_architecture_graph.py"
+        - "skills/refresh-architecture/scripts/affected_tests.py"
+        - "skills/refresh-architecture/tests/**"
+      read_allow:
+        - "skills/refresh-architecture/**"
+        - "docs/architecture-analysis/**"
+        - "contracts/**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: wp-build-graph
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for test linker"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest refresh-architecture/tests/test_test_linker.py -v"
+        - name: "Unit tests for affected_tests query"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest refresh-architecture/tests/test_affected_tests.py -v"
+        - name: "Run architecture refresh with test linker"
+          kind: command
+          command: "cd skills && .venv/bin/python refresh-architecture/scripts/compile_architecture_graph.py --input-dir ../docs/architecture-analysis --output-dir /tmp/test-arch"
+
+  - package_id: wp-feature-flags
+    name: "Lightweight Feature Flag System"
+    description: "flags.yaml registry, env var resolution, flag lifecycle (create/enable/archive), lock key integration"
+    tasks:
+      - "4.1"
+      - "4.2"
+      - "4.3"
+      - "4.4"
+      - "4.5"
+    priority: 3
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - agent-coordinator/src/feature_flags.py
+        - flags.yaml
+      keys:
+        - "feature:speculative-merge-trains:feature-flags"
+      ttl_minutes: 120
+      reason: "Feature flag system for stacked-diff gating"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/feature_flags.py"
+        - "agent-coordinator/tests/test_feature_flags.py"
+        - "flags.yaml"
+        - "openspec/schemas/flags.schema.json"
+      read_allow:
+        - "agent-coordinator/src/**"
+        - "contracts/**"
+      deny:
+        - "skills/refresh-architecture/**"
+    worktree:
+      name: wp-feature-flags
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for feature flags"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_feature_flags.py -v"
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/feature_flags.py"
+
+  - package_id: wp-integration
+    name: "Integration — MCP/HTTP Exposure, Full Lifecycle Tests, Documentation"
+    description: "Wire train service into MCP tools and HTTP API, full integration tests, documentation updates"
+    tasks:
+      - "5.1"
+      - "5.2"
+      - "5.3"
+      - "5.4"
+      - "5.5"
+      - "5.6"
+      - "5.7"
+    priority: 4
+    depends_on:
+      - wp-train-engine
+      - wp-build-graph
+      - wp-feature-flags
+    locks:
+      files:
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/coordination_api.py
+      keys:
+        - "feature:speculative-merge-trains:integration"
+      ttl_minutes: 180
+      reason: "Integration of all merge train subsystems"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/integration/**"
+        - "agent-coordinator/supabase/migrations/**"
+        - "docs/parallel-agentic-development.md"
+        - "docs/lessons-learned.md"
+      read_allow:
+        - "agent-coordinator/**"
+        - "skills/refresh-architecture/**"
+        - "contracts/**"
+        - "docs/**"
+      deny: []
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: A
+      steps:
+        - name: "Integration tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/integration/ -v -m 'not e2e'"
+        - name: "Full unit test suite"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest -m 'not e2e and not integration' -v"
+        - name: "Type checking (full)"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict src/"
+        - name: "Lint check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m ruff check src/"

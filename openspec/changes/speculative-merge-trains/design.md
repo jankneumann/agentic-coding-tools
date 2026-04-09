@@ -1,0 +1,171 @@
+# Design: Speculative Merge Trains with Stacked-Diff Decomposition and Build Graph Analysis
+
+**Change ID**: `speculative-merge-trains`
+
+## Architecture Overview
+
+This feature extends the existing merge queue from a serial sync-point to a speculative merge train engine with partition-aware parallelism. It introduces three new subsystems:
+
+```
+                     ┌──────────────────────────────────────┐
+                     │         Train Composer               │
+                     │  (compose_train, partition, order)   │
+                     └───────────────┬──────────────────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              ▼                      ▼                       ▼
+  ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
+  │  Partition A       │  │  Partition B       │  │  Partition C       │
+  │  (api:* keys)      │  │  (db:* keys)       │  │  (cross-partition) │
+  │                    │  │                    │  │                    │
+  │  ┌─Entry 1──────┐ │  │  ┌─Entry 3──────┐ │  │  ┌─Entry 5──────┐ │
+  │  │spec: main+1  │ │  │  │spec: main+3  │ │  │  │spec: main+1+5│ │
+  │  │CI: affected  │ │  │  │CI: affected  │ │  │  │CI: affected  │ │
+  │  └──────────────┘ │  │  └──────────────┘ │  │  └──────────────┘ │
+  │  ┌─Entry 2──────┐ │  │  ┌─Entry 4──────┐ │  │                    │
+  │  │spec: main+1+2│ │  │  │spec: main+3+4│ │  │                    │
+  │  │CI: affected  │ │  │  │CI: affected  │ │  │                    │
+  │  └──────────────┘ │  │  └──────────────┘ │  │                    │
+  └───────────────────┘  └───────────────────┘  └───────────────────┘
+              │                      │                       │
+              └──────────────────────┼───────────────────────┘
+                                     ▼
+                           ┌───────────────────┐
+                           │   Merge Executor   │
+                           │   (fast-forward    │
+                           │    to main)        │
+                           └───────────────────┘
+```
+
+## Design Decisions
+
+### D1: Train state stored in feature_registry.metadata JSONB
+
+**Decision**: Extend the existing `merge_queue` metadata key in `feature_registry.metadata` with train-specific fields rather than adding a new database table.
+
+**Rationale**: The merge queue already stores its state in metadata JSONB (`merge_queue.status`, `merge_queue.pr_url`, etc.). Adding `train_id`, `train_position`, `speculative_ref`, and `partition_id` to this same metadata key keeps the data model unified and avoids a new migration for a join table. PostgreSQL JSONB indexing is sufficient for the query patterns (filter by train_id, order by position).
+
+**Rejected alternative**: New `merge_trains` table with foreign key to `feature_registry`. This would give better query ergonomics but adds migration complexity and a join for every queue read.
+
+### D2: Partition detection via lock key prefix grouping
+
+**Decision**: Determine partitions by grouping entries' resource claims by lock key prefix (`api:`, `db:schema:`, `flag:`, file paths by top-level directory). Entries with non-overlapping prefix groups form independent partitions.
+
+**Rationale**: Lock key namespaces (9 prefixes defined in `docs/lock-key-namespaces.md`) already encode the resource domain. Prefix-based grouping is O(N) and deterministic — no graph traversal needed. This reuses existing infrastructure without adding dependency on the build graph (which is Phase 2).
+
+**Rejected alternative**: Build-graph-based partitioning. More accurate (detects semantic overlap) but requires the build graph to be current and adds a hard dependency on the architecture pipeline. Reserved for Phase 2 enhancement.
+
+### D3: Git adapter layer for speculative branch creation
+
+**Decision**: Introduce a `GitAdapter` protocol class that the merge train service calls for git operations (create speculative branch, merge commits, delete refs). The coordinator's merge queue calls the adapter; the adapter's implementation is injected at startup.
+
+**Rationale**: The coordinator has been git-agnostic until now. Rather than coupling `merge_queue.py` directly to subprocess git calls, the adapter pattern:
+- Keeps the service layer testable (mock adapter in tests)
+- Allows future swap to libgit2 or GitHub API
+- Isolates the blast radius of git failures
+
+**Implementation**: `agent-coordinator/src/git_adapter.py` with a `GitAdapter` protocol and `SubprocessGitAdapter` implementation.
+
+### D4: Priority eject with independence check
+
+**Decision**: When a train entry fails CI, eject it and re-queue at `merge_priority - 10` (lower priority). Entries behind the ejected entry continue if their resource claims have zero overlap with the ejected entry's claims. Otherwise, they re-speculate against the reduced train.
+
+**Rationale**: Priority eject is the fastest recovery strategy — independent entries are unaffected, and the ejected entry gets another chance after higher-priority entries merge. The independence check reuses `analyze_conflicts()` from the feature registry, which already computes claim overlap.
+
+**Rejected alternative**: Full bisect-and-rebuild (GitLab model). More robust but CI cost is proportional to failure position — if entry 2 of 10 fails, entries 3-10 all re-speculate. At 50+ entries, this is prohibitively expensive.
+
+### D5: Affected-test selection via architecture graph extension
+
+**Decision**: Extend the architecture refresh pipeline with a new `test_linker.py` insight module (Layer 2) that creates `TEST_COVERS` edges from test nodes to source nodes. The affected-test query traverses reverse edges from changed files to find covering tests.
+
+**Rationale**: The architecture graph already has import edges, call edges, and a `transitive_dependents()` traversal. Adding test nodes and `TEST_COVERS` edges lets the existing traversal machinery answer "which tests are affected by this file change?" without a new algorithm. The incremental approach (Phase 1: import-level, Phase 2: transitive, Phase 3: fixture-aware) ships value early.
+
+**Rejected alternative**: Standalone affected-test tool (e.g., pytest-testmon, coverage-based). These require runtime coverage data and don't integrate with the existing architecture graph. They also can't be queried by the merge train service without a separate data store.
+
+### D6: Stacked diffs with feature flag gating
+
+**Decision**: Work packages in stacked-diff mode (`decomposition: stacked` in work-packages.yaml) each become an independent PR targeting main. Incomplete features are gated behind flags declared in `flags.yaml` at repo root.
+
+**Rationale**: Full stacked diffs maximize merge train throughput by reducing the merge unit from "entire feature" to "single work package". Feature flags ensure partially-landed features don't affect production behavior. The `flags.yaml` registry is version-controlled, so flag state is auditable and reviewable.
+
+**Rejected alternative**: Branch-based stacking (stacked within feature branch). Simpler but doesn't reduce branch lifetime or conflict surface for the merge train — the feature branch still needs to merge to main as one unit.
+
+### D7: Feature flag implementation — environment variable with YAML fallback
+
+**Decision**: Flag resolution order: `FF_<FLAG_NAME>` environment variable → `flags.yaml` file → default (disabled). Flag names derive from the feature's change-id, normalized to uppercase with underscores.
+
+**Rationale**: Environment variables allow per-environment override (staging enables a flag, production doesn't) without code changes. `flags.yaml` provides the default state and serves as documentation. This is deliberately minimal — no runtime flag service, no A/B testing, no percentage rollouts. Those can be added later if needed.
+
+## Data Flow
+
+### Train Composition Flow
+
+```
+1. Agent calls enqueue_merge(feature_id, pr_url)
+2. MergeQueueService stores QUEUED status in metadata
+3. compose_train() is called (periodically or on enqueue):
+   a. Fetch all QUEUED entries, sorted by merge_priority
+   b. Group entries by lock key prefix → compute partitions
+   c. Within each partition, assign speculative positions
+   d. For each position, create speculative ref:
+      - Position 1: git merge-base main + entry-1
+      - Position 2: git merge-base main + entry-1 + entry-2
+      - etc.
+   e. Store train_id, position, partition_id, speculative_ref in metadata
+   f. Set status to SPECULATING
+4. External CI system runs tests for each speculative ref:
+   - Query build graph for affected tests
+   - Run only affected tests against speculative ref
+5. On CI completion:
+   - SUCCESS: Set status to SPEC_PASSED
+   - FAILURE: Call eject_from_train(feature_id)
+6. When all entries in a partition reach SPEC_PASSED:
+   - Fast-forward main to the last speculative ref
+   - Set status to MERGED for all entries
+   - Deregister from feature registry
+```
+
+### Affected-Test Query Flow
+
+```
+1. Train entry has speculative ref with changed files
+2. Query: affected_tests(changed_files) →
+   a. Find nodes in architecture.graph.json matching changed files
+   b. Compute transitive dependents of those nodes
+   c. Filter to nodes with kind="test_function" or kind="test_class"
+   d. Return unique test file paths
+3. CI runs only those test files
+4. Fallback: if graph is stale (>24h), run full test suite
+```
+
+## Migration Strategy
+
+### Phase 1: Foundation (this change)
+
+- Merge train state machine in coordinator
+- Git adapter layer
+- Partition detection
+- Test linker module (import-level)
+- `flags.yaml` schema and resolution
+- `decomposition` field in work-packages.yaml schema
+
+### Phase 2: Integration
+
+- Wire train composition into existing `/cleanup-feature` and `/merge-pull-requests` skills
+- Add transitive closure to affected-test analysis
+- Speculative branch cleanup cron job
+- CI integration (GitHub Actions `merge_group` trigger for train entries)
+
+### Phase 3: Scale
+
+- Fixture-aware test analysis
+- Train metrics (throughput, eject rate, CI time savings)
+- Adaptive partition sizing based on historical conflict data
+- Event bus notifications for train state changes (LISTEN/NOTIFY)
+
+## Security Considerations
+
+- **Speculative branches are ephemeral**: Created under `refs/speculative/train-<id>/pos-<n>`, automatically deleted after train completes or entry is ejected. Never pushed to remote (local only).
+- **Feature flags are defense-in-depth, not security gates**: Flags gate incomplete functionality, not access control. Security-critical features should not rely on flags alone.
+- **Git adapter runs with coordinator's permissions**: No privilege escalation. The adapter uses the same git identity as the coordinator process.
+- **Audit trail extended**: All train operations (compose, eject, merge, flag create/enable/archive) logged via existing audit service.

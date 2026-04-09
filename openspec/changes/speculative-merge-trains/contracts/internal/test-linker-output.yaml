@@ -1,0 +1,66 @@
+# Internal API Contract: Test Linker Output
+# Defines the output schema for the test_linker insight module and affected_tests query.
+
+test_linker_output:
+  description: |
+    Output added to architecture.graph.json by the test_linker module.
+    New nodes and edges are appended to the existing graph structure.
+  added_node_kinds:
+    - test_function
+    - test_class
+  added_edge_types:
+    - type: TEST_COVERS
+      from_kinds: [test_function, test_class]
+      to_kinds: [module, function, class]
+      required_fields:
+        confidence: enum[high, medium, low]
+        evidence: string  # e.g., "direct_import", "transitive_call"
+
+  node_schema:
+    id:
+      type: string
+      pattern: "^py:test:{module}.{function}$"
+      description: "Prefixed test node ID"
+    kind:
+      type: string
+      enum: [test_function, test_class]
+    language: "python"
+    name:
+      type: string
+      description: Function or class name
+    file:
+      type: string
+      description: Relative file path
+    span:
+      type: object
+      properties:
+        start_line: integer
+        end_line: integer
+    tags:
+      type: array
+      items: string
+      description: "Always includes 'test'; may include 'parametrized', 'async', 'fixture_using'"
+
+affected_tests_query:
+  description: |
+    Query function for determining which tests are affected by file changes.
+    Used by the merge train service to select CI scope.
+  function_signature: "affected_tests(changed_files: list[str], graph_path: str | None = None) -> list[str] | None"
+  behavior:
+    - "Returns list of test file paths affected by changed files"
+    - "Returns None if graph is stale (>24h old), signaling 'run all tests'"
+    - "Returns empty list if no tests cover the changed files"
+    - "Logs warning for uncovered modules (changed files with no covering tests)"
+  phases:
+    phase_1:
+      name: Import-level
+      algorithm: "Find test nodes that directly import changed modules"
+      confidence: high
+    phase_2:
+      name: Transitive closure
+      algorithm: "Extend to test nodes reachable via call graph from changed modules"
+      confidence: medium
+    phase_3:
+      name: Fixture-aware
+      algorithm: "Include test nodes connected via fixture dependency graph"
+      confidence: medium
