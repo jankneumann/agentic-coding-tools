@@ -505,3 +505,125 @@ class TestMergeQueueEntryFromFeature:
 
         assert entry.merge_status == MergeStatus.READY
         assert entry.pr_url == "https://github.com/pr/1"
+
+
+# ---------------------------------------------------------------------------
+# Extended enqueue (tasks 2.15, 2.16) — R12, R13
+# ---------------------------------------------------------------------------
+
+
+class TestExtendedEnqueue:
+    """R13: enqueue accepts decomposition + stack_position.
+    R12: stacked-diff enqueue auto-creates a feature flag.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolate_flags(self, tmp_path, monkeypatch):
+        """Redirect flags.yaml writes to a tmp path so tests don't mutate the repo."""
+        from src import feature_flags as ff_mod
+
+        ff_mod.reset_feature_flag_service()
+        tmp_flags = tmp_path / "flags.yaml"
+        # Force the singleton to use the tmp path.
+        monkeypatch.setattr(ff_mod, "DEFAULT_FLAGS_PATH", tmp_flags)
+        yield tmp_flags
+        ff_mod.reset_feature_flag_service()
+
+    @pytest.mark.asyncio
+    async def test_enqueue_branch_is_default(
+        self, service, mock_registry, mock_db
+    ) -> None:
+        """Calling enqueue without decomposition stores 'branch' — backward compatible."""
+        feature = _make_feature("f1")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+        await service.enqueue("f1", pr_url="https://pr/1")
+        call_args = mock_db.update.call_args
+        merge_meta = call_args.kwargs["data"]["metadata"]["merge_queue"]
+        assert merge_meta["decomposition"] == "branch"
+        assert merge_meta.get("stack_position") is None
+
+    @pytest.mark.asyncio
+    async def test_enqueue_stacked_stores_position(
+        self, service, mock_registry, mock_db
+    ) -> None:
+        """Stacked enqueue stores decomposition and stack_position in metadata."""
+        feature = _make_feature("f1")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+        entry = await service.enqueue(
+            "f1",
+            pr_url="https://pr/1",
+            decomposition="stacked",
+            stack_position=2,
+        )
+        assert entry is not None
+        merge_meta = mock_db.update.call_args.kwargs["data"]["metadata"][
+            "merge_queue"
+        ]
+        assert merge_meta["decomposition"] == "stacked"
+        assert merge_meta["stack_position"] == 2
+
+    @pytest.mark.asyncio
+    async def test_enqueue_invalid_decomposition_rejected(
+        self, service, mock_registry
+    ) -> None:
+        """Unknown decomposition values are rejected with ValueError (R13 scenario 3)."""
+        feature = _make_feature("f1")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+        with pytest.raises(ValueError, match="decomposition"):
+            await service.enqueue("f1", decomposition="invalid")
+
+    @pytest.mark.asyncio
+    async def test_stacked_enqueue_creates_flag(
+        self, service, mock_registry, mock_db, _isolate_flags
+    ) -> None:
+        """First stacked enqueue for a feature creates a feature flag (R12 scenario 1)."""
+        from src import feature_flags as ff_mod
+
+        feature = _make_feature("my-feature")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+
+        await service.enqueue(
+            "my-feature",
+            decomposition="stacked",
+            stack_position=1,
+        )
+
+        ff = ff_mod.get_feature_flag_service()
+        registry = ff.load()
+        assert "MY_FEATURE" in registry
+        assert registry["MY_FEATURE"].status == "disabled"
+
+    @pytest.mark.asyncio
+    async def test_subsequent_stacked_enqueue_reuses_flag(
+        self, service, mock_registry, mock_db, _isolate_flags
+    ) -> None:
+        """Enqueuing the second package doesn't overwrite the flag (R12 scenario 2)."""
+        from src import feature_flags as ff_mod
+
+        feature = _make_feature("my-feature")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+
+        # First enqueue creates the flag, then we manually enable it.
+        await service.enqueue("my-feature", decomposition="stacked", stack_position=1)
+        ff = ff_mod.get_feature_flag_service()
+        ff.enable_flag("MY_FEATURE")  # simulate a human flipping it on
+
+        # Second stacked enqueue should NOT reset the flag state.
+        await service.enqueue("my-feature", decomposition="stacked", stack_position=2)
+        registry = ff.load()
+        assert registry["MY_FEATURE"].status == "enabled"
+
+    @pytest.mark.asyncio
+    async def test_branch_enqueue_does_not_create_flag(
+        self, service, mock_registry, mock_db, _isolate_flags
+    ) -> None:
+        """Non-stacked enqueue never creates flags (R12 narrow scope)."""
+        from src import feature_flags as ff_mod
+
+        feature = _make_feature("my-feature")
+        mock_registry.get_feature = AsyncMock(return_value=feature)
+
+        await service.enqueue("my-feature", decomposition="branch")
+
+        ff = ff_mod.get_feature_flag_service()
+        assert "MY_FEATURE" not in ff.load()

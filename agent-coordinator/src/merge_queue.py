@@ -14,8 +14,9 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
+from . import feature_flags
 from .audit import get_audit_service
 from .db import DatabaseClient, get_db
 from .feature_registry import (
@@ -24,6 +25,11 @@ from .feature_registry import (
     FeatureRegistryService,
     get_feature_registry_service,
 )
+
+#: Decomposition styles accepted by :meth:`MergeQueueService.enqueue`.
+#: - ``"branch"``: traditional single-branch feature (default, backward compat)
+#: - ``"stacked"``: stacked-diff work package, requires a feature flag (R12)
+VALID_DECOMPOSITIONS: frozenset[str] = frozenset({"branch", "stacked"})
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +120,9 @@ class MergeQueueService:
         self,
         feature_id: str,
         pr_url: str | None = None,
+        *,
+        decomposition: Literal["branch", "stacked"] = "branch",
+        stack_position: int | None = None,
     ) -> MergeQueueEntry | None:
         """Add a feature to the merge queue.
 
@@ -123,18 +132,47 @@ class MergeQueueService:
         Args:
             feature_id: Feature to enqueue
             pr_url: URL of the PR to merge
+            decomposition: How this feature is decomposed into PRs.
+                ``"branch"`` (default) is the legacy single-branch style.
+                ``"stacked"`` marks this as one slice of a stacked-diff feature
+                and auto-creates a disabled feature flag (R12).
+            stack_position: For ``decomposition="stacked"``, the 1-based index
+                of this slice in the stack. Ignored for branch features.
 
         Returns:
             MergeQueueEntry if successful, None if feature not found
+
+        Raises:
+            ValueError: If ``decomposition`` is not one of
+                :data:`VALID_DECOMPOSITIONS`.
         """
+        # R13 scenario 3: validate decomposition before touching the registry.
+        if decomposition not in VALID_DECOMPOSITIONS:
+            raise ValueError(
+                f"invalid decomposition: {decomposition!r} "
+                f"(must be one of {sorted(VALID_DECOMPOSITIONS)})"
+            )
+
         feature = await self.registry.get_feature(feature_id)
         if feature is None or feature.status != "active":
             return None
+
+        # R12: stacked-diff enqueues MUST have a feature flag guarding the
+        # incomplete code path. create_flag is idempotent — subsequent stacked
+        # enqueues for the same feature preserve existing flag state (so a
+        # human flipping the flag to "enabled" isn't silently reset).
+        if decomposition == "stacked":
+            feature_flags.create_flag(
+                feature_id,
+                description=f"Auto-created by merge_queue for stacked feature {feature_id!r}",
+            )
 
         merge_meta = {
             "status": MergeStatus.QUEUED.value,
             "pr_url": pr_url,
             "queued_at": datetime.now(UTC).isoformat(),
+            "decomposition": decomposition,
+            "stack_position": stack_position if decomposition == "stacked" else None,
         }
 
         # Update feature metadata with merge queue info
@@ -152,7 +190,12 @@ class MergeQueueService:
         try:
             await get_audit_service().log_operation(
                 operation="merge_queue_enqueue",
-                parameters={"feature_id": feature_id, "pr_url": pr_url},
+                parameters={
+                    "feature_id": feature_id,
+                    "pr_url": pr_url,
+                    "decomposition": decomposition,
+                    "stack_position": stack_position,
+                },
                 success=True,
             )
         except Exception:
