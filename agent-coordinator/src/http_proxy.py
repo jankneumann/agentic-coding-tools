@@ -1035,14 +1035,25 @@ async def proxy_report_status(
 async def proxy_list_scenarios(
     category: str | None = None,
     interface: str | None = None,
-) -> dict[str, Any]:
-    """Proxy list_scenarios to GET /gen-eval/scenarios."""
+) -> list[dict[str, Any]] | dict[str, Any]:
+    """Proxy list_scenarios to GET /gen-eval/scenarios.
+
+    The HTTP endpoint wraps scenarios in ``{"scenarios": [...]}`` but the MCP
+    ``list_scenarios`` tool returns a JSON-encoded raw list. Unwrap the list
+    so downstream ``json.dumps`` produces the expected shape. On error, return
+    the error dict unchanged.
+    """
     params: dict[str, Any] = {}
     if category is not None:
         params["category"] = category
     if interface is not None:
         params["interface"] = interface
-    return await _request("GET", "/gen-eval/scenarios", params=params or None)
+    response = await _request("GET", "/gen-eval/scenarios", params=params or None)
+    if isinstance(response, dict) and "scenarios" in response and "error" not in response:
+        scenarios = response["scenarios"]
+        if isinstance(scenarios, list):
+            return scenarios
+    return response
 
 
 async def proxy_validate_scenario(yaml_content: str) -> dict[str, Any]:
