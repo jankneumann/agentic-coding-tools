@@ -145,7 +145,8 @@ The coordination HTTP API SHALL expose endpoints for all MCP tools, enabling ful
 
 - WHEN the HTTP API is running
 - THEN POST /approvals/request SHALL submit a new approval request (requires API key)
-- AND GET /approvals/{request_id} SHALL return the status of a specific approval request
+- AND GET /approvals/{request_id} SHALL return the status of a specific approval request (requires API key)
+- AND the auth requirement on GET /approvals/{request_id} SHALL be consistent with the existing GET /approvals/pending endpoint
 
 #### Scenario: Approval check with invalid ID (HTTP-6a)
 
