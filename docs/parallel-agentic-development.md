@@ -278,6 +278,67 @@ Feature B (priority=2) ──enqueue──►     │
 
 States: `QUEUED → PRE_MERGE_CHECK → READY → MERGING → MERGED` (or `BLOCKED`)
 
+### Speculative Merge Trains
+
+**Implementation**: [`merge_train.py`](../agent-coordinator/src/merge_train.py) (pure engine) + [`merge_train_service.py`](../agent-coordinator/src/merge_train_service.py) (DB-backed orchestration)
+
+Merge trains extend the legacy queue into a **speculative batching layer**. Instead of merging one feature at a time, the coordinator composes a *train* of features on a periodic sweep (default 60s), speculatively merges them in chains via `git merge-tree --write-tree`, and runs CI on the speculative refs in parallel. Features that pass speculation land on `main` without waiting for the features ahead of them to finish their own CI runs.
+
+```
+Queue:           F1 F2 F3 F4 F5            ── periodic compose_train (60s)
+                 ↓  ↓  ↓  ↓  ↓
+Partition by     ┌──────────┐ ┌──────┐     ── lock-key prefix grouping (D2)
+lock prefix:     │ F1 F3 F5 │ │ F2 F4│        api:, db:schema:, flag:, …
+                 │ (api:)   │ │(db:) │
+                 └─────┬────┘ └───┬──┘
+                       ↓          ↓
+Speculative      main→F1→F3→F5    main→F2→F4   ── git merge-tree chains
+refs:            (chain per partition — disjoint partitions run in parallel)
+                       ↓          ↓
+CI (affected              parallel
+ tests or full):     verification            ── refresh-architecture probe
+                       ↓          ↓             picks "affected" vs "full suite"
+Merge wave:      F1 ✓  ──► main
+                 F3 ✓  ──► main (fast-forward if F1 already landed)
+                 F5 ✗  ──► EJECT, re-queue dependents
+                 F2 ✓  ──► main (independent partition)
+```
+
+**Key mechanisms:**
+
+- **Lock-key partitioning (D2)**: Features are grouped by the namespace prefix of their resource claims (`api:`, `db:schema:`, `event:`, `flag:`, …). Entries within a partition are serialized via chained speculative refs; different partitions merge independently. See [`lock-key-namespaces.md`](./lock-key-namespaces.md).
+- **Wave merge algorithm (D4)**: Kahn's topological sort over the "ready graph" — an entry is ready when every entry at a lower `train_position` in the same partition has merged. Cross-partition entries wait on all their spanning partitions. This is strictly serial per partition but fully parallel across partitions.
+- **Post-speculation claim validation (D8)**: After speculating, the engine diffs the file list against `file_path_to_namespaces()` and rejects entries whose *actual* touched namespaces exceed their *declared* `resource_claims`. This catches under-declared claims before they corrupt the merge order.
+- **Eject / re-queue with priority decrement (D11, D12)**: Failed entries are ejected, priority is decremented by 10, and `eject_count` is incremented. After `MAX_EJECT_COUNT=3` ejections the entry transitions to `ABANDONED` (terminal; manual re-enqueue required). Dependent successors in the same train are re-queued; claim-prefix-disjoint successors stay in place.
+- **refresh-architecture integration (R9)**: Before composing, `MergeTrainService` probes the architecture graph via [`refresh_rpc_client.py`](../agent-coordinator/src/refresh_rpc_client.py). If the graph is stale and no refresh is in flight, it fires a `trigger_refresh` (fire-and-forget) and sets `full_test_suite_required=True` on the composition so CI runs the full suite instead of the affected-tests subset. **The sentinel pattern is load-bearing**: `RefreshClientUnavailable` is a return type, not an exception — merge-train progress is NEVER blocked on refresh-architecture availability.
+- **Crash recovery / TTL (R7)**: Speculative refs carry a 6-hour TTL; orphaned refs (train_id no longer in the queue) are garbage-collected. The periodic sweep re-speculates any entry stranded in `SPECULATING` after a coordinator restart.
+
+**State machine (superset of the queue states):**
+
+```
+QUEUED ─► SPECULATING ─┬─► SPEC_PASSED ─► MERGING ─► MERGED
+                       ├─► BLOCKED (1h auto re-eval per D9)
+                       └─► EJECTED ─┬─► QUEUED (priority − 10)
+                                    └─► ABANDONED (eject_count ≥ 3)
+```
+
+**APIs:**
+
+| Surface | Tool / Endpoint | Purpose |
+|---|---|---|
+| MCP | `compose_train()` | Compose a new train on-demand (trust ≥ 3) |
+| MCP | `eject_from_train(feature_id, reason)` | Eject entry (owner OR trust ≥ 3) |
+| MCP | `get_train_status(train_id)` | List entries in a train |
+| MCP | `report_spec_result(feature_id, passed, error_message?)` | CI callback (SPECULATING → SPEC_PASSED/BLOCKED) |
+| MCP | `affected_tests(changed_files)` | Compute test subset for a candidate |
+| HTTP | `POST /merge-train/compose` | Same as MCP (X-API-Key + trust ≥ 3) |
+| HTTP | `POST /merge-train/eject` | Same as MCP |
+| HTTP | `GET /merge-train/status/{train_id}` | Same as MCP |
+| HTTP | `POST /merge-train/report-result` | Same as MCP |
+| HTTP | `POST /merge-train/affected-tests` | Same as MCP |
+
+**Background sweep**: `MergeTrainSweeper` is started in the HTTP API's lifespan hook. It calls `compose_train` every `MERGE_TRAIN_SWEEP_INTERVAL_SECONDS` (default 60). Exceptions are logged and swallowed — the sweeper MUST stay alive for the train to progress.
+
 ### Parallel Explore
 
 **Implementation**: [`skills/parallel-explore-feature/SKILL.md`](../skills/parallel-explore-feature/SKILL.md)

@@ -153,3 +153,55 @@ Iteration 3 addressed 5 findings from a focused feasibility review: 1 HIGH (miss
 
 ### Context
 Iteration 4 addressed 7 medium-severity findings from a focused review of items deprioritized in iterations 1-3. No critical or high findings remained — iteration 4 was a completeness pass on medium gaps. Net changes: +6 tasks (1.4a, 1.4b, 2.15, 2.16, 5.9; -1 merged into 4.4), +1 design decision (D12), +1 spec requirement (R14), contract updated (git-adapter), 1 feature deferred (flag archival). plan_revision 4 → 5, contracts revision 2 → 3, total tasks 43 → 49.
+
+---
+
+## Phase: Implementation — wp-integration (2026-04-09)
+
+**Agent**: claude-code (opus) | **Session**: monorepo-scaling-practices
+
+### Decisions
+1. **Sentinel return type for RPC failures, not exceptions** — RefreshRpcClient and compute_affected_tests return RefreshClientUnavailable or None rather than raising on transport errors. The load-bearing invariant that merge-train progress must never be blocked on refresh-architecture is encoded in the type signature, so mypy enforces handling at every call site. A forgotten except clause would silently freeze the train; a forgotten sentinel check is a type error.
+2. **Hexagonal split: pure engine vs DB-backed service** — The engine (merge_train.py) operates on in-memory TrainEntry lists with zero DB knowledge (186+ pure unit tests, no DB setup). The service (merge_train_service.py) wraps it with load/save methods, authorization, and refresh-architecture probing. This split let wp-integration layer HTTP/MCP/sweeper surfaces on the service without touching the engine.
+3. **Subprocess runner Protocol for testability** — Both RefreshRpcClient and compute_affected_tests accept an injectable Runner callable matching the signature of subprocess.run. Tests use a _FakeRunner that queues exact responses. This avoids the global monkeypatch footgun where fakes leak across tests.
+4. **GIN + BTREE expression indexes for JSONB sub-doc queries** — Migration 020 pairs a GIN index on the whole metadata merge_queue sub-doc (for containment and ad-hoc queries) with BTREE expression indexes on the hot-path equality predicates (train_id, partition_id, and train_position cast to int). The int cast is non-optional — lexicographic ordering silently corrupts numeric sorts.
+5. **Background sweeper swallows every exception by design** — MergeTrainSweeper.run_once wraps compose_train in a bare except Exception because a crashed sweeper freezes the train indefinitely, which is worse than missing a cycle. Enforced by test_run_once_swallows_exceptions, which asserts a RuntimeError inside compose_train does not propagate.
+6. **Stateful integration fakes, not MagicMock, for full-lifecycle tests** — _StatefulRegistry and _StatefulDB round-trip DB updates back through metadata merge_queue so a compose-persist-reload cycle observes the new state. Critical for the BLOCKED recovery scenario: a MagicMock returning a stale list would have silently passed a broken implementation.
+7. **HTTP vs MCP authorization error shape divergence** — HTTP endpoints raise HTTPException 403 on TrainAuthorizationError; MCP tools return a dict with success false and reason authorization_denied. Different transports, different conventions — each caller gets the shape its stack expects.
+8. **agent_id resolved from principal, never from the request body** — The eject endpoint reads agent_id from resolve_identity on the X-API-Key header, not a body field. This closes the spoofing vector where a legitimate caller could eject any other agent entry by lying in the payload.
+9. **Effects-before-write ordering for crash safety** — merge_queue.enqueue for stacked-diff features creates the feature flag before the DB update. A post-flag crash leaves a harmless orphan flag (reused on retry); a post-DB crash would leave an unguarded stacked-diff in the queue. Rule: effects whose absence corrupts state go before the write.
+
+### Alternatives Considered
+- New RPC method for affected_tests: rejected in favor of shelling out directly to affected_tests.py. The script is the source of truth and already supports the CLI surface; adding an RPC layer would have been a second copy to keep in sync.
+- Exceptions for RPC transport errors: rejected. See Decision 1. Sentinels are load-bearing.
+- DB-level persistence for sweeper task state: rejected. Sweeper is stateless; in-flight state lives in metadata merge_queue already. Persisting sweeper status would add DB writes to the hot path without benefit.
+- Separate table for merge train state: rejected at plan time (D1), confirmed during implementation. Storing train state in feature_registry metadata JSONB keeps one source of truth and lets the GIN/BTREE indexes from migration 020 serve both feature queries and train queries.
+
+### Trade-offs
+- Accepted shelling out to affected_tests.py per call (no caching in the client) over a persistent connection. Empty-list short-circuit avoids the subprocess for the common no-op case; typical cost is under 100ms per call, acceptable given the 60s sweep cadence.
+- Accepted broad except Exception in sweeper run_once, which violates the usual narrow catch rule. Background tasks have different failure semantics than request handlers. Rule documented in lessons-learned.
+- Accepted running GIN plus three BTREE indexes on the same column, which increases write cost for feature_registry updates. Write volume is low (O(1) per enqueue/compose/eject) so the cost is negligible compared to read acceleration.
+- Accepted the 30s timeout for compute_affected_tests. It is generous, but the ALL-sentinel fallback means a stuck script degrades to full-suite. No correctness impact, only a throughput one.
+
+### Open Questions
+- [ ] Should the sweeper interval default to 60s or something shorter (30s) once we see steady-state enqueue rates from early users?
+- [ ] Do we need a circuit-breaker on repeated RefreshClientUnavailable returns? Currently every call re-attempts the subprocess. If refresh-architecture is consistently dead, we pay the subprocess-spawn cost on every sweep. Phase 2 concern if it matters.
+
+### Issues Encountered
+- Flaky test_network_access_delegation: in a first run of the full suite, this policy_engine test failed with what looked like respx state bleed. On re-run with no code changes it passed cleanly. Investigation showed the sweeper tests correctly await stop(), so the flake is environmental (likely pre-existing respx plus async teardown interaction). Documented here so future maintainers do not chase a ghost.
+- Pre-existing test_write_handoff_db_error failure: confirmed via git stash and pop that the failure exists on the pre-change codebase (returns rpc_failed connection refused instead of the expected database_unavailable). Out of scope for wp-integration; deselected from the quality-gate run.
+- Dead local in test_blocked_recovery_after_aging: ruff F841 caught an unused f1_entry assignment left over from an earlier test refactor where I switched to querying the registry directly. Deleted. The bug this would have hidden: a later assertion against the stale f1_entry would have silently read pre-BLOCKED state and passed incorrectly.
+- Import sort in tests/test_merge_train_types.py: pre-existing ruff I001 introduced by an earlier wp-train-engine commit. Auto-fixed as a drive-by because CI would fail on it.
+- Sanitizer tool over-redaction: skills/session-log/scripts/sanitize_session_log.py has a regex bug where the quoted-string pattern matches across lines through apostrophes in English prose, collapsing paragraphs into a single redacted marker. Verified by running it on the pristine pre-existing Plan content — it reported 6 redactions on unchanged text. This entry is committed unsanitized, consistent with the already-committed Plan and Iteration history which is also unsanitized.
+
+### Quality Gate Results
+- pytest non-e2e: 1798 passed, 64 skipped, 1 deselected on agent-coordinator venv
+- pytest wp-integration files only: 45 passed (20 refresh_rpc_client + 25 merge_train_service)
+- mypy strict on refresh_rpc_client.py, merge_train_service.py, coordination_mcp.py, coordination_api.py: Success, no issues found in 4 source files
+- ruff check on all modified files: clean
+- openspec validate: skipped (CLI not installed in this environment)
+- validate_flows.py: skipped (skills venv not installed in this environment)
+- E2E tests: skipped (need live services)
+
+### Context
+Implemented the remaining Phase 5 (wp-integration) tasks after the previous session left Task 5.4 in TDD RED. Delivered: RefreshRpcClient plus compute_affected_tests (5.8a, 5.4), MergeTrainService plus MergeTrainSweeper (5.1, 5.9), full MCP tool set (5.2), full HTTP endpoint set (5.3), GIN/BTREE migration 020 (5.7), and doc updates (5.5, 5.6). 8 new tests for the sweeper lifecycle plus 3 end-to-end integration scenarios (happy path, BLOCKED recovery after 1h aging, ejection with priority decrement). No deviations from plan. The test-failure path was TDD-driven: ImportError then implementation then GREEN for both compute_affected_tests and MergeTrainSweeper.

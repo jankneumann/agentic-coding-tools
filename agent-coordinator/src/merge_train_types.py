@@ -191,6 +191,12 @@ class TrainComposition:
     partitions: list[TrainPartition] = field(default_factory=list)
     cross_partition_entries: list[CrossPartitionEntry] = field(default_factory=list)
     composed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    #: R9 / refresh-architecture integration: when the architecture graph is
+    #: stale AND the refresh subsystem is unavailable (or we decided not to wait),
+    #: the CI layer must run the FULL test suite for every entry in this train
+    #: instead of the affected-tests subset. Set by MergeTrainService based on
+    #: the refresh_rpc_client probe in compose_train.
+    full_test_suite_required: bool = False
 
     @classmethod
     def new_train_id(cls) -> str:

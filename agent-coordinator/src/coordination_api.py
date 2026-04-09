@@ -291,6 +291,21 @@ class ApprovalSubmitRequest(BaseModel):
     timeout_seconds: int = 3600
 
 
+class MergeTrainEjectRequest(BaseModel):
+    feature_id: str
+    reason: str
+
+
+class MergeTrainReportResultRequest(BaseModel):
+    feature_id: str
+    passed: bool
+    error_message: str | None = None
+
+
+class AffectedTestsRequest(BaseModel):
+    changed_files: list[str]
+
+
 # =============================================================================
 # Auth helpers
 # =============================================================================
@@ -444,9 +459,26 @@ def create_coordination_api() -> FastAPI:
                     "Watchdog startup failed.", exc_info=True,
                 )
 
+        # Start merge-train sweeper (R1/R2 — task 5.9). Disable via
+        # MERGE_TRAIN_SWEEP_DISABLED=1 for tests or manual operation.
+        from .merge_train_service import get_merge_train_sweeper
+
+        sweeper = get_merge_train_sweeper()
+        if not os.environ.get("MERGE_TRAIN_SWEEP_DISABLED", "").strip():
+            try:
+                await sweeper.start()
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "MergeTrainSweeper startup failed.", exc_info=True,
+                )
+
         yield
 
-        # Shutdown watchdog, notifier, event bus, langfuse
+        # Shutdown sweeper, watchdog, notifier, event bus, langfuse
+        try:
+            await sweeper.stop()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             await watchdog.stop()
         except Exception:  # noqa: BLE001
@@ -1628,6 +1660,201 @@ def create_coordination_api() -> FastAPI:
 
         success = await get_merge_queue_service().remove_from_queue(feature_id)
         return {"success": success, "feature_id": feature_id}
+
+    # --------------------------------------------------------------------- #
+    # MERGE TRAIN (speculative-merge-trains, task 5.3)
+    # --------------------------------------------------------------------- #
+
+    @app.post("/merge-train/compose")
+    async def compose_train_endpoint(
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Compose a new speculative merge train from the current queue.
+
+        Partitions entries by lock-key prefix, creates chained speculative
+        refs, and persists status transitions. Probes refresh-architecture
+        for graph freshness — stale/unavailable sets ``full_test_suite_required=True``.
+
+        Authorization: trust level >= 3 (D11). Violations return 403.
+        """
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="compose_train",
+        )
+        trust = await resolve_trust_level(agent_id, agent_type)
+
+        from .merge_train import TrainAuthorizationError
+        from .merge_train_service import get_merge_train_service
+
+        try:
+            composition = await get_merge_train_service().compose_train(
+                caller_trust_level=trust
+            )
+        except TrainAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
+
+        return {
+            "success": True,
+            "train_id": composition.train_id,
+            "partition_count": len(composition.partitions),
+            "cross_partition_count": len(composition.cross_partition_entries),
+            "full_test_suite_required": composition.full_test_suite_required,
+            "partitions": [
+                {
+                    "partition_id": p.partition_id,
+                    "key_prefixes": sorted(p.key_prefixes),
+                    "entries": [
+                        {
+                            "feature_id": e.feature_id,
+                            "train_position": e.train_position,
+                            "status": e.status.value,
+                            "speculative_ref": e.speculative_ref,
+                        }
+                        for e in p.entries
+                    ],
+                }
+                for p in composition.partitions
+            ],
+        }
+
+    @app.post("/merge-train/eject")
+    async def eject_from_train_endpoint(
+        request: MergeTrainEjectRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Eject a feature from its current merge train.
+
+        Authorization: caller must own the feature OR have trust level >= 3.
+        Violations return 403. Unknown feature_id returns ``success: false``
+        with reason ``feature_not_in_queue``.
+        """
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="eject_from_train",
+            resource=request.feature_id,
+        )
+        trust = await resolve_trust_level(agent_id, agent_type)
+
+        from .merge_train import TrainAuthorizationError
+        from .merge_train_service import get_merge_train_service
+
+        try:
+            result = await get_merge_train_service().eject_from_train(
+                request.feature_id,
+                reason=request.reason,
+                caller_agent_id=agent_id,
+                caller_trust_level=trust,
+            )
+        except TrainAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
+
+        if result is None:
+            return {
+                "success": False,
+                "reason": "feature_not_in_queue",
+                "feature_id": request.feature_id,
+            }
+        return {
+            "success": True,
+            "feature_id": request.feature_id,
+            "ejected": result.ejected,
+            "abandoned": result.abandoned,
+            "priority_after": result.priority_after,
+            "independent_successors": result.independent_successors,
+            "requeued_successors": result.requeued_successors,
+        }
+
+    @app.get("/merge-train/status/{train_id}")
+    async def get_train_status_endpoint(
+        train_id: str,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Return every entry currently belonging to ``train_id``.
+
+        Empty list for unknown train_ids — treat as "train no longer active"
+        (already merged or never composed).
+        """
+        from .merge_train_service import get_merge_train_service
+
+        entries = await get_merge_train_service().get_train_status(train_id)
+        return {
+            "train_id": train_id,
+            "entries": [
+                {
+                    "feature_id": e.feature_id,
+                    "status": e.status.value,
+                    "partition_id": e.partition_id,
+                    "train_position": e.train_position,
+                    "speculative_ref": e.speculative_ref,
+                    "eject_count": e.eject_count,
+                    "merge_priority": e.merge_priority,
+                    "last_eject_reason": e.last_eject_reason,
+                }
+                for e in entries
+            ],
+        }
+
+    @app.post("/merge-train/report-result")
+    async def report_spec_result_endpoint(
+        request: MergeTrainReportResultRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Record the result of speculative CI verification.
+
+        Transitions: SPECULATING + passed → SPEC_PASSED; SPECULATING + failed
+        → BLOCKED (with ``error_message`` persisted to metadata). Any other
+        status is a no-op (idempotent).
+        """
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="report_spec_result",
+            resource=request.feature_id,
+        )
+
+        from .merge_train_service import get_merge_train_service
+
+        entry = await get_merge_train_service().report_spec_result(
+            request.feature_id,
+            passed=request.passed,
+            error_message=request.error_message,
+        )
+        if entry is None:
+            return {
+                "success": False,
+                "reason": "feature_not_in_queue",
+                "feature_id": request.feature_id,
+            }
+        return {
+            "success": True,
+            "feature_id": request.feature_id,
+            "status": entry.status.value,
+            "train_id": entry.train_id,
+        }
+
+    @app.post("/merge-train/affected-tests")
+    async def affected_tests_endpoint(
+        request: AffectedTestsRequest,
+        _identity: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Compute the test subset for a given set of changed files (R9).
+
+        Shells out to ``skills/refresh-architecture/scripts/affected_tests.py``.
+        When the graph is missing/stale/bound-exceeded or any transport error
+        occurs, returns ``full_suite_required=True`` with an empty test list
+        — callers MUST run the full test suite in that case.
+        """
+        from .refresh_rpc_client import compute_affected_tests
+
+        result = compute_affected_tests(request.changed_files)
+        if result is None:
+            return {"full_suite_required": True, "test_files": []}
+        return {"full_suite_required": False, "test_files": result}
 
     # --------------------------------------------------------------------- #
     # STATUS REPORTING

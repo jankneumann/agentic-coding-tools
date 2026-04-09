@@ -2093,6 +2093,251 @@ async def remove_from_merge_queue(feature_id: str) -> dict[str, Any]:
 
 
 # =============================================================================
+# MCP TOOLS: Merge Train (speculative-merge-trains)
+# =============================================================================
+
+
+async def _current_trust_level() -> int:
+    """Resolve the caller's trust level from the profile service.
+
+    Returns 0 if no profile is found — the engine's authorization check
+    (trust >= 3) will then reject the request. Separating resolution from
+    enforcement keeps the MCP tool layer thin.
+    """
+    service = get_profiles_service()
+    result = await service.get_profile()
+    if result.profile is None:
+        return 0
+    return int(result.profile.trust_level)
+
+
+@mcp.tool()
+async def compose_train() -> dict[str, Any]:
+    """Compose a new speculative merge train from the current queue (R1, R6).
+
+    Fetches all QUEUED entries from the feature registry, partitions them by
+    lock-key prefix, creates speculative refs chained per position, and
+    persists the resulting status transitions (→ SPECULATING or SPEC_PASSED).
+
+    Probes refresh-architecture for graph freshness; on stale/unavailable,
+    the resulting train carries `full_test_suite_required=True` so CI runs
+    the full suite instead of affected-tests-only.
+
+    **Authorization**: requires trust level >= 3 (D11). Raises on violations
+    (surfaced as a dict with `success: false`).
+
+    Returns:
+        Dict with `train_id`, `partitions` (count + entry lists),
+        `cross_partition_entries`, and `full_test_suite_required`.
+    """
+    from .merge_train import TrainAuthorizationError
+    from .merge_train_service import get_merge_train_service
+
+    trust = await _current_trust_level()
+    try:
+        composition = await get_merge_train_service().compose_train(
+            caller_trust_level=trust
+        )
+    except TrainAuthorizationError as exc:
+        return {
+            "success": False,
+            "reason": "authorization_denied",
+            "error": str(exc),
+        }
+
+    return {
+        "success": True,
+        "train_id": composition.train_id,
+        "partition_count": len(composition.partitions),
+        "cross_partition_count": len(composition.cross_partition_entries),
+        "full_test_suite_required": composition.full_test_suite_required,
+        "partitions": [
+            {
+                "partition_id": p.partition_id,
+                "key_prefixes": sorted(p.key_prefixes),
+                "entries": [
+                    {
+                        "feature_id": e.feature_id,
+                        "train_position": e.train_position,
+                        "status": e.status.value,
+                        "speculative_ref": e.speculative_ref,
+                    }
+                    for e in p.entries
+                ],
+            }
+            for p in composition.partitions
+        ],
+    }
+
+
+@mcp.tool()
+async def eject_from_train(
+    feature_id: str,
+    reason: str,
+) -> dict[str, Any]:
+    """Eject a feature from its current merge train (R14).
+
+    Decrements the feature's merge_priority, marks it EJECTED (or ABANDONED
+    at MAX_EJECT_COUNT), and re-queues any dependent successors in the same
+    train. Independent successors (claim-prefix-disjoint) are left in place.
+
+    **Authorization**: the caller must be the feature's owner OR have trust
+    level >= 3 (D11). Violations return `success: false`.
+
+    Args:
+        feature_id: The feature to eject.
+        reason: Human-readable cause (e.g., "CI failure: test_auth").
+
+    Returns:
+        Dict with `ejected`, `abandoned`, `priority_after`,
+        `independent_successors`, `requeued_successors`.
+    """
+    from .merge_train import TrainAuthorizationError
+    from .merge_train_service import get_merge_train_service
+
+    trust = await _current_trust_level()
+    caller = get_agent_id()
+    try:
+        result = await get_merge_train_service().eject_from_train(
+            feature_id,
+            reason=reason,
+            caller_agent_id=caller,
+            caller_trust_level=trust,
+        )
+    except TrainAuthorizationError as exc:
+        return {
+            "success": False,
+            "reason": "authorization_denied",
+            "error": str(exc),
+        }
+
+    if result is None:
+        return {
+            "success": False,
+            "reason": "feature_not_in_queue",
+            "feature_id": feature_id,
+        }
+    return {
+        "success": True,
+        "feature_id": feature_id,
+        "ejected": result.ejected,
+        "abandoned": result.abandoned,
+        "priority_after": result.priority_after,
+        "independent_successors": result.independent_successors,
+        "requeued_successors": result.requeued_successors,
+    }
+
+
+@mcp.tool()
+async def get_train_status(train_id: str) -> dict[str, Any]:
+    """Return every entry currently belonging to a merge train.
+
+    Args:
+        train_id: Hex train identifier returned from ``compose_train``.
+
+    Returns:
+        Dict with `entries` list. Empty list for unknown train_ids —
+        treat this as "train no longer active" (already merged or never
+        composed).
+    """
+    from .merge_train_service import get_merge_train_service
+
+    entries = await get_merge_train_service().get_train_status(train_id)
+    return {
+        "train_id": train_id,
+        "entries": [
+            {
+                "feature_id": e.feature_id,
+                "status": e.status.value,
+                "partition_id": e.partition_id,
+                "train_position": e.train_position,
+                "speculative_ref": e.speculative_ref,
+                "eject_count": e.eject_count,
+                "merge_priority": e.merge_priority,
+                "last_eject_reason": e.last_eject_reason,
+            }
+            for e in entries
+        ],
+    }
+
+
+@mcp.tool()
+async def report_spec_result(
+    feature_id: str,
+    passed: bool,
+    error_message: str | None = None,
+) -> dict[str, Any]:
+    """Record the result of speculative CI verification for a train entry.
+
+    CI calls this after running the (affected or full) test suite against
+    the speculative ref. Transitions:
+        SPECULATING + passed → SPEC_PASSED
+        SPECULATING + failed → BLOCKED (with ``error_message`` in metadata)
+
+    Any other status is treated as already-acted-on (idempotent no-op).
+
+    Args:
+        feature_id: The feature whose spec run completed.
+        passed: True if the test suite passed on the speculative ref.
+        error_message: Failure details (ignored when passed=True).
+
+    Returns:
+        Dict with the entry's final status, or `success: false` if the
+        feature isn't in the queue.
+    """
+    from .merge_train_service import get_merge_train_service
+
+    entry = await get_merge_train_service().report_spec_result(
+        feature_id, passed=passed, error_message=error_message
+    )
+    if entry is None:
+        return {
+            "success": False,
+            "reason": "feature_not_in_queue",
+            "feature_id": feature_id,
+        }
+    return {
+        "success": True,
+        "feature_id": feature_id,
+        "status": entry.status.value,
+        "train_id": entry.train_id,
+    }
+
+
+@mcp.tool()
+async def affected_tests(changed_files: list[str]) -> dict[str, Any]:
+    """Compute which tests cover the given changed files (R9).
+
+    Shells out to ``skills/refresh-architecture/scripts/affected_tests.py``
+    to walk the architecture graph. When the graph is missing, stale, or the
+    BFS bound is exceeded, the response sets ``full_suite_required=True``
+    and returns an empty test list — callers MUST run the full test suite.
+
+    This tool exists so CI runners can query the coordinator (same trust
+    boundary as the rest of the merge-train flow) instead of reaching into
+    the refresh-architecture skill directly.
+
+    Args:
+        changed_files: Repo-relative file paths that changed in the train
+            candidate. Empty list returns ``test_files=[]`` with
+            ``full_suite_required=False``.
+
+    Returns:
+        Dict with:
+          - ``full_suite_required`` (bool): True if callers must run the
+            full suite (graph unavailable or transport error).
+          - ``test_files`` (list[str]): Test paths to run when not falling
+            back. Empty list means "no tests cover these files".
+    """
+    from .refresh_rpc_client import compute_affected_tests
+
+    result = compute_affected_tests(changed_files)
+    if result is None:
+        return {"full_suite_required": True, "test_files": []}
+    return {"full_suite_required": False, "test_files": result}
+
+
+# =============================================================================
 # MCP TOOLS: Status Reporting
 # =============================================================================
 

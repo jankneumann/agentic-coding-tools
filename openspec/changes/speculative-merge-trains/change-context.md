@@ -8,7 +8,7 @@
 
 | Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |
 |--------|------------|-------------|-------------|----------------|---------------|---------|----------|
-| agent-coordinator.R1 | specs/agent-coordinator/spec.md#Requirement-Speculative-Merge-Train-Composition-R1 | compose_train groups entries into partitions by lock key prefix; periodic sweep every 60s | contracts/internal/merge-train-api.yaml#/compose_train | D2, D11 | agent-coordinator/src/merge_train.py; agent-coordinator/src/merge_queue.py | tests/test_merge_train.py::test_compose_train_partitions_by_prefix; tests/test_merge_train.py::test_periodic_sweep_single_pass | --- |
+| agent-coordinator.R1 | specs/agent-coordinator/spec.md#Requirement-Speculative-Merge-Train-Composition-R1 | compose_train groups entries into partitions by lock key prefix; periodic sweep every 60s | contracts/internal/merge-train-api.yaml#/compose_train | D2, D11 | agent-coordinator/src/merge_train.py; agent-coordinator/src/merge_queue.py; agent-coordinator/src/merge_train_service.py (MergeTrainSweeper); agent-coordinator/src/coordination_api.py (lifespan wiring); agent-coordinator/src/coordination_mcp.py (MCP tools); agent-coordinator/supabase/migrations/020_merge_train_indexes.sql | tests/test_merge_train.py::test_compose_train_partitions_by_prefix; tests/test_merge_train_service.py::TestMergeTrainSweeper; tests/test_merge_train_service.py::TestFullLifecycle | --- |
 | agent-coordinator.R2 | specs/agent-coordinator/spec.md#Requirement-Speculative-Branch-Management-R2 | Git adapter creates/deletes speculative refs per train position | contracts/internal/git-adapter-api.yaml#/create_speculative_ref | D3 | agent-coordinator/src/git_adapter.py; agent-coordinator/src/merge_train.py | tests/test_git_adapter.py::test_create_speculative_ref_position_1; tests/test_git_adapter.py::test_cleanup_after_train | --- |
 | agent-coordinator.R3 | specs/agent-coordinator/spec.md#Requirement-Train-Entry-State-Machine-R3 | QUEUED→SPECULATING→SPEC_PASSED→MERGING→MERGED with EJECTED/BLOCKED/ABANDONED branches | contracts/internal/merge-train-api.yaml#/report_spec_result | D1, D12 | agent-coordinator/src/merge_train_types.py; agent-coordinator/src/merge_train.py | tests/test_merge_train_types.py::test_status_transitions; tests/test_merge_train.py::test_report_spec_result_pass_and_fail | --- |
 | agent-coordinator.R4 | specs/agent-coordinator/spec.md#Requirement-Priority-Eject-Recovery-R4 | eject_from_train decrements priority by 10, continues independent successors | contracts/internal/merge-train-api.yaml#/eject_from_train | D4 | agent-coordinator/src/merge_train.py | tests/test_merge_train.py::test_eject_independent_successors; tests/test_merge_train.py::test_eject_dependent_successors | --- |
@@ -24,7 +24,7 @@
 | agent-coordinator.R14 | specs/agent-coordinator/spec.md#Requirement-Max-Eject-Threshold-and-ABANDONED-State-R14 | eject_count, MAX_EJECT_COUNT=3, ABANDONED terminal, manual re-enqueue resets | --- | D12 | agent-coordinator/src/merge_train.py; agent-coordinator/src/merge_train_types.py | tests/test_merge_train.py::test_eject_count_increments; tests/test_merge_train.py::test_max_eject_transitions_to_abandoned; tests/test_merge_train.py::test_reenqueue_abandoned_resets | --- |
 | codebase-analysis.R1 | specs/codebase-analysis/spec.md#Requirement-Test-Node-Extraction | test_linker extracts test_function/test_class nodes with tags | contracts/internal/test-linker-output.yaml | D5 | skills/refresh-architecture/scripts/insights/test_linker.py | tests/test_test_linker.py::test_extract_test_functions; tests/test_test_linker.py::test_parametrized_tag | --- |
 | codebase-analysis.R2 | specs/codebase-analysis/spec.md#Requirement-Test-Coverage-Edge-Creation | TEST_COVERS edges from direct imports; stdlib excluded | contracts/internal/test-linker-output.yaml | D5 | skills/refresh-architecture/scripts/insights/test_linker.py | tests/test_test_linker.py::test_direct_import_edge; tests/test_test_linker.py::test_stdlib_excluded | --- |
-| codebase-analysis.R3 | specs/codebase-analysis/spec.md#Requirement-Affected-Test-Query | affected_tests(files, graph_path) -> list or None for fallback | contracts/internal/test-linker-output.yaml#/affected_tests_query | D5, D10 | skills/refresh-architecture/scripts/affected_tests.py | tests/test_affected_tests.py::test_single_file_with_test; tests/test_affected_tests.py::test_stale_graph_returns_none; tests/test_affected_tests.py::test_10k_bound | --- |
+| codebase-analysis.R3 | specs/codebase-analysis/spec.md#Requirement-Affected-Test-Query | affected_tests(files, graph_path) -> list or None for fallback | contracts/internal/test-linker-output.yaml#/affected_tests_query | D5, D10 | skills/refresh-architecture/scripts/affected_tests.py; agent-coordinator/src/refresh_rpc_client.py (compute_affected_tests); agent-coordinator/src/coordination_mcp.py (affected_tests tool); agent-coordinator/src/coordination_api.py (/merge-train/affected-tests) | tests/test_affected_tests.py::test_single_file_with_test; tests/test_affected_tests.py::test_stale_graph_returns_none; tests/test_affected_tests.py::test_10k_bound; tests/test_refresh_rpc_client.py::TestComputeAffectedTests | --- |
 
 ## Design Decision Trace
 
@@ -54,10 +54,31 @@
 
 - **Requirements traced**: 17/17 (14 agent-coordinator + 3 codebase-analysis)
 - **Tests mapped**: 17 requirements have at least one test
-- **Evidence collected**: 0/17 (to be filled during validation phase)
+- **Evidence collected**: 17/17 — full non-e2e suite passes (`1798 passed, 64 skipped` on the coordinator venv after wp-integration changes)
 - **Gaps identified**: ---
 - **Deferred items**:
   - Transitive (Phase 2) affected-test analysis — Phase 1 ships import-level only
   - Fixture-aware test analysis — deferred to Phase 2 per proposal scope boundaries
   - Feature flag archival — deferred to Phase 2 pending "release cycle" definition
   - CI integration (GitHub Actions merge_group trigger) — deferred to Phase 2
+
+## Phase 5 (wp-integration) Files Changed
+
+**Source:**
+- `agent-coordinator/src/refresh_rpc_client.py` (new) — `RefreshRpcClient` + `compute_affected_tests()` (task 5.8a, 5.4)
+- `agent-coordinator/src/merge_train_service.py` (new) — DB-backed `MergeTrainService` + `MergeTrainSweeper` periodic sweep (task 5.9)
+- `agent-coordinator/src/coordination_mcp.py` (modified) — `compose_train`, `eject_from_train`, `get_train_status`, `report_spec_result`, `affected_tests` MCP tools (tasks 5.2, 5.4)
+- `agent-coordinator/src/coordination_api.py` (modified) — `/merge-train/*` HTTP endpoints + sweeper lifespan wiring (tasks 5.3, 5.9)
+- `agent-coordinator/src/merge_train_types.py` (modified) — `DEFAULT_SWEEP_INTERVAL_SECONDS` constant
+
+**Database:**
+- `agent-coordinator/supabase/migrations/020_merge_train_indexes.sql` (new) — GIN + BTREE expression indexes on `metadata->'merge_queue'` sub-document (task 5.7)
+
+**Tests:**
+- `agent-coordinator/tests/test_refresh_rpc_client.py` (new) — 20 tests (RPC client + `compute_affected_tests`)
+- `agent-coordinator/tests/test_merge_train_service.py` (new) — 25 tests (service layer, sweeper, full lifecycle integration) covering task 5.1
+- `agent-coordinator/tests/test_merge_train_types.py` (modified) — sweep interval constant import
+
+**Docs:**
+- `docs/parallel-agentic-development.md` (modified) — "Speculative Merge Trains" subsection (task 5.5)
+- `docs/lessons-learned.md` (modified) — "Speculative Merge Train Patterns" section (task 5.6)
