@@ -26,6 +26,7 @@ class EdgeType(str, Enum):
     COMPONENT_CHILD = "component_child"
     CIRCULAR_DEPENDENCY = "circular_dependency"
     LAYER_VIOLATION = "layer_violation"
+    TEST_COVERS = "TEST_COVERS"
 
     def __str__(self) -> str:  # pragma: no cover
         return self.value
@@ -67,6 +68,8 @@ class NodeKind(str, Enum):
     STORED_FUNCTION = "stored_function"
     TRIGGER = "trigger"
     MIGRATION = "migration"
+    TEST_FUNCTION = "test_function"
+    TEST_CLASS = "test_class"
 
     def __str__(self) -> str:  # pragma: no cover
         return self.value

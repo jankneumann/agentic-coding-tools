@@ -3,17 +3,24 @@
 
 Reads per-language intermediate analysis outputs and produces the unified
 canonical architecture graph by running the insight modules in sequence
-(stages 1-3) then concurrently (stages 4-6):
+(stages 1-3b) then concurrently (stages 4-6):
 
   Sequential (graph mutations):
-    1. graph_builder      — ingest Layer 1 JSON → architecture.graph.json
-    2. cross_layer_linker — append frontend→backend api_call edges
-    3. db_linker           — append backend→database db_access edges
+    1.  graph_builder      — ingest Layer 1 JSON → architecture.graph.json
+    2.  cross_layer_linker — append frontend→backend api_call edges
+    3.  db_linker          — append backend→database db_access edges
+    3b. test_linker        — append test nodes + TEST_COVERS edges
+                             (reads test files directly, not python_analysis.json)
 
   Concurrent (read-only analysis from the linked graph):
     4. flow_tracer        — infer cross-layer flows
     5. impact_ranker      — compute high-impact nodes
     6. summary_builder    — compile summary (depends on 4 & 5 outputs)
+
+Stage 3b exists because test sources live outside the `src/` tree scanned by
+the Layer 1 Python analyzer, so the insight module walks test directories
+directly. The resulting TEST_COVERS edges power ``affected_tests.py`` for
+CI scope selection by the merge train engine.
 
 Optionally emits architecture.sqlite for queryable storage.
 
@@ -44,6 +51,7 @@ from insights import flow_tracer  # noqa: E402
 from insights import graph_builder  # noqa: E402
 from insights import impact_ranker  # noqa: E402
 from insights import summary_builder  # noqa: E402
+from insights import test_linker  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +260,8 @@ def compile_graph(
     output_dir: Path,
     summary_limit: int,
     emit_sqlite_flag: bool,
+    repo_root: Path | None = None,
+    test_dirs: list[Path] | None = None,
 ) -> int:
     """Run the full compilation pipeline by delegating to insight modules.
 
@@ -281,6 +291,18 @@ def compile_graph(
     rc = db_linker.run(input_dir=input_dir, output_path=graph_path)
     if rc != 0:
         logger.error("db_linker failed.")
+        return rc
+
+    # Stage 3b: Test linking — discover tests, add TEST_COVERS edges
+    logger.info("Stage 3b: Test linking (tests → source modules)...")
+    rc = test_linker.run(
+        input_dir=input_dir,
+        output_path=graph_path,
+        repo_root=repo_root,
+        test_dirs=test_dirs,
+    )
+    if rc != 0:
+        logger.error("test_linker failed.")
         return rc
 
     # ── Concurrent stages (read-only analysis) ───────────────────────────
@@ -355,6 +377,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Also emit architecture.sqlite for queryable storage",
     )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=None,
+        help="Repository root used by test_linker (default: current working directory)",
+    )
+    parser.add_argument(
+        "--test-dir",
+        action="append",
+        default=None,
+        type=Path,
+        help=(
+            "Test directory for test_linker to scan (repeatable). "
+            "Defaults to <repo-root>/tests if omitted."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -367,6 +405,8 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         summary_limit=args.summary_limit,
         emit_sqlite_flag=args.sqlite,
+        repo_root=args.repo_root,
+        test_dirs=args.test_dir,
     )
 
 

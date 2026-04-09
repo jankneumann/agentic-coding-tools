@@ -321,3 +321,63 @@ def test_config_schema_warns_on_unknown_top_level_key(tmp_path: Path) -> None:
         load_config(config_path)
         warning_messages = [str(x.message) for x in w]
         assert any("experimental" in msg for msg in warning_messages)
+
+
+def test_stage3b_test_linker_adds_test_covers_edges(
+    input_dir: Path, tmp_path: Path
+) -> None:
+    """Stage 3b should emit test nodes and TEST_COVERS edges when test files exist.
+
+    Covers wp-build-graph task 3.7c: pipeline integration verification.
+    """
+    import textwrap
+
+    from compile_architecture_graph import compile_graph
+
+    # Create a small test directory outside input_dir with a test that
+    # imports a module present in the python_analysis fixture.
+    repo_root = tmp_path / "fake_repo"
+    tests_dir = repo_root / "tests"
+    tests_dir.mkdir(parents=True)
+    # The python_analysis.json fixture declares a module — we probe for any
+    # module name to import so the TEST_COVERS edge has a matching node.
+    with open(input_dir / "python_analysis.json") as f:
+        py_data = json.load(f)
+    module_names = [
+        m.get("qualified_name") or m.get("name")
+        for m in py_data.get("modules", [])
+    ]
+    module_names = [m for m in module_names if m]
+    if not module_names:
+        pytest.skip("fixture has no python modules; cannot exercise test_linker")
+    target = module_names[0]
+    (tests_dir / "test_synthetic.py").write_text(
+        textwrap.dedent(
+            f"""
+            import {target}
+
+            def test_smoke():
+                assert {target} is not None
+            """
+        ).strip()
+    )
+
+    rc = compile_graph(
+        input_dir=input_dir,
+        output_dir=input_dir,
+        summary_limit=50,
+        emit_sqlite_flag=False,
+        repo_root=repo_root,
+        test_dirs=[tests_dir],
+    )
+    assert rc == 0
+
+    graph = json.loads((input_dir / "architecture.graph.json").read_text())
+    # Test nodes must have been added
+    test_nodes = [n for n in graph["nodes"] if n.get("kind") == "test_function"]
+    assert test_nodes, "Stage 3b did not add test nodes to the graph"
+    assert any(n["name"] == "test_smoke" for n in test_nodes)
+
+    # TEST_COVERS edges must appear
+    test_covers = [e for e in graph["edges"] if e.get("type") == "TEST_COVERS"]
+    assert test_covers, "Stage 3b did not add TEST_COVERS edges to the graph"
