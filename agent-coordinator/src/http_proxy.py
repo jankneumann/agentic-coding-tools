@@ -276,13 +276,21 @@ async def _request(
             params=params,
         )
     except httpx.TimeoutException:
+        _log.debug("http_proxy timeout: %s %s", method, path)
         return _error_response("timeout", path=path)
     except httpx.ConnectError as exc:
+        _log.debug("http_proxy connect error: %s %s: %s", method, path, exc)
         return _error_response("connection_error", detail=str(exc), path=path)
     except httpx.HTTPError as exc:
+        _log.debug("http_proxy network error: %s %s: %s", method, path, exc)
         return _error_response("network_error", detail=str(exc), path=path)
 
     if response.status_code == 401:
+        _log.warning(
+            "http_proxy auth failed: %s %s — check COORDINATION_API_KEY",
+            method,
+            path,
+        )
         return _error_response(
             "authentication_failed",
             detail="COORDINATION_API_KEY may be missing or invalid",
@@ -294,6 +302,13 @@ async def _request(
             body = response.json()
         except Exception:  # noqa: BLE001
             body = {"detail": response.text}
+        _log.debug(
+            "http_proxy %d: %s %s: %s",
+            response.status_code,
+            method,
+            path,
+            body,
+        )
         return _error_response(
             f"http_{response.status_code}",
             status_code=response.status_code,
@@ -303,6 +318,7 @@ async def _request(
     try:
         return response.json()  # type: ignore[no-any-return]
     except Exception as exc:  # noqa: BLE001
+        _log.debug("http_proxy invalid JSON: %s %s: %s", method, path, exc)
         return _error_response("invalid_json_response", detail=str(exc))
 
 
@@ -329,10 +345,7 @@ async def proxy_acquire_lock(
         "reason": reason,
         "ttl_minutes": ttl_minutes or 120,
     }
-    result = await _request("POST", "/locks/acquire", json_body=body)
-    if "error" in result:
-        return result
-    return result
+    return await _request("POST", "/locks/acquire", json_body=body)
 
 
 async def proxy_release_lock(file_path: str) -> dict[str, Any]:
@@ -349,17 +362,44 @@ async def proxy_check_locks(
 ) -> list[dict[str, Any]]:
     """Proxy check_locks to GET /locks/status/{file_path} (one probe per path).
 
-    The HTTP API exposes per-file status via GET /locks/status/{file_path}.
-    When file_paths is None, we cannot enumerate all locks via HTTP, so we
-    return an empty list with a warning in the error field.
+    Transforms the HTTP per-file response shape into the flat list shape that
+    the MCP ``check_locks`` tool returns:
+
+        [{"file_path", "locked_by", "agent_type", "locked_at", "expires_at", "reason"}]
+
+    The HTTP endpoint returns either ``{"locked": False, "file_path": ...}`` or
+    ``{"locked": True, "file_path": ..., "lock": {...}}``. Only locked files are
+    included in the result, matching MCP behaviour.
+
+    When ``file_paths`` is None, the HTTP API has no "list all locks" endpoint,
+    so we return an empty list (graceful degradation — callers should pass
+    explicit paths when running in proxy mode).
     """
+    from urllib.parse import quote
+
     if not file_paths:
         return []
     results: list[dict[str, Any]] = []
     for path in file_paths:
-        result = await _request("GET", f"/locks/status/{path}")
-        if "error" not in result:
-            results.append(result)
+        # URL-encode the path but preserve forward slashes (the HTTP route uses
+        # ``{file_path:path}`` which captures slashes in the path parameter).
+        encoded = quote(path, safe="/")
+        response = await _request("GET", f"/locks/status/{encoded}")
+        if "error" in response:
+            continue
+        if not response.get("locked"):
+            continue
+        lock = response.get("lock") or {}
+        results.append(
+            {
+                "file_path": response.get("file_path", path),
+                "locked_by": lock.get("locked_by"),
+                "agent_type": lock.get("agent_type"),
+                "locked_at": lock.get("locked_at"),
+                "expires_at": lock.get("expires_at"),
+                "reason": lock.get("reason"),
+            }
+        )
     return results
 
 
