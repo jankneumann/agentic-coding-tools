@@ -19,8 +19,24 @@
   **Design decisions**: D1 (metadata JSONB storage)
   **Dependencies**: None
 
-- [ ] 1.4 Create `merge_train_types.py` — data types for train entries, partitions, and compositions. Extend `MergeStatus` enum with SPECULATING, SPEC_PASSED, EJECTED states. This file is the shared type definition — `merge_queue.py` and `merge_train.py` both import from it.
+- [ ] 1.4 Create `merge_train_types.py` — data types for train entries, partitions, and compositions. Extend `MergeStatus` enum with SPECULATING, SPEC_PASSED, EJECTED, ABANDONED states (ABANDONED = terminal state after max eject threshold; see D12). Add `eject_count: int` and `last_eject_reason: str | None` fields to TrainEntry metadata. This file is the shared type definition — `merge_queue.py` and `merge_train.py` both import from it.
   **Dependencies**: 1.3
+
+- [ ] 1.4a Write tests for `file_path_to_namespaces(path: str) -> set[str]` — the inverse mapping from a repo-relative file path to the set of lock-key namespaces that path could belong to. Tests MUST cover: `src/api/**` → `{"api:"}`, `src/db/schema/**` and `**/models/**` → `{"db:schema:"}`, `**/migrations/**` → `{"db:migration-slot"}`, `src/events/**` → `{"event:"}`, `contracts/**` → `{"contract:"}`, unrelated paths (e.g., `README.md`, `docs/**`) → `set()` (empty). Tests MUST include a "path maps to no namespace" case that the caller handles as "claim validation cannot verify, log info".
+  **Spec scenarios**: agent-coordinator.8 (claim matches), agent-coordinator.8 (claim mismatch)
+  **Design decisions**: D8 (post-speculation validation)
+  **Dependencies**: 1.3
+
+- [ ] 1.4b Implement `file_path_to_namespaces(path: str) -> set[str]` in `merge_train_types.py`. The mapping is heuristic: it returns the set of namespaces the path is LIKELY related to, not a guarantee. The algorithm applies rules in priority order (first match wins unless multiple rules overlap — then union):
+  - `contracts/**` → `{"contract:"}`
+  - `**/migrations/**` or `supabase/migrations/**` → `{"db:migration-slot"}`
+  - `**/schema*.py`, `**/models/**`, `**/models.py` → `{"db:schema:"}`
+  - `src/api/**`, `**/routes/**`, `**/endpoints/**` → `{"api:"}`
+  - `src/events/**`, `**/event_handlers/**` → `{"event:"}`
+  - `flags.yaml` → `{"flag:"}`
+  - All other paths → `set()` (claim validation skips these — they are file-level locks, not logical locks)
+  The rules MUST be declared as a list of `(glob_pattern, namespace)` tuples at module level so they are unit-testable and extensible. Reference `docs/lock-key-namespaces.md` in the module docstring. Document that this is a HEURISTIC — unmapped paths do not fail claim validation, they are simply out-of-scope for logical-namespace checking (file-path locks still apply).
+  **Dependencies**: 1.4a, 1.4
 
 - [ ] 1.5 Define `flags.yaml` JSON schema (`openspec/schemas/flags.schema.json`) and create schema validation script. Schema MUST include: flag name (max 64 chars), owner (change-id), status (disabled/enabled/archived), description (max 500 chars), created_at, archived_at.
   **Spec scenarios**: (feature flag system, no spec scenario — schema-level)
@@ -48,8 +64,8 @@
   **Dependencies**: 2.2
 
 - [ ] 2.4 Implement `compose_train()` — fetch queued entries, verify caller trust level >= 3, compute partitions, assign positions, create speculative refs via git adapter using `git merge-tree --write-tree --messages <base> <branch>` (requires git 2.38+, no working directory IO).
-  **Conflict detection contract**: The git adapter MUST detect conflicts via BOTH (a) non-zero exit code from `git merge-tree` AND (b) parsing stderr for conflict markers. Conflict fingerprint is the set of file paths reported in `--messages` output. On conflict, return `MergeTreeResult(success=False, conflict_files=[...], tree_oid=None)`; on success, return `MergeTreeResult(success=True, conflict_files=[], tree_oid="<oid>")`.
-  **Tree caching**: Cache `(base_tree_oid, branch_tree_oid) -> result_tree_oid` per train_id to avoid redundant merge-tree computation across positions N and N+1 when the base doesn't change.
+  **Conflict detection contract**: The git adapter MUST detect conflicts via BOTH (a) non-zero exit code from `git merge-tree` AND (b) parsing `--messages` output for conflict markers. On conflict, return the `create_speculative_ref` output as `{success: False, tree_oid: None, commit_sha: None, conflict_files: [...], error: None}`; on success, return `{success: True, tree_oid: "<oid>", commit_sha: "<sha>", conflict_files: [], error: None}`; on non-conflict errors (git missing, network, disk), return `{success: False, tree_oid: None, commit_sha: None, conflict_files: [], error: "<message>"}`. Field names MUST match `contracts/internal/git-adapter-api.yaml`.
+  **Tree caching**: Cache `(base_tree_oid, branch_tree_oid) -> result_tree_oid` per train_id to avoid redundant merge-tree computation across positions N and N+1 when the base doesn't change. The `tree_oid` field in the contract exists specifically to enable this caching.
   **Git version check**: On adapter startup, verify `git --version` is >= 2.38; fail fast with a clear error if not.
   **Dependencies**: 2.3, 1.2
 
@@ -58,15 +74,16 @@
   **Design decisions**: D8 (post-speculation validation)
   **Dependencies**: 2.4
 
-- [ ] 2.6 Implement post-speculation claim validation — compute actual changed files from speculative ref diff, map to lock key namespaces, compare against declared claims. BLOCKED on mismatch.
-  **Dependencies**: 2.5
+- [ ] 2.6 Implement post-speculation claim validation — call git adapter `get_changed_files(speculative_ref)`, then for each changed file compute `file_path_to_namespaces(path)` (from 1.4b). Union the results into `actual_namespaces`. Extract declared namespaces from `resource_claims` (take prefix before first `:`, e.g., `api:GET /v1/users` → `api:`). If `actual_namespaces - declared_namespaces` is non-empty, transition the entry to BLOCKED with reason `claim mismatch: actual changes span namespaces {extra} not declared in resource_claims`. Files with empty namespace set (heuristic says "unknown") are skipped from validation, not treated as mismatches.
+  **Dependencies**: 2.5, 1.4b
 
-- [ ] 2.7 Write tests for `eject_from_train()` — priority decrement, independence check, re-speculation trigger, **authorization** (owner or trust level 3+), **ejection of last entry in partition**
-  **Spec scenarios**: agent-coordinator.4 (eject with independent successors), agent-coordinator.4 (eject with dependent successors), agent-coordinator.6 (eject authorization)
-  **Design decisions**: D4 (priority eject), D11 (authorization)
+- [ ] 2.7 Write tests for `eject_from_train()` — priority decrement, independence check, re-speculation trigger, **authorization** (owner or trust level 3+), **ejection of last entry in partition**, **eject_count increment**, **ABANDONED transition at MAX_EJECT_COUNT**, **re-enqueue of ABANDONED entry resets eject_count and restores priority**
+  **Spec scenarios**: agent-coordinator.R4 (eject with independent successors), agent-coordinator.R4 (eject with dependent successors), agent-coordinator.R4 (below max threshold), agent-coordinator.R4 (reaches max threshold → ABANDONED), agent-coordinator.R4 (manual re-enqueue of ABANDONED), agent-coordinator.R6 (eject authorization)
+  **Design decisions**: D4 (priority eject), D11 (authorization), D12 (max eject threshold + ABANDONED)
   **Dependencies**: 2.6
 
-- [ ] 2.8 Implement `eject_from_train(feature_id)` — verify caller authorization, eject entry, decrement priority by 10, check independence of successors via lock key overlap, trigger re-speculation for dependent successors.
+- [ ] 2.8 Implement `eject_from_train(feature_id)` — verify caller authorization, increment `eject_count`, check if `eject_count == MAX_EJECT_COUNT` (default 3): if so, transition to ABANDONED, notify owner via audit trail with reason "max_eject_exceeded", do NOT re-queue. Otherwise: transition to EJECTED, decrement priority by 10, check independence of successors via lock key overlap, trigger re-speculation for dependent successors. Also extend the existing `enqueue` path (task 2.16) to reset `eject_count = 0` and restore original `merge_priority` when an ABANDONED entry is manually re-enqueued.
+  **Design decisions**: D4, D12
   **Dependencies**: 2.7
 
 - [ ] 2.9 Write tests for BLOCKED entry recovery — manual re-enqueue, automatic re-evaluation after 1 hour, permanent BLOCKED (conflict not resolved)
@@ -91,6 +108,15 @@
 
 - [ ] 2.14 Implement crash recovery — startup routine to enumerate refs/speculative/ and delete orphans, watchdog integration for TTL-based GC of refs older than 6 hours
   **Dependencies**: 2.13
+
+- [ ] 2.15 Write tests for extended `enqueue` — accepts `decomposition` field (default "branch"), rejects invalid values, auto-creates feature flag via `feature_flags.create_flag()` on first stacked-diff enqueue for a feature, reuses existing flag on subsequent stacked-diff enqueues, registers `flag:` lock key via the existing lock service
+  **Spec scenarios**: agent-coordinator.R13 (all 3 scenarios), agent-coordinator.R12 (auto-create), agent-coordinator.R12 (reuse existing flag)
+  **Contracts**: contracts/internal/merge-train-api.yaml (if enqueue contract extended)
+  **Design decisions**: D6 (stacked diffs with flag gating), D7 (flag resolution)
+  **Dependencies**: 2.14, 4.2
+
+- [ ] 2.16 Extend `enqueue` method in `merge_queue.py` — accept optional `decomposition: Literal["stacked", "branch"] = "branch"` and `stack_position: int | None = None` parameters. Validate decomposition value (reject unknowns). On first stacked-diff enqueue for a feature, call `feature_flags.create_flag(change_id)` to auto-create the flag (idempotent — no-op if already exists). Register `flag:<name>` lock key via existing lock service. Store `decomposition` and `stack_position` in entry metadata.
+  **Dependencies**: 2.15
 
 ## Phase 3: Build Graph Extension (wp-build-graph)
 
@@ -148,13 +174,13 @@
   - If a flag referenced in code is not in `flags.yaml`: `resolve_flag()` returns `False` (disabled) and logs a warning. This makes flag removal safe — orphaned `is_enabled("OLD_FLAG")` calls degrade to disabled, not crash.
   **Dependencies**: 4.1
 
-- [ ] 4.3 Write tests for flag lifecycle — create on first stacked-diff, enable on feature completion, archive after release, **archived flags moved to flags.archive.yaml after 1 release cycle**
+- [ ] 4.3 Write tests for flag lifecycle — `create_flag(change_id)` is idempotent (returns existing flag if already present), `enable_flag(name)` transitions disabled→enabled, archival is deferred to Phase 2 (see proposal Scope Boundaries)
   **Dependencies**: 4.2
 
-- [ ] 4.4 Integrate flag creation into stacked-diff enqueue flow — auto-create flag when first stacked-diff package is enqueued
-  **Dependencies**: 4.3, 1.4
+- [ ] 4.4 Expose `create_flag(change_id)` as a public module function in `feature_flags.py` — used by `merge_queue.enqueue` (task 2.16) to auto-create flags on first stacked-diff enqueue. Must be idempotent: returns the existing Flag object if one already exists for the change_id. Writes to `flags.yaml` atomically (write to temp file, fsync, rename).
+  **Dependencies**: 4.2
 
-- [ ] 4.5 Add `flag:` lock key registration for created flags
+- [ ] 4.5 Integrate `flag:` lock key registration into `create_flag` — when a new flag is created, also register `flag:<name>` as a lock key via the existing lock service. Note: the actual enqueue-time invocation lives in task 2.16 (wp-train-engine); this task only ensures `create_flag` emits the lock registration call.
   **Dependencies**: 4.4
 
 - [ ] 4.6 Write tests verifying flagged code passes static analysis — type checking (mypy) and linting (ruff) must pass regardless of flag state
@@ -191,3 +217,12 @@
 
 - [ ] 5.8 Integrate the `refresh-architecture` trigger into compose_train flow using the 5.8a client — before composing a train, call `is_graph_stale(max_age_hours=6)`. If stale and no refresh is in flight, call `trigger_refresh` and either (a) wait up to 60s (polling `get_refresh_status` every 5s) for completion or (b) proceed with a "full test suite needed" flag on all entries (configurable per deployment). If the client returns `RefreshClientUnavailable`, log a warning and proceed with the full-suite fallback (no exception raised — must not block train composition on an unavailable subsystem).
   **Dependencies**: 5.1, 3.7, 5.8a
+
+- [ ] 5.9 Implement the periodic compose_train sweep. compose_train is triggered two ways: (1) on-demand via the MCP/HTTP endpoints from 5.2/5.3 (called on each enqueue), and (2) by a periodic sweep that runs every `MERGE_TRAIN_SWEEP_INTERVAL_SECONDS` (default 60s, configurable via env var). The sweep owner is a new background task registered in the coordinator startup (`agent-coordinator/src/coordination_service.py` or equivalent lifecycle hook), using `asyncio.create_task` with cancellation on shutdown. The sweep task MUST:
+  - Be idempotent (no-op if no QUEUED entries)
+  - Honor the existing authorization model (sweep runs as the coordinator service identity, trust level 3)
+  - Log start/end/duration of each sweep at INFO level
+  - Catch and log exceptions without crashing the task (it must keep running across errors)
+  - Be testable via a "single-pass" mode that runs once and returns (for integration tests)
+  **Spec scenarios**: new scenario under R1 covering periodic invocation
+  **Dependencies**: 5.2, 5.3

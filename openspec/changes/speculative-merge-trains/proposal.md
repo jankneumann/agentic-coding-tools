@@ -57,7 +57,7 @@ Add a minimal feature flag mechanism for safe stacked-diff-to-main workflow:
 
 - **`flags.yaml` registry**: Declares flags with name, owner (change-id), status (disabled/enabled/archived), and description
 - **Runtime resolution**: Environment variable override (`FF_<FLAG_NAME>=1`) with fallback to `flags.yaml`
-- **Lifecycle**: Flag created when first stacked-diff package lands. Flag enabled when all packages in the feature land and pass integration tests. Flag archived after one release cycle.
+- **Lifecycle (Phase 1)**: Flag created when first stacked-diff package lands. Flag enabled manually when all packages in the feature land and pass integration tests. Archival is deferred to Phase 2 (see Scope Boundaries) — requires a well-defined "release cycle" concept.
 - **Lock key integration**: Flags register as `flag:<name>` lock keys so the coordinator tracks ownership.
 
 ## Approaches Considered
@@ -151,6 +151,7 @@ Add a minimal feature flag mechanism for safe stacked-diff-to-main workflow:
 - Build-graph-based partition detection (replace prefix-based with semantic overlap analysis)
 - Train metrics and adaptive partition sizing
 - CI integration (GitHub Actions `merge_group` trigger for train entries)
+- Feature flag archival mechanism (`flags.archive.yaml`, release-cycle definition, auto-archive trigger). Phase 1 supports `disabled`/`enabled` flag states only; archival requires defining "release cycle" operationally (git tag cadence? time window? manual trigger?) which is out of scope for this change.
 
 ## Dependencies
 
