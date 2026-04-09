@@ -95,12 +95,9 @@ If `CAN_HANDOFF=true`, read recent handoff context. If `CAN_MEMORY=true`, recall
 The shared checkout is **read-only** -- never commit or modify files there. All planning work happens in a feature-level worktree.
 
 ```bash
+# plan-feature always runs single-agent, so WORKTREE_BRANCH == FEATURE_BRANCH here.
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>")"
 cd "$WORKTREE_PATH"
-
-# FEATURE_BRANCH is the resolved branch — default is openspec/<change-id>, but
-# may be overridden via the OPENSPEC_BRANCH_OVERRIDE env variable (e.g. when the
-# Claude cloud harness mandates a specific branch like claude/fix-<slug>).
 FEATURE_BRANCH="$WORKTREE_BRANCH"
 
 git rev-parse --show-toplevel     # Should match WORKTREE_PATH
@@ -109,7 +106,7 @@ git branch --show-current         # Should match $FEATURE_BRANCH
 
 If the worktree already exists (e.g., from a previous session), reuse it. All subsequent steps happen **inside the worktree**.
 
-**Operator branch override**: When `OPENSPEC_BRANCH_OVERRIDE` is set (e.g. by the Claude cloud harness with `claude/fix-branch-mismatch-9P9o1`), `worktree.py` uses that branch instead of `openspec/<change-id>`. Downstream push/PR steps must reference `$FEATURE_BRANCH` rather than hardcoding the openspec prefix.
+**Operator branch override**: When `OPENSPEC_BRANCH_OVERRIDE` is set (e.g. by the Claude cloud harness with `claude/fix-branch-mismatch-9P9o1`), `worktree.py` uses that branch instead of `openspec/<change-id>`. Downstream push/PR steps must reference `$FEATURE_BRANCH` rather than hardcoding the openspec prefix. If `implement-feature` later dispatches parallel work-package agents, they will each branch off `$FEATURE_BRANCH` with `--<agent-id>` suffixes (e.g. `claude/fix-branch-mismatch-9P9o1--wp-backend`) and merge back into `$FEATURE_BRANCH` at integration time.
 
 ### 2. Review Existing Context (Parallel Exploration) [all tiers]
 

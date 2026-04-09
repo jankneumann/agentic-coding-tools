@@ -4,6 +4,11 @@
 Merges one or more package branches into a feature branch, detecting
 conflicts and reporting results as structured JSON or human-readable text.
 
+Branch names are resolved via ``worktree.py``'s registry and
+``OPENSPEC_BRANCH_OVERRIDE`` environment variable so this script picks the
+same branches that the work-package agents actually committed to — see the
+``resolve_branch`` helper below for the precedence chain.
+
 Usage:
     python3 scripts/merge_worktrees.py <change-id> <package-id> [<package-id>...] [--dry-run] [--json]
 """
@@ -12,9 +17,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
+
+# Share branch resolution logic with worktree.py so both scripts always
+# agree on what branch a given (change-id, agent-id) pair resolves to.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from worktree import (  # noqa: E402
+    find_entry,
+    load_registry,
+    resolve_branch as _resolve_branch,
+    resolve_main_repo,
+    resolve_parent_branch as _resolve_parent_branch,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -50,18 +68,46 @@ def resolve_repo_root(cwd: str | None = None) -> str:
 # Branch name computation
 # ---------------------------------------------------------------------------
 
-def feature_branch(change_id: str) -> str:
-    """Compute the feature branch name for a change-id."""
-    return f"openspec/{change_id}"
+def feature_branch(change_id: str, cwd: str | None = None) -> str:
+    """Resolve the feature branch name for a change-id.
 
-
-def package_branch(change_id: str, package_id: str) -> str:
-    """Compute the package branch name for a change-id and package-id.
-
-    Uses '--' separator instead of '/' to avoid git ref conflicts:
-    git cannot have both refs/heads/openspec/foo and refs/heads/openspec/foo/bar.
+    Precedence:
+      1. Registry entry (change_id, agent_id=None) — records what setup used
+      2. ``OPENSPEC_BRANCH_OVERRIDE`` environment variable
+      3. Default ``openspec/<change-id>``
     """
-    return f"openspec/{change_id}--{package_id}"
+    try:
+        main_repo = resolve_main_repo(cwd)
+        registry = load_registry(main_repo)
+        entry = find_entry(registry, change_id, None)
+        if entry and entry.get("branch"):
+            return str(entry["branch"])
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        # Fall through to env/default resolution if we can't reach the registry
+        pass
+    return _resolve_parent_branch(change_id, env=os.environ)
+
+
+def package_branch(change_id: str, package_id: str, cwd: str | None = None) -> str:
+    """Resolve the package branch name for a (change-id, package-id) pair.
+
+    Uses the same precedence as ``feature_branch`` plus the ``--<package-id>``
+    agent suffix. The ``--`` separator (not ``/``) avoids the git ref storage
+    collision where ``refs/heads/a/b`` and ``refs/heads/a/b/c`` cannot coexist.
+
+    When ``OPENSPEC_BRANCH_OVERRIDE=claude/op-9P9o1`` is set, the work packages
+    land on branches like ``claude/op-9P9o1--wp-backend`` — this function
+    returns that exact name, matching what ``worktree.py setup`` created.
+    """
+    try:
+        main_repo = resolve_main_repo(cwd)
+        registry = load_registry(main_repo)
+        entry = find_entry(registry, change_id, package_id)
+        if entry and entry.get("branch"):
+            return str(entry["branch"])
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass
+    return _resolve_branch(change_id, agent_id=package_id, env=os.environ)
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +143,7 @@ def merge_packages(
     Returns:
         Result dict with success status, merged list, and conflicts.
     """
-    feat_branch = feature_branch(change_id)
+    feat_branch = feature_branch(change_id, cwd=cwd)
     merged: list[str] = []
     conflicts: list[dict[str, Any]] = []
 
@@ -107,7 +153,7 @@ def merge_packages(
         run_git("checkout", feat_branch, cwd=cwd)
 
     for pkg_id in package_ids:
-        branch = package_branch(change_id, pkg_id)
+        branch = package_branch(change_id, pkg_id, cwd=cwd)
 
         # Verify branch exists
         ref_check = run_git(

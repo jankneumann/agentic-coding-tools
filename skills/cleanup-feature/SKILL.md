@@ -80,10 +80,19 @@ openspec show $CHANGE_ID
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup)"
 cd "$WORKTREE_PATH"
 
-# Resolved branch — honors OPENSPEC_BRANCH_OVERRIDE if set.
-# Note: with --agent-id cleanup, the default branch is openspec/<change-id>--cleanup,
-# but OPENSPEC_BRANCH_OVERRIDE (if set) supersedes that and is used verbatim.
-FEATURE_BRANCH="$WORKTREE_BRANCH"
+# The cleanup worktree is on its OWN scratch branch (with the --cleanup suffix),
+# so that cleanup operations don't collide with a still-running implementation
+# worktree. We need two distinct branch variables:
+#
+#   CLEANUP_BRANCH — this worktree's own branch (openspec/<change-id>--cleanup
+#                    by default, or <override>--cleanup when OPENSPEC_BRANCH_OVERRIDE
+#                    is set). Used for teardown.
+#   FEATURE_BRANCH — the PARENT feature branch being merged/deleted. This is
+#                    the branch implement-feature pushed and opened a PR against.
+#                    Used for gh pr merge, git branch -d, and lock cleanup.
+CLEANUP_BRANCH="$WORKTREE_BRANCH"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
+FEATURE_BRANCH="$BRANCH"
 ```
 
 ### 2. Verify PR is Approved

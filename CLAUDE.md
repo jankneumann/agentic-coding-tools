@@ -70,7 +70,15 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 - **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
 - **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
 - **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
-- **Operator branch override**: Set `OPENSPEC_BRANCH_OVERRIDE=<branch>` in the environment to force `worktree.py setup` to use that branch instead of the default `openspec/<change-id>`. This is the mechanism by which the Claude cloud harness (or any operator) can mandate a specific branch like `claude/fix-<slug>` for an entire session. Precedence: explicit `--branch` flag > `OPENSPEC_BRANCH_OVERRIDE` env var > `openspec/<change-id>` default. The override applies to every phase (plan, implement, cleanup) as long as the env var stays set — if plan uses the override but implement doesn't, the two phases will diverge onto different branches. `worktree.py setup` emits `WORKTREE_BRANCH=<resolved>` on stdout; skills must capture this (via `eval`) and use `$FEATURE_BRANCH="$WORKTREE_BRANCH"` in downstream push/PR/branch-delete commands rather than hardcoding the `openspec/` prefix.
+- **Operator branch override**: Set `OPENSPEC_BRANCH_OVERRIDE=<branch>` in the environment to force `worktree.py setup` to use that branch instead of the default `openspec/<change-id>`. This is how the Claude cloud harness (or any operator) mandates a specific branch like `claude/fix-<slug>` for an entire session.
+  - **Precedence**: explicit `--branch` flag > `OPENSPEC_BRANCH_OVERRIDE` env var > `openspec/<change-id>` default.
+  - **Session stability**: The override must stay set for every phase (plan → implement → cleanup) or phases will diverge onto different branches.
+  - **Agent-id composition**: When both the override AND `--agent-id` are passed, they compose as `<override>--<agent-id>` (e.g. `claude/op-9P9o1--wp-backend`). This preserves the existing parallel-disambiguation scheme so work-package agents don't clobber each other's commits. The `--` separator avoids the git ref storage collision that `/` would cause.
+  - **Parent vs agent branch**: Two branch variables matter for skills that operate on both:
+    - `$WORKTREE_BRANCH` (emitted by `worktree.py setup` via stdout `eval`) — this worktree's own branch, which for parallel agents is `<parent>--<agent-id>`.
+    - `$FEATURE_BRANCH` (query via `worktree.py resolve-branch <change-id> --parent`) — the PARENT feature/session branch, used for `git push`, `gh pr create/merge`, `git branch -d`, and lock cleanup.
+    In single-agent mode they're equal; in parallel mode they differ.
+  - **Branch resolution sharing**: `merge_worktrees.py` imports `resolve_branch`/`resolve_parent_branch` from `worktree.py` so both scripts always agree on what branch a given `(change-id, agent-id)` pair resolves to. Don't introduce a third copy of this logic elsewhere — call into `worktree.py` or use the `resolve-branch` CLI subcommand.
 
 ### Sync-Point Skills
 

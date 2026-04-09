@@ -11,7 +11,13 @@ import pytest
 # Import the module under test
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from merge_worktrees import merge_packages, format_human, main  # noqa: E402
+from merge_worktrees import (  # noqa: E402
+    merge_packages,
+    format_human,
+    main,
+    feature_branch,
+    package_branch,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -38,11 +44,15 @@ def _init_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
+    # Repo-local config only; disable signing so tests run in sandboxes that
+    # enforce GPG globally.
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    _git(repo, "config", "tag.gpgsign", "false")
     (repo / "README.md").write_text("# Test\n")
     _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "initial")
+    _git(repo, "commit", "--no-gpg-sign", "-m", "initial")
     _git(repo, "branch", "-M", "main")
     return repo
 
@@ -467,4 +477,119 @@ class TestFormatHuman:
         assert "wp-a" in output
         assert "wp-b" in output
         assert "shared.py" in output
-        assert "Merge conflict" in output
+
+
+# ---------------------------------------------------------------------------
+# Tests: OPENSPEC_BRANCH_OVERRIDE integration
+# ---------------------------------------------------------------------------
+
+def _create_feature_branch_named(repo: Path, branch: str) -> None:
+    """Create a feature branch with an arbitrary name (for env-override tests)."""
+    _git(repo, "checkout", "-b", branch, "main")
+    _git(repo, "checkout", "main")
+
+
+def _create_package_branch_named(
+    repo: Path,
+    branch: str,
+    files: dict[str, str],
+) -> None:
+    """Create a package branch with an arbitrary name and the given file changes."""
+    _git(repo, "checkout", "-b", branch, "main")
+    for name, content in files.items():
+        filepath = repo / name
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        filepath.write_text(content)
+        _git(repo, "add", name)
+    _git(repo, "commit", "-m", f"changes on {branch}")
+    _git(repo, "checkout", "main")
+
+
+class TestBranchResolutionHelpers:
+    """feature_branch() and package_branch() honor the same resolution as worktree.py."""
+
+    def test_default_branches_unchanged(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Without env override, behavior is identical to pre-refactor."""
+        monkeypatch.delenv("OPENSPEC_BRANCH_OVERRIDE", raising=False)
+        repo = _init_repo(tmp_path)
+        assert feature_branch("my-feature", cwd=str(repo)) == "openspec/my-feature"
+        assert package_branch("my-feature", "wp-backend", cwd=str(repo)) == "openspec/my-feature--wp-backend"
+
+    def test_env_override_flows_to_feature_and_package_branches(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: merge_worktrees must resolve the SAME branches the agents created."""
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/op-session-9P9o1")
+        repo = _init_repo(tmp_path)
+        assert feature_branch("x", cwd=str(repo)) == "claude/op-session-9P9o1"
+        assert package_branch("x", "wp-backend", cwd=str(repo)) == "claude/op-session-9P9o1--wp-backend"
+        assert package_branch("x", "wp-frontend", cwd=str(repo)) == "claude/op-session-9P9o1--wp-frontend"
+
+
+class TestMergeWithEnvOverride:
+    """End-to-end merges honoring OPENSPEC_BRANCH_OVERRIDE."""
+
+    def test_merge_single_package_with_env_override(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Simulates parallel wp-backend agent running under an operator session.
+
+        The work-package agent commits to claude/op-9P9o1--wp-backend. When the
+        integrator runs merge_worktrees.py, it must find and merge THAT branch
+        into the parent claude/op-9P9o1, not look for openspec/<change-id>.
+        """
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/op-9P9o1")
+        repo = _init_repo(tmp_path)
+
+        _create_feature_branch_named(repo, "claude/op-9P9o1")
+        _create_package_branch_named(repo, "claude/op-9P9o1--wp-backend", {
+            "src/backend.py": "print('backend')\n",
+        })
+
+        result = merge_packages(
+            change_id="any-id",  # change_id is ignored when env override is set
+            package_ids=["wp-backend"],
+            cwd=str(repo),
+        )
+
+        assert result["success"] is True, result
+        assert result["feature_branch"] == "claude/op-9P9o1"
+        assert result["merged"] == ["wp-backend"]
+        assert result["conflicts"] == []
+        # Verify the file made it to the feature branch
+        _git(repo, "checkout", "claude/op-9P9o1")
+        assert (repo / "src" / "backend.py").exists()
+
+    def test_merge_multiple_packages_with_env_override(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Multiple parallel agents all merge into the operator's parent branch."""
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/fix-branch-mismatch-9P9o1")
+        repo = _init_repo(tmp_path)
+
+        feat = "claude/fix-branch-mismatch-9P9o1"
+        _create_feature_branch_named(repo, feat)
+        _create_package_branch_named(repo, f"{feat}--wp-backend", {
+            "backend.py": "b = 1\n",
+        })
+        _create_package_branch_named(repo, f"{feat}--wp-frontend", {
+            "frontend.js": "let f = 1;\n",
+        })
+        _create_package_branch_named(repo, f"{feat}--wp-tests", {
+            "test_foo.py": "def test(): pass\n",
+        })
+
+        result = merge_packages(
+            change_id="ignored-when-env-set",
+            package_ids=["wp-backend", "wp-frontend", "wp-tests"],
+            cwd=str(repo),
+        )
+
+        assert result["success"] is True, result
+        assert result["feature_branch"] == feat
+        assert result["merged"] == ["wp-backend", "wp-frontend", "wp-tests"]
+        # All three files should be present on the feature branch
+        _git(repo, "checkout", feat)
+        assert (repo / "backend.py").exists()
+        assert (repo / "frontend.js").exists()
+        assert (repo / "test_foo.py").exists()

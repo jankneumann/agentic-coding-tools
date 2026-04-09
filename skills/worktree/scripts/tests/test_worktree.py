@@ -133,14 +133,22 @@ class TestDefaultBranch:
 
 
 class TestResolveBranch:
-    """Branch resolution precedence: explicit > env override > default."""
+    """Branch resolution precedence: explicit > env override > default,
+    with agent-id suffix composition for parallel disambiguation."""
 
     def test_no_override_returns_default(self) -> None:
         assert resolve_branch("change", env={}) == "openspec/change"
 
-    def test_explicit_wins_over_env(self) -> None:
+    def test_explicit_wins_over_env_and_is_verbatim(self) -> None:
+        """Explicit --branch is used verbatim; agent-id suffix is NOT applied.
+
+        This preserves backward compat with callers like openspec-beads-worktree
+        that pre-compose fully-qualified task branches and pass them via --branch.
+        """
         env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
         assert resolve_branch("change", explicit="explicit/branch", env=env) == "explicit/branch"
+        # Even with agent_id, explicit stays verbatim
+        assert resolve_branch("change", agent_id="w1", explicit="explicit/branch", env=env) == "explicit/branch"
 
     def test_env_override_used_when_no_explicit(self) -> None:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
@@ -158,11 +166,54 @@ class TestResolveBranch:
         env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
         assert resolve_branch("change", explicit="", env=env) == "operator/branch"
 
-    def test_env_override_ignores_agent_id_and_prefix(self) -> None:
-        # When an operator mandates a branch, we use it verbatim — we don't
-        # mangle it with the agent-id suffix or prefix.
+    def test_env_override_composes_with_agent_id(self) -> None:
+        """Regression: parallel work-package agents MUST get disambiguated branches.
+
+        Without this composition, wp-backend, wp-frontend, wp-integration would
+        all land on the same branch and clobber each other's commits during
+        parallel execution. The agent suffix is what keeps them isolated until
+        merge_worktrees.py integrates them.
+        """
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
+        assert resolve_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
+        assert resolve_branch("change", agent_id="wp-backend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-backend"
+        assert resolve_branch("change", agent_id="wp-frontend", env=env) == "claude/fix-branch-mismatch-9P9o1--wp-frontend"
+        assert resolve_branch("change", agent_id="cleanup", env=env) == "claude/fix-branch-mismatch-9P9o1--cleanup"
+
+    def test_env_override_with_prefix_ignores_prefix(self) -> None:
+        """When env override is set, it replaces prefix — they don't compose."""
         env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fixit"}
-        assert resolve_branch("change", agent_id="w1", prefix="fix", env=env) == "claude/fixit"
+        assert resolve_branch("change", prefix="fix", env=env) == "claude/fixit"
+        assert resolve_branch("change", agent_id="w1", prefix="fix", env=env) == "claude/fixit--w1"
+
+    def test_default_path_still_composes_with_agent_id(self) -> None:
+        """Baseline: without env override, resolve_branch matches default_branch exactly."""
+        assert resolve_branch("change", env={}) == default_branch("change")
+        assert resolve_branch("change", agent_id="w1", env={}) == default_branch("change", agent_id="w1")
+        assert resolve_branch("change", prefix="fix", env={}) == default_branch("change", prefix="fix")
+        assert resolve_branch("change", agent_id="w1", prefix="fix", env={}) == default_branch("change", agent_id="w1", prefix="fix")
+
+
+class TestResolveParentBranch:
+    """resolve_parent_branch strips any agent suffix to return the integration target."""
+
+    def test_default_parent(self) -> None:
+        from worktree import resolve_parent_branch
+        assert resolve_parent_branch("change", env={}) == "openspec/change"
+
+    def test_env_override_parent(self) -> None:
+        from worktree import resolve_parent_branch
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
+        assert resolve_parent_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
+
+    def test_parent_ignores_any_caller_agent_id_context(self) -> None:
+        """resolve_parent_branch never takes agent_id — it's the integration target."""
+        from worktree import resolve_parent_branch
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/op"}
+        # Caller didn't even get to pass agent_id — the function intentionally
+        # doesn't accept one, making it impossible to accidentally get a
+        # sub-branch back from this call.
+        assert resolve_parent_branch("change", env=env) == "claude/op"
 
 
 class TestRegistry:
@@ -293,6 +344,46 @@ class TestCmdSetup:
         assert entry is not None
         assert entry["branch"] == "claude/fix-branch-mismatch-9P9o1"
 
+    def test_env_override_composes_with_agent_id(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: parallel work-package agents must get disambiguated branches.
+
+        When OPENSPEC_BRANCH_OVERRIDE + --agent-id are both set, the resolved
+        branch is <override>--<agent-id>, not <override> verbatim. This keeps
+        parallel packages from clobbering each other.
+        """
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/op-session-9P9o1")
+
+        for agent_id in ["wp-backend", "wp-frontend", "wp-integration"]:
+            args = _make_args("setup", change_id="feat", agent_id=agent_id)
+            with _chdir(git_repo):
+                result = worktree.cmd_setup(args)
+            assert result == 0
+
+            expected_branch = f"claude/op-session-9P9o1--{agent_id}"
+            branches = subprocess.run(
+                ["git", "branch", "--list", expected_branch],
+                cwd=str(git_repo),
+                capture_output=True,
+                text=True,
+            )
+            assert expected_branch in branches.stdout, f"missing branch for {agent_id}"
+
+            reg = load_registry(git_repo)
+            entry = find_entry(reg, "feat", agent_id)
+            assert entry is not None
+            assert entry["branch"] == expected_branch
+
+        # And the parent (no agent_id) branch should be separate and creatable
+        args = _make_args("setup", change_id="feat")
+        with _chdir(git_repo):
+            worktree.cmd_setup(args)
+        reg = load_registry(git_repo)
+        parent_entry = find_entry(reg, "feat")
+        assert parent_entry is not None
+        assert parent_entry["branch"] == "claude/op-session-9P9o1"
+
     def test_explicit_branch_wins_over_env_override(
         self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -394,6 +485,39 @@ class TestCmdResolveBranch:
         captured = capsys.readouterr()
         assert "BRANCH=from-flag" in captured.out
         assert "BRANCH_SOURCE=explicit" in captured.out
+
+    def test_parent_strips_agent_id_from_registry(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--parent returns the feature branch, not the agent sub-branch.
+
+        Used by cleanup-feature: its own worktree is on <feature>--cleanup, but
+        gh pr merge / git branch -d need to target <feature>.
+        """
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/op-9P9o1")
+        # Setup both the parent and the cleanup agent worktrees
+        with _chdir(git_repo):
+            worktree.cmd_setup(_make_args("setup", change_id="feat"))
+            worktree.cmd_setup(_make_args("setup", change_id="feat", agent_id="cleanup"))
+
+        capsys.readouterr()  # clear
+
+        # Without --parent, asking for the cleanup agent returns its sub-branch
+        resolve_args = _make_args("resolve-branch", change_id="feat", agent_id="cleanup")
+        with _chdir(git_repo):
+            worktree.cmd_resolve_branch(resolve_args)
+        captured = capsys.readouterr()
+        assert "BRANCH=claude/op-9P9o1--cleanup" in captured.out
+
+        # With --parent, asking for the same thing returns the feature branch
+        resolve_args = _make_args(
+            "resolve-branch", change_id="feat", agent_id="cleanup", parent=True
+        )
+        with _chdir(git_repo):
+            worktree.cmd_resolve_branch(resolve_args)
+        captured = capsys.readouterr()
+        assert "BRANCH=claude/op-9P9o1" in captured.out
+        assert "BRANCH=claude/op-9P9o1--cleanup" not in captured.out
 
 
 class TestCmdTeardown:
@@ -712,6 +836,7 @@ def _make_args(command: str, **kwargs: object) -> argparse.Namespace:
         "prefix": None,
         "no_bootstrap": True,
         "agent_id": None,
+        "parent": False,
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)

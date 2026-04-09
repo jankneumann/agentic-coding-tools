@@ -86,22 +86,34 @@ fi
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>" ${AGENT_FLAG})"
 cd "$WORKTREE_PATH"
 
-# FEATURE_BRANCH is the resolved branch — default is openspec/<change-id>, but
-# may be overridden via the OPENSPEC_BRANCH_OVERRIDE env variable (e.g. when the
-# Claude cloud harness mandates a specific branch like claude/fix-<slug>).
-# Must match the branch plan-feature pushed to, otherwise commits land in the
-# wrong place.
-FEATURE_BRANCH="$WORKTREE_BRANCH"
+# Two distinct branches matter here:
+#
+#   WORKTREE_BRANCH — this worktree's branch, which for parallel work-package
+#                     agents is <parent>--<agent-id>. Used for commits inside
+#                     this worktree and for local branch verification.
+#   FEATURE_BRANCH  — the PARENT feature branch that agent branches merge into
+#                     and that gets pushed as the PR head. In the single-agent
+#                     case it equals WORKTREE_BRANCH. In the parallel case it
+#                     is the operator/default branch without the agent suffix.
+#
+# The parent branch is what plan-feature pushed and what the PR is opened
+# against. Resolve it explicitly so the final push/PR target is stable.
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "<change-id>" --parent)"
+FEATURE_BRANCH="$BRANCH"
 ```
 
 **Operator branch override**: If `OPENSPEC_BRANCH_OVERRIDE` was set at plan time, it MUST be set at implement time too — otherwise plan-feature and implement-feature will disagree on the branch and commits will diverge. The safest pattern is for the operator to set the env var for the entire session.
+
+**Parallel disambiguation**: When `AGENT_ID` is set (parallel work-package agents), each agent gets `<FEATURE_BRANCH>--<agent-id>` as its `WORKTREE_BRANCH` so parallel agents don't clobber each other. The `wp-integration` package (or `merge_worktrees.py`) merges those sub-branches back into `$FEATURE_BRANCH` before the final push.
 
 ### 3. Verify Feature Branch [all tiers]
 
 ```bash
 CURRENT_BRANCH="$(git branch --show-current)"
-if [[ "$CURRENT_BRANCH" != "$FEATURE_BRANCH" ]]; then
-  echo "ERROR: worktree is on '$CURRENT_BRANCH' but expected '$FEATURE_BRANCH'" >&2
+# In single-agent mode, WORKTREE_BRANCH == FEATURE_BRANCH.
+# In parallel mode, WORKTREE_BRANCH is <FEATURE_BRANCH>--<agent-id>.
+if [[ "$CURRENT_BRANCH" != "$WORKTREE_BRANCH" ]]; then
+  echo "ERROR: worktree is on '$CURRENT_BRANCH' but expected '$WORKTREE_BRANCH'" >&2
   echo "Hint: if OPENSPEC_BRANCH_OVERRIDE is set, ensure it matches what plan-feature used" >&2
   exit 1
 fi
