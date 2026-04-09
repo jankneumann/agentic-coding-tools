@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: speculative-merge-trains
   title: "Speculative Merge Trains with Stacked-Diff Decomposition and Build Graph Analysis"
-  plan_revision: 2
+  plan_revision: 3
   created_by: claude-code
   created_at: "2026-04-09T00:00:00Z"
 

@@ -127,6 +127,31 @@ Add a minimal feature flag mechanism for safe stacked-diff-to-main workflow:
 4. **Train resilience**: A failing entry is ejected and the train continues for independent entries, with no manual intervention required
 5. **Backward compatibility**: Traditional feature-branch workflow continues to work alongside stacked-diff mode
 
+## Impact
+
+- **Merge throughput**: Independent features merge in O(N/K) time where K = number of independent partitions, down from O(N) serial. Validated by success criterion #1.
+- **CI efficiency**: Affected-test selection reduces per-entry CI time by 30–70% for small changes (fewer files → fewer tests). Validated by success criterion #2 (compare affected tests vs full suite).
+- **Branch lifetime**: Stacked-diff workflow reduces branch lifetime from days (feature branch) to hours (single work package), reducing conflict surface quadratically. Validated by success criterion #3.
+- **Safety**: No regression — feature flags + pre-merge checks + post-speculation claim validation maintain existing safeguards.
+- **Affected capabilities**: `agent-coordinator` (merge queue, feature registry), `codebase-analysis` (architecture graph, test analysis)
+
+## Scope Boundaries
+
+**In scope (this change — Phase 1)**:
+- Speculative merge train engine with partition-aware parallelism
+- Stacked-diff enqueue mode with `decomposition: stacked` field
+- Import-level and transitive-call-level affected-test analysis
+- Lightweight feature flag system (flags.yaml + env var)
+- Post-speculation claim validation
+- Crash recovery and TTL garbage collection for speculative refs
+
+**Deferred (Phase 2 — separate change)**:
+- Fixture-aware test analysis (conftest hierarchy, pytest fixtures)
+- DAG scheduling integration (wire work-packages.yaml `depends_on` into compose_train ordering). Phase 1 assumes manual ordering via `merge_priority`; coordinators must ensure priorities respect DAG order.
+- Build-graph-based partition detection (replace prefix-based with semantic overlap analysis)
+- Train metrics and adaptive partition sizing
+- CI integration (GitHub Actions `merge_group` trigger for train entries)
+
 ## Dependencies
 
 - Existing merge queue service (`agent-coordinator/src/merge_queue.py`)

@@ -3,9 +3,27 @@
 **Change ID**: `speculative-merge-trains`
 **Capability**: `agent-coordinator`
 
+## Requirements Index
+
+| ID | Requirement | Type |
+|----|------------|------|
+| R1 | Speculative Merge Train Composition | ADDED |
+| R2 | Speculative Branch Management | ADDED |
+| R3 | Train Entry State Machine | ADDED |
+| R4 | Priority Eject Recovery | ADDED |
+| R5 | Partition-Aware Merge | ADDED |
+| R6 | Train Operation Authorization | ADDED |
+| R7 | Speculative Ref Security and Cleanup | ADDED |
+| R8 | Post-Speculation Claim Validation | ADDED |
+| R9 | BLOCKED Entry Recovery | ADDED |
+| R10 | Partition Detection Performance | ADDED |
+| R11 | Speculative Ref Creation Performance | ADDED |
+| R12 | Automatic Flag Creation for Stacked-Diff Features | ADDED |
+| R13 | Merge Queue Enqueue (Extended) | MODIFIED |
+
 ## ADDED Requirements
 
-### Requirement: Speculative Merge Train Composition
+### Requirement: Speculative Merge Train Composition (R1)
 
 The merge queue service SHALL compose merge trains from queued entries by grouping them into partitions based on lock key prefix overlap and assigning speculative positions within each partition.
 
@@ -27,7 +45,7 @@ AND entries behind it in any overlapping partition SHALL speculate against a bas
 WHEN no features are queued
 THEN compose_train SHALL return an empty train with no partitions
 
-### Requirement: Speculative Branch Management
+### Requirement: Speculative Branch Management (R2)
 
 The merge queue service SHALL create speculative git references for each train position, representing the state of main with all preceding entries merged.
 
@@ -49,7 +67,7 @@ WHEN a train completes (all entries MERGED or EJECTED)
 THEN the git adapter SHALL delete all speculative refs for that train
 AND no orphaned refs SHALL remain under `refs/speculative/`
 
-### Requirement: Train Entry State Machine
+### Requirement: Train Entry State Machine (R3)
 
 The merge queue service SHALL track each train entry through the states: QUEUED, SPECULATING, SPEC_PASSED, MERGING, MERGED, EJECTED, BLOCKED.
 
@@ -59,6 +77,13 @@ WHEN an entry transitions through QUEUED → SPECULATING → SPEC_PASSED → MER
 THEN each transition SHALL be recorded in the audit log with timestamps
 AND the entry's metadata SHALL reflect the current state at each step
 
+#### Scenario: State transition triggers
+
+WHEN CI completes for a train entry, the external CI system SHALL call `report_spec_result(feature_id, passed)` to trigger transitions:
+- `passed=True`: entry transitions SPECULATING → SPEC_PASSED
+- `passed=False`: entry transitions SPECULATING → EJECTED (via `eject_from_train`)
+WHEN all entries in a partition reach SPEC_PASSED, the merge executor SHALL call `merge_partition()`, transitioning all entries to MERGING then MERGED
+
 #### Scenario: Failed entry ejection
 
 WHEN a train entry in SPECULATING state fails CI
@@ -67,7 +92,7 @@ AND its `merge_priority` SHALL be decremented by 10
 AND entries behind it with zero lock key overlap SHALL remain in their current state
 AND entries behind it with non-zero lock key overlap SHALL re-speculate (transition back to QUEUED for next train composition)
 
-### Requirement: Priority Eject Recovery
+### Requirement: Priority Eject Recovery (R4)
 
 The merge queue service SHALL support ejecting a failed entry from the train and continuing the train for independent entries.
 
@@ -86,7 +111,7 @@ THEN entry 3 SHALL transition to QUEUED
 AND entry 3 SHALL be re-speculated in the next train composition
 AND entries 4 and 5 SHALL be evaluated for overlap with entry 2 independently
 
-### Requirement: Partition-Aware Merge
+### Requirement: Partition-Aware Merge (R5)
 
 The merge queue service SHALL merge partitions independently, allowing true parallel merge execution for non-overlapping partitions.
 
@@ -103,7 +128,7 @@ WHEN a cross-partition entry exists that spans partitions A and B
 THEN partitions A and B MUST serialize their merges around the cross-partition entry
 AND the cross-partition entry SHALL merge only after all entries before it in both partitions have merged
 
-### Requirement: Train Operation Authorization
+### Requirement: Train Operation Authorization (R6)
 
 All merge train operations SHALL require authenticated sessions with appropriate trust levels, preventing unauthorized agents from manipulating train ordering or ejecting entries.
 
@@ -127,7 +152,7 @@ WHEN train operations are exposed via HTTP API
 THEN all endpoints SHALL require a valid `X-API-Key` header
 AND the API key identity SHALL be resolved to an agent profile for trust level checks
 
-### Requirement: Speculative Ref Security and Cleanup
+### Requirement: Speculative Ref Security and Cleanup (R7)
 
 Speculative git references SHALL be protected against leakage, cleaned up on failure, and garbage-collected if the coordinator crashes.
 
@@ -136,8 +161,15 @@ Speculative git references SHALL be protected against leakage, cleaned up on fai
 WHEN the git adapter creates a speculative ref
 THEN the ref name MUST match the pattern `^refs/speculative/train-[a-f0-9]{8,32}/pos-\d{1,4}$`
 AND branch names provided by agents MUST be validated against `^[a-zA-Z0-9/_.-]{1,200}$`
-AND any name failing validation SHALL be rejected before subprocess execution
+AND any name failing validation SHALL cause the git adapter to raise `InvalidRefNameError` before any subprocess execution
 AND the git adapter MUST use `subprocess.run(args_list, shell=False)` exclusively — never shell=True
+
+#### Scenario: Validation failure on invalid ref name
+
+WHEN a branch name contains shell metacharacters (`;`, `$`, backtick), exceeds 200 characters, or contains null bytes
+THEN the git adapter SHALL raise `InvalidRefNameError` with a descriptive message
+AND no subprocess SHALL be spawned
+AND the rejection SHALL be logged to the audit trail
 
 #### Scenario: Cleanup on coordinator crash
 
@@ -153,7 +185,7 @@ AND no active train entry references it
 THEN the ref SHALL be eligible for garbage collection
 AND the watchdog service SHALL delete it during its periodic sweep
 
-### Requirement: Post-Speculation Claim Validation
+### Requirement: Post-Speculation Claim Validation (R8)
 
 After a speculative ref is created, the merge queue service SHALL validate that the entry's actual file changes match its declared resource claims, preventing partition misassignment.
 
@@ -162,6 +194,7 @@ After a speculative ref is created, the merge queue service SHALL validate that 
 WHEN a speculative ref is created for an entry claiming `api:GET /v1/users`
 AND the git diff of the entry shows changes only to `src/api/users.py`
 THEN the claim validation SHALL pass
+AND the entry SHALL remain in SPECULATING state
 AND the entry SHALL proceed to CI
 
 #### Scenario: Claim does not match actual changes
@@ -172,7 +205,7 @@ THEN the claim validation SHALL fail
 AND the entry SHALL transition to BLOCKED with reason "claim mismatch: actual changes span partitions not declared in resource_claims"
 AND the entry owner SHALL be notified to update claims and re-enqueue
 
-### Requirement: BLOCKED Entry Recovery
+### Requirement: BLOCKED Entry Recovery (R9)
 
 Entries that transition to BLOCKED SHALL have a defined recovery path.
 
@@ -190,7 +223,7 @@ THEN compose_train SHALL re-evaluate BLOCKED entries by attempting speculative m
 AND if the merge succeeds (conflict resolved), the entry SHALL transition to SPECULATING
 AND if the merge still fails, the entry SHALL remain BLOCKED with updated `checked_at` timestamp
 
-### Requirement: Partition Detection Performance
+### Requirement: Partition Detection Performance (R10)
 
 The partition detection algorithm SHALL complete in bounded time proportional to the number of entries and their claim count.
 
@@ -207,7 +240,7 @@ THEN compose_train SHALL detect the circular dependency
 AND all entries in the cycle SHALL be placed in a single serialized cross-partition sub-train
 AND the cycle detection SHALL be logged as a warning
 
-### Requirement: Speculative Ref Creation Performance
+### Requirement: Speculative Ref Creation Performance (R11)
 
 Speculative ref creation SHALL use efficient git operations that do not require working directory I/O.
 
@@ -218,10 +251,33 @@ THEN it SHALL use `git merge-tree` (or equivalent in-memory merge) rather than `
 AND tree objects SHALL be cached per train_id to avoid redundant computation
 AND speculative ref creation for independent partitions SHALL be parallelizable (no global lock)
 
+#### Scenario: Merge conflict during speculative ref creation
+
+WHEN `git merge-tree` reports conflict markers for a speculative ref
+THEN the entry SHALL transition to BLOCKED with reason "speculative_merge_conflict"
+AND the speculative ref SHALL NOT be created (atomic: all-or-nothing)
+AND the conflict file list SHALL be stored in the entry's metadata for diagnostics
+
 #### Scenario: Large train performance bound
 
 WHEN a train has 100 entries across 5 partitions
 THEN all speculative refs SHALL be created in under 30 seconds on a repository with 10,000 files
+
+### Requirement: Automatic Flag Creation for Stacked-Diff Features (R12)
+
+The merge queue service SHALL automatically create a feature flag when the first stacked-diff package for a feature is enqueued.
+
+#### Scenario: Auto-create flag on first stacked-diff enqueue
+
+WHEN enqueue is called with `decomposition="stacked"` for a feature that has no existing flag in `flags.yaml`
+THEN a flag named after the feature's change_id (normalized to uppercase with underscores) SHALL be created in disabled state
+AND the flag SHALL be registered as a `flag:<name>` lock key
+
+#### Scenario: Subsequent stacked-diff enqueue reuses existing flag
+
+WHEN enqueue is called with `decomposition="stacked"` for a feature that already has a flag
+THEN no new flag SHALL be created
+AND the existing flag state SHALL be preserved
 
 ## MODIFIED Requirements
 
@@ -240,3 +296,9 @@ AND the entry SHALL be treated as an independently-mergeable unit
 WHEN enqueue is called without a `decomposition` parameter
 THEN the entry SHALL default to `decomposition: "branch"`
 AND existing behavior SHALL be preserved exactly
+
+#### Scenario: Invalid decomposition value rejected
+
+WHEN enqueue is called with `decomposition="invalid"` (any value other than "stacked" or "branch")
+THEN the call SHALL be rejected with a validation error
+AND no entry SHALL be created in the merge queue
