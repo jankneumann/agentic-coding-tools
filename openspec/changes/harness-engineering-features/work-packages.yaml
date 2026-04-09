@@ -1,21 +1,42 @@
+schema_version: 1
+
 feature:
   id: harness-engineering-features
-  plan_revision: 1
+  title: "Harness Engineering Features — Context, Review Loops, Architecture Linters"
+  plan_revision: 2
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/harness-engineering-features/contracts/README.md"
+    files:
+      - "openspec/changes/harness-engineering-features/contracts/README.md"
 
 defaults:
   priority: 5
   lock_ttl_minutes: 120
   timeout_minutes: 60
   retry_budget: 2
-  verification_tier_required: tier_b
+  verification_tier_required: B
+  min_trust_level: 2
 
 packages:
-  - id: wp-context-architecture
-    name: "Progressive Context Architecture"
-    description: "Restructure CLAUDE.md into TOC + topic docs, extend memory tag conventions"
-    tasks: ["1.1", "1.2", "1.3", "1.4"]
+  - package_id: wp-context-architecture
+    title: "Progressive Context Architecture"
+    task_type: refactor
+    description: "Restructure CLAUDE.md into a ~100 line table-of-contents that points to topic-specific docs under docs/guides/, and extend memory tag conventions with failure_type/capability_gap/affected_skill/severity prefixes."
+    role: backend-implementer
     priority: 1
-    dependencies: []
+    depends_on: []
+    locks:
+      files:
+        - "CLAUDE.md"
+      keys:
+        - "feature:claude-md"
+        - "feature:docs-guides"
+      ttl_minutes: 120
+      reason: "CLAUDE.md restructuring and memory convention docs"
     scope:
       write_allow:
         - "CLAUDE.md"
@@ -25,22 +46,65 @@ packages:
         - "**"
       deny:
         - "agent-coordinator/supabase/**"
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Memory module unit tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_memory.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "memory_tests_passed"
+        - name: "CLAUDE.md line count enforcement"
+          kind: command
+          command: "test $(wc -l < CLAUDE.md) -le 120"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "claude_md_length_ok"
+    metadata:
+      loc_estimate: 600
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "claude_md_restructured"
+        - "topic_docs_written"
+        - "memory_tags_extended"
+      artifacts:
+        - "CLAUDE.md"
+        - "docs/guides/"
+
+  - package_id: wp-coordinator-extensions
+    title: "Coordinator Extensions — Profiles & Scope Enforcement"
+    task_type: implementation
+    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, and enforce scope locks on work_queue task claims."
+    role: backend-implementer
+    priority: 2
+    depends_on: []
     locks:
       files:
-        - "CLAUDE.md"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/session_grants.py"
       keys:
-        - "doc:claude-md"
-        - "doc:guides"
+        - "db:schema:agent_profiles"
+        - "api:guardrails"
+        - "api:work_queue"
       ttl_minutes: 120
-      reason: "CLAUDE.md restructuring and memory convention docs"
-    verification: tier_b
-
-  - id: wp-coordinator-extensions
-    name: "Coordinator Extensions — Profiles & Scope Enforcement"
-    description: "Add evaluator profile, session scope enforcement in guardrails"
-    tasks: ["2.1", "2.2", "2.3", "2.4"]
-    priority: 2
-    dependencies: []
+      reason: "Evaluator profile migration and guardrail scope enforcement"
     scope:
       write_allow:
         - "agent-coordinator/src/profiles.py"
@@ -54,27 +118,54 @@ packages:
         - "openspec/schemas/**"
       deny:
         - "skills/**"
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Guardrails and work_queue unit tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_guardrails.py agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_profiles.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_tests_passed"
+    metadata:
+      loc_estimate: 900
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "evaluator_profile_seeded"
+        - "session_scope_enforced"
+      artifacts:
+        - "agent-coordinator/src/profiles.py"
+        - "agent-coordinator/src/guardrails.py"
+        - "agent-coordinator/src/session_grants.py"
+
+  - package_id: wp-review-loops
+    title: "Review Loop Convergence Enhancement"
+    task_type: implementation
+    description: "Extend convergence_loop with iteration control (default max 3), auto-escalation when unresolved fix/escalate findings remain at iteration limit, and metrics recording to episodic memory."
+    role: backend-implementer
+    priority: 3
+    depends_on:
+      - wp-context-architecture
     locks:
       files:
-        - "agent-coordinator/src/guardrails.py"
-        - "agent-coordinator/src/profiles.py"
-        - "agent-coordinator/src/work_queue.py"
-        - "agent-coordinator/src/session_grants.py"
+        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
       keys:
-        - "db:schema:agent_profiles"
-        - "api:guardrails"
-        - "api:work_queue"
+        - "feature:auto-dev-loop"
+        - "feature:parallel-infrastructure-consensus"
       ttl_minutes: 120
-      reason: "Evaluator profile migration and guardrail scope enforcement"
-    verification: tier_b
-
-  - id: wp-review-loops
-    name: "Review Loop Convergence Enhancement"
-    description: "Extend convergence_loop with iteration control, auto-escalation, metrics"
-    tasks: ["3.1", "3.2", "3.3", "3.4"]
-    priority: 3
-    dependencies:
-      - wp-context-architecture  # Needs memory tag conventions from 1.4
+      reason: "Convergence loop iteration control and metrics"
     scope:
       write_allow:
         - "skills/auto-dev-loop/scripts/**"
@@ -88,23 +179,50 @@ packages:
       deny:
         - "agent-coordinator/src/**"
         - "agent-coordinator/supabase/**"
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Convergence loop and consensus synthesizer tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/tests/ skills/parallel-infrastructure/tests/test_consensus_synthesizer.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "convergence_tests_passed"
+    metadata:
+      loc_estimate: 700
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "iteration_control_added"
+        - "escalation_logic_implemented"
+        - "metrics_recording_enabled"
+      artifacts:
+        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+
+  - package_id: wp-architecture-linters
+    title: "Mechanical Architecture Enforcement"
+    task_type: implementation
+    description: "Implement structural linters (dependency direction, file-size, naming conventions) with agent-readable remediation and integrate into /validate-feature as an architecture phase."
+    role: backend-implementer
+    priority: 3
+    depends_on: []
     locks:
       files:
-        - "skills/auto-dev-loop/scripts/convergence_loop.py"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/validate-feature/SKILL.md"
       keys:
-        - "skill:auto-dev-loop"
-        - "skill:parallel-infrastructure:consensus"
+        - "feature:validate-feature-architecture"
       ttl_minutes: 120
-      reason: "Convergence loop iteration control and metrics"
-    verification: tier_b
-
-  - id: wp-architecture-linters
-    name: "Mechanical Architecture Enforcement"
-    description: "Structural linters with agent-readable remediation, validate-feature integration"
-    tasks: ["4.1", "4.2", "4.3"]
-    priority: 3
-    dependencies: []
+      reason: "New architecture linters and validation phase integration"
     scope:
       write_allow:
         - "skills/validate-feature/scripts/**"
@@ -117,22 +235,59 @@ packages:
       deny:
         - "agent-coordinator/supabase/**"
         - "CLAUDE.md"
-    locks:
-      files:
-        - "skills/validate-feature/SKILL.md"
-      keys:
-        - "skill:validate-feature:architecture"
-      ttl_minutes: 120
-      reason: "New architecture linters and validation phase integration"
-    verification: tier_b
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Architecture linter unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/tests/test_architecture_linters.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "linter_tests_passed"
+        - name: "Linter finding schema validation"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/tests/test_architecture_linters.py::test_findings_match_schema -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "linter_schema_valid"
+    metadata:
+      loc_estimate: 800
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "linters_implemented"
+        - "validate_feature_integrated"
+      artifacts:
+        - "skills/validate-feature/scripts/architecture_linters.py"
 
-  - id: wp-new-skills
-    name: "New Skills — improve-harness & agent-metrics"
-    description: "Create /improve-harness and /agent-metrics skills with analysis scripts"
-    tasks: ["5.1", "5.2", "5.3", "5.4"]
+  - package_id: wp-new-skills
+    title: "New Skills — improve-harness & agent-metrics"
+    task_type: implementation
+    description: "Create /improve-harness and /agent-metrics skills with analysis scripts that query episodic memory and audit data to produce structured reports."
+    role: backend-implementer
     priority: 4
-    dependencies:
-      - wp-context-architecture  # Needs memory tag conventions
+    depends_on:
+      - wp-context-architecture
+    locks:
+      files: []
+      keys:
+        - "feature:improve-harness"
+        - "feature:agent-metrics"
+      ttl_minutes: 120
+      reason: "New harness improvement and metrics skills"
     scope:
       write_allow:
         - "skills/improve-harness/**"
@@ -145,25 +300,55 @@ packages:
         - "agent-coordinator/src/**"
         - "agent-coordinator/supabase/**"
         - "CLAUDE.md"
-    locks:
-      keys:
-        - "skill:improve-harness"
-        - "skill:agent-metrics"
-      ttl_minutes: 120
-      reason: "New harness improvement and metrics skills"
-    verification: tier_b
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "New skill unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/improve-harness/tests/ skills/agent-metrics/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "new_skills_tests_passed"
+    metadata:
+      loc_estimate: 800
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "improve_harness_created"
+        - "agent_metrics_created"
+      artifacts:
+        - "skills/improve-harness/SKILL.md"
+        - "skills/agent-metrics/SKILL.md"
 
-  - id: wp-integration
-    name: "Integration & Documentation"
-    description: "Update docs, sync skills, run full validation"
-    tasks: ["6.1", "6.2"]
+  - package_id: wp-integration
+    title: "Integration & Documentation"
+    task_type: integration
+    description: "Update lessons-learned and parallel-agentic-development docs, sync skills to runtime directories via skills/install.sh, run full /validate-feature pass."
+    role: backend-implementer
     priority: 10
-    dependencies:
+    depends_on:
       - wp-context-architecture
       - wp-coordinator-extensions
       - wp-review-loops
       - wp-architecture-linters
       - wp-new-skills
+    locks:
+      files: []
+      keys:
+        - "feature:lessons-learned"
+        - "feature:parallel-agentic-development"
+      ttl_minutes: 60
+      reason: "Final integration, documentation, and validation"
     scope:
       write_allow:
         - "docs/**"
@@ -172,11 +357,35 @@ packages:
         - ".gemini/skills/**"
       read_allow:
         - "**"
-      deny: []
-    locks:
-      keys:
-        - "doc:lessons-learned"
-        - "doc:parallel-agentic-development"
-      ttl_minutes: 60
-      reason: "Final integration, documentation, and validation"
-    verification: tier_a
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full validate-feature pass"
+          kind: command
+          command: "python3 skills/validate-feature/scripts/run_validation.py --change-id harness-engineering-features"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/harness-engineering-features/validation-report.md"
+            result_keys:
+              - "validation_passed"
+    metadata:
+      loc_estimate: 200
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "docs_updated"
+        - "skills_synced"
+        - "validation_passed"
+      artifacts:
+        - "docs/lessons-learned.md"
+        - "docs/parallel-agentic-development.md"
+        - "openspec/changes/harness-engineering-features/validation-report.md"

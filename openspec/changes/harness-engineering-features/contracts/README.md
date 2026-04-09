@@ -56,19 +56,23 @@ Failure recording uses structured tag prefixes:
 
 ## Linter Output Format
 
-Architecture linters produce findings compatible with `review-findings.schema.json`:
+Architecture linters produce findings compatible with `review-findings.schema.json`. The root object is a `Review Findings` document (requires `review_type`, `target`, `findings`); each finding uses the schema's integer `id`, the `architecture` `type`, a `criticality` from `low|medium|high|critical`, a `disposition` from `fix|regenerate|accept|escalate`, and top-level `file_path`/`line_range` rather than a nested `location` object. The human-readable remediation text goes into `resolution`.
 
 ```json
 {
+  "review_type": "implementation",
+  "target": "wp-architecture-linters",
+  "reviewer_vendor": "structural-linter",
   "findings": [
     {
-      "id": "arch-dep-001",
-      "type": "dependency_violation",
-      "criticality": "error",
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
       "disposition": "fix",
       "description": "skills/foo/scripts/bar.py imports from agent-coordinator/src/locks.py directly",
-      "location": {"file_path": "skills/foo/scripts/bar.py", "line_range": {"start": 5, "end": 5}},
-      "remediation": "Use coordinator MCP tools or HTTP API instead of direct imports. See docs/guides/skills.md#coordinator-integration"
+      "resolution": "Use coordinator MCP tools or HTTP API instead of direct imports. See docs/guides/skills.md#coordinator-integration",
+      "file_path": "skills/foo/scripts/bar.py",
+      "line_range": {"start": 5, "end": 5}
     }
   ]
 }
