@@ -1,0 +1,121 @@
+# Internal API Contract: Merge Train Service
+# These are internal service-layer APIs (Python method signatures), not HTTP endpoints.
+# HTTP/MCP exposure is defined in the integration phase.
+
+compose_train:
+  description: |
+    Compose a merge train from queued entries. Groups entries into partitions
+    based on lock key prefix overlap, assigns speculative positions, creates
+    speculative git refs.
+  input:
+    force_recompose:
+      type: boolean
+      default: false
+      description: If true, recompute train even if one exists
+  output:
+    train_id:
+      type: string
+      description: Unique identifier for this train composition
+    partitions:
+      type: array
+      items:
+        partition_id: string
+        entries:
+          type: array
+          items:
+            feature_id: string
+            train_position: integer
+            speculative_ref: string
+            status: enum[QUEUED, SPECULATING, SPEC_PASSED, MERGING, MERGED, EJECTED, BLOCKED]
+    cross_partition_entries:
+      type: array
+      items:
+        feature_id: string
+        spans_partitions: array[string]
+
+eject_from_train:
+  description: |
+    Eject a failed entry from the train. Decrements priority, checks independence
+    of successor entries, triggers re-speculation for dependent successors.
+  input:
+    feature_id:
+      type: string
+      required: true
+    reason:
+      type: string
+      required: true
+      description: Why the entry was ejected (CI failure details)
+  output:
+    ejected: boolean
+    priority_after: integer
+    independent_successors:
+      type: array
+      items: string
+      description: Feature IDs that continue without re-speculation
+    requeued_successors:
+      type: array
+      items: string
+      description: Feature IDs that need re-speculation
+
+get_train_status:
+  description: |
+    Get the current state of the merge train including all partitions and entries.
+  input: {}
+  output:
+    train_id: string | null
+    total_entries: integer
+    partitions:
+      type: array
+      items:
+        partition_id: string
+        entry_count: integer
+        all_passed: boolean
+        merge_ready: boolean
+    pending_ejections: integer
+
+report_spec_result:
+  description: |
+    Report the result of speculative CI for a train entry. Transitions the entry
+    to SPEC_PASSED or triggers ejection.
+  input:
+    feature_id:
+      type: string
+      required: true
+    passed:
+      type: boolean
+      required: true
+    ci_url:
+      type: string
+      description: URL to CI run for audit trail
+    affected_tests_run:
+      type: integer
+      description: Number of tests actually run (for metrics)
+    total_tests_available:
+      type: integer
+      description: Total tests that would run without affected-test filtering
+  output:
+    new_status: enum[SPEC_PASSED, EJECTED]
+    train_action: enum[CONTINUE, RECOMPOSE, MERGE_READY] | null
+
+compute_partitions:
+  description: |
+    Group merge queue entries into partitions based on lock key prefix overlap.
+    Entries with non-overlapping key prefixes form independent partitions.
+  input:
+    entries:
+      type: array
+      items:
+        feature_id: string
+        resource_claims: array[string]
+  output:
+    partitions:
+      type: array
+      items:
+        partition_id: string
+        key_prefixes: array[string]
+        feature_ids: array[string]
+    cross_partition:
+      type: array
+      items:
+        feature_id: string
+        spans: array[string]  # partition_ids

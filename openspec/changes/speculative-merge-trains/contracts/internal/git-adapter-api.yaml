@@ -1,0 +1,66 @@
+# Internal API Contract: Git Adapter
+# Protocol interface for git operations used by the merge train service.
+
+create_speculative_ref:
+  description: |
+    Create a speculative git reference by merging a feature branch onto a base ref.
+    The base ref is either 'main' (for position 1) or the preceding entry's
+    speculative ref (for position N > 1).
+  input:
+    base_ref:
+      type: string
+      required: true
+      description: Git ref to merge onto (main or preceding speculative ref)
+    feature_branch:
+      type: string
+      required: true
+      description: Branch name of the feature/package to merge
+    ref_name:
+      type: string
+      required: true
+      description: "Name for the speculative ref (e.g., refs/speculative/train-abc/pos-1)"
+  output:
+    success: boolean
+    ref_sha: string | null
+    conflict_files: array[string]
+    error: string | null
+
+delete_speculative_refs:
+  description: |
+    Delete all speculative refs for a given train.
+  input:
+    train_id:
+      type: string
+      required: true
+      description: Train ID — all refs under refs/speculative/train-{id}/ are deleted
+  output:
+    deleted_count: integer
+
+fast_forward_main:
+  description: |
+    Fast-forward main to the final speculative ref of a completed partition.
+    This is the actual merge-to-main operation.
+  input:
+    speculative_ref:
+      type: string
+      required: true
+      description: The speculative ref to fast-forward main to
+  output:
+    success: boolean
+    new_main_sha: string | null
+    error: string | null
+
+get_changed_files:
+  description: |
+    Get the list of files changed by a feature branch relative to its base.
+  input:
+    base_ref:
+      type: string
+      required: true
+    feature_branch:
+      type: string
+      required: true
+  output:
+    changed_files: array[string]
+    added_files: array[string]
+    deleted_files: array[string]
