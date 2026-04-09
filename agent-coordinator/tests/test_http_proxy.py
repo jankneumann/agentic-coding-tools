@@ -604,6 +604,72 @@ async def test_proxy_check_locks_url_encodes_paths(_reset_client: None) -> None:
 
 
 @pytest.mark.asyncio
+async def test_proxy_list_scenarios_unwraps_scenarios_key(
+    _reset_client: None,
+) -> None:
+    """proxy_list_scenarios unwraps the HTTP {scenarios: [...]} envelope.
+
+    Regression: MCP list_scenarios returns json.dumps of a raw list, but the
+    HTTP endpoint wraps scenarios in {"scenarios": [...]}. The proxy must
+    unwrap so downstream json.dumps produces the expected shape.
+    """
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key=None,
+        agent_id="x",
+        agent_type="y",
+    )
+    http_proxy.init_client(config)
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"scenarios": []}'
+
+        def json(self) -> dict[str, Any]:
+            return {
+                "scenarios": [
+                    {"id": "s1", "name": "lock-ack", "category": "lock-lifecycle"},
+                    {"id": "s2", "name": "auth-deny", "category": "auth"},
+                ]
+            }
+
+    async def _return(*args: Any, **kw: Any) -> _MockResponse:
+        return _MockResponse()
+
+    http_proxy.get_client().request = _return  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_list_scenarios()
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert result[0]["id"] == "s1"
+    assert result[1]["id"] == "s2"
+
+
+@pytest.mark.asyncio
+async def test_proxy_list_scenarios_preserves_error_dict(
+    _reset_client: None,
+) -> None:
+    """On error, proxy_list_scenarios returns the error dict unchanged."""
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key=None,
+        agent_id="x",
+        agent_type="y",
+    )
+    http_proxy.init_client(config)
+
+    async def _fail(*args: Any, **kw: Any) -> None:
+        raise httpx.ConnectError("refused")
+
+    http_proxy.get_client().request = _fail  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_list_scenarios()
+    assert isinstance(result, dict)
+    assert result["success"] is False
+    assert result["error"] == "connection_error"
+
+
+@pytest.mark.asyncio
 async def test_proxy_check_locks_returns_empty_list_for_none(
     _reset_client: None,
 ) -> None:
