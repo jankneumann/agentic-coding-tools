@@ -27,4 +27,30 @@
 - [ ] Should the help system version track independently from the coordinator version?
 
 ### Context
-The feature addresses the problem of MCP's eager schema loading consuming ~6-8K tokens of agent context for 53 tool schemas. By adding a two-tier progressive discovery system (compact overview + detailed per-topic help), agents can pull capability documentation on-demand, reducing context consumption by 10-20x for typical workflows. Implementation already exists on the `claude/add-cli-help-feature-3dmTC` branch with 24 passing tests.
+The feature addresses the problem of MCP eager schema loading consuming 6-8K tokens of agent context for 53 tool schemas. By adding a two-tier progressive discovery system (compact overview plus detailed per-topic help), agents can pull capability documentation on-demand, reducing context consumption by 10-20x for typical workflows. Implementation already exists on the dev branch with 24 passing tests.
+
+---
+
+## Phase: Implementation (2026-04-09)
+
+**Agent**: claude-opus-4-6 | **Session**: implement-feature
+
+### Decisions
+1. **Cherry-pick from dev branch** — Reused the existing implementation from the dev branch rather than reimplementing from scratch, since all 24 tests and the full service layer were already complete and passing.
+2. **Manual conflict resolution for coordination_api.py** — The cherry-pick had merge conflicts in the health endpoint section. Resolved by keeping the worktree's original inline health endpoint and removing duplicate `/live`, `/ready`, `/health` endpoints that referenced a non-existent `_database_health()` helper.
+3. **Runtime import pattern for TestClient** — Used `TYPE_CHECKING` guard for type hints with runtime import inside the fixture to avoid import-time dependency on FastAPI in the test module header.
+
+### Alternatives Considered
+- Full reimplementation in the worktree: rejected because identical code already existed and was tested on the dev branch
+- Keeping both health endpoint patterns: rejected because the `_database_health()` helper doesn't exist on the feature branch
+
+### Trade-offs
+- Accepted cherry-pick complexity over reimplementation because it preserved the exact tested code
+- Accepted manual conflict resolution over automated merge because only one file had conflicts and the resolution was straightforward
+
+### Open Questions
+- [ ] Should help content include MCP resource documentation (locks://current, etc.) in addition to tools?
+- [ ] Should the help system version track independently from the coordinator version?
+
+### Context
+Implementation was cherry-picked from the dev branch into the OpenSpec worktree. The main deviation from plan was resolving a merge conflict in `coordination_api.py` where the health endpoint section differed between branches. After resolution, all 46 tests pass (24 help-specific + 22 coordination API) and ruff reports no issues across all modified files.
