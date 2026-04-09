@@ -1,0 +1,11 @@
+# Feature flag registry (schema: openspec/schemas/flags.schema.json).
+#
+# Resolution order at runtime (see agent-coordinator/src/feature_flags.py):
+#   FF_<NAME> env var (only if declared here) → status below → False
+#
+# Statuses: disabled | enabled | archived
+#
+# Flags are created automatically by merge_queue.enqueue for stacked-diff
+# work packages. Manual edits must follow openspec/schemas/flags.schema.json.
+schema_version: 1
+flags: []
