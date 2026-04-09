@@ -42,6 +42,17 @@
 
 - Total requirements: 4
 - Total scenarios: 22
-- Requirements with tests: 4 / 4 (planned)
-- Files changed: (to be populated post-implementation)
-- Evidence status: pending implementation
+- Requirements with tests: 4 / 4 (all implemented)
+- Total new tests: 73 (31 http_proxy + 15 new endpoints + 22 existing API + 5 iteration regression tests)
+- Files changed:
+  - `agent-coordinator/src/http_proxy.py` (new, ~1060 LOC)
+  - `agent-coordinator/src/coordination_api.py` (+692 LOC — 14 new endpoints, 10 new Pydantic models)
+  - `agent-coordinator/src/coordination_mcp.py` (+343 LOC — startup probe, 53 tool handlers, 11 resource guards)
+  - `agent-coordinator/tests/test_http_proxy.py` (new, ~660 LOC)
+  - `agent-coordinator/tests/test_coordination_api_new_endpoints.py` (new, ~220 LOC)
+  - `agent-coordinator/CLAUDE.md` (+8 LOC env var docs)
+  - `skills/setup-coordinator/SKILL.md` (+3 LOC HTTP proxy fallback note)
+- Evidence status: implemented + 2 refinement iterations applied
+- Known pre-existing failures (unrelated to this change):
+  - `test_docker_manager.py::test_auto_falls_back_to_podman` (env-dependent)
+  - `test_handoffs.py::test_write_handoff_db_error` (stale assertion; fix commit `1760e44` already on main)
