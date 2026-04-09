@@ -89,3 +89,33 @@ Iteration 1 addressed 15 findings from a structured self-review across security,
 
 ### Context
 Iteration 2 addressed 20 findings from a completeness/clarity/consistency/testability review. Key fixes: added requirement ID index for unambiguous cross-referencing, added R12 (automatic flag creation), added Impact and Scope Boundaries sections to proposal, added 8 failure/edge scenarios to specs, clarified state transition triggers, and added invalid decomposition rejection scenario.
+
+---
+
+## Phase: Plan Iteration 3 (2026-04-09)
+
+**Agent**: claude-code (opus) | **Session**: monorepo-scaling-practices
+
+### Decisions
+1. **Refresh-architecture RPC contract (HIGH)** — Created `contracts/internal/refresh-architecture-rpc.yaml` defining `is_graph_stale`, `trigger_refresh`, and `get_refresh_status`. Previously task 5.8 had an implicit cross-service orchestration dependency with no defined contract. Server side lives in wp-build-graph (new task 3.8, new file `skills/refresh-architecture/scripts/rpc_server.py`), client side lives in wp-integration (new task 5.8a, new file `agent-coordinator/src/refresh_rpc_client.py`).
+2. **git merge-tree conflict detection method** — Task 2.4 now specifies dual detection (exit code AND stderr parsing), required git 2.38+ version check on adapter startup, and explicit `MergeTreeResult` return shape. Previously the task referenced `git merge-tree` without specifying how to detect conflicts.
+3. **Pipeline refactoring scoped for task 3.7** — Task 3.7 now itemizes the 5 sub-steps required to insert `test_linker` into `compile_architecture_graph.py`. The existing pipeline splits at stage 3 (sequential graph mutations) into stages 4-6 (concurrent read-only), so test_linker must go in the sequential phase as stage 3b, NOT as a drop-in insert. Estimated ~50 LOC.
+4. **Cross-partition merge ordering pseudo-code** — Added wave-based merge algorithm to design.md D4 and tightened task 2.12 to reference it. The algorithm: build ready-graph → topo-sort → advance in waves where each wave parallel-merges all currently-ready nodes → rebase partition speculative refs after cross-partition merges. Raises `TrainDeadlockError` if a wave is empty while pending remains.
+5. **Feature flag missing-file fallback (LOW)** — Explicit failure-mode table added to design.md D7 and task 4.2: missing flags.yaml → empty registry (not crash), malformed flags.yaml → FlagsConfigError at startup (fail loud), orphaned flag reference → returns False (safe removal), undeclared FF_* env var → ignored with warning (fail closed).
+
+### Alternatives Considered
+- Single-task 5.8a in wp-integration for the full RPC implementation: rejected because server and client live in different directory trees (skills/refresh-architecture/ vs agent-coordinator/src/), which would create cross-package write scope conflicts. Split into 3.8 (server) and 5.8a (client) instead.
+- Define a long-running RPC service for refresh-architecture: rejected in favor of subprocess-style invocation (`python -m rpc_server <method> <json>`). Simpler, no daemon to manage, aligns with the "skills run as scripts" convention. Failure mode is identical from the client's perspective.
+- Put cross-partition merge ordering in task 2.12's description only: rejected because the algorithm has three non-obvious invariants (wave emptiness = deadlock, rebase-after-cross-partition, topo-sort over the entry×partition graph) that need visibility during code review. Pseudo-code lives in design.md D4 for reviewer access.
+
+### Trade-offs
+- Accepted +2 tasks (3.8, 5.8a) and +1 new file per side (rpc_server.py, refresh_rpc_client.py) over the simpler "coordinator calls refresh_architecture.sh directly" option. The RPC contract is worth the scaffolding because it (a) documents the failure mode, (b) makes staleness-check cheap without running a full refresh, (c) enables idempotent trigger (no thundering herd).
+- Accepted that task 3.7 description is now verbose (5 sub-steps instead of 1 sentence) over the simpler "just register it". The pipeline split between sequential and concurrent stages is non-obvious enough that a naive implementer would get it wrong.
+- Accepted that the RPC server runs as a subprocess per call rather than a persistent service. Trade-off: ~50ms startup overhead per call, acceptable because compose_train runs once per train composition (not per entry).
+
+### Open Questions
+- [x] ~~How should the train composition be triggered — periodically (cron), on enqueue, or both?~~ Resolved for Phase 1: triggered on enqueue and via periodic sweep (already in scope for wp-integration); documented in data flow section.
+- [ ] Should speculative refs be pushed to remote (for remote CI) or kept local-only? (Deferred: Phase 2 when GitHub Actions `merge_group` integration lands.)
+
+### Context
+Iteration 3 addressed 5 findings from a focused feasibility review: 1 HIGH (missing cross-service RPC contract for task 5.8), 3 MEDIUM (git merge-tree conflict detection ambiguity, test_linker pipeline refactoring unscoped, cross-partition merge ordering algorithm missing), and 1 LOW (flags.yaml missing-file behavior undefined). All findings resolved with new task 3.8, new task 5.8a, new contract file (refresh-architecture-rpc.yaml), tightened tasks 2.4/2.12/3.7/4.2, pseudo-code added to design.md D4, failure modes table added to design.md D7. plan_revision bumped 3 → 4, contracts revision bumped 1 → 2.

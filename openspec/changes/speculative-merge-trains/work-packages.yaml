@@ -3,18 +3,19 @@ schema_version: 1
 feature:
   id: speculative-merge-trains
   title: "Speculative Merge Trains with Stacked-Diff Decomposition and Build Graph Analysis"
-  plan_revision: 3
+  plan_revision: 4
   created_by: claude-code
   created_at: "2026-04-09T00:00:00Z"
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: contracts/internal/merge-train-api.yaml
     files:
       - contracts/internal/merge-train-api.yaml
       - contracts/internal/git-adapter-api.yaml
       - contracts/internal/test-linker-output.yaml
+      - contracts/internal/refresh-architecture-rpc.yaml
 
 defaults:
   priority: 5
@@ -48,6 +49,7 @@ packages:
       keys:
         - "contract:internal/merge-train-api.yaml"
         - "contract:internal/git-adapter-api.yaml"
+        - "contract:internal/refresh-architecture-rpc.yaml"
       ttl_minutes: 180
       reason: "Schema and contract definitions for merge train"
     scope:
@@ -150,8 +152,8 @@ packages:
   # Fully independent from wp-train-engine (different directory tree)
   # ──────────────────────────────────────────────────────────────
   - package_id: wp-build-graph
-    name: "Build Graph Extension — Test Linker and Affected-Test Query"
-    description: "Extend architecture refresh pipeline with test node extraction, TEST_COVERS edges, affected_tests() query with traversal bounds and cycle detection"
+    name: "Build Graph Extension — Test Linker, Affected-Test Query, Refresh RPC Server"
+    description: "Extend architecture refresh pipeline with test node extraction, TEST_COVERS edges, affected_tests() query with traversal bounds and cycle detection, and RPC server exposing staleness-check/trigger/status for the coordinator"
     tasks:
       - "3.1"
       - "3.2"
@@ -160,6 +162,7 @@ packages:
       - "3.5"
       - "3.6"
       - "3.7"
+      - "3.8"
     priority: 2
     depends_on:
       - wp-contracts
@@ -168,15 +171,17 @@ packages:
         - skills/refresh-architecture/scripts/insights/test_linker.py
         - skills/refresh-architecture/scripts/compile_architecture_graph.py
         - skills/refresh-architecture/scripts/affected_tests.py
+        - skills/refresh-architecture/scripts/rpc_server.py
       keys:
         - "feature:speculative-merge-trains:build-graph"
       ttl_minutes: 180
-      reason: "Build graph test analysis extension"
+      reason: "Build graph test analysis extension and refresh RPC server"
     scope:
       write_allow:
         - "skills/refresh-architecture/scripts/insights/test_linker.py"
         - "skills/refresh-architecture/scripts/compile_architecture_graph.py"
         - "skills/refresh-architecture/scripts/affected_tests.py"
+        - "skills/refresh-architecture/scripts/rpc_server.py"
         - "skills/refresh-architecture/tests/**"
       read_allow:
         - "skills/refresh-architecture/**"
@@ -196,6 +201,9 @@ packages:
         - name: "Unit tests for affected_tests query"
           kind: command
           command: "cd skills && .venv/bin/python -m pytest refresh-architecture/tests/test_affected_tests.py -v"
+        - name: "Unit tests for refresh RPC server"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest refresh-architecture/tests/test_rpc_server.py -v"
         - name: "Performance benchmark (10K-node graph traversal)"
           kind: command
           command: "cd skills && .venv/bin/python -m pytest refresh-architecture/tests/test_affected_tests.py -v -k benchmark"
@@ -258,7 +266,7 @@ packages:
   # ──────────────────────────────────────────────────────────────
   - package_id: wp-integration
     name: "Integration — MCP/HTTP Exposure, Full Lifecycle Tests, Documentation"
-    description: "Wire train service into MCP tools and HTTP API (with auth enforcement), full integration tests including crash recovery and BLOCKED recovery, documentation updates, database migration with performance verification"
+    description: "Wire train service into MCP tools and HTTP API (with auth enforcement), implement refresh-architecture RPC client, full integration tests including crash recovery and BLOCKED recovery, documentation updates, database migration with performance verification"
     tasks:
       - "5.1"
       - "5.2"
@@ -268,6 +276,7 @@ packages:
       - "5.6"
       - "5.7"
       - "5.8"
+      - "5.8a"
     priority: 4
     depends_on:
       - wp-train-engine
@@ -277,6 +286,7 @@ packages:
       files:
         - agent-coordinator/src/coordination_mcp.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/refresh_rpc_client.py
       keys:
         - "feature:speculative-merge-trains:integration"
       ttl_minutes: 240
@@ -285,7 +295,9 @@ packages:
       write_allow:
         - "agent-coordinator/src/coordination_mcp.py"
         - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/refresh_rpc_client.py"
         - "agent-coordinator/tests/integration/**"
+        - "agent-coordinator/tests/test_refresh_rpc_client.py"
         - "agent-coordinator/supabase/migrations/**"
         - "docs/parallel-agentic-development.md"
         - "docs/lessons-learned.md"

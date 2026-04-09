@@ -1,0 +1,106 @@
+# Internal API Contract: refresh-architecture ↔ compose_train RPC
+# These are internal service-layer APIs. Transport is unspecified here —
+# implementation may use coordinator HTTP, MCP tool, or in-process call
+# depending on where refresh-architecture runs (skill vs background service).
+#
+# Purpose: let compose_train check architecture graph freshness and trigger
+# a refresh without knowing how refresh-architecture is hosted. This keeps the
+# coordinator decoupled from the refresh skill's deployment model.
+
+is_graph_stale:
+  description: |
+    Check whether the architecture graph is older than max_age_hours.
+    Non-blocking: returns immediately from the graph file mtime.
+  input:
+    max_age_hours:
+      type: integer
+      default: 6
+      description: Staleness threshold in hours
+  output:
+    stale:
+      type: boolean
+      description: True if the graph is older than max_age_hours or missing entirely
+    graph_mtime:
+      type: string
+      format: iso8601
+      nullable: true
+      description: Last modification time of architecture.graph.json, null if missing
+    node_count:
+      type: integer
+      nullable: true
+      description: Number of nodes in the current graph (null if missing)
+    refresh_in_flight:
+      type: boolean
+      description: True if a refresh is already running (check before triggering another)
+    current_refresh_id:
+      type: string
+      nullable: true
+      description: ID of the in-flight refresh, if any
+
+trigger_refresh:
+  description: |
+    Trigger an async refresh of the architecture graph. If a refresh is already
+    in flight, returns the existing refresh_id (idempotent — no duplicate work).
+  input:
+    reason:
+      type: string
+      required: true
+      description: Why refresh was triggered (e.g. "compose_train:stale>6h")
+    caller:
+      type: string
+      required: true
+      description: Service identifier for audit trail (e.g. "merge_queue")
+  output:
+    refresh_id:
+      type: string
+      description: Unique identifier for this refresh run (new or existing)
+    is_new:
+      type: boolean
+      description: True if this call started a new refresh, false if it returned an in-flight one
+    estimated_duration_s:
+      type: integer
+      description: Rough estimate based on last known duration (default 60s on first run)
+
+get_refresh_status:
+  description: |
+    Poll the status of a refresh started via trigger_refresh.
+  input:
+    refresh_id:
+      type: string
+      required: true
+  output:
+    status:
+      type: string
+      enum: [RUNNING, COMPLETED, FAILED, UNKNOWN]
+      description: |
+        RUNNING — refresh is in progress
+        COMPLETED — refresh finished successfully, graph updated
+        FAILED — refresh hit an error; graph may be partially updated
+        UNKNOWN — refresh_id not found (e.g. too old, service restarted)
+    started_at:
+      type: string
+      format: iso8601
+      nullable: true
+    completed_at:
+      type: string
+      format: iso8601
+      nullable: true
+    error_message:
+      type: string
+      nullable: true
+      description: Populated when status=FAILED
+
+# ── Failure modes ────────────────────────────────────────────────────
+# If the refresh-architecture service is unreachable from the caller,
+# compose_train MUST:
+#   1. Log a warning with the reason
+#   2. Proceed with train composition
+#   3. Flag all entries in the resulting train as "full_test_suite=True"
+# This ensures merge train progress is never blocked by refresh subsystem
+# unavailability. The coordinator MUST NOT raise on refresh RPC failures.
+
+# ── Concurrency ──────────────────────────────────────────────────────
+# At most ONE refresh in flight per repository at any time. trigger_refresh
+# is idempotent: duplicate calls return the in-flight refresh_id and
+# is_new=false. This prevents thundering herd when multiple compose_train
+# invocations land on a stale graph simultaneously.

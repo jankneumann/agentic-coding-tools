@@ -47,7 +47,10 @@
   **Design decisions**: D1 (metadata storage), D2 (partitioning), D11 (authorization)
   **Dependencies**: 2.2
 
-- [ ] 2.4 Implement `compose_train()` — fetch queued entries, verify caller trust level >= 3, compute partitions, assign positions, create speculative refs via git adapter using `git merge-tree` (no working directory IO). Cache tree objects per train_id.
+- [ ] 2.4 Implement `compose_train()` — fetch queued entries, verify caller trust level >= 3, compute partitions, assign positions, create speculative refs via git adapter using `git merge-tree --write-tree --messages <base> <branch>` (requires git 2.38+, no working directory IO).
+  **Conflict detection contract**: The git adapter MUST detect conflicts via BOTH (a) non-zero exit code from `git merge-tree` AND (b) parsing stderr for conflict markers. Conflict fingerprint is the set of file paths reported in `--messages` output. On conflict, return `MergeTreeResult(success=False, conflict_files=[...], tree_oid=None)`; on success, return `MergeTreeResult(success=True, conflict_files=[], tree_oid="<oid>")`.
+  **Tree caching**: Cache `(base_tree_oid, branch_tree_oid) -> result_tree_oid` per train_id to avoid redundant merge-tree computation across positions N and N+1 when the base doesn't change.
+  **Git version check**: On adapter startup, verify `git --version` is >= 2.38; fail fast with a clear error if not.
   **Dependencies**: 2.3, 1.2
 
 - [ ] 2.5 Write tests for post-speculation claim validation — claim matches actual changes, claim mismatch triggers BLOCKED, partition reassignment scenarios
@@ -78,7 +81,8 @@
   **Spec scenarios**: agent-coordinator.5 (parallel partition merge), agent-coordinator.5 (cross-partition ordering), agent-coordinator.7 (cleanup)
   **Dependencies**: 2.10
 
-- [ ] 2.12 Implement partition-aware merge executor — fast-forward main per partition, serialize cross-partition entries, delete speculative refs after train completion
+- [ ] 2.12 Implement partition-aware merge executor per the wave algorithm in design.md D4 (build ready-graph → topo-sort with cycle detection → merge in waves within a coordinator transaction → cleanup speculative refs). Regular partitions fast-forward main to their final speculative ref; cross-partition entries fast-forward main to the entry's ref and rebase remaining partition speculative refs onto the new main tip. Must raise `TrainDeadlockError` if a wave is empty while entries remain pending. All speculative refs for the completed train MUST be deleted in the cleanup step.
+  **Design decisions**: D4 (cross-partition merge ordering pseudo-code)
   **Dependencies**: 2.11
 
 - [ ] 2.13 Write tests for crash recovery — orphaned speculative refs from dead trains, startup cleanup routine
@@ -115,8 +119,21 @@
 - [ ] 3.6 Implement `affected_tests(changed_files)` — reverse BFS from changed files to test nodes, stop at test nodes, visited-set cycle detection, 10K node bound with fallback to None, stale graph detection (>24h)
   **Dependencies**: 3.5
 
-- [ ] 3.7 Register `test_linker` in `compile_architecture_graph.py` pipeline as Stage 3.5 (between db_linker and flow_tracer)
+- [ ] 3.7 Register `test_linker` in `compile_architecture_graph.py` pipeline. This is NOT a drop-in insert — the existing pipeline runs stages 1-3 sequentially (graph mutations) then stages 4-6 concurrently on an in-memory read-only copy. Adding test_linker requires:
+  - (a) Insert `test_linker.run(input_dir, output_path=graph_path)` as a new Stage 3b between `db_linker` (Stage 3) and the in-memory graph load for Stages 4-6 (~10 lines added to orchestration)
+  - (b) Update the module docstring (lines 1-30) to document the new stage
+  - (c) Extend existing pipeline integration test in `refresh-architecture/tests/test_compile_architecture_graph.py` to verify TEST_COVERS edges appear in the output graph
+  - (d) Verify the concurrent stages (flow_tracer, impact_ranker, parallel_zones) correctly read the new test nodes/edges — they should be transparent since the graph is JSON-shaped
+  - (e) Estimated diff: ~50 LOC in compile_architecture_graph.py + insights/__init__.py (export test_linker)
   **Dependencies**: 3.6
+
+- [ ] 3.8 Implement the server side of the refresh-architecture RPC per `contracts/internal/refresh-architecture-rpc.yaml`. Expose `is_graph_stale`, `trigger_refresh`, and `get_refresh_status` as a callable surface that the coordinator can reach. Create new module `skills/refresh-architecture/scripts/rpc_server.py`:
+  - `is_graph_stale` reads `architecture.graph.json` mtime and node count
+  - `trigger_refresh` spawns `refresh_architecture.sh` as a detached subprocess, stores the refresh_id → subprocess mapping in an in-memory dict (for now — no persistence needed), returns idempotently if one is already running
+  - `get_refresh_status` checks the subprocess state
+  - Transport: callable via `python -m rpc_server <method> <json-args>` for subprocess-style invocation from the coordinator (avoids needing a long-running service). Document this in the module docstring.
+  **Contracts**: contracts/internal/refresh-architecture-rpc.yaml
+  **Dependencies**: 3.7
 
 ## Phase 4: Feature Flags (wp-feature-flags)
 
@@ -124,7 +141,11 @@
   **Design decisions**: D7 (resolution order), D6 (stacked diffs with flag gating)
   **Dependencies**: 1.5
 
-- [ ] 4.2 Create `feature_flags.py` — Flag dataclass, load_flags(yaml_path), resolve_flag(name), create_flag(change_id), enable_flag(name), archive_flag(name). Fail-closed: reject any `FF_*` env var not declared in flags.yaml (log warning, use YAML/default value).
+- [ ] 4.2 Create `feature_flags.py` — Flag dataclass, load_flags(yaml_path), resolve_flag(name), create_flag(change_id), enable_flag(name), archive_flag(name). Fail-closed behaviors:
+  - Reject any `FF_*` env var not declared in flags.yaml (log warning, use YAML/default value).
+  - If `flags.yaml` is missing entirely: treat as empty registry (all flags default to disabled), log a one-time startup warning. Do NOT raise — the coordinator must boot without flags.yaml to support bootstrapping a new repo.
+  - If `flags.yaml` exists but is malformed (YAML parse error, schema violation): raise `FlagsConfigError` at startup — this is a deployment bug, fail loud.
+  - If a flag referenced in code is not in `flags.yaml`: `resolve_flag()` returns `False` (disabled) and logs a warning. This makes flag removal safe — orphaned `is_enabled("OLD_FLAG")` calls degrade to disabled, not crash.
   **Dependencies**: 4.1
 
 - [ ] 4.3 Write tests for flag lifecycle — create on first stacked-diff, enable on feature completion, archive after release, **archived flags moved to flags.archive.yaml after 1 release cycle**
@@ -164,5 +185,9 @@
 - [ ] 5.7 Add database migration: GIN index on `metadata->'merge_queue'->'train_id'`, BTREE index on `metadata->'merge_queue'->'partition_id'`, BTREE index on `metadata->'merge_queue'->'train_position'`. Include EXPLAIN ANALYZE verification.
   **Dependencies**: 5.1
 
-- [ ] 5.8 Integrate `refresh-architecture` trigger into compose_train flow — if architecture graph is stale (>6h), trigger refresh before train composition. If refresh unavailable, compose_train proceeds but flags all entries as "full test suite needed".
-  **Dependencies**: 5.1, 3.7
+- [ ] 5.8a Implement the client side of the refresh-architecture RPC in the coordinator (`agent-coordinator/src/refresh_rpc_client.py`). Wraps the three methods defined in `contracts/internal/refresh-architecture-rpc.yaml` (`is_graph_stale`, `trigger_refresh`, `get_refresh_status`). Must honor the failure-mode contract: if the RPC subsystem is unreachable, log a warning and return `RefreshClientUnavailable` sentinels rather than raising. Include connection timeout (5s) and method timeout (30s for is_graph_stale, 10s for trigger_refresh, 5s for get_refresh_status).
+  **Contracts**: contracts/internal/refresh-architecture-rpc.yaml
+  **Dependencies**: 5.1, 3.8
+
+- [ ] 5.8 Integrate the `refresh-architecture` trigger into compose_train flow using the 5.8a client — before composing a train, call `is_graph_stale(max_age_hours=6)`. If stale and no refresh is in flight, call `trigger_refresh` and either (a) wait up to 60s (polling `get_refresh_status` every 5s) for completion or (b) proceed with a "full test suite needed" flag on all entries (configurable per deployment). If the client returns `RefreshClientUnavailable`, log a warning and proceed with the full-suite fallback (no exception raised — must not block train composition on an unavailable subsystem).
+  **Dependencies**: 5.1, 3.7, 5.8a

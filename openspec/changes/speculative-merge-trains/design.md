@@ -74,6 +74,52 @@ This feature extends the existing merge queue from a serial sync-point to a spec
 
 **Rejected alternative**: Full bisect-and-rebuild (GitLab model). More robust but CI cost is proportional to failure position — if entry 2 of 10 fails, entries 3-10 all re-speculate. At 50+ entries, this is prohibitively expensive.
 
+**Cross-partition merge ordering algorithm** (used by `merge_partition()` in task 2.12):
+
+```
+def merge_train(train: Train) -> None:
+    # 1. Build partition ready-graph:
+    #    - nodes: partitions + cross-partition entries
+    #    - edges: cross-partition entry X ∈ partitions {Pa, Pb} creates
+    #      "Pa waits for X" and "Pb waits for X" — but X waits for all
+    #      preceding entries in BOTH Pa and Pb.
+    ready_graph = build_ready_graph(train)
+
+    # 2. Topological sort; detect cycles (already done in compute_partitions,
+    #    but re-verify here as a safety net).
+    order = topo_sort(ready_graph)  # raises on cycle
+
+    # 3. Advance in waves. Each wave merges everything currently runnable
+    #    in parallel, then unblocks whatever the wave enabled.
+    pending = set(order)
+    with coordinator.transaction():          # ACID: all-or-nothing per wave
+        while pending:
+            wave = {n for n in pending
+                    if all_passed(n) and no_unmet_deps(n, pending)}
+            if not wave:
+                # Deadlock — some node is waiting on something not in pending.
+                # Should never happen if ready_graph is correct; log + abort.
+                raise TrainDeadlockError(pending)
+
+            # Parallel merges within the wave:
+            #   - Regular partitions: fast-forward main → final speculative ref
+            #   - Cross-partition entries: fast-forward main → entry's ref,
+            #     then all partitions in entry.spans_partitions must rebase
+            #     their remaining speculative refs onto the new main tip.
+            parallel_map(merge_node, wave)
+
+            pending -= wave
+
+    # 4. Cleanup: delete speculative refs for the completed train.
+    git_adapter.delete_speculative_refs(train.train_id)
+```
+
+**Key invariants**:
+- A partition only merges when ALL its entries are SPEC_PASSED AND no cross-partition entry it depends on is still pending.
+- A cross-partition entry merges only when ALL preceding entries in EVERY partition it spans have merged.
+- The wave model allows non-overlapping partitions to merge truly in parallel (within a single wave) while still serializing through cross-partition entries.
+- Rebasing after a cross-partition merge is cheap because the partitions' speculative refs already contain the cross-partition entry's changes (from the compose_train step).
+
 ### D5: Affected-test selection via architecture graph extension
 
 **Decision**: Extend the architecture refresh pipeline with a new `test_linker.py` insight module (Layer 2) that creates `TEST_COVERS` edges from test nodes to source nodes. The affected-test query traverses reverse edges from changed files to find covering tests.
@@ -95,6 +141,12 @@ This feature extends the existing merge queue from a serial sync-point to a spec
 **Decision**: Flag resolution order: `FF_<FLAG_NAME>` environment variable → `flags.yaml` file → default (disabled). Flag names derive from the feature's change-id, normalized to uppercase with underscores.
 
 **Rationale**: Environment variables allow per-environment override (staging enables a flag, production doesn't) without code changes. `flags.yaml` provides the default state and serves as documentation. This is deliberately minimal — no runtime flag service, no A/B testing, no percentage rollouts. Those can be added later if needed.
+
+**Failure modes** (defensive defaults so flag system never blocks the coordinator):
+- `flags.yaml` missing: treat as empty registry, log one-time warning, all flags default to disabled. This supports bootstrapping a new repo that doesn't yet have any flags.
+- `flags.yaml` malformed (YAML parse error, schema violation): raise `FlagsConfigError` at startup. This is a deployment bug — fail loud, don't silently run with "everything disabled".
+- Flag referenced in code but not declared in `flags.yaml`: `resolve_flag()` returns `False` with a warning log. This keeps flag *removal* safe — orphaned `is_enabled("OLD_FLAG")` calls degrade to disabled, not crash.
+- `FF_*` env var for an undeclared flag: rejected (ignored with warning) per the fail-closed rule in Security Considerations.
 
 ## Data Flow
 
