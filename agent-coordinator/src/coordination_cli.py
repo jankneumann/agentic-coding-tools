@@ -565,6 +565,77 @@ def cmd_audit_query(args: argparse.Namespace) -> int:
     return 0
 
 
+# -- Help (Progressive Discovery) --------------------------------------------
+
+
+def cmd_help(args: argparse.Namespace) -> int:
+    """Show help for coordinator capabilities with progressive detail."""
+    from .help_service import get_help_overview, get_help_topic, list_topic_names
+
+    topic = getattr(args, "topic", None)
+
+    if topic is None:
+        data = get_help_overview()
+        if args.json:
+            _output(data, json_mode=True)
+        else:
+            print("Coordinator Capabilities")
+            print("=" * 50)
+            print(f"Version: {data['version']}")
+            print()
+            for t in data["topics"]:
+                print(f"  {t['topic']:<16} {t['summary']} ({t['tools_count']} tools)")
+            print()
+            print("Usage: coordination-cli help <topic>")
+            print("  e.g. coordination-cli help locks")
+        return 0
+
+    detail = get_help_topic(topic)
+    if detail is None:
+        available = list_topic_names()
+        if args.json:
+            _output(
+                {"error": f"Unknown topic: {topic}", "available_topics": available},
+                json_mode=True,
+            )
+        else:
+            print(f"error: unknown topic '{topic}'")
+            print(f"available: {', '.join(available)}")
+        return 1
+
+    if args.json:
+        _output(detail, json_mode=True)
+    else:
+        print(f"{detail['topic']} — {detail['summary']}")
+        print("=" * 50)
+        print()
+        print(detail["description"])
+        print()
+        print("Tools:")
+        for tool in detail["tools"]:
+            print(f"  - {tool}")
+        print()
+        print("Workflow:")
+        for step in detail["workflow"]:
+            print(f"  {step}")
+        print()
+        print("Best Practices:")
+        for tip in detail["best_practices"]:
+            print(f"  * {tip}")
+        if detail["examples"]:
+            print()
+            print("Examples:")
+            for ex in detail["examples"]:
+                print(f"  # {ex['description']}")
+                for line in ex["code"].split("\n"):
+                    print(f"    {line}")
+                print()
+        if detail["related_topics"]:
+            print(f"Related: {', '.join(detail['related_topics'])}")
+
+    return 0
+
+
 # =============================================================================
 # Argument parser
 # =============================================================================
@@ -584,6 +655,11 @@ def build_parser() -> argparse.ArgumentParser:
     # -- health --------------------------------------------------------------
     health_p = subs.add_parser("health", help="Check coordinator health and database connectivity")
     health_p.set_defaults(func=cmd_health)
+
+    # -- help (progressive discovery) ----------------------------------------
+    help_p = subs.add_parser("help", help="Show capabilities with progressive detail")
+    help_p.add_argument("topic", nargs="?", default=None, help="Topic to get detailed help for")
+    help_p.set_defaults(func=cmd_help)
 
     # -- feature -------------------------------------------------------------
     feat_p = subs.add_parser("feature", help="Feature registry operations")
