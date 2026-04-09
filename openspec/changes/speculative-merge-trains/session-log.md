@@ -65,3 +65,27 @@ The planning session began with a comprehensive discussion of monorepo scaling p
 
 ### Context
 Iteration 1 addressed 15 findings from a structured self-review across security, performance, parallelizability, and assumptions dimensions. Key fixes: added 7 new spec requirements (authorization, ref security, claim validation, BLOCKED recovery, performance bounds), extracted merge_train_types.py to resolve wp-contracts/wp-train-engine scope overlap, added 6 new tasks (2.5-2.6 claim validation, 2.9-2.10 BLOCKED recovery, 2.13-2.14 crash recovery, 4.6 static analysis, 5.8 graph freshness trigger), and upgraded JSONB indexing strategy from GIN-only to GIN+BTREE.
+
+---
+
+## Phase: Plan Iteration 2 (2026-04-09)
+
+**Agent**: claude-code (opus) | **Session**: monorepo-scaling-practices
+
+### Decisions
+1. **Requirement ID index (R1-R13)** — Added explicit requirement IDs and cross-reference index to agent-coordinator spec. Prevents task/spec mismatch as plan evolves.
+2. **R12: Automatic Flag Creation** — Added spec requirement for auto-creating feature flags when first stacked-diff package is enqueued. Closes the gap between proposal Feature 4 and the spec.
+3. **Scope boundaries documented** — Added explicit "In scope (Phase 1)" vs "Deferred (Phase 2)" section to proposal. DAG scheduling integration explicitly deferred.
+4. **Impact section added** — Proposal now has quantified impact claims mapped to success criteria.
+5. **Missing failure/edge scenarios** — Added 8 new scenarios across both specs: invalid ref names, empty test files, non-standard test locations, missing modules, relative imports, merge conflicts during speculation, invalid decomposition values, state transition triggers.
+
+### Trade-offs
+- Accepted that Phase 1 uses manual merge_priority ordering (not DAG-enforced) for stacked diffs, deferring full DAG integration to Phase 2. This is safe because coordinators already set merge_priority at planning time.
+- Accepted fixture-aware test analysis as out-of-scope for Phase 1, documenting that affected-test selection may over-select (run extra tests) for fixture-dependent test patterns.
+
+### Open Questions
+- [ ] How should the train composition be triggered — periodically (cron), on enqueue, or both?
+- [ ] Should speculative refs be pushed to remote (for remote CI) or kept local-only?
+
+### Context
+Iteration 2 addressed 20 findings from a completeness/clarity/consistency/testability review. Key fixes: added requirement ID index for unambiguous cross-referencing, added R12 (automatic flag creation), added Impact and Scope Boundaries sections to proposal, added 8 failure/edge scenarios to specs, clarified state transition triggers, and added invalid decomposition rejection scenario.

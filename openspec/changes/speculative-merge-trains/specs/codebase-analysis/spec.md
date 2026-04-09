@@ -22,6 +22,17 @@ WHEN a test function is decorated with `@pytest.mark.parametrize`
 THEN the function SHALL still be represented as a single test node (not expanded per parameter)
 AND the node SHALL include `tags: ["test", "parametrized"]`
 
+#### Scenario: Empty test file produces no nodes
+
+WHEN analyzing a test file that contains no `test_*` functions and no `Test*` classes
+THEN no test nodes SHALL be created for that file
+
+#### Scenario: Non-standard test location ignored
+
+WHEN a Python file does not match `test_*.py` or `*_test.py` naming convention
+THEN no test nodes SHALL be extracted from that file even if it contains `test_*` functions
+AND a debug-level log entry SHALL note the skipped file
+
 ### Requirement: Test Coverage Edge Creation (Import-Level — Phase 1)
 
 The architecture pipeline SHALL create `TEST_COVERS` edges from test nodes to source nodes based on import analysis.
@@ -37,6 +48,18 @@ AND the edge SHALL have `confidence: "high"` and `evidence: "direct_import"`
 WHEN a test file imports only standard library modules (e.g., `import os`, `import json`)
 THEN no `TEST_COVERS` edges SHALL be created for those imports
 AND only project-internal imports SHALL produce edges
+
+#### Scenario: Missing imported module skipped with warning
+
+WHEN a test file imports from a module that does not exist in the codebase
+THEN no `TEST_COVERS` edge SHALL be created for that import
+AND a warning SHALL be logged identifying the missing module
+
+#### Scenario: Relative import resolution
+
+WHEN a test file uses relative imports (e.g., `from ..utils import helper`)
+THEN the import MUST be resolved to an absolute module path before edge creation
+AND the resolved path SHALL be used for the `TEST_COVERS` edge target
 
 ### Requirement: Affected-Test Query
 
