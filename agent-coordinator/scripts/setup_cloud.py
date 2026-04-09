@@ -34,13 +34,43 @@ PROJECT_DIR = SCRIPT_DIR.parent
 
 AGENTS = [
     # Local CLI agents using HTTP instead of MCP
-    {"id": "claude-local", "type": "claude_code", "key_flag": "claude_local_key", "label": "Claude (local)"},
-    {"id": "codex-local", "type": "codex", "key_flag": "codex_local_key", "label": "Codex (local)"},
-    {"id": "gemini-local", "type": "gemini", "key_flag": "gemini_local_key", "label": "Gemini (local)"},
+    {
+        "id": "claude-local",
+        "type": "claude_code",
+        "key_flag": "claude_local_key",
+        "label": "Claude (local)",
+    },
+    {
+        "id": "codex-local",
+        "type": "codex",
+        "key_flag": "codex_local_key",
+        "label": "Codex (local)",
+    },
+    {
+        "id": "gemini-local",
+        "type": "gemini",
+        "key_flag": "gemini_local_key",
+        "label": "Gemini (local)",
+    },
     # Cloud/remote agents
-    {"id": "claude-remote", "type": "claude_code", "key_flag": "claude_remote_key", "label": "Claude (remote)"},
-    {"id": "codex-remote", "type": "codex", "key_flag": "codex_remote_key", "label": "Codex (remote)"},
-    {"id": "gemini-remote", "type": "gemini", "key_flag": "gemini_remote_key", "label": "Gemini (remote)"},
+    {
+        "id": "claude-remote",
+        "type": "claude_code",
+        "key_flag": "claude_remote_key",
+        "label": "Claude (remote)",
+    },
+    {
+        "id": "codex-remote",
+        "type": "codex",
+        "key_flag": "codex_remote_key",
+        "label": "Codex (remote)",
+    },
+    {
+        "id": "gemini-remote",
+        "type": "gemini",
+        "key_flag": "gemini_remote_key",
+        "label": "Gemini (remote)",
+    },
 ]
 
 
