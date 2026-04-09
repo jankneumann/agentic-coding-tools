@@ -502,6 +502,128 @@ def test_resource_unavailable_constant_defined_and_used() -> None:
 
 
 @pytest.mark.asyncio
+async def test_proxy_check_locks_transforms_http_shape(_reset_client: None) -> None:
+    """proxy_check_locks transforms HTTP per-file shape to flat MCP list.
+
+    Regression: the HTTP endpoint returns {"locked": bool, "file_path", "lock": {...}}
+    but the MCP tool expects a flat list of {file_path, locked_by, agent_type, ...}.
+    Also: unlocked files should be filtered out, matching MCP semantics.
+    """
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key=None,
+        agent_id="agent-x",
+        agent_type="claude_code",
+    )
+    http_proxy.init_client(config)
+
+    # Mock three file lookups: one locked, one unlocked, one error
+    responses = {
+        "src/locked.py": (
+            200,
+            {
+                "locked": True,
+                "file_path": "src/locked.py",
+                "lock": {
+                    "locked_by": "other-agent",
+                    "agent_type": "codex",
+                    "locked_at": "2026-04-09T10:00:00",
+                    "expires_at": "2026-04-09T12:00:00",
+                    "reason": "editing",
+                },
+            },
+        ),
+        "src/free.py": (200, {"locked": False, "file_path": "src/free.py"}),
+        "src/error.py": (500, {"detail": "internal error"}),
+    }
+
+    class _MockResponse:
+        def __init__(self, status: int, body: dict[str, Any]) -> None:
+            self.status_code = status
+            self._body = body
+            self.text = str(body)
+
+        def json(self) -> dict[str, Any]:
+            return self._body
+
+    async def _route(method: str, url: str, **kw: Any) -> _MockResponse:
+        # URL is relative to base_url; strip the /locks/status/ prefix
+        prefix = "/locks/status/"
+        assert url.startswith(prefix), f"unexpected url {url}"
+        path = url[len(prefix):]
+        # URL-decoded path should match our test keys
+        from urllib.parse import unquote
+        path = unquote(path)
+        status, body = responses[path]
+        return _MockResponse(status, body)
+
+    http_proxy.get_client().request = _route  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_check_locks(
+        ["src/locked.py", "src/free.py", "src/error.py"]
+    )
+
+    # Only the locked file should be returned
+    assert len(result) == 1
+    assert result[0]["file_path"] == "src/locked.py"
+    assert result[0]["locked_by"] == "other-agent"
+    assert result[0]["agent_type"] == "codex"
+    assert result[0]["locked_at"] == "2026-04-09T10:00:00"
+    assert result[0]["expires_at"] == "2026-04-09T12:00:00"
+    assert result[0]["reason"] == "editing"
+
+
+@pytest.mark.asyncio
+async def test_proxy_check_locks_url_encodes_paths(_reset_client: None) -> None:
+    """proxy_check_locks URL-encodes file paths while preserving forward slashes."""
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key=None,
+        agent_id="x",
+        agent_type="y",
+    )
+    http_proxy.init_client(config)
+
+    captured: dict[str, str] = {}
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"locked": false}'
+
+        def json(self) -> dict[str, Any]:
+            return {"locked": False, "file_path": "x"}
+
+    async def _capture(method: str, url: str, **kw: Any) -> _MockResponse:
+        captured["url"] = url
+        return _MockResponse()
+
+    http_proxy.get_client().request = _capture  # type: ignore[method-assign]
+    await http_proxy.proxy_check_locks(["src/has space.py"])
+    # %20 is the URL encoding for a space; forward slashes preserved
+    assert captured["url"] == "/locks/status/src/has%20space.py"
+
+
+@pytest.mark.asyncio
+async def test_proxy_check_locks_returns_empty_list_for_none(
+    _reset_client: None,
+) -> None:
+    """proxy_check_locks returns empty list when file_paths is None.
+
+    The HTTP API has no 'list all locks' endpoint, so we gracefully degrade.
+    """
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key=None,
+        agent_id="x",
+        agent_type="y",
+    )
+    http_proxy.init_client(config)
+
+    result = await http_proxy.proxy_check_locks(None)
+    assert result == []
+
+
+@pytest.mark.asyncio
 async def test_proxy_release_lock_sends_identity(_reset_client: None) -> None:
     config = HttpProxyConfig(
         base_url="http://localhost:8081",
