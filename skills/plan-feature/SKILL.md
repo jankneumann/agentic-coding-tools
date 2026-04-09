@@ -95,14 +95,21 @@ If `CAN_HANDOFF=true`, read recent handoff context. If `CAN_MEMORY=true`, recall
 The shared checkout is **read-only** -- never commit or modify files there. All planning work happens in a feature-level worktree.
 
 ```bash
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>"
-cd $WORKTREE_PATH
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>")"
+cd "$WORKTREE_PATH"
 
-git rev-parse --show-toplevel  # Should match WORKTREE_PATH
-git branch --show-current       # Should be openspec/<change-id>
+# FEATURE_BRANCH is the resolved branch — default is openspec/<change-id>, but
+# may be overridden via the OPENSPEC_BRANCH_OVERRIDE env variable (e.g. when the
+# Claude cloud harness mandates a specific branch like claude/fix-<slug>).
+FEATURE_BRANCH="$WORKTREE_BRANCH"
+
+git rev-parse --show-toplevel     # Should match WORKTREE_PATH
+git branch --show-current         # Should match $FEATURE_BRANCH
 ```
 
 If the worktree already exists (e.g., from a previous session), reuse it. All subsequent steps happen **inside the worktree**.
+
+**Operator branch override**: When `OPENSPEC_BRANCH_OVERRIDE` is set (e.g. by the Claude cloud harness with `claude/fix-branch-mismatch-9P9o1`), `worktree.py` uses that branch instead of `openspec/<change-id>`. Downstream push/PR steps must reference `$FEATURE_BRANCH` rather than hardcoding the openspec prefix.
 
 ### 2. Review Existing Context (Parallel Exploration) [all tiers]
 
@@ -432,7 +439,8 @@ Use `ttl_minutes=0` for planning claims -- they signal intent without expiring.
 ```bash
 git add openspec/changes/<change-id>/
 git commit -m "plan: <change-id> -- proposal, design, specs, tasks, contracts, work-packages"
-git push -u origin openspec/<change-id>
+# Push to the branch resolved by worktree.py setup (honors OPENSPEC_BRANCH_OVERRIDE)
+git push -u origin "$FEATURE_BRANCH"
 
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
 ```

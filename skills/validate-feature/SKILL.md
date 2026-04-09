@@ -31,7 +31,7 @@ Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architectu
 
 ## Prerequisites
 
-- Feature branch `openspec/<change-id>` exists with implementation commits
+- Feature branch exists with implementation commits (default `openspec/<change-id>`, or the operator-mandated branch when `OPENSPEC_BRANCH_OVERRIDE` is set)
 - Docker/docker-compose installed and running (for Deploy phase)
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
@@ -95,8 +95,16 @@ If `--phase` is provided, only the listed phases execute. If `--phase` includes 
 ### 2. Verify Prerequisites
 
 ```bash
+# Resolve the expected feature branch — honors registry + OPENSPEC_BRANCH_OVERRIDE
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID")"
+FEATURE_BRANCH="$BRANCH"
+
 # Verify on feature branch
-git branch --show-current  # Should be openspec/<change-id>
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "$FEATURE_BRANCH" ]]; then
+  echo "ERROR: on '$CURRENT_BRANCH' but expected '$FEATURE_BRANCH' (source: $BRANCH_SOURCE)" >&2
+  exit 1
+fi
 
 # Verify proposal exists
 openspec show $CHANGE_ID
@@ -121,7 +129,7 @@ fi
 
 ```
 
-If not on the feature branch, check out `openspec/<change-id>`. If no implementation commits exist, abort with guidance.
+If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPEC_BRANCH_OVERRIDE`). If no implementation commits exist, abort with guidance.
 
 ### 2.5. Prepare Validation Artifacts
 
@@ -538,18 +546,18 @@ if [ "$SKIP_CI" = true ]; then
 else
   # Check if GitHub remote is configured
   if git remote get-url origin > /dev/null 2>&1; then
-    # Check if PR exists for this branch
-    PR_URL=$(gh pr view "openspec/$CHANGE_ID" --json url --jq '.url' 2>/dev/null)
+    # Check if PR exists for this branch (uses resolved FEATURE_BRANCH)
+    PR_URL=$(gh pr view "$FEATURE_BRANCH" --json url --jq '.url' 2>/dev/null)
 
     if [ -n "$PR_URL" ]; then
       echo "PR found: $PR_URL"
       echo ""
       echo "CI/CD Check Status:"
-      gh pr checks "openspec/$CHANGE_ID" 2>/dev/null || echo "  No CI checks configured yet"
+      gh pr checks "$FEATURE_BRANCH" 2>/dev/null || echo "  No CI checks configured yet"
     else
-      echo "No PR found for openspec/$CHANGE_ID"
+      echo "No PR found for $FEATURE_BRANCH"
       echo "Checking latest workflow runs..."
-      gh run list --branch "openspec/$CHANGE_ID" --limit 3 2>/dev/null || echo "  No workflow runs found"
+      gh run list --branch "$FEATURE_BRANCH" --limit 3 2>/dev/null || echo "  No workflow runs found"
     fi
   else
     echo "SKIP: No GitHub remote configured"
@@ -597,7 +605,7 @@ Produce a structured summary of all phases:
 
 **Date**: YYYY-MM-DD HH:MM:SS
 **Commit**: <short SHA>
-**Branch**: openspec/<change-id>
+**Branch**: <resolved feature branch — openspec/<change-id> by default, or operator override>
 
 ### Phase Results
 
@@ -644,7 +652,7 @@ cat > "$REPORT_FILE" << EOF
 
 **Date**: $TIMESTAMP
 **Commit**: $COMMIT_SHA
-**Branch**: openspec/$CHANGE_ID
+**Branch**: $FEATURE_BRANCH
 
 ## Phase Results
 
@@ -663,7 +671,7 @@ echo "Report written to: $REPORT_FILE"
 Post the validation report as a PR comment:
 
 ```bash
-PR_NUMBER=$(gh pr view "openspec/$CHANGE_ID" --json number --jq '.number' 2>/dev/null)
+PR_NUMBER=$(gh pr view "$FEATURE_BRANCH" --json number --jq '.number' 2>/dev/null)
 
 if [ -n "$PR_NUMBER" ]; then
   gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
@@ -677,7 +685,7 @@ EOF
 )"
   echo "Report posted to PR #$PR_NUMBER"
 else
-  echo "SKIP: No PR found for openspec/$CHANGE_ID — report not posted"
+  echo "SKIP: No PR found for $FEATURE_BRANCH — report not posted"
   echo "  Create a PR first, then re-run to post the report"
 fi
 ```

@@ -85,12 +85,26 @@ fi
 
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "<change-id>" ${AGENT_FLAG})"
 cd "$WORKTREE_PATH"
+
+# FEATURE_BRANCH is the resolved branch — default is openspec/<change-id>, but
+# may be overridden via the OPENSPEC_BRANCH_OVERRIDE env variable (e.g. when the
+# Claude cloud harness mandates a specific branch like claude/fix-<slug>).
+# Must match the branch plan-feature pushed to, otherwise commits land in the
+# wrong place.
+FEATURE_BRANCH="$WORKTREE_BRANCH"
 ```
+
+**Operator branch override**: If `OPENSPEC_BRANCH_OVERRIDE` was set at plan time, it MUST be set at implement time too — otherwise plan-feature and implement-feature will disagree on the branch and commits will diverge. The safest pattern is for the operator to set the env var for the entire session.
 
 ### 3. Verify Feature Branch [all tiers]
 
 ```bash
-git branch --show-current  # Should show openspec/<change-id>
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "$FEATURE_BRANCH" ]]; then
+  echo "ERROR: worktree is on '$CURRENT_BRANCH' but expected '$FEATURE_BRANCH'" >&2
+  echo "Hint: if OPENSPEC_BRANCH_OVERRIDE is set, ensure it matches what plan-feature used" >&2
+  exit 1
+fi
 ```
 
 ### 3a. Generate Change Context & Test Plan (Phase 1 -- TDD RED) [all tiers]
@@ -386,7 +400,8 @@ EOF
 ### 9. Push and Create PR [all tiers]
 
 ```bash
-git push -u origin openspec/<change-id>
+# Push to the resolved feature branch (honors OPENSPEC_BRANCH_OVERRIDE)
+git push -u origin "$FEATURE_BRANCH"
 gh pr create --title "feat(<scope>): <title>" --body "..."
 ```
 
@@ -407,7 +422,7 @@ When dispatching work packages, each agent receives only the context it needs:
 
 ## Output
 
-- Feature branch: `openspec/<change-id>`
+- Feature branch: `$FEATURE_BRANCH` (default `openspec/<change-id>`, or whatever `OPENSPEC_BRANCH_OVERRIDE` resolved to)
 - All tests passing
 - PR created and awaiting review
 

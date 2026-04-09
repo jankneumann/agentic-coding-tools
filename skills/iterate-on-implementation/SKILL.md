@@ -21,7 +21,7 @@ Iteratively refine a feature implementation after `/implement-feature` completes
 
 ## Prerequisites
 
-- Feature branch `openspec/<change-id>` exists with implementation commits
+- Feature branch `openspec/<change-id>` exists with implementation commits (or the operator-mandated branch when `OPENSPEC_BRANCH_OVERRIDE` is set)
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
@@ -100,8 +100,19 @@ fi
 ### 2. Verify Implementation Exists
 
 ```bash
+# Resolve the expected feature branch. This reads from the worktree registry
+# (preferred — reflects what plan/implement actually used) and falls back to
+# OPENSPEC_BRANCH_OVERRIDE env var or the openspec/<change-id> default.
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID")"
+FEATURE_BRANCH="$BRANCH"
+
 # Verify on feature branch
-git branch --show-current  # Should be openspec/<change-id>
+CURRENT_BRANCH="$(git branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "$FEATURE_BRANCH" ]]; then
+  echo "ERROR: on '$CURRENT_BRANCH' but expected '$FEATURE_BRANCH' (source: $BRANCH_SOURCE)" >&2
+  echo "Hint: check out '$FEATURE_BRANCH' and re-run, or run /implement-feature first" >&2
+  exit 1
+fi
 
 # Verify proposal exists
 openspec show $CHANGE_ID
@@ -110,7 +121,7 @@ openspec show $CHANGE_ID
 git log --oneline main..HEAD
 ```
 
-If not on the feature branch, check out `openspec/<change-id>`. If no implementation commits exist, abort and recommend running `/implement-feature` first.
+If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPEC_BRANCH_OVERRIDE`). If no implementation commits exist, abort and recommend running `/implement-feature` first.
 
 ### 2.5. Prepare Findings Artifact
 
@@ -528,7 +539,7 @@ If `CAN_HANDOFF=true`, write a completion handoff containing:
 
 ## Output
 
-- Iteration commits on branch `openspec/<change-id>`
+- Iteration commits on the resolved feature branch (`openspec/<change-id>` by default, or the operator-mandated branch)
 - Structured findings summary for each iteration
 - Updated documentation (CLAUDE.md, AGENTS.md, docs/ as applicable)
 - Updated OpenSpec documents (proposal.md, design.md, spec deltas as applicable)

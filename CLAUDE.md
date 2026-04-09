@@ -70,6 +70,7 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 - **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
 - **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
 - **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
+- **Operator branch override**: Set `OPENSPEC_BRANCH_OVERRIDE=<branch>` in the environment to force `worktree.py setup` to use that branch instead of the default `openspec/<change-id>`. This is the mechanism by which the Claude cloud harness (or any operator) can mandate a specific branch like `claude/fix-<slug>` for an entire session. Precedence: explicit `--branch` flag > `OPENSPEC_BRANCH_OVERRIDE` env var > `openspec/<change-id>` default. The override applies to every phase (plan, implement, cleanup) as long as the env var stays set — if plan uses the override but implement doesn't, the two phases will diverge onto different branches. `worktree.py setup` emits `WORKTREE_BRANCH=<resolved>` on stdout; skills must capture this (via `eval`) and use `$FEATURE_BRANCH="$WORKTREE_BRANCH"` in downstream push/PR/branch-delete commands rather than hardcoding the `openspec/` prefix.
 
 ### Sync-Point Skills
 

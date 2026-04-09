@@ -17,6 +17,7 @@ import worktree
 from worktree import (
     worktree_path,
     default_branch,
+    resolve_branch,
     load_registry,
     save_registry,
     find_entry,
@@ -34,25 +35,27 @@ from worktree import (
 def git_repo(tmp_path: Path) -> Path:
     """Create a minimal git repo for testing."""
     subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"],
-        cwd=str(tmp_path),
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=str(tmp_path),
-        check=True,
-        capture_output=True,
-    )
+    # Repo-local config only; never touch the user's global git config.
+    # Disable commit signing so tests work in sandboxes that enforce GPG globally.
+    for key, value in [
+        ("user.email", "test@test.com"),
+        ("user.name", "Test"),
+        ("commit.gpgsign", "false"),
+        ("tag.gpgsign", "false"),
+    ]:
+        subprocess.run(
+            ["git", "config", key, value],
+            cwd=str(tmp_path),
+            check=True,
+            capture_output=True,
+        )
     # Create initial commit so we have a main branch
     (tmp_path / "README.md").write_text("test")
     subprocess.run(
         ["git", "add", "README.md"], cwd=str(tmp_path), check=True, capture_output=True
     )
     subprocess.run(
-        ["git", "commit", "-m", "init"],
+        ["git", "commit", "--no-gpg-sign", "-m", "init"],
         cwd=str(tmp_path),
         check=True,
         capture_output=True,
@@ -127,6 +130,39 @@ class TestDefaultBranch:
 
     def test_with_agent_id_and_prefix(self) -> None:
         assert default_branch("change", agent_id="w1", prefix="fix") == "fix/change--w1"
+
+
+class TestResolveBranch:
+    """Branch resolution precedence: explicit > env override > default."""
+
+    def test_no_override_returns_default(self) -> None:
+        assert resolve_branch("change", env={}) == "openspec/change"
+
+    def test_explicit_wins_over_env(self) -> None:
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
+        assert resolve_branch("change", explicit="explicit/branch", env=env) == "explicit/branch"
+
+    def test_env_override_used_when_no_explicit(self) -> None:
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fix-branch-mismatch-9P9o1"}
+        assert resolve_branch("change", env=env) == "claude/fix-branch-mismatch-9P9o1"
+
+    def test_empty_env_override_falls_through_to_default(self) -> None:
+        env = {"OPENSPEC_BRANCH_OVERRIDE": ""}
+        assert resolve_branch("change", env=env) == "openspec/change"
+
+    def test_whitespace_env_override_falls_through_to_default(self) -> None:
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "   "}
+        assert resolve_branch("change", env=env) == "openspec/change"
+
+    def test_empty_explicit_falls_through_to_env(self) -> None:
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
+        assert resolve_branch("change", explicit="", env=env) == "operator/branch"
+
+    def test_env_override_ignores_agent_id_and_prefix(self) -> None:
+        # When an operator mandates a branch, we use it verbatim — we don't
+        # mangle it with the agent-id suffix or prefix.
+        env = {"OPENSPEC_BRANCH_OVERRIDE": "claude/fixit"}
+        assert resolve_branch("change", agent_id="w1", prefix="fix", env=env) == "claude/fixit"
 
 
 class TestRegistry:
@@ -219,6 +255,72 @@ class TestCmdSetup:
         )
         assert "custom/branch" in branches.stdout
 
+    def test_env_override_creates_operator_branch(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: operator-mandated branch via OPENSPEC_BRANCH_OVERRIDE.
+
+        Simulates the Claude cloud harness injecting a branch name the skill
+        must honor instead of its default openspec/<change-id>.
+        """
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/fix-branch-mismatch-9P9o1")
+        args = _make_args("setup", change_id="test-feature")
+        with _chdir(git_repo):
+            result = worktree.cmd_setup(args)
+        assert result == 0
+
+        # The operator branch should exist
+        branches = subprocess.run(
+            ["git", "branch", "--list", "claude/fix-branch-mismatch-9P9o1"],
+            cwd=str(git_repo),
+            capture_output=True,
+            text=True,
+        )
+        assert "claude/fix-branch-mismatch-9P9o1" in branches.stdout
+
+        # The openspec/ default branch should NOT have been created
+        default_branches = subprocess.run(
+            ["git", "branch", "--list", "openspec/test-feature"],
+            cwd=str(git_repo),
+            capture_output=True,
+            text=True,
+        )
+        assert default_branches.stdout.strip() == ""
+
+        # Registry should record the override branch
+        reg = load_registry(git_repo)
+        entry = find_entry(reg, "test-feature")
+        assert entry is not None
+        assert entry["branch"] == "claude/fix-branch-mismatch-9P9o1"
+
+    def test_explicit_branch_wins_over_env_override(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """--branch flag must take precedence over OPENSPEC_BRANCH_OVERRIDE."""
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "from-env")
+        args = _make_args("setup", change_id="test-feature", branch="from-flag")
+        with _chdir(git_repo):
+            result = worktree.cmd_setup(args)
+        assert result == 0
+
+        branches = subprocess.run(
+            ["git", "branch", "--list", "from-flag"],
+            cwd=str(git_repo),
+            capture_output=True,
+            text=True,
+        )
+        assert "from-flag" in branches.stdout
+
+    def test_setup_emits_branch_in_stdout(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Callers shell-eval the stdout; they need WORKTREE_BRANCH to pass it on."""
+        args = _make_args("setup", change_id="test-feature")
+        with _chdir(git_repo):
+            worktree.cmd_setup(args)
+        captured = capsys.readouterr()
+        assert "WORKTREE_BRANCH=openspec/test-feature" in captured.out
+
     def test_output_contains_worktree_path(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
         args = _make_args("setup", change_id="test-feature")
         with _chdir(git_repo):
@@ -226,6 +328,72 @@ class TestCmdSetup:
         captured = capsys.readouterr()
         expected = str(git_repo / ".git-worktrees" / "test-feature")
         assert f"WORKTREE_PATH={expected}" in captured.out
+
+
+class TestCmdResolveBranch:
+    """resolve-branch subcommand — used by iterate/validate to discover the branch."""
+
+    def test_prefers_registry_over_env(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """When a registry entry exists, it wins over env override.
+
+        This matters when plan-feature was run with one override and implement
+        is later run with a different (or missing) env var — the registry is the
+        source of truth for what was actually used.
+        """
+        # Setup with an explicit operator branch
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "operator/original")
+        setup_args = _make_args("setup", change_id="regtest")
+        with _chdir(git_repo):
+            worktree.cmd_setup(setup_args)
+
+        # Clear the env var and change it to something else — registry should still win
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "something/different")
+        capsys.readouterr()  # clear
+
+        resolve_args = _make_args("resolve-branch", change_id="regtest")
+        with _chdir(git_repo):
+            result = worktree.cmd_resolve_branch(resolve_args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "BRANCH=operator/original" in captured.out
+        assert "BRANCH_SOURCE=registry" in captured.out
+
+    def test_falls_back_to_env_when_no_registry(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "operator/fallback")
+        resolve_args = _make_args("resolve-branch", change_id="no-reg")
+        with _chdir(git_repo):
+            result = worktree.cmd_resolve_branch(resolve_args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "BRANCH=operator/fallback" in captured.out
+        assert "BRANCH_SOURCE=env" in captured.out
+
+    def test_falls_back_to_default_when_no_registry_no_env(
+        self, git_repo: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        resolve_args = _make_args("resolve-branch", change_id="no-reg-no-env")
+        with _chdir(git_repo):
+            result = worktree.cmd_resolve_branch(resolve_args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "BRANCH=openspec/no-reg-no-env" in captured.out
+        assert "BRANCH_SOURCE=default" in captured.out
+
+    def test_explicit_branch_flag_wins(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "from-env")
+        resolve_args = _make_args("resolve-branch", change_id="x", branch="from-flag")
+        with _chdir(git_repo):
+            result = worktree.cmd_resolve_branch(resolve_args)
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "BRANCH=from-flag" in captured.out
+        assert "BRANCH_SOURCE=explicit" in captured.out
 
 
 class TestCmdTeardown:

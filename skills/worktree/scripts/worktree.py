@@ -119,6 +119,36 @@ def default_branch(
     return base
 
 
+def resolve_branch(
+    change_id: str,
+    agent_id: str | None = None,
+    prefix: str | None = None,
+    explicit: str | None = None,
+    env: dict[str, str] | None = None,
+) -> str:
+    """Resolve the branch name a caller should use, applying override precedence.
+
+    Precedence (highest to lowest):
+      1. ``explicit`` — an explicit caller override (e.g. ``--branch`` flag)
+      2. ``OPENSPEC_BRANCH_OVERRIDE`` — from ``env`` or ``os.environ``
+      3. ``default_branch(change_id, agent_id, prefix)`` — computed default
+
+    The env variable is the mechanism by which operator-mandated branches
+    (e.g. the Claude cloud harness setting ``claude/fix-branch-mismatch-9P9o1``)
+    flow through to every worktree caller without each skill needing to know.
+
+    Passing an empty string via ``explicit`` or the env var is treated as "not
+    set" and falls through to the next layer.
+    """
+    if explicit:
+        return explicit
+    environ = env if env is not None else os.environ
+    override = (environ.get("OPENSPEC_BRANCH_OVERRIDE") or "").strip()
+    if override:
+        return override
+    return default_branch(change_id, agent_id, prefix)
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
@@ -205,13 +235,28 @@ def parse_duration_hours(duration: str) -> float:
 # ---------------------------------------------------------------------------
 
 def cmd_setup(args: argparse.Namespace) -> int:
-    """Create a worktree for the given change-id."""
+    """Create a worktree for the given change-id.
+
+    Branch resolution precedence (highest to lowest):
+      1. ``--branch`` CLI flag (explicit caller override)
+      2. ``OPENSPEC_BRANCH_OVERRIDE`` environment variable (operator mandate,
+         e.g. when the Claude cloud harness injects a specific branch name)
+      3. ``default_branch(change_id, agent_id, prefix)`` — the computed default
+
+    The env var lets operator-mandated branches flow through to every caller of
+    ``worktree.py setup`` without each skill needing to know about the override.
+    """
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
-    branch = args.branch or default_branch(change_id, agent_id, prefix)
+
+    branch = resolve_branch(change_id, agent_id, prefix, explicit=args.branch)
+    if not args.branch and branch != default_branch(change_id, agent_id, prefix):
+        # Emit diagnostic so operators can confirm the env override took effect
+        print("BRANCH_OVERRIDE_SOURCE=env", file=sys.stderr)
+        print(f"BRANCH_OVERRIDE_VALUE={branch}", file=sys.stderr)
 
     wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
 
@@ -299,6 +344,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
             print("No bootstrap script found, skipping", file=sys.stderr)
 
     print(f"WORKTREE_PATH={wt_path}")
+    print(f"WORKTREE_BRANCH={branch}")
     print(f"BOOTSTRAPPED={'true' if bootstrapped else 'false'}")
     return 0
 
@@ -506,6 +552,48 @@ def cmd_unpin(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_resolve_branch(args: argparse.Namespace) -> int:
+    """Print the resolved branch for a change-id without creating a worktree.
+
+    Branch resolution precedence (same as ``cmd_setup``):
+      1. ``--branch`` explicit override
+      2. Registry entry for (change_id, agent_id) if one exists — preferred,
+         because this reflects what was ACTUALLY used at setup time
+      3. ``OPENSPEC_BRANCH_OVERRIDE`` env var
+      4. ``default_branch(change_id, agent_id, prefix)``
+
+    Shell callers should ``eval`` the output to get ``BRANCH=<value>`` exported.
+    This lets iterate-on-implementation and validate-feature verify the correct
+    branch without knowing the override precedence themselves.
+    """
+    cwd = os.getcwd()
+    main_repo = resolve_main_repo(cwd)
+    change_id: str = args.change_id
+    agent_id: str | None = getattr(args, "agent_id", None)
+    prefix: str | None = args.prefix
+
+    # Registry wins when present — it records the truth of what setup used.
+    branch: str | None = None
+    source = "default"
+    if args.branch:
+        branch = args.branch
+        source = "explicit"
+    else:
+        registry = load_registry(main_repo)
+        entry = find_entry(registry, change_id, agent_id)
+        if entry and entry.get("branch"):
+            branch = entry["branch"]
+            source = "registry"
+        else:
+            # Fall back to the same precedence cmd_setup would apply
+            branch = resolve_branch(change_id, agent_id, prefix)
+            source = "env" if os.environ.get("OPENSPEC_BRANCH_OVERRIDE", "").strip() else "default"
+
+    print(f"BRANCH={branch}")
+    print(f"BRANCH_SOURCE={source}")
+    return 0
+
+
 def cmd_gc(args: argparse.Namespace) -> int:
     """Remove stale worktrees based on heartbeat age and pin status."""
     cwd = os.getcwd()
@@ -601,7 +689,13 @@ def main() -> int:
     setup_parser = subparsers.add_parser("setup", help="Create a worktree")
     setup_parser.add_argument("change_id", help="Change ID or identifier")
     _add_agent_id_flag(setup_parser)
-    setup_parser.add_argument("--branch", help="Branch name (default: openspec/<change-id>)")
+    setup_parser.add_argument(
+        "--branch",
+        help=(
+            "Branch name override. Precedence: --branch > OPENSPEC_BRANCH_OVERRIDE "
+            "env var > openspec/<change-id> default."
+        ),
+    )
     setup_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
     setup_parser.add_argument(
         "--no-bootstrap", action="store_true",
@@ -625,6 +719,17 @@ def main() -> int:
     # detect
     detect_parser = subparsers.add_parser("detect", help="Detect worktree context")
     detect_parser.set_defaults(func=cmd_detect)
+
+    # resolve-branch
+    resolve_parser = subparsers.add_parser(
+        "resolve-branch",
+        help="Print resolved branch for a change-id (honors registry + env override)",
+    )
+    resolve_parser.add_argument("change_id", help="Change ID or identifier")
+    _add_agent_id_flag(resolve_parser)
+    resolve_parser.add_argument("--branch", help="Explicit branch name (bypasses resolution)")
+    resolve_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
+    resolve_parser.set_defaults(func=cmd_resolve_branch)
 
     # heartbeat
     hb_parser = subparsers.add_parser("heartbeat", help="Update heartbeat timestamp")
