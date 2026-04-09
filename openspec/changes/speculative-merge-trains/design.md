@@ -163,9 +163,42 @@ This feature extends the existing merge queue from a serial sync-point to a spec
 - Adaptive partition sizing based on historical conflict data
 - Event bus notifications for train state changes (LISTEN/NOTIFY)
 
+### D8: Post-speculation claim validation
+
+**Decision**: After each speculative ref is created, compute the actual `git diff` of changed files and map them to lock key namespaces. If the actual changes span partitions not declared in the entry's `resource_claims`, transition the entry to BLOCKED with a claim mismatch error.
+
+**Rationale**: Partition detection trusts agent-provided resource claims (D2). But agents can be wrong — they declare claims at enqueue time based on expected changes, not actual changes. Post-speculation validation catches mismatches before CI runs, preventing unsafe partition assignment. This is a defense-in-depth layer: the pre-merge check (existing) validates claim overlap with other features, and post-speculation validation ensures claims are truthful.
+
+**Rejected alternative**: Coordinator computes claims from git diff at enqueue time (removing agent responsibility). This couples the coordinator to understanding code-to-lock-key mapping, which is currently a planning-time concern.
+
+### D9: BLOCKED entry recovery lifecycle
+
+**Decision**: BLOCKED entries can be recovered two ways: (1) manual re-enqueue by the entry owner with updated claims/branch, or (2) automatic re-evaluation during compose_train if the entry has been BLOCKED for more than 1 hour (conflict may have been resolved by other merges).
+
+**Rationale**: Without a recovery path, BLOCKED entries accumulate and require manual intervention. Auto-re-evaluation handles the common case where a conflict was caused by a preceding entry that has since merged (resolving the conflict). The 1-hour delay prevents rapid re-evaluation loops.
+
+**Rejected alternative**: Immediate automatic re-evaluation on every compose_train. This wastes git operations for entries BLOCKED due to genuine conflicts that won't resolve without code changes.
+
+### D10: Affected-test traversal bounds
+
+**Decision**: Reverse BFS in `affected_tests()` is bounded to 10,000 node visits per query. Traversal stops at test nodes (does not continue through test-to-test edges). If the bound is exceeded, the function returns `None` (run all tests).
+
+**Rationale**: On a monorepo with 10K+ files, an unbounded BFS from a highly-connected node (e.g., `config.py` with 85 dependents) could visit thousands of nodes. The bound ensures predictable latency (<100ms target). The fallback to "run all tests" is safe — it's what happens today without the build graph.
+
+### D11: Train operation authorization model
+
+**Decision**: Train operations use the existing agent profiles trust level system. `compose_train` and `get_train_status` require trust level >= 3 (operator). `eject_from_train` requires either feature ownership (registered_by matches agent_id) or trust level >= 3. `report_spec_result` requires trust level >= 2 (standard agent).
+
+**Rationale**: The coordinator already has an authorization model (profiles + policy engine). Train operations fit naturally into this model. The key constraint is that arbitrary agents should not be able to eject other agents' entries or manipulate train composition.
+
 ## Security Considerations
 
 - **Speculative branches are ephemeral**: Created under `refs/speculative/train-<id>/pos-<n>`, automatically deleted after train completes or entry is ejected. Never pushed to remote (local only).
-- **Feature flags are defense-in-depth, not security gates**: Flags gate incomplete functionality, not access control. Security-critical features should not rely on flags alone.
-- **Git adapter runs with coordinator's permissions**: No privilege escalation. The adapter uses the same git identity as the coordinator process.
-- **Audit trail extended**: All train operations (compose, eject, merge, flag create/enable/archive) logged via existing audit service.
+- **Speculative ref naming is validated**: Ref names must match `^refs/speculative/train-[a-f0-9]{8,32}/pos-\d{1,4}$`. Agent-provided branch names must match `^[a-zA-Z0-9/_.-]{1,200}$`. Validation prevents command injection via branch names.
+- **Git adapter uses shell=False exclusively**: All subprocess calls use explicit argument lists, never shell interpretation. This prevents injection even if validation is bypassed.
+- **Crash recovery**: Coordinator startup enumerates `refs/speculative/` and deletes orphaned refs with no active train entries. Watchdog sweeps refs older than 6 hours.
+- **Post-speculation claim validation**: After speculative refs are created, actual file changes are validated against declared resource claims. Mismatches cause BLOCKED transition, preventing unsafe partition assignment.
+- **Train operations require authorization**: compose_train requires operator trust (level 3+). eject_from_train requires ownership or operator trust. This prevents unauthorized train manipulation.
+- **Feature flags are defense-in-depth, not security gates**: Flags gate incomplete functionality, not access control. Security-critical features should not rely on flags alone. Flagged code MUST pass type checking and linting — flags gate runtime behavior, not static analysis.
+- **Feature flag env var resolution is fail-closed**: Any `FF_*` environment variable not declared in `flags.yaml` is rejected (ignored with warning), preventing injection of undeclared flags.
+- **Audit trail extended**: All train operations (compose, eject, merge, claim validation, flag create/enable/archive) logged via existing audit service.

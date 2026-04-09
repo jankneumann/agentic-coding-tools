@@ -61,6 +61,15 @@ WHEN `affected_tests()` is called and the architecture graph is older than 24 ho
 THEN the function SHALL return `None` (signaling "run all tests")
 AND a warning SHALL be logged recommending `refresh-architecture`
 
+#### Scenario: Traversal bound on large graphs
+
+WHEN `affected_tests()` performs reverse BFS from changed files
+THEN the traversal SHALL stop at test nodes (not traverse further through test-to-test edges)
+AND the traversal SHALL implement cycle detection (visited set)
+AND the traversal SHALL visit at most 10,000 nodes per query
+AND if the bound is exceeded, the function SHALL return `None` (signaling "run all tests") with a warning
+AND the target query latency SHALL be under 100ms for graphs with up to 10,000 nodes
+
 ### Requirement: Transitive Affected-Test Analysis (Phase 2)
 
 The architecture pipeline SHALL extend affected-test analysis to include tests that transitively depend on changed files through the call graph.

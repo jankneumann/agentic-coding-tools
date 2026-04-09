@@ -103,6 +103,126 @@ WHEN a cross-partition entry exists that spans partitions A and B
 THEN partitions A and B MUST serialize their merges around the cross-partition entry
 AND the cross-partition entry SHALL merge only after all entries before it in both partitions have merged
 
+### Requirement: Train Operation Authorization
+
+All merge train operations SHALL require authenticated sessions with appropriate trust levels, preventing unauthorized agents from manipulating train ordering or ejecting entries.
+
+#### Scenario: compose_train requires coordinator-level trust
+
+WHEN an agent calls compose_train
+THEN the agent MUST have trust level >= 3 (operator) or be the coordinator service itself
+AND if trust level is insufficient, the operation SHALL be rejected with a 403 error
+AND the rejection SHALL be logged to the audit trail
+
+#### Scenario: eject_from_train requires ownership or operator trust
+
+WHEN an agent calls eject_from_train(feature_id)
+THEN the agent MUST be either the feature owner (registered_by) or have trust level >= 3
+AND if the agent is neither the owner nor an operator, the operation SHALL be rejected
+AND the rejection SHALL be logged to the audit trail
+
+#### Scenario: HTTP train endpoints require API key authentication
+
+WHEN train operations are exposed via HTTP API
+THEN all endpoints SHALL require a valid `X-API-Key` header
+AND the API key identity SHALL be resolved to an agent profile for trust level checks
+
+### Requirement: Speculative Ref Security and Cleanup
+
+Speculative git references SHALL be protected against leakage, cleaned up on failure, and garbage-collected if the coordinator crashes.
+
+#### Scenario: Speculative ref naming validation
+
+WHEN the git adapter creates a speculative ref
+THEN the ref name MUST match the pattern `^refs/speculative/train-[a-f0-9]{8,32}/pos-\d{1,4}$`
+AND branch names provided by agents MUST be validated against `^[a-zA-Z0-9/_.-]{1,200}$`
+AND any name failing validation SHALL be rejected before subprocess execution
+AND the git adapter MUST use `subprocess.run(args_list, shell=False)` exclusively — never shell=True
+
+#### Scenario: Cleanup on coordinator crash
+
+WHEN the coordinator restarts after an unexpected shutdown
+THEN a startup cleanup routine SHALL enumerate all refs under `refs/speculative/`
+AND for each ref, if the corresponding train_id has no active entries in the merge queue, the ref SHALL be deleted
+AND cleanup actions SHALL be logged to the audit trail
+
+#### Scenario: TTL-based garbage collection
+
+WHEN a speculative ref has existed for longer than 6 hours
+AND no active train entry references it
+THEN the ref SHALL be eligible for garbage collection
+AND the watchdog service SHALL delete it during its periodic sweep
+
+### Requirement: Post-Speculation Claim Validation
+
+After a speculative ref is created, the merge queue service SHALL validate that the entry's actual file changes match its declared resource claims, preventing partition misassignment.
+
+#### Scenario: Claim matches actual changes
+
+WHEN a speculative ref is created for an entry claiming `api:GET /v1/users`
+AND the git diff of the entry shows changes only to `src/api/users.py`
+THEN the claim validation SHALL pass
+AND the entry SHALL proceed to CI
+
+#### Scenario: Claim does not match actual changes
+
+WHEN a speculative ref is created for an entry claiming `api:GET /v1/users`
+AND the git diff shows changes to `src/db/schema.py` (which would map to `db:schema:*` partition)
+THEN the claim validation SHALL fail
+AND the entry SHALL transition to BLOCKED with reason "claim mismatch: actual changes span partitions not declared in resource_claims"
+AND the entry owner SHALL be notified to update claims and re-enqueue
+
+### Requirement: BLOCKED Entry Recovery
+
+Entries that transition to BLOCKED SHALL have a defined recovery path.
+
+#### Scenario: Manual re-enqueue of BLOCKED entry
+
+WHEN an entry is in BLOCKED state
+AND the entry owner calls enqueue with updated resource claims or branch
+THEN the entry SHALL transition back to QUEUED
+AND the entry SHALL be included in the next train composition with its original merge_priority
+
+#### Scenario: Automatic re-evaluation on next train composition
+
+WHEN compose_train runs and there are BLOCKED entries older than 1 hour
+THEN compose_train SHALL re-evaluate BLOCKED entries by attempting speculative merge
+AND if the merge succeeds (conflict resolved), the entry SHALL transition to SPECULATING
+AND if the merge still fails, the entry SHALL remain BLOCKED with updated `checked_at` timestamp
+
+### Requirement: Partition Detection Performance
+
+The partition detection algorithm SHALL complete in bounded time proportional to the number of entries and their claim count.
+
+#### Scenario: Partition detection within time bound
+
+WHEN compose_train is called with N entries, each having at most P resource claims
+THEN compute_partitions SHALL complete in O(N·P) time
+AND for N=1000 and P=10, compose_train SHALL complete partition detection in under 5 seconds
+
+#### Scenario: Cross-partition cycle detection
+
+WHEN cross-partition entries exist such that entry A spans partitions {P1, P2} and entry B spans partitions {P2, P3} and entry C spans partitions {P3, P1}
+THEN compose_train SHALL detect the circular dependency
+AND all entries in the cycle SHALL be placed in a single serialized cross-partition sub-train
+AND the cycle detection SHALL be logged as a warning
+
+### Requirement: Speculative Ref Creation Performance
+
+Speculative ref creation SHALL use efficient git operations that do not require working directory I/O.
+
+#### Scenario: Merge-tree based speculation
+
+WHEN the git adapter creates a speculative ref
+THEN it SHALL use `git merge-tree` (or equivalent in-memory merge) rather than `git merge` with a working directory
+AND tree objects SHALL be cached per train_id to avoid redundant computation
+AND speculative ref creation for independent partitions SHALL be parallelizable (no global lock)
+
+#### Scenario: Large train performance bound
+
+WHEN a train has 100 entries across 5 partitions
+THEN all speculative refs SHALL be created in under 30 seconds on a repository with 10,000 files
+
 ## MODIFIED Requirements
 
 ### Requirement: Merge Queue Enqueue (Extended)
