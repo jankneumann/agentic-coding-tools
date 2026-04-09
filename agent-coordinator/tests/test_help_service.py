@@ -164,6 +164,27 @@ class TestHelpCli:
         result = main(["help", "nonexistent"])
         assert result == 1
 
+    def test_help_json_unknown_has_hint(self) -> None:
+        import io
+        import json
+        import sys
+
+        from src.coordination_cli import main
+
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
+        try:
+            result = main(["--json", "help", "nonexistent"])
+        finally:
+            sys.stdout = old_stdout
+
+        assert result == 1
+        data = json.loads(captured.getvalue())
+        assert "error" in data
+        assert "available_topics" in data
+        assert "hint" in data
+
     def test_help_json_overview(self) -> None:
         import io
         import json

@@ -2194,7 +2194,7 @@ def create_coordination_api() -> FastAPI:
         return JSONResponse(
             status_code=404,
             content={
-                "error": f"Unknown topic: {topic!r}",
+                "error": f"Unknown topic: {topic}",
                 "available_topics": list_topic_names(),
                 "hint": "GET /help for an overview of all topics",
             },

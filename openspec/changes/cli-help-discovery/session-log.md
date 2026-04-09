@@ -54,3 +54,26 @@ The feature addresses the problem of MCP eager schema loading consuming 6-8K tok
 
 ### Context
 Implementation was cherry-picked from the dev branch into the OpenSpec worktree. The main deviation from plan was resolving a merge conflict in `coordination_api.py` where the health endpoint section differed between branches. After resolution, all 46 tests pass (24 help-specific + 22 coordination API) and ruff reports no issues across all modified files.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-04-09)
+
+**Agent**: claude-opus-4-6 | **Session**: iterate-on-implementation
+
+### Decisions
+1. **Remove repr formatting from error messages** — All three transports used `f"Unknown topic: {topic!r}"` which embeds Python-specific quoting in API responses. Changed to plain `f"Unknown topic: {topic}"` for cleaner, transport-neutral output.
+2. **Add hint field to CLI JSON error response** — The MCP and HTTP transports included a `hint` field in unknown-topic errors, but CLI JSON mode omitted it. Added for cross-transport schema consistency per spec scenario 9.
+
+### Alternatives Considered
+- Keeping `!r` formatting: rejected because it embeds Python-specific syntax in a transport-neutral API
+- Omitting hint from all transports: rejected because hints improve agent self-correction behavior
+
+### Trade-offs
+- Accepted slight verbosity in error responses over minimalism because the hint actively helps agents recover from bad topic names
+
+### Open Questions
+- None new
+
+### Context
+Iteration 1 identified 4 findings (2 medium, 2 low). Fixed both medium-criticality findings: cross-transport error schema consistency (missing hint in CLI JSON) and inconsistent error message formatting (repr vs plain). Added 1 new test for CLI JSON error hint field. All 47 tests pass.

@@ -595,7 +595,11 @@ def cmd_help(args: argparse.Namespace) -> int:
         available = list_topic_names()
         if args.json:
             _output(
-                {"error": f"Unknown topic: {topic}", "available_topics": available},
+                {
+                    "error": f"Unknown topic: {topic}",
+                    "available_topics": available,
+                    "hint": "Run coordination-cli help for all topics",
+                },
                 json_mode=True,
             )
         else:

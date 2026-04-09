@@ -2234,7 +2234,7 @@ async def help(topic: str | None = None) -> dict[str, Any]:
         return detail
 
     return {
-        "error": f"Unknown topic: {topic!r}",
+        "error": f"Unknown topic: {topic}",
         "available_topics": list_topic_names(),
         "hint": "Call help() with no arguments to see all topics",
     }
