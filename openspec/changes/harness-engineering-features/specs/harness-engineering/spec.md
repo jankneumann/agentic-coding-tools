@@ -21,7 +21,7 @@ AND the maximum iteration count SHALL be configurable (default: 3)
 
 #### Scenario: Review loop escalates on consensus failure
 WHEN the convergence loop reaches the maximum iteration count
-AND unresolved findings with disposition "blocked_fix" or "blocked_escalate" remain
+AND unresolved findings with disposition "fix" or "escalate" remain
 THEN the loop SHALL escalate to human review
 AND the escalation SHALL include a summary of unresolved findings with iteration history
 
