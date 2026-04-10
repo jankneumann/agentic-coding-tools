@@ -185,6 +185,13 @@ The resolution order SHALL be:
 `cli.model_fallbacks` list (e.g., `claude-sonnet-4-6`)
 **AND** SHALL NOT define its own independent fallback chain
 
+#### Scenario: All models in fallback chain exhausted
+
+**WHEN** the `implementer` archetype specifies model `sonnet`
+**AND** both the primary model and all `cli.model_fallbacks` return errors
+**THEN** the dispatcher SHALL raise a dispatch failure with the last error
+**AND** SHALL NOT retry models already attempted in this dispatch
+
 ---
 
 ### Requirement: Work Queue Archetype Routing
@@ -238,3 +245,10 @@ field SHALL use the skill's default mapping.
 **WHEN** a work-package omits the `archetype` field
 **THEN** `/implement-feature` SHALL use the `implementer` archetype
 as the default for implementation packages
+
+#### Scenario: Package with invalid archetype name rejected
+
+**WHEN** a work-package specifies `archetype: "INVALID_NAME"`
+**THEN** `openspec validate` SHALL reject the work-packages.yaml file
+**AND** the error message SHALL identify the invalid archetype name and the
+validation pattern `^[a-z][a-z0-9_-]{0,31}$`

@@ -81,3 +81,25 @@ Elevated draft PR #65 to full plan. Rebased onto current main (19 new commits in
 
 ### Context
 Parallel 5-agent analysis across completeness, clarity/consistency, feasibility/parallelizability, security/performance, and testability. 15 findings at medium+ severity. Fixed: missing test task for fallback chain, work-package dependency gap, phantom contract references, subjective scenario language, prompt composition ownership, escalation metadata flow, verification command coverage, and spec field cleanup.
+
+---
+
+## Phase: Plan Iteration 2 (2026-04-10)
+
+**Agent**: claude-local | **Session**: N/A
+
+### Decisions
+1. **Add failure scenario for fallback chain exhaustion** — Requirement 5 only had a 429-fallback success scenario. Added scenario for when all models in the chain are exhausted.
+2. **Add failure scenario for invalid archetype in work package** — Requirement 7 only had success scenarios. Added validation failure scenario for invalid archetype name pattern.
+
+### Alternatives Considered
+- Skipping Req 5 failure scenario: rejected because the boundary between archetype fallback and existing chain exhaustion needs explicit specification
+
+### Trade-offs
+- None significant — both additions are small, targeted scenario additions
+
+### Open Questions
+- [ ] Escalation threshold tuning: initial values (3 dirs, 2 deps, 500 LOC) still need empirical validation
+
+### Context
+Focused scenario coverage pass. Found 2 requirements (Fallback Chain Integration, Work Package Archetype Field) with only success-path scenarios. Added failure/edge-case scenarios for both. All 7 requirements now have success + failure coverage.
