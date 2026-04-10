@@ -119,7 +119,10 @@ def main() -> None:
         if api_key:
             headers["X-API-Key"] = api_key
 
-        with httpx.Client(timeout=5.0) as client:
+        with httpx.Client(
+            timeout=5.0,
+            headers={"User-Agent": "agentic-coding-tools/0.1"},
+        ) as client:
             response = client.post(url, json=payload, headers=headers)
             if response.is_success:
                 _write_status_cache({"last_phase": phase, "change_id": change_id})

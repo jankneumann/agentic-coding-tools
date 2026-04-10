@@ -239,6 +239,7 @@ def verify_connectivity(domain: str, api_key: str | None = None) -> bool:
     print(f"\nVerifying: GET {url}")
     try:
         req = Request(url)
+        req.add_header("User-Agent", "agentic-coding-tools/0.1")
         if api_key:
             req.add_header("X-API-Key", api_key)
         with urlopen(req, timeout=10) as resp:

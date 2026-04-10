@@ -50,11 +50,7 @@ In Cloudflare dashboard > **DNS** > **Records**, create:
 |------|------|--------|-------|
 | CNAME | `coord` | `your-service.up.railway.app` | **DNS only** (grey cloud) |
 
-**Use DNS-only mode (grey cloud)** for the coordinator subdomain. The coordinator is a machine-to-machine API — Cloudflare's bot filtering (Browser Integrity Check, Bot Fight Mode, JS challenges) blocks API clients like Claude Code and Codex. DNS-only mode gives you the stable custom domain without interference. Railway already provides TLS and DDoS protection.
-
-> **When to use proxied (orange cloud) instead**: If you need Cloudflare rate limiting or IP restrictions, enable the proxy and add skip rules:
-> 1. **Rules > Configuration Rules**: hostname `coord.yourdomain.com` → Browser Integrity Check: Off, Security Level: Essentially Off
-> 2. **Security > WAF > Custom Rules**: `(http.host eq "coord.yourdomain.com") and (len(http.request.headers["x-api-key"][0]) gt 0)` → Action: Skip all remaining rules
+**Proxy mode choice**: The orange cloud (Proxied) routes traffic through Cloudflare's edge network. The grey cloud (DNS only) resolves directly to Railway. See [Section 6: Proxy Mode for API Hostnames](#6-proxy-mode-for-api-hostnames) for guidance on which to use.
 
 ### 2c. Verify
 
@@ -246,7 +242,120 @@ To switch from Railway (DNS proxy) to tunnel (or vice versa):
 - Store credentials at `~/.cloudflared/` (the default location)
 - For Docker Compose, mount credentials as a volume (not copied into the image)
 
+## 6. Proxy Mode for API Hostnames
+
+The coordinator is a **machine-to-machine JSON API** — not a browser-facing website. Cloudflare's proxy features (Bot Fight Mode, Browser Integrity Check, JS Challenge) are designed for browser traffic and will block programmatic API clients. This section covers the available options.
+
+### The Problem
+
+Cloudflare's **Bot Fight Mode** inspects the `User-Agent` header and blocks requests from non-browser clients with HTTP 403 (error code 1010). Default Python HTTP libraries send identifiable User-Agent strings:
+
+| Library | Default User-Agent | Blocked? |
+|---------|-------------------|----------|
+| `urllib` (stdlib) | `Python-urllib/3.x` | Yes |
+| `httpx` | `python-httpx/0.x.x` | Yes |
+| `requests` | `python-requests/2.x.x` | Yes |
+
+The codebase sets a custom `User-Agent: agentic-coding-tools/0.1` header on all coordinator HTTP calls, but Cloudflare's bot detection may still flag non-browser signatures depending on the configured challenge level.
+
+### Traffic Path Comparison
+
+```
+Orange cloud (Proxied):
+  Client → Cloudflare (WAF, Bot Fight, CDN) → Fastly (Railway CDN) → Envoy → App
+  Three proxy layers. Bot Fight Mode applies.
+
+Grey cloud (DNS only):
+  Client → Fastly (Railway CDN) → Envoy → App
+  One fewer hop. No Cloudflare bot detection.
+```
+
+### Option A: DNS Only (Recommended for API Hostnames)
+
+Switch the coordinator subdomain to **DNS only** (grey cloud). Railway already provides TLS termination, DDoS protection (via Fastly), and edge routing. The API is protected by `X-API-Key` authentication at the application layer.
+
+**Steps:**
+1. Go to **Cloudflare Dashboard → DNS → Records**
+2. Find the CNAME record for `coord`
+3. Click the **orange cloud** icon to toggle it to **grey** (DNS only)
+4. Save
+
+| Capability | Cloudflare Proxy | Railway (built-in) |
+|---|---|---|
+| TLS termination | Yes | Yes (auto-provisioned certs) |
+| DDoS protection | Yes (L3-L7) | Yes (Fastly shield) |
+| CDN / edge caching | Yes | Yes (Fastly) |
+| WAF / rate limiting | Yes | No |
+| Bot protection | Yes (causes API breakage) | No (not needed for APIs) |
+| HTTP/3 (QUIC) | Yes | Depends on Fastly config |
+
+**When to choose this:** The coordinator hostname serves only JSON API traffic from known agents. No browser users, no public-facing pages. This is the simplest option — one toggle, no WAF rules to maintain.
+
+**Trade-off:** You lose Cloudflare WAF and rate limiting at the edge. If you later need per-IP rate limiting or geo-blocking, switch to Option B or C instead.
+
+### Option B: Keep Proxy + WAF Exception by API Key Header
+
+If you want to keep Cloudflare proxy features (e.g., for rate limiting or analytics) while allowing programmatic API clients through, create a WAF custom rule to skip bot detection for authenticated requests.
+
+**Steps:**
+1. Go to **Cloudflare Dashboard → Security → WAF → Custom Rules**
+2. Create a new rule:
+
+| Field | Value |
+|-------|-------|
+| **Rule name** | `Allow Coordinator API Clients` |
+| **Expression** | `(http.host eq "coord.yourdomain.com" and any(http.request.headers["x-api-key"][*] ne ""))` |
+| **Action** | Skip → Bot Fight Mode, Super Bot Fight Mode |
+
+This allows any request carrying an `X-API-Key` header to bypass bot detection. The actual key validation happens at the application layer.
+
+To also allow unauthenticated access to `/health` (for uptime monitors):
+
+```
+(http.host eq "coord.yourdomain.com" and http.request.uri.path eq "/health")
+or
+(http.host eq "coord.yourdomain.com" and any(http.request.headers["x-api-key"][*] ne ""))
+```
+
+**When to choose this:** You want Cloudflare analytics, rate limiting, or geo-blocking on the API, but still need programmatic access to work.
+
+### Option C: Keep Proxy + Skip Bot Fight for Entire Hostname
+
+The simplest WAF rule — disable bot detection entirely for the coordinator hostname, since it's a pure API.
+
+**Steps:**
+1. Go to **Cloudflare Dashboard → Security → WAF → Custom Rules**
+2. Create a new rule:
+
+| Field | Value |
+|-------|-------|
+| **Rule name** | `Skip Bot Fight for Coordinator API` |
+| **Expression** | `(http.host eq "coord.yourdomain.com")` |
+| **Action** | Skip → Bot Fight Mode, Super Bot Fight Mode |
+
+**When to choose this:** Same as Option B, but you don't want to match on specific headers. Safe when the API already requires `X-API-Key` at the application layer.
+
+### WAF Rule Ordering
+
+Cloudflare evaluates custom WAF rules in **list order**. Skip rules must be placed **above** any managed rulesets or other block rules to take effect before the bot detection phase fires.
+
+### Summary
+
+| Option | Complexity | Bot detection | WAF/rate limit | Recommended for |
+|--------|-----------|--------------|----------------|----------------|
+| **A: DNS only** | One toggle | Disabled (no proxy) | Not available | Pure API, no edge WAF needed |
+| **B: WAF skip by header** | WAF rule | Skipped for API clients | Available | API + Cloudflare analytics/rate limiting |
+| **C: WAF skip by hostname** | WAF rule | Skipped for all traffic | Available | Same as B, simpler rule |
+
 ## Troubleshooting
+
+### Cloudflare Bot Fight Mode blocking API clients
+
+Symptom: HTTP 403 with body `error code: 1010` when calling the coordinator from Python scripts or CI.
+
+Cause: Cloudflare Bot Fight Mode blocks non-browser User-Agent strings.
+
+Fix: Apply one of the options from [Section 6](#6-proxy-mode-for-api-hostnames). Option A (DNS only) is the quickest — one toggle in the DNS settings.
 
 ### DNS not resolving
 - Verify nameservers were updated at your registrar
