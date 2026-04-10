@@ -220,8 +220,6 @@ packages:
         - "openspec/schemas/work-packages.schema.json"
       keys:
         - "db:schema:work_queue"
-        - "api:POST /work/submit"
-        - "api:POST /work/claim"
     verification:
       tier_required: B
       steps:

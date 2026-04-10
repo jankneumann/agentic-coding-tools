@@ -94,6 +94,13 @@ the existing infrastructure.
 With archetypes, this becomes
 `models_to_try = [archetype.resolved_model] + self.cli_config.model_fallbacks`.
 
+**Resolution callsite**: Skills call `resolve_model(archetype, package_metadata)` and
+`compose_prompt(archetype, task_prompt)` at dispatch time, then pass the resolved model
+string and composed prompt to the `Agent` tool or `CliVendorAdapter.dispatch()`. The
+Agent tool itself does NOT understand archetypes — it receives a concrete `model=` and
+`prompt=`. This keeps the resolution layer in the skill dispatch code, not in framework
+internals.
+
 ### D5: Graceful degradation for unknown archetypes
 
 **Decision**: If a skill references an archetype that doesn't exist in
