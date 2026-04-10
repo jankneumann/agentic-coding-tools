@@ -91,7 +91,35 @@ mypy --strict src/
 
 # Linting
 ruff check .
+
+# Verify Dockerfile COPY coverage for src/ imports
+# (catches the class of bug where code imports from a local package
+# that isn't bundled in the runtime container)
+python scripts/check_docker_imports.py --data-dir cedar --data-dir profiles
 ```
+
+## Dockerfile ↔ src/ Contract
+
+The Dockerfile's selective `COPY` statements are effectively part of the deployment contract:
+every local package imported by anything in `src/` must have a matching
+`COPY <pkg>/ /app/<pkg>/` in the runtime stage, or the import will succeed in
+tests (where the full source tree is mounted) but fail at runtime in production.
+
+Two CI jobs enforce this contract:
+
+1. **`check-docker-imports`** — a static analyzer (`scripts/check_docker_imports.py`)
+   that parses every `.py` file under `src/`, collects top-level package names,
+   and verifies each is either stdlib, installed in the venv, or COPY'd in the
+   Dockerfile. Fast (~1s), catches the specific bug class.
+2. **`docker-smoke-import`** — builds the actual Docker image and runs a smoke
+   test that imports the critical modules (`src.coordination_api`,
+   `src.coordination_mcp`, `src.http_proxy`, `evaluation.gen_eval.mcp_service`)
+   inside the built container, then constructs the FastAPI app factory.
+   Catches anything the static check misses (system libs, PYTHONPATH issues,
+   lazy imports from third-party code).
+
+If you add a new top-level package import in `src/`, add a matching `COPY`
+statement to `Dockerfile` **and** update the smoke test's `modules` list.
 
 ## MCP Tools Available
 
