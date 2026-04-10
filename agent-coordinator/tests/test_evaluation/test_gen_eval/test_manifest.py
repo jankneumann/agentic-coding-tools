@@ -18,14 +18,12 @@ import pytest
 import yaml
 
 from evaluation.gen_eval.manifest import (
+    ManifestEntry,
+    ScenarioPackManifest,
     filter_scenarios_by_visibility,
     group_verdicts_by_visibility,
     load_manifest,
     load_manifests_from_dirs,
-)
-from evaluation.gen_eval.models import (
-    ManifestEntry,
-    ScenarioPackManifest,
 )
 
 from .conftest import make_scenario, make_verdict

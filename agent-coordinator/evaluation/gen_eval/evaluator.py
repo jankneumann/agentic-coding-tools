@@ -9,6 +9,7 @@ in subsequent steps, and produces structured verdicts.
 from __future__ import annotations
 
 import asyncio
+import datetime
 import re
 import time
 from typing import Any
@@ -23,6 +24,8 @@ from evaluation.gen_eval.models import (
     ExpectBlock,
     Scenario,
     ScenarioVerdict,
+    SideEffectsBlock,
+    SideEffectStep,
     StepVerdict,
 )
 
@@ -256,6 +259,37 @@ class Evaluator:
             else:
                 diff["cross_interface"] = cross_diff
 
+        # Side-effect verification (D2)
+        side_effect_verdicts: list[dict[str, Any]] | None = None
+        if interpolated.side_effects and status == "pass":
+            # Capture step_start_time for time-range queries
+            start_ts = datetime.datetime.fromtimestamp(step_start, tz=datetime.UTC).isoformat()
+            side_effect_verdicts = await self._execute_side_effects(
+                interpolated.side_effects, captured_vars, start_ts
+            )
+            # If any side-effect verdict is "fail" or "error", the step fails
+            for sev in side_effect_verdicts:
+                if sev.get("status") in ("fail", "error"):
+                    status = "fail"
+                    if diff is None:
+                        diff = {"side_effects": sev}
+                    else:
+                        diff["side_effects"] = sev
+                    break
+        elif interpolated.side_effects and status != "pass":
+            # Skip side effects if main step failed
+            side_effect_verdicts = [
+                {
+                    "step_id": se.id,
+                    "mode": se.mode,
+                    "status": "skip",
+                }
+                for se in (
+                    list(interpolated.side_effects.verify)
+                    + list(interpolated.side_effects.prohibit)
+                )
+            ]
+
         return StepVerdict(
             step_id=step.id,
             transport=step.transport,
@@ -265,6 +299,7 @@ class Evaluator:
             diff=diff,
             duration_ms=elapsed_ms,
             captured_vars=captured,
+            side_effect_verdicts=side_effect_verdicts,
         )
 
     def _interpolate_step(self, step: ActionStep, variables: dict[str, Any]) -> ActionStep:
@@ -350,6 +385,56 @@ class Evaluator:
             row_diff = self._compare_body(expect.row, actual_row or {})
             if row_diff:
                 diff["row"] = row_diff
+
+        # --- Extended assertion types (D1) ---
+
+        if expect.status_one_of is not None:
+            expected["status_one_of"] = expect.status_one_of
+            if result.status_code not in expect.status_one_of:
+                diff["status_one_of"] = {
+                    "expected_one_of": expect.status_one_of,
+                    "actual": result.status_code,
+                }
+
+        if expect.body_contains is not None:
+            expected["body_contains"] = expect.body_contains
+            if not self._deep_contains(result.body, expect.body_contains):
+                diff["body_contains"] = {
+                    "expected_subset": expect.body_contains,
+                    "actual": result.body,
+                }
+
+        if expect.body_excludes is not None:
+            expected["body_excludes"] = expect.body_excludes
+            if self._deep_contains(result.body, expect.body_excludes):
+                diff["body_excludes"] = {
+                    "excluded_but_found": expect.body_excludes,
+                    "actual": result.body,
+                }
+
+        if expect.rows_gte is not None:
+            expected["rows_gte"] = expect.rows_gte
+            actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
+            if actual_rows is None or actual_rows < expect.rows_gte:
+                diff["rows_gte"] = {
+                    "expected_gte": expect.rows_gte,
+                    "actual": actual_rows,
+                }
+
+        if expect.rows_lte is not None:
+            expected["rows_lte"] = expect.rows_lte
+            actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
+            if actual_rows is None or actual_rows > expect.rows_lte:
+                diff["rows_lte"] = {
+                    "expected_lte": expect.rows_lte,
+                    "actual": actual_rows,
+                }
+
+        if expect.array_contains is not None:
+            expected["array_contains"] = expect.array_contains
+            ac_diff = self._compare_array_contains(expect.array_contains, result.body)
+            if ac_diff:
+                diff["array_contains"] = ac_diff
 
         return expected, diff if diff else None
 
@@ -442,6 +527,220 @@ class Evaluator:
                 seen.add(iface)
                 result.append(iface)
         return result
+
+    @staticmethod
+    def _deep_contains(actual: Any, expected: Any) -> bool:
+        """Recursive subset matching (D5).
+
+        - Dict: every key in expected must exist in actual with matching value
+        - List: every expected item must match a distinct actual item (order-independent)
+        - Scalar: direct equality
+        """
+        if isinstance(expected, dict):
+            if not isinstance(actual, dict):
+                return False
+            return all(
+                k in actual and Evaluator._deep_contains(actual[k], v)
+                for k, v in expected.items()
+            )
+        if isinstance(expected, list):
+            if not isinstance(actual, list):
+                return False
+            # Each expected item must match a distinct actual item
+            used: set[int] = set()
+            for exp_item in expected:
+                found = False
+                for i, act_item in enumerate(actual):
+                    if i not in used and Evaluator._deep_contains(act_item, exp_item):
+                        used.add(i)
+                        found = True
+                        break
+                if not found:
+                    return False
+            return True
+        return bool(actual == expected)
+
+    def _compare_array_contains(
+        self,
+        array_contains: list[dict[str, Any]],
+        body: Any,
+    ) -> dict[str, Any] | None:
+        """Check array_contains assertions against response body.
+
+        Each entry has ``path`` (JSONPath) and ``match`` (field criteria).
+        The array at ``path`` must contain at least one element matching.
+        """
+        diff: dict[str, Any] = {}
+        for i, entry in enumerate(array_contains):
+            path_expr = entry.get("path", "")
+            match_criteria = entry.get("match", {})
+            try:
+                expr = jsonpath_parse(path_expr)
+                matches = expr.find(body)
+                if not matches:
+                    diff[f"entry_{i}"] = {
+                        "path": path_expr,
+                        "error": "path not found",
+                    }
+                    continue
+                arr = matches[0].value
+                if not isinstance(arr, list):
+                    diff[f"entry_{i}"] = {
+                        "path": path_expr,
+                        "error": f"expected array, got {type(arr).__name__}",
+                    }
+                    continue
+                found = any(
+                    self._deep_contains(item, match_criteria) for item in arr
+                )
+                if not found:
+                    diff[f"entry_{i}"] = {
+                        "path": path_expr,
+                        "match": match_criteria,
+                        "error": "no matching element found",
+                    }
+            except JsonPathParserError:
+                diff[f"entry_{i}"] = {
+                    "path": path_expr,
+                    "error": f"invalid JSONPath: {path_expr}",
+                }
+        return diff if diff else None
+
+    async def _execute_side_effects(
+        self,
+        side_effects: SideEffectsBlock,
+        captured_vars: dict[str, Any],
+        step_start_time: str,
+    ) -> list[dict[str, Any]]:
+        """Execute side-effect verify and prohibit steps.
+
+        Returns a list of sub-verdict dicts. For prohibit steps,
+        inverse matching is applied (D3): if expectations MATCH,
+        the step FAILS.
+        """
+        verdicts: list[dict[str, Any]] = []
+        vars_with_time = {**captured_vars, "step_start_time": step_start_time}
+
+        for se_step in side_effects.verify:
+            v = await self._run_side_effect_step(se_step, vars_with_time, prohibit=False)
+            verdicts.append(v)
+
+        for se_step in side_effects.prohibit:
+            v = await self._run_side_effect_step(se_step, vars_with_time, prohibit=True)
+            verdicts.append(v)
+
+        return verdicts
+
+    async def _run_side_effect_step(
+        self,
+        se_step: SideEffectStep,
+        variables: dict[str, Any],
+        *,
+        prohibit: bool,
+    ) -> dict[str, Any]:
+        """Execute a single side-effect step and return a sub-verdict dict."""
+        step_start = time.monotonic()
+        timeout = se_step.timeout_seconds or self.default_timeout
+
+        # Convert SideEffectStep to ActionStep for transport execution
+        action = ActionStep(
+            id=se_step.id,
+            transport=se_step.transport,
+            method=se_step.method,
+            endpoint=se_step.endpoint,
+            headers=se_step.headers,
+            tool=se_step.tool,
+            params=se_step.params,
+            command=se_step.command,
+            args=se_step.args,
+            sql=se_step.sql,
+            expect=se_step.expect,
+            timeout_seconds=se_step.timeout_seconds,
+        )
+
+        # Interpolate variables
+        interpolated = self._interpolate_step(action, variables)
+
+        context = StepContext(
+            variables=dict(variables),
+            timeout_seconds=timeout,
+        )
+
+        try:
+            result = await asyncio.wait_for(
+                self.clients.execute(interpolated.transport, interpolated, context),
+                timeout=timeout,
+            )
+        except TimeoutError:
+            elapsed_ms = (time.monotonic() - step_start) * 1000
+            return {
+                "step_id": se_step.id,
+                "mode": "prohibit" if prohibit else "verify",
+                "status": "error",
+                "error_message": f"Side-effect step timed out after {timeout}s",
+                "duration_ms": elapsed_ms,
+            }
+        except Exception as exc:
+            elapsed_ms = (time.monotonic() - step_start) * 1000
+            return {
+                "step_id": se_step.id,
+                "mode": "prohibit" if prohibit else "verify",
+                "status": "error",
+                "error_message": f"Side-effect transport error: {exc}",
+                "duration_ms": elapsed_ms,
+            }
+
+        elapsed_ms = (time.monotonic() - step_start) * 1000
+
+        if result.error:
+            return {
+                "step_id": se_step.id,
+                "mode": "prohibit" if prohibit else "verify",
+                "status": "error",
+                "error_message": result.error,
+                "duration_ms": elapsed_ms,
+            }
+
+        # Compare expectations
+        has_diff = False
+        diff_detail: dict[str, Any] | None = None
+        if interpolated.expect:
+            _, diff_detail = self._compare(interpolated.expect, result)
+            has_diff = diff_detail is not None
+
+        if prohibit:
+            # D3: Inverse matching — if expectations MATCH (no diff),
+            # the prohibited state exists → FAIL
+            if not has_diff:
+                return {
+                    "step_id": se_step.id,
+                    "mode": "prohibit",
+                    "status": "fail",
+                    "error_message": "Prohibited state detected",
+                    "duration_ms": elapsed_ms,
+                }
+            return {
+                "step_id": se_step.id,
+                "mode": "prohibit",
+                "status": "pass",
+                "duration_ms": elapsed_ms,
+            }
+        else:
+            # Verify: normal matching — diff means failure
+            if has_diff:
+                return {
+                    "step_id": se_step.id,
+                    "mode": "verify",
+                    "status": "fail",
+                    "diff": diff_detail,
+                    "duration_ms": elapsed_ms,
+                }
+            return {
+                "step_id": se_step.id,
+                "mode": "verify",
+                "status": "pass",
+                "duration_ms": elapsed_ms,
+            }
 
     def _detect_cross_interface_mismatch(
         self,

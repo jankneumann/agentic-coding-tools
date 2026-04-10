@@ -13,15 +13,19 @@ from .change_detector import ChangeDetector
 from .config import BudgetConfig, BudgetTracker, GenEvalConfig, SDKBudget, TimeBudget
 from .descriptor import InterfaceDescriptor, ServiceDescriptor, StartupConfig, StateVerifier
 from .feedback import FeedbackSynthesizer
+from .manifest import ManifestEntry, ScenarioPackManifest
 from .models import (
     ActionStep,
     EvalFeedback,
     ExpectBlock,
-    ManifestEntry,
     Scenario,
     ScenarioGenerator,
-    ScenarioPackManifest,
     ScenarioVerdict,
+    SemanticBlock,
+    SemanticVerdict,
+    SideEffectsBlock,
+    SideEffectStep,
+    SideEffectVerdict,
     StepVerdict,
 )
 
@@ -41,7 +45,12 @@ __all__ = [
     "ScenarioGenerator",
     "ScenarioPackManifest",
     "ScenarioVerdict",
+    "SemanticBlock",
+    "SemanticVerdict",
     "ServiceDescriptor",
+    "SideEffectsBlock",
+    "SideEffectStep",
+    "SideEffectVerdict",
     "StartupConfig",
     "StateVerifier",
     "StepVerdict",
