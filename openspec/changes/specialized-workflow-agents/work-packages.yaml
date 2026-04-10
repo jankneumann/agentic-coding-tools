@@ -141,6 +141,7 @@ packages:
     min_trust_level: 2
     depends_on:
       - wp-archetype-config
+      - wp-skill-model-hints
     scope:
       write_allow:
         - "skills/plan-feature/SKILL.md"
@@ -167,9 +168,9 @@ packages:
     verification:
       tier_required: C
       steps:
-        - name: "Verify archetype references"
+        - name: "Verify archetype references in all 5 skills"
           kind: command
-          command: "grep -c 'archetype=' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md"
+          command: "grep -c 'archetype=' skills/plan-feature/SKILL.md skills/implement-feature/SKILL.md skills/iterate-on-plan/SKILL.md skills/iterate-on-implementation/SKILL.md skills/fix-scrub/SKILL.md"
           evidence:
             artifacts: []
             result_keys: ["skills_updated"]
@@ -178,6 +179,9 @@ packages:
       artifacts:
         - "skills/plan-feature/SKILL.md"
         - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/fix-scrub/SKILL.md"
     metadata:
       loc_estimate: 30
       package_kind: config

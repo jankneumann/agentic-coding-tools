@@ -53,3 +53,31 @@ Planned a three-phase feature to introduce agent archetypes mapping workflow sta
 
 ### Context
 Elevated draft PR #65 to full plan. Rebased onto current main (19 new commits including speculative merge trains). Validated all artifacts — OpenSpec, work-packages, and parallel zones all pass. Updated design.md with D7 (merge train coexistence), tasks.md with merge train context notes on tasks 3.2.1/3.3.1/3.3.2, and proposal.md status from Draft to Approved.
+
+---
+
+## Phase: Plan Iteration 1 (2026-04-10)
+
+**Agent**: claude-local | **Session**: N/A
+
+### Decisions
+1. **Remove `fallback_strategy` from spec** — Field was listed in Requirement 1 but undefined elsewhere. Fallback behavior is fully covered by design decision D4 (extend existing fallback chains).
+2. **Add missing fallback chain test task (3.4.0)** — Requirement 5 had no corresponding test task. Added with `respx` mock approach for 429 simulation.
+3. **Fix `wp-skill-archetype-refs` dependency** — Added `wp-skill-model-hints` to depends_on to prevent parallel file conflicts on shared SKILL.md files.
+4. **Clarify prompt composition ownership** — Expanded task 2.2.2 to include `compose_prompt()` function, resolving the ownership gap for design decision D2.
+5. **Clarify escalation metadata flow** — Updated task 2.2.3 to specify that dispatching skills pass package metadata as a dict; `resolve_model()` does not load YAML itself.
+6. **Measurable scenario criteria** — Replaced subjective "focused on cross-cutting concerns" and "report results concisely" with pattern-matchable phrases.
+
+### Alternatives Considered
+- Creating separate task for prompt composition utility: rejected because it naturally belongs in the same module as `load_archetypes_config()`
+- Adding escalation metadata to Task dataclass: rejected because dispatch-time resolution (D3) is simpler
+
+### Trade-offs
+- Accepted more verbose task descriptions over terseness, because implementers need clarity on metadata flow and test approach
+
+### Open Questions
+- [ ] Escalation threshold tuning: initial values (3 dirs, 2 deps, 500 LOC) still need empirical validation
+- [ ] Whether custom user-defined archetypes should be supported beyond the 6 predefined ones
+
+### Context
+Parallel 5-agent analysis across completeness, clarity/consistency, feasibility/parallelizability, security/performance, and testability. 15 findings at medium+ severity. Fixed: missing test task for fallback chain, work-package dependency gap, phantom contract references, subjective scenario language, prompt composition ownership, escalation metadata flow, verification command coverage, and spec field cleanup.

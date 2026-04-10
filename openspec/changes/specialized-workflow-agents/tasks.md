@@ -5,13 +5,14 @@
 ### 1.0 Tests — Phase 1 model hint validation
 
 - [ ] 1.0.1 Write tests for skill Task() model parameter validation
-  **Spec scenarios**: agent-archetypes.3 (skill model hint integration)
+  **Spec scenarios**: agent-archetypes.3 (skill model hint integration — success and failure)
   **Contracts**: N/A (skill markdown, not API)
-  **Design decisions**: D3 (escalation at dispatch time)
+  **Design decisions**: N/A (Phase 1 uses static hints, no design decisions apply)
   **Dependencies**: None
-  Verify that updated skill SKILL.md files include valid `model=` parameters
-  on all Task() calls. Write a pytest script that parses SKILL.md files and
-  asserts every `Task(` call includes a `model=` parameter.
+  Verify that updated skill SKILL.md files include `model=` parameters with
+  valid values (`opus`, `sonnet`, or `haiku`) on all Task() calls. Write a
+  pytest script that parses SKILL.md files and asserts every `Task(` call
+  includes a `model=` parameter. Test must identify file and line number on failure.
 
 ### 1.1 Add model hints to plan-feature Task() calls
 
@@ -59,7 +60,7 @@
 
 - [ ] 2.0.1 Write tests for ArchetypeConfig dataclass and YAML loader
   **Spec scenarios**: agent-archetypes.1 (archetype definition schema — valid load, invalid rejected, unknown fallback)
-  **Contracts**: contracts/archetypes-config.schema.json
+  **Contracts**: openspec/schemas/archetypes.schema.json (created in task 2.3.1)
   **Design decisions**: D1 (configuration not code), D5 (graceful degradation)
   **Dependencies**: None
   Test valid loading, missing required fields, unknown archetype references,
@@ -93,15 +94,20 @@
   Files: `agent-coordinator/src/agents_config.py`
   Fields: name, model, system_prompt, escalation (optional EscalationConfig with escalate_to, max_write_dirs, max_dependencies, loc_threshold).
 
-- [ ] 2.2.2 Add `ARCHETYPES_SCHEMA` JSON Schema and `load_archetypes_config()` function
+- [ ] 2.2.2 Add `ARCHETYPES_SCHEMA` JSON Schema, `load_archetypes_config()`, and `compose_prompt()` functions
   **Dependencies**: 2.2.1
   Files: `agent-coordinator/src/agents_config.py`
-  Follow the `load_agents_config()` pattern: load YAML, validate against schema, return dict of ArchetypeConfig.
+  Follow the `load_agents_config()` pattern: load YAML, validate against schema, cache in
+  module-level singleton, return dict of ArchetypeConfig. Include `compose_prompt(archetype, task_prompt)`
+  that prepends `archetype.system_prompt + "\n\n---\n\n" + task_prompt` per design decision D2.
 
 - [ ] 2.2.3 Add `resolve_model()` function implementing complexity-based escalation
   **Dependencies**: 2.2.1, 2.0.3
   Files: `agent-coordinator/src/agents_config.py`
-  Implement the escalation algorithm from design.md. Accept ArchetypeConfig + package metadata, return resolved model string.
+  Implement the escalation algorithm from design.md. Accept ArchetypeConfig + package metadata
+  dict (keys: `write_allow`, `dependencies`, `loc_estimate`, `complexity`), return resolved
+  model string. Package metadata is extracted from `work-packages.yaml` by the dispatching
+  skill and passed as a dict — `resolve_model()` does not load the YAML itself.
 
 ### 2.3 Create archetypes JSON Schema for validation
 
@@ -125,8 +131,8 @@
 
 - [ ] 3.0.1 Write tests for work queue agent_requirements filtering
   **Spec scenarios**: agent-archetypes.6 (work queue archetype routing — matched, skipped, backward compatible)
-  **Contracts**: contracts/work-queue-requirements.schema.json
-  **Design decisions**: D3 (dispatch-time escalation)
+  **Contracts**: N/A (work queue routing uses existing RPC schema)
+  **Design decisions**: D7 (orthogonal coexistence with merge trains)
   **Dependencies**: None
   Test: task with archetype requirement matched by capable agent, skipped by
   incompatible agent, and claimable by any agent when no requirements.
@@ -176,8 +182,17 @@
 
 ### 3.4 Update fallback integration in review dispatcher
 
+- [ ] 3.4.0 Write tests for fallback chain integration with archetype model override
+  **Spec scenarios**: agent-archetypes.5 (fallback chain integration — archetype model exhausted falls back to agents.yaml chain)
+  **Contracts**: N/A
+  **Design decisions**: D4 (extend existing fallback)
+  **Dependencies**: None
+  Test using `respx` mock: archetype model returns 429 (ErrorClass.CAPACITY),
+  dispatcher falls through to agents.yaml model_fallbacks. Verify no independent
+  fallback chain is created per archetype.
+
 - [ ] 3.4.1 Update `review_dispatcher.py` to use archetype model as primary instead of agent default
-  **Dependencies**: 2.2.2
+  **Dependencies**: 2.2.2, 3.4.0
   Files: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
   **Design decisions**: D4 (extend existing fallback)
   Modify `CliVendorAdapter.dispatch()` to accept optional archetype model override. Build `models_to_try = [archetype_model or cli_config.model] + cli_config.model_fallbacks`.

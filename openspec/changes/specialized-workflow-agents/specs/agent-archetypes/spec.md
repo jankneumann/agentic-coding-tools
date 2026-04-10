@@ -17,10 +17,15 @@ named agent archetypes. Each archetype SHALL specify:
 - `model`: Primary model identifier (`opus`, `sonnet`, `haiku`)
 - `system_prompt`: Role-specific instruction prefix composed with task prompts
 - `escalation`: Optional rules for complexity-based model upgrade
-- `fallback_strategy`: How to integrate with existing `agents.yaml` model fallback chains
-
 The archetype schema SHALL be validated at load time using JSON Schema, following
 the `agents.yaml` validation pattern in `agents_config.py`.
+
+Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be
+validated at all system boundaries (config loading, API submission, MCP tools).
+
+The archetype configuration SHALL be loaded once at startup and cached in a
+module-level singleton (following the `_agents` cache pattern in `agents_config.py`).
+Subsequent calls to `get_archetype()` SHALL return cached results without file I/O.
 
 #### Scenario: Valid archetype loads successfully
 
@@ -63,15 +68,13 @@ Each predefined archetype SHALL include a `system_prompt` tuned to its role.
 
 **WHEN** a skill dispatches `Task(archetype="architect", ...)`
 **THEN** the task SHALL execute with model `opus`
-**AND** the system prompt SHALL include instructions focused on cross-cutting
-concerns, dependency ordering, and interface contracts
+**AND** the system prompt SHALL contain the phrase "software architect"
 
 #### Scenario: Runner archetype uses Haiku for validation
 
 **WHEN** a skill dispatches `Task(archetype="runner", ...)`
 **THEN** the task SHALL execute with model `haiku`
-**AND** the system prompt SHALL include instructions to execute commands and
-report results concisely
+**AND** the system prompt SHALL contain the phrase "execute" and "report"
 
 ---
 
@@ -85,7 +88,7 @@ The mapping from workflow stage to archetype SHALL be:
 | Skill | Task Type | Archetype |
 |-------|-----------|-----------|
 | plan-feature | Explore context gathering | analyst |
-| plan-feature | Proposal drafting (main agent) | architect |
+| plan-feature | Proposal drafting (main agent) | architect (informational — main agent is the conversation, not a Task() call) |
 | iterate-on-plan | Quality dimension analysis | analyst |
 | implement-feature | Work-package implementation | implementer |
 | implement-feature | Quality checks (pytest, mypy, ruff) | runner |
@@ -104,6 +107,13 @@ or `archetype="analyst"` (Phase 2+)
 **WHEN** `/implement-feature` dispatches quality check tasks in Step 6
 **THEN** each Task() call SHALL include `model="haiku"` (Phase 1)
 or `archetype="runner"` (Phase 2+)
+
+#### Scenario: Skill Task() call missing model or archetype parameter
+
+**WHEN** a skill SKILL.md file contains a `Task(` call without a `model=`
+parameter (Phase 1) or `archetype=` parameter (Phase 2+)
+**THEN** the validation test SHALL fail
+**AND** the test output SHALL identify the skill file and line number
 
 ---
 
@@ -135,6 +145,20 @@ When escalation triggers, the runtime SHALL:
 **WHEN** a work-package has `write_allow: ["src/api/users.py"]` and no cross-module deps
 **THEN** the model SHALL remain `sonnet` (no escalation)
 
+#### Scenario: Cross-module dependencies trigger escalation
+
+**WHEN** a work-package declares `depends_on: ["wp-a", "wp-b"]` (2+ dependencies)
+**AND** the `implementer` archetype has escalation enabled
+**THEN** the model SHALL escalate from `sonnet` to `opus`
+**AND** the escalation reason SHALL be logged as "depends on >2 packages"
+
+#### Scenario: High LOC estimate triggers escalation
+
+**WHEN** a work-package has `loc_estimate: 600` (exceeds 500 threshold)
+**AND** the `implementer` archetype has escalation enabled
+**THEN** the model SHALL escalate from `sonnet` to `opus`
+**AND** the escalation reason SHALL be logged as "loc_estimate >500"
+
 #### Scenario: Explicit complexity flag triggers escalation
 
 **WHEN** a work-package includes `complexity: high` in its metadata
@@ -155,7 +179,8 @@ The resolution order SHALL be:
 #### Scenario: Archetype model exhausted falls back to agents.yaml chain
 
 **WHEN** the `reviewer` archetype specifies model `opus`
-**AND** Opus returns a 429 capacity error
+**AND** the primary model dispatch returns an `ErrorClass.CAPACITY` error
+(testable via `respx` mock returning HTTP 429)
 **THEN** the dispatcher SHALL try the next model in the agent's
 `cli.model_fallbacks` list (e.g., `claude-sonnet-4-6`)
 **AND** SHALL NOT define its own independent fallback chain
