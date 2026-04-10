@@ -1,4 +1,4 @@
-"""State machine conductor for the automated dev loop.
+"""State machine conductor for the autopilot skill.
 
 Orchestrates the full plan-review-implement-validate-submit lifecycle,
 delegating phase-specific work to callback functions injected by the
@@ -46,7 +46,7 @@ except ImportError:
 
 @dataclass
 class LoopState:
-    """Persistent state for the automated dev loop."""
+    """Persistent state for the autopilot loop."""
 
     schema_version: int = 1
     change_id: str = ""
@@ -265,7 +265,7 @@ def run_loop(
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
     max_global_iterations: int = 50,
 ) -> LoopState:
-    """Drive the automated dev loop from the current phase to DONE or ESCALATE.
+    """Drive the autopilot loop from the current phase to DONE or ESCALATE.
 
     Parameters
     ----------

@@ -1,4 +1,4 @@
-"""Tests for the auto_dev_loop state machine conductor.
+"""Tests for the autopilot state machine conductor.
 
 All tests use mocks — no real file I/O or external dependencies.
 """
@@ -17,7 +17,7 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from auto_dev_loop import (
+from autopilot import (
     LoopState,
     check_escalation_resolved,
     enter_escalate,

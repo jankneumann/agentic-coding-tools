@@ -8,7 +8,7 @@ user_invocable: false
 
 # Parallel Infrastructure
 
-Non-user-invocable infrastructure skill providing shared scripts for parallel execution workflows. Used by `implement-feature`, `auto-dev-loop`, `fix-scrub`, `merge-pull-requests`, and other skills that need DAG scheduling, multi-vendor review dispatch, or consensus synthesis.
+Non-user-invocable infrastructure skill providing shared scripts for parallel execution workflows. Used by `implement-feature`, `autopilot`, `fix-scrub`, `merge-pull-requests`, and other skills that need DAG scheduling, multi-vendor review dispatch, or consensus synthesis.
 
 ## Scripts
 

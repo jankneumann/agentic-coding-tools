@@ -132,11 +132,11 @@ A new `parallel-infrastructure` non-user-invocable skill SHALL house all paralle
 
 ### Requirement: Downstream skill updates
 Skills that depend on relocated scripts SHALL be updated.
-- `auto-dev-loop` SHALL replace all `/parallel-*` and `/linear-*` skill invocations with unified skill names
+- `autopilot` SHALL replace all `/parallel-*` and `/linear-*` skill invocations with unified skill names
 - `fix-scrub` SHALL update import paths to `parallel-infrastructure/scripts/`
 - `merge-pull-requests` SHALL update import paths to `parallel-infrastructure/scripts/`
 
 #### Scenario: Downstream skills use updated paths
-- **WHEN** auto-dev-loop, fix-scrub, or merge-pull-requests invoke parallel scripts
+- **WHEN** autopilot, fix-scrub, or merge-pull-requests invoke parallel scripts
 - **THEN** they SHALL reference parallel-infrastructure/scripts/
 

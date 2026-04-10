@@ -137,7 +137,7 @@ Some skill-local scripts import from other skill directories via `sys.path` mani
 |-----------------|--------------|
 | `parallel-infrastructure/scripts/dag_scheduler.py` | `skills/validate-packages/scripts/validate_work_packages.py` |
 | `parallel-infrastructure/scripts/scope_checker.py` | `skills/refresh-architecture/scripts/parallel_zones.py` |
-| `auto-dev-loop/scripts/convergence_loop.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
+| `autopilot/scripts/convergence_loop.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
 | `fix-scrub/scripts/vendor_dispatch.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py` |
 | `merge-pull-requests/scripts/vendor_review.py` | `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `consensus_synthesizer.py` |
 
@@ -172,7 +172,7 @@ graph TD
         FS[fix-scrub]
         RA_S[refresh-architecture]
         OBW[openspec-beads-worktree]
-        ADL[auto-dev-loop]
+        ADL[autopilot]
         MPR[merge-pull-requests]
     end
 

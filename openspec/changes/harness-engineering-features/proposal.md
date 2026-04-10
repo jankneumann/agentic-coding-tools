@@ -20,7 +20,7 @@ Our system already has strong foundations — DAG scheduling, multi-vendor revie
 ### Feature 1: Agent-to-Agent Review Loops
 Extend the existing `convergence_loop.py` and `consensus_synthesizer.py` to implement tighter review-iterate-converge cycles. Currently, review dispatch and consensus happen as discrete steps. This adds: author-agent autonomous response to review findings, configurable convergence thresholds, and automatic escalation to humans only when agent consensus fails after N iterations.
 
-**Existing foundations**: `auto-dev-loop/scripts/convergence_loop.py`, `parallel-infrastructure/scripts/consensus_synthesizer.py`, `parallel-infrastructure/scripts/review_dispatcher.py`
+**Existing foundations**: `autopilot/scripts/convergence_loop.py`, `parallel-infrastructure/scripts/consensus_synthesizer.py`, `parallel-infrastructure/scripts/review_dispatcher.py`
 
 ### Feature 2: Progressive Context Architecture
 Restructure the monolithic CLAUDE.md into a tiered context system: a lightweight (~100-line) table-of-contents entry point pointing to structured, topic-specific docs. This follows the same pattern successfully used in the agentic-newsletter-aggregator project for CLAUDE.md files that have grown too large. OpenAI replaced their 800-line AGENTS.md with a 100-line TOC and saw immediate improvements.
