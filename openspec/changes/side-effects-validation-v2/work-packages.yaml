@@ -1,0 +1,295 @@
+schema_version: 1
+
+feature:
+  id: side-effects-validation-v2
+  title: "Side-Effects Validation for Gen-Eval Framework (v2)"
+  plan_revision: 1
+  created_by: claude-code
+  created_at: "2026-04-10T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: contracts/README.md
+    files:
+      - contracts/README.md
+
+defaults:
+  priority: 5
+  timeout_minutes: 90
+  retry_budget: 1
+
+packages:
+  # ──────────────────────────────────────────────────────────────
+  # wp-assertions-sideeffects: Extended assertions + side-effect verification
+  # PR 1: Self-contained, no dependencies
+  # ──────────────────────────────────────────────────────────────
+  - package_id: wp-assertions-sideeffects
+    title: "Extended Assertions + Side-Effect Verification + Model Cleanup"
+    task_type: implementation
+    description: >
+      Add 6 extended assertion types to ExpectBlock (body_contains, body_excludes,
+      status_one_of, rows_gte, rows_lte, array_contains), implement side-effect
+      verify/prohibit execution in the evaluator, add all new model classes
+      (SideEffectStep, SideEffectsBlock, SideEffectVerdict, SemanticBlock,
+      SemanticVerdict), and consolidate ManifestEntry/ScenarioPackManifest
+      into manifest.py only.
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - agent-coordinator/evaluation/gen_eval/models.py
+        - agent-coordinator/evaluation/gen_eval/evaluator.py
+        - agent-coordinator/evaluation/gen_eval/manifest.py
+      keys:
+        - "feature:side-effects-validation-v2:assertions"
+      ttl_minutes: 180
+      reason: "Extended assertions and side-effect verification"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/models.py"
+        - "agent-coordinator/evaluation/gen_eval/evaluator.py"
+        - "agent-coordinator/evaluation/gen_eval/manifest.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_extended_assertions.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_side_effects.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-assertions-sideeffects
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Extended assertion tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_extended_assertions.py -v"
+          evidence:
+            artifacts:
+              - agent-coordinator/tests/test_evaluation/test_gen_eval/test_extended_assertions.py
+            result_keys:
+              - test_extended_assertions
+        - name: "Side-effect tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_side_effects.py -v"
+          evidence:
+            artifacts:
+              - agent-coordinator/tests/test_evaluation/test_gen_eval/test_side_effects.py
+            result_keys:
+              - test_side_effects
+        - name: "Existing gen-eval tests pass"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - existing_tests
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict evaluation/gen_eval/models.py evaluation/gen_eval/evaluator.py evaluation/gen_eval/manifest.py"
+          evidence:
+            artifacts: []
+            result_keys:
+              - mypy
+        - name: "Lint check"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m ruff check evaluation/gen_eval/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - ruff
+    outputs:
+      result_keys:
+        - models_updated
+        - evaluator_extended
+        - manifest_consolidated
+      artifacts:
+        - agent-coordinator/evaluation/gen_eval/models.py
+        - agent-coordinator/evaluation/gen_eval/evaluator.py
+        - agent-coordinator/evaluation/gen_eval/manifest.py
+
+  # ──────────────────────────────────────────────────────────────
+  # wp-semantic-packs: Semantic eval + manifest restructuring + reports/feedback
+  # PR 2: Depends on wp-assertions-sideeffects
+  # ──────────────────────────────────────────────────────────────
+  - package_id: wp-semantic-packs
+    title: "Semantic Evaluation + Scenario Pack Restructuring + Report/Feedback"
+    task_type: implementation
+    description: >
+      Add LLM-as-judge semantic evaluation module (semantic_judge.py), integrate
+      into evaluator, split monolithic manifests/manifest.yaml into 12 per-category
+      files, extend reports with side-effect sub-verdicts and semantic confidence,
+      extend feedback with side-effect failure and semantic gap focus areas.
+    priority: 2
+    depends_on:
+      - wp-assertions-sideeffects
+    locks:
+      files:
+        - agent-coordinator/evaluation/gen_eval/semantic_judge.py
+        - agent-coordinator/evaluation/gen_eval/reports.py
+        - agent-coordinator/evaluation/gen_eval/feedback.py
+        - agent-coordinator/evaluation/gen_eval/generator.py
+      keys:
+        - "feature:side-effects-validation-v2:semantic"
+      ttl_minutes: 180
+      reason: "Semantic evaluation and scenario pack restructuring"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/semantic_judge.py"
+        - "agent-coordinator/evaluation/gen_eval/evaluator.py"
+        - "agent-coordinator/evaluation/gen_eval/reports.py"
+        - "agent-coordinator/evaluation/gen_eval/feedback.py"
+        - "agent-coordinator/evaluation/gen_eval/generator.py"
+        - "agent-coordinator/evaluation/gen_eval/manifest.py"
+        - "agent-coordinator/evaluation/gen_eval/manifests/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_semantic_eval.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_reports_extended.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_feedback_extended.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_manifest.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-semantic-packs
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Semantic evaluation tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_semantic_eval.py -v"
+          evidence:
+            artifacts:
+              - agent-coordinator/tests/test_evaluation/test_gen_eval/test_semantic_eval.py
+            result_keys:
+              - test_semantic
+        - name: "Extended report tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_reports_extended.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - test_reports
+        - name: "Extended feedback tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_feedback_extended.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - test_feedback
+        - name: "Manifest tests (per-category)"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_manifest.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - test_manifest
+        - name: "Full gen-eval test suite"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - full_tests
+        - name: "Type checking"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m mypy --strict evaluation/gen_eval/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - mypy
+    outputs:
+      result_keys:
+        - semantic_judge_created
+        - manifests_split
+        - reports_extended
+        - feedback_extended
+      artifacts:
+        - agent-coordinator/evaluation/gen_eval/semantic_judge.py
+        - agent-coordinator/evaluation/gen_eval/reports.py
+        - agent-coordinator/evaluation/gen_eval/feedback.py
+
+  # ──────────────────────────────────────────────────────────────
+  # wp-e2e-templates: E2E scenario templates + integration tests
+  # PR 3: Depends on both previous packages
+  # ──────────────────────────────────────────────────────────────
+  - package_id: wp-e2e-templates
+    title: "E2E Scenario Templates + Integration Tests"
+    task_type: implementation
+    description: >
+      Create 5 E2E scenario templates demonstrating multi-step user journeys
+      with extended assertions and side-effect verification (memory lifecycle,
+      lock-task workflow, policy enforcement, handoff integrity, cross-interface
+      consistency). Add manifest entries and full integration tests.
+    priority: 3
+    depends_on:
+      - wp-assertions-sideeffects
+      - wp-semantic-packs
+    locks:
+      files: []
+      keys:
+        - "feature:side-effects-validation-v2:templates"
+      ttl_minutes: 120
+      reason: "E2E scenario templates and integration tests"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/scenarios/**"
+        - "agent-coordinator/evaluation/gen_eval/manifests/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_e2e_templates.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_integration_extended.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: wp-e2e-templates
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "E2E template structure tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_e2e_templates.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - test_templates
+        - name: "Integration tests"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/test_integration_extended.py -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - test_integration
+        - name: "Full gen-eval test suite"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/test_evaluation/test_gen_eval/ -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - full_tests
+    outputs:
+      result_keys:
+        - templates_created
+        - manifests_updated
+        - integration_validated
+      artifacts:
+        - agent-coordinator/evaluation/gen_eval/scenarios/memory-crud/memory-lifecycle-e2e.yaml
+        - agent-coordinator/evaluation/gen_eval/scenarios/work-queue/lock-task-workflow-e2e.yaml
+        - agent-coordinator/evaluation/gen_eval/scenarios/auth-boundary/policy-enforcement-e2e.yaml
+        - agent-coordinator/evaluation/gen_eval/scenarios/handoffs/handoff-integrity-e2e.yaml
+        - agent-coordinator/evaluation/gen_eval/scenarios/cross-interface/full-consistency-e2e.yaml
