@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "side-effects-validation-v2",
+  "reviewers": [
+    {
+      "vendor": "claude-opus-4-6",
+      "agent_id": "claude-opus-4-6",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gpt-5-codex",
+      "agent_id": "gpt-5-codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 1.4 (model consolidation) describes updating 'models.py, manifest.py, and any files importing these from models' but does not explicitly list __init__.py, which re-exports ManifestEntry and ScenarioPackManifest from models. The __init__.py import block and __all__ list must be updated to import from manifest instead, or external consumers importing from the gen_eval package will break."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "evaluator.py appears in the write_allow scope of both wp-assertions-sideeffects and wp-semantic-packs. While the sequential dependency prevents actual parallel conflict, this overlap means the two WPs cannot be safely promoted to parallel execution in the future without scope refactoring. Consider documenting this constraint in the work-packages.yaml comments."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The Side-Effect Declaration spec does not specify any upper bound on the number of verify/prohibit steps per ActionStep. A complex E2E scenario with 20 action steps, each having 10 verify + 10 prohibit sub-steps, would generate 400 extra transport calls. The spec should either bound this or require the implementer to document the performance implication."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The Side-Effect Declaration spec says side-effect steps 'SHALL use the same transport/query model as ActionStep' but does not explicitly state whether side-effect steps inherit the parent step's timeout_seconds or have their own independent timeout. SideEffectStep has timeout_seconds field in the model, but the spec does not mention timeout behavior for side-effect steps."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The manifest.py currently imports ManifestEntry and ScenarioPackManifest from models.py (line 17: 'from .models import ManifestEntry, Scenario, ScenarioPackManifest, ScenarioVerdict'). After consolidation (task 1.4), the definitions move to manifest.py. The remaining imports from models (Scenario, ScenarioVerdict) are fine, but the consolidation must be done carefully to avoid circular imports if any future model code needs manifest types."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The Semantic Evaluation spec says 'When the LLM is unavailable (CLI not installed, rate limited, or error), semantic evaluation SHALL produce a skip verdict'. However, it does not specify a timeout for the LLM CLI call itself. If `claude --print` hangs (e.g., network issue), the evaluation step could block indefinitely."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The MODIFIED Scenario Pack Manifest spec says manifests SHALL be per-category files, but doesn't specify what happens to the existing monolithic manifest.yaml during the transition. Task 2.4 says to 'remove manifests/manifest.yaml' but the spec doesn't mention backward compatibility \u2014 existing scripts or CI that reference the monolithic file would break silently."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude-opus-4-6",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The End-to-End User Scenario Templates spec says each template SHALL use 'at least one extended assertion type and one side-effect block', but does not require use of semantic evaluation blocks. None of the E2E templates demonstrate semantic evaluation, which means Feature 3 has no E2E coverage."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The manifest layout is internally inconsistent. The spec says per-category manifests SHALL be co-located with scenario directories, but the design, tasks, and work packages place them under `agent-coordinator/evaluation/gen_eval/manifests/*.manifest.yaml`. That leaves contributors and loader code without a single authoritative location."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The runtime integration for scenario packs is incomplete. The current descriptor points at `scenario_dirs: [scenarios/]`, `TemplateGenerator._load_templates()` only loads top-level `*.yaml`, `load_manifests_from_dirs()` is not wired into generation, and `GenEvalOrchestrator._build_report()` never populates `per_visibility`. As planned, new nested E2E templates and visibility metadata can be added without affecting real runs."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Semantic evaluation is designed as a direct `claude --print` subprocess even though gen-eval already has configurable `GenEvalConfig.cli_command/cli_args`, a shared `CLIBackend`, and optional SDK fallback/budget machinery. Hardcoding one CLI vendor diverges from the existing architecture and drops shared timeout, fallback, and cost-accounting behavior."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The plan gives `SideEffectStep` the full `ActionStep` surface, including mutating HTTP methods, MCP tools, CLI commands, and raw SQL, while treating these steps as verification-only. A verify/prohibit step can therefore create or change state and invalidate the very assertion it is meant to check."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "WP1 is not actually independently mergeable. D8 removes `ManifestEntry` and `ScenarioPackManifest` from `models.py`, but current exports/tests still import them from there (`evaluation/gen_eval/__init__.py` and `tests/test_evaluation/test_gen_eval/test_manifest.py`), and WP1 verification runs the full gen-eval suite. The package scope and locks do not include those import sites."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The compatibility story for semantic configuration is undefined. `ActionStep` already exposes `use_llm_judgment`, while the new plan introduces `semantic.judge`/`criteria`/`fields` with no rule for aliasing, precedence, or deprecation. That leaves scenario authors and generators without a clear migration path."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The plan deliberately turns semantic-evaluation dependency failures into `skip`, but it does not require structured logging or aggregate reporting for skip reasons, semantic call counts/duration, or side-effect verification counts. That makes silent degradation likely in CI when the LLM backend is missing, timing out, or rate limited."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 15,
+    "confirmed_count": 0,
+    "unconfirmed_count": 15,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

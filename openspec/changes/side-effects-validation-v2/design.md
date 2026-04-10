@@ -56,7 +56,7 @@ This change extends the gen-eval framework's assertion and evaluation layers wit
 
 This avoids introducing a separate negative assertion syntax.
 
-### D4: Semantic Evaluation Independence
+### D4: Semantic Evaluation Independence and Backward Compatibility
 
 **Decision**: Semantic verdicts are additive -- they enhance but never override structural verdicts.
 
@@ -65,6 +65,8 @@ This avoids introducing a separate negative assertion syntax.
 - If structural assertions pass + semantic fails -> step fails
 - If structural assertions pass + LLM unavailable -> semantic verdict is `skip`, step passes
 - Semantic evaluation runs AFTER side-effect evaluation
+
+**Backward compatibility**: The existing `use_llm_judgment: bool` field on ActionStep is deprecated in favor of `semantic: SemanticBlock`. When `use_llm_judgment=true` and no `semantic` block is set, treat it as `semantic: {judge: true}` with empty criteria (simple pass/fail judgment). When both are set, `semantic` takes precedence. Existing scenarios using `use_llm_judgment` continue to work without modification.
 
 This prevents LLM unavailability from causing false failures in CI.
 
@@ -77,19 +79,37 @@ This prevents LLM unavailability from causing false failures in CI.
 
 For list matching, each expected item must match a distinct actual item (no double-counting). O(n*m) but scenario lists are small (<20 items).
 
-### D6: Per-Category Manifest Files
+### D6: Per-Category Manifest Files in Central Directory
 
-**Decision**: Split the monolithic `manifests/manifest.yaml` into per-category files (e.g., `manifests/lock-lifecycle.manifest.yaml`).
+**Decision**: Split the monolithic `manifests/manifest.yaml` into per-category files (e.g., `manifests/lock-lifecycle.manifest.yaml`) within the existing `manifests/` directory.
 
-**Rationale**: Per-category manifests reduce merge conflicts when multiple agents add scenarios. The alternative (single manifest.yaml) was the source of conflicts in PR #72.
+**Rationale**: Per-category manifests reduce merge conflicts when multiple agents add scenarios. The alternative (single manifest.yaml) was the source of conflicts in PR #72. Files remain in the central `manifests/` directory (not co-located with scenarios) because the manifest loader already indexes this directory, and it keeps manifest metadata separate from scenario YAML content.
 
-**Implementation**: The manifest loader (`load_manifests_from_dirs`) already supports loading from multiple files. The split requires updating the single-file loader path and creating individual files from the existing data.
+**Implementation**: The manifest loader (`load_manifests_from_dirs`) already supports loading from multiple files. The split requires updating the single-file loader path to glob for `*.manifest.yaml` and creating individual files from the existing data.
+
+### D9: Semantic Evaluation Uses Existing LLM Backend
+
+**Decision**: `semantic_judge.py` SHALL use the framework's existing `CLIBackend` (or `AdaptiveBackend` with SDK fallback) rather than hardcoding a `claude --print` subprocess call.
+
+**Rationale**: The gen-eval framework already provides `CLIBackend` with configurable `cli_command`/`cli_args` (from `GenEvalConfig`), timeout handling, and SDK fallback via `AdaptiveBackend`. Hardcoding a single CLI vendor would bypass this infrastructure, drop cost-accounting behavior, and prevent using alternative models for evaluation.
+
+**Implementation**: `semantic_judge.py` accepts a backend (CLIBackend or SDKBackend) as a dependency. The evaluator passes the configured backend when invoking semantic evaluation. The existing timeout, rate-limit detection, and budget tracking apply automatically.
+
+**Trade-off**: Slightly more coupling between semantic_judge and the backend abstraction, but avoids duplicating CLI/SDK invocation logic and ensures consistent behavior across all LLM calls in the framework.
 
 ### D7: Visibility Filtering Integration Point
 
 **Decision**: Filtering happens in the generator, not the evaluator.
 
 **Rationale**: The generator already filters by category, priority, and focus areas. Adding visibility as another filter dimension is natural. The evaluator remains agnostic to visibility -- it evaluates whatever scenarios it receives. This preserves evaluator independence (a core spec requirement).
+
+### D10: Side-Effect Steps Are Read-Only
+
+**Decision**: `SideEffectStep` SHALL be constrained to read-only operations. HTTP transport restricts to GET/HEAD only (model validator rejects POST/PUT/DELETE/PATCH). DB transport is inherently read-only. MCP/CLI are allowed with a warning.
+
+**Rationale**: Side-effect steps exist to verify state, not mutate it. Allowing mutating operations (e.g., HTTP POST, INSERT SQL) would let a verify/prohibit step change the very state it's meant to check, undermining the verification semantics. The DB client already enforces read-only, but HTTP and other transports need explicit constraints.
+
+**Trade-off**: Some APIs use POST for complex queries (e.g., search endpoints). These cannot be used in side-effect steps. Workaround: use DB transport to query the underlying state directly, or use a GET-based read endpoint.
 
 ### D8: Model Consolidation -- ManifestEntry in manifest.py Only
 

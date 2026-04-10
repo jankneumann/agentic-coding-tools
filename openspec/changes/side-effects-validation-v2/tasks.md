@@ -24,8 +24,8 @@
   **Design decisions**: D2 (sub-block design), D4 (semantic model)
   **Dependencies**: 1.2
 
-- [ ] 1.4 Consolidate ManifestEntry/ScenarioPackManifest -- remove from models.py, ensure manifest.py is the sole definition. Update all imports across the codebase.
-  **Files**: `agent-coordinator/evaluation/gen_eval/models.py`, `agent-coordinator/evaluation/gen_eval/manifest.py`, and any files importing these from models
+- [ ] 1.4 Consolidate ManifestEntry/ScenarioPackManifest -- remove from models.py, ensure manifest.py is the sole definition. Update all imports: `__init__.py` (re-exports), `test_manifest.py` (test imports), and any other files importing these from models.
+  **Files**: `agent-coordinator/evaluation/gen_eval/models.py`, `agent-coordinator/evaluation/gen_eval/manifest.py`, `agent-coordinator/evaluation/gen_eval/__init__.py`, `agent-coordinator/tests/test_evaluation/test_gen_eval/test_manifest.py`
   **Design decisions**: D8
   **Dependencies**: 1.3
 
@@ -64,10 +64,10 @@
   **Design decisions**: D4
   **Dependencies**: 1.3 (SemanticBlock/SemanticVerdict models from Phase 1)
 
-- [ ] 2.2 Implement semantic_judge.py -- LLM-as-judge via CLI pathway (`claude --print`). Parse structured JSON response from LLM. Handle CLI unavailability gracefully (RuntimeError -> skip verdict).
+- [ ] 2.2 Implement semantic_judge.py -- LLM-as-judge using the framework's existing CLIBackend/AdaptiveBackend (not hardcoded subprocess). Accept backend as dependency. Parse structured JSON response. Handle unavailability gracefully (skip verdict). Honor existing timeout, rate-limit detection, and budget tracking.
   **Files**: `agent-coordinator/evaluation/gen_eval/semantic_judge.py`
   **Spec scenarios**: gen-eval-framework (Semantic Evaluation): all scenarios
-  **Design decisions**: D4
+  **Design decisions**: D4, D9 (use existing LLM backend)
   **Dependencies**: 2.1
 
 - [ ] 2.3 Integrate semantic evaluation into evaluator _execute_step(): add _evaluate_semantic() method, invoke after structural + side-effect evaluation, compose semantic_verdict into StepVerdict
@@ -84,9 +84,9 @@
   **Design decisions**: D6
   **Dependencies**: 1.4 (model consolidation)
 
-- [ ] 2.5 Update manifest.py loader to support per-category manifest files (glob for `*.manifest.yaml`). Update test_manifest.py for new file structure.
-  **Files**: `agent-coordinator/evaluation/gen_eval/manifest.py`, `agent-coordinator/tests/test_evaluation/test_gen_eval/test_manifest.py`
-  **Design decisions**: D6
+- [ ] 2.5 Update manifest.py loader to glob for `*.manifest.yaml` in the manifests directory. Wire manifest loading into the generator (visibility-aware filtering) and orchestrator (pass visibility context). Update TemplateGenerator to support recursive scenario discovery (load YAML from subdirectories, not just top-level). Update test_manifest.py for new file structure.
+  **Files**: `agent-coordinator/evaluation/gen_eval/manifest.py`, `agent-coordinator/evaluation/gen_eval/generator.py`, `agent-coordinator/evaluation/gen_eval/orchestrator.py`, `agent-coordinator/tests/test_evaluation/test_gen_eval/test_manifest.py`
+  **Design decisions**: D6, D7
   **Dependencies**: 2.4
 
 ### Report and Feedback Extensions
@@ -96,7 +96,7 @@
   **Spec scenarios**: gen-eval-framework (Feedback Loop MODIFIED): side-effect failure patterns, semantic gaps
   **Dependencies**: 1.3
 
-- [ ] 2.7 Update reports.py: add side-effect sub-verdict counts per step, semantic confidence scores, ensure visibility-grouped reporting works with per-category manifests
+- [ ] 2.7 Update reports.py: add side-effect sub-verdict counts per step, semantic confidence scores, semantic skip-reason aggregation (count and reasons for skipped semantic evaluations), verify/prohibit verdict totals, ensure visibility-grouped reporting (per_visibility) is populated from per-category manifests
   **Files**: `agent-coordinator/evaluation/gen_eval/reports.py`
   **Dependencies**: 2.6, 2.5
 

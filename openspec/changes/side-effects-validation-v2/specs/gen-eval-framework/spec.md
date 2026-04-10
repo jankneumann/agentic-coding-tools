@@ -60,7 +60,12 @@ The `ActionStep` model SHALL support an optional `side_effects` block with two s
 - `verify`: A list of `SideEffectStep` entries whose expectations MUST succeed. These confirm that expected side effects (audit entries, state transitions, downstream writes) occurred after the main step.
 - `prohibit`: A list of `SideEffectStep` entries whose expectations MUST NOT match. If the expectations DO match (the prohibited state exists), the prohibit step SHALL fail with reason "prohibited state detected". This implements inverse matching (D3).
 
-`SideEffectStep` SHALL use the same transport/query model as `ActionStep` (transport, method, endpoint, body, headers, tool, params, command, args, sql, expect, capture, timeout_seconds) but scoped to verification.
+`SideEffectStep` SHALL use a constrained subset of the `ActionStep` transport/query model, restricted to read-only operations:
+
+- **HTTP transport**: Only `GET` and `HEAD` methods SHALL be allowed. A model validator SHALL reject `POST`, `PUT`, `DELETE`, and `PATCH` methods on SideEffectStep.
+- **DB transport**: Inherently read-only (the DB client already enforces SELECT-only queries).
+- **MCP/CLI transport**: Allowed but SHOULD be used only for read operations. The framework SHALL log a warning if a side-effect step uses mcp or cli transport.
+- **Wait transport**: Allowed (no mutation risk).
 
 Side-effect steps SHALL only execute after the main step succeeds. If the main step fails, all side-effect steps SHALL be skipped with status `skip`.
 
@@ -105,7 +110,9 @@ Semantic verdicts SHALL be additive -- they enhance but never override structura
 
 When the LLM is unavailable (CLI not installed, rate limited, or error), semantic evaluation SHALL produce a `skip` verdict with reasoning, NOT a `fail`. This prevents LLM unavailability from causing false failures in CI.
 
-Semantic evaluation SHALL invoke the LLM via the CLI pathway (`claude --print`) and parse a structured `{verdict, confidence, reasoning}` response.
+Semantic evaluation SHALL invoke the LLM via the framework's existing backend abstraction (`CLIBackend` or `AdaptiveBackend` with SDK fallback) and parse a structured `{verdict, confidence, reasoning}` response. The semantic judge module SHALL NOT hardcode a specific CLI tool — it SHALL accept the configured backend as a dependency, inheriting the framework's timeout, rate-limit detection, and budget tracking behavior.
+
+When `ActionStep.use_llm_judgment` is true and `ActionStep.semantic` is not set, it SHALL be treated as equivalent to `semantic: {judge: true}` with empty criteria (backward compatibility). When both `use_llm_judgment` and `semantic.judge` are set, the `semantic` block SHALL take precedence. `use_llm_judgment` is deprecated in favor of the `semantic` block.
 
 The `SemanticVerdict` model SHALL have fields: status (pass/fail/skip), confidence (float), reasoning (string).
 
@@ -198,7 +205,7 @@ THEN `EvalFeedback.suggested_focus` includes those steps' interfaces under a "se
 
 The gen-eval framework SHALL support a machine-readable scenario-pack manifest that classifies scenarios by visibility, provenance, determinism, and ownership.
 
-Manifest files SHALL be organized as per-category files (`<category>.manifest.yaml`) co-located with scenario directories, rather than a single monolithic manifest file. The manifest loader SHALL support loading and merging manifests from multiple directories.
+Manifest files SHALL be organized as per-category files (`<category>.manifest.yaml`) in a central `manifests/` directory, rather than a single monolithic manifest file. The manifest loader SHALL support loading and merging manifests from the `manifests/` directory by globbing for `*.manifest.yaml` files.
 
 The `ManifestEntry` and `ScenarioPackManifest` models SHALL be defined in `manifest.py` as the single source of truth.
 

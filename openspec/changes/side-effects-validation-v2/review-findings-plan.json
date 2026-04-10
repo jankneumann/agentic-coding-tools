@@ -1,0 +1,73 @@
+{
+  "review_type": "plan",
+  "target": "side-effects-validation-v2",
+  "reviewer_vendor": "claude-opus-4-6",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Task 1.4 (model consolidation) describes updating 'models.py, manifest.py, and any files importing these from models' but does not explicitly list __init__.py, which re-exports ManifestEntry and ScenarioPackManifest from models. The __init__.py import block and __all__ list must be updated to import from manifest instead, or external consumers importing from the gen_eval package will break.",
+      "resolution": "Explicitly list __init__.py in task 1.4 file list. After consolidation, __init__.py should import ManifestEntry/ScenarioPackManifest from .manifest instead of .models.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/evaluation/gen_eval/__init__.py",
+      "package_id": "wp-assertions-sideeffects"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "evaluator.py appears in the write_allow scope of both wp-assertions-sideeffects and wp-semantic-packs. While the sequential dependency prevents actual parallel conflict, this overlap means the two WPs cannot be safely promoted to parallel execution in the future without scope refactoring. Consider documenting this constraint in the work-packages.yaml comments.",
+      "resolution": "Add a comment in work-packages.yaml noting that evaluator.py is intentionally in both scopes due to the sequential dependency, and that parallelizing these WPs would require extracting the semantic evaluation path into a separate module.",
+      "disposition": "accept"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The Side-Effect Declaration spec does not specify any upper bound on the number of verify/prohibit steps per ActionStep. A complex E2E scenario with 20 action steps, each having 10 verify + 10 prohibit sub-steps, would generate 400 extra transport calls. The spec should either bound this or require the implementer to document the performance implication.",
+      "resolution": "Add a SHOULD recommendation: 'Side-effect step lists SHOULD be kept small (recommended maximum 5 verify + 5 prohibit per action step). The evaluator MAY log a warning when this threshold is exceeded.'",
+      "disposition": "accept"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The Side-Effect Declaration spec says side-effect steps 'SHALL use the same transport/query model as ActionStep' but does not explicitly state whether side-effect steps inherit the parent step's timeout_seconds or have their own independent timeout. SideEffectStep has timeout_seconds field in the model, but the spec does not mention timeout behavior for side-effect steps.",
+      "resolution": "Add a sentence to the spec: 'Each SideEffectStep MAY specify its own timeout_seconds. If unspecified, it SHALL default to the evaluator's global step timeout.'",
+      "disposition": "accept"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The manifest.py currently imports ManifestEntry and ScenarioPackManifest from models.py (line 17: 'from .models import ManifestEntry, Scenario, ScenarioPackManifest, ScenarioVerdict'). After consolidation (task 1.4), the definitions move to manifest.py. The remaining imports from models (Scenario, ScenarioVerdict) are fine, but the consolidation must be done carefully to avoid circular imports if any future model code needs manifest types.",
+      "resolution": "When implementing task 1.4, verify there are no circular import risks by checking that models.py never imports from manifest.py. Currently it doesn't, so the consolidation is safe.",
+      "disposition": "accept"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The Semantic Evaluation spec says 'When the LLM is unavailable (CLI not installed, rate limited, or error), semantic evaluation SHALL produce a skip verdict'. However, it does not specify a timeout for the LLM CLI call itself. If `claude --print` hangs (e.g., network issue), the evaluation step could block indefinitely.",
+      "resolution": "Add to spec or design: 'The semantic_judge module SHALL enforce a timeout (recommended 30 seconds) on the CLI subprocess call. On timeout, produce a skip verdict with timeout reasoning.'",
+      "disposition": "accept"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The MODIFIED Scenario Pack Manifest spec says manifests SHALL be per-category files, but doesn't specify what happens to the existing monolithic manifest.yaml during the transition. Task 2.4 says to 'remove manifests/manifest.yaml' but the spec doesn't mention backward compatibility — existing scripts or CI that reference the monolithic file would break silently.",
+      "resolution": "Task 2.5 (update manifest.py loader) should ensure the loader falls back to loading manifest.yaml if per-category files are not found, or explicitly fail with a migration hint.",
+      "disposition": "accept"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The End-to-End User Scenario Templates spec says each template SHALL use 'at least one extended assertion type and one side-effect block', but does not require use of semantic evaluation blocks. None of the E2E templates demonstrate semantic evaluation, which means Feature 3 has no E2E coverage.",
+      "resolution": "Consider adding semantic evaluation to at least one template (e.g., the memory lifecycle template could use semantic evaluation to judge search result relevance). Alternatively, accept this gap and cover semantic eval only via unit tests.",
+      "disposition": "accept"
+    }
+  ]
+}
