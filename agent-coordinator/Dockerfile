@@ -32,6 +32,10 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
 COPY profiles/ /app/profiles/
 COPY cedar/ /app/cedar/
+# Evaluation module is imported by src/coordination_api.py for the
+# /gen-eval/* endpoints (list_scenarios, validate_scenario, create_scenario,
+# run_gen_eval). Without this COPY those routes return 500 at runtime.
+COPY evaluation/ /app/evaluation/
 COPY agents.yaml /app/agents.yaml
 COPY teams.yaml /app/teams.yaml
 
@@ -42,7 +46,8 @@ RUN groupadd --system appuser && \
 USER appuser
 
 # Default environment
-ENV DB_BACKEND=postgres
+ENV DB_BACKEND=postgres \
+    PYTHONPATH=/app
 
 # Expose the API port (Railway overrides via $PORT)
 EXPOSE 8081
