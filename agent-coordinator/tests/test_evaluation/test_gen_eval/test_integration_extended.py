@@ -7,11 +7,8 @@ with all new feature types working together.
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from evaluation.gen_eval.clients.base import StepResult, TransportClientRegistry
 from evaluation.gen_eval.descriptor import InterfaceDescriptor
@@ -26,7 +23,6 @@ from evaluation.gen_eval.models import (
     SideEffectsBlock,
     SideEffectStep,
 )
-from evaluation.gen_eval.semantic_judge import evaluate_semantic
 
 
 def _make_result(
@@ -67,7 +63,10 @@ class TestIntegrationExtended:
                             SideEffectStep(
                                 id="resource-in-db",
                                 transport="db",
-                                sql="SELECT count(*) as rows FROM resources WHERE name = 'test-resource'",
+                                sql=(
+                                    "SELECT count(*) as rows FROM resources"
+                                    " WHERE name = 'test-resource'"
+                                ),
                                 expect=ExpectBlock(rows_gte=1),
                             ),
                         ],
@@ -76,7 +75,10 @@ class TestIntegrationExtended:
                                 id="no-duplicate-resources",
                                 transport="db",
                                 mode="prohibit",
-                                sql="SELECT count(*) as rows FROM resources WHERE name = 'test-resource' AND count > 1",
+                                sql=(
+                                    "SELECT count(*) as rows FROM resources"
+                                    " WHERE name = 'test-resource' AND count > 1"
+                                ),
                                 expect=ExpectBlock(rows_gte=1),
                             ),
                         ],

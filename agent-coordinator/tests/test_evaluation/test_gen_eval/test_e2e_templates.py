@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from evaluation.gen_eval.models import ActionStep, ExpectBlock, Scenario, SideEffectsBlock
+from evaluation.gen_eval.models import Scenario
 
 # Path to scenarios directory
 SCENARIOS_DIR = Path(__file__).parents[3] / "evaluation" / "gen_eval" / "scenarios"
