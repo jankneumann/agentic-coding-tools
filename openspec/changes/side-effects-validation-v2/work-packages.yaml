@@ -50,8 +50,10 @@ packages:
         - "agent-coordinator/evaluation/gen_eval/models.py"
         - "agent-coordinator/evaluation/gen_eval/evaluator.py"
         - "agent-coordinator/evaluation/gen_eval/manifest.py"
+        - "agent-coordinator/evaluation/gen_eval/__init__.py"
         - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_extended_assertions.py"
         - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_side_effects.py"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_manifest.py"
       read_allow:
         - "agent-coordinator/**"
         - "openspec/**"
@@ -145,6 +147,7 @@ packages:
         - "agent-coordinator/evaluation/gen_eval/reports.py"
         - "agent-coordinator/evaluation/gen_eval/feedback.py"
         - "agent-coordinator/evaluation/gen_eval/generator.py"
+        - "agent-coordinator/evaluation/gen_eval/orchestrator.py"
         - "agent-coordinator/evaluation/gen_eval/manifest.py"
         - "agent-coordinator/evaluation/gen_eval/manifests/**"
         - "agent-coordinator/tests/test_evaluation/test_gen_eval/test_semantic_eval.py"

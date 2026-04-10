@@ -1,0 +1,63 @@
+{
+  "review_type": "plan",
+  "target": "side-effects-validation-v2",
+  "reviewer_vendor": "gpt-5-codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The manifest layout is internally inconsistent. The spec says per-category manifests SHALL be co-located with scenario directories, but the design, tasks, and work packages place them under `agent-coordinator/evaluation/gen_eval/manifests/*.manifest.yaml`. That leaves contributors and loader code without a single authoritative location.",
+      "resolution": "Choose one manifest placement strategy and align all artifacts to it. If co-location is intended, update the design/tasks/work packages to scan `scenarios/*/*.manifest.yaml`; if a central `manifests/` directory is intended, change the spec text accordingly.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The runtime integration for scenario packs is incomplete. The current descriptor points at `scenario_dirs: [scenarios/]`, `TemplateGenerator._load_templates()` only loads top-level `*.yaml`, `load_manifests_from_dirs()` is not wired into generation, and `GenEvalOrchestrator._build_report()` never populates `per_visibility`. As planned, new nested E2E templates and visibility metadata can be added without affecting real runs.",
+      "resolution": "Add explicit implementation tasks for recursive scenario discovery (or descriptor updates to enumerate category directories), manifest loading during generation/reporting, visibility filtering in the generator, and `per_visibility` population in the orchestrator/report pipeline.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Semantic evaluation is designed as a direct `claude --print` subprocess even though gen-eval already has configurable `GenEvalConfig.cli_command/cli_args`, a shared `CLIBackend`, and optional SDK fallback/budget machinery. Hardcoding one CLI vendor diverges from the existing architecture and drops shared timeout, fallback, and cost-accounting behavior.",
+      "resolution": "Implement semantic judging through the existing LLM backend abstraction or a new evaluator backend that reuses `CLIBackend`/config, honors `cli-augmented` and `sdk-only` modes, and records evaluation-time budget usage.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "high",
+      "description": "The plan gives `SideEffectStep` the full `ActionStep` surface, including mutating HTTP methods, MCP tools, CLI commands, and raw SQL, while treating these steps as verification-only. A verify/prohibit step can therefore create or change state and invalidate the very assertion it is meant to check.",
+      "resolution": "Constrain side-effect steps to read-only operations and enforce that in model validation, or define a narrower verification-step model that only permits safe verification transports such as GET/read-only queries.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "WP1 is not actually independently mergeable. D8 removes `ManifestEntry` and `ScenarioPackManifest` from `models.py`, but current exports/tests still import them from there (`evaluation/gen_eval/__init__.py` and `tests/test_evaluation/test_gen_eval/test_manifest.py`), and WP1 verification runs the full gen-eval suite. The package scope and locks do not include those import sites.",
+      "resolution": "Either keep compatibility re-exports in `models.py` through PR1, or expand WP1 scope/tasks/locks to update `__init__.py`, manifest tests, and any remaining importers before claiming the package is self-contained.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "The compatibility story for semantic configuration is undefined. `ActionStep` already exposes `use_llm_judgment`, while the new plan introduces `semantic.judge`/`criteria`/`fields` with no rule for aliasing, precedence, or deprecation. That leaves scenario authors and generators without a clear migration path.",
+      "resolution": "Add a requirement that defines how `use_llm_judgment` interacts with `semantic`, keep it as a deprecated alias for at least one transition window or remove it explicitly in the same change, and update generators/tests/spec text to match.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "The plan deliberately turns semantic-evaluation dependency failures into `skip`, but it does not require structured logging or aggregate reporting for skip reasons, semantic call counts/duration, or side-effect verification counts. That makes silent degradation likely in CI when the LLM backend is missing, timing out, or rate limited.",
+      "resolution": "Add explicit report/metrics requirements and implementation tasks for semantic skip-reason aggregation, semantic invocation timing/counts, and verify/prohibit verdict totals so non-failing degradation is still visible and alertable.",
+      "disposition": "fix"
+    }
+  ]
+}
