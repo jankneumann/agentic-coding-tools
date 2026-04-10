@@ -114,6 +114,29 @@ and secret interpolation — extending it for archetypes is natural.
 **Alternative rejected**: Per-skill archetype config — duplicates model assignments,
 requires editing 8+ skill files to change a model, violates DRY.
 
+### D7: Orthogonal coexistence with speculative merge trains
+
+**Decision**: Archetype routing and merge train routing are orthogonal filtering
+dimensions that compose independently in `claim()`.
+
+**Rationale**: The speculative merge trains feature (landed April 2026) added
+`compose_train`, `eject_from_train`, `get_train_status`, `report_spec_result`,
+and `affected_tests` MCP tools to `coordination_mcp.py`, plus corresponding HTTP
+endpoints in `coordination_api.py`. It also added `decomposition` and
+`stack_position` fields to the work-packages schema. These concern *how* packages
+are merged (stacked vs. branch, wave ordering), while archetypes concern *who*
+executes them (model + prompt + escalation). The two features filter on different
+axes: merge trains filter by partition/wave position, archetypes filter by agent
+capability.
+
+**Implementation**: `claim()` applies archetype filtering *after* existing
+task_type and priority filtering, before merge-train-aware ordering. The
+`archetype` field in `work-packages.schema.json` sits alongside `decomposition`
+and `stack_position` — all are optional package-level metadata.
+
+**Alternative rejected**: Merging archetype into merge train metadata — conflates
+agent selection with merge strategy, creating unnecessary coupling.
+
 ## Escalation Algorithm
 
 ```python

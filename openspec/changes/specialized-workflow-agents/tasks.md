@@ -160,16 +160,19 @@
   **Dependencies**: 3.0.2
   Files: `openspec/schemas/work-packages.schema.json`
   Add `"archetype": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$"}` to package properties.
+  **Note**: The schema already contains `decomposition` and `stack_position` fields from the speculative merge trains feature (April 2026). Add `archetype` alongside these as orthogonal package metadata (see design decision D7).
 
 ### 3.3 Expose archetype in coordination API and MCP
 
 - [ ] 3.3.1 Update `coordination_mcp.py` — add `agent_requirements` parameter to `submit_work` tool and archetype filtering to `get_work` tool
   **Dependencies**: 3.1.2, 3.1.3
   Files: `agent-coordinator/src/coordination_mcp.py`
+  **Note**: This file now contains 5 merge-train MCP tools (`compose_train`, `eject_from_train`, `get_train_status`, `report_spec_result`, `affected_tests`). Archetype filtering is orthogonal — applies only to `get_work`/`submit_work`, not merge train tools (see D7).
 
 - [ ] 3.3.2 Update `coordination_api.py` — add `agent_requirements` to `/work/submit` endpoint and archetype filtering to `/work/claim` endpoint
   **Dependencies**: 3.1.2, 3.1.3
   Files: `agent-coordinator/src/coordination_api.py`
+  **Note**: This file now contains merge-train HTTP endpoints (`/merge-train/compose`, `/merge-train/eject`, etc.). Archetype filtering applies only to `/work/*` endpoints, not merge train endpoints (see D7).
 
 ### 3.4 Update fallback integration in review dispatcher
 

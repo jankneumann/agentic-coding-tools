@@ -27,3 +27,29 @@
 
 ### Context
 Planned a three-phase feature to introduce agent archetypes mapping workflow stages to model selection. Phase 1 adds model= parameters to skill Task() calls (zero infra changes). Phase 2 creates archetypes.yaml with loader/validator/escalation in agents_config.py. Phase 3 extends the coordinator work queue with agent_requirements routing and updates the work-packages.yaml schema.
+
+---
+
+## Phase: Refinement (2026-04-10)
+
+**Agent**: claude-local | **Session**: N/A
+
+### Decisions
+1. **Rebase on main after 19 commits** — Cherry-picked original plan commit onto current main (5089f60) to incorporate speculative merge trains, autopilot rename, and other recent changes.
+2. **Document merge train coexistence (D7)** — Added design decision D7 establishing that archetype routing and merge train routing are orthogonal filtering dimensions in `claim()`. Archetype filters by agent capability; merge trains filter by partition/wave ordering.
+3. **Keep all 3 phases in scope** — Confirmed full scope (model hints → archetype registry → coordinator routing) rather than scoping down to Phase 1 only.
+4. **Elevate from Draft to Approved** — Status changed after validating all artifacts pass OpenSpec validation, work-packages schema/DAG/locks, and parallel zones checks.
+
+### Alternatives Considered
+- Phase 1 only scope: rejected because centralized archetypes and coordinator routing provide the main value
+- Amending original commit: rejected in favor of preserving git history with a refinement commit on top
+
+### Trade-offs
+- Accepted additional complexity notes in tasks (merge train coexistence) over keeping tasks pristine, because implementers need awareness of the new MCP tools and API endpoints in the same files
+
+### Open Questions
+- [ ] Escalation threshold tuning: initial values (3 dirs, 2 deps, 500 LOC) still need empirical validation
+- [ ] Whether custom user-defined archetypes should be supported beyond the 6 predefined ones
+
+### Context
+Elevated draft PR #65 to full plan. Rebased onto current main (19 new commits including speculative merge trains). Validated all artifacts — OpenSpec, work-packages, and parallel zones all pass. Updated design.md with D7 (merge train coexistence), tasks.md with merge train context notes on tasks 3.2.1/3.3.1/3.3.2, and proposal.md status from Draft to Approved.

@@ -4,7 +4,7 @@
 `specialized-workflow-agents`
 
 ## Status
-Draft
+Approved
 
 ## Why
 
