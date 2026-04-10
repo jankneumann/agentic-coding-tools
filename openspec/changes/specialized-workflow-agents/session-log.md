@@ -111,7 +111,14 @@ Focused scenario coverage pass. Found 2 requirements (Fallback Chain Integration
 **Agent**: claude-local | **Session**: N/A
 
 ### Decisions
-1. **Fix escalation dependency threshold** — Scenario had 2 deps but said ">2". Changed to 3 deps to match ">2[REDACTED:high-entropy]>2" to ">=2": rejected because design.md algorithm uses `>` operator consistently
+1. **Fix escalation dependency threshold** — Scenario had 2 deps but said more-than-2. Changed to 3 deps to match threshold consistently.
+2. **Add missing archetypes.yaml-not-found scenario** — D5 graceful degradation now has explicit spec scenario.
+3. **Correct contracts README** — Acknowledged Phase 3 API parameter extensions as additive contract changes.
+4. **Clarify resolve_model() callsite** — Skills call resolve_model() at dispatch time; Agent tool receives concrete model.
+5. **Move API lock keys** — From wp-queue-routing to wp-api-mcp-integration where coordination_api.py is actually modified.
+
+### Alternatives Considered
+- Changing threshold from more-than-2 to at-least-2: rejected because design.md algorithm uses strict greater-than operator consistently
 
 ### Trade-offs
 - None significant — all fixes are correctness improvements
