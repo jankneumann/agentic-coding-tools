@@ -161,3 +161,16 @@ class TestParseVerdict:
         v = _parse_verdict(raw, 0.7)
         # pass defaults to False → fail
         assert v.status == "fail"
+
+    def test_confidence_clamped_high(self) -> None:
+        """Confidence > 1.0 is clamped to 1.0."""
+        raw = json.dumps({"pass": True, "confidence": 1.5, "reasoning": "Very sure"})
+        v = _parse_verdict(raw, 0.7)
+        assert v.status == "pass"
+        assert v.confidence == 1.0
+
+    def test_confidence_clamped_low(self) -> None:
+        """Confidence < 0.0 is clamped to 0.0."""
+        raw = json.dumps({"pass": False, "confidence": -0.5, "reasoning": "Confused"})
+        v = _parse_verdict(raw, 0.7)
+        assert v.confidence == 0.0

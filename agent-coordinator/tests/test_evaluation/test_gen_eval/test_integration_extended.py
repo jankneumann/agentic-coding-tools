@@ -158,6 +158,116 @@ class TestIntegrationExtended:
         # Verify transport was called for main steps + side-effect steps
         assert call_count >= 4  # 2 main + 2 side-effects
 
+        # Semantic verdict should be skip (no LLM backend configured)
+        assert step1.semantic_verdict is not None
+        assert step1.semantic_verdict.status == "skip"
+
+    def test_semantic_evaluation_via_evaluator(self) -> None:
+        """Evaluator invokes semantic evaluation when LLM backend is provided."""
+        scenario = Scenario(
+            id="semantic-integration",
+            name="Semantic eval via evaluator",
+            description="Tests semantic eval wired through evaluator",
+            category="test",
+            priority=1,
+            interfaces=["http"],
+            steps=[
+                ActionStep(
+                    id="search",
+                    transport="http",
+                    method="GET",
+                    endpoint="/search",
+                    expect=ExpectBlock(status=200),
+                    semantic=SemanticBlock(
+                        judge=True,
+                        criteria="Results should be relevant to the query",
+                        min_confidence=0.7,
+                    ),
+                ),
+            ],
+        )
+
+        registry = TransportClientRegistry()
+        client = AsyncMock()
+        client.execute = AsyncMock(
+            return_value=_make_result(
+                status_code=200,
+                body={"results": [{"title": "relevant result"}]},
+            )
+        )
+        registry.register("http", client)
+
+        # Mock LLM backend
+        llm_backend = AsyncMock()
+        llm_backend.is_available = AsyncMock(return_value=True)
+        llm_backend.run = AsyncMock(
+            return_value='{"pass": true, "confidence": 0.9, "reasoning": "Relevant"}'
+        )
+
+        descriptor = MagicMock(spec=InterfaceDescriptor)
+        descriptor.all_interfaces.return_value = []
+        evaluator = Evaluator(
+            descriptor=descriptor, clients=registry, llm_backend=llm_backend
+        )
+
+        verdict = asyncio.get_event_loop().run_until_complete(
+            evaluator.evaluate(scenario)
+        )
+
+        assert verdict.status == "pass"
+        assert verdict.steps[0].semantic_verdict is not None
+        assert verdict.steps[0].semantic_verdict.status == "pass"
+        assert verdict.steps[0].semantic_verdict.confidence == 0.9
+        llm_backend.run.assert_called_once()
+
+    def test_semantic_fail_causes_step_failure(self) -> None:
+        """Semantic evaluation failure should cause step to fail."""
+        scenario = Scenario(
+            id="semantic-fail",
+            name="Semantic fail",
+            description="Tests semantic fail",
+            category="test",
+            priority=1,
+            interfaces=["http"],
+            steps=[
+                ActionStep(
+                    id="bad-search",
+                    transport="http",
+                    method="GET",
+                    endpoint="/search",
+                    expect=ExpectBlock(status=200),
+                    semantic=SemanticBlock(judge=True, criteria="Must be relevant"),
+                ),
+            ],
+        )
+
+        registry = TransportClientRegistry()
+        client = AsyncMock()
+        client.execute = AsyncMock(
+            return_value=_make_result(status_code=200, body={"results": []})
+        )
+        registry.register("http", client)
+
+        llm_backend = AsyncMock()
+        llm_backend.is_available = AsyncMock(return_value=True)
+        llm_backend.run = AsyncMock(
+            return_value='{"pass": false, "confidence": 0.85, "reasoning": "No results"}'
+        )
+
+        descriptor = MagicMock(spec=InterfaceDescriptor)
+        descriptor.all_interfaces.return_value = []
+        evaluator = Evaluator(
+            descriptor=descriptor, clients=registry, llm_backend=llm_backend
+        )
+
+        verdict = asyncio.get_event_loop().run_until_complete(
+            evaluator.evaluate(scenario)
+        )
+
+        assert verdict.status == "fail"
+        assert verdict.steps[0].semantic_verdict is not None
+        assert verdict.steps[0].semantic_verdict.status == "fail"
+
     def test_manifest_roundtrip_with_new_entries(self) -> None:
         """Manifest can include E2E scenario entries."""
         manifest = ScenarioPackManifest(

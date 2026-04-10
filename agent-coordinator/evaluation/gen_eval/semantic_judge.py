@@ -116,7 +116,7 @@ def _parse_verdict(raw: str, min_confidence: float) -> SemanticVerdict:
         )
 
     passed = bool(data.get("pass", False))
-    confidence = float(data.get("confidence", 0.0))
+    confidence = max(0.0, min(1.0, float(data.get("confidence", 0.0))))
     reasoning = str(data.get("reasoning", ""))
 
     # Apply confidence threshold

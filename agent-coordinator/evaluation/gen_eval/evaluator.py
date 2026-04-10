@@ -24,10 +24,12 @@ from evaluation.gen_eval.models import (
     ExpectBlock,
     Scenario,
     ScenarioVerdict,
+    SemanticVerdict,
     SideEffectsBlock,
     SideEffectStep,
     StepVerdict,
 )
+from evaluation.gen_eval.semantic_judge import LLMBackend, evaluate_semantic
 
 # Pattern for variable interpolation: {{ var_name }}
 _VAR_PATTERN = re.compile(r"\{\{\s*([\w.\-]+)\s*\}\}")
@@ -45,10 +47,12 @@ class Evaluator:
         clients: TransportClientRegistry,
         *,
         default_timeout: float = _DEFAULT_TIMEOUT,
+        llm_backend: LLMBackend | None = None,
     ) -> None:
         self.descriptor = descriptor
         self.clients = clients
         self.default_timeout = default_timeout
+        self.llm_backend = llm_backend
 
     async def evaluate(self, scenario: Scenario) -> ScenarioVerdict:
         """Evaluate a single scenario step-by-step."""
@@ -262,8 +266,9 @@ class Evaluator:
         # Side-effect verification (D2)
         side_effect_verdicts: list[dict[str, Any]] | None = None
         if interpolated.side_effects and status == "pass":
-            # Capture step_start_time for time-range queries
-            start_ts = datetime.datetime.fromtimestamp(step_start, tz=datetime.UTC).isoformat()
+            # Capture step_start_time for time-range queries using wall clock
+            # (time.monotonic() is an arbitrary reference, not POSIX epoch)
+            start_ts = datetime.datetime.now(tz=datetime.UTC).isoformat()
             side_effect_verdicts = await self._execute_side_effects(
                 interpolated.side_effects, captured_vars, start_ts
             )
@@ -290,6 +295,29 @@ class Evaluator:
                 )
             ]
 
+        # Semantic evaluation (D4) — runs after structural + side-effect pass
+        semantic_verdict: SemanticVerdict | None = None
+        if interpolated.semantic and status == "pass" and self.llm_backend is not None:
+            semantic_verdict = await evaluate_semantic(
+                self.llm_backend,
+                interpolated.semantic,
+                actual,
+                step.id,
+            )
+            # D4: semantic fail → step fails; skip → step passes
+            if semantic_verdict.status == "fail":
+                status = "fail"
+                if diff is None:
+                    diff = {"semantic": semantic_verdict.reasoning}
+                else:
+                    diff["semantic"] = semantic_verdict.reasoning
+        elif interpolated.semantic and status == "pass" and self.llm_backend is None:
+            # No backend configured — skip semantic evaluation
+            semantic_verdict = SemanticVerdict(
+                status="skip",
+                reasoning="No LLM backend configured",
+            )
+
         return StepVerdict(
             step_id=step.id,
             transport=step.transport,
@@ -300,6 +328,7 @@ class Evaluator:
             duration_ms=elapsed_ms,
             captured_vars=captured,
             side_effect_verdicts=side_effect_verdicts,
+            semantic_verdict=semantic_verdict,
         )
 
     def _interpolate_step(self, step: ActionStep, variables: dict[str, Any]) -> ActionStep:
@@ -415,7 +444,7 @@ class Evaluator:
         if expect.rows_gte is not None:
             expected["rows_gte"] = expect.rows_gte
             actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
-            if actual_rows is None or actual_rows < expect.rows_gte:
+            if not isinstance(actual_rows, int) or actual_rows < expect.rows_gte:
                 diff["rows_gte"] = {
                     "expected_gte": expect.rows_gte,
                     "actual": actual_rows,
@@ -424,7 +453,7 @@ class Evaluator:
         if expect.rows_lte is not None:
             expected["rows_lte"] = expect.rows_lte
             actual_rows = result.body.get("rows") if isinstance(result.body, dict) else None
-            if actual_rows is None or actual_rows > expect.rows_lte:
+            if not isinstance(actual_rows, int) or actual_rows > expect.rows_lte:
                 diff["rows_lte"] = {
                     "expected_lte": expect.rows_lte,
                     "actual": actual_rows,
