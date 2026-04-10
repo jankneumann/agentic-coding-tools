@@ -86,6 +86,106 @@ jobs:
       - name: Validate specs
         run: openspec validate --strict --all
 
+  # Static contract check: does every local package imported from src/
+  # have a matching COPY statement in the Dockerfile runtime stage?
+  # Catches the class of bug where a lazy import references a directory
+  # that isn't COPY'd (e.g., `from evaluation.gen_eval import ...` when
+  # evaluation/ isn't bundled in the runtime image).
+  check-docker-imports:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-coordinator
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Verify Dockerfile COPY coverage for src/ imports
+        run: |
+          uv run python scripts/check_docker_imports.py \
+            --data-dir cedar \
+            --data-dir profiles \
+            --verbose
+
+  # Container smoke-import test: build the real Docker image and verify
+  # that every module imported by src/coordination_api.py and
+  # src/coordination_mcp.py loads without error inside the built container.
+  # This catches runtime import failures that the static check might miss
+  # (e.g., missing system libraries, PYTHONPATH issues, lazy imports from
+  # third-party code).
+  docker-smoke-import:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-coordinator
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build runtime image
+        uses: docker/build-push-action@v5
+        with:
+          context: agent-coordinator
+          load: true
+          tags: coord-api-ci:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-import all modules inside the container
+        run: |
+          docker run --rm \
+            -e POSTGRES_DSN="postgresql://localhost:1/nope" \
+            coord-api-ci:smoke \
+            /app/.venv/bin/python -c "
+          import importlib, sys
+
+          # Every top-level entry point we expect to work in the built image.
+          # Keep this list aligned with what the MCP server and HTTP API load.
+          modules = [
+              'src.coordination_api',
+              'src.coordination_mcp',
+              'src.http_proxy',
+              'src.config',
+              'evaluation.gen_eval.mcp_service',
+          ]
+
+          failures = []
+          for name in modules:
+              try:
+                  importlib.import_module(name)
+                  print(f'OK  {name}')
+              except Exception as exc:
+                  print(f'FAIL {name}: {type(exc).__name__}: {exc}')
+                  failures.append((name, exc))
+
+          # Verify we can actually construct the FastAPI app factory.
+          try:
+              from src.coordination_api import create_coordination_api
+              app = create_coordination_api()
+              route_count = len([r for r in app.routes if hasattr(r, 'path')])
+              print(f'OK  FastAPI app factory constructed ({route_count} routes)')
+          except Exception as exc:
+              print(f'FAIL FastAPI app factory: {type(exc).__name__}: {exc}')
+              failures.append(('app_factory', exc))
+
+          if failures:
+              print(f'\\n{len(failures)} import(s) failed inside the built container.')
+              sys.exit(1)
+          print('\\nAll module imports succeeded inside the built container.')
+          "
+
   formal-coordination:
     runs-on: ubuntu-latest
     continue-on-error: true
