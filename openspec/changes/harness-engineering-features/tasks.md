@@ -51,7 +51,7 @@
   **Dependencies**: None
 
 - [ ] 3.2 Extend convergence_loop.py — add iteration counter, configurable max_iterations, automatic escalation on exhaustion, convergence metrics recording
-  **Files**: `skills/auto-dev-loop/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
+  **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
   **Dependencies**: 3.1
 
 - [ ] 3.3 Write tests for convergence metrics recording — verify episodic memory entries with iteration count, vendor agreement rate
@@ -60,7 +60,7 @@
   **Dependencies**: 1.4, 3.2
 
 - [ ] 3.4 Add convergence metrics to episodic memory — record iteration count, findings per iteration, convergence status, time elapsed, vendor agreement rate
-  **Files**: `skills/auto-dev-loop/scripts/convergence_loop.py`
+  **Files**: `skills/autopilot/scripts/convergence_loop.py`
   **Dependencies**: 3.3
 
 ## Phase 4: Architecture Enforcement & Validation

@@ -2055,18 +2055,18 @@ The review dispatcher SHALL produce a `reviews/review-manifest.json` file captur
 - AND the Codex entry shows success=true with findings_count and elapsed_seconds
 - AND the Gemini entry shows success=false with error_class="capacity_exhausted" and the models attempted
 
-### Requirement: Auto Dev Loop Skill
+### Requirement: Autopilot Skill
 
-The system SHALL provide an `/auto-dev-loop` skill that orchestrates the full plan-review-implement-validate-PR lifecycle as a state machine. The skill SHALL accept either a `change-id` (existing proposal) or a feature description (creates proposal first via `/parallel-plan-feature` or `/linear-plan-feature`).
+The system SHALL provide an `/autopilot` skill that orchestrates the full plan-review-implement-validate-PR lifecycle as a state machine. The skill SHALL accept either a `change-id` (existing proposal) or a feature description (creates proposal first via `/parallel-plan-feature` or `/linear-plan-feature`).
 
 #### Scenario: Invoke with existing change-id
 
-- **WHEN** the user invokes `/auto-dev-loop test-feature`
+- **WHEN** the user invokes `/autopilot test-feature`
 - **THEN** the system SHALL load the proposal artifacts and begin the state machine at INIT phase
 
 #### Scenario: Invoke with feature description
 
-- **WHEN** the user invokes `/auto-dev-loop "add user authentication"`
+- **WHEN** the user invokes `/autopilot "add user authentication"`
 - **THEN** the system SHALL delegate to `/parallel-plan-feature` (or `/linear-plan-feature` if coordinator unavailable) to create proposal artifacts
 - **AND** transition to PLAN_REVIEW once artifacts exist
 
@@ -2261,7 +2261,7 @@ When entering ESCALATE, the system SHALL persist `previous_phase` and `escalatio
 
 - **GIVEN** the loop escalated during IMPL_REVIEW due to vendor disagreement
 - **AND** the human manually resolved the disagreement
-- **WHEN** the human re-invokes `/auto-dev-loop <change-id>`
+- **WHEN** the human re-invokes `/autopilot <change-id>`
 - **THEN** the system SHALL load state, detect ESCALATE, re-run IMPL_REVIEW gate check
 - **AND** transition to IMPL_REVIEW if the disagreement is resolved
 
@@ -2278,7 +2278,7 @@ If coordinator unavailable, the system SHALL fall back to linear workflow. If a 
 #### Scenario: No coordinator
 
 - **GIVEN** coordinator health check returns unavailable
-- **WHEN** `/auto-dev-loop` is invoked
+- **WHEN** `/autopilot` is invoked
 - **THEN** the system SHALL emit a warning and delegate to sequential skill invocation
 
 #### Scenario: Vendor drops mid-loop

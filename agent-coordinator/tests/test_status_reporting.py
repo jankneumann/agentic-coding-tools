@@ -1,4 +1,4 @@
-"""Tests for status reporting: HTTP endpoint, MCP tool, hook script, and auto-dev-loop callback."""
+"""Tests for status reporting: HTTP endpoint, MCP tool, hook script, and autopilot callback."""
 
 from __future__ import annotations
 
@@ -284,20 +284,20 @@ def test_hook_script_exits_zero_on_timeout(tmp_path: Path) -> None:
 
 
 # =============================================================================
-# Auto-dev-loop status_fn callback tests
+# Autopilot status_fn callback tests
 # =============================================================================
 
 
-def test_status_fn_callback_in_auto_dev_loop(tmp_path: Path) -> None:
+def test_status_fn_callback_in_autopilot(tmp_path: Path) -> None:
     """run_loop calls status_fn on phase transitions."""
-    # Add auto-dev-loop scripts to path
+    # Add autopilot scripts to path
     scripts_dir = (
         Path(__file__).resolve().parent.parent.parent
-        / "skills" / "auto-dev-loop" / "scripts"
+        / "skills" / "autopilot" / "scripts"
     )
     sys.path.insert(0, str(scripts_dir))
     try:
-        from auto_dev_loop import LoopState, run_loop
+        from autopilot import LoopState, run_loop
 
         change_dir = tmp_path / "changes" / "test-change"
         change_dir.mkdir(parents=True)

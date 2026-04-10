@@ -159,18 +159,18 @@ packages:
       - wp-context-architecture
     locks:
       files:
-        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
       keys:
-        - "feature:auto-dev-loop"
+        - "feature:autopilot"
         - "feature:parallel-infrastructure-consensus"
       ttl_minutes: 120
       reason: "Convergence loop iteration control and metrics"
     scope:
       write_allow:
-        - "skills/auto-dev-loop/scripts/**"
+        - "skills/autopilot/scripts/**"
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
-        - "skills/auto-dev-loop/tests/**"
+        - "skills/autopilot/tests/**"
         - "skills/parallel-infrastructure/tests/**"
       read_allow:
         - "skills/**"
@@ -190,7 +190,7 @@ packages:
       steps:
         - name: "Convergence loop and consensus synthesizer tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/auto-dev-loop/tests/ skills/parallel-infrastructure/tests/test_consensus_synthesizer.py -v"
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/tests/ skills/parallel-infrastructure/tests/test_consensus_synthesizer.py -v"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -207,7 +207,7 @@ packages:
         - "escalation_logic_implemented"
         - "metrics_recording_enabled"
       artifacts:
-        - "skills/auto-dev-loop/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
 
   - package_id: wp-architecture-linters
     title: "Mechanical Architecture Enforcement"

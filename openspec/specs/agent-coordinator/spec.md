@@ -1658,7 +1658,7 @@ Inbound (IMAP IDLE):
 - Reply parsing SHALL recognize these commands (case-insensitive, first word only):
   - `approved`, `approve`, `yes` → calls `ApprovalService.decide_request(request_id, "approved", decided_by=sender_email)`
   - `denied`, `deny`, `no` → calls `ApprovalService.decide_request(request_id, "denied", decided_by=sender_email)`
-  - `resolved` → calls `POST /status/report` with `{"event_type": "gate_check", "change_id": "<from_token>", "message": "Human confirmed resolved"}`, which the auto-dev-loop's gate check evaluates on next iteration
+  - `resolved` → calls `POST /status/report` with `{"event_type": "gate_check", "change_id": "<from_token>", "message": "Human confirmed resolved"}`, which the autopilot's gate check evaluates on next iteration
   - `skip` → calls `POST /status/report` with `{"event_type": "phase_skip", "change_id": "<from_token>", "message": "Human requested phase skip"}`
   - Any other text → calls `MemoryService.remember(event_type="guidance", content=<reply_text>, tags=["human-feedback", change_id])` for injection into the next convergence round
 - The Gmail channel SHALL validate the sender by extracting the email address from the IMAP envelope and matching case-insensitively against `NOTIFICATION_ALLOWED_SENDERS` (comma-separated email allowlist). No domain wildcards.
@@ -1709,7 +1709,7 @@ THEN the relay SHALL call `POST /status/report` with `event_type: "gate_check"` 
 AND the coordinator SHALL store this as a status event in the `coordinator_status` NOTIFY channel
 AND a confirmation email SHALL be sent: "Gate check triggered. Loop will re-evaluate."
 
-Note: The auto-dev-loop's existing `gate_check_fn` callback (already defined in `auto_dev_loop.py`) polls coordinator state. When it sees a `gate_check` status event for its change-id, it re-evaluates the escalation condition. No new callback parameter is needed — `gate_check_fn` is already part of `run_loop()`'s signature.
+Note: The autopilot's existing `gate_check_fn` callback (already defined in `autopilot.py`) polls coordinator state. When it sees a `gate_check` status event for its change-id, it re-evaluates the escalation condition. No new callback parameter is needed — `gate_check_fn` is already part of `run_loop()`'s signature.
 
 #### Scenario: Human replies with free-text guidance
 
@@ -1748,9 +1748,9 @@ The coordinator SHALL accept status reports from agents via both Claude Code hoo
 - The endpoint SHALL update the agent's heartbeat timestamp as a side effect.
 - If `needs_human` is true, the event SHALL be classified as `high` urgency.
 - The endpoint SHALL emit a `coordinator_status` NOTIFY event for all status reports.
-- Special `event_type` values have semantic meaning for the auto-dev-loop:
-  - `gate_check` — signals that a human has confirmed an escalation is resolved. The auto-dev-loop's `gate_check_fn` SHALL query for recent `gate_check` events for its `change_id` and re-evaluate the escalation condition if found.
-  - `phase_skip` — signals that a human wants to bypass the current phase. The auto-dev-loop's `gate_check_fn` SHALL query for recent `phase_skip` events and return `True` (resolved) if found, causing the loop to exit ESCALATE and proceed to the next phase.
+- Special `event_type` values have semantic meaning for the autopilot:
+  - `gate_check` — signals that a human has confirmed an escalation is resolved. The autopilot's `gate_check_fn` SHALL query for recent `gate_check` events for its `change_id` and re-evaluate the escalation condition if found.
+  - `phase_skip` — signals that a human wants to bypass the current phase. The autopilot's `gate_check_fn` SHALL query for recent `phase_skip` events and return `True` (resolved) if found, causing the loop to exit ESCALATE and proceed to the next phase.
 - A `report_status.py` Claude Code hook script SHALL:
   - Fire on `Stop` and `SubagentStop` events.
   - Read `loop-state.json` if present to extract `current_phase` and `findings_trend`.
@@ -1760,7 +1760,7 @@ The coordinator SHALL accept status reports from agents via both Claude Code hoo
   - Run the HTTP call with a hard 5-second timeout (`subprocess` or `httpx` with `timeout=5.0`). If the coordinator is unreachable or the call times out, log to stderr and exit 0 (do NOT block Claude Code).
   - Exit 0 in all cases (success, timeout, error) — the hook MUST NOT block the agent.
   - Update `.status-cache.json` with the reported phase on success.
-- The auto-dev-loop's `run_loop()` SHALL accept an optional `status_fn` callback with signature `(state: LoopState, event_type: str, message: str, urgent: bool) -> None`.
+- The autopilot's `run_loop()` SHALL accept an optional `status_fn` callback with signature `(state: LoopState, event_type: str, message: str, urgent: bool) -> None`.
 - If `status_fn` raises an exception or exceeds 5 seconds, the exception SHALL be caught and logged. The loop SHALL NOT crash or change behavior due to `status_fn` failures. The error SHALL be included as `error_details` in the next heartbeat.
 - **Two code paths** (both produce equivalent `coordinator_status` NOTIFY events):
   - **Path A (in-band callback)**: `run_loop()` calls `status_fn` at phase transitions. The callback delegates to `report_status` MCP tool (local) or `POST /status/report` (HTTP). Works for all agents (Claude, Codex, Gemini).

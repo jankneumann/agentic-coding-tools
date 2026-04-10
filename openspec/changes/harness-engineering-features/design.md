@@ -7,7 +7,7 @@
 
 ### D1: Extend convergence_loop.py rather than new service
 
-**Decision**: Implement review loop improvements in `skills/auto-dev-loop/scripts/convergence_loop.py` and `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`.
+**Decision**: Implement review loop improvements in `skills/autopilot/scripts/convergence_loop.py` and `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`.
 
 **Rationale**: The convergence loop already implements the review→synthesize→fix cycle pattern. Adding iteration counting, configurable thresholds, and automatic escalation is a natural extension. Creating a new service would duplicate the review dispatch and consensus matching logic.
 

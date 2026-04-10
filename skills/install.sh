@@ -306,6 +306,7 @@ DEPRECATED_SKILLS=(
   parallel-explore-feature
   parallel-validate-feature
   parallel-cleanup-feature
+  auto-dev-loop
 )
 
 remove_deprecated_skills() {
