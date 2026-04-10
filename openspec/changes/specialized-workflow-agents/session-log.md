@@ -103,3 +103,21 @@ Parallel 5-agent analysis across completeness, clarity/consistency, feasibility/
 
 ### Context
 Focused scenario coverage pass. Found 2 requirements (Fallback Chain Integration, Work Package Archetype Field) with only success-path scenarios. Added failure/edge-case scenarios for both. All 7 requirements now have success + failure coverage.
+
+---
+
+## Phase: Vendor Review Remediation (2026-04-10)
+
+**Agent**: claude-local | **Session**: N/A
+
+### Decisions
+1. **Fix escalation dependency threshold** — Scenario had 2 deps but said ">2". Changed to 3 deps to match ">2[REDACTED:high-entropy]>2" to ">=2": rejected because design.md algorithm uses `>` operator consistently
+
+### Trade-offs
+- None significant — all fixes are correctness improvements
+
+### Open Questions
+- [ ] Escalation threshold tuning: initial values (3 dirs, 2 deps, 500 LOC) still need empirical validation
+
+### Context
+Primary reviewer found 6 findings at medium+ severity. Fixed: escalation threshold inconsistency, contracts README inaccuracy, resolve_model() callsite ambiguity, missing D5 scenario, and misplaced lock keys in work-packages.yaml.

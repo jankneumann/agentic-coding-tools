@@ -47,6 +47,13 @@ all fields populated
 **THEN** the runtime SHALL fall back to the ambient model (current behavior)
 **AND** SHALL log a warning identifying the unknown archetype name
 
+#### Scenario: Archetypes config file not found at runtime
+
+**WHEN** `archetypes.yaml` does not exist at the expected path
+**THEN** `load_archetypes_config()` SHALL return an empty dict
+**AND** SHALL log a warning identifying the missing file path
+**AND** all subsequent `get_archetype()` calls SHALL return `None`
+
 ---
 
 ### Requirement: Predefined Archetypes
@@ -147,7 +154,7 @@ When escalation triggers, the runtime SHALL:
 
 #### Scenario: Cross-module dependencies trigger escalation
 
-**WHEN** a work-package declares `depends_on: ["wp-a", "wp-b"]` (2+ dependencies)
+**WHEN** a work-package declares `depends_on: ["wp-a", "wp-b", "wp-c"]` (3 dependencies, exceeding the threshold of 2)
 **AND** the `implementer` archetype has escalation enabled
 **THEN** the model SHALL escalate from `sonnet` to `opus`
 **AND** the escalation reason SHALL be logged as "depends on >2 packages"

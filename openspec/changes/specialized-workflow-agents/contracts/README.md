@@ -3,10 +3,12 @@
 ## Evaluated Contract Sub-Types
 
 ### OpenAPI Contracts
-**Not applicable.** This feature does not introduce or modify HTTP API endpoints.
-The `agent_requirements` parameter added to `/work/submit` and `/work/claim`
-extends existing endpoints with an optional JSONB field — this is covered by
-the existing OpenAPI contract for the coordination API, not a new one.
+**Applicable — additive parameter extension.** Phase 3 adds an optional
+`agent_requirements` parameter to existing `/work/submit` and `/work/claim`
+endpoints. This is a backward-compatible extension (new optional field on
+existing request bodies). No new endpoints are introduced, but the request
+schemas for these two endpoints change. The existing coordination API OpenAPI
+spec should be updated to include the new field when task 3.3.2 is implemented.
 
 ### Database Contracts
 **Applicable — minimal.** Phase 3 adds an `agent_requirements` JSONB column to
