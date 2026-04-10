@@ -24,6 +24,7 @@ from evaluation.gen_eval.models import (
     ExpectBlock,
     Scenario,
     ScenarioVerdict,
+    SemanticBlock,
     SemanticVerdict,
     SideEffectsBlock,
     SideEffectStep,
@@ -170,6 +171,8 @@ class Evaluator:
     ) -> StepVerdict:
         """Execute a single step and return its verdict."""
         step_start = time.monotonic()
+        # Capture wall-clock time before execution for step_start_time injection
+        step_wall_clock = datetime.datetime.now(tz=datetime.UTC).isoformat()
         timeout = step.timeout_seconds or self.default_timeout
 
         # Interpolate variables into step fields
@@ -266,11 +269,8 @@ class Evaluator:
         # Side-effect verification (D2)
         side_effect_verdicts: list[dict[str, Any]] | None = None
         if interpolated.side_effects and status == "pass":
-            # Capture step_start_time for time-range queries using wall clock
-            # (time.monotonic() is an arbitrary reference, not POSIX epoch)
-            start_ts = datetime.datetime.now(tz=datetime.UTC).isoformat()
             side_effect_verdicts = await self._execute_side_effects(
-                interpolated.side_effects, captured_vars, start_ts
+                interpolated.side_effects, captured_vars, step_wall_clock
             )
             # If any side-effect verdict is "fail" or "error", the step fails
             for sev in side_effect_verdicts:
@@ -296,11 +296,16 @@ class Evaluator:
             ]
 
         # Semantic evaluation (D4) — runs after structural + side-effect pass
+        # D4 backward compat: use_llm_judgment=True → SemanticBlock(judge=True)
+        effective_semantic = interpolated.semantic
+        if effective_semantic is None and interpolated.use_llm_judgment:
+            effective_semantic = SemanticBlock(judge=True)
+
         semantic_verdict: SemanticVerdict | None = None
-        if interpolated.semantic and status == "pass" and self.llm_backend is not None:
+        if effective_semantic and status == "pass" and self.llm_backend is not None:
             semantic_verdict = await evaluate_semantic(
                 self.llm_backend,
-                interpolated.semantic,
+                effective_semantic,
                 actual,
                 step.id,
             )
@@ -311,7 +316,7 @@ class Evaluator:
                     diff = {"semantic": semantic_verdict.reasoning}
                 else:
                     diff["semantic"] = semantic_verdict.reasoning
-        elif interpolated.semantic and status == "pass" and self.llm_backend is None:
+        elif effective_semantic and status == "pass" and self.llm_backend is None:
             # No backend configured — skip semantic evaluation
             semantic_verdict = SemanticVerdict(
                 status="skip",
