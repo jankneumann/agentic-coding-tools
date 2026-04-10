@@ -19,7 +19,6 @@ from __future__ import annotations
 import random
 import string
 import time
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -31,7 +30,6 @@ from src.git_adapter import (
     MergeTreeResult,
 )
 from src.merge_train_types import (
-    MAX_CROSS_PARTITION_SPAN,
     MAX_EJECT_COUNT,
     CrossPartitionEntry,
     MergeTrainStatus,
@@ -39,7 +37,6 @@ from src.merge_train_types import (
     TrainEntry,
     TrainPartition,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test helpers — factories for TrainEntry and fake git adapter
@@ -174,7 +171,7 @@ class TestComputePartitionsBasic:
         assert result.cross_partition_entries == []
 
     def test_three_features_spec_scenario(self) -> None:
-        """Spec scenario: feature-A claims api:GET, feature-B claims db:schema, feature-C claims api:POST.
+        """Spec scenario: A claims api:GET, B claims db:schema, C claims api:POST.
 
         Expected: 2 partitions. api: partition has {A, C}, db:schema: has {B}.
         """
@@ -946,7 +943,7 @@ class TestBlockedRecovery:
         return entry
 
     def test_reset_blocked_entry_clears_state(self) -> None:
-        """Manual re-enqueue: reset_blocked_entry transitions BLOCKED → QUEUED and clears metadata."""
+        """Manual re-enqueue: reset_blocked_entry BLOCKED → QUEUED, clears metadata."""
         from src.merge_train import reset_blocked_entry
 
         entry = self._blocked_entry("f1", ["api:x"])
@@ -1003,7 +1000,7 @@ class TestBlockedRecovery:
         assert blocked.status == MergeTrainStatus.BLOCKED
 
     def test_compose_train_reeval_still_conflicting_stays_blocked(self) -> None:
-        """Auto re-eval: if the re-merge still conflicts, entry remains BLOCKED with updated checked_at."""
+        """Auto re-eval: re-merge still conflicts → entry stays BLOCKED, checked_at updated."""
         from src.merge_train import compose_train
 
         old = datetime.now(UTC) - timedelta(minutes=90)
@@ -1145,15 +1142,17 @@ class TestWaveMergeExecutor:
         cross = self._spec_passed(
             "cX", ["api:x", "db:schema:x"], partition_id="(cross)", train_position=1
         )
-        pA = self._spec_passed("fA", ["api:y"], partition_id="api:", train_position=2)
-        pB = self._spec_passed(
+        p_a = self._spec_passed(
+            "fA", ["api:y"], partition_id="api:", train_position=2
+        )
+        p_b = self._spec_passed(
             "fB", ["db:schema:z"], partition_id="db:schema:", train_position=3
         )
 
         partitions = [
-            TrainPartition(partition_id="api:", key_prefixes={"api:"}, entries=[pA]),
+            TrainPartition(partition_id="api:", key_prefixes={"api:"}, entries=[p_a]),
             TrainPartition(
-                partition_id="db:schema:", key_prefixes={"db:schema:"}, entries=[pB]
+                partition_id="db:schema:", key_prefixes={"db:schema:"}, entries=[p_b]
             ),
         ]
         cpe = CrossPartitionEntry(
@@ -1171,12 +1170,12 @@ class TestWaveMergeExecutor:
         # Fast-forward order: cross ref first, then partition final refs
         assert adapter.fast_forwards[0] == cross.speculative_ref
         assert set(adapter.fast_forwards[1:]) == {
-            pA.speculative_ref,
-            pB.speculative_ref,
+            p_a.speculative_ref,
+            p_b.speculative_ref,
         }
         assert cross.status == MergeTrainStatus.MERGED
-        assert pA.status == MergeTrainStatus.MERGED
-        assert pB.status == MergeTrainStatus.MERGED
+        assert p_a.status == MergeTrainStatus.MERGED
+        assert p_b.status == MergeTrainStatus.MERGED
 
     def test_chained_cross_entries_serialize_in_order(self) -> None:
         """Multiple cross entries form a chain: lower position merges first."""
@@ -1273,7 +1272,7 @@ class TestWaveMergeExecutor:
         # Construct a pathological composition: a partition depends on a cross
         # entry, but the cross entry's own entry is NOT SPEC_PASSED. The
         # partition must wait and will never unblock — deadlock.
-        pA = self._spec_passed(
+        p_a = self._spec_passed(
             "fA", ["api:y"], partition_id="api:", train_position=2
         )
         cross = self._spec_passed(
@@ -1289,7 +1288,7 @@ class TestWaveMergeExecutor:
             spans_partitions=["api:", "db:schema:"],
         )
         partitions = [
-            TrainPartition(partition_id="api:", key_prefixes={"api:"}, entries=[pA]),
+            TrainPartition(partition_id="api:", key_prefixes={"api:"}, entries=[p_a]),
             TrainPartition(
                 partition_id="db:schema:",
                 key_prefixes={"db:schema:"},
@@ -1308,7 +1307,7 @@ class TestWaveMergeExecutor:
         events: list[str] = []
 
         class _FakeTxn:
-            def __enter__(self) -> "_FakeTxn":
+            def __enter__(self) -> _FakeTxn:
                 events.append("enter")
                 return self
             def __exit__(self, *a: object) -> None:

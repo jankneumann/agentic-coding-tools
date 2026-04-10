@@ -10,7 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,20 +18,14 @@ from unittest.mock import patch
 import pytest
 
 from src.git_adapter import (
-    BRANCH_NAME_PATTERN,
-    SPECULATIVE_REF_PATTERN,
-    ChangedFiles,
-    FastForwardResult,
     GitVersionError,
     InvalidRefNameError,
-    MergeTreeResult,
     SubprocessGitAdapter,
     _parse_conflict_files,
     parse_git_version,
     validate_branch_name,
     validate_speculative_ref_name,
 )
-
 
 # ---------------------------------------------------------------------------
 # Regex validation tests (R7)
