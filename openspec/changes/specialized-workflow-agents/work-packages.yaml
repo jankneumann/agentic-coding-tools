@@ -192,7 +192,7 @@ packages:
 
   - package_id: wp-queue-routing
     task_type: implement
-    description: "Add agent_requirements to work queue Task, update submit/claim, create DB migration"
+    description: "Add agent_requirements to work queue Task, update submit/claim, add agent archetypes field, create DB migration"
     role: backend
     priority: 4
     timeout_minutes: 120
@@ -203,6 +203,8 @@ packages:
     scope:
       write_allow:
         - "agent-coordinator/src/work_queue.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/agents.yaml"
         - "agent-coordinator/supabase/migrations/**"
         - "agent-coordinator/tests/**"
         - "openspec/schemas/work-packages.schema.json"

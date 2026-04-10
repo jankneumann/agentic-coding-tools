@@ -270,11 +270,26 @@ Task(subagent_type="Explore", model="sonnet", prompt="...", run_in_background=tr
 ```
 
 ### Phase 2 (archetypes.yaml + loader)
-Skills reference archetype names; runtime resolves to model + composed prompt:
+Skills resolve archetype to model + composed prompt at dispatch time, then pass
+concrete values to the Agent tool. The Agent tool itself does NOT gain an
+`archetype=` parameter — resolution happens in skill dispatch code:
 ```python
-# After (Phase 2)
-Task(subagent_type="Explore", archetype="analyst", prompt="...", run_in_background=true)
+# After (Phase 2) — skill SKILL.md dispatch instructions
+# 1. Resolve archetype to model
+archetype = get_archetype("analyst")
+resolved_model = resolve_model(archetype, package_metadata)
+composed_prompt = compose_prompt(archetype, task_prompt)
+
+# 2. Dispatch with concrete values
+Task(subagent_type="Explore", model=resolved_model, prompt=composed_prompt, run_in_background=true)
 ```
+
+**Runtime integration**: Skills express this as SKILL.md instructions, not executable
+Python. The implementing agent reads the archetype name from the SKILL.md, calls
+`load_archetypes_config()` and `resolve_model()` from `agents_config.py`, then
+passes the resolved model and composed prompt to the `Task()` call. This avoids
+changes to the Claude Code Agent tool internals while still getting archetype-driven
+model selection and prompt composition.
 
 ### Phase 3 (coordinator routing)
 Work-packages carry archetype; coordinator matches agents to tasks:

@@ -153,20 +153,39 @@
 - [ ] 3.1.2 Update `submit()` to accept and persist `agent_requirements`
   **Dependencies**: 3.1.1
   Files: `agent-coordinator/src/work_queue.py`
-  Pass agent_requirements through to the submit_task RPC via input_data or a new column.
+  Persist `agent_requirements` as a dedicated JSONB column on the `work_queue` table
+  (not embedded in input_data). This keeps filtering efficient via SQL WHERE clauses
+  and aligns with the migration in task 3.5.1.
 
-- [ ] 3.1.3 Update `claim()` to filter by agent_requirements
-  **Dependencies**: 3.1.1
+- [ ] 3.1.3 Update `claim()` to filter by agent_requirements (archetype + trust level)
+  **Dependencies**: 3.1.1, 3.1.4
   Files: `agent-coordinator/src/work_queue.py`
-  When claiming, pass agent's archetype capabilities to claim_task RPC. If task has agent_requirements.archetype, only match agents declaring that archetype.
+  Extend claim_task RPC to:
+  (a) Filter by archetype: if task has `agent_requirements.archetype`, match only
+  agents whose `archetypes` list (from agents.yaml) includes that archetype.
+  (b) Filter by min_trust_level: if task has `agent_requirements.min_trust_level`,
+  reject agents whose resolved trust level is below the minimum. The existing
+  `_resolve_trust_level()` method already computes this.
+  Both filters are AND-combined. Tasks without agent_requirements are claimable by all.
+
+- [ ] 3.1.4 Add `archetypes` field to agents.yaml schema and AgentEntry dataclass
+  **Dependencies**: 3.0.1
+  Files: `agent-coordinator/agents.yaml`, `agent-coordinator/src/agents_config.py`
+  Add optional `archetypes: list[str]` field to each agent entry in agents.yaml.
+  This is the source of truth for which archetypes an agent supports. Agents without
+  the field can claim any task (backward compatible). Update AGENTS_SCHEMA to validate
+  archetype names match `^[a-z][a-z0-9_-]{0,31}$`.
 
 ### 3.2 Add archetype field to work-packages.yaml schema
 
-- [ ] 3.2.1 Add optional `archetype` field to package definition in `work-packages.schema.json`
+- [ ] 3.2.1 Add optional `archetype` and `complexity` fields to package definition in `work-packages.schema.json`
   **Dependencies**: 3.0.2
   Files: `openspec/schemas/work-packages.schema.json`
-  Add `"archetype": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$"}` to package properties.
-  **Note**: The schema already contains `decomposition` and `stack_position` fields from the speculative merge trains feature (April 2026). Add `archetype` alongside these as orthogonal package metadata (see design decision D7).
+  Add two fields to package properties:
+  (a) `"archetype": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$"}` — agent archetype hint
+  (b) `"complexity": {"type": "string", "enum": ["low", "medium", "high"]}` inside `metadata` — explicit
+  complexity signal for escalation (referenced by the `complexity: high` escalation trigger in spec).
+  **Note**: The schema already contains `decomposition` and `stack_position` fields from the speculative merge trains feature (April 2026). Add `archetype` and `complexity` alongside these as orthogonal package metadata (see design decision D7).
 
 ### 3.3 Expose archetype in coordination API and MCP
 
