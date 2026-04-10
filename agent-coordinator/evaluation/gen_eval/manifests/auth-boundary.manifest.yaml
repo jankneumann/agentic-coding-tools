@@ -1,0 +1,20 @@
+version: 1
+entries:
+- scenario_id: invalid-key-rejected
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: missing-key-rejected
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: profile-trust
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved

@@ -75,7 +75,7 @@ class TemplateGenerator:
             if not dir_path.is_dir():
                 logger.warning("Scenario directory not found: %s", dir_path)
                 continue
-            for yaml_file in sorted(dir_path.glob("*.yaml")):
+            for yaml_file in sorted(dir_path.rglob("*.yaml")):
                 try:
                     with open(yaml_file) as f:
                         data = yaml.safe_load(f)

@@ -1,0 +1,14 @@
+version: 1
+entries:
+- scenario_id: concurrent-memory-write
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: sequential-lock-handoff
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved

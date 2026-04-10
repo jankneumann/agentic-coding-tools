@@ -44,7 +44,9 @@ class FeedbackSynthesizer:
         under_tested = self._under_tested_categories(verdicts, descriptor)
         near_miss = self._near_miss_scenarios(verdicts)
         coverage = self._coverage_summary(verdicts, descriptor)
-        focus = self._suggested_focus(failing, under_tested)
+        se_focus = self._side_effect_failure_focus(verdicts)
+        sem_focus = self._semantic_gap_focus(verdicts)
+        focus = self._suggested_focus(failing, under_tested, se_focus, sem_focus)
 
         return EvalFeedback(
             iteration=iteration,
@@ -195,14 +197,43 @@ class FeedbackSynthesizer:
         return result
 
     @staticmethod
+    def _side_effect_failure_focus(verdicts: list[ScenarioVerdict]) -> list[str]:
+        """Identify scenarios with side-effect failures as focus areas."""
+        focus: list[str] = []
+        for v in verdicts:
+            for step in v.steps:
+                if step.side_effect_verdicts:
+                    for sev in step.side_effect_verdicts:
+                        if sev.get("status") in ("fail", "error"):
+                            focus.append(
+                                f"side-effect failure in {v.scenario_id}:{step.step_id}"
+                            )
+                            break
+        return focus
+
+    @staticmethod
+    def _semantic_gap_focus(verdicts: list[ScenarioVerdict]) -> list[str]:
+        """Identify scenarios where semantic evaluation was skipped."""
+        focus: list[str] = []
+        for v in verdicts:
+            for step in v.steps:
+                if step.semantic_verdict and step.semantic_verdict.status == "skip":
+                    focus.append(
+                        f"semantic evaluation skipped in {v.scenario_id}:{step.step_id}"
+                    )
+        return focus
+
+    @staticmethod
     def _suggested_focus(
         failing: list[str],
         under_tested: list[str],
+        side_effect_focus: list[str] | None = None,
+        semantic_focus: list[str] | None = None,
     ) -> list[str]:
-        """Union of failing interfaces and under-tested categories."""
+        """Union of failing interfaces, under-tested categories, and extended focus areas."""
         seen: set[str] = set()
         focus: list[str] = []
-        for item in failing + under_tested:
+        for item in failing + under_tested + (side_effect_focus or []) + (semantic_focus or []):
             if item not in seen:
                 seen.add(item)
                 focus.append(item)

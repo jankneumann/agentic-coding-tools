@@ -97,21 +97,38 @@ def load_manifest(path: Path) -> ScenarioPackManifest:
 def load_manifests_from_dirs(dirs: Sequence[str | Path]) -> ScenarioPackManifest:
     """Load and merge manifests from multiple directories.
 
-    Looks for ``manifest.yaml`` or ``manifest.yml`` in each directory.
+    Looks for ``*.manifest.yaml``, ``*.manifest.yml``, ``manifest.yaml``,
+    or ``manifest.yml`` in each directory. Per-category manifest files
+    (e.g., ``lock-lifecycle.manifest.yaml``) are preferred over the
+    monolithic ``manifest.yaml`` for reduced merge conflict surface (D6).
+
     Returns a merged manifest with all entries combined.
     """
     all_entries: list[ManifestEntry] = []
 
     for d in dirs:
         dir_path = Path(d)
-        for name in ("manifest.yaml", "manifest.yml"):
-            manifest_path = dir_path / name
-            if manifest_path.exists():
+        # Glob for per-category manifests first
+        category_files = sorted(dir_path.glob("*.manifest.yaml")) + sorted(
+            dir_path.glob("*.manifest.yml")
+        )
+        if category_files:
+            for manifest_path in category_files:
                 try:
                     manifest = load_manifest(manifest_path)
                     all_entries.extend(manifest.entries)
                 except (ValueError, FileNotFoundError) as e:
                     logger.warning("Failed to load manifest %s: %s", manifest_path, e)
+        else:
+            # Fallback to monolithic manifest.yaml/yml
+            for name in ("manifest.yaml", "manifest.yml"):
+                manifest_path = dir_path / name
+                if manifest_path.exists():
+                    try:
+                        manifest = load_manifest(manifest_path)
+                        all_entries.extend(manifest.entries)
+                    except (ValueError, FileNotFoundError) as e:
+                        logger.warning("Failed to load manifest %s: %s", manifest_path, e)
 
     return ScenarioPackManifest(entries=all_entries)
 

@@ -1,0 +1,26 @@
+version: 1
+entries:
+- scenario_id: enqueue-merge
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: pre-merge-checks
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: priority-ordering
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: priority-ordering
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved

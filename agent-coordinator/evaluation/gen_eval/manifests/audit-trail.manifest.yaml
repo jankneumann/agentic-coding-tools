@@ -1,0 +1,32 @@
+version: 1
+entries:
+- scenario_id: empty-audit
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: invalid-filter
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: operation-produces-entry
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: query-filters
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: audit-cross-interface
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved

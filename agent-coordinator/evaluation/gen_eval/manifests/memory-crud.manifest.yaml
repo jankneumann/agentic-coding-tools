@@ -1,0 +1,20 @@
+version: 1
+entries:
+- scenario_id: memory-cross-interface
+  visibility: holdout
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: store-and-query
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
+- scenario_id: tag-search
+  visibility: public
+  source: manual
+  determinism: deterministic
+  owner: agent-coordinator
+  promotion_status: approved
