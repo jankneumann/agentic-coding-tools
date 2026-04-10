@@ -14,9 +14,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock
 
-import pytest
-
-from evaluation.gen_eval.models import SemanticBlock, SemanticVerdict
+from evaluation.gen_eval.models import SemanticBlock
 from evaluation.gen_eval.semantic_judge import _parse_verdict, evaluate_semantic
 
 # ---------------------------------------------------------------------------
