@@ -34,7 +34,7 @@ import logging
 import os
 import re
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -103,7 +103,7 @@ class Flag:
         return data
 
     @classmethod
-    def from_yaml_dict(cls, data: dict[str, Any]) -> "Flag":
+    def from_yaml_dict(cls, data: dict[str, Any]) -> Flag:
         def _parse(val: Any) -> datetime | None:
             if not val:
                 return None

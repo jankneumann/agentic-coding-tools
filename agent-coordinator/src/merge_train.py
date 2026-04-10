@@ -33,10 +33,9 @@ from __future__ import annotations
 
 import logging
 import re
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import ContextManager
 
 from .git_adapter import SPECULATIVE_REF_TTL_HOURS, GitAdapter, MergeTreeResult
 from .merge_train_types import (
@@ -1019,7 +1018,7 @@ def execute_wave_merge(
     composition: TrainComposition,
     git_adapter: GitAdapter,
     *,
-    transaction: ContextManager[object] | None = None,
+    transaction: AbstractContextManager[object] | None = None,
 ) -> WaveMergeResult:
     """Execute the wave-based merge algorithm for a fully speculated train (D4).
 
@@ -1052,7 +1051,7 @@ def execute_wave_merge(
         A :class:`WaveMergeResult` with per-wave breakdown and the list of
         merged feature ids.
     """
-    tx: ContextManager[object] = transaction if transaction is not None else nullcontext()
+    tx: AbstractContextManager[object] = transaction if transaction is not None else nullcontext()
     result = WaveMergeResult()
 
     with tx:
