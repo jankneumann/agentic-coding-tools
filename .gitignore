@@ -242,3 +242,4 @@ docs/security-review/*.json
 
 # Skill/review artifacts (generated output, not source)
 artifacts/
+.status-cache.json

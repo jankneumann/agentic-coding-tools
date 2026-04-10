@@ -374,3 +374,8 @@ python3 agent-coordinator/run_mcp.py
 - Exact host: `COORDINATION_ALLOWED_HOSTS=your-app.railway.app`
 - Wildcard: `COORDINATION_ALLOWED_HOSTS=*.yourdomain.com` (matches all subdomains)
 - Mixed: `COORDINATION_ALLOWED_HOSTS=*.yourdomain.com,your-app.railway.app`
+
+## Related Documentation
+
+- [Cloud Session Hooks & Network Configuration](cloud-session-hooks.md) — How hooks, permissions, and egress allowlists work in cloud/remote Claude Code sessions
+- [Cloudflare Domain Setup](cloudflare-setup.md) — Custom domain routing via Cloudflare
