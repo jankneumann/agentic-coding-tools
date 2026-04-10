@@ -1,0 +1,51 @@
+id: "handoff-integrity-e2e"
+name: "Handoff integrity: write, read from different agent, verify audit"
+description: >
+  Verifies handoff document integrity across agents. Agent-1 writes a handoff,
+  Agent-2 reads it, and we verify the audit trail records both operations.
+category: "handoffs"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["handoffs", "multi-agent", "e2e", "side-effects"]
+
+steps:
+  - id: write_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/write
+    body:
+      agent_id: "eval-agent-1"
+      target_agent: "eval-agent-2"
+      change_id: "e2e-test-handoff"
+      content: "Performance fix completed. Ready for review."
+      context:
+        files_changed: ["src/optimizer.py"]
+        tests_passing: true
+    expect:
+      status: 200
+      body_contains:
+        success: true
+    side_effects:
+      verify:
+        - id: audit-write
+          transport: db
+          sql: "SELECT count(*) as rows FROM audit_log WHERE operation = 'write_handoff' AND agent_id = 'eval-agent-1'"
+          expect:
+            rows_gte: 1
+
+  - id: read_handoff
+    transport: http
+    method: POST
+    endpoint: /handoffs/read
+    body:
+      agent_id: "eval-agent-2"
+      change_id: "e2e-test-handoff"
+    expect:
+      status: 200
+      not_empty: true
+
+  - id: verify_content_preserved
+    transport: db
+    sql: "SELECT count(*) as rows FROM audit_log WHERE operation = 'read_handoff' AND agent_id = 'eval-agent-2'"
+    expect:
+      rows_gte: 1

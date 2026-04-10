@@ -1,0 +1,81 @@
+id: "cross-interface-consistency-e2e"
+name: "Cross-interface consistency: HTTP, MCP, CLI, DB state verification"
+description: >
+  Performs the same operation via different transports and verifies
+  DB state is consistent across all interfaces. Uses body_contains,
+  array_contains, and side-effect verification.
+category: "cross-interface"
+priority: 1
+interfaces: ["http", "mcp", "cli", "db"]
+tags: ["cross-interface", "consistency", "e2e", "extended-assertions", "side-effects"]
+
+steps:
+  - id: acquire_via_http
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/cross_test_http.py"
+      agent_id: "eval-agent-http"
+    expect:
+      status: 200
+      body_contains:
+        success: true
+    capture:
+      http_lock_id: "$.lock_id"
+    side_effects:
+      verify:
+        - id: http-lock-in-db
+          transport: db
+          sql: "SELECT count(*) as rows FROM file_locks WHERE file_path = 'src/cross_test_http.py'"
+          expect:
+            rows: 1
+
+  - id: acquire_via_mcp
+    transport: mcp
+    tool: acquire_lock
+    params:
+      file_path: "src/cross_test_mcp.py"
+      agent_id: "eval-agent-mcp"
+    expect:
+      body_contains:
+        success: true
+    side_effects:
+      verify:
+        - id: mcp-lock-in-db
+          transport: db
+          sql: "SELECT count(*) as rows FROM file_locks WHERE file_path = 'src/cross_test_mcp.py'"
+          expect:
+            rows: 1
+
+  - id: verify_both_locks_via_db
+    transport: db
+    sql: "SELECT count(*) as rows FROM file_locks WHERE file_path LIKE 'src/cross_test_%'"
+    expect:
+      rows_gte: 2
+
+  - id: check_via_http_status
+    transport: http
+    method: GET
+    endpoint: /locks/status/src/cross_test_http.py
+    expect:
+      status: 200
+      body_contains:
+        locked: true
+        agent_id: "eval-agent-http"
+
+cleanup:
+  - id: release_http_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/cross_test_http.py"
+      agent_id: "eval-agent-http"
+
+  - id: release_mcp_lock
+    transport: mcp
+    tool: release_lock
+    params:
+      file_path: "src/cross_test_mcp.py"
+      agent_id: "eval-agent-mcp"

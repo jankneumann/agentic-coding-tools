@@ -1,0 +1,66 @@
+id: "memory-lifecycle-e2e"
+name: "Memory lifecycle: store, search, verify correctness, audit, no unintended writes"
+description: >
+  End-to-end memory lifecycle demonstrating extended assertions (body_contains),
+  side-effect verification (audit trail), and side-effect prohibit (no unintended writes).
+category: "memory-crud"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["memory", "e2e", "side-effects", "extended-assertions"]
+
+steps:
+  - id: store_memory
+    transport: http
+    method: POST
+    endpoint: /memory/store
+    body:
+      event_type: "discovery"
+      summary: "Found critical performance bottleneck in query optimizer"
+      agent_id: "eval-agent-1"
+      tags: ["performance", "database", "critical"]
+    expect:
+      status: 200
+      body_contains:
+        success: true
+    capture:
+      memory_id: "$.memory_id"
+    side_effects:
+      verify:
+        - id: audit-store
+          transport: db
+          sql: "SELECT count(*) as rows FROM audit_log WHERE operation = 'remember'"
+          expect:
+            rows_gte: 1
+      prohibit:
+        - id: no-unintended-memory-writes
+          transport: db
+          mode: prohibit
+          sql: "SELECT count(*) as rows FROM memory_episodic WHERE agent_id = 'unknown-agent'"
+          expect:
+            rows_gte: 1
+
+  - id: search_memory
+    transport: http
+    method: POST
+    endpoint: /memory/query
+    body:
+      tags: ["performance"]
+      limit: 10
+    expect:
+      status: 200
+      body_contains:
+        success: true
+      not_empty: true
+
+  - id: verify_content
+    transport: db
+    sql: "SELECT event_type, summary FROM memory_episodic WHERE id = '{{ memory_id }}'"
+    expect:
+      rows: 1
+      row:
+        event_type: "discovery"
+
+cleanup:
+  - id: cleanup_memory
+    transport: db
+    sql: "DELETE FROM memory_episodic WHERE id = '{{ memory_id }}'"

@@ -1,0 +1,71 @@
+id: "policy-enforcement-e2e"
+name: "Policy enforcement: denied operation produces no side effects"
+description: >
+  Verifies that a denied operation produces no side effects using
+  side_effects.prohibit. Then escalates with correct permissions and
+  verifies the operation succeeds with expected side effects.
+category: "auth-boundary"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["auth", "policy", "e2e", "side-effects"]
+
+steps:
+  - id: attempt_denied_operation
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "protected/secrets.yaml"
+      agent_id: "untrusted-agent"
+      reason: "Attempting to modify protected file"
+    expect:
+      status_one_of: [403, 401]
+    side_effects:
+      prohibit:
+        - id: no-lock-created
+          transport: db
+          mode: prohibit
+          sql: "SELECT count(*) as rows FROM file_locks WHERE file_path = 'protected/secrets.yaml' AND agent_id = 'untrusted-agent'"
+          expect:
+            rows_gte: 1
+        - id: no-audit-success
+          transport: db
+          mode: prohibit
+          sql: "SELECT count(*) as rows FROM audit_log WHERE agent_id = 'untrusted-agent' AND operation = 'acquire_lock' AND details LIKE '%success%'"
+          expect:
+            rows_gte: 1
+
+  - id: verify_clean_state
+    transport: db
+    sql: "SELECT count(*) as rows FROM file_locks WHERE agent_id = 'untrusted-agent'"
+    expect:
+      rows: 0
+
+  - id: authorized_operation
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/public_module.py"
+      agent_id: "eval-agent-1"
+      reason: "Authorized lock acquisition"
+    expect:
+      status: 200
+      body_contains:
+        success: true
+    side_effects:
+      verify:
+        - id: lock-created
+          transport: db
+          sql: "SELECT count(*) as rows FROM file_locks WHERE file_path = 'src/public_module.py' AND agent_id = 'eval-agent-1'"
+          expect:
+            rows_gte: 1
+
+cleanup:
+  - id: release_test_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/public_module.py"
+      agent_id: "eval-agent-1"

@@ -1,0 +1,102 @@
+id: "lock-task-workflow-e2e"
+name: "Lock-task workflow: acquire, submit, claim, complete with state verification"
+description: >
+  End-to-end workflow demonstrating side-effect verification after each
+  state-changing step. Verifies intermediate state transitions are correct.
+category: "work-queue"
+priority: 1
+interfaces: ["http", "db"]
+tags: ["locks", "work-queue", "e2e", "side-effects"]
+
+steps:
+  - id: acquire_lock
+    transport: http
+    method: POST
+    endpoint: /locks/acquire
+    body:
+      file_path: "src/critical_module.py"
+      agent_id: "eval-agent-1"
+      reason: "E2E test: lock-task workflow"
+    expect:
+      status_one_of: [200, 201]
+      body_contains:
+        success: true
+    capture:
+      lock_id: "$.lock_id"
+    side_effects:
+      verify:
+        - id: lock-exists-in-db
+          transport: db
+          sql: "SELECT count(*) as rows FROM file_locks WHERE file_path = 'src/critical_module.py' AND agent_id = 'eval-agent-1'"
+          expect:
+            rows_gte: 1
+
+  - id: submit_task
+    transport: http
+    method: POST
+    endpoint: /work/submit
+    body:
+      task_type: "implementation"
+      description: "Implement performance fix for critical_module"
+      agent_id: "eval-agent-1"
+      priority: 1
+    expect:
+      status: 200
+      body_contains:
+        success: true
+    capture:
+      task_id: "$.task_id"
+    side_effects:
+      verify:
+        - id: task-in-queue
+          transport: db
+          sql: "SELECT count(*) as rows FROM work_queue WHERE status = 'pending'"
+          expect:
+            rows_gte: 1
+
+  - id: claim_task
+    transport: http
+    method: POST
+    endpoint: /work/claim
+    body:
+      agent_id: "eval-agent-1"
+      task_types: ["implementation"]
+    expect:
+      status: 200
+      body_contains:
+        success: true
+
+  - id: complete_task
+    transport: http
+    method: POST
+    endpoint: /work/complete
+    body:
+      task_id: "{{ task_id }}"
+      agent_id: "eval-agent-1"
+      success: true
+      result: "Performance fix implemented"
+    expect:
+      status: 200
+    side_effects:
+      verify:
+        - id: task-completed
+          transport: db
+          sql: "SELECT count(*) as rows FROM work_queue WHERE id = '{{ task_id }}' AND status = 'completed'"
+          expect:
+            rows: 1
+      prohibit:
+        - id: no-pending-tasks
+          transport: db
+          mode: prohibit
+          sql: "SELECT count(*) as rows FROM work_queue WHERE id = '{{ task_id }}' AND status = 'pending'"
+          expect:
+            rows_gte: 1
+
+cleanup:
+  - id: release_lock
+    transport: http
+    method: POST
+    endpoint: /locks/release
+    body:
+      file_path: "src/critical_module.py"
+      agent_id: "eval-agent-1"

@@ -114,3 +114,9 @@ entries:
   determinism: deterministic
   owner: agent-coordinator
   promotion_status: approved
+- scenario_id: cross-interface-consistency-e2e
+  visibility: public
+  source: spec
+  determinism: deterministic
+  owner: gen-eval
+  promotion_status: candidate
