@@ -113,11 +113,11 @@ If the worktree already exists (e.g., from a previous session), reuse it. All su
 Gather context from multiple sources concurrently using Task(Explore) agents:
 
 ```
-Task(subagent_type="Explore", prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
-Task(subagent_type="Explore", prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
-Task(subagent_type="Explore", prompt="Run 'openspec list' and identify in-progress changes that might conflict with: $ARGUMENTS", run_in_background=true)
-Task(subagent_type="Explore", prompt="Search the codebase for existing implementations related to: $ARGUMENTS", run_in_background=true)
-Task(subagent_type="Explore", prompt="Read docs/architecture-analysis/architecture.summary.json and parallel_zones.json for component inventory and safe parallel zones", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Run 'openspec list' and identify in-progress changes that might conflict with: $ARGUMENTS", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Search the codebase for existing implementations related to: $ARGUMENTS", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Read docs/architecture-analysis/architecture.summary.json and parallel_zones.json for component inventory and safe parallel zones", run_in_background=true)
 ```
 
 Wait for all results and synthesize into unified context summary.
