@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -119,7 +119,10 @@ class TestWorkPackagesArchetypeField:
     @pytest.fixture
     def schema_path(self) -> Path:
         """Path to the work-packages schema."""
-        p = Path(__file__).resolve().parent.parent.parent / "openspec" / "schemas" / "work-packages.schema.json"
+        p = (
+            Path(__file__).resolve().parent.parent.parent
+            / "openspec" / "schemas" / "work-packages.schema.json"
+        )
         if not p.exists():
             pytest.skip("work-packages.schema.json not found")
         return p
