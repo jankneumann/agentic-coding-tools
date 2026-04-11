@@ -6,7 +6,6 @@ with all new feature types working together.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -35,7 +34,7 @@ def _make_result(
 class TestIntegrationExtended:
     """Full integration test combining all new features."""
 
-    def test_scenario_with_all_features(self) -> None:
+    async def test_scenario_with_all_features(self) -> None:
         """Scenario using extended assertions + side-effects + semantic block."""
         # Build a scenario with everything
         scenario = Scenario(
@@ -143,9 +142,7 @@ class TestIntegrationExtended:
         evaluator = Evaluator(descriptor=descriptor, clients=registry)
 
         # Run evaluation
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluator.evaluate(scenario)
-        )
+        verdict = await evaluator.evaluate(scenario)
 
         # Verify overall status
         assert verdict.status == "pass"
@@ -164,7 +161,7 @@ class TestIntegrationExtended:
         assert step1.semantic_verdict is not None
         assert step1.semantic_verdict.status == "skip"
 
-    def test_semantic_evaluation_via_evaluator(self) -> None:
+    async def test_semantic_evaluation_via_evaluator(self) -> None:
         """Evaluator invokes semantic evaluation when LLM backend is provided."""
         scenario = Scenario(
             id="semantic-integration",
@@ -212,9 +209,7 @@ class TestIntegrationExtended:
             descriptor=descriptor, clients=registry, llm_backend=llm_backend
         )
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluator.evaluate(scenario)
-        )
+        verdict = await evaluator.evaluate(scenario)
 
         assert verdict.status == "pass"
         assert verdict.steps[0].semantic_verdict is not None
@@ -222,7 +217,7 @@ class TestIntegrationExtended:
         assert verdict.steps[0].semantic_verdict.confidence == 0.9
         llm_backend.run.assert_called_once()
 
-    def test_semantic_fail_causes_step_failure(self) -> None:
+    async def test_semantic_fail_causes_step_failure(self) -> None:
         """Semantic evaluation failure should cause step to fail."""
         scenario = Scenario(
             id="semantic-fail",
@@ -262,9 +257,7 @@ class TestIntegrationExtended:
             descriptor=descriptor, clients=registry, llm_backend=llm_backend
         )
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluator.evaluate(scenario)
-        )
+        verdict = await evaluator.evaluate(scenario)
 
         assert verdict.status == "fail"
         assert verdict.steps[0].semantic_verdict is not None

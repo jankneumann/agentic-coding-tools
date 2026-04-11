@@ -10,7 +10,6 @@ Design decisions: D1 (extend ExpectBlock), D5 (deep matching algorithm)
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -139,18 +138,16 @@ class TestExpectBlockExtended:
 class TestBodyContains:
     """body_contains: deep recursive subset matching (D5)."""
 
-    def test_flat_match(self) -> None:
+    async def test_flat_match(self) -> None:
         registry = _mock_registry(
             _make_result(body={"status": "ok", "count": 5, "extra": True})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_contains={"status": "ok", "count": 5}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_nested_dict_match(self) -> None:
+    async def test_nested_dict_match(self) -> None:
         registry = _mock_registry(
             _make_result(body={"data": {"user": {"name": "alice", "role": "admin"}, "id": 1}})
         )
@@ -158,34 +155,28 @@ class TestBodyContains:
         step = _make_step(
             expect=ExpectBlock(body_contains={"data": {"user": {"name": "alice"}}})
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_flat_mismatch(self) -> None:
+    async def test_flat_mismatch(self) -> None:
         registry = _mock_registry(
             _make_result(body={"status": "error"})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_contains={"status": "ok"}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_missing_key(self) -> None:
+    async def test_missing_key(self) -> None:
         registry = _mock_registry(
             _make_result(body={"other": "value"})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_contains={"status": "ok"}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_list_subset_match(self) -> None:
+    async def test_list_subset_match(self) -> None:
         """Expected list items must each match a distinct actual item."""
         registry = _mock_registry(
             _make_result(body={"items": [{"id": 1}, {"id": 2}, {"id": 3}]})
@@ -194,12 +185,10 @@ class TestBodyContains:
         step = _make_step(
             expect=ExpectBlock(body_contains={"items": [{"id": 1}, {"id": 3}]})
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_list_no_match(self) -> None:
+    async def test_list_no_match(self) -> None:
         registry = _mock_registry(
             _make_result(body={"items": [{"id": 1}, {"id": 2}]})
         )
@@ -207,9 +196,7 @@ class TestBodyContains:
         step = _make_step(
             expect=ExpectBlock(body_contains={"items": [{"id": 99}]})
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
 
@@ -219,38 +206,32 @@ class TestBodyContains:
 class TestBodyExcludes:
     """body_excludes: negative assertion — body must NOT contain these."""
 
-    def test_excluded_field_absent(self) -> None:
+    async def test_excluded_field_absent(self) -> None:
         registry = _mock_registry(
             _make_result(body={"status": "ok"})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_excludes={"error": "forbidden"}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_excluded_field_present(self) -> None:
+    async def test_excluded_field_present(self) -> None:
         registry = _mock_registry(
             _make_result(body={"error": "forbidden", "status": "fail"})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_excludes={"error": "forbidden"}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_excluded_value_different(self) -> None:
+    async def test_excluded_value_different(self) -> None:
         """Key exists but with different value — passes."""
         registry = _mock_registry(
             _make_result(body={"error": "not_found"})
         )
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(body_excludes={"error": "forbidden"}))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
 
@@ -260,31 +241,25 @@ class TestBodyExcludes:
 class TestStatusOneOf:
     """status_one_of: accept any listed status code."""
 
-    def test_matches_first(self) -> None:
+    async def test_matches_first(self) -> None:
         registry = _mock_registry(_make_result(status_code=200))
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(status_one_of=[200, 201]))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_matches_second(self) -> None:
+    async def test_matches_second(self) -> None:
         registry = _mock_registry(_make_result(status_code=201))
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(status_one_of=[200, 201]))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_no_match(self) -> None:
+    async def test_no_match(self) -> None:
         registry = _mock_registry(_make_result(status_code=500))
         ev = _make_evaluator(registry)
         step = _make_step(expect=ExpectBlock(status_one_of=[200, 201]))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
 
@@ -294,59 +269,47 @@ class TestStatusOneOf:
 class TestRowsRange:
     """rows_gte and rows_lte: range assertions for DB row counts."""
 
-    def test_rows_gte_pass(self) -> None:
+    async def test_rows_gte_pass(self) -> None:
         registry = _mock_registry(_make_result(body={"rows": 10}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_gte=5))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_rows_gte_exact(self) -> None:
+    async def test_rows_gte_exact(self) -> None:
         registry = _mock_registry(_make_result(body={"rows": 5}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_gte=5))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_rows_gte_fail(self) -> None:
+    async def test_rows_gte_fail(self) -> None:
         registry = _mock_registry(_make_result(body={"rows": 2}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_gte=5))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_rows_lte_pass(self) -> None:
+    async def test_rows_lte_pass(self) -> None:
         registry = _mock_registry(_make_result(body={"rows": 3}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_lte=5))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_rows_lte_fail(self) -> None:
+    async def test_rows_lte_fail(self) -> None:
         registry = _mock_registry(_make_result(body={"rows": 10}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_lte=5))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_rows_gte_and_lte_combined(self) -> None:
+    async def test_rows_gte_and_lte_combined(self) -> None:
         """Both range bounds can be used together."""
         registry = _mock_registry(_make_result(body={"rows": 7}))
         ev = _make_evaluator(registry)
         step = _make_step(transport="db", expect=ExpectBlock(rows_gte=5, rows_lte=10))
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
 
@@ -356,7 +319,7 @@ class TestRowsRange:
 class TestArrayContains:
     """array_contains: assert response array has matching elements."""
 
-    def test_single_match(self) -> None:
+    async def test_single_match(self) -> None:
         registry = _mock_registry(
             _make_result(body={"items": [{"name": "alice"}, {"name": "bob"}]})
         )
@@ -366,12 +329,10 @@ class TestArrayContains:
                 array_contains=[{"path": "$.items", "match": {"name": "alice"}}]
             )
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_no_match(self) -> None:
+    async def test_no_match(self) -> None:
         registry = _mock_registry(
             _make_result(body={"items": [{"name": "alice"}]})
         )
@@ -381,12 +342,10 @@ class TestArrayContains:
                 array_contains=[{"path": "$.items", "match": {"name": "charlie"}}]
             )
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
-    def test_multiple_array_contains(self) -> None:
+    async def test_multiple_array_contains(self) -> None:
         """Multiple array_contains entries must all pass."""
         registry = _mock_registry(
             _make_result(body={
@@ -403,7 +362,5 @@ class TestArrayContains:
                 ]
             )
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
