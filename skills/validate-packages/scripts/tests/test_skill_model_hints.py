@@ -160,36 +160,36 @@ class TestSkillModelHints:
             + "\n".join(invalid)
         )
 
-    def test_plan_feature_uses_sonnet_for_explore(
+    def test_plan_feature_resolves_analyst_archetype(
         self, skills_dir: Path
     ) -> None:
-        """plan-feature Explore Task() calls should use model='sonnet'."""
+        """plan-feature should resolve the analyst archetype for Explore tasks."""
         skill_file = skills_dir / "plan-feature" / "SKILL.md"
         content = skill_file.read_text()
+        # Verify archetype resolution block exists
+        assert "analyst" in content.lower()
+        assert "resolve_model" in content
+        # Verify Explore tasks use the resolved variable
         task_calls = _extract_task_calls(content)
-
         for line_num, task_text in task_calls:
             if 'subagent_type="Explore"' in task_text:
-                match = MODEL_LITERAL_PATTERN.search(task_text)
-                assert match, f"line {line_num}: Explore Task() missing model="
-                assert match.group(1) == "sonnet", (
-                    f"line {line_num}: Explore Task() should use sonnet, "
-                    f"got {match.group(1)}"
+                assert MODEL_PARAM_PATTERN.search(task_text), (
+                    f"line {line_num}: Explore Task() missing model= parameter"
                 )
 
-    def test_implement_feature_uses_haiku_for_bash(
+    def test_implement_feature_resolves_runner_archetype(
         self, skills_dir: Path
     ) -> None:
-        """implement-feature Bash Task() calls should use model='haiku'."""
+        """implement-feature should resolve the runner archetype for Bash tasks."""
         skill_file = skills_dir / "implement-feature" / "SKILL.md"
         content = skill_file.read_text()
+        # Verify archetype resolution block exists
+        assert "runner" in content.lower()
+        assert "resolve_model" in content
+        # Verify Bash tasks use the resolved variable
         task_calls = _extract_task_calls(content)
-
         for line_num, task_text in task_calls:
             if 'subagent_type="Bash"' in task_text:
-                match = MODEL_LITERAL_PATTERN.search(task_text)
-                assert match, f"line {line_num}: Bash Task() missing model="
-                assert match.group(1) == "haiku", (
-                    f"line {line_num}: Bash Task() should use haiku, "
-                    f"got {match.group(1)}"
+                assert MODEL_PARAM_PATTERN.search(task_text), (
+                    f"line {line_num}: Bash Task() missing model= parameter"
                 )
