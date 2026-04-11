@@ -266,13 +266,17 @@ class WorkQueueService:
                     reason=decision.reason or "operation_not_permitted",
                 )
 
-            # Resolve agent's archetype capabilities for filtering
+            # Resolve agent's archetype capabilities and trust level for filtering
             from .agents_config import get_agent_config
 
             agent_config = get_agent_config(resolved_agent_id)
             agent_archetypes: list[str] | None = None
+            agent_trust: int | None = None
             if agent_config is not None:
-                agent_archetypes = getattr(agent_config, "archetypes", None)
+                archetypes_list = getattr(agent_config, "archetypes", None)
+                # Empty list → None so SQL IS NULL check allows any-agent claims
+                agent_archetypes = archetypes_list if archetypes_list else None
+                agent_trust = agent_config.trust_level
 
             t0 = time.monotonic()
             outcome = "claimed"
@@ -285,6 +289,7 @@ class WorkQueueService:
                         "p_agent_type": resolved_agent_type,
                         "p_task_types": task_types,
                         "p_agent_archetypes": agent_archetypes,
+                        "p_agent_trust_level": agent_trust,
                     },
                 )
                 claim_result = ClaimResult.from_dict(result)

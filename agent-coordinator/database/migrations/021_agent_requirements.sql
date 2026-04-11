@@ -20,7 +20,8 @@ CREATE OR REPLACE FUNCTION claim_task(
     p_agent_id TEXT,
     p_agent_type TEXT,
     p_task_types TEXT[] DEFAULT NULL,
-    p_agent_archetypes TEXT[] DEFAULT NULL
+    p_agent_archetypes TEXT[] DEFAULT NULL,
+    p_agent_trust_level INTEGER DEFAULT NULL
 ) RETURNS JSONB AS $$
 DECLARE
     v_task RECORD;
@@ -29,6 +30,7 @@ BEGIN
     -- 1. Matches requested task types (if specified)
     -- 2. Has no unfinished dependencies
     -- 3. Matches agent archetype capabilities (if task has requirements)
+    -- 4. Agent meets minimum trust level (if task has requirements)
     SELECT * INTO v_task
     FROM work_queue
     WHERE status = 'pending'
@@ -44,6 +46,13 @@ BEGIN
           OR agent_requirements->>'archetype' IS NULL
           OR p_agent_archetypes IS NULL  -- agents without declared archetypes can claim anything
           OR agent_requirements->>'archetype' = ANY(p_agent_archetypes)
+      )
+      -- Trust level filtering: skip tasks requiring higher trust than the agent has
+      AND (
+          agent_requirements IS NULL
+          OR (agent_requirements->>'min_trust_level') IS NULL
+          OR p_agent_trust_level IS NULL  -- agents without trust level can claim anything
+          OR p_agent_trust_level >= (agent_requirements->>'min_trust_level')::INTEGER
       )
     ORDER BY priority ASC, created_at ASC
     FOR UPDATE SKIP LOCKED
