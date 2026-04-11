@@ -118,10 +118,10 @@ verify_skills() {
         return  # not a skills source repo
     fi
 
-    if [[ -d "$PROJECT_DIR/.claude/skills" ]]; then
+    if [[ -d "$PROJECT_DIR/.claude/skills" ]] || [[ -d "$PROJECT_DIR/.agents/skills" ]]; then
         ok "skills installed"
     elif $CHECK_ONLY; then
-        warn ".claude/skills/ missing"
+        warn "skills directories missing"
     else
         bash "$PROJECT_DIR/skills/install.sh" \
             --mode rsync --deps none --python-tools none --force >&2 2>&1 \
@@ -182,24 +182,39 @@ verify_git() {
 }
 
 # ---------------------------------------------------------------------------
-# Activate venv via CLAUDE_ENV_FILE (runs every session — env file is fresh)
+# Activate venv — CLAUDE_ENV_FILE (Claude Code) or ~/.bashrc (Codex)
 # ---------------------------------------------------------------------------
 activate_venv() {
-    if [[ -z "${CLAUDE_ENV_FILE:-}" ]]; then
-        return
-    fi
-
     local candidates=(
         "$PROJECT_DIR/agent-coordinator/.venv/bin/activate"
         "$PROJECT_DIR/.venv/bin/activate"
     )
-    for venv_activate in "${candidates[@]}"; do
-        if [[ -f "$venv_activate" ]]; then
-            echo "source \"$venv_activate\"" >> "$CLAUDE_ENV_FILE"
-            ok "venv activated: ${venv_activate#"$PROJECT_DIR"/}"
-            return
+
+    local venv_activate=""
+    for candidate in "${candidates[@]}"; do
+        if [[ -f "$candidate" ]]; then
+            venv_activate="$candidate"
+            break
         fi
     done
+    [[ -z "$venv_activate" ]] && return
+
+    local source_line="source \"$venv_activate\""
+
+    # Claude Code: CLAUDE_ENV_FILE persists env across Bash calls
+    if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
+        echo "$source_line" >> "$CLAUDE_ENV_FILE"
+        ok "venv activated via CLAUDE_ENV_FILE: ${venv_activate#"$PROJECT_DIR"/}"
+        return
+    fi
+
+    # Codex / other: append to ~/.bashrc (idempotent — check before appending)
+    if ! grep -qF "$venv_activate" ~/.bashrc 2>/dev/null; then
+        echo "$source_line" >> ~/.bashrc
+        ok "venv activated via ~/.bashrc: ${venv_activate#"$PROJECT_DIR"/}"
+    else
+        ok "venv activation already in ~/.bashrc"
+    fi
 }
 
 # ---------------------------------------------------------------------------
