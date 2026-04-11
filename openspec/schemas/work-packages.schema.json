@@ -286,6 +286,11 @@
           "minimum": 0,
           "description": "Position of this package in a stacked-diff ordering (0-indexed). Optional; only meaningful when decomposition == 'stacked'."
         },
+        "archetype": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+          "description": "Named agent archetype for capability matching. Overrides the skill's default archetype mapping for this package."
+        },
         "depends_on": {
           "type": "array",
           "items": { "$ref": "#/$defs/PackageId" },
@@ -312,6 +317,11 @@
               "type": "integer",
               "minimum": 0,
               "description": "Number of design alternatives noted for this package."
+            },
+            "complexity": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "Explicit complexity signal for archetype escalation. When 'high', the implementer archetype escalates to opus regardless of other thresholds."
             },
             "package_kind": {
               "type": "string",
