@@ -203,13 +203,20 @@ class CliVendorAdapter:
         prompt: str,
         cwd: Path,
         timeout_seconds: int = 300,
+        archetype_model: str | None = None,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
 
         Tries the primary model first, then each fallback in order.
         Returns the first successful result or the final failure.
+
+        Args:
+            archetype_model: Optional model override from archetype resolution.
+                When provided, overrides the agent's default primary model
+                but reuses the existing fallback chain (design decision D4).
         """
-        models_to_try: list[str | None] = [self.cli_config.model]
+        primary = archetype_model or self.cli_config.model
+        models_to_try: list[str | None] = [primary]
         models_to_try.extend(self.cli_config.model_fallbacks)
 
         models_attempted: list[str] = []

@@ -121,10 +121,16 @@ This will:
 
 ### 3. Dispatch Agent Fixes (if applicable)
 
-If agent-fix prompts were generated, dispatch them as parallel Task() agents:
+If agent-fix prompts were generated, resolve the implementer archetype and dispatch as parallel Task() agents:
 
 ```python
 import json
+from src.agents_config import load_archetypes_config, resolve_model
+
+archetypes = load_archetypes_config()
+implementer = archetypes.get("implementer")
+resolved_model = resolve_model(implementer, {}) if implementer else "sonnet"
+
 with open("docs/bug-scrub/agent-fix-prompts.json") as f:
     prompts = json.load(f)
 
@@ -132,6 +138,7 @@ with open("docs/bug-scrub/agent-fix-prompts.json") as f:
 for entry in prompts:
     Task(
         subagent_type="general-purpose",
+        model=resolved_model,  # archetype: implementer (sonnet, or opus if escalated)
         description=f"Fix issues in {entry['file']}",
         prompt=entry["prompt"],
         run_in_background=True,

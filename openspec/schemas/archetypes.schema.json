@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Archetypes Configuration",
+  "description": "Schema for archetypes.yaml — named agent archetype definitions with model preference, system prompt, and optional complexity escalation rules.",
+  "type": "object",
+  "required": ["schema_version", "archetypes"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for forward compatibility."
+    },
+    "archetypes": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Map of archetype name to archetype configuration.",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+        "description": "Archetype names must be lowercase alphanumeric with hyphens/underscores, max 32 chars."
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["model", "system_prompt"],
+        "properties": {
+          "model": {
+            "type": "string",
+            "enum": ["opus", "sonnet", "haiku"],
+            "description": "Primary model for this archetype."
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "Role-specific instruction prefix composed with task prompts."
+          },
+          "escalation": {
+            "type": ["object", "null"],
+            "description": "Optional complexity-based model escalation rules.",
+            "properties": {
+              "escalate_to": {
+                "type": "string",
+                "enum": ["opus", "sonnet", "haiku"],
+                "description": "Model to escalate to when complexity thresholds are exceeded."
+              },
+              "max_write_dirs": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Escalate when write_allow spans more than this many directory prefixes."
+              },
+              "max_dependencies": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Escalate when package has more than this many cross-module dependencies."
+              },
+              "loc_threshold": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Escalate when package loc_estimate exceeds this threshold."
+              }
+            },
+            "required": ["escalate_to"],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
