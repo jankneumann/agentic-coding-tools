@@ -80,6 +80,7 @@ class WorkSubmitRequest(BaseModel):
     input_data: dict[str, Any] | None = None
     priority: int = 5
     depends_on: list[str] | None = None
+    agent_requirements: dict[str, Any] | None = None
 
 
 class WorkGetTaskRequest(BaseModel):
@@ -780,6 +781,7 @@ def create_coordination_api() -> FastAPI:
             input_data=request.input_data,
             priority=request.priority,
             depends_on=depends_on_uuids,
+            agent_requirements=request.agent_requirements,
         )
         return {
             "success": result.success,
