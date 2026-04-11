@@ -165,54 +165,83 @@ mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordin
 # Hooks install at USER scope (~/.claude/, ~/.codex/) so they fire in ANY
 # repo, not just this one.  The hook scripts use absolute paths back to
 # this checkout so they find the coordinator Python modules.
+#
+# Claude Code reads hooks from settings.json (not hooks.json).  The targets
+# below merge the "hooks" key into the existing settings file so we don't
+# clobber other settings (permissions, outputStyle, etc.).
 
 SCRIPTS_ABS := $(CURDIR)/scripts
 
-# JSON template used by claude-hooks-setup and codex-hooks-setup.
+# JSON fragment containing just the hooks to merge into settings.json.
 # Uses absolute paths so the hooks work from any working directory.
-define HOOKS_JSON
+define HOOKS_FRAGMENT
 {
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "python3 $(SCRIPTS_ABS)/print_coordinator_env.py"
-      },
-      {
-        "type": "command",
-        "command": "python3 $(SCRIPTS_ABS)/register_agent.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(SCRIPTS_ABS)/print_coordinator_env.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 $(SCRIPTS_ABS)/register_agent.py"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "python3 $(SCRIPTS_ABS)/report_status.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(SCRIPTS_ABS)/report_status.py"
+          }
+        ]
       }
     ],
     "SessionEnd": [
       {
-        "type": "command",
-        "command": "python3 $(SCRIPTS_ABS)/deregister_agent.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(SCRIPTS_ABS)/deregister_agent.py"
+          }
+        ]
       }
     ]
   }
 }
 endef
-export HOOKS_JSON
+export HOOKS_FRAGMENT
+
+# Helper: merge HOOKS_FRAGMENT into a settings.json, preserving existing keys.
+# Usage: $(call merge-hooks,<settings-path>)
+define merge-hooks
+	@mkdir -p $(dir $(1))
+	@python3 -c "\
+import json, os, sys; \
+path = '$(1)'; \
+existing = json.load(open(path)) if os.path.isfile(path) else {}; \
+fragment = json.loads(os.environ['HOOKS_FRAGMENT']); \
+existing['hooks'] = fragment['hooks']; \
+json.dump(existing, open(path, 'w'), indent=2); \
+print(f'Merged hooks into {path}')"
+endef
 
 .PHONY: claude-hooks-setup
 claude-hooks-setup: ## Install coordinator hooks into Claude Code (user scope, works in any repo)
-	@mkdir -p ~/.claude
-	@echo "$$HOOKS_JSON" > ~/.claude/hooks.json
-	@echo "Installed ~/.claude/hooks.json (user scope)"
+	$(call merge-hooks,$(HOME)/.claude/settings.json)
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
 .PHONY: codex-hooks-setup
 codex-hooks-setup: ## Install coordinator hooks into Codex CLI (user scope, works in any repo)
-	@mkdir -p ~/.codex
-	@echo "$$HOOKS_JSON" > ~/.codex/hooks.json
-	@echo "Installed ~/.codex/hooks.json (user scope)"
+	$(call merge-hooks,$(HOME)/.codex/settings.json)
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
@@ -237,8 +266,8 @@ gemini-wrapper-install: ## Install Gemini status wrapper (symlink gemini-coord t
 hooks-setup: claude-hooks-setup codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for ALL agents (user scope)
 	@echo ""
 	@echo "All agents configured for coordinator status reporting."
-	@echo "  Claude Code: ~/.claude/hooks.json  (SessionStart, Stop, SessionEnd)"
-	@echo "  Codex CLI:   ~/.codex/hooks.json   (SessionStart, Stop, SessionEnd)"
+	@echo "  Claude Code: ~/.claude/settings.json  (SessionStart, Stop, SessionEnd)"
+	@echo "  Codex CLI:   ~/.codex/settings.json   (SessionStart, Stop, SessionEnd)"
 	@echo "  Gemini CLI:  ~/.local/bin/gemini-coord (wrapper script)"
 
 # ---------------------------------------------------------------------------
