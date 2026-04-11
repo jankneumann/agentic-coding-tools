@@ -5,7 +5,7 @@ description = "Shared Python dependencies for infrastructure skills"
 requires-python = ">=3.12"
 dependencies = [
     "tree-sitter>=0.25.2,<1.0",
-    "tree-sitter-sql>=0.3,<1.0",
+    "tree-sitter-sql>=0.3.11,<1.0",
     "tree-sitter-python>=0.23,<1.0",
     "tree-sitter-typescript>=0.23.2,<1.0",
     "hvac>=2.1.0",
