@@ -132,6 +132,7 @@ with open("docs/bug-scrub/agent-fix-prompts.json") as f:
 for entry in prompts:
     Task(
         subagent_type="general-purpose",
+        model="sonnet",
         description=f"Fix issues in {entry['file']}",
         prompt=entry["prompt"],
         run_in_background=True,
