@@ -156,6 +156,7 @@ When tasks.md contains 3+ **independent tasks** (no shared files), implement con
 ```
 Task(
   subagent_type="general-purpose",
+  model="sonnet",
   description="Implement task N: <brief>",
   prompt="You are implementing OpenSpec <change-id>, Task N.
 ## Your Task
@@ -200,6 +201,7 @@ For each package whose dependencies are satisfied, dispatch via Agent tool:
 ```
 Task(
   subagent_type="general-purpose",
+  model="sonnet",
   description="Implement <package-id>",
   prompt="You are implementing work package <package-id> for OpenSpec <change-id>.
 
@@ -304,11 +306,11 @@ grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md
 Run all environment-safe checks. These must pass in both cloud and local environments:
 
 ```
-Task(subagent_type="Bash", prompt="Run pytest and report pass/fail", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run mypy src/ and report type errors", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run ruff check . and report linting issues", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
-Task(subagent_type="Bash", prompt="Run validate_flows.py --diff main...HEAD", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run pytest and report pass/fail", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run mypy src/ and report type errors", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run ruff check . and report linting issues", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run validate_flows.py --diff main...HEAD", run_in_background=true)
 ```
 
 Fix all failures before proceeding.
