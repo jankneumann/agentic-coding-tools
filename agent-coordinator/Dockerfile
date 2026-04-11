@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Build — install production dependencies via uv
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN touch README.md && uv sync --all-extras --no-dev --no-install-project
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — lean image with only venv + source
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 WORKDIR /app
 
