@@ -10,7 +10,6 @@ Design decisions: D4 (semantic independence), D9 (use existing LLM backend)
 
 from __future__ import annotations
 
-import asyncio
 import json
 from unittest.mock import AsyncMock
 
@@ -35,95 +34,79 @@ def _mock_backend(response: str, available: bool = True) -> AsyncMock:
 class TestEvaluateSemantic:
     """Test end-to-end semantic evaluation."""
 
-    def test_pass_with_high_confidence(self) -> None:
+    async def test_pass_with_high_confidence(self) -> None:
         response = json.dumps({"pass": True, "confidence": 0.95, "reasoning": "Looks correct"})
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True, criteria="Is the search relevant?")
         actual = {"results": [{"name": "alice", "score": 0.9}]}
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, actual, "search-step")
-        )
+        verdict = await evaluate_semantic(backend, semantic, actual, "search-step")
         assert verdict.status == "pass"
         assert verdict.confidence == 0.95
         assert verdict.reasoning == "Looks correct"
 
-    def test_fail_when_judge_says_no(self) -> None:
+    async def test_fail_when_judge_says_no(self) -> None:
         response = json.dumps({"pass": False, "confidence": 0.8, "reasoning": "Wrong results"})
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True, criteria="Are results relevant?")
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {"results": []}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {"results": []}, "step1")
         assert verdict.status == "fail"
         assert verdict.confidence == 0.8
 
-    def test_low_confidence_produces_failure(self) -> None:
+    async def test_low_confidence_produces_failure(self) -> None:
         """Low confidence even with pass=True → fail."""
         response = json.dumps({"pass": True, "confidence": 0.3, "reasoning": "Maybe ok"})
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True, min_confidence=0.7)
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "fail"
         assert "Below confidence" in verdict.reasoning
 
-    def test_unavailable_llm_produces_skip(self) -> None:
+    async def test_unavailable_llm_produces_skip(self) -> None:
         """Unavailable LLM → skip, not failure."""
         backend = _mock_backend("", available=False)
         semantic = SemanticBlock(judge=True, criteria="Check relevance")
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
         assert "unavailable" in verdict.reasoning.lower()
 
-    def test_judge_false_skips(self) -> None:
+    async def test_judge_false_skips(self) -> None:
         """judge=False → skip without calling backend."""
         backend = _mock_backend("")
         semantic = SemanticBlock(judge=False)
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
         backend.run.assert_not_called()
 
-    def test_backend_error_produces_skip(self) -> None:
+    async def test_backend_error_produces_skip(self) -> None:
         """Backend error → skip, not failure."""
         backend = AsyncMock()
         backend.is_available = AsyncMock(return_value=True)
         backend.run = AsyncMock(side_effect=RuntimeError("connection refused"))
         semantic = SemanticBlock(judge=True)
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
         assert verdict.error_message is not None
 
-    def test_markdown_fences_stripped(self) -> None:
+    async def test_markdown_fences_stripped(self) -> None:
         """Response wrapped in markdown code fences is still parsed."""
         response = '```json\n{"pass": true, "confidence": 0.9, "reasoning": "good"}\n```'
         backend = _mock_backend(response)
         semantic = SemanticBlock(judge=True)
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "pass"
 
-    def test_invalid_json_produces_skip(self) -> None:
+    async def test_invalid_json_produces_skip(self) -> None:
         backend = _mock_backend("this is not json")
         semantic = SemanticBlock(judge=True)
 
-        verdict = asyncio.get_event_loop().run_until_complete(
-            evaluate_semantic(backend, semantic, {}, "step1")
-        )
+        verdict = await evaluate_semantic(backend, semantic, {}, "step1")
         assert verdict.status == "skip"
         assert "JSON" in (verdict.error_message or verdict.reasoning)
 

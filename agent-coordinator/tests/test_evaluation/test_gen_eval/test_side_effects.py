@@ -11,7 +11,6 @@ Design decisions: D2 (sub-block design), D3 (prohibit inverse matching),
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -173,7 +172,7 @@ class TestSideEffectModels:
 class TestSideEffectVerify:
     """Verify side-effect steps after successful main step."""
 
-    def test_verify_passes(self) -> None:
+    async def test_verify_passes(self) -> None:
         """Verify step confirms expected mutation occurred."""
         # Main step returns 200, verify step finds the row
         registry = _mock_registry(
@@ -198,9 +197,7 @@ class TestSideEffectVerify:
                 ],
             ),
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
         # Should have side_effect_verdicts on the step verdict
         sv = verdict.steps[0]
@@ -208,7 +205,7 @@ class TestSideEffectVerify:
         assert len(sv.side_effect_verdicts) == 1
         assert sv.side_effect_verdicts[0]["status"] == "pass"
 
-    def test_verify_fails(self) -> None:
+    async def test_verify_fails(self) -> None:
         """Verify step detects missing mutation → step fails."""
         registry = _mock_registry(
             _make_result(status_code=200, body={"success": True}),
@@ -232,9 +229,7 @@ class TestSideEffectVerify:
                 ],
             ),
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
 
@@ -244,7 +239,7 @@ class TestSideEffectVerify:
 class TestSideEffectProhibit:
     """Prohibit side-effect steps: inverse matching (D3)."""
 
-    def test_prohibit_passes_when_no_unwanted_state(self) -> None:
+    async def test_prohibit_passes_when_no_unwanted_state(self) -> None:
         """Prohibited state not found → pass.
 
         D3 inverse logic: prohibit expects rows_gte=1 (looking for unwanted rows).
@@ -273,12 +268,10 @@ class TestSideEffectProhibit:
                 ],
             ),
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_prohibit_fails_when_unwanted_state_found(self) -> None:
+    async def test_prohibit_fails_when_unwanted_state_found(self) -> None:
         """D3: Prohibited expectations MATCH → prohibit step FAILS."""
         # Prohibit expects rows=0 but the prohibited state is detected
         # when rows actually match the expectation (inverse logic)
@@ -310,12 +303,10 @@ class TestSideEffectProhibit:
         # rows_gte=1 checks if rows >= 1. The result has rows=0, so
         # the expectation does NOT match → diff exists → prohibit passes
         # (no prohibited state found)
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "pass"
 
-    def test_prohibit_detects_unwanted_mutation(self) -> None:
+    async def test_prohibit_detects_unwanted_mutation(self) -> None:
         """D3: When prohibit expectations match, the step fails."""
         registry = _mock_registry(
             _make_result(status_code=200, body={"success": True}),
@@ -340,9 +331,7 @@ class TestSideEffectProhibit:
                 ],
             ),
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
 
 
@@ -352,7 +341,7 @@ class TestSideEffectProhibit:
 class TestSideEffectSkipOnFailure:
     """Side effects skipped when main step fails."""
 
-    def test_side_effects_skipped_on_main_failure(self) -> None:
+    async def test_side_effects_skipped_on_main_failure(self) -> None:
         """Side-effect steps should not run if main step fails."""
         registry = _mock_registry(
             _make_result(status_code=500, body={"error": "internal"}),
@@ -376,9 +365,7 @@ class TestSideEffectSkipOnFailure:
                 ],
             ),
         )
-        verdict = asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        verdict = await ev.evaluate(_make_scenario([step]))
         assert verdict.status == "fail"
         # Side-effect verdicts should be empty or marked skip
         sv = verdict.steps[0]
@@ -392,7 +379,7 @@ class TestSideEffectSkipOnFailure:
 class TestStepStartTimeInjection:
     """step_start_time is auto-injected into side-effect step variables."""
 
-    def test_step_start_time_captured(self) -> None:
+    async def test_step_start_time_captured(self) -> None:
         """Side-effect steps should have access to step_start_time."""
         call_args: list[Any] = []
         client = AsyncMock()
@@ -426,9 +413,7 @@ class TestStepStartTimeInjection:
                 ],
             ),
         )
-        asyncio.get_event_loop().run_until_complete(
-            ev.evaluate(_make_scenario([step]))
-        )
+        await ev.evaluate(_make_scenario([step]))
         # The side-effect step should have been called with step_start_time
         # interpolated (the {{ step_start_time }} should be replaced)
         assert len(call_args) >= 2
