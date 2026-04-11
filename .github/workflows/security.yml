@@ -1,0 +1,69 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for gitleaks
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit-coordinator:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-coordinator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run pip-audit
+        run: |
+          uv pip install pip-audit
+          uv run pip-audit --desc on --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on
+
+  dependency-audit-skills:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run pip-audit
+        run: |
+          uv pip install pip-audit
+          uv run pip-audit --desc on --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on
