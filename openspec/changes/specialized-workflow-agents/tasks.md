@@ -1,0 +1,224 @@
+# Tasks: Specialized Workflow Agents
+
+## Phase 1: Static Model Hints in Skills
+
+### 1.0 Tests — Phase 1 model hint validation
+
+- [ ] 1.0.1 Write tests for skill Task() model parameter validation
+  **Spec scenarios**: agent-archetypes.3 (skill model hint integration — success and failure)
+  **Contracts**: N/A (skill markdown, not API)
+  **Design decisions**: N/A (Phase 1 uses static hints, no design decisions apply)
+  **Dependencies**: None
+  Verify that updated skill SKILL.md files include `model=` parameters with
+  valid values (`opus`, `sonnet`, or `haiku`) on all Task() calls. Write a
+  pytest script that parses SKILL.md files and asserts every `Task(` call
+  includes a `model=` parameter. Test must identify file and line number on failure.
+
+### 1.1 Add model hints to plan-feature Task() calls
+
+- [ ] 1.1.1 Update plan-feature/SKILL.md — add `model="sonnet"` to all 5 Explore Task() calls in Step 2
+  **Dependencies**: 1.0.1
+  Files: `skills/plan-feature/SKILL.md`
+
+### 1.2 Add model hints to implement-feature Task() calls
+
+- [ ] 1.2.1 Update implement-feature/SKILL.md — add `model="sonnet"` to general-purpose Task() calls (sequential and local-parallel implementation dispatch)
+  **Dependencies**: 1.0.1
+  Files: `skills/implement-feature/SKILL.md`
+
+- [ ] 1.2.2 Update implement-feature/SKILL.md — add `model="haiku"` to all 5 Bash Task() calls (pytest, mypy, ruff, openspec validate, validate_flows)
+  **Dependencies**: 1.0.1
+  Files: `skills/implement-feature/SKILL.md`
+
+### 1.3 Add model hints to iterate-on-plan Task() calls
+
+- [ ] 1.3.1 Update iterate-on-plan/SKILL.md — add `model="sonnet"` to all 5 Explore Task() calls (quality dimension analysis)
+  **Dependencies**: 1.0.1
+  Files: `skills/iterate-on-plan/SKILL.md`
+
+### 1.4 Add model hints to iterate-on-implementation Task() calls
+
+- [ ] 1.4.1 Update iterate-on-implementation/SKILL.md — add `model="sonnet"` to general-purpose Task() call (finding fixes)
+  **Dependencies**: 1.0.1
+  Files: `skills/iterate-on-implementation/SKILL.md`
+
+- [ ] 1.4.2 Update iterate-on-implementation/SKILL.md — add `model="haiku"` to all 4 Bash Task() calls (quality checks)
+  **Dependencies**: 1.0.1
+  Files: `skills/iterate-on-implementation/SKILL.md`
+
+### 1.5 Add model hints to fix-scrub Task() calls
+
+- [ ] 1.5.1 Update fix-scrub/SKILL.md — add `model="sonnet"` to general-purpose Task() call (agent-assisted fixes)
+  **Dependencies**: 1.0.1
+  Files: `skills/fix-scrub/SKILL.md`
+
+---
+
+## Phase 2: Agent Archetypes Registry
+
+### 2.0 Tests — Archetype configuration loading and validation
+
+- [ ] 2.0.1 Write tests for ArchetypeConfig dataclass and YAML loader
+  **Spec scenarios**: agent-archetypes.1 (archetype definition schema — valid load, invalid rejected, unknown fallback)
+  **Contracts**: openspec/schemas/archetypes.schema.json (created in task 2.3.1)
+  **Design decisions**: D1 (configuration not code), D5 (graceful degradation)
+  **Dependencies**: None
+  Test valid loading, missing required fields, unknown archetype references,
+  and graceful fallback behavior.
+
+- [ ] 2.0.2 Write tests for system prompt composition
+  **Spec scenarios**: agent-archetypes.2 (predefined archetypes — architect uses opus, runner uses haiku)
+  **Contracts**: N/A
+  **Design decisions**: D2 (composition not replacement)
+  **Dependencies**: None
+  Test that archetype system_prompt is prepended to task prompt with separator.
+
+- [ ] 2.0.3 Write tests for complexity-based escalation logic
+  **Spec scenarios**: agent-archetypes.4 (complexity-based escalation — large scope, simple package, explicit flag)
+  **Contracts**: N/A
+  **Design decisions**: D3 (escalation at dispatch time)
+  **Dependencies**: None
+  Test all four escalation triggers: write_allow dirs, dependencies, loc_estimate, complexity flag.
+
+### 2.1 Create archetypes.yaml with predefined archetypes
+
+- [ ] 2.1.1 Create `agent-coordinator/archetypes.yaml` with 6 predefined archetypes (architect, analyst, implementer, reviewer, runner, documenter)
+  **Dependencies**: 2.0.1
+  Files: `agent-coordinator/archetypes.yaml`
+  Follow the schema defined in design.md. Each archetype includes model, system_prompt, and escalation config.
+
+### 2.2 Add ArchetypeConfig dataclass and loader to agents_config.py
+
+- [ ] 2.2.1 Add `EscalationConfig` and `ArchetypeConfig` dataclasses to `agents_config.py`
+  **Dependencies**: 2.0.1
+  Files: `agent-coordinator/src/agents_config.py`
+  Fields: name, model, system_prompt, escalation (optional EscalationConfig with escalate_to, max_write_dirs, max_dependencies, loc_threshold).
+
+- [ ] 2.2.2 Add `ARCHETYPES_SCHEMA` JSON Schema, `load_archetypes_config()`, and `compose_prompt()` functions
+  **Dependencies**: 2.2.1
+  Files: `agent-coordinator/src/agents_config.py`
+  Follow the `load_agents_config()` pattern: load YAML, validate against schema, cache in
+  module-level singleton, return dict of ArchetypeConfig. Include `compose_prompt(archetype, task_prompt)`
+  that prepends `archetype.system_prompt + "\n\n---\n\n" + task_prompt` per design decision D2.
+
+- [ ] 2.2.3 Add `resolve_model()` function implementing complexity-based escalation
+  **Dependencies**: 2.2.1, 2.0.3
+  Files: `agent-coordinator/src/agents_config.py`
+  Implement the escalation algorithm from design.md. Accept ArchetypeConfig + package metadata
+  dict (keys: `write_allow`, `dependencies`, `loc_estimate`, `complexity`), return resolved
+  model string. Package metadata is extracted from `work-packages.yaml` by the dispatching
+  skill and passed as a dict — `resolve_model()` does not load the YAML itself.
+
+### 2.3 Create archetypes JSON Schema for validation
+
+- [ ] 2.3.1 Create `openspec/schemas/archetypes.schema.json`
+  **Dependencies**: 2.0.1
+  Files: `openspec/schemas/archetypes.schema.json`
+  Define schema for archetypes.yaml with required fields: schema_version, archetypes (map of name to archetype object with model, system_prompt, optional escalation).
+
+### 2.4 Update skills to use archetype parameter
+
+- [ ] 2.4.1 Update all skill SKILL.md files to use `archetype=` instead of `model=` in Task() calls
+  **Dependencies**: 2.2.2, 2.1.1
+  Files: `skills/plan-feature/SKILL.md`, `skills/implement-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`, `skills/fix-scrub/SKILL.md`
+  Replace Phase 1 `model="sonnet"` with `archetype="analyst"` / `archetype="implementer"` etc. per the mapping table in the spec.
+
+---
+
+## Phase 3: Coordinator Work Queue Routing
+
+### 3.0 Tests — Work queue archetype routing
+
+- [ ] 3.0.1 Write tests for work queue agent_requirements filtering
+  **Spec scenarios**: agent-archetypes.6 (work queue archetype routing — matched, skipped, backward compatible)
+  **Contracts**: N/A (work queue routing uses existing RPC schema)
+  **Design decisions**: D7 (orthogonal coexistence with merge trains)
+  **Dependencies**: None
+  Test: task with archetype requirement matched by capable agent, skipped by
+  incompatible agent, and claimable by any agent when no requirements.
+
+- [ ] 3.0.2 Write tests for work-packages.yaml archetype field
+  **Spec scenarios**: agent-archetypes.7 (work package archetype field — explicit, default)
+  **Contracts**: N/A (schema validation)
+  **Dependencies**: None
+  Test that packages with and without archetype field validate correctly.
+
+### 3.1 Add agent_requirements to work queue Task dataclass
+
+- [ ] 3.1.1 Add `agent_requirements` field to `work_queue.Task` dataclass
+  **Dependencies**: 3.0.1
+  Files: `agent-coordinator/src/work_queue.py`
+  Add optional `agent_requirements: dict[str, Any] | None = None` field with archetype and min_trust_level subfields.
+
+- [ ] 3.1.2 Update `submit()` to accept and persist `agent_requirements`
+  **Dependencies**: 3.1.1
+  Files: `agent-coordinator/src/work_queue.py`
+  Persist `agent_requirements` as a dedicated JSONB column on the `work_queue` table
+  (not embedded in input_data). This keeps filtering efficient via SQL WHERE clauses
+  and aligns with the migration in task 3.5.1.
+
+- [ ] 3.1.3 Update `claim()` to filter by agent_requirements (archetype + trust level)
+  **Dependencies**: 3.1.1, 3.1.4
+  Files: `agent-coordinator/src/work_queue.py`
+  Extend claim_task RPC to:
+  (a) Filter by archetype: if task has `agent_requirements.archetype`, match only
+  agents whose `archetypes` list (from agents.yaml) includes that archetype.
+  (b) Filter by min_trust_level: if task has `agent_requirements.min_trust_level`,
+  reject agents whose resolved trust level is below the minimum. The existing
+  `_resolve_trust_level()` method already computes this.
+  Both filters are AND-combined. Tasks without agent_requirements are claimable by all.
+
+- [ ] 3.1.4 Add `archetypes` field to agents.yaml schema and AgentEntry dataclass
+  **Dependencies**: 3.0.1
+  Files: `agent-coordinator/agents.yaml`, `agent-coordinator/src/agents_config.py`
+  Add optional `archetypes: list[str]` field to each agent entry in agents.yaml.
+  This is the source of truth for which archetypes an agent supports. Agents without
+  the field can claim any task (backward compatible). Update AGENTS_SCHEMA to validate
+  archetype names match `^[a-z][a-z0-9_-]{0,31}$`.
+
+### 3.2 Add archetype field to work-packages.yaml schema
+
+- [ ] 3.2.1 Add optional `archetype` and `complexity` fields to package definition in `work-packages.schema.json`
+  **Dependencies**: 3.0.2
+  Files: `openspec/schemas/work-packages.schema.json`
+  Add two fields to package properties:
+  (a) `"archetype": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$"}` — agent archetype hint
+  (b) `"complexity": {"type": "string", "enum": ["low", "medium", "high"]}` inside `metadata` — explicit
+  complexity signal for escalation (referenced by the `complexity: high` escalation trigger in spec).
+  **Note**: The schema already contains `decomposition` and `stack_position` fields from the speculative merge trains feature (April 2026). Add `archetype` and `complexity` alongside these as orthogonal package metadata (see design decision D7).
+
+### 3.3 Expose archetype in coordination API and MCP
+
+- [ ] 3.3.1 Update `coordination_mcp.py` — add `agent_requirements` parameter to `submit_work` tool and archetype filtering to `get_work` tool
+  **Dependencies**: 3.1.2, 3.1.3
+  Files: `agent-coordinator/src/coordination_mcp.py`
+  **Note**: This file now contains 5 merge-train MCP tools (`compose_train`, `eject_from_train`, `get_train_status`, `report_spec_result`, `affected_tests`). Archetype filtering is orthogonal — applies only to `get_work`/`submit_work`, not merge train tools (see D7).
+
+- [ ] 3.3.2 Update `coordination_api.py` — add `agent_requirements` to `/work/submit` endpoint and archetype filtering to `/work/claim` endpoint
+  **Dependencies**: 3.1.2, 3.1.3
+  Files: `agent-coordinator/src/coordination_api.py`
+  **Note**: This file now contains merge-train HTTP endpoints (`/merge-train/compose`, `/merge-train/eject`, etc.). Archetype filtering applies only to `/work/*` endpoints, not merge train endpoints (see D7).
+
+### 3.4 Update fallback integration in review dispatcher
+
+- [ ] 3.4.0 Write tests for fallback chain integration with archetype model override
+  **Spec scenarios**: agent-archetypes.5 (fallback chain integration — archetype model exhausted falls back to agents.yaml chain)
+  **Contracts**: N/A
+  **Design decisions**: D4 (extend existing fallback)
+  **Dependencies**: None
+  Test using `respx` mock: archetype model returns 429 (ErrorClass.CAPACITY),
+  dispatcher falls through to agents.yaml model_fallbacks. Verify no independent
+  fallback chain is created per archetype.
+
+- [ ] 3.4.1 Update `review_dispatcher.py` to use archetype model as primary instead of agent default
+  **Dependencies**: 2.2.2, 3.4.0
+  Files: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
+  **Design decisions**: D4 (extend existing fallback)
+  Modify `CliVendorAdapter.dispatch()` to accept optional archetype model override. Build `models_to_try = [archetype_model or cli_config.model] + cli_config.model_fallbacks`.
+
+### 3.5 Database migration for agent_requirements
+
+- [ ] 3.5.1 Create Supabase migration adding `agent_requirements` JSONB column to `work_queue` table
+  **Dependencies**: 3.1.1
+  Files: `agent-coordinator/supabase/migrations/YYYYMMDD_add_agent_requirements.sql`
+  Add nullable JSONB column. Update `claim_task` RPC to filter by archetype when present.
