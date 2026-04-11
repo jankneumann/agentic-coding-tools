@@ -17,7 +17,7 @@ dependencies = [
 sdk = [
     "anthropic>=0.40",
     "openai>=1.50",
-    "google-generativeai>=0.8",
+    "google-generativeai>=0.8.6",
 ]
 test = [
     "pytest>=8.0",
