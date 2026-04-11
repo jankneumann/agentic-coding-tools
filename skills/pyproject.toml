@@ -20,7 +20,7 @@ sdk = [
     "google-generativeai>=0.8.6",
 ]
 test = [
-    "pytest>=8.0",
+    "pytest>=9.0.3",
     "pyyaml>=6.0",
 ]
 
