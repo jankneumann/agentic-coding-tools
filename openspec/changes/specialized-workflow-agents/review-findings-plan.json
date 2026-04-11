@@ -1,0 +1,71 @@
+{
+  "reviewer": "claude-local",
+  "review_type": "plan",
+  "target": "specialized-workflow-agents",
+  "timestamp": "2026-04-10T19:41:00Z",
+  "findings": [
+    {
+      "type": "correctness",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/specs/agent-archetypes/spec.md",
+      "line": 150,
+      "title": "Escalation threshold inconsistency: '2+' vs '>2' for dependencies",
+      "description": "Spec line 150 scenario has depends_on with 2 items and expects escalation with reason 'depends on >2 packages', but the requirement says 'depends on 2+ other packages' (inclusive). Either the scenario should use 3 deps or the log message should say '>=2'.",
+      "suggestion": "Change the scenario to use 3 dependencies, or change the requirement threshold and log message to '>=2'."
+    },
+    {
+      "type": "contract_mismatch",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/contracts/README.md",
+      "line": 1,
+      "title": "Contracts README says 'no HTTP API changes' but Phase 3 extends /work/submit and /work/claim",
+      "description": "Contracts README states the feature does not introduce or modify HTTP API endpoints, but tasks 3.3.2 adds agent_requirements to /work/submit and /work/claim. These are parameter extensions that constitute contract changes.",
+      "suggestion": "Update contracts README to acknowledge the /work/submit and /work/claim parameter extensions as additive API changes."
+    },
+    {
+      "type": "architecture",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/design.md",
+      "line": 88,
+      "title": "Ambiguous resolution layer: where does resolve_model() get called?",
+      "description": "Design D4 says CliVendorAdapter.dispatch() should use archetype_model, but it's unclear whether skills call resolve_model() before dispatching or if the Agent tool itself resolves archetypes. The resolution layer (skill vs. dispatcher vs. agent tool) needs clarification.",
+      "suggestion": "Add explicit callsite documentation in design.md: skills call resolve_model() with package metadata dict, then pass resolved model to dispatch()."
+    },
+    {
+      "type": "architecture",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/design.md",
+      "line": 136,
+      "title": "D7 merge-train coexistence claim has no cross-feature test scenario",
+      "description": "Design claims archetype and merge-train routing are orthogonal, but no spec scenario tests both dimensions simultaneously (archetype + stack_position on the same task).",
+      "suggestion": "Add a scenario testing claim() with both archetype requirement and merge-train constraint."
+    },
+    {
+      "type": "contract_mismatch",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/work-packages.yaml",
+      "line": 221,
+      "title": "wp-queue-routing locks API endpoints it doesn't modify",
+      "description": "wp-queue-routing locks 'api:POST /work/submit' and 'api:POST /work/claim' but only modifies work_queue.py. The API endpoints are modified in wp-api-mcp-integration (task 3.3.2).",
+      "suggestion": "Move API endpoint locks to wp-api-mcp-integration. Keep only 'db:schema:work_queue' in wp-queue-routing."
+    },
+    {
+      "type": "spec_gap",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/specs/agent-archetypes/spec.md",
+      "line": 200,
+      "title": "Missing scenario for archetypes.yaml file not found at runtime",
+      "description": "D5 specifies graceful degradation if archetypes.yaml is deleted, but no spec scenario tests this. The system should log a warning and fall back to ambient model.",
+      "suggestion": "Add scenario: WHEN archetypes.yaml does not exist, THEN load_archetypes_config() returns empty dict with warning log."
+    },
+    {
+      "type": "spec_gap",
+      "severity": "low",
+      "file": "openspec/changes/specialized-workflow-agents/specs/agent-archetypes/spec.md",
+      "line": 215,
+      "title": "Backward compatibility scenario already covered but phrasing differs",
+      "description": "Spec has 'Task without archetype requirement claimable by any agent' which covers legacy tasks, but the phrasing 'backward compatible' in parentheses could be more explicit about pre-archetype tasks.",
+      "suggestion": "Minor: rename scenario to 'Legacy task without archetype requirement claimable by any agent' for clarity."
+    }
+  ]
+}

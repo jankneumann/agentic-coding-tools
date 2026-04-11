@@ -110,14 +110,23 @@ If the worktree already exists (e.g., from a previous session), reuse it. All su
 
 ### 2. Review Existing Context (Parallel Exploration) [all tiers]
 
-Gather context from multiple sources concurrently using Task(Explore) agents:
+Gather context from multiple sources concurrently using Task(Explore) agents.
+
+Resolve the analyst archetype before dispatching:
+
+```python
+from src.agents_config import load_archetypes_config, resolve_model
+archetypes = load_archetypes_config()
+analyst = archetypes.get("analyst")
+analyst_model = resolve_model(analyst, {}) if analyst else "sonnet"
+```
 
 ```
-Task(subagent_type="Explore", prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
-Task(subagent_type="Explore", prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
-Task(subagent_type="Explore", prompt="Run 'openspec list' and identify in-progress changes that might conflict with: $ARGUMENTS", run_in_background=true)
-Task(subagent_type="Explore", prompt="Search the codebase for existing implementations related to: $ARGUMENTS", run_in_background=true)
-Task(subagent_type="Explore", prompt="Read docs/architecture-analysis/architecture.summary.json and parallel_zones.json for component inventory and safe parallel zones", run_in_background=true)
+Task(subagent_type="Explore", model=analyst_model, prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
+Task(subagent_type="Explore", model=analyst_model, prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
+Task(subagent_type="Explore", model=analyst_model, prompt="Run 'openspec list' and identify in-progress changes that might conflict with: $ARGUMENTS", run_in_background=true)
+Task(subagent_type="Explore", model=analyst_model, prompt="Search the codebase for existing implementations related to: $ARGUMENTS", run_in_background=true)
+Task(subagent_type="Explore", model=analyst_model, prompt="Read docs/architecture-analysis/architecture.summary.json and parallel_zones.json for component inventory and safe parallel zones", run_in_background=true)
 ```
 
 Wait for all results and synthesize into unified context summary.
