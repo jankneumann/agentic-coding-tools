@@ -125,6 +125,13 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         },
                     },
                     "description": {"type": "string", "minLength": 1},
+                    "archetypes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": ARCHETYPE_NAME_PATTERN,
+                        },
+                    },
                     "sdk": {
                         "type": "object",
                         "required": ["package", "model"],
@@ -279,6 +286,7 @@ class AgentEntry:
     isolation: str = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
+    archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
 
@@ -438,6 +446,7 @@ def load_agents_config(
                 capabilities=agent_data["capabilities"],
                 description=agent_data["description"],
                 isolation=agent_data.get("isolation", "none"),
+                archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
                 cli=cli_config,
