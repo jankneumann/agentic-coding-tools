@@ -21,6 +21,68 @@ from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolat
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Archetype name pattern (shared between schema and runtime validation)
+# ---------------------------------------------------------------------------
+
+ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
+
+# ---------------------------------------------------------------------------
+# JSON Schema for archetypes.yaml validation
+# ---------------------------------------------------------------------------
+
+ARCHETYPES_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["schema_version", "archetypes"],
+    "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "archetypes": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+                "type": "string",
+                "pattern": ARCHETYPE_NAME_PATTERN,
+            },
+            "additionalProperties": {
+                "type": "object",
+                "required": ["model", "system_prompt"],
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "enum": ["opus", "sonnet", "haiku"],
+                    },
+                    "system_prompt": {"type": "string"},
+                    "escalation": {
+                        "type": ["object", "null"],
+                        "properties": {
+                            "escalate_to": {
+                                "type": "string",
+                                "enum": ["opus", "sonnet", "haiku"],
+                            },
+                            "max_write_dirs": {
+                                "type": "integer",
+                                "minimum": 1,
+                            },
+                            "max_dependencies": {
+                                "type": "integer",
+                                "minimum": 1,
+                            },
+                            "loc_threshold": {
+                                "type": "integer",
+                                "minimum": 1,
+                            },
+                        },
+                        "required": ["escalate_to"],
+                        "additionalProperties": False,
+                    },
+                },
+                "additionalProperties": False,
+            },
+        },
+    },
+    "additionalProperties": False,
+}
+
+# ---------------------------------------------------------------------------
 # JSON Schema for agents.yaml validation
 # ---------------------------------------------------------------------------
 
@@ -63,6 +125,13 @@ AGENTS_SCHEMA: dict[str, Any] = {
                         },
                     },
                     "description": {"type": "string", "minLength": 1},
+                    "archetypes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "pattern": ARCHETYPE_NAME_PATTERN,
+                        },
+                    },
                     "sdk": {
                         "type": "object",
                         "required": ["package", "model"],
@@ -217,8 +286,41 @@ class AgentEntry:
     isolation: str = "none"
     api_key: str | None = None
     openbao_role_id: str | None = None
+    archetypes: list[str] = field(default_factory=list)
     cli: CliConfig | None = None
     sdk: SdkConfig | None = None
+
+
+# ---------------------------------------------------------------------------
+# Archetype data classes
+# ---------------------------------------------------------------------------
+
+@dataclass
+class EscalationConfig:
+    """Complexity-based escalation rules for an archetype.
+
+    All thresholds are configurable in ``archetypes.yaml`` — no
+    hardcoded values.  See design decision D1.
+    """
+
+    escalate_to: str
+    max_write_dirs: int | None = None
+    max_dependencies: int | None = None
+    loc_threshold: int | None = None
+
+
+@dataclass
+class ArchetypeConfig:
+    """A named agent archetype from ``archetypes.yaml``.
+
+    Bundles model preference, system prompt, and optional complexity
+    escalation rules.
+    """
+
+    name: str
+    model: str
+    system_prompt: str
+    escalation: EscalationConfig | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -344,6 +446,7 @@ def load_agents_config(
                 capabilities=agent_data["capabilities"],
                 description=agent_data["description"],
                 isolation=agent_data.get("isolation", "none"),
+                archetypes=agent_data.get("archetypes", []),
                 api_key=resolved_key,
                 openbao_role_id=agent_data.get("openbao_role_id"),
                 cli=cli_config,
@@ -614,3 +717,179 @@ def get_agent_isolation(agent_type: str) -> str | None:
         if agent.type == agent_type:
             return agent.isolation
     return None
+
+
+# ---------------------------------------------------------------------------
+# Archetype loading + helpers
+# ---------------------------------------------------------------------------
+
+def _default_archetypes_path() -> Path:
+    return Path(__file__).resolve().parent.parent / "archetypes.yaml"
+
+
+def load_archetypes_config(
+    path: Path | None = None,
+) -> dict[str, ArchetypeConfig]:
+    """Load and validate ``archetypes.yaml``.
+
+    Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
+    Uses the global cache — subsequent calls return the same dict.
+
+    If the file does not exist, returns an empty dict and logs a warning
+    (design decision D5: graceful degradation).
+    """
+    global _archetypes
+    if _archetypes is not None:
+        return _archetypes
+
+    if path is None:
+        path = _default_archetypes_path()
+
+    if not path.exists():
+        logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
+        _archetypes = {}
+        return _archetypes
+
+    with open(path) as fh:
+        raw = yaml.safe_load(fh)
+
+    if raw is None:
+        raise ValueError("Empty archetypes.yaml file")
+
+    validate(instance=raw, schema=ARCHETYPES_SCHEMA)
+
+    result: dict[str, ArchetypeConfig] = {}
+    for name, data in raw["archetypes"].items():
+        esc_config: EscalationConfig | None = None
+        raw_esc = data.get("escalation")
+        if raw_esc:
+            esc_config = EscalationConfig(
+                escalate_to=raw_esc["escalate_to"],
+                max_write_dirs=raw_esc.get("max_write_dirs"),
+                max_dependencies=raw_esc.get("max_dependencies"),
+                loc_threshold=raw_esc.get("loc_threshold"),
+            )
+        result[name] = ArchetypeConfig(
+            name=name,
+            model=data["model"],
+            system_prompt=data["system_prompt"],
+            escalation=esc_config,
+        )
+
+    _archetypes = result
+    return _archetypes
+
+
+_archetypes: dict[str, ArchetypeConfig] | None = None
+
+
+def get_archetype(name: str) -> ArchetypeConfig | None:
+    """Look up an archetype by name from the cached config.
+
+    Returns ``None`` if the archetype is unknown or config hasn't been loaded.
+    """
+    if _archetypes is None:
+        logger.warning("Archetypes not loaded — call load_archetypes_config() first")
+        return None
+    archetype = _archetypes.get(name)
+    if archetype is None:
+        logger.warning("Unknown archetype '%s' — falling back to ambient model", name)
+    return archetype
+
+
+def reset_archetypes_config() -> None:
+    """Reset the global archetypes config cache (for testing)."""
+    global _archetypes
+    _archetypes = None
+
+
+# ---------------------------------------------------------------------------
+# Prompt composition (D2: composition, not replacement)
+# ---------------------------------------------------------------------------
+
+def compose_prompt(archetype: ArchetypeConfig, task_prompt: str) -> str:
+    """Compose an archetype's system prompt with a task-specific prompt.
+
+    Prepends the archetype system prompt with a ``---`` separator, per
+    design decision D2.  If the archetype has no system prompt, returns
+    the task prompt unchanged.
+    """
+    if not archetype.system_prompt:
+        return task_prompt
+    return f"{archetype.system_prompt}\n\n---\n\n{task_prompt}"
+
+
+# ---------------------------------------------------------------------------
+# Complexity-based escalation (D3: at dispatch time)
+# ---------------------------------------------------------------------------
+
+def _unique_dir_prefixes(write_allow: list[str]) -> int:
+    """Count unique directory prefixes in write_allow globs.
+
+    Extracts the directory portion of each glob (stripping wildcards
+    and filenames) and counts distinct paths.  For example,
+    ``["src/api/**", "src/models/**", "tests/**"]`` yields 3 prefixes.
+    """
+    dirs: set[str] = set()
+    for glob_pattern in write_allow:
+        path = glob_pattern.replace("\\", "/")
+        # Strip trailing wildcards and filename patterns
+        parts = path.split("/")
+        # Keep only directory-like components (no wildcards)
+        dir_parts = [p for p in parts if "*" not in p and "?" not in p]
+        if dir_parts:
+            dirs.add("/".join(dir_parts))
+    return len(dirs)
+
+
+def resolve_model(
+    archetype: ArchetypeConfig,
+    package_metadata: dict[str, Any],
+    *,
+    return_reasons: bool = False,
+) -> str | tuple[str, list[str]]:
+    """Resolve the effective model for a work package.
+
+    Checks escalation rules from the archetype config against package
+    metadata.  All thresholds come from ``archetypes.yaml`` — no
+    hardcoded values (design decision D1).
+
+    Args:
+        archetype: The archetype configuration.
+        package_metadata: Dict with optional keys: ``write_allow``,
+            ``dependencies``, ``loc_estimate``, ``complexity``.
+        return_reasons: If True, return a tuple of (model, reasons).
+
+    Returns:
+        The resolved model string, or (model, reasons) if *return_reasons*.
+    """
+    if not archetype.escalation:
+        return (archetype.model, []) if return_reasons else archetype.model
+
+    rules = archetype.escalation
+    reasons: list[str] = []
+
+    write_allow = package_metadata.get("write_allow", [])
+    if rules.max_write_dirs and _unique_dir_prefixes(write_allow) > rules.max_write_dirs:
+        reasons.append(f"write_allow spans >{rules.max_write_dirs} directories")
+
+    dependencies = package_metadata.get("dependencies", [])
+    if rules.max_dependencies and len(dependencies) > rules.max_dependencies:
+        reasons.append(f"depends on >{rules.max_dependencies} packages")
+
+    loc_estimate = package_metadata.get("loc_estimate", 0) or 0
+    if rules.loc_threshold and loc_estimate > rules.loc_threshold:
+        reasons.append(f"loc_estimate >{rules.loc_threshold}")
+
+    if package_metadata.get("complexity") == "high":
+        reasons.append("explicit complexity: high flag")
+
+    if reasons:
+        escalated_model = rules.escalate_to
+        logger.info(
+            "Escalating %s to %s: %s",
+            archetype.name, escalated_model, ", ".join(reasons),
+        )
+        return (escalated_model, reasons) if return_reasons else escalated_model
+
+    return (archetype.model, []) if return_reasons else archetype.model

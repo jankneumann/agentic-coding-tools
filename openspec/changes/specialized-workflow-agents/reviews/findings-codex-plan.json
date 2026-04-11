@@ -1,0 +1,88 @@
+{
+  "review_type": "plan",
+  "target": "specialized-workflow-agents",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "type": "contract_mismatch",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/contracts/README.md",
+      "line": 6,
+      "title": "Contract artifact denies API changes that the plan explicitly makes",
+      "description": "The contracts README says this change does not introduce or modify HTTP API endpoints, but the proposal, tasks, and work packages add an `agent_requirements` field to `/work/submit` and new filtering semantics to `/work/claim`. Those are observable request/behavior changes to existing interfaces. Treating them as already covered by the existing contract leaves no canonical artifact to update or validate for the new field and claim behavior.",
+      "suggestion": "Mark the `/work/*` additions as additive API contract changes, identify the canonical contract artifact that must be updated, and add explicit tasks/tests for the new request field and claim semantics."
+    },
+    {
+      "type": "architecture",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/tasks.md",
+      "line": 158,
+      "title": "No source of truth for an agent's supported archetypes",
+      "description": "The spec requires `claim()` to compare task requirements against the claiming agent's archetype compatibility, but phase 3 only adds `agent_requirements` to tasks and says claim should pass the agent's archetype capabilities. No task extends `agents.yaml`, `register_session`, `agent_sessions`, or discovery metadata to actually declare and persist supported archetypes. In the current codebase the coordinator only knows generic `capabilities`, so routing cannot be implemented deterministically from the planned changes.",
+      "suggestion": "Add a concrete compatibility path: define where supported archetypes live, persist them in agent/session state, and update `claim_task()` plus tests to use that field for routing."
+    },
+    {
+      "type": "correctness",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/tasks.md",
+      "line": 165,
+      "title": "Complexity escalation depends on metadata the schema never defines",
+      "description": "The spec and design require escalation on `complexity: high`, but phase 3 only adds an `archetype` field to `work-packages.schema.json`. The current work-packages schema metadata block has no `complexity` field, and no task updates planning or validation to emit and validate it. One of the four mandated escalation triggers therefore cannot ever fire.",
+      "suggestion": "Add a schema/task change for `metadata.complexity` with a bounded enum and corresponding validation tests, or remove the `complexity: high` trigger from the proposal, design, and spec."
+    },
+    {
+      "type": "security",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/tasks.md",
+      "line": 151,
+      "title": "min_trust_level is declared but never enforced in claim routing",
+      "description": "The spec defines `agent_requirements.min_trust_level`, and task 3.1.1 adds it to the dataclass, but the implementation tasks only describe archetype filtering. Task 3.1.3 and migration 3.5.1 never require `claim()` or `claim_task()` to compare the claimant's resolved trust level against the requested minimum. That omission would allow lower-trust agents to claim restricted work.",
+      "suggestion": "Extend phase 3 so `claim()` resolves the agent trust level and `claim_task()` rejects tasks whose `agent_requirements.min_trust_level` exceeds it, with positive and negative tests at the service and HTTP/MCP layers."
+    },
+    {
+      "type": "architecture",
+      "severity": "high",
+      "file": "openspec/changes/specialized-workflow-agents/design.md",
+      "line": 71,
+      "title": "Phase 2 has no concrete execution hook that turns archetypes into real Task behavior",
+      "description": "The design says skills will write `Task(archetype=\"...\")` and that dispatch-time logic will compose prompts and resolve models, but the planned file edits only touch skill markdown, `agents_config.py`, and a review-dispatcher fallback path. No package identifies the runtime layer that intercepts ordinary skill `Task()` calls for sequential and local-parallel execution and rewrites them into supported `model=` plus composed prompt behavior. In the current repo there is no concrete implementation surface for generic `Task(archetype=...)` resolution.",
+      "suggestion": "Add an explicit runtime integration task and owner for ordinary skill dispatch, or narrow phase 2 so skills continue using `model=` until the underlying Task execution layer natively supports archetypes."
+    },
+    {
+      "type": "correctness",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/tasks.md",
+      "line": 153,
+      "title": "agent_requirements storage is left ambiguous across the phase",
+      "description": "Task 3.1.2 says to persist `agent_requirements` via `input_data` or a new column, but task 3.5.1 later requires a dedicated JSONB column and RPC filtering. Leaving the storage model undecided makes the SQL/RPC design ambiguous, weakens package boundaries, and undermines the claim that each task can be implemented cleanly in one commit.",
+      "suggestion": "Choose one storage model up front, preferably the dedicated JSONB column referenced by 3.5.1, and update all phase 3 tasks and work packages to use that decision consistently."
+    },
+    {
+      "type": "spec_gap",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/work-packages.yaml",
+      "line": 57,
+      "title": "Verification steps do not prove the behaviors the spec requires",
+      "description": "The phase 1 and phase 2 skill packages verify changes with `grep -c 'model='` and `grep -c 'archetype='`, which only count matches somewhere in the files. They do not prove that every `Task()` call is annotated, that each skill uses the correct mapping, or that failures report file and line numbers as required by the spec. Likewise `wp-queue-routing` validates the template work-packages file, which does not exercise the new `archetype` field or the invalid-name rejection scenario.",
+      "suggestion": "Replace the grep-based verification with the parser-based pytest checks promised in tasks 1.0.1 and 3.0.2, using fixtures that cover complete annotation, correct mapping, and invalid archetype values."
+    },
+    {
+      "type": "contract_mismatch",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/work-packages.yaml",
+      "line": 218,
+      "title": "wp-queue-routing claims API endpoint locks outside its declared write scope",
+      "description": "`wp-queue-routing` only writes `work_queue.py`, migrations, tests, and `work-packages.schema.json`, but it reserves `api:POST /work/submit` and `api:POST /work/claim` lock keys. Those endpoints are actually modified in `wp-api-mcp-integration`, which claims the same locks later. This over-serializes the DAG and makes the lock model inconsistent with declared file ownership.",
+      "suggestion": "Remove the `/work/*` API lock keys from `wp-queue-routing`, or move the endpoint changes into the same package so the lock keys match actual ownership."
+    },
+    {
+      "type": "correctness",
+      "severity": "medium",
+      "file": "openspec/changes/specialized-workflow-agents/specs/agent-archetypes/spec.md",
+      "line": 150,
+      "title": "Dependency escalation threshold is internally inconsistent",
+      "description": "The requirement text says escalation triggers for `depends on 2+ other packages`, but the logged reason and design algorithm use `>2 packages`. The scenario at lines 150-153 uses two dependencies and still expects the `>2` message, so implementers and test authors can derive different thresholds from the same artifact set.",
+      "suggestion": "Make the threshold consistent across requirement text, scenarios, log messages, design pseudocode, and tests: either use `>=2` everywhere or change the scenario to three dependencies."
+    }
+  ]
+}
