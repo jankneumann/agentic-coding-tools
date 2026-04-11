@@ -149,6 +149,29 @@ openspec instructions apply --change "<change-id>" --json
 openspec status --change "<change-id>"
 ```
 
+##### Archetype Resolution (Phase 2)
+
+Before dispatching implementation agents, resolve the archetype model. This enables
+complexity-based escalation from Sonnet to Opus for large work packages:
+
+```python
+from src.agents_config import load_archetypes_config, resolve_model, compose_prompt
+
+archetypes = load_archetypes_config()  # cached singleton — no repeated file I/O
+implementer = archetypes.get("implementer")
+
+# For each package, resolve model based on complexity signals
+package_metadata = {
+    "write_allow": <from work-packages.yaml scope.write_allow>,
+    "dependencies": <from work-packages.yaml depends_on>,
+    "loc_estimate": <from work-packages.yaml metadata.loc_estimate>,
+    "complexity": <from work-packages.yaml metadata.complexity or None>,
+}
+resolved_model = resolve_model(implementer, package_metadata) if implementer else "sonnet"
+```
+
+Thresholds are configurable in `agent-coordinator/archetypes.yaml` — no code changes needed.
+
 ##### Parallel Implementation (for independent tasks)
 
 When tasks.md contains 3+ **independent tasks** (no shared files), implement concurrently:
@@ -156,7 +179,7 @@ When tasks.md contains 3+ **independent tasks** (no shared files), implement con
 ```
 Task(
   subagent_type="general-purpose",
-  model="sonnet",
+  model=resolved_model,  # archetype: implementer (sonnet, or opus if escalated)
   description="Implement task N: <brief>",
   prompt="You are implementing OpenSpec <change-id>, Task N.
 ## Your Task
@@ -201,7 +224,7 @@ For each package whose dependencies are satisfied, dispatch via Agent tool:
 ```
 Task(
   subagent_type="general-purpose",
-  model="sonnet",
+  model=resolved_model,  # archetype: implementer (sonnet, or opus if escalated)
   description="Implement <package-id>",
   prompt="You are implementing work package <package-id> for OpenSpec <change-id>.
 
@@ -306,11 +329,11 @@ grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md
 Run all environment-safe checks. These must pass in both cloud and local environments:
 
 ```
-Task(subagent_type="Bash", model="haiku", prompt="Run pytest and report pass/fail", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run mypy src/ and report type errors", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run ruff check . and report linting issues", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run openspec validate <change-id> --strict", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run validate_flows.py --diff main...HEAD", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run pytest and report pass/fail", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run mypy src/ and report type errors", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run ruff check . and report linting issues", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run openspec validate <change-id> --strict", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run validate_flows.py --diff main...HEAD", run_in_background=true)  # archetype: runner
 ```
 
 Fix all failures before proceeding.

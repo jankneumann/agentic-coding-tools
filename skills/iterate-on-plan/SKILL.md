@@ -147,11 +147,11 @@ Read all proposal documents to understand intent and current quality. For comple
 **Parallel approach (for complex proposals with 5+ tasks or 3+ spec deltas):**
 ```
 # Launch parallel analysis agents (single message, multiple Task calls)
-Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for COMPLETENESS issues: missing requirements, unaddressed edge cases, gaps in impact analysis, requirements without scenarios", run_in_background=true)
-Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for CLARITY and CONSISTENCY issues: ambiguous wording, vague scenarios, contradictions between documents", run_in_background=true)
-Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/tasks.md for FEASIBILITY and PARALLELIZABILITY: task size, dependencies, file overlap that would cause merge conflicts", run_in_background=true)
-Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for TESTABILITY: scenarios that can't be verified, subjective language like 'properly' or 'correctly'", run_in_background=true)
-Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for SECURITY and PERFORMANCE issues: missing auth/authorization for endpoints, secrets in config, unvalidated inputs, unbounded queries, missing pagination, sync where async needed", run_in_background=true)
+Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for COMPLETENESS issues: missing requirements, unaddressed edge cases, gaps in impact analysis, requirements without scenarios", run_in_background=true)  # archetype: analyst
+Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for CLARITY and CONSISTENCY issues: ambiguous wording, vague scenarios, contradictions between documents", run_in_background=true)  # archetype: analyst
+Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/tasks.md for FEASIBILITY and PARALLELIZABILITY: task size, dependencies, file overlap that would cause merge conflicts", run_in_background=true)  # archetype: analyst
+Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for TESTABILITY: scenarios that can't be verified, subjective language like 'properly' or 'correctly'", run_in_background=true)  # archetype: analyst
+Task(subagent_type="Explore", model="sonnet", prompt="Analyze openspec/changes/$CHANGE_ID/ for SECURITY and PERFORMANCE issues: missing auth/authorization for endpoints, secrets in config, unvalidated inputs, unbounded queries, missing pagination, sync where async needed", run_in_background=true)  # archetype: analyst
 ```
 
 **Analysis Synthesis:**

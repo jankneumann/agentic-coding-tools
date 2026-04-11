@@ -39,8 +39,12 @@ TASK_CALL_PATTERN = re.compile(
 # Task(subagent_type=...) and multiline Task(\n    subagent_type=...) forms.
 TASK_LINE_PATTERN = re.compile(r"(?:^|\s)Task\(\s*$|(?:^|\s)Task\(\s*(?:subagent_type|description|prompt|model|archetype)")
 
-# Pattern to detect model= parameter
-MODEL_PARAM_PATTERN = re.compile(r'model\s*=\s*"([^"]+)"')
+# Pattern to detect model= parameter — matches both string literals (model="sonnet")
+# and variable references (model=resolved_model) for Phase 2 archetype resolution
+MODEL_PARAM_PATTERN = re.compile(r'model\s*=\s*(?:"([^"]+)"|([a-z_][a-z0-9_]*))')
+
+# Stricter pattern for extracting string literal model values only
+MODEL_LITERAL_PATTERN = re.compile(r'model\s*=\s*"([^"]+)"')
 
 
 def _find_skill_dir() -> Path:
@@ -144,7 +148,7 @@ class TestSkillModelHints:
 
         invalid: list[str] = []
         for line_num, task_text in task_calls:
-            match = MODEL_PARAM_PATTERN.search(task_text)
+            match = MODEL_LITERAL_PATTERN.search(task_text)
             if match and match.group(1) not in VALID_MODELS:
                 invalid.append(
                     f"  line {line_num}: model=\"{match.group(1)}\" "
@@ -166,7 +170,7 @@ class TestSkillModelHints:
 
         for line_num, task_text in task_calls:
             if 'subagent_type="Explore"' in task_text:
-                match = MODEL_PARAM_PATTERN.search(task_text)
+                match = MODEL_LITERAL_PATTERN.search(task_text)
                 assert match, f"line {line_num}: Explore Task() missing model="
                 assert match.group(1) == "sonnet", (
                     f"line {line_num}: Explore Task() should use sonnet, "
@@ -183,7 +187,7 @@ class TestSkillModelHints:
 
         for line_num, task_text in task_calls:
             if 'subagent_type="Bash"' in task_text:
-                match = MODEL_PARAM_PATTERN.search(task_text)
+                match = MODEL_LITERAL_PATTERN.search(task_text)
                 assert match, f"line {line_num}: Bash Task() missing model="
                 assert match.group(1) == "haiku", (
                     f"line {line_num}: Bash Task() should use haiku, "

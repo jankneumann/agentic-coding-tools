@@ -231,6 +231,17 @@ Schema types `spec_gap`, `contract_mismatch`, and `compatibility` have no matchi
   - Recommend creating a new OpenSpec proposal
   - Do NOT implement out-of-scope changes
 
+#### Archetype Resolution (Phase 2)
+
+Before dispatching fix agents, resolve the implementer archetype for escalation:
+
+```python
+from src.agents_config import load_archetypes_config, resolve_model
+archetypes = load_archetypes_config()
+implementer = archetypes.get("implementer")
+resolved_model = resolve_model(implementer, package_metadata) if implementer else "sonnet"
+```
+
 #### Parallel Fixes (for independent findings)
 
 When multiple findings target **different files**, fix them concurrently:
@@ -239,7 +250,7 @@ When multiple findings target **different files**, fix them concurrently:
 # Spawn parallel agents for independent fixes
 Task(
   subagent_type="general-purpose",
-  model="sonnet",
+  model=resolved_model,  # archetype: implementer (sonnet, or opus if escalated)
   description="Fix finding 1: <type> in <file>",
   prompt="Fix this issue in OpenSpec <change-id> implementation:
 
@@ -275,10 +286,10 @@ Run all quality checks concurrently using Task() with `run_in_background=true`:
 
 ```
 # Launch all checks in parallel (single message, multiple Task calls)
-Task(subagent_type="Bash", model="haiku", prompt="Run pytest and report pass/fail with summary", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run mypy src/ and report any type errors", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run ruff check . and report any linting issues", run_in_background=true)
-Task(subagent_type="Bash", model="haiku", prompt="Run openspec validate $CHANGE_ID --strict", run_in_background=true)
+Task(subagent_type="Bash", model="haiku", prompt="Run pytest and report pass/fail with summary", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run mypy src/ and report any type errors", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run ruff check . and report any linting issues", run_in_background=true)  # archetype: runner
+Task(subagent_type="Bash", model="haiku", prompt="Run openspec validate $CHANGE_ID --strict", run_in_background=true)  # archetype: runner
 ```
 
 **Result Aggregation:**
