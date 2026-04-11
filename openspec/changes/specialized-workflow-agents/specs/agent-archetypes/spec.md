@@ -133,7 +133,7 @@ Escalation SHALL trigger when ANY of these conditions are met:
 - The work-package `write_allow` scope spans more than 3 directory prefixes
 - The work-package declares cross-module dependencies (depends on 2+ other packages)
 - The work-package includes an explicit `complexity: high` flag
-- The work-package `loc_estimate` exceeds 500 lines
+- The work-package `loc_estimate` exceeds the configured `loc_threshold` (default: 100 lines)
 
 When escalation triggers, the runtime SHALL:
 1. Log the escalation reason
@@ -161,10 +161,10 @@ When escalation triggers, the runtime SHALL:
 
 #### Scenario: High LOC estimate triggers escalation
 
-**WHEN** a work-package has `loc_estimate: 600` (exceeds 500 threshold)
+**WHEN** a work-package has `loc_estimate: 150` (exceeds 100 threshold)
 **AND** the `implementer` archetype has escalation enabled
 **THEN** the model SHALL escalate from `sonnet` to `opus`
-**AND** the escalation reason SHALL be logged as "loc_estimate >500"
+**AND** the escalation reason SHALL be logged as "loc_estimate >100"
 
 #### Scenario: Explicit complexity flag triggers escalation
 

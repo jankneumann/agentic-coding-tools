@@ -231,7 +231,7 @@ archetypes:
       escalate_to: opus
       max_write_dirs: 3
       max_dependencies: 2
-      loc_threshold: 500
+      loc_threshold: 100
 
   reviewer:
     model: opus
