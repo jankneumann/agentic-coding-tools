@@ -8,15 +8,26 @@
 # Heavy installs belong in setup-cloud.sh (cloud Environment Settings "Setup
 # Script"), which runs once on new sessions only.
 #
+# Profile-aware behavior:
+#   - Cloud (COORDINATOR_PROFILE=cloud): full verify + repair pass (default for
+#     ephemeral sandboxes where venvs and global packages vanish between sessions).
+#   - Local (COORDINATOR_PROFILE=local or unset): skips the repair pass entirely.
+#     Local workstations have persistent environments — running verify_openspec,
+#     activate_venv, and verify_git on every session is wasted work at best and
+#     silently invasive at worst (npm -g installs, ~/.bashrc mutations, git config
+#     writes).
+#
 # Design contract:
 #   - Fast on resume: file-existence checks only, no subprocess for package managers.
-#   - Repairs drift: if something IS missing, install it.
+#   - Repairs drift: if something IS missing, install it (cloud only by default).
 #   - Always exits 0: never block a session.
 #   - All diagnostic output to stderr (stdout reserved for hook context).
 #
 # Usage:
-#   .claude/skills/session-bootstrap/scripts/bootstrap-cloud.sh            # verify + repair
-#   .claude/skills/session-bootstrap/scripts/bootstrap-cloud.sh --check    # dry-run (report only)
+#   bootstrap-cloud.sh              # cloud: verify + repair; local: skip
+#   bootstrap-cloud.sh --check      # dry-run (report only), runs in ANY profile
+#   bootstrap-cloud.sh --force      # force full verify + repair in ANY profile
+#   CLAUDE_FORCE_BOOTSTRAP=1 bootstrap-cloud.sh   # env equivalent of --force
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,7 +46,14 @@ else
 fi
 
 CHECK_ONLY=false
-[[ "${1:-}" == "--check" ]] && CHECK_ONLY=true
+FORCE=false
+for arg in "$@"; do
+    case "$arg" in
+        --check) CHECK_ONLY=true ;;
+        --force) FORCE=true ;;
+    esac
+done
+[[ "${CLAUDE_FORCE_BOOTSTRAP:-0}" == "1" ]] && FORCE=true
 
 # ---------------------------------------------------------------------------
 # Logging helpers — all output to stderr
@@ -237,6 +255,14 @@ check_env_vars() {
 main() {
     log "=== Session Bootstrap — $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
     $CHECK_ONLY && log "Mode: --check (dry run)"
+    $FORCE && log "Mode: --force (full repair pass)"
+
+    # Profile gate: skip repairs on local workstations unless --force or --check
+    local profile="${COORDINATOR_PROFILE:-local}"
+    if [[ "$profile" == "local" ]] && ! $FORCE && ! $CHECK_ONLY; then
+        log "Profile=$profile — skipping repair pass (use --force or CLAUDE_FORCE_BOOTSTRAP=1 to override)"
+        return 0
+    fi
 
     verify_python
     verify_venvs
