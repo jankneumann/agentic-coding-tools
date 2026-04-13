@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 sdk = [
     "anthropic>=0.40",
-    "openai>=1.50",
+    "openai>=2.31.0",
     "google-generativeai>=0.8.6",
 ]
 test = [
