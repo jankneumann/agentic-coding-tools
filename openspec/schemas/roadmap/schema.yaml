@@ -1,0 +1,59 @@
+name: roadmap
+version: 1
+description: >
+  Multi-change roadmap orchestration workflow. Decomposes long proposals into
+  prioritized roadmap items with dependency DAG, then executes them iteratively
+  via autopilot with checkpointing and learning feedback. Each roadmap item
+  spawns a feature-workflow change.
+
+artifacts:
+  # Planning: decompose a long proposal into prioritized items
+  - id: roadmap
+    generates: roadmap.yaml
+    template: roadmap.yaml
+    description: Prioritized roadmap items with dependency DAG, effort estimates, and vendor policy
+    instruction: >
+      Decompose the source proposal into discrete roadmap items in roadmap.yaml.
+      Each item declares: item_id (ri-NN), title, description, rationale, status
+      (candidate), priority (1 = highest), effort (XS-XL), depends_on (item IDs
+      forming a DAG), and acceptance_outcomes. Validate against
+      openspec/schemas/roadmap.schema.json. Ensure the dependency graph is acyclic.
+      Include a policy section with default_action and preferred_vendor.
+      Items should be scoped to single OpenSpec changes — split cross-cutting
+      concerns into separate items with explicit dependencies.
+    requires: []
+
+  # Execution: resumable checkpoint state
+  - id: checkpoint
+    generates: checkpoint.json
+    template: checkpoint.json
+    description: Resumable execution state tracking current item, phase, and vendor state
+    instruction: >
+      Maintain checkpoint.json as the execution cursor for autopilot-roadmap.
+      Update on every phase transition: set current_item_id, phase (planning,
+      implementing, reviewing, validating, completed, failed, blocked), and
+      timestamps. Track completed_items and failed_items arrays. Record vendor
+      switches in vendor_state.switch_history with cost/latency deltas.
+      Set pause_state when waiting for vendor cooldown or user input.
+      Validate against openspec/schemas/checkpoint.schema.json.
+    requires: [roadmap]
+
+  # Feedback: per-item learning entries
+  - id: learning-log
+    generates: learning-log.md
+    template: learning-log.md
+    description: Decision rationale, blockers, deviations, and recommendations from executed items
+    instruction: >
+      After each roadmap item completes (or fails), create a learning entry at
+      learnings/<item-id>.md with YAML frontmatter conforming to
+      openspec/schemas/learning-log.schema.json. Record decisions (title +
+      outcome + rejected alternatives), blockers (description + resolution +
+      duration), deviations (from_plan + actual + reason), recommendations
+      for pending items, and vendor_notes. Update the root learning-log.md
+      index with a link to the new entry. MUST NOT contain credentials, tokens,
+      raw prompts, or connection strings. Redact high-entropy strings.
+    requires: [roadmap]
+
+apply:
+  requires: [roadmap]
+  tracks: roadmap.yaml

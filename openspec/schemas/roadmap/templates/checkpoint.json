@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "<roadmap-id>",
+  "current_item_id": "ri-01",
+  "phase": "planning",
+  "created_at": "<ISO-8601>",
+  "updated_at": "<ISO-8601>",
+  "completed_items": [],
+  "failed_items": [],
+  "vendor_state": {
+    "active_vendor": null,
+    "switch_history": [],
+    "blocked_vendors": []
+  },
+  "pause_state": {
+    "paused": false,
+    "reason": null,
+    "paused_at": null,
+    "expected_resume_at": null,
+    "blocked_vendor": null
+  }
+}

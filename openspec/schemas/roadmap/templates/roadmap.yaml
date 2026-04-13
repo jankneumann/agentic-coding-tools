@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../roadmap.schema.json
+schema_version: 1
+roadmap_id: <roadmap-id>
+source_proposal: <path-to-proposal.md>
+created_at: <ISO-8601>
+updated_at: <ISO-8601>
+status: planning
+
+policy:
+  default_action: wait_if_budget_exceeded
+  # cost_ceiling_usd: 5.00          # uncomment when using switch_if_time_saved
+  # max_switch_attempts_per_item: 2
+  # preferred_vendor: claude_code
+
+items:
+  - item_id: ri-01
+    title: <item title>
+    description: <what this item delivers>
+    rationale: <why this item is needed>
+    # change_id: null  # populated after openspec change scaffold
+    status: candidate
+    priority: 1
+    effort: M
+    depends_on: []
+    acceptance_outcomes:
+      - <measurable outcome 1>
