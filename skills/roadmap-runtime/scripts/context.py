@@ -17,7 +17,7 @@ _SCRIPTS_DIR = _Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from learning import read_entry, select_relevant_entries  # type: ignore[import-untyped]
+from learning import select_relevant_entries  # type: ignore[import-untyped]
 from models import (  # type: ignore[import-untyped]
     Checkpoint,
     Roadmap,
