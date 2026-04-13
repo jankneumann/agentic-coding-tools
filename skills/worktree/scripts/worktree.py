@@ -29,7 +29,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
@@ -399,8 +398,35 @@ def cmd_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _deinit_submodules(wt_path: Path) -> None:
+    """Deinit any initialized submodules inside a worktree.
+
+    This is the clean path before ``git worktree remove``. Git refuses to
+    remove worktrees that have initialized submodule checkouts, so we
+    deinit them first. If deinit fails (e.g., no submodules), we silently
+    continue — the caller will handle removal errors.
+    """
+    try:
+        run_git(
+            "submodule", "deinit", "-f", "--all",
+            cwd=str(wt_path), check=True,
+        )
+        print("Deinitialized submodules in worktree", file=sys.stderr)
+    except subprocess.CalledProcessError:
+        pass  # No submodules or deinit failed — proceed to removal
+
+
+_SUBMODULE_REMOVE_ERROR = "working trees containing submodules cannot be moved or removed"
+
+
 def cmd_teardown(args: argparse.Namespace) -> int:
-    """Remove a worktree for the given change-id."""
+    """Remove a worktree for the given change-id.
+
+    If the worktree contains initialized submodules, deinit them first.
+    If plain removal still fails with the git-specific "working trees
+    containing submodules" error, fall back to ``--force``. Other removal
+    errors (dirty tree, conflicting edits) are NOT force-overridden.
+    """
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -416,8 +442,29 @@ def cmd_teardown(args: argparse.Namespace) -> int:
         print("REMOVED=false")
         return 1
 
+    # Deinit submodules first — the clean path when it works
+    _deinit_submodules(wt_path)
+
     # Must run from main repo to remove worktree
-    run_git("worktree", "remove", str(wt_path), cwd=str(main_repo))
+    try:
+        run_git("worktree", "remove", str(wt_path), cwd=str(main_repo))
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        if _SUBMODULE_REMOVE_ERROR in stderr:
+            # Submodule metadata persists despite deinit — safe to force
+            # because teardown only runs after the worktree's branch is
+            # already pushed/merged.
+            print(
+                f"Plain removal blocked by submodule metadata; "
+                f"falling back to --force: {stderr}",
+                file=sys.stderr,
+            )
+            run_git(
+                "worktree", "remove", "--force", str(wt_path),
+                cwd=str(main_repo),
+            )
+        else:
+            raise  # Other errors deserve operator attention
 
     # Update registry
     registry = load_registry(main_repo)
