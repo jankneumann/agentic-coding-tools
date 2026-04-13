@@ -103,7 +103,7 @@ High-level workflow skills stay stable, but their internals follow this preceden
 
 Runtime asset locations:
 - Claude: `.claude/commands/opsx/*.md`, `.claude/skills/openspec-*/SKILL.md`
-- Codex: `.codex/skills/openspec-*/SKILL.md`
+- Codex: `.agents/skills/openspec-*/SKILL.md`
 - Gemini: `.gemini/commands/opsx/*.toml`, `.gemini/skills/openspec-*/SKILL.md`
 
 Cross-agent mapping parity:
@@ -132,13 +132,12 @@ CLI fallback commands:
 Runtime skill trees are synced mirrors:
 
 - `.claude/skills/`
-- `.codex/skills/`
-- `.gemini/skills/`
+- `.agents/skills/`
 
 Use the existing rsync workflow (no alternate distribution path):
 
 ```bash
-skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none
 ```
 
 After sync, any drift between canonical and runtime mirrors is a parity defect.
@@ -170,7 +169,7 @@ Run these checks before marking coordinator skill integration ready.
 #### Preflight: canonical sync and mirror consistency
 
 ```bash
-skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none
 ```
 
 Verify representative integrated skills match canonical content:
@@ -178,8 +177,7 @@ Verify representative integrated skills match canonical content:
 ```bash
 for skill in explore-feature plan-feature implement-feature iterate-on-plan iterate-on-implementation validate-feature cleanup-feature security-review setup-coordinator; do
   diff -u "skills/$skill/SKILL.md" ".claude/skills/$skill/SKILL.md"
-  diff -u "skills/$skill/SKILL.md" ".codex/skills/$skill/SKILL.md"
-  diff -u "skills/$skill/SKILL.md" ".gemini/skills/$skill/SKILL.md"
+  diff -u "skills/$skill/SKILL.md" ".agents/skills/$skill/SKILL.md"
 done
 ```
 

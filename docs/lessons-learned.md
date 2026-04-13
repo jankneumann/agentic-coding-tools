@@ -50,7 +50,7 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **Agent-native OpenSpec first**: For planning/implementation/validation/archive internals, prefer generated OpenSpec assets for the active runtime:
   Claude: `.claude/commands/opsx/*.md` or `.claude/skills/openspec-*/SKILL.md`
-  Codex: `.codex/skills/openspec-*/SKILL.md`
+  Codex: `.agents/skills/openspec-*/SKILL.md`
   Gemini: `.gemini/commands/opsx/*.toml` or `.gemini/skills/openspec-*/SKILL.md`
 - **CLI fallback always available**: If a runtime asset is missing or incompatible, use direct commands (`openspec new change`, `openspec status`, `openspec instructions ...`, `openspec archive`).
 

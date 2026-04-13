@@ -70,7 +70,7 @@ Hooks are capability-gated and best-effort. Coordinator failures are reported in
 For canonical skill parity, author under `skills/` and sync runtime mirrors via:
 
 ```bash
-skills/install.sh --mode rsync --agents claude,codex,gemini --deps none --python-tools none
+skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none
 ```
 
 ### Backend Scope Note
