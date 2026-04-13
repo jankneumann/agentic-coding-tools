@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
-
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
-
 from learning import (
     COMPACTION_THRESHOLD,
     compact,
@@ -32,7 +26,6 @@ def _make_entry(item_id: str = "ri-01", **kwargs) -> LearningEntry:
         phase=LearningPhase.IMPLEMENTATION,
         **kwargs,
     )
-
 
 class TestWriteEntry:
     def test_creates_file_and_index(self, tmp_path):
@@ -60,7 +53,6 @@ class TestWriteEntry:
         index = (tmp_path / "learning-log.md").read_text()
         assert index.count("ri-01") == 1  # No duplicate
 
-
 class TestReadEntry:
     def test_nonexistent(self, tmp_path):
         assert read_entry(tmp_path, "nonexistent") is None
@@ -72,7 +64,6 @@ class TestReadEntry:
         assert data is not None
         assert data["recommendations"] == ["Test recommendation"]
 
-
 class TestReadIndex:
     def test_empty(self, tmp_path):
         assert read_index(tmp_path) == []
@@ -82,7 +73,6 @@ class TestReadIndex:
             write_entry(tmp_path, _make_entry(f"ri-{i:02d}"))
         ids = read_index(tmp_path)
         assert len(ids) == 3
-
 
 class TestSelectRelevantEntries:
     def test_loads_dependencies(self, tmp_path):
@@ -106,7 +96,6 @@ class TestSelectRelevantEntries:
             write_entry(tmp_path, _make_entry(f"ri-{i:02d}"))
         entries = select_relevant_entries(tmp_path, ["ri-00"], recency_window=2)
         assert len(entries) <= 3  # 1 dep + 2 recent
-
 
 class TestCompaction:
     def test_needs_compaction(self, tmp_path):

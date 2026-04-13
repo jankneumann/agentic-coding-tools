@@ -3,16 +3,10 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
-
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
-
 from context import assemble_context, assemble_summary
 from learning import write_entry
 from models import (
@@ -62,7 +56,6 @@ def _setup_workspace(tmp_path: Path) -> None:
         phase=LearningPhase.IMPLEMENTATION,
     ))
 
-
 class TestAssembleContext:
     def test_loads_context(self, tmp_path):
         _setup_workspace(tmp_path)
@@ -86,7 +79,6 @@ class TestAssembleContext:
 
         with pytest.raises(ValueError, match="not found in roadmap"):
             assemble_context(tmp_path)
-
 
 class TestAssembleSummary:
     def test_produces_summary(self, tmp_path):

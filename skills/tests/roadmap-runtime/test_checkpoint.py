@@ -2,15 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
-
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
-
 from checkpoint import CheckpointManager
 from models import (
     Checkpoint,
@@ -36,7 +30,6 @@ def _make_roadmap(items: list[RoadmapItem] | None = None) -> Roadmap:
         source_proposal="test.md",
         items=items,
     )
-
 
 class TestCheckpointManager:
     def test_create_and_load(self, tmp_path):

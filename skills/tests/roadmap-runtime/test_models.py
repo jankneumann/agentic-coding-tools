@@ -3,17 +3,12 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 # Ensure the scripts directory is importable
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
-
 from models import (
     Checkpoint,
     CheckpointPhase,
@@ -43,7 +38,6 @@ def _make_item(item_id: str = "ri-01", **kwargs) -> RoadmapItem:
     defaults.update(kwargs)
     return RoadmapItem(item_id=item_id, **defaults)
 
-
 def _make_roadmap(**kwargs) -> Roadmap:
     defaults = {
         "schema_version": 1,
@@ -53,7 +47,6 @@ def _make_roadmap(**kwargs) -> Roadmap:
     }
     defaults.update(kwargs)
     return Roadmap(**defaults)
-
 
 class TestRoadmapItem:
     def test_round_trip(self):
@@ -80,7 +73,6 @@ class TestRoadmapItem:
         d = item.to_dict()
         assert d["failure_reason"] == "Tests did not pass"
         assert d["blocked_by"] == ["ri-02"]
-
 
 class TestRoadmap:
     def test_round_trip(self):
@@ -150,7 +142,6 @@ class TestRoadmap:
         loaded = load_roadmap(path)
         assert loaded.roadmap_id == roadmap.roadmap_id
 
-
 class TestPolicy:
     def test_defaults(self):
         policy = Policy()
@@ -168,7 +159,6 @@ class TestPolicy:
         assert restored.default_action == PolicyAction.SWITCH
         assert restored.cost_ceiling_usd == 5.0
 
-
 class TestCheckpoint:
     def test_create(self):
         cp = Checkpoint.create("test-roadmap", "ri-01")
@@ -184,7 +174,6 @@ class TestCheckpoint:
         path.write_text(json.dumps(cp.to_dict(), indent=2))
         loaded = Checkpoint.from_dict(json.loads(path.read_text()))
         assert loaded.completed_items == ["ri-00"]
-
 
 class TestLearningEntry:
     def test_to_dict(self):

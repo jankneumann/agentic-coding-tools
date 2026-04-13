@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from sanitizer import sanitize_dict, sanitize_string, validate_no_secrets
 
@@ -33,7 +28,6 @@ class TestSanitizeString:
     def test_preserves_safe_content(self):
         safe = "Selected REST API approach for better tooling"
         assert sanitize_string(safe) == safe
-
 
 class TestSanitizeDict:
     def test_removes_prohibited_fields(self):
@@ -66,7 +60,6 @@ class TestSanitizeDict:
         }
         result = sanitize_dict(data)
         assert "abc123" not in str(result)
-
 
 class TestValidateNoSecrets:
     def test_clean_data(self):
