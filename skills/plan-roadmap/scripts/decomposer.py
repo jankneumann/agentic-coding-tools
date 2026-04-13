@@ -7,13 +7,11 @@ of RoadmapItem objects without any LLM inference.
 
 from __future__ import annotations
 
-import hashlib
 import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Import shared runtime models
@@ -396,7 +394,6 @@ def build_dependency_dag(items: list[RoadmapItem]) -> list[RoadmapItem]:
 
     Returns the same list with updated depends_on fields (no cycles guaranteed).
     """
-    id_to_item = {it.item_id: it for it in items}
     title_words: dict[str, set[str]] = {}
     for it in items:
         words = set(re.findall(r"\b\w{4,}\b", it.title.lower()))
@@ -468,7 +465,6 @@ def _break_cycles(items: list[RoadmapItem]) -> None:
     def _dfs(item_id: str) -> None:
         if item_id in in_stack:
             # Found cycle — remove the back-edge
-            cycle_start = path.index(item_id)
             # Remove the last edge in the cycle (from path[-1] to item_id)
             if path:
                 last = id_map.get(path[-1])
