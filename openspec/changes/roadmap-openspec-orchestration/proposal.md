@@ -3,94 +3,124 @@
 **Change ID**: `roadmap-openspec-orchestration`
 **Status**: Draft
 **Created**: 2026-04-13
+**Updated**: 2026-04-13 (iteration 2)
 **Author**: Codex
 
 ## Why
 
-Teams increasingly start with long, model-generated strategy documents (from Claude Chat, Perplexity, or ChatGPT Pro). Those documents are rich but too broad for direct implementation. The current workflow supports planning and implementation of a single change well, but lacks a first-class way to:
+Large model-authored strategy markdown (Claude Chat / Perplexity / ChatGPT Pro) is rich in intent but too coarse for direct implementation. Today, `/plan-feature` and `/autopilot` are optimized for one change at a time. We are missing a roadmap-level layer that can:
 
-1. Decompose one large markdown proposal into an adaptive roadmap of multiple OpenSpec changes.
-2. Execute roadmap items with autopilot while preserving learnings between phases.
-3. Optimize parallelism and vendor usage under model session/rate limits using explicit time-vs-cost policies.
-4. Avoid context-window overload by externalizing progress and decisions into persistent artifacts.
+1. Decompose one long proposal into multiple OpenSpec changes with explicit ordering.
+2. Execute those changes iteratively while carrying forward implementation learnings.
+3. Handle vendor usage limits with explicit time-vs-cost policy instead of ad hoc retries.
+4. Persist context as artifacts so long programs do not depend on one model session.
 
 ## What Changes
 
-Introduce a roadmap layer above existing OpenSpec lifecycle skills using two new orchestrator skills:
+Add two new skills and shared scripts:
 
-- `plan-roadmap`: Converts a long markdown proposal into a prioritized, dependency-aware roadmap of OpenSpec changes and seeds each change with scaffold artifacts.
-- `autopilot-roadmap`: Executes approved roadmap changes iteratively, re-plans between phases based on implementation evidence and learned constraints.
+1. **`plan-roadmap`**
+   - Input: long markdown proposal
+   - Output: roadmap artifact (`roadmap.yaml`) with candidate OpenSpec changes, dependency DAG, priority, and acceptance outcomes
+   - Creates approved change scaffolds under `openspec/changes/<change-id>/`
 
-These new skills will reuse existing capabilities from `explore-feature`, `plan-feature`, `iterate-on-plan`, `parallel-review-plan`, and `autopilot`, rather than replacing them.
+2. **`autopilot-roadmap`**
+   - Executes ready roadmap items via existing `/implement-feature`, `/iterate-on-implementation`, and review skills
+   - Stores checkpoints and learning artifacts between items
+   - Re-ranks remaining roadmap items from evidence after each completed item
+   - Applies configurable policy when vendor/session limits are hit
+
+3. **Shared roadmap runtime utilities**
+   - Artifact schema + validation
+   - Checkpoint/resume logic
+   - Policy engine (wait vs switch vendor)
+   - Learning ingestion and context assembly helpers
+
+## Impact
+
+### Affected Specs
+- **New capability**: `roadmap-orchestration` (this change adds the initial spec delta)
+
+### Affected Skills
+- New: `skills/plan-roadmap/`
+- New: `skills/autopilot-roadmap/`
+- Reused (not replaced): `explore-feature`, `plan-feature`, `autopilot`, `iterate-on-plan`, `parallel-review-plan`, `parallel-review-implementation`
+
+### Affected Documentation
+- `docs/skills-workflow.md` (new roadmap phase entry)
+- `docs/parallel-agentic-development.md` (roadmap orchestration + policy routing)
 
 ## Approaches Considered
 
-### Approach A: Standalone roadmap skills that orchestrate existing skills (Recommended)
+### Approach A: Standalone roadmap orchestrators reusing existing skills (Recommended)
 
-Create `plan-roadmap` and `autopilot-roadmap` as orchestrators that call existing planning/implementation skills and add durable roadmap state.
+Add `plan-roadmap` and `autopilot-roadmap` as orchestration skills and keep existing skills focused on single-change execution.
 
 **Pros**
-- Maximizes reuse of mature skills and validation logic.
-- Keeps single-change flows unchanged.
-- Easiest path to cost/time policy controls at orchestration layer.
-- Supports progressive context loading from artifact files and coordinator state.
+- Lowest regression risk for current workflows.
+- Clear separation between roadmap planning and single-change execution.
+- Easy to attach usage-limit and cost policy controls at orchestrator boundary.
+- Reuses existing validation and review loops.
 
 **Cons**
-- Requires clear contracts between orchestrator and child skills.
-- Adds state-management complexity (roadmap registry, checkpoints, retries).
+- Introduces new state artifacts and lifecycle management.
+- Requires strict contracts between orchestration and delegated skills.
 
 **Effort**: M
 
-### Approach B: Extend `autopilot` and `plan-feature` directly with roadmap mode
-
-Add roadmap decomposition and multi-change orchestration as optional modes in existing skills.
+### Approach B: Extend `plan-feature` and `autopilot` with roadmap mode
 
 **Pros**
-- Fewer top-level commands.
-- Shared code paths by default.
+- Fewer commands for users.
+- Potentially less duplicated orchestration code.
 
 **Cons**
-- Increases complexity of already-heavy skills.
-- Harder to reason about roadmap-specific behaviors and failure recovery.
-- Higher regression risk for current workflows.
+- Expands already complex skills.
+- Harder to test roadmap logic independently.
+- Higher risk of regressions for existing commands.
 
 **Effort**: M/L
 
-### Approach C: Coordinator-only roadmap engine with no new skills
-
-Implement roadmap planning/execution as coordinator APIs and keep CLI skills thin wrappers.
+### Approach C: Coordinator-only roadmap service
 
 **Pros**
-- Strong central state and scheduling control.
-- Potentially easier multi-agent observability.
+- Strong central state and scheduling.
+- Uniform API surface for cloud and local agents.
 
 **Cons**
-- Larger coordinator surface area and deployment complexity.
-- Slower iteration because every behavior change requires coordinator updates.
+- More coordinator complexity and deployment overhead.
+- Slower iteration for roadmap behavior changes.
 
 **Effort**: L
 
-### Selected Approach
+## Selected Approach
 
-**Approach A** is selected. It matches your objective of adding roadmap-focused capabilities while reusing existing skills and introducing explicit time-vs-money controls with context-window-safe artifact handoffs.
+**Approach A** is selected.
+
+## Explicit Planning Decisions (resolved assumptions)
+
+1. **State canonical source**: Filesystem artifacts are canonical; coordinator state is optional acceleration cache.
+2. **Policy defaults**: Default policy is `wait_if_budget_exceeded`; opt-in `switch_if_time_saved` requires configured cost ceiling.
+3. **Roadmap granularity**: Target 3-12 roadmap items; items smaller than one implementable change are merged.
+4. **Approval model**: User approval remains required per OpenSpec change before implementation.
 
 ## Scope Boundaries
 
 ### In Scope
-- Skill definitions and scripts for `plan-roadmap` and `autopilot-roadmap`.
-- Roadmap artifact schema and on-disk state model.
-- Policy-based vendor selection and rate-limit handling.
-- Learning-feedback loop from completed change artifacts back into remaining roadmap items.
+- New skills, scripts, and tests for roadmap decomposition + execution.
+- Roadmap artifacts (`roadmap.yaml`, `checkpoint.json`, `learning-log.md`) and schema validation.
+- Usage-limit-aware scheduling policy engine.
+- Learning feedback loop that updates pending roadmap items.
 
 ### Out of Scope
-- Rewriting existing `autopilot` internals end-to-end.
+- Auto-merge to main without existing gates.
 - New coordinator transport protocols.
-- Automatic merging/deploy of roadmap outputs beyond current approval gates.
+- Replacing current `autopilot`/`plan-feature` internals.
 
 ## Success Criteria
 
-1. A long proposal markdown can be transformed into a roadmap with 3+ ordered OpenSpec changes and explicit dependencies.
-2. Roadmap execution can resume after interruption using persisted checkpoints.
-3. At least one execution policy can choose to wait for limits vs pay for alternate vendor based on configured cost/time threshold.
-4. Each completed roadmap item writes a learning artifact consumed before planning the next item.
-5. Existing single-change commands remain backward compatible.
+1. Given a long markdown proposal, `plan-roadmap` produces a dependency-aware roadmap with 3+ viable changes.
+2. Roadmap execution resumes from checkpoint after interruption without duplicating completed phases.
+3. Policy decisions (wait/switch) are recorded with reason, cost delta, and latency delta.
+4. Completed roadmap items write learning entries that are consumed before planning the next item.
+5. Existing single-change skill behavior remains backward compatible.
