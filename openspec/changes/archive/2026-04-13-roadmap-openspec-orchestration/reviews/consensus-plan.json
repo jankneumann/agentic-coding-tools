@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "roadmap-openspec-orchestration",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Core artifact schemas (roadmap.yaml, checkpoint.json, learning-log.md) are not defined anywhere. The contracts/README.md is a stub that says 'no external API, DB schema, or event payload contracts yet.' However, these three artifacts ARE the primary interface contracts between plan-roadmap and autopilot-roadmap \u2014 they're the shared data format that both skills must agree on. Without machine-readable schemas, the two parallel work packages (wp-plan-roadmap and wp-autopilot-roadmap) cannot be implemented independently against a stable contract."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The wp-runtime package's write_allow scope splits shared runtime code across two skill directories: skills/plan-roadmap/scripts/runtime/** and skills/autopilot-roadmap/scripts/runtime/**. This implies either duplicating shared code into both locations or maintaining imports across skill boundaries. The existing codebase pattern for shared cross-skill code is a dedicated skills/ directory (e.g., skills/parallel-infrastructure/scripts/ is shared by parallel-review-plan, parallel-review-implementation, and autopilot). Splitting shared primitives into consumer directories breaks this convention."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The spec defines scenarios for vendor usage limits, artifact corruption, dependency blocking, and interruption recovery \u2014 but has no scenario for individual roadmap item implementation failure (tests fail, review rejects the change, implementation hits a design dead-end). This is the most common failure mode in practice. The design's 'Failure and Recovery' section also omits this case."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The spec lacks a requirement for roadmap item size validation during decomposition. The proposal says 'items smaller than one implementable change are merged' (decision 3), but there is no scenario covering: (a) merging undersized items, (b) splitting oversized items, or (c) validating that each item maps to a single implementable OpenSpec change. Without this, decomposition quality is unverifiable."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The proposal and design do not specify where roadmap artifacts (roadmap.yaml, checkpoint.json, learning-log.md) are stored on the filesystem. Is it under openspec/changes/<roadmap-change-id>/, a new top-level roadmap/ directory, or alongside the child changes? The relationship between the roadmap workspace and its spawned child OpenSpec changes is undefined. This is critical for the worktree-based implementation model since skills need to know which paths to include in worktree scope."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "No structured logging or monitoring requirements are specified for either skill. Roadmap orchestration is a long-running, multi-phase workflow involving vendor interactions, policy decisions, and checkpoint operations. Without observability requirements, debugging production failures and auditing policy decisions will be ad hoc."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The vendor-switching policy (switch_if_time_saved) addresses single-hop failover but does not specify behavior when the alternate vendor also fails or hits limits. Is there a fallback chain, or does it immediately transition to 'fail closed'? For roadmaps with many items, cascading vendor failures across items is likely over a multi-hour execution."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task spec scenario references use a numeric suffix notation (roadmap-orchestration.1, .2, .3, .4) but the spec itself uses named requirement headings, not numbered ones. The mapping is ambiguous \u2014 e.g., task 1.1 references 'roadmap-orchestration.4 (artifact corruption)' which is under the 4th requirement 'Progressive Context Management', but task 4.1 also references 'roadmap-orchestration.4'. This numbering convention is fragile and not greppable."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "work-packages.yaml has contracts.openapi.primary pointing to contracts/README.md, but that file explicitly states 'OpenAPI: Not applicable in this planning iteration.' The openapi field in the work-packages schema implies an actual OpenAPI spec reference, not a stub disclaimer."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The tasks and work packages cover updating docs/skills-workflow.md and docs/parallel-agentic-development.md, but not CLAUDE.md. CLAUDE.md contains the canonical workflow table that every conversation loads, and it currently shows the skill chain from /explore-feature through /cleanup-feature. The new roadmap skills need to appear there, or users won't discover them."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The proposed `work-packages.yaml` is not compatible with the repository's current work-package schema. Each package uses planning-only keys such as `name` and `tasks`, but omits required executor fields including `task_type`, `locks`, `worktree`, `timeout_minutes`, `retry_budget`, `min_trust_level`, `verification`, `outputs`, and `scope.deny`. `/implement-feature` and the package validators expect the stricter schema, so this plan cannot be dispatched as written."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The three new durable artifacts are the primary interface between `plan-roadmap` and `autopilot-roadmap`, but `contracts/README.md` only names them in prose. The spec depends on concrete fields such as item status, dependency IDs, checkpoint phase pointers, resume state, and cost/latency deltas, yet none of those are defined machine-readably. That leaves the two skills without a stable contract for parallel implementation."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The design introduces a shared `roadmap_runtime` library, but the work-package scopes place that shared code under both `skills/plan-roadmap/...` and `skills/autopilot-roadmap/...`. That breaks the repository's established pattern for cross-skill shared code and encourages either duplicated runtime logic or imports from consumer-owned directories."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The design says state is stored on disk 'under a roadmap workspace' but never defines the actual repository path or how that workspace links to spawned child `openspec/changes/<change-id>/` directories. Without a canonical location and parent-child reference model, worktree scoping, resume behavior, and cleanup semantics are underspecified."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The plan persists checkpoints and learning logs as repository files, but it does not require redaction or sanitization before writing them. Because these artifacts may capture vendor errors, prompts, environment-derived values, or implementation notes, the current design creates a credible secret-exposure path in durable, potentially committed state."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The failure model covers malformed artifacts, interruption, dependency mismatch, and 'no alternate vendor', but it does not define what happens when a roadmap item itself fails implementation or review, or when an alternate vendor also times out or hits limits. That leaves per-item terminal states, retry ceilings, and dependency propagation undefined on the most likely failure paths."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "There are no structured logging, metrics, or alerting requirements for roadmap execution. For a long-running multi-vendor orchestrator, lack of observable state transitions, checkpoint restores, policy decisions, blocked states, and repeated resume failures will make debugging and auditability ad hoc."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The proposal explicitly targets 'long markdown proposals' and an append-only `learning-log.md`, yet the spec does not define chunking, bounded context assembly, or compaction rules. As written, decomposition and later replanning can devolve into repeated full-file scans of large proposals and logs, which undermines the long-running roadmap use case and can exceed model context budgets."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 18,
+    "confirmed_count": 0,
+    "unconfirmed_count": 18,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

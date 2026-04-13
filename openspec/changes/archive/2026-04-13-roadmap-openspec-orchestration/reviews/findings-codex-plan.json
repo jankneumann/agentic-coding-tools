@@ -1,0 +1,71 @@
+{
+  "review_type": "plan",
+  "target": "roadmap-openspec-orchestration",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The proposed `work-packages.yaml` is not compatible with the repository's current work-package schema. Each package uses planning-only keys such as `name` and `tasks`, but omits required executor fields including `task_type`, `locks`, `worktree`, `timeout_minutes`, `retry_budget`, `min_trust_level`, `verification`, `outputs`, and `scope.deny`. `/implement-feature` and the package validators expect the stricter schema, so this plan cannot be dispatched as written.",
+      "resolution": "Regenerate `work-packages.yaml` from the current schema/template and include full execution metadata for every package: lock claims, worktree name, timeout/retry settings, verification steps, outputs, and explicit deny globs.",
+      "disposition": "regenerate"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The three new durable artifacts are the primary interface between `plan-roadmap` and `autopilot-roadmap`, but `contracts/README.md` only names them in prose. The spec depends on concrete fields such as item status, dependency IDs, checkpoint phase pointers, resume state, and cost/latency deltas, yet none of those are defined machine-readably. That leaves the two skills without a stable contract for parallel implementation.",
+      "resolution": "Add machine-readable contracts for `roadmap.yaml` and `checkpoint.json`, plus a structured format or parser contract for `learning-log.md`, including required fields, enums, parent/child references, dependency encoding, and allowed state transitions.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The design introduces a shared `roadmap_runtime` library, but the work-package scopes place that shared code under both `skills/plan-roadmap/...` and `skills/autopilot-roadmap/...`. That breaks the repository's established pattern for cross-skill shared code and encourages either duplicated runtime logic or imports from consumer-owned directories.",
+      "resolution": "Define one canonical shared location for roadmap runtime helpers, following the repo's shared-script pattern, and update package scopes so only that shared location owns the runtime code.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The design says state is stored on disk 'under a roadmap workspace' but never defines the actual repository path or how that workspace links to spawned child `openspec/changes/<change-id>/` directories. Without a canonical location and parent-child reference model, worktree scoping, resume behavior, and cleanup semantics are underspecified.",
+      "resolution": "Add an explicit artifact-location model covering the roadmap root path, how roadmap items map to child change IDs, how child changes reference their parent roadmap, and which paths each skill is allowed to read and modify.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "medium",
+      "description": "The plan persists checkpoints and learning logs as repository files, but it does not require redaction or sanitization before writing them. Because these artifacts may capture vendor errors, prompts, environment-derived values, or implementation notes, the current design creates a credible secret-exposure path in durable, potentially committed state.",
+      "resolution": "Add a requirement that roadmap artifacts store only structured summaries, never raw credentials, tokens, env var values, or full vendor transcripts, and require a sanitizer/redaction pass before artifact writes.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "The failure model covers malformed artifacts, interruption, dependency mismatch, and 'no alternate vendor', but it does not define what happens when a roadmap item itself fails implementation or review, or when an alternate vendor also times out or hits limits. That leaves per-item terminal states, retry ceilings, and dependency propagation undefined on the most likely failure paths.",
+      "resolution": "Add explicit scenarios for item failure, review rejection, transient vendor errors, alternate-vendor failure, maximum switch attempts, and the resulting state transitions (`failed`, `blocked`, `replan_required`) plus required checkpoint and learning-log updates.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "There are no structured logging, metrics, or alerting requirements for roadmap execution. For a long-running multi-vendor orchestrator, lack of observable state transitions, checkpoint restores, policy decisions, blocked states, and repeated resume failures will make debugging and auditability ad hoc.",
+      "resolution": "Add observability requirements for structured events and metrics around item lifecycle transitions, policy decisions, checkpoint save/restore, vendor dispatch and failover, and learning ingestion, plus alert criteria for blocked roadmaps and repeated recovery failures.",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "type": "performance",
+      "criticality": "medium",
+      "description": "The proposal explicitly targets 'long markdown proposals' and an append-only `learning-log.md`, yet the spec does not define chunking, bounded context assembly, or compaction rules. As written, decomposition and later replanning can devolve into repeated full-file scans of large proposals and logs, which undermines the long-running roadmap use case and can exceed model context budgets.",
+      "resolution": "Specify deterministic chunking/pagination for large proposal inputs, bounded learning-log ingestion via cursor or window limits, and compaction/summary rules once the log exceeds a defined size threshold.",
+      "disposition": "fix"
+    }
+  ]
+}
