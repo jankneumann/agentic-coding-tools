@@ -3,78 +3,365 @@ schema_version: 1
 feature:
   id: roadmap-openspec-orchestration
   title: "Roadmap-Oriented OpenSpec Planning and Execution"
-  plan_revision: 2
+  plan_revision: 3
   created_by: codex
   created_at: "2026-04-13T00:00:00Z"
 
 contracts:
-  revision: 1
-  openapi:
-    primary: openspec/changes/roadmap-openspec-orchestration/contracts/README.md
-    files:
-      - openspec/changes/roadmap-openspec-orchestration/contracts/README.md
+  revision: 2
+  schemas:
+    - openspec/changes/roadmap-openspec-orchestration/contracts/roadmap.schema.json
+    - openspec/changes/roadmap-openspec-orchestration/contracts/checkpoint.schema.json
+    - openspec/changes/roadmap-openspec-orchestration/contracts/learning-log.schema.json
+  readme: openspec/changes/roadmap-openspec-orchestration/contracts/README.md
 
 defaults:
   priority: 5
-  timeout_minutes: 120
+  timeout_minutes: 90
   retry_budget: 1
 
 packages:
+  # ──────────────────────────────────────────────────────────────
+  # wp-runtime: Shared roadmap runtime library
+  # Standalone, no dependencies
+  # ──────────────────────────────────────────────────────────────
   - package_id: wp-runtime
-    name: "Roadmap runtime artifacts and checkpointing"
-    description: "Shared schemas, parser, validation, and resume/checkpoint primitives used by both roadmap skills."
-    tasks: ["1.1", "1.2", "1.3", "1.4"]
+    title: "Roadmap runtime: artifacts, checkpointing, and sanitization"
+    task_type: implementation
+    description: >
+      Shared runtime library at skills/roadmap-runtime/ providing artifact models
+      with JSON Schema validation, checkpoint save/restore/advance, learning-log
+      read/write with progressive disclosure, sanitization utilities, and bounded
+      context assembly. Used by both plan-roadmap and autopilot-roadmap.
+    tasks: ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6"]
     priority: 1
     depends_on: []
+    locks:
+      files:
+        - skills/roadmap-runtime/scripts/models.py
+        - skills/roadmap-runtime/scripts/checkpoint.py
+        - skills/roadmap-runtime/scripts/learning.py
+        - skills/roadmap-runtime/scripts/sanitizer.py
+        - skills/roadmap-runtime/scripts/context.py
+      keys:
+        - "feature:roadmap-openspec-orchestration:runtime"
+      ttl_minutes: 180
+      reason: "Shared roadmap runtime library"
     scope:
       write_allow:
-        - "skills/plan-roadmap/scripts/runtime/**"
-        - "skills/autopilot-roadmap/scripts/runtime/**"
-        - "skills/plan-roadmap/tests/runtime/**"
-        - "skills/autopilot-roadmap/tests/runtime/**"
+        - "skills/roadmap-runtime/**"
       read_allow:
         - "skills/**"
-        - "openspec/**"
+        - "openspec/changes/roadmap-openspec-orchestration/contracts/**"
+      deny:
+        - "skills/plan-roadmap/**"
+        - "skills/autopilot-roadmap/**"
+    worktree:
+      name: wp-runtime
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Runtime unit tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest roadmap-runtime/scripts/tests/ -v"
+          evidence:
+            artifacts:
+              - skills/roadmap-runtime/scripts/tests/test_models.py
+              - skills/roadmap-runtime/scripts/tests/test_checkpoint.py
+              - skills/roadmap-runtime/scripts/tests/test_learning.py
+              - skills/roadmap-runtime/scripts/tests/test_sanitizer.py
+              - skills/roadmap-runtime/scripts/tests/test_context.py
+            result_keys:
+              - runtime_tests
+        - name: "Schema validation"
+          kind: command
+          command: >
+            python3 -c "import json, jsonschema;
+            [jsonschema.validate({}, json.load(open(f)))
+             for f in ['openspec/changes/roadmap-openspec-orchestration/contracts/roadmap.schema.json',
+                        'openspec/changes/roadmap-openspec-orchestration/contracts/checkpoint.schema.json',
+                        'openspec/changes/roadmap-openspec-orchestration/contracts/learning-log.schema.json']]
+            " 2>&1 || true
+          evidence:
+            artifacts: []
+            result_keys:
+              - schema_valid
+        - name: "Type checking"
+          kind: command
+          command: "cd skills && .venv/bin/python -m mypy --strict roadmap-runtime/scripts/*.py --ignore-missing-imports"
+          evidence:
+            artifacts: []
+            result_keys:
+              - mypy
+        - name: "Lint check"
+          kind: command
+          command: "cd skills && .venv/bin/python -m ruff check roadmap-runtime/scripts/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - ruff
+    outputs:
+      result_keys:
+        - models_created
+        - checkpoint_manager_created
+        - learning_helpers_created
+        - sanitizer_created
+        - context_assembly_created
+      artifacts:
+        - skills/roadmap-runtime/scripts/models.py
+        - skills/roadmap-runtime/scripts/checkpoint.py
+        - skills/roadmap-runtime/scripts/learning.py
+        - skills/roadmap-runtime/scripts/sanitizer.py
+        - skills/roadmap-runtime/scripts/context.py
 
+  # ──────────────────────────────────────────────────────────────
+  # wp-plan-roadmap: Decomposition workflow
+  # Depends on wp-runtime
+  # ──────────────────────────────────────────────────────────────
   - package_id: wp-plan-roadmap
-    name: "Plan-roadmap decomposition workflow"
-    description: "Build roadmap decomposition and approved-candidate scaffold generation."
+    title: "Plan-roadmap: proposal decomposition and scaffold generation"
+    task_type: implementation
+    description: >
+      Build the plan-roadmap skill: decomposition engine that extracts candidates
+      from long proposals with item size validation (merge undersized, split oversized),
+      DAG builder, and OpenSpec change scaffold generator with parent_roadmap linking.
     tasks: ["2.1", "2.2", "2.3"]
     priority: 2
     depends_on: ["wp-runtime"]
+    locks:
+      files:
+        - skills/plan-roadmap/scripts/decomposer.py
+        - skills/plan-roadmap/scripts/scaffolder.py
+      keys:
+        - "feature:roadmap-openspec-orchestration:plan-roadmap"
+      ttl_minutes: 180
+      reason: "Plan-roadmap decomposition skill"
     scope:
       write_allow:
         - "skills/plan-roadmap/**"
       read_allow:
         - "skills/**"
         - "openspec/**"
+      deny:
+        - "skills/autopilot-roadmap/**"
+        - "skills/roadmap-runtime/**"
+    worktree:
+      name: wp-plan-roadmap
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Decomposition tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest plan-roadmap/scripts/tests/ -v"
+          evidence:
+            artifacts:
+              - skills/plan-roadmap/scripts/tests/test_decomposer.py
+              - skills/plan-roadmap/scripts/tests/test_scaffolder.py
+            result_keys:
+              - decomposition_tests
+        - name: "Type checking"
+          kind: command
+          command: "cd skills && .venv/bin/python -m mypy --strict plan-roadmap/scripts/*.py --ignore-missing-imports"
+          evidence:
+            artifacts: []
+            result_keys:
+              - mypy
+        - name: "Lint check"
+          kind: command
+          command: "cd skills && .venv/bin/python -m ruff check plan-roadmap/scripts/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - ruff
+    outputs:
+      result_keys:
+        - decomposer_created
+        - scaffolder_created
+        - skill_md_created
+      artifacts:
+        - skills/plan-roadmap/scripts/decomposer.py
+        - skills/plan-roadmap/scripts/scaffolder.py
+        - skills/plan-roadmap/SKILL.md
 
+  # ──────────────────────────────────────────────────────────────
+  # wp-autopilot-roadmap: Execution orchestration
+  # Depends on wp-runtime (parallel with wp-plan-roadmap)
+  # ──────────────────────────────────────────────────────────────
   - package_id: wp-autopilot-roadmap
-    name: "Autopilot-roadmap orchestration workflow"
-    description: "Implement policy-aware routing, execution loop, and learning feedback for roadmap items."
+    title: "Autopilot-roadmap: execution loop, policy engine, and learning feedback"
+    task_type: implementation
+    description: >
+      Implement the autopilot-roadmap skill: policy-aware vendor routing with cascading
+      failover, roadmap execution orchestrator delegating to existing implement/review
+      skills, learning-log writer with sanitization, pre-run learning ingestion,
+      and adaptive item reprioritization.
     tasks: ["3.1", "3.2", "3.3", "3.4"]
     priority: 2
     depends_on: ["wp-runtime"]
+    locks:
+      files:
+        - skills/autopilot-roadmap/scripts/orchestrator.py
+        - skills/autopilot-roadmap/scripts/policy.py
+        - skills/autopilot-roadmap/scripts/replanner.py
+      keys:
+        - "feature:roadmap-openspec-orchestration:autopilot-roadmap"
+      ttl_minutes: 180
+      reason: "Autopilot-roadmap execution skill"
     scope:
       write_allow:
         - "skills/autopilot-roadmap/**"
       read_allow:
         - "skills/**"
         - "openspec/**"
+      deny:
+        - "skills/plan-roadmap/**"
+        - "skills/roadmap-runtime/**"
+    worktree:
+      name: wp-autopilot-roadmap
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Policy engine tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest autopilot-roadmap/scripts/tests/test_policy.py -v"
+          evidence:
+            artifacts:
+              - skills/autopilot-roadmap/scripts/tests/test_policy.py
+            result_keys:
+              - policy_tests
+        - name: "Orchestrator tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest autopilot-roadmap/scripts/tests/test_orchestrator.py -v"
+          evidence:
+            artifacts:
+              - skills/autopilot-roadmap/scripts/tests/test_orchestrator.py
+            result_keys:
+              - orchestrator_tests
+        - name: "Replanner tests"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest autopilot-roadmap/scripts/tests/test_replanner.py -v"
+          evidence:
+            artifacts:
+              - skills/autopilot-roadmap/scripts/tests/test_replanner.py
+            result_keys:
+              - replanner_tests
+        - name: "Full autopilot-roadmap test suite"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest autopilot-roadmap/scripts/tests/ -v"
+          evidence:
+            artifacts: []
+            result_keys:
+              - full_tests
+        - name: "Type checking"
+          kind: command
+          command: "cd skills && .venv/bin/python -m mypy --strict autopilot-roadmap/scripts/*.py --ignore-missing-imports"
+          evidence:
+            artifacts: []
+            result_keys:
+              - mypy
+    outputs:
+      result_keys:
+        - orchestrator_created
+        - policy_engine_created
+        - replanner_created
+        - skill_md_created
+      artifacts:
+        - skills/autopilot-roadmap/scripts/orchestrator.py
+        - skills/autopilot-roadmap/scripts/policy.py
+        - skills/autopilot-roadmap/scripts/replanner.py
+        - skills/autopilot-roadmap/SKILL.md
 
+  # ──────────────────────────────────────────────────────────────
+  # wp-integration: E2E tests, docs, CLAUDE.md, validation
+  # Depends on both implementation packages
+  # ──────────────────────────────────────────────────────────────
   - package_id: wp-integration
-    name: "Roadmap integration and docs"
-    description: "End-to-end verification, docs updates, and final strict validation."
-    tasks: ["4.1", "4.2", "4.3"]
+    title: "Integration tests, documentation, and CLAUDE.md updates"
+    task_type: implementation
+    description: >
+      End-to-end verification of full lifecycle (plan roadmap → execute item A →
+      adapt item B), documentation updates for skills-workflow.md and
+      parallel-agentic-development.md, CLAUDE.md workflow table update with new
+      roadmap skill entry points, and final strict OpenSpec validation.
+    tasks: ["4.1", "4.2", "4.3", "4.4"]
     priority: 3
     depends_on: ["wp-plan-roadmap", "wp-autopilot-roadmap"]
+    locks:
+      files: []
+      keys:
+        - "feature:roadmap-openspec-orchestration:integration"
+      ttl_minutes: 120
+      reason: "Integration tests and documentation"
     scope:
       write_allow:
         - "docs/skills-workflow.md"
         - "docs/parallel-agentic-development.md"
-        - "skills/plan-roadmap/tests/integration/**"
-        - "skills/autopilot-roadmap/tests/integration/**"
+        - "CLAUDE.md"
+        - "skills/plan-roadmap/scripts/tests/integration/**"
+        - "skills/autopilot-roadmap/scripts/tests/integration/**"
+        - "skills/roadmap-runtime/scripts/tests/integration/**"
       read_allow:
         - "skills/**"
         - "openspec/**"
         - "docs/**"
+      deny: []
+    worktree:
+      name: wp-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 1
+    verification:
+      tier_required: B
+      steps:
+        - name: "Integration tests"
+          kind: command
+          command: >
+            cd skills && .venv/bin/python -m pytest
+            roadmap-runtime/scripts/tests/integration/
+            plan-roadmap/scripts/tests/integration/
+            autopilot-roadmap/scripts/tests/integration/ -v
+          evidence:
+            artifacts: []
+            result_keys:
+              - integration_tests
+        - name: "Full roadmap test suite"
+          kind: command
+          command: >
+            cd skills && .venv/bin/python -m pytest
+            roadmap-runtime/scripts/tests/
+            plan-roadmap/scripts/tests/
+            autopilot-roadmap/scripts/tests/ -v
+          evidence:
+            artifacts: []
+            result_keys:
+              - full_tests
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate roadmap-openspec-orchestration --strict"
+          evidence:
+            artifacts: []
+            result_keys:
+              - openspec_validate
+    outputs:
+      result_keys:
+        - integration_validated
+        - docs_updated
+        - claude_md_updated
+        - openspec_validated
+      artifacts:
+        - docs/skills-workflow.md
+        - docs/parallel-agentic-development.md
+        - CLAUDE.md
