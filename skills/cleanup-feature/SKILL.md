@@ -230,6 +230,33 @@ After merge, refresh project-global architecture artifacts:
 make architecture
 ```
 
+### 4.5. Fast-Forward Submodule Main Branches
+
+If the merged PR bumped any submodule gitlink SHAs (e.g., personas/ mount points), their own `main` branches must be fast-forwarded to avoid silent divergence.
+
+```bash
+# Detect changed submodules and sync their main branches
+python3 "<skill-base-dir>/scripts/sync_submodules.py" \
+  --repo-dir "." \
+  --feature-branch "$FEATURE_BRANCH"
+```
+
+This script:
+1. Detects submodules whose SHA changed via `git diff --raw main@{1} main` (mode 160000 = gitlink)
+2. For each changed submodule:
+   - Fetches `origin main` inside the submodule
+   - Switches to main and fast-forwards (`--ff-only`) to the SHA the parent records
+   - Pushes main to the submodule's remote
+   - Deletes the submodule's feature branch (local + remote)
+3. If the fast-forward fails (non-FF changes on submodule main), logs a warning and stops for that submodule — does NOT force-merge
+
+**Credential handling**: The same credentials may not work for the submodule's private remote. On auth/push failure, the script:
+- Logs a clear diagnostic (submodule path, remote URL, error)
+- Prints operator handoff commands to run manually
+- Continues with the rest of cleanup (does not abort)
+
+If no submodules changed, this step is a no-op.
+
 ### 5. Migrate Open Tasks
 
 Before archiving, check for incomplete tasks in the proposal. Open tasks must not be silently dropped.
@@ -389,7 +416,13 @@ If `CAN_LOCK=true`, perform best-effort lock cleanup for files touched on the fe
 
 ### 8.5. Remove Worktrees
 
-Remove all worktrees for this feature (including the cleanup worktree):
+Remove all worktrees for this feature (including the cleanup worktree).
+
+**Submodule handling**: `worktree.py teardown` automatically handles worktrees containing initialized submodules:
+1. Runs `git submodule deinit -f --all` inside the worktree first
+2. Attempts normal `git worktree remove`
+3. If removal still fails with *"working trees containing submodules cannot be moved or removed"*, falls back to `git worktree remove --force` (safe because the worktree's branch is already merged/pushed)
+4. Other removal errors (dirty tree, conflicts) are NOT force-overridden — they surface for operator attention
 
 ```bash
 # Return to shared checkout first (cleanup worktree is about to be removed)
