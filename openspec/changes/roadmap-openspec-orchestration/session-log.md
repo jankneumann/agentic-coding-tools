@@ -23,3 +23,29 @@
 
 ### Context
 The planning goal was to evaluate and structure a workflow for decomposing long model-authored proposals into iterative OpenSpec changes. The resulting direction is a roadmap orchestration layer that remains compatible with existing skills while adding adaptive execution and explicit learning feedback between phases.
+
+---
+
+## Phase: Iterate-on-Plan (2026-04-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Added explicit Impact section** — aligned proposal with affected capability, skills, and docs.
+2. **Strengthened spec testability** — added failure/edge scenarios for each requirement area.
+3. **Improved parallelizability** — replaced single `wp-main` with decomposed work packages and dependency DAG.
+4. **Clarified assumptions as decisions** — made policy defaults and state authority explicit.
+
+### Alternatives Considered
+- Keep single-package sequential plan: rejected due to poor parallel execution clarity.
+- Keep generic success-only scenarios: rejected due to weak testability.
+
+### Trade-offs
+- Added planning detail and structure at the cost of a longer artifact set.
+- Increased upfront rigor to reduce ambiguity during `/implement-feature`.
+
+### Open Questions
+- [ ] Should policy thresholds be stored globally (config) or per-roadmap?
+
+### Context
+This refinement addressed plan-quality gaps: missing impact detail, limited failure-path coverage, and insufficient package decomposition for parallel execution.

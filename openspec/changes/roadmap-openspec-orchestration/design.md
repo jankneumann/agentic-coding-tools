@@ -2,39 +2,64 @@
 
 ## Overview
 
-This change introduces two orchestration skills that sit above existing single-change workflows:
+This change adds a roadmap orchestration layer above existing single-change OpenSpec workflows.
 
-1. **plan-roadmap**: parse and decompose long strategic markdown into a roadmap DAG of OpenSpec changes.
-2. **autopilot-roadmap**: execute roadmap DAG items iteratively using existing implementation/review skills, while feeding learnings forward.
+- `plan-roadmap`: proposal decomposition + roadmap artifact generation
+- `autopilot-roadmap`: item execution loop + policy routing + learning feedback
+- `roadmap_runtime`: shared artifact validation, checkpointing, and context assembly
 
-## Decision Log
+## Architecture
 
-- **D1: Orchestrator-over-rewrite architecture** — New roadmap skills orchestrate existing skills instead of modifying every skill deeply.
-- **D2: Filesystem-first durable state** — Roadmap progress is persisted under each change to support context reload and interruption recovery.
-- **D3: Policy-driven vendor routing** — Limit handling is configuration-driven (wait vs switch), with telemetry captured for trade-off tuning.
-- **D4: Progressive context loading** — Each phase loads only bounded artifacts (roadmap state + current item + recent learning entries).
+### Components
 
-## Artifacts
+1. **Roadmap Runtime Library**
+   - Artifact models and validation
+   - Checkpoint manager
+   - Learning-log read/write helpers
 
-- `roadmap.yaml`: ordered roadmap items with dependency edges and status.
-- `checkpoint.json`: current phase pointer and completed phase history.
-- `learning-log.md`: decision and retrospective summary per executed item.
+2. **Plan Roadmap Skill**
+   - Decomposition analyzer
+   - Candidate DAG builder
+   - OpenSpec change scaffold generator
 
-## Execution Flow
+3. **Autopilot Roadmap Skill**
+   - Ready-item selector (dependency-aware)
+   - Policy engine for usage limits
+   - Delegation bridge to existing implementation/review skills
+   - Adaptive replanner using learning-log deltas
 
-1. `plan-roadmap` builds candidate list and dependency DAG from proposal.
-2. User approves roadmap items.
-3. `autopilot-roadmap` selects next ready item.
-4. Existing implementation/review skills run for that item.
-5. Learnings and metrics are persisted.
-6. Remaining roadmap items are re-ranked/reworded based on new constraints.
-7. Loop until roadmap complete or paused.
+### State Model
 
-## Risk Mitigations
+Filesystem under a roadmap workspace:
+- `roadmap.yaml` → roadmap items + dependencies + status
+- `checkpoint.json` → phase pointer + last successful step
+- `learning-log.md` → append-only per-item learnings
 
-- **Risk**: Over-decomposition into too many tiny changes.
-  - **Mitigation**: enforce minimum change granularity heuristic and manual approval gate.
-- **Risk**: Vendor switching increases quality variance.
-  - **Mitigation**: use role-based dispatch and keep parallel review as final quality equalizer.
-- **Risk**: Artifact drift between disk and coordinator state.
-  - **Mitigation**: coordinator optional, file artifacts remain canonical fallback.
+Coordinator memory (optional):
+- phase summary mirrors artifact state for faster cloud/runtime resume
+
+## Key Decisions
+
+- **D1 Orchestrator-over-rewrite**: Keep existing skills intact and orchestrate them.
+- **D2 Filesystem canonical state**: Disk artifacts are source of truth; coordinator state is cache.
+- **D3 Policy defaults**: default wait policy to minimize cost surprises; switch policy opt-in.
+- **D4 Dependency safety**: roadmap items execute only when dependencies complete.
+- **D5 Progressive context loading**: load only current-item artifacts and recent learning entries.
+
+## Alternatives Considered
+
+- **Embed roadmap mode into existing skills**: rejected due to complexity concentration.
+- **Coordinator-only implementation first**: rejected due to higher deployment coupling.
+
+## Failure and Recovery Design
+
+1. **Malformed artifacts**: validation fails fast with repair guidance and no partial execution.
+2. **Usage-limit block with no alternate vendor**: roadmap moves to blocked state with explicit next action.
+3. **Interrupted execution**: checkpoint resume restores to last successful phase.
+4. **Dependency mismatch**: execution rejected until dependency completion recorded.
+
+## Verification Strategy
+
+- Unit tests for parser/validator/checkpoint manager and policy engine.
+- Integration tests for decomposition-to-execution handoff.
+- OpenSpec strict validation before approval gate.
