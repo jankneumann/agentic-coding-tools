@@ -310,10 +310,33 @@ class CliVendorAdapter:
         )
 
     @staticmethod
+    def _extract_findings(data: dict[str, Any]) -> dict[str, Any] | None:
+        """Extract findings from a parsed JSON dict.
+
+        Handles both direct findings objects and vendor CLI envelopes.
+        Gemini CLI ``-o json`` wraps model output in
+        ``{"session_id": ..., "response": "<json-string>", "stats": ...}``.
+        """
+        if "findings" in data:
+            return data
+        # Unwrap vendor envelopes (e.g. Gemini -o json)
+        resp = data.get("response")
+        if isinstance(resp, str):
+            try:
+                inner = json.loads(resp)
+                if isinstance(inner, dict) and "findings" in inner:
+                    return inner
+            except json.JSONDecodeError:
+                pass
+        return None
+
+    @staticmethod
     def _parse_findings(stdout: str) -> dict[str, Any] | None:
         """Try to parse review findings JSON from stdout.
 
-        Handles cases where the vendor outputs extra text before/after JSON.
+        Handles cases where the vendor outputs extra text before/after JSON,
+        and vendor CLI envelopes that wrap model output (e.g. Gemini
+        ``-o json`` producing ``{"response": "<escaped-json>"}``).
         """
         text = stdout.strip()
         if not text:
@@ -322,8 +345,10 @@ class CliVendorAdapter:
         # Try direct parse
         try:
             data = json.loads(text)
-            if isinstance(data, dict) and "findings" in data:
-                return data
+            if isinstance(data, dict):
+                result = CliVendorAdapter._extract_findings(data)
+                if result is not None:
+                    return result
         except json.JSONDecodeError:
             pass
 
@@ -333,8 +358,10 @@ class CliVendorAdapter:
         if brace_start >= 0 and brace_end > brace_start:
             try:
                 data = json.loads(text[brace_start:brace_end + 1])
-                if isinstance(data, dict) and "findings" in data:
-                    return data
+                if isinstance(data, dict):
+                    result = CliVendorAdapter._extract_findings(data)
+                    if result is not None:
+                        return result
             except json.JSONDecodeError:
                 pass
 

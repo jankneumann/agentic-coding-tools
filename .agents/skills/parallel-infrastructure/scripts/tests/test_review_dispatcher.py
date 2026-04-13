@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from review_dispatcher import (
     CliConfig,
     CliVendorAdapter,
@@ -20,7 +19,6 @@ from review_dispatcher import (
     SdkVendorAdapter,
     classify_error,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -117,15 +115,28 @@ class TestBuildCommand:
         assert cmd == ["codex", "exec", "-s", "read-only", "-m", "gpt-4.1", "Review this"]
 
     def test_gemini_flags(self) -> None:
-        adapter = _adapter(
+        adapter = CliVendorAdapter(
             agent_id="gemini-local",
             vendor="gemini",
-            command="gemini",
-            review_args=["--approval-mode", "default", "-o", "json"],
-            model_flag="-m",
+            cli_config=CliConfig(
+                command="gemini",
+                dispatch_modes={
+                    "review": ModeConfig(args=[
+                        "-p", "Respond with ONLY valid JSON.",
+                        "--approval-mode", "default", "-o", "text",
+                    ]),
+                },
+                model_flag="-m",
+                prompt_via_stdin=True,
+            ),
         )
+        # With prompt_via_stdin=True, prompt is NOT appended to command
         cmd = adapter.build_command("review", "prompt")
-        assert cmd == ["gemini", "--approval-mode", "default", "-o", "json", "prompt"]
+        assert cmd == [
+            "gemini", "-p", "Respond with ONLY valid JSON.",
+            "--approval-mode", "default", "-o", "text",
+        ]
+        assert "prompt" not in cmd  # prompt goes via stdin, not positional
 
     def test_claude_flags(self) -> None:
         adapter = _adapter(
@@ -257,6 +268,58 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is True
         assert result.findings is not None
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_gemini_json_envelope(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        """Gemini -o json wraps model output in {"response": "<json>"}."""
+        envelope = json.dumps({
+            "session_id": "abc-123",
+            "response": VALID_FINDINGS_JSON,
+            "stats": {"models": {}},
+        })
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_gemini_envelope_with_invalid_inner_json(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Gemini envelope with non-JSON response string → fails gracefully."""
+        envelope = json.dumps({
+            "session_id": "abc-123",
+            "response": "I could not produce valid JSON.",
+            "stats": {},
+        })
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_gemini_envelope_missing_findings_key(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Gemini envelope with JSON response but no 'findings' key."""
+        inner = json.dumps({"review_type": "plan", "target": "test"})
+        envelope = json.dumps({
+            "session_id": "abc-123",
+            "response": inner,
+            "stats": {},
+        })
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
 
 
 # ---------------------------------------------------------------------------
