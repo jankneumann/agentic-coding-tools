@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/learning-log.schema.json",
+  "title": "Learning Log Entry",
+  "description": "Defines the structure of individual learning entries stored in learnings/<item-id>.md frontmatter. The root learning-log.md is an index; per-phase entries live in the learnings/ subfolder.",
+  "type": "object",
+  "required": ["schema_version", "item_id", "timestamp", "decisions"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "item_id": {
+      "type": "string",
+      "description": "The roadmap item this learning entry relates to."
+    },
+    "change_id": {
+      "type": "string",
+      "description": "The OpenSpec change-id that was implemented for this item."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["planning", "implementation", "review", "validation"],
+      "description": "Which execution phase produced this learning."
+    },
+    "decisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["title", "outcome"],
+        "properties": {
+          "title": { "type": "string" },
+          "outcome": { "type": "string" },
+          "alternatives_rejected": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "description": "Key decisions made during this item's execution."
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "resolution"],
+        "properties": {
+          "description": { "type": "string" },
+          "resolution": { "type": "string" },
+          "duration_minutes": { "type": "integer" }
+        }
+      },
+      "description": "Blockers encountered and how they were resolved."
+    },
+    "deviations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from_plan", "actual", "reason"],
+        "properties": {
+          "from_plan": { "type": "string" },
+          "actual": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "description": "Where implementation deviated from the original plan."
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Suggestions for pending roadmap items based on this item's experience."
+    },
+    "vendor_notes": {
+      "type": "object",
+      "description": "Vendor-specific observations (performance, capability gaps, cost). MUST NOT contain credentials, tokens, or raw prompts.",
+      "properties": {
+        "vendor": { "type": "string" },
+        "capability_gaps": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cost_observed_usd": { "type": "number" },
+        "latency_observed_seconds": { "type": "number" }
+      }
+    }
+  }
+}

@@ -3,7 +3,7 @@
 **Change ID**: `roadmap-openspec-orchestration`
 **Status**: Draft
 **Created**: 2026-04-13
-**Updated**: 2026-04-13 (iteration 2)
+**Updated**: 2026-04-13 (iteration 3)
 **Author**: Codex
 
 ## Why
@@ -30,11 +30,13 @@ Add two new skills and shared scripts:
    - Re-ranks remaining roadmap items from evidence after each completed item
    - Applies configurable policy when vendor/session limits are hit
 
-3. **Shared roadmap runtime utilities**
-   - Artifact schema + validation
-   - Checkpoint/resume logic
-   - Policy engine (wait vs switch vendor)
-   - Learning ingestion and context assembly helpers
+3. **Shared roadmap runtime library** (`skills/roadmap-runtime/`)
+   - Artifact models with JSON Schema validation (against `contracts/*.schema.json`)
+   - Checkpoint save/restore/advance logic
+   - Policy engine (wait vs switch vendor) with cascading failover
+   - Learning-log read/write with progressive disclosure (root index + per-item entries)
+   - Sanitization utilities preventing secret exposure in persisted artifacts
+   - Bounded context assembly helpers
 
 ## Impact
 
@@ -42,13 +44,20 @@ Add two new skills and shared scripts:
 - **New capability**: `roadmap-orchestration` (this change adds the initial spec delta)
 
 ### Affected Skills
+- New: `skills/roadmap-runtime/` (shared library)
 - New: `skills/plan-roadmap/`
 - New: `skills/autopilot-roadmap/`
 - Reused (not replaced): `explore-feature`, `plan-feature`, `autopilot`, `iterate-on-plan`, `parallel-review-plan`, `parallel-review-implementation`
 
 ### Affected Documentation
+- `CLAUDE.md` (workflow table: add roadmap skill entry points, maintaining progressive disclosure)
 - `docs/skills-workflow.md` (new roadmap phase entry)
 - `docs/parallel-agentic-development.md` (roadmap orchestration + policy routing)
+
+### Affected Contracts
+- New: `contracts/roadmap.schema.json` — roadmap artifact schema
+- New: `contracts/checkpoint.schema.json` — checkpoint state schema
+- New: `contracts/learning-log.schema.json` — learning entry schema
 
 ## Approaches Considered
 
@@ -108,9 +117,11 @@ Add `plan-roadmap` and `autopilot-roadmap` as orchestration skills and keep exis
 
 ### In Scope
 - New skills, scripts, and tests for roadmap decomposition + execution.
-- Roadmap artifacts (`roadmap.yaml`, `checkpoint.json`, `learning-log.md`) and schema validation.
-- Usage-limit-aware scheduling policy engine.
-- Learning feedback loop that updates pending roadmap items.
+- Roadmap artifacts (`roadmap.yaml`, `checkpoint.json`, `learning-log.md` + `learnings/`) with JSON Schema contracts.
+- Usage-limit-aware scheduling policy engine with cascading vendor failover.
+- Learning feedback loop with progressive disclosure (root index + per-item entries, compaction at 50 entries).
+- Artifact sanitization preventing secret exposure in persisted state.
+- Structured observability events for item transitions, policy decisions, and checkpoint operations.
 
 ### Out of Scope
 - Auto-merge to main without existing gates.

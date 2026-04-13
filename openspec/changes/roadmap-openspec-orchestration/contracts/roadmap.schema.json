@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/roadmap.schema.json",
+  "title": "Roadmap Artifact",
+  "description": "Defines the structure of roadmap.yaml — the primary artifact produced by plan-roadmap and consumed by autopilot-roadmap.",
+  "type": "object",
+  "required": ["schema_version", "roadmap_id", "source_proposal", "items"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "roadmap_id": {
+      "type": "string",
+      "description": "Unique identifier for this roadmap, typically derived from the source proposal filename."
+    },
+    "source_proposal": {
+      "type": "string",
+      "description": "Path or URI to the original long markdown proposal that was decomposed."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planning", "approved", "in_progress", "blocked", "completed", "abandoned"],
+      "description": "Overall roadmap lifecycle status."
+    },
+    "policy": {
+      "type": "object",
+      "description": "Vendor scheduling policy configuration for this roadmap.",
+      "properties": {
+        "default_action": {
+          "type": "string",
+          "enum": ["wait_if_budget_exceeded", "switch_if_time_saved"],
+          "default": "wait_if_budget_exceeded"
+        },
+        "cost_ceiling_usd": {
+          "type": "number",
+          "description": "Maximum additional cost allowed when switching vendors. Required when default_action is switch_if_time_saved."
+        },
+        "max_switch_attempts_per_item": {
+          "type": "integer",
+          "default": 2,
+          "description": "Maximum vendor switches allowed per roadmap item before failing closed."
+        },
+        "preferred_vendor": {
+          "type": "string",
+          "description": "Primary vendor to use for implementation. Falls back to alternates per policy."
+        }
+      },
+      "required": ["default_action"]
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/roadmap_item"
+      }
+    }
+  },
+  "$defs": {
+    "roadmap_item": {
+      "type": "object",
+      "required": ["item_id", "title", "status", "priority", "effort", "depends_on"],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "description": "Unique item identifier within this roadmap (e.g., 'ri-01')."
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Brief description of the capability or change this item delivers."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this item is needed and how it contributes to the overall proposal."
+        },
+        "change_id": {
+          "type": "string",
+          "description": "OpenSpec change-id once the item is approved and scaffolded. Null while in planning."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["candidate", "approved", "in_progress", "completed", "failed", "blocked", "replan_required", "skipped"],
+          "description": "Item lifecycle status."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Execution priority (1 = highest). May be updated by learning feedback."
+        },
+        "effort": {
+          "type": "string",
+          "enum": ["XS", "S", "M", "L", "XL"],
+          "description": "Estimated implementation effort."
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Item IDs that must complete before this item can execute."
+        },
+        "acceptance_outcomes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Measurable outcomes that define when this item is complete."
+        },
+        "failure_reason": {
+          "type": "string",
+          "description": "Populated when status is 'failed' — explains why implementation failed."
+        },
+        "blocked_by": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Populated when status is 'blocked' — lists missing dependency IDs or vendor constraints."
+        },
+        "learning_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths to learning entries (in learnings/ subfolder) that influenced this item's priority or scope."
+        }
+      }
+    }
+  }
+}
