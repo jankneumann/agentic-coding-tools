@@ -375,9 +375,10 @@ def _build_summary(
     )
 
     total = len(roadmap.items)
+    terminal_count = completed_count + failed_count + blocked_count + skipped_count
     if completed_count == total:
         status = "completed"
-    elif completed_count + failed_count + blocked_count >= total:
+    elif terminal_count >= total:
         status = "blocked_all"
     elif completed_count > 0:
         status = "partial"

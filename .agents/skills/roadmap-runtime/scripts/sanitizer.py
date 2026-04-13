@@ -16,7 +16,7 @@ _SENSITIVE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("password", re.compile(r"(?:password|passwd|pwd)\s*[:=]\s*\S+", re.IGNORECASE)),
     ("secret", re.compile(r"(?:secret|private[_-]?key)\s*[:=]\s*\S+", re.IGNORECASE)),
     ("env_var", re.compile(r"\$\{[A-Z_]+\}", re.IGNORECASE)),
-    ("base64_key", re.compile(r"[A-Za-z0-9+/]{40,}={0,2}")),
+    ("base64_key", re.compile(r"[A-Za-z0-9+/]{40,}={1,2}")),
     ("aws_key", re.compile(r"AKIA[0-9A-Z]{16}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
 ]

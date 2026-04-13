@@ -98,6 +98,6 @@ def _extract_item_references(text: str, valid_ids: set[str]) -> list[str]:
     Looks for patterns like ``ri-01``, ``ri-02``, etc. and returns
     only those that are in the valid_ids set.
     """
-    # Match common item ID patterns (ri-NN, item-NN, etc.)
-    candidates = set(re.findall(r"\b(ri-\d+)\b", text, re.IGNORECASE))
+    # Match item ID patterns: ri-01, ri-01-slug-text, etc.
+    candidates = set(re.findall(r"\b(ri-\d+(?:-[\w-]+)?)\b", text, re.IGNORECASE))
     return [c for c in candidates if c in valid_ids]

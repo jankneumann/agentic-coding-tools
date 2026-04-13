@@ -209,6 +209,8 @@ def _estimate_wait_seconds(reset_at: str | None) -> int | None:
         return None
     try:
         reset_time = datetime.fromisoformat(reset_at)
+        if reset_time.tzinfo is None:
+            reset_time = reset_time.replace(tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
         delta = (reset_time - now).total_seconds()
         return max(0, int(delta))

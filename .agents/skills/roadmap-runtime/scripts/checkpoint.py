@@ -9,9 +9,8 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from pathlib import Path as _Path
 
-_SCRIPTS_DIR = _Path(__file__).resolve().parent
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 

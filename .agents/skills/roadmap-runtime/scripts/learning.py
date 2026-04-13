@@ -10,12 +10,11 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from pathlib import Path as _Path
 from typing import Any
 
 import yaml
 
-_SCRIPTS_DIR = _Path(__file__).resolve().parent
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
@@ -85,7 +84,8 @@ def _update_index(workspace: Path, entry: LearningEntry) -> None:
         index_path.write_text("# Learning Log\n\n| Item | Status | Summary |\n|------|--------|--------|\n")
 
     existing = index_path.read_text()
-    summary = entry.decisions[0].outcome[:80] if entry.decisions else "No decisions recorded"
+    raw_summary = entry.decisions[0].outcome[:80] if entry.decisions else "No decisions recorded"
+    summary = raw_summary.replace("|", "\\|")
     phase_str = entry.phase.value if entry.phase else "unknown"
     line = f"| {entry.item_id} | {phase_str} | {summary} |\n"
 

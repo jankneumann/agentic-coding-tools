@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Schema paths (relative to repo root)
 # ---------------------------------------------------------------------------
-_CONTRACTS_DIR = "openspec/changes/roadmap-openspec-orchestration/contracts"
-ROADMAP_SCHEMA = f"{_CONTRACTS_DIR}/roadmap.schema.json"
-CHECKPOINT_SCHEMA = f"{_CONTRACTS_DIR}/checkpoint.schema.json"
-LEARNING_SCHEMA = f"{_CONTRACTS_DIR}/learning-log.schema.json"
+_SCHEMAS_DIR = "openspec/schemas"
+ROADMAP_SCHEMA = f"{_SCHEMAS_DIR}/roadmap.schema.json"
+CHECKPOINT_SCHEMA = f"{_SCHEMAS_DIR}/checkpoint.schema.json"
+LEARNING_SCHEMA = f"{_SCHEMAS_DIR}/learning-log.schema.json"
 
 
 # ---------------------------------------------------------------------------

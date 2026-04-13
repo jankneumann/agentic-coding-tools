@@ -10,10 +10,9 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from pathlib import Path as _Path
 from typing import Any
 
-_SCRIPTS_DIR = _Path(__file__).resolve().parent
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
