@@ -1,0 +1,885 @@
+#!/usr/bin/env python3
+"""Merge or close pull requests with pre-merge validation.
+
+Actions:
+  merge           - Merge a single PR (squash/merge/rebase)
+  close           - Close a single PR with a comment
+  batch-close     - Close multiple obsolete PRs with explanatory comments
+  rerun-checks    - Re-run failed CI workflow runs for a PR (transient failures)
+  refresh-branch  - Merge base branch into PR to get fresh CI (stale merge commit)
+
+Usage:
+  python merge_pr.py merge <pr_number> [--strategy squash|merge|rebase] [--validation-report PATH] [--force] [--dry-run]
+  python merge_pr.py close <pr_number> --reason <text> [--dry-run]
+  python merge_pr.py batch-close <pr_numbers_comma_sep> --reason <text> [--dry-run]
+  python merge_pr.py rerun-checks <pr_number> [--dry-run]
+  python merge_pr.py refresh-branch <pr_number> [--dry-run]
+
+Output: JSON result to stdout.
+"""
+
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+from shared import (
+    GH_TIMEOUT,
+    check_gh,
+    parse_pr_numbers,
+    run_gh,
+    run_gh_unchecked,
+    safe_author,
+)
+
+# Use a longer timeout for merge operations which can be slow
+MERGE_TIMEOUT = 60
+
+# Origin-to-strategy mapping: agent-authored PRs use rebase to preserve
+# granular commit history; everything else uses squash.
+ORIGIN_STRATEGY_MAP: dict[str, str] = {
+    "openspec": "rebase",
+    "codex": "rebase",
+}
+FALLBACK_STRATEGY = "squash"
+
+
+def get_default_strategy(origin: str) -> str:
+    """Return the default merge strategy for a given PR origin."""
+    return ORIGIN_STRATEGY_MAP.get(origin, FALLBACK_STRATEGY)
+
+
+def resolve_strategy(
+    explicit_strategy: str | None, origin: str | None,
+) -> str:
+    """Resolve the effective merge strategy.
+
+    If the operator provided an explicit --strategy, use it (override).
+    Otherwise, look up the default for the PR origin.
+    If no origin is provided, fall back to squash.
+    """
+    if explicit_strategy is not None:
+        return explicit_strategy
+    if origin is not None:
+        return get_default_strategy(origin)
+    return FALLBACK_STRATEGY
+
+
+def get_pr_status(pr_number: int) -> dict:
+    try:
+        raw = run_gh([
+            "pr", "view", str(pr_number), "--json",
+            "state,mergeable,statusCheckRollup,reviewDecision,"
+            "headRefName,title,isDraft,isCrossRepository,reviewRequests",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
+        sys.exit(1)
+    return json.loads(raw)
+
+
+def check_approval_freshness(pr_number: int) -> dict:
+    """Check if the latest commit is newer than the latest approval.
+
+    Returns a dict with stale approval info. This is informational —
+    repos with 'Dismiss stale reviews on push' enforce this server-side,
+    but repos without that setting should still be warned.
+    """
+    try:
+        raw = run_gh([
+            "pr", "view", str(pr_number), "--json", "commits,reviews",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        print(
+            f"Warning: Could not verify approval freshness for PR #{pr_number}: {e}",
+            file=sys.stderr,
+        )
+        return {
+            "approval_may_be_stale": False,
+            "reason": "could_not_check",
+            "warning": "Could not verify approval freshness",
+        }
+
+    data = json.loads(raw)
+    commits = data.get("commits", [])
+    reviews = data.get("reviews", [])
+
+    if not commits or not reviews:
+        return {"approval_may_be_stale": False}
+
+    # Get latest commit date
+    last_commit = commits[-1]
+    commit_date = last_commit.get("committedDate", "")
+
+    # Get latest APPROVED review date
+    approved_dates = [
+        r.get("submittedAt", "")
+        for r in reviews
+        if r.get("state") == "APPROVED" and r.get("submittedAt")
+    ]
+    if not approved_dates:
+        return {"approval_may_be_stale": False}
+
+    latest_approval = max(approved_dates)
+
+    # Check if any CHANGES_REQUESTED review was submitted after the latest approval
+    changes_requested_dates = [
+        r.get("submittedAt", "")
+        for r in reviews
+        if r.get("state") == "CHANGES_REQUESTED" and r.get("submittedAt")
+    ]
+    if changes_requested_dates and max(changes_requested_dates) > latest_approval:
+        return {
+            "approval_may_be_stale": True,
+            "reason": "changes_requested_after_approval",
+            "latest_approval": latest_approval,
+            "latest_changes_requested": max(changes_requested_dates),
+        }
+
+    # ISO date strings are lexicographically comparable
+    if commit_date and latest_approval and commit_date > latest_approval:
+        return {
+            "approval_may_be_stale": True,
+            "reason": "commits_after_approval",
+            "latest_commit": commit_date,
+            "latest_approval": latest_approval,
+        }
+
+    return {"approval_may_be_stale": False}
+
+
+def format_pending_reviewers(review_requests: list) -> list[str]:
+    """Extract pending reviewer names from reviewRequests."""
+    reviewers = []
+    for req in review_requests or []:
+        # User reviewers have 'login', team reviewers have 'name'/'slug'
+        login = req.get("login")
+        if login:
+            reviewers.append(login)
+        else:
+            name = req.get("name") or req.get("slug")
+            if name:
+                reviewers.append(f"team:{name}")
+    return reviewers
+
+
+def validate_pr(pr_number: int) -> dict:
+    """Pre-merge validation: CI status, approval, mergeability, and warnings."""
+    status = get_pr_status(pr_number)
+    is_draft = status.get("isDraft", False)
+    is_fork = status.get("isCrossRepository", False)
+    mergeable = status.get("mergeable", "UNKNOWN")
+    has_conflicts = mergeable == "CONFLICTING"
+
+    checks_ok = True
+    checks_pending = False
+    check_details = []
+    for check in status.get("statusCheckRollup", []) or []:
+        conclusion = check.get("conclusion") or ""
+        state = check.get("state") or check.get("status") or ""
+        name = check.get("name") or check.get("context", "unknown")
+
+        # Determine effective status
+        if conclusion:
+            effective = conclusion.upper()
+        elif state:
+            effective = state.upper()
+        else:
+            effective = "UNKNOWN"
+
+        check_details.append({"name": name, "state": effective})
+
+        passed_states = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+        pending_states = {"PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
+
+        if effective in passed_states:
+            continue
+        elif effective in pending_states:
+            checks_pending = True
+        elif effective == "UNKNOWN":
+            # Treat truly unknown checks as pending rather than failed
+            checks_pending = True
+        else:
+            checks_ok = False
+
+    review_decision = status.get("reviewDecision", "")
+    approved = review_decision == "APPROVED"
+
+    # Check for stale approval (commits pushed after last approval)
+    approval_freshness = {}
+    if approved:
+        approval_freshness = check_approval_freshness(pr_number)
+
+    # Extract pending reviewers (CODEOWNERS or manually requested)
+    pending_reviewers = format_pending_reviewers(
+        status.get("reviewRequests", []),
+    )
+
+    # Build a clear status summary
+    if not checks_ok:
+        check_summary = "failed"
+    elif checks_pending:
+        check_summary = "pending"
+    else:
+        check_summary = "passing"
+
+    return {
+        "pr_number": pr_number,
+        "title": status.get("title", ""),
+        "branch": status.get("headRefName", ""),
+        "is_draft": is_draft,
+        "is_fork": is_fork,
+        "mergeable": mergeable,
+        "has_conflicts": has_conflicts,
+        "check_summary": check_summary,
+        "checks_passing": checks_ok and not checks_pending,
+        "checks_pending": checks_pending,
+        "checks_failed": not checks_ok,
+        "check_details": check_details,
+        "review_decision": review_decision,
+        "approved": approved,
+        "approval_may_be_stale": approval_freshness.get(
+            "approval_may_be_stale", False,
+        ),
+        "pending_reviewers": pending_reviewers,
+        "can_merge": (
+            mergeable == "MERGEABLE"
+            and checks_ok
+            and not checks_pending
+            and not is_draft
+            and approved
+        ),
+    }
+
+
+def _has_merge_queue() -> bool:
+    """Check if the repository has a merge queue enabled."""
+    try:
+        raw = run_gh([
+            "repo", "view", "--json", "mergeCommitAllowed",
+        ], timeout=GH_TIMEOUT)
+        # If the repo has branch protection with merge queue, gh pr merge
+        # without --merge-queue will fail. Proactively use --merge-queue.
+        # Unfortunately gh doesn't expose merge queue config directly,
+        # so we try with --merge-queue first and fall back if it fails.
+        return True  # Optimistically try merge queue; fallback handles errors
+    except (RuntimeError, subprocess.TimeoutExpired):
+        return False
+
+
+def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
+    """Attempt the actual gh pr merge command, handling edge cases."""
+    # Try merge queue first if available
+    if _has_merge_queue():
+        result = _try_merge_queue(pr_number, strategy, is_fork)
+        if result.get("success"):
+            return result
+        # If merge queue attempt failed (e.g., queue not actually enabled),
+        # fall through to direct merge
+
+    strategy_flag = f"--{strategy}"
+    merge_args = ["pr", "merge", str(pr_number), strategy_flag]
+
+    # Fork PRs: can't delete the remote branch (no push access to fork)
+    if not is_fork:
+        merge_args.append("--delete-branch")
+
+    try:
+        result = run_gh_unchecked(merge_args, timeout=MERGE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        resp = {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "error": "Merge command timed out",
+        }
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
+
+    if result.returncode == 0:
+        resp = {
+            "action": "merge",
+            "success": True,
+            "status": "merged",
+            "pr_number": pr_number,
+            "strategy": strategy,
+        }
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
+
+    stderr = result.stderr.strip()
+
+    # Detect merge queue requirement and retry
+    stderr_lower = stderr.lower()
+    if "merge queue" in stderr_lower or "enqueue" in stderr_lower:
+        return _try_merge_queue(pr_number, strategy, is_fork)
+
+    # Merge may have succeeded but branch deletion failed
+    post_status = get_pr_status(pr_number)
+    if post_status.get("state") == "MERGED":
+        resp = {
+            "action": "merge",
+            "success": True,
+            "status": "merged",
+            "pr_number": pr_number,
+            "strategy": strategy,
+            "warning": "PR merged but branch deletion may have failed",
+            "stderr": stderr,
+        }
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
+
+    resp = {
+        "action": "merge",
+        "success": False,
+        "pr_number": pr_number,
+        "error": stderr or "Merge command failed",
+    }
+    if is_fork:
+        resp["note"] = "Fork PR — remote branch not deleted"
+    return resp
+
+
+def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
+    """Retry merge using --merge-queue for repos that require it."""
+    strategy_flag = f"--{strategy}"
+    merge_args = ["pr", "merge", str(pr_number), strategy_flag, "--merge-queue"]
+    if not is_fork:
+        merge_args.append("--delete-branch")
+
+    try:
+        result = run_gh_unchecked(merge_args, timeout=MERGE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "error": "Merge queue command timed out",
+        }
+
+    if result.returncode == 0:
+        resp = {
+            "action": "merge",
+            "success": True,
+            "status": "enqueued",
+            "pr_number": pr_number,
+            "strategy": strategy,
+            "merge_queue": True,
+            "note": "PR added to merge queue — will merge automatically when ready",
+        }
+        if is_fork:
+            resp["note"] += "; fork PR — remote branch not deleted"
+        return resp
+
+    return {
+        "action": "merge",
+        "success": False,
+        "pr_number": pr_number,
+        "error": result.stderr.strip() or "Merge queue command failed",
+    }
+
+
+def _check_pre_merge_gate(
+    report_path: str, *, force: bool = False,
+) -> dict:
+    """Run pre-merge gate check via gate_logic script.
+
+    Returns dict with 'action', 'reason', and 'phase_statuses'.
+    Falls back gracefully if gate_logic is not available.
+    """
+    gate_script = Path(__file__).resolve().parent.parent.parent / (
+        "validate-feature/scripts/gate_logic.py"
+    )
+    if not gate_script.exists():
+        return {
+            "action": "continue",
+            "reason": "Gate script not found — skipping gate check",
+            "phase_statuses": {},
+        }
+
+    cmd = [sys.executable, str(gate_script), report_path]
+    if force:
+        cmd.append("--force")
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=10,
+        )
+        return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as e:
+        # Gate script failure is treated as halt (fail-closed)
+        return {
+            "action": "halt",
+            "reason": f"Gate check failed: {e}",
+            "phase_statuses": {},
+        }
+
+
+def merge_pr(pr_number: int, strategy: str = "squash",
+             dry_run: bool = False,
+             validation_report: str | None = None,
+             force: bool = False) -> dict:
+    validation = validate_pr(pr_number)
+
+    # Pre-merge gate: if a validation report is provided, check all required
+    # phases passed before allowing merge. Use --force for explicit override.
+    gate_result = None
+    if validation_report:
+        gate_result = _check_pre_merge_gate(
+            validation_report, force=force,
+        )
+
+    if dry_run:
+        result = {
+            "action": "merge",
+            "dry_run": True,
+            "pr_number": pr_number,
+            "strategy": strategy,
+            "validation": validation,
+            "would_merge": validation["can_merge"],
+        }
+        if gate_result:
+            result["gate"] = gate_result
+            if gate_result["action"] == "halt":
+                result["would_merge"] = False
+        return result
+
+    # Gate check: block merge if gate halted (and not forced)
+    if gate_result and gate_result["action"] == "halt":
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": gate_result["reason"],
+            "gate": gate_result,
+            "validation": validation,
+        }
+
+    if validation["is_draft"]:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": "PR is a draft — mark as ready before merging",
+            "validation": validation,
+        }
+
+    if validation["has_conflicts"]:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": (
+                "PR has merge conflicts — rebase onto the base branch "
+                "or merge the base branch into the PR branch to resolve"
+            ),
+            "validation": validation,
+        }
+
+    if validation["checks_pending"]:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": "CI checks still running — wait for completion",
+            "validation": validation,
+        }
+
+    if not validation["approved"]:
+        reason = "Review approval required before merging"
+        if validation["pending_reviewers"]:
+            reviewers = ", ".join(validation["pending_reviewers"])
+            reason += f" (pending: {reviewers})"
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": reason,
+            "validation": validation,
+        }
+
+    if not validation["can_merge"]:
+        return {
+            "action": "merge",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": "Pre-merge validation failed",
+            "validation": validation,
+        }
+
+    result = _try_merge(
+        pr_number, strategy, validation.get("is_fork", False),
+    )
+
+    # Include stale approval warning on successful merges
+    if result.get("success") and validation.get("approval_may_be_stale"):
+        result["warning"] = result.get("warning", "")
+        if result["warning"]:
+            result["warning"] += "; "
+        result["warning"] += (
+            "Approval may be stale — commits were pushed after the last approval"
+        )
+
+    # Include gate result if present
+    if gate_result:
+        result["gate"] = gate_result
+
+    return result
+
+
+def rerun_failed_checks(pr_number: int, dry_run: bool = False) -> dict:
+    """Re-run failed CI workflow runs for a PR."""
+    # Get PR branch
+    try:
+        raw = run_gh([
+            "pr", "view", str(pr_number), "--json", "headRefName",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        return {
+            "action": "rerun-checks",
+            "success": False,
+            "pr_number": pr_number,
+            "error": f"Could not fetch PR: {e}",
+        }
+
+    branch = json.loads(raw).get("headRefName", "")
+    if not branch:
+        return {
+            "action": "rerun-checks",
+            "success": False,
+            "pr_number": pr_number,
+            "error": "Could not determine PR branch",
+        }
+
+    # Find failed workflow runs on this branch
+    try:
+        raw = run_gh([
+            "run", "list", "--branch", branch, "--status", "failure",
+            "--limit", "10", "--json", "databaseId,name,conclusion",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        return {
+            "action": "rerun-checks",
+            "success": False,
+            "pr_number": pr_number,
+            "error": f"Could not list runs: {e}",
+        }
+
+    runs = json.loads(raw) if raw else []
+    if not runs:
+        return {
+            "action": "rerun-checks",
+            "success": True,
+            "pr_number": pr_number,
+            "message": "No failed workflow runs found",
+            "rerun_count": 0,
+        }
+
+    if dry_run:
+        return {
+            "action": "rerun-checks",
+            "dry_run": True,
+            "pr_number": pr_number,
+            "failed_runs": [
+                {"id": r["databaseId"], "name": r["name"]} for r in runs
+            ],
+        }
+
+    rerun_results = []
+    for run in runs:
+        run_id = run["databaseId"]
+        try:
+            rr = run_gh_unchecked(
+                ["run", "rerun", str(run_id), "--failed"], timeout=GH_TIMEOUT,
+            )
+            rerun_results.append({
+                "id": run_id,
+                "name": run["name"],
+                "rerun": rr.returncode == 0,
+                "error": rr.stderr.strip() if rr.returncode != 0 else None,
+            })
+        except subprocess.TimeoutExpired:
+            rerun_results.append({
+                "id": run_id,
+                "name": run["name"],
+                "rerun": False,
+                "error": "timeout",
+            })
+
+    return {
+        "action": "rerun-checks",
+        "success": True,
+        "pr_number": pr_number,
+        "rerun_count": sum(1 for r in rerun_results if r["rerun"]),
+        "results": rerun_results,
+    }
+
+
+def refresh_branch(pr_number: int, dry_run: bool = False) -> dict:
+    """Merge base branch into PR branch to get a fresh merge commit.
+
+    Uses GitHub's Update Branch API (PUT /repos/{owner}/{repo}/pulls/{n}/update-branch).
+    This triggers fresh CI against the current base without requiring a local rebase.
+
+    Use this instead of ``rerun-checks`` when CI failures are caused by stale
+    base-branch code rather than transient issues. ``rerun-checks`` replays
+    the workflow against the same merge commit snapshot, so it will never pick
+    up fixes that landed on main after the PR was last pushed.
+    """
+    try:
+        raw = run_gh([
+            "pr", "view", str(pr_number),
+            "--json", "headRefOid,baseRefName",
+        ], timeout=GH_TIMEOUT)
+    except RuntimeError as e:
+        return {
+            "action": "refresh-branch",
+            "success": False,
+            "pr_number": pr_number,
+            "error": f"Could not fetch PR: {e}",
+        }
+
+    pr_data = json.loads(raw)
+    head_sha = pr_data.get("headRefOid", "")
+    base_ref = pr_data.get("baseRefName", "main")
+
+    if not head_sha:
+        return {
+            "action": "refresh-branch",
+            "success": False,
+            "pr_number": pr_number,
+            "error": "Could not determine PR head SHA",
+        }
+
+    if dry_run:
+        return {
+            "action": "refresh-branch",
+            "success": True,
+            "pr_number": pr_number,
+            "dry_run": True,
+            "message": (
+                f"Would merge {base_ref} into PR #{pr_number} "
+                f"(head: {head_sha[:8]})"
+            ),
+        }
+
+    # Call the GitHub Update Branch API
+    result = run_gh_unchecked(
+        [
+            "api", f"repos/:owner/:repo/pulls/{pr_number}/update-branch",
+            "-X", "PUT",
+            "-f", f"expected_head_sha={head_sha}",
+        ],
+        timeout=GH_TIMEOUT,
+    )
+
+    if result.returncode != 0:
+        error = result.stderr.strip()
+        # Common case: branch is already up to date
+        if "already up-to-date" in error.lower() or "not behind" in error.lower():
+            return {
+                "action": "refresh-branch",
+                "success": True,
+                "pr_number": pr_number,
+                "was_stale": False,
+                "message": f"Branch already up to date with {base_ref}",
+            }
+        return {
+            "action": "refresh-branch",
+            "success": False,
+            "pr_number": pr_number,
+            "reason": error,
+        }
+
+    return {
+        "action": "refresh-branch",
+        "success": True,
+        "pr_number": pr_number,
+        "was_stale": True,
+        "message": (
+            f"Merged {base_ref} into PR branch — "
+            "fresh CI will trigger automatically"
+        ),
+    }
+
+
+def close_pr(pr_number: int, reason: str,
+             dry_run: bool = False) -> dict:
+    if dry_run:
+        return {
+            "action": "close",
+            "dry_run": True,
+            "pr_number": pr_number,
+            "reason": reason,
+        }
+
+    # Close first, then comment. If close fails we don't leave orphan comments.
+    try:
+        close_result = run_gh_unchecked(["pr", "close", str(pr_number)],
+                                        timeout=GH_TIMEOUT)
+        if close_result.returncode != 0:
+            return {
+                "action": "close",
+                "success": False,
+                "pr_number": pr_number,
+                "error": close_result.stderr.strip() or "Close command failed",
+            }
+    except subprocess.TimeoutExpired:
+        return {
+            "action": "close",
+            "success": False,
+            "pr_number": pr_number,
+            "error": "Close command timed out",
+        }
+
+    # Post the comment after successful close — failure here is non-fatal
+    comment_warning = None
+    try:
+        comment_result = run_gh_unchecked([
+            "pr", "comment", str(pr_number), "--body", reason,
+        ], timeout=GH_TIMEOUT)
+        if comment_result.returncode != 0:
+            comment_warning = (
+                f"PR closed but comment failed: {comment_result.stderr.strip()}"
+            )
+    except subprocess.TimeoutExpired:
+        comment_warning = "PR closed but comment timed out"
+
+    result = {
+        "action": "close",
+        "success": True,
+        "pr_number": pr_number,
+        "reason": reason,
+    }
+    if comment_warning:
+        result["warning"] = comment_warning
+    return result
+
+
+def batch_close(pr_numbers: list[int], reason: str,
+                dry_run: bool = False) -> dict:
+    results = []
+    remaining = []
+    for i, num in enumerate(pr_numbers):
+        result = close_pr(num, reason, dry_run)
+        results.append(result)
+        # Stop on first real failure (not dry-run)
+        if not dry_run and not result.get("success"):
+            remaining = pr_numbers[i + 1:]
+            break
+
+    succeeded = sum(1 for r in results if r.get("success") or r.get("dry_run"))
+    failed = sum(1 for r in results if not r.get("success") and not r.get("dry_run"))
+
+    resp = {
+        "action": "batch-close",
+        "dry_run": dry_run,
+        "count": len(pr_numbers),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    }
+    if remaining:
+        resp["partial"] = True
+        resp["remaining"] = remaining
+    return resp
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Merge or close pull requests with pre-merge validation.",
+    )
+    subparsers = parser.add_subparsers(dest="action", required=True)
+
+    # merge subcommand
+    merge_parser = subparsers.add_parser("merge", help="Merge a single PR")
+    merge_parser.add_argument("pr_number", type=int, help="PR number to merge")
+    merge_parser.add_argument(
+        "--strategy", default=None, choices=["squash", "merge", "rebase"],
+        help=(
+            "Merge strategy override. If omitted, strategy is selected by "
+            "origin: openspec/codex use rebase, all others use squash."
+        ),
+    )
+    merge_parser.add_argument(
+        "--origin", default=None,
+        help="PR origin (openspec, codex, dependabot, etc.) for strategy selection",
+    )
+    merge_parser.add_argument(
+        "--validation-report", default=None,
+        help="Path to validation-report.md for pre-merge gate check",
+    )
+    merge_parser.add_argument(
+        "--force", action="store_true",
+        help="Override pre-merge gate (explicit user bypass)",
+    )
+    merge_parser.add_argument("--dry-run", action="store_true")
+
+    # close subcommand
+    close_parser = subparsers.add_parser("close", help="Close a single PR")
+    close_parser.add_argument("pr_number", type=int, help="PR number to close")
+    close_parser.add_argument(
+        "--reason", default="Closed by merge-pull-requests skill.",
+        help="Reason for closing",
+    )
+    close_parser.add_argument("--dry-run", action="store_true")
+
+    # batch-close subcommand
+    batch_parser = subparsers.add_parser("batch-close", help="Close multiple PRs")
+    batch_parser.add_argument(
+        "pr_numbers", help="Comma-separated PR numbers (e.g. 1,2,3)",
+    )
+    batch_parser.add_argument(
+        "--reason", default="Closed as obsolete by merge-pull-requests skill.",
+        help="Reason for closing",
+    )
+    batch_parser.add_argument("--dry-run", action="store_true")
+
+    # rerun-checks subcommand
+    rerun_parser = subparsers.add_parser(
+        "rerun-checks",
+        help="Re-run failed CI checks (transient failures only)",
+    )
+    rerun_parser.add_argument("pr_number", type=int, help="PR number")
+    rerun_parser.add_argument("--dry-run", action="store_true")
+
+    # refresh-branch subcommand
+    refresh_parser = subparsers.add_parser(
+        "refresh-branch",
+        help="Merge base branch into PR for fresh CI (stale merge commit)",
+    )
+    refresh_parser.add_argument("pr_number", type=int, help="PR number")
+    refresh_parser.add_argument("--dry-run", action="store_true")
+
+    args = parser.parse_args()
+    check_gh()
+
+    if args.action == "merge":
+        strategy = resolve_strategy(args.strategy, args.origin)
+        result = merge_pr(
+            args.pr_number, strategy, args.dry_run,
+            validation_report=args.validation_report,
+            force=args.force,
+        )
+    elif args.action == "close":
+        result = close_pr(args.pr_number, args.reason, args.dry_run)
+    elif args.action == "batch-close":
+        pr_numbers = parse_pr_numbers(args.pr_numbers)
+        result = batch_close(pr_numbers, args.reason, args.dry_run)
+    elif args.action == "rerun-checks":
+        result = rerun_failed_checks(args.pr_number, args.dry_run)
+    elif args.action == "refresh-branch":
+        result = refresh_branch(args.pr_number, args.dry_run)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
