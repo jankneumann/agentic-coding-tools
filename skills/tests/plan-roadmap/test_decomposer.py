@@ -263,11 +263,61 @@ class TestBuildDependencyDag:
             description=description,
         )
 
-    def test_infra_items_become_dependencies(self):
-        """Infrastructure items should be depended upon by feature items."""
+    def test_no_edge_without_scope(self):
+        """Items without scope declarations should get no automatic edges.
+
+        Tier A (deterministic) only adds edges when both items declare
+        scope.  Without scope, dependency inference requires the LLM
+        semantic pass (Tier B), which is not part of build_dependency_dag.
+        """
         infra = self._make_item("ri-01", "Database Infrastructure Setup", 1)
         feature = self._make_item("ri-02", "User Dashboard Feature", 2)
         items = build_dependency_dag([infra, feature])
+        # No automatic infra→feature edge (Rule 1 removed per PR #113)
+        assert items[1].depends_on == []
+
+    def test_scope_overlap_creates_edge(self):
+        """Items with overlapping write_allow scopes get a deterministic edge."""
+        from models import Scope
+
+        item_a = self._make_item("ri-01", "DB Schema Setup", 1)
+        item_a.scope = Scope(write_allow=["src/db/**"])
+        item_b = self._make_item("ri-02", "DB Migration Tool", 2)
+        item_b.scope = Scope(write_allow=["src/db/migrations/*"])
+        items = build_dependency_dag([item_a, item_b])
+        assert "ri-01" in items[1].depends_on
+
+    def test_no_edge_when_scopes_dont_overlap(self):
+        """Disjoint scopes → no deterministic edge (Tier A is authoritative)."""
+        from models import Scope
+
+        item_a = self._make_item("ri-01", "Auth Service", 1)
+        item_a.scope = Scope(write_allow=["src/auth/**"])
+        item_b = self._make_item("ri-02", "Email Service", 2)
+        item_b.scope = Scope(write_allow=["src/email/**"])
+        items = build_dependency_dag([item_a, item_b])
+        assert items[1].depends_on == []
+
+    def test_lock_key_overlap_creates_edge(self):
+        """Shared lock keys → deterministic edge."""
+        from models import Scope
+
+        item_a = self._make_item("ri-01", "User Schema", 1)
+        item_a.scope = Scope(lock_keys=["db:schema:users"])
+        item_b = self._make_item("ri-02", "User API", 2)
+        item_b.scope = Scope(lock_keys=["db:schema:users", "api:GET /v1/users"])
+        items = build_dependency_dag([item_a, item_b])
+        assert "ri-01" in items[1].depends_on
+
+    def test_read_after_write_creates_edge(self):
+        """A writes files that B reads → deterministic edge."""
+        from models import Scope
+
+        item_a = self._make_item("ri-01", "Config Generator", 1)
+        item_a.scope = Scope(write_allow=["src/config/**"])
+        item_b = self._make_item("ri-02", "Config Consumer", 2)
+        item_b.scope = Scope(read_allow=["src/config/**"])
+        items = build_dependency_dag([item_a, item_b])
         assert "ri-01" in items[1].depends_on
 
     def test_no_self_dependency(self):
@@ -286,14 +336,19 @@ class TestBuildDependencyDag:
 
     def test_no_cycles_produced(self):
         """DAG builder must never produce cycles."""
+        from models import Scope
+
         items = [
-            self._make_item("ri-01", "Service Alpha Component", 1, "Uses bravo integration"),
-            self._make_item("ri-02", "Service Bravo Component", 2, "Uses alpha integration"),
-            self._make_item("ri-03", "Service Charlie Component", 3, "Independent module"),
+            self._make_item("ri-01", "Service Alpha", 1),
+            self._make_item("ri-02", "Service Bravo", 2),
+            self._make_item("ri-03", "Service Charlie", 3),
         ]
+        # Create mutual scope overlap that could cause cycles
+        items[0].scope = Scope(write_allow=["src/shared/**"])
+        items[1].scope = Scope(write_allow=["src/shared/**"])
+        items[2].scope = Scope(write_allow=["src/other/**"])
         items = build_dependency_dag(items)
 
-        # Verify no cycles using the Roadmap.has_cycle method
         from models import Roadmap, RoadmapStatus
 
         roadmap = Roadmap(
@@ -304,24 +359,6 @@ class TestBuildDependencyDag:
             status=RoadmapStatus.PLANNING,
         )
         assert not roadmap.has_cycle()
-
-    def test_keyword_overlap_creates_dependency(self):
-        """Items sharing significant unique keywords should have dependency edges."""
-        infra = self._make_item(
-            "ri-01",
-            "Authentication Provider Setup",
-            1,
-            "Configure OAuth2 authentication provider with token management",
-        )
-        consumer = self._make_item(
-            "ri-02",
-            "Protected API Authentication Integration",
-            2,
-            "Integrate OAuth2 authentication tokens for protected endpoints",
-        )
-        items = build_dependency_dag([infra, consumer])
-        # consumer should depend on infra due to keyword overlap
-        assert "ri-01" in items[1].depends_on
 
     def test_empty_items(self):
         result = build_dependency_dag([])

@@ -452,57 +452,22 @@ def _split_item(item: RoadmapItem) -> list[RoadmapItem]:
 # Dependency DAG construction
 # ---------------------------------------------------------------------------
 def build_dependency_dag(items: list[RoadmapItem]) -> list[RoadmapItem]:
-    """Infer dependency edges between items.
+    """Infer dependency edges between items using two-tier inference.
 
-    Heuristics:
-    1. Infrastructure/foundation items come before feature items.
-    2. Items referencing another item's key terms depend on it.
-    3. Existing depends_on edges (from splits) are preserved.
+    Tier A (deterministic): When both items declare ``scope``, edges are
+    added based on write/read glob overlap and shared lock keys.  No edge
+    is added when scopes are declared but don't overlap.
+
+    Tier B is handled by ``semantic_decomposer.py`` when an LLM client
+    is available.  This function only applies Tier A and preserves
+    existing edges (from splits or explicit declarations).
+
+    Design principle (PR #113): use determinism where input→output is
+    crisp; use LLM inference where ambiguity requires reasoning.
 
     Returns the same list with updated depends_on fields (no cycles guaranteed).
     """
-    title_words: dict[str, set[str]] = {}
-    for it in items:
-        words = set(re.findall(r"\b\w{4,}\b", it.title.lower()))
-        if it.description:
-            words |= set(re.findall(r"\b\w{4,}\b", it.description.lower()))
-        title_words[it.item_id] = words
-
-    infra_ids: set[str] = set()
-    for it in items:
-        combined = f"{it.title} {it.description or ''}"
-        if _INFRA_MARKERS.search(combined):
-            infra_ids.add(it.item_id)
-
-    for it in items:
-        existing_deps = set(it.depends_on)
-
-        # Rule 1: non-infra items depend on infra items
-        if it.item_id not in infra_ids:
-            for infra_id in infra_ids:
-                if infra_id != it.item_id and infra_id not in existing_deps:
-                    existing_deps.add(infra_id)
-
-        # Rule 2: keyword overlap — if item B mentions keywords unique to A,
-        # B may depend on A (only if A has higher priority / lower index)
-        for other in items:
-            if other.item_id == it.item_id:
-                continue
-            if other.item_id in existing_deps:
-                continue
-            # Only add dependency if 'other' has higher priority (lower number)
-            if other.priority >= it.priority:
-                continue
-            # Check if 'it' references key terms from 'other'
-            it_words = title_words[it.item_id]
-            other_words = title_words[other.item_id]
-            overlap = it_words & other_words
-            # Require significant overlap (not just common words)
-            unique_overlap = overlap - _common_words()
-            if len(unique_overlap) >= 2:
-                existing_deps.add(other.item_id)
-
-        it.depends_on = sorted(existing_deps)
+    _apply_scope_overlap(items)
 
     # Verify no cycles — if cycles found, break them
     _break_cycles(items)
@@ -510,16 +475,44 @@ def build_dependency_dag(items: list[RoadmapItem]) -> list[RoadmapItem]:
     return items
 
 
-def _common_words() -> set[str]:
-    """Words too common to be meaningful dependency signals."""
-    return {
-        "with", "that", "this", "from", "have", "will", "should", "must",
-        "each", "when", "then", "also", "into", "more", "some", "them",
-        "been", "were", "being", "their", "about", "would", "could",
-        "other", "only", "over", "such", "than", "very", "just",
-        "item", "test", "data", "file", "code", "type", "make",
-        "work", "need", "used", "uses", "part", "based",
-    }
+def _apply_scope_overlap(items: list[RoadmapItem]) -> None:
+    """Tier A: add edges based on declared scope overlap.
+
+    Uses shared primitives from ``roadmap-runtime/scripts/scope_overlap.py``.
+    Only runs when both items in a pair declare scope.  When neither or
+    only one item has scope, no deterministic edge is added — that case
+    is handled by Tier B (LLM) in the semantic decomposer.
+    """
+    try:
+        from scope_overlap import check_scope_overlap  # type: ignore[import-untyped]
+    except ImportError:
+        return  # scope_overlap not on path — skip Tier A
+
+    for i, item_a in enumerate(items):
+        if not getattr(item_a, "scope", None):
+            continue
+        for item_b in items[i + 1:]:
+            if not getattr(item_b, "scope", None):
+                continue
+
+            # Skip if already connected
+            if item_b.item_id in item_a.depends_on or item_a.item_id in item_b.depends_on:
+                continue
+
+            rationale = check_scope_overlap(
+                write_a=getattr(item_a.scope, "write_allow", []),
+                read_a=getattr(item_a.scope, "read_allow", []),
+                lock_a=getattr(item_a.scope, "lock_keys", []),
+                write_b=getattr(item_b.scope, "write_allow", []),
+                read_b=getattr(item_b.scope, "read_allow", []),
+                lock_b=getattr(item_b.scope, "lock_keys", []),
+            )
+            if rationale:
+                # Higher priority (lower number) is the dependency
+                if item_a.priority < item_b.priority:
+                    item_b.depends_on.append(item_a.item_id)
+                else:
+                    item_a.depends_on.append(item_b.item_id)
 
 
 def _break_cycles(items: list[RoadmapItem]) -> None:

@@ -550,34 +550,19 @@ def _apply_tier_a(items: list[RoadmapItem]) -> None:
 def _check_scope_overlap(scope_a: object, scope_b: object) -> str:
     """Check for overlap between two Scope objects.
 
-    Returns a rationale string if overlap exists, empty string otherwise.
+    Delegates to shared ``scope_overlap.check_scope_overlap()`` from
+    ``roadmap-runtime/scripts/scope_overlap.py``.
     """
-    from fnmatch import fnmatch
+    from scope_overlap import check_scope_overlap  # type: ignore[import-untyped]
 
-    # Write-write overlap
-    for wa in getattr(scope_a, "write_allow", []):
-        for wb in getattr(scope_b, "write_allow", []):
-            if fnmatch(wa, wb) or fnmatch(wb, wa):
-                return f"write_allow overlap: {wa} ~ {wb}"
-
-    # Read-after-write
-    for wa in getattr(scope_a, "write_allow", []):
-        for rb in getattr(scope_b, "read_allow", []):
-            if fnmatch(wa, rb) or fnmatch(rb, wa):
-                return f"read-after-write: {wa} written by A, {rb} read by B"
-    for wb in getattr(scope_b, "write_allow", []):
-        for ra in getattr(scope_a, "read_allow", []):
-            if fnmatch(wb, ra) or fnmatch(ra, wb):
-                return f"read-after-write: {wb} written by B, {ra} read by A"
-
-    # Lock key overlap
-    keys_a = set(getattr(scope_a, "lock_keys", []))
-    keys_b = set(getattr(scope_b, "lock_keys", []))
-    shared = keys_a & keys_b
-    if shared:
-        return f"shared lock_keys: {', '.join(sorted(shared))}"
-
-    return ""
+    return check_scope_overlap(
+        write_a=getattr(scope_a, "write_allow", []),
+        read_a=getattr(scope_a, "read_allow", []),
+        lock_a=getattr(scope_a, "lock_keys", []),
+        write_b=getattr(scope_b, "write_allow", []),
+        read_b=getattr(scope_b, "read_allow", []),
+        lock_b=getattr(scope_b, "lock_keys", []),
+    )
 
 
 def _tier_b0_can_prune(
