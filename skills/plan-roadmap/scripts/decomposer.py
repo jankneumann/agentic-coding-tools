@@ -57,6 +57,17 @@ _INFRA_MARKERS = re.compile(
 # Heading pattern: captures level (number of #) and text
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
 
+# Fenced code block fence pattern (``` or ~~~, optionally with language id)
+_FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
+
+# Markdown table separator row: |---|---|...
+_TABLE_SEP_RE = re.compile(r"^\|[\s:]*-{2,}[\s:]*(\|[\s:]*-{2,}[\s:]*)+\|?\s*$")
+
+# Priority column header markers
+_PRIORITY_MARKERS = re.compile(
+    r"\b(priority|p[0-3]|impact|module|status)\b", re.IGNORECASE
+)
+
 # Bullet list item pattern
 _BULLET_RE = re.compile(r"^[\s]*[-*+]\s+(.+)$", re.MULTILINE)
 
@@ -116,15 +127,40 @@ def validate_proposal(text: str) -> list[str]:
 # Section parsing
 # ---------------------------------------------------------------------------
 def _parse_sections(text: str) -> list[_Section]:
-    """Split markdown into sections by headings."""
+    """Split markdown into sections by headings.
+
+    Fenced code blocks (``` or ~~~) are tracked so that headings inside
+    them are not treated as section boundaries — this prevents YAML/code
+    examples from generating noise sections.
+    """
     lines = text.split("\n")
     sections: list[_Section] = []
     current_level = 0
     current_title = ""
     current_body_lines: list[str] = []
     current_start = 0
+    in_fenced_block = False
+    fence_marker = ""
 
     for i, line in enumerate(lines):
+        # Track fenced code blocks (```, ~~~~, etc.)
+        fence_match = _FENCE_RE.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            if not in_fenced_block:
+                in_fenced_block = True
+                fence_marker = marker[0]  # ` or ~
+            elif line.strip().startswith(fence_marker) and len(line.strip().rstrip(fence_marker[0])) == 0:
+                # Closing fence must use same char as opening
+                in_fenced_block = False
+                fence_marker = ""
+            current_body_lines.append(line)
+            continue
+
+        if in_fenced_block:
+            current_body_lines.append(line)
+            continue
+
         m = _HEADING_RE.match(line)
         if m:
             # Flush previous section
@@ -161,8 +197,15 @@ def _parse_sections(text: str) -> list[_Section]:
 
 
 def _classify_sections(sections: list[_Section]) -> list[_Section]:
-    """Tag each section as capability, constraint, or phase."""
+    """Tag each section as capability, constraint, or phase.
+
+    Sub-section propagation: when a parent H2/H3 is classified as a
+    capability, child H4/H5 sections that don't match any markers
+    themselves inherit the capability classification.
+    """
     phase_counter = 0
+    parent_is_capability = False
+    parent_level = 0
 
     for section in sections:
         combined = f"{section.title} {section.body}"
@@ -173,6 +216,20 @@ def _classify_sections(sections: list[_Section]) -> list[_Section]:
             section.is_phase = True
             phase_counter += 1
             section.phase_index = phase_counter
+
+        # Sub-section propagation: if parent (H2/H3) is capability,
+        # propagate to children (H4+) that don't match any marker
+        if section.level <= 3:
+            parent_is_capability = section.is_capability
+            parent_level = section.level
+        elif (
+            section.level > parent_level
+            and parent_is_capability
+            and not section.is_capability
+            and not section.is_constraint
+            and not section.is_phase
+        ):
+            section.is_capability = True
 
     return sections
 
@@ -487,6 +544,147 @@ def _break_cycles(items: list[RoadmapItem]) -> None:
 
     for it in items:
         _dfs(it.item_id)
+
+
+# ---------------------------------------------------------------------------
+# Table row extraction (for priority tables in proposal body)
+# ---------------------------------------------------------------------------
+def _extract_table_items(body: str) -> list[_Section]:
+    """Extract items from markdown priority tables in a section's body.
+
+    Looks for markdown tables with priority-related column headers
+    (Priority, P0, P1, Module, etc.) and creates a synthetic _Section
+    for each data row.  Returns an empty list if no priority tables found.
+    """
+    lines = body.split("\n")
+    items: list[_Section] = []
+
+    i = 0
+    while i < len(lines):
+        # Look for a table separator row (|---|---|)
+        if i > 0 and _TABLE_SEP_RE.match(lines[i].strip()):
+            header_line = lines[i - 1].strip()
+            if not header_line.startswith("|"):
+                i += 1
+                continue
+
+            # Parse header columns
+            headers = [
+                h.strip() for h in header_line.strip("|").split("|")
+            ]
+
+            # Check if this is a priority table
+            header_text = " ".join(headers)
+            if not _PRIORITY_MARKERS.search(header_text):
+                i += 1
+                continue
+
+            # Find the "name" column — prefer "Module", "Component",
+            # "Feature", "Item"; fall back to the first column.
+            _NAME_COLS = re.compile(
+                r"\b(module|component|feature|item|name|task|capability)\b",
+                re.IGNORECASE,
+            )
+            name_col = 0  # default: first column
+            for ci, h in enumerate(headers):
+                if _NAME_COLS.search(h):
+                    name_col = ci
+                    break
+
+            # Parse data rows
+            j = i + 1
+            while j < len(lines) and lines[j].strip().startswith("|"):
+                row = lines[j].strip()
+                cells = [c.strip() for c in row.strip("|").split("|")]
+                if len(cells) > name_col:
+                    title = cells[name_col].strip("`").strip("*").strip()
+                    if title and title != "---":
+                        # Build a description from all cells
+                        desc_parts = [
+                            f"{headers[ci]}: {cells[ci]}"
+                            for ci in range(len(cells))
+                            if ci < len(headers) and ci != name_col
+                        ]
+                        items.append(
+                            _Section(
+                                level=4,  # synthetic sub-section level
+                                title=title,
+                                body="\n".join(desc_parts),
+                                line_start=j,
+                                is_capability=True,
+                            )
+                        )
+                j += 1
+            i = j
+        else:
+            i += 1
+
+    return items
+
+
+# ---------------------------------------------------------------------------
+# Repo state scanning (archive and active changes)
+# ---------------------------------------------------------------------------
+def scan_archive_state(repo_root: Path) -> dict[str, str]:
+    """Walk openspec/changes/archive/ and openspec/changes/ to build a
+    {change_id: status} map.
+
+    Archive entries (``YYYY-MM-DD-<change-id>/``) → ``completed``.
+    Active change dirs (``openspec/changes/<name>/``) → ``in_progress``.
+    """
+    state: dict[str, str] = {}
+
+    # Archived changes
+    archive_dir = repo_root / "openspec" / "changes" / "archive"
+    if archive_dir.is_dir():
+        for entry in archive_dir.iterdir():
+            if entry.is_dir():
+                name = entry.name
+                # Strip date prefix (YYYY-MM-DD-)
+                if len(name) > 11 and name[4] == "-" and name[7] == "-" and name[10] == "-":
+                    change_id = name[11:]
+                else:
+                    change_id = name
+                state[change_id] = "completed"
+
+    # Active (non-archived) changes
+    changes_dir = repo_root / "openspec" / "changes"
+    if changes_dir.is_dir():
+        for entry in changes_dir.iterdir():
+            if entry.is_dir() and entry.name != "archive":
+                if entry.name not in state:
+                    state[entry.name] = "in_progress"
+
+    return state
+
+
+def make_repo_relative(path: str, repo_root: Path) -> str:
+    """Normalize an absolute path to repo-relative.
+
+    If ``path`` is already relative or ``repo_root`` is not a prefix,
+    return ``path`` unchanged.
+    """
+    try:
+        p = Path(path)
+        if p.is_absolute():
+            return str(p.relative_to(repo_root))
+    except (ValueError, TypeError):
+        pass
+    return path
+
+
+def _generate_clean_id(title: str) -> str:
+    """Generate a clean kebab-case ID from a title.
+
+    Unlike ``_generate_item_id``, this produces IDs without the ``ri-``
+    prefix or numeric section prefixes — matching OpenSpec change-id
+    conventions.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    # Remove leading numeric prefixes (e.g., "1-1-" from "§1.1")
+    slug = re.sub(r"^[\d]+-(?:[\d]+-)*", "", slug)
+    # Truncate to reasonable length
+    return slug[:60].rstrip("-")
 
 
 # ---------------------------------------------------------------------------
