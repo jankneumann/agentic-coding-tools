@@ -1,0 +1,313 @@
+schema_version: 1
+roadmap_id: roadmap-agent-state-observatory-proposal
+source_proposal: docs/feature-discovery/agent-state-observatory-proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: p1-event-stream
+  title: 'Capability: Agent State Event Stream'
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: |-
+    The coordinator SHALL expose a Server-Sent Events endpoint (`/events/stream`) that multiplexes agent registration, heartbeat, lock acquire/release, work claim/complete, approval-pending, guardrail-block, and merge-train-progress events. Consumers subscribe once and receive a live feed with at-most-once semantics and replay-from-cursor support.
+  rationale: Prerequisite data feed for all UIs. Unblocks every downstream phase.
+  change_id: add-agent-state-event-stream
+  acceptance_outcomes:
+  - |-
+    A consumer can subscribe to the stream and receive a typed event within 1 second of the originating state change in the coordinator.
+  - |-
+    Events carry enough identity (agent_id, change_id, repo) to be filtered client-side without follow-up API calls.
+  - |-
+    Reconnecting with a `Last-Event-ID` header resumes the stream without gaps or duplicates within a 5-minute window.
+  phase: 1
+- item_id: p1-worktree-aggregator
+  title: 'Capability: Cross-Repo Worktree Registry Aggregator'
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
+  description: |-
+    Each repo's `worktree.py` SHALL report registry deltas to the coordinator on heartbeat, producing a central index queryable as "all active worktrees across all repos." This replaces the file-local-only view.
+  rationale: Cross-repo visibility requirement; independent of stream and can ship in parallel.
+  change_id: add-worktree-registry-aggregator
+  acceptance_outcomes:
+  - |-
+    A new `GET /worktrees` endpoint returns all active worktrees across all reporting repos with owner, branch, heartbeat age, pin status, and repo identifier.
+  - Stale entries (heartbeat older than threshold) are flagged but retained for audit.
+  - A repo that has never reported is not required to participate; the feature degrades gracefully.
+  phase: 1
+- item_id: p1-tui
+  title: 'Capability: Agent State TUI'
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - p1-event-stream
+  - p1-worktree-aggregator
+  description: |-
+    A Textual-based terminal UI SHALL subscribe to the event stream and render a global dashboard with panels for active agents, current locks, pending approvals, work queue depth, and cross-repo worktrees. It runs in its own ghostty tab and requires no packaging beyond `uv run`.
+  rationale: First consumer surface that validates the data model in the operator's ghostty workflow.
+  change_id: add-agent-state-tui
+  acceptance_outcomes:
+  - |-
+    Launching `uv run skill agent-observatory` in any repo displays a live global view updating within 1 second of state changes.
+  - The UI works over the same coordinator URL regardless of which repo it was launched from.
+  - |-
+    Every panel has a keyboard action to drill into details (show diff, show audit trail, show lock contenders).
+  phase: 1
+- item_id: p1-operator-controls
+  title: 'Capability: Active Operator Controls'
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - p1-tui
+  description: |-
+    The TUI and any future dashboard SHALL surface write-side coordinator actions: approve/reject approvals, force-release stale locks, pause/resume agents, and reorder the work queue. Each action maps to an existing coordinator endpoint.
+  rationale: |-
+    Turns the TUI from passive view into a true control panel; reuses existing coordinator write endpoints.
+  change_id: add-active-operator-controls
+  acceptance_outcomes:
+  - An operator can approve a pending approval from the UI without dropping to CLI.
+  - A stale lock can be force-released with a confirmation prompt and audit-logged identity.
+  - Pausing an agent halts its next `/work/claim` cycle until resumed.
+  phase: 1
+- item_id: p2-conversation-capture
+  title: 'Capability: Conversation Capture and Indexing'
+  status: candidate
+  priority: 5
+  effort: M
+  depends_on:
+  - p1-event-stream
+  description: |-
+    Every agent session SHALL emit structured conversation records (user turns, assistant turns, tool calls, tool results, and phase markers) to a durable store indexed by repo, branch, change_id, and timestamp. Existing session-log artifacts provide the seed; new instrumentation covers live sessions.
+  rationale: |-
+    Makes conversations first-class, durable objects; foundation for browser, fork, replay, and later analytics.
+  change_id: add-conversation-capture
+  acceptance_outcomes:
+  - A session that ran 30 days ago can be retrieved by change_id and replayed turn-by-turn.
+  - |-
+    Conversations are searchable by free-text content and structured filters (agent_type, tool, time range).
+  - Token counts and model identifiers are captured per turn for later cost attribution.
+  phase: 2
+- item_id: p2-conversation-browser
+  title: 'Capability: Conversation Browser'
+  status: candidate
+  priority: 6
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    A UI surface SHALL list all captured conversations with title, branch, status, last activity, and preview, with full-text search. Clicking a conversation opens a turn-by-turn viewer.
+  rationale: Primary surface for finding and opening conversations; canopy-inspired.
+  change_id: add-conversation-browser
+  acceptance_outcomes:
+  - The browser lists the 1000 most-recent conversations with pagination and filters.
+  - |-
+    Free-text search returns matches ranked by recency and relevance within 2 seconds over a 10k-conversation store.
+  - Each conversation links to its OpenSpec change and PR when applicable.
+  phase: 2
+- item_id: p2-fork-worktree
+  title: 'Capability: Fork-Worktree Conversations'
+  status: candidate
+  priority: 7
+  effort: M
+  depends_on:
+  - p2-conversation-browser
+  description: |-
+    An operator SHALL be able to fork any conversation at turn N. Forking creates a new conversation branch AND a new git worktree seeded from the original worktree's commit, so both the conversation state and the code state are forked in lockstep. The new conversation can then proceed with an edited prompt or different agent type.
+  rationale: "Novel combination of canopy-style conversation forks with the existing worktree registry \u2014 most original\
+    \ feature in the roadmap."
+  change_id: add-fork-worktree-conversations
+  acceptance_outcomes:
+  - |-
+    Forking conversation C at turn N produces conversation C' with turns 1..N copied and a new worktree at `.git-worktrees/<change-id>/fork-<n>/` checked out from the same commit the original session was on at turn N.
+  - Both forks appear in the conversation browser with a visible parent/child relationship.
+  - Killing a fork tears down both the conversation and the worktree cleanly.
+  phase: 2
+- item_id: p2-conversation-replay
+  title: 'Capability: Conversation Replay'
+  status: candidate
+  priority: 8
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    The UI SHALL step through a completed or in-progress conversation showing each turn with full tool-call arguments and results, optionally replaying with a different agent or model to compare outcomes.
+  rationale: Enables A/B comparison across agents/models; independent of browser so can ship in parallel.
+  change_id: add-conversation-replay
+  acceptance_outcomes:
+  - Stepping through a conversation renders each turn with identical content to the original session.
+  - |-
+    Replay mode reconstructs prompts and tools from audit logs and can re-dispatch to a different agent type with the original starting context.
+  - Diff-view between original and replay shows token-level changes in assistant output.
+  phase: 2
+- item_id: p3-shared-archive
+  title: 'Capability: Shared Archive Index'
+  status: candidate
+  priority: 9
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    The existing `docs/factory-intelligence/archive-index.json` and `exemplars.json` SHALL be extended to a cross-repo index. A shared coordinator endpoint aggregates archive entries from every participating repo, allowing any repo to query "show me changes in any repo that touched capability X."
+  rationale: |-
+    Cross-repo visibility for completed changes; extends existing factory-intelligence index to multi-repo.
+  change_id: add-shared-archive-index
+  acceptance_outcomes:
+  - |-
+    A query for capability "skill-workflow" returns exemplars from all three repos, each labeled with its repo identifier.
+  - Each shared exemplar links back to its source PR and change directory.
+  - A repo can opt out of sharing specific changes via a metadata flag.
+  phase: 3
+- item_id: p3-pattern-mining
+  title: 'Capability: Cross-Repo Pattern Mining'
+  status: candidate
+  priority: 10
+  effort: M
+  depends_on:
+  - p3-shared-archive
+  description: "A periodic job SHALL analyze the shared conversation store and archive index to surface recurring patterns\
+    \ \u2014 prompt templates that keep appearing, tool-call sequences that indicate the same sub-task, failure patterns that\
+    \ cross repos. Results feed into OpenSpec proposal candidates (ties to `harness-engineering-features` Feature 4)."
+  rationale: Turns the shared index into actionable signal; feeds harness-engineering-features Feature 4.
+  change_id: add-cross-repo-pattern-mining
+  acceptance_outcomes:
+  - |-
+    The job produces a weekly `cross-repo-patterns.json` artifact ranked by frequency and spread (how many repos exhibit the pattern).
+  - Each pattern has suggested "promote to shared skill" or "add guardrail" next actions.
+  - Patterns with strong signal auto-generate draft OpenSpec proposals for operator review.
+  phase: 3
+- item_id: p3-shared-skill-library
+  title: 'Capability: Shared Prompt / Skill Library'
+  status: candidate
+  priority: 11
+  effort: M
+  depends_on:
+  - p3-shared-archive
+  description: |-
+    Skills, prompts, and guardrails SHALL be pullable across repos via the existing `skills/install.sh` sync mechanism extended with a "subscribe to" upstream repo. Each repo pins a specific version and can cherry-pick which skills to import.
+  rationale: Operationalizes cross-repo sharing; extends existing skills/install.sh with subscribe semantics.
+  change_id: add-shared-skill-library
+  acceptance_outcomes:
+  - Repo B can subscribe to repo A's skills directory and pull a named skill version.
+  - Pinned versions are captured in a lockfile and diffable on update.
+  - Local edits in the subscribing repo are preserved across upstream updates (three-way merge).
+  phase: 3
+- item_id: p4-ghostty-binding
+  title: 'Capability: Ghostty Quick-Terminal TUI Binding'
+  status: candidate
+  priority: 12
+  effort: M
+  depends_on:
+  - p1-tui
+  description: |-
+    A keybind SHALL pop up the agent state TUI in ghostty's quick-terminal overlay, giving ambient access from any ghostty window without dedicating a tab.
+  rationale: Ambient access to the TUI without dedicating a tab; pure ergonomics.
+  change_id: add-ghostty-tui-binding
+  acceptance_outcomes:
+  - Pressing the configured keybind in any ghostty window opens the TUI as an overlay.
+  - Dismissing the overlay preserves the TUI process for fast re-open.
+  - The overlay shows a compact mode; expanding promotes it to a full tab.
+  phase: 4
+- item_id: p4-status-line
+  title: 'Capability: Status Line Integration'
+  status: candidate
+  priority: 13
+  effort: M
+  depends_on:
+  - p1-event-stream
+  description: |-
+    Shell prompts in agent tabs SHALL optionally display coordinator state inline: current lock holdings, queue depth, pending approvals for the agent's change_id.
+  rationale: Inline coordinator state in shell prompts; independent of TUI.
+  change_id: add-status-line-integration
+  acceptance_outcomes:
+  - A Zsh/Bash prompt module renders coordinator state with a single environment toggle.
+  - Prompt updates are throttled to avoid flicker on tight loops.
+  - Disabling the module has zero residual overhead.
+  phase: 4
+- item_id: p4-desktop-notifications
+  title: 'Capability: Desktop Notifications'
+  status: candidate
+  priority: 14
+  effort: M
+  depends_on:
+  - p1-event-stream
+  description: |-
+    A lightweight notification bridge SHALL emit OS-native notifications for approval-pending, agent-blocked, CI-failed, and lock-contention events, gated by operator-configurable rules.
+  rationale: Cross-platform notification bridge; independent of TUI.
+  change_id: add-desktop-notifications
+  acceptance_outcomes:
+  - Approval pending for any repo produces a notification within 2 seconds.
+  - Notification rules can be configured per event type and per repo.
+  - Clicking a notification focuses the relevant ghostty window/tab where supported.
+  phase: 4
+- item_id: p5-performance-dashboard
+  title: 'Capability: Per-Agent-Type Performance Dashboard'
+  status: candidate
+  priority: 15
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    Grafana or a coordinator-hosted analytics view SHALL show per-agent-type metrics: pass rate, iterations-to-merge, time-to-PR, review-consensus iterations, capability-gap frequency.
+  rationale: Normalized comparisons across agent types; can reuse Grafana over existing OTEL.
+  change_id: add-agent-performance-dashboard
+  acceptance_outcomes:
+  - Comparing claude-code vs codex vs gemini shows normalized metrics over a selectable time window.
+  - Drill-down links to specific changes/PRs that contributed to each metric.
+  - Metrics refresh within 5 minutes of the underlying audit event.
+  phase: 5
+- item_id: p5-postmortem
+  title: 'Capability: Change Post-Mortem Reconstructor'
+  status: candidate
+  priority: 16
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    Given any archived change, the system SHALL reconstruct and render its lifecycle: DAG shape, worktrees used, review iterations, rework cycles, time in each phase.
+  rationale: Reconstructs full lifecycle of archived changes; feeds exemplar learning loop.
+  change_id: add-change-postmortem
+  acceptance_outcomes:
+  - Any change in the archive index produces a post-mortem view within 10 seconds.
+  - Post-mortem data is exported as JSON for feeding back into exemplar learning.
+  - Anomalies (e.g., unusually long review phase) are flagged.
+  phase: 5
+- item_id: p5-cost-attribution
+  title: 'Capability: Cost Attribution'
+  status: candidate
+  priority: 17
+  effort: M
+  depends_on:
+  - p2-conversation-capture
+  description: |-
+    Langfuse-captured token usage SHALL be attributed to changes, agents, and repos, producing a weekly spend breakdown.
+  rationale: Langfuse-backed spend per repo/agent/change.
+  change_id: add-cost-attribution
+  acceptance_outcomes:
+  - Weekly report shows spend per repo, per agent-type, per change.
+  - Outlier detection highlights changes exceeding typical spend.
+  - Cost data is queryable via an endpoint consumable by the dashboard.
+  phase: 5
+created_at: '2026-04-14T11:00:13.578189+00:00'
+phases:
+- id: 1
+  name: Observability Foundations
+  priority: 1
+- id: 2
+  name: Session Management
+  priority: 2
+- id: 3
+  name: Cross-Repo Learning
+  priority: 3
+- id: 4
+  name: Terminal Workflow Integration
+  priority: 4
+- id: 5
+  name: Historical Analytics
+  priority: 5
