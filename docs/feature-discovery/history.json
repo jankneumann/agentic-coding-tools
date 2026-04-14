@@ -1,59 +1,101 @@
 {
-  "updated_at": "2026-04-04T10:00:00Z",
+  "updated_at": "2026-04-14T00:00:00Z",
   "recommendations": [
+    {
+      "opportunity_id": "add-agent-state-stream",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "recommended",
+      "reason": "SSE feed aggregating agent/lock/work/approval state. Prerequisite for every visualization surface (TUI, web, Tauri, menu bar). Top pick for agent-visualization focus."
+    },
+    {
+      "opportunity_id": "add-worktree-registry-aggregator",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "recommended",
+      "reason": "Per-repo worktree registries aggregated to coordinator. Needed for cross-repo global view in the user's multi-window ghostty workflow."
+    },
+    {
+      "opportunity_id": "add-agent-state-tui",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "recommended",
+      "reason": "Textual TUI subscribing to the SSE stream. Fits ghostty workflow natively (runs in a tab/window). Python-native, no new stack. Validates data model before any desktop/web investment."
+    },
+    {
+      "opportunity_id": "add-coordinator-web-dashboard",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "deferred",
+      "reason": "Deferred until TUI validates which views matter. Zero-new-runtime implementation once stream lands."
+    },
+    {
+      "opportunity_id": "add-grafana-dashboards",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "recommended",
+      "reason": "Complements real-time UIs with historical analytics over existing OTEL metrics. Can ship independently as a parallel package."
+    },
+    {
+      "opportunity_id": "evaluate-tauri-desktop-shell",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "deferred",
+      "reason": "Introduces Rust/JS toolchain with no reuse elsewhere. Revisit only if web dashboard proves insufficient. Thin wrapper once web app exists."
+    },
+    {
+      "opportunity_id": "evaluate-native-macos-menu-bar",
+      "recommended_at": "2026-04-14T00:00:00Z",
+      "status": "deferred",
+      "reason": "Platform-locked Swift stack with zero repo reuse. A Tauri tray icon covers most of the value cross-platform."
+    },
     {
       "opportunity_id": "add-cloudflare-tunnel",
       "recommended_at": "2026-04-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "Cloudflare domain already set up. Tunnel exposes local coordinator to cloud agents without Railway. Combined with DNS for stable URLs. Top recommendation for Cloudflare-focused exploration."
+      "status": "deferred",
+      "reason": "Previous top pick; carried forward. Still relevant (the web dashboard benefits from tunnel access) but orthogonal to the current visualization focus."
     },
     {
       "opportunity_id": "add-custom-domain-urls",
       "recommended_at": "2026-04-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "Complementary to tunnel. Decouples service URLs from deployment provider. 30+ hardcoded localhost references benefit from stable domain."
+      "status": "deferred",
+      "reason": "Carried forward; complementary to tunnel. Not on the critical path for visualization."
     },
     {
       "opportunity_id": "implement-gen-eval-testing",
       "recommended_at": "2026-04-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "Consecutive top pick (3rd cycle). 56 tasks fully planned. Cloudflare tunnel would provide reliable cloud agent access for live service testing."
+      "status": "deferred",
+      "reason": "Carried forward (4th cycle). Big bet; orthogonal to visualization focus."
     },
     {
       "opportunity_id": "add-cloudflare-access",
       "recommended_at": "2026-04-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "Zero Trust layer for coordinator API. Builds on tunnel/DNS. Defense-in-depth replacing raw API key auth."
+      "status": "deferred",
+      "reason": "Carried forward. Blocked on tunnel setup."
     },
     {
       "opportunity_id": "add-coordination-api-hardening",
       "recommended_at": "2026-04-04T10:00:00Z",
-      "status": "recommended",
-      "reason": "CORS + /ready endpoint. Custom domain makes CORS origin predictable. Carried forward from previous cycle."
+      "status": "deferred",
+      "reason": "Carried forward. CORS work will matter once the web dashboard lands."
     },
     {
       "opportunity_id": "add-webhook-domain",
       "recommended_at": "2026-04-04T10:00:00Z",
       "status": "deferred",
-      "reason": "Deferred until tunnel/DNS are in place. Natural extension for inbound webhooks."
+      "reason": "Carried forward; blocked on tunnel."
     },
     {
       "opportunity_id": "add-multi-env-dns",
       "recommended_at": "2026-04-04T10:00:00Z",
       "status": "deferred",
-      "reason": "Deferred until single-environment DNS is proven. Needed before gen-eval runs against production."
+      "reason": "Carried forward; blocked on single-env DNS."
     },
     {
       "opportunity_id": "add-coordinator-assurance-verification",
       "recommended_at": "2026-04-03T16:00:00Z",
       "status": "deferred",
-      "reason": "Deferred until gen-eval-testing completes. Gen-eval covers much of the behavioral verification gap."
+      "reason": "Deferred until gen-eval-testing completes."
     },
     {
       "opportunity_id": "add-observability-dashboards",
       "recommended_at": "2026-04-03T16:00:00Z",
-      "status": "deferred",
-      "reason": "OTEL instrumentation exists but no dashboards. Lower priority until gen-eval produces workloads worth observing."
+      "status": "promoted",
+      "reason": "Promoted and refined as add-grafana-dashboards in this cycle."
     },
     {
       "opportunity_id": "refresh-architecture-analysis",
