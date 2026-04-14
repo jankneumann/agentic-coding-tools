@@ -1,0 +1,132 @@
+schema_version: 1
+
+feature:
+  id: minimum-edge-dag-inference
+  title: "Minimum-Edge DAG Inference for plan-roadmap"
+  plan_revision: 1
+  created_by: claude
+  created_at: "2026-04-14"
+
+contracts:
+  revision: 1
+  openapi:
+    # No OpenAPI contracts — this change is a local library refactor of the
+    # plan-roadmap skill. The README documents which contract sub-types were
+    # evaluated and rejected.
+    primary: "openspec/changes/minimum-edge-dag-inference/contracts/README.md"
+    files:
+      - "openspec/changes/minimum-edge-dag-inference/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Minimum-edge DAG inference — full scope"
+    task_type: implementation
+    description: >
+      Replace text-based dependency heuristics in plan-roadmap with a
+      deterministic-first + LLM-fallback pipeline. Adds optional scope
+      declaration to RoadmapItem, extracts scope-overlap primitives into
+      roadmap-runtime, dispatches an analyst LLM for semantic inference on
+      unscoped pairs, and preserves a conservative-under-uncertainty policy.
+      Sequential single-agent execution covering tasks 1.1 through 8.3.
+    depends_on: []
+    priority: 5
+    role: backend
+    metadata:
+      loc_estimate: 1200
+      complexity: medium
+      package_kind: algorithm
+    locks:
+      files:
+        - "skills/plan-roadmap/scripts/decomposer.py"
+        - "openspec/schemas/roadmap.schema.json"
+      keys:
+        - "feature:plan-roadmap:deps"
+        - "contract:roadmap-schema-scope"
+      ttl_minutes: 120
+      reason: "Sequential single-agent implementation of dep-inference rewrite"
+    scope:
+      write_allow:
+        - "skills/plan-roadmap/**"
+        - "skills/roadmap-runtime/**"
+        - "skills/tests/plan-roadmap/**"
+        - "skills/tests/roadmap-runtime/**"
+        - "skills/validate-packages/scripts/validate_work_packages.py"
+        - "openspec/schemas/roadmap.schema.json"
+        - "docs/lessons-learned.md"
+        - ".claude/skills/plan-roadmap/**"
+        - ".agents/skills/plan-roadmap/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+        - "docs/**"
+        - "src/agents_config.py"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: wp-main
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: unit-tests-plan-roadmap
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-roadmap/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/plan-roadmap/test_decomposer.py"
+              - "skills/tests/plan-roadmap/test_schema_scope.py"
+              - "skills/tests/plan-roadmap/test_tier_b0_pruning.py"
+              - "skills/tests/plan-roadmap/test_tier_b_dispatch.py"
+              - "skills/tests/plan-roadmap/test_tier_b_cost_controls.py"
+              - "skills/tests/plan-roadmap/test_cycle_breaker.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: unit-tests-roadmap-runtime
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/roadmap-runtime/test_scope_overlap.py"
+              - "skills/tests/roadmap-runtime/test_dep_edge.py"
+            result_keys:
+              - "pytest_exit_code"
+        - name: regression-validate-packages
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-packages/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/validate-packages/"
+            result_keys:
+              - "pytest_exit_code"
+        - name: benchmark-edge-count
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-roadmap/test_tier_a_bench.py -v"
+          evidence:
+            artifacts:
+              - "skills/tests/plan-roadmap/fixtures/"
+              - "skills/tests/plan-roadmap/test_tier_a_bench.py"
+            result_keys:
+              - "tier_a_edge_count_reduction"
+    outputs:
+      result_keys:
+        - "tier_a_deterministic_overlap_functional"
+        - "tier_b_llm_dispatch_functional"
+        - "conservative_fallback_verified"
+        - "edge_rationale_present_on_all_edges"
+      artifacts:
+        - "skills/plan-roadmap/scripts/decomposer.py"
+        - "skills/roadmap-runtime/scripts/scope_overlap.py"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "openspec/schemas/roadmap.schema.json"
+        - "skills/plan-roadmap/SKILL.md"
