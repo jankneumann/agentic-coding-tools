@@ -1,0 +1,56 @@
+schema_version: "1.0"
+change_id: add-decision-index
+tier: sequential
+
+packages:
+  - id: wp-main
+    name: "add-decision-index — full scope"
+    description: >
+      Per-capability decision index generated from session-log `architectural:` tags.
+      Extends archive-intelligence with a new emitter pass, adds the Phase Entry tag
+      schema to skill-workflow, backfills archived session-logs, wires `make decisions`
+      plus a CI staleness check.
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "1.4"
+      - "2.1"
+      - "2.2"
+      - "2.3"
+      - "2.4"
+      - "2.5"
+      - "2.6"
+      - "2.7"
+      - "2.8"
+      - "2.9"
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "3.4"
+      - "3.5"
+      - "4.1"
+      - "4.2"
+      - "4.3"
+      - "5.1"
+      - "5.2"
+      - "5.3"
+      - "5.4"
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "skills/session-log/SKILL.md"
+        - "skills/explore-feature/scripts/decision_index.py"
+        - "skills/explore-feature/scripts/backfill_decision_tags.py"
+        - "skills/explore-feature/scripts/archive_index.py"
+        - "skills/explore-feature/tests/test_decision_index.py"
+        - "skills/explore-feature/tests/test_backfill_decision_tags.py"
+        - "Makefile"
+        - ".github/workflows/ci.yml"
+        - "docs/decisions/**"
+        - "openspec/changes/archive/**/session-log.md"
+        - "openspec/changes/add-decision-index/**"
+      read_allow:
+        - "**"
+    verification: tier_b
