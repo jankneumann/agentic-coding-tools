@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rotkohl.ai/schemas/synthesis-plan.v1.schema.json",
+  "title": "SynthesisPlan",
+  "description": "Output of synthesize_variants(descriptors). Consumed by /iterate-on-plan --prototype-context to drive convergence-aware refinement of design.md and tasks.md. Enumerates per-aspect source-variant picks and suggested synthesis actions.",
+  "type": "object",
+  "required": ["change_id", "per_aspect_picks", "recommended_findings"],
+  "additionalProperties": false,
+  "properties": {
+    "change_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Change-id this synthesis plan applies to."
+    },
+    "per_aspect_picks": {
+      "type": "object",
+      "required": ["data_model", "api", "tests", "layout"],
+      "additionalProperties": false,
+      "properties": {
+        "data_model": { "$ref": "#/$defs/aspectPick" },
+        "api": { "$ref": "#/$defs/aspectPick" },
+        "tests": { "$ref": "#/$defs/aspectPick" },
+        "layout": { "$ref": "#/$defs/aspectPick" }
+      }
+    },
+    "recommended_findings": {
+      "type": "array",
+      "description": "Pre-classified convergence.* findings for iterate-on-plan to surface during refinement. Each entry conforms to iterate-on-plan's standard finding shape with a convergence.* type prefix.",
+      "items": {
+        "type": "object",
+        "required": ["type", "criticality", "description"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^convergence\\.[a-z0-9-]+(?:\\.[a-z0-9-]+)*$",
+            "description": "Finding type, e.g. 'convergence.prefer-variant-data-model', 'convergence.merge-test-approach'."
+          },
+          "criticality": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "description": { "type": "string", "minLength": 1 },
+          "source_variants": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^v[1-9][0-9]*$" },
+            "description": "Variant IDs that informed this finding."
+          }
+        }
+      }
+    },
+    "synthesis_notes": {
+      "type": "string",
+      "description": "Optional free-text summary of the synthesis rationale — carries forward any synthesis_hint values from contributing VariantDescriptors."
+    }
+  },
+  "$defs": {
+    "aspectPick": {
+      "type": "object",
+      "required": ["source"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^v[1-9][0-9]*$",
+              "description": "Variant id to source this aspect from."
+            },
+            {
+              "type": "string",
+              "enum": ["rewrite"],
+              "description": "None of the variants' takes on this aspect are suitable; iterate-on-plan should rewrite it fresh based on other context."
+            }
+          ]
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this source won for this aspect."
+        }
+      }
+    }
+  }
+}

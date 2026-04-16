@@ -1,0 +1,451 @@
+schema_version: 1
+
+feature:
+  id: add-prototyping-stage
+  title: "Add Prototyping Stage"
+  plan_revision: 1
+  created_by: claude-opus-4-6
+  created_at: "2026-04-16T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    # No HTTP API introduced. Pointing at README stub per convention used by
+    # other skill-definition changes (e.g. specialized-workflow-agents).
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+
+packages:
+  # ──────────────────────────────────────────────────────
+  # Phase 1: Contracts (VariantDescriptor + SynthesisPlan schemas)
+  # Root package. Everything downstream depends on these schemas.
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-contracts
+    task_type: implement
+    description: "JSON Schemas for VariantDescriptor and SynthesisPlan, plus contract README documenting evaluated sub-types."
+    role: contracts
+    priority: 1
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 1
+    depends_on: []
+    scope:
+      write_allow:
+        - "openspec/changes/add-prototyping-stage/contracts/**"
+        - "skills/tests/prototype-feature/contracts/**"
+      read_allow:
+        - "openspec/changes/add-prototyping-stage/**"
+        - "skills/parallel-infrastructure/**"
+      deny: []
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    locks:
+      files:
+        - "openspec/changes/add-prototyping-stage/contracts/schemas/variant-descriptor.schema.json"
+        - "openspec/changes/add-prototyping-stage/contracts/schemas/synthesis-plan.schema.json"
+      keys:
+        - "contract:variant-descriptor.v1"
+        - "contract:synthesis-plan.v1"
+    verification:
+      tier_required: B
+      steps:
+        - name: "JSON Schema validation tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/prototype-feature/contracts/ -v"
+          evidence:
+            artifacts:
+              - "openspec/changes/add-prototyping-stage/contracts/schemas/variant-descriptor.schema.json"
+              - "openspec/changes/add-prototyping-stage/contracts/schemas/synthesis-plan.schema.json"
+            result_keys: ["schemas_validated"]
+    outputs:
+      result_keys: ["schemas_validated"]
+      artifacts:
+        - "openspec/changes/add-prototyping-stage/contracts/schemas/variant-descriptor.schema.json"
+        - "openspec/changes/add-prototyping-stage/contracts/schemas/synthesis-plan.schema.json"
+        - "openspec/changes/add-prototyping-stage/contracts/README.md"
+    metadata:
+      loc_estimate: 150
+      package_kind: data_model
+
+  # ──────────────────────────────────────────────────────
+  # Phase 2: Worktree extension (prototype branch prefix support)
+  # Independent of contracts; parallel with wp-parallel-infra.
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-worktree
+    task_type: implement
+    description: "Extend worktree.py with --branch-prefix flag and auto-pin for prototype worktrees."
+    role: infrastructure
+    priority: 2
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/tests/worktree/**"
+      read_allow:
+        - "skills/worktree/**"
+        - "openspec/changes/add-prototyping-stage/**"
+      deny: []
+    worktree:
+      name: wp-worktree
+      mode: isolated
+    locks:
+      files:
+        - "skills/worktree/scripts/worktree.py"
+      keys:
+        - "feature:worktree:prefix"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Worktree extension tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/worktree/ -v"
+          evidence:
+            artifacts:
+              - "skills/worktree/scripts/worktree.py"
+            result_keys: ["worktree_tests_passed"]
+    outputs:
+      result_keys: ["worktree_tests_passed"]
+      artifacts:
+        - "skills/worktree/scripts/worktree.py"
+    metadata:
+      loc_estimate: 150
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 3: Parallel infrastructure schema (VariantDescriptor type + synthesize_variants)
+  # Depends on wp-contracts for schema reference.
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-parallel-infra
+    task_type: implement
+    description: "Add VariantDescriptor dataclass and synthesize_variants() to parallel-infrastructure."
+    role: infrastructure
+    priority: 2
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: ["wp-contracts"]
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/variant_descriptor.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/SKILL.md"
+        - "skills/tests/parallel-infrastructure/**"
+      read_allow:
+        - "skills/parallel-infrastructure/**"
+        - "openspec/changes/add-prototyping-stage/**"
+      deny: []
+    worktree:
+      name: wp-parallel-infra
+      mode: isolated
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+      keys:
+        - "feature:parallel-infrastructure:descriptor"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Parallel infra synthesizer tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/ -v"
+          evidence:
+            artifacts:
+              - "skills/parallel-infrastructure/scripts/variant_descriptor.py"
+            result_keys: ["synthesizer_tests_passed"]
+    outputs:
+      result_keys: ["synthesizer_tests_passed"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/variant_descriptor.py"
+    metadata:
+      loc_estimate: 250
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 4: Prototype feature skill (NEW)
+  # Depends on wp-worktree (branch prefix) and wp-parallel-infra (VariantDescriptor).
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-prototype-skill
+    task_type: implement
+    description: "Create /prototype-feature skill: SKILL.md, dispatch_variants.py, collect_outcomes.py, angles.yaml."
+    role: skill-creation
+    priority: 3
+    timeout_minutes: 150
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: ["wp-worktree", "wp-parallel-infra"]
+    scope:
+      write_allow:
+        - "skills/prototype-feature/**"
+        - "skills/tests/prototype-feature/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-prototyping-stage/**"
+        - "docs/**"
+      deny:
+        - "skills/iterate-on-plan/**"
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/parallel-infrastructure/scripts/**"
+    worktree:
+      name: wp-prototype-skill
+      mode: isolated
+    locks:
+      files:
+        - "skills/prototype-feature/SKILL.md"
+      keys:
+        - "feature:prototype-feature:skill"
+    verification:
+      tier_required: A
+      steps:
+        - name: "Prototype skill unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/prototype-feature/ -v --ignore=skills/tests/prototype-feature/contracts"
+          evidence:
+            artifacts:
+              - "skills/prototype-feature/SKILL.md"
+              - "skills/prototype-feature/scripts/dispatch_variants.py"
+              - "skills/prototype-feature/scripts/collect_outcomes.py"
+            result_keys: ["prototype_skill_tests_passed"]
+        - name: "Skill doc validation"
+          kind: command
+          command: "skills/.venv/bin/python skills/tests/validate_skill_doc.py skills/prototype-feature/SKILL.md"
+          evidence:
+            artifacts: []
+            result_keys: ["skill_doc_valid"]
+    outputs:
+      result_keys: ["prototype_skill_tests_passed", "skill_doc_valid"]
+      artifacts:
+        - "skills/prototype-feature/SKILL.md"
+        - "skills/prototype-feature/scripts/dispatch_variants.py"
+        - "skills/prototype-feature/scripts/collect_outcomes.py"
+        - "skills/prototype-feature/angles.yaml"
+    metadata:
+      loc_estimate: 600
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 5: Iterate-on-plan convergence extension
+  # Depends on wp-prototype-skill (consumes prototype-findings.md format).
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-iterate-convergence
+    task_type: implement
+    description: "Extend /iterate-on-plan with --prototype-context flag, convergence.* findings, prototype-recommended signal."
+    role: skill-update
+    priority: 4
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: ["wp-prototype-skill"]
+    scope:
+      write_allow:
+        - "skills/iterate-on-plan/**"
+        - "skills/tests/iterate-on-plan/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-prototyping-stage/**"
+      deny:
+        - "skills/prototype-feature/**"
+        - "skills/worktree/scripts/worktree.py"
+    worktree:
+      name: wp-iterate-convergence
+      mode: isolated
+    locks:
+      files:
+        - "skills/iterate-on-plan/SKILL.md"
+      keys:
+        - "feature:iterate-on-plan:context"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Iterate convergence tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/iterate-on-plan/ -v"
+          evidence:
+            artifacts:
+              - "skills/iterate-on-plan/SKILL.md"
+            result_keys: ["iterate_convergence_tests_passed"]
+    outputs:
+      result_keys: ["iterate_convergence_tests_passed"]
+      artifacts:
+        - "skills/iterate-on-plan/SKILL.md"
+    metadata:
+      loc_estimate: 300
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 6: Cleanup feature extension
+  # Depends on wp-worktree only (branch cleanup logic).
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-cleanup
+    task_type: implement
+    description: "Extend /cleanup-feature to delete prototype/<change-id>/v* branches and worktrees."
+    role: skill-update
+    priority: 3
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: ["wp-worktree"]
+    scope:
+      write_allow:
+        - "skills/cleanup-feature/**"
+        - "skills/tests/cleanup-feature/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-prototyping-stage/**"
+      deny: []
+    worktree:
+      name: wp-cleanup
+      mode: isolated
+    locks:
+      files:
+        - "skills/cleanup-feature/SKILL.md"
+      keys:
+        - "feature:cleanup-feature:branches"
+    verification:
+      tier_required: B
+      steps:
+        - name: "Cleanup extension tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/cleanup-feature/ -v"
+          evidence:
+            artifacts:
+              - "skills/cleanup-feature/SKILL.md"
+            result_keys: ["cleanup_tests_passed"]
+    outputs:
+      result_keys: ["cleanup_tests_passed"]
+      artifacts:
+        - "skills/cleanup-feature/SKILL.md"
+    metadata:
+      loc_estimate: 100
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 7: Documentation
+  # Depends on wp-prototype-skill and wp-iterate-convergence (needs final APIs).
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-docs
+    task_type: implement
+    description: "Update docs/skills-workflow.md and CLAUDE.md with prototyping stage and new design principle."
+    role: docs
+    priority: 5
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    depends_on: ["wp-prototype-skill", "wp-iterate-convergence"]
+    scope:
+      write_allow:
+        - "docs/skills-workflow.md"
+        - "CLAUDE.md"
+        - "skills/tests/docs/**"
+      read_allow:
+        - "docs/**"
+        - "CLAUDE.md"
+        - "skills/**"
+        - "openspec/changes/add-prototyping-stage/**"
+      deny:
+        - "skills/prototype-feature/**"
+        - "skills/iterate-on-plan/**"
+    worktree:
+      name: wp-docs
+      mode: isolated
+    locks:
+      files:
+        - "docs/skills-workflow.md"
+        - "CLAUDE.md"
+      keys:
+        - "feature:docs:workflow"
+        - "feature:docs:claudemd"
+    verification:
+      tier_required: C
+      steps:
+        - name: "Doc-lint: prototype stage appears in workflow doc"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs/ -v"
+          evidence:
+            artifacts:
+              - "docs/skills-workflow.md"
+              - "CLAUDE.md"
+            result_keys: ["docs_lint_passed"]
+    outputs:
+      result_keys: ["docs_lint_passed"]
+      artifacts:
+        - "docs/skills-workflow.md"
+        - "CLAUDE.md"
+    metadata:
+      loc_estimate: 80
+      package_kind: config
+
+  # ──────────────────────────────────────────────────────
+  # Phase 8: Integration (merge branches, e2e test, sync runtime mirrors)
+  # Always last. Depends on all implementation packages.
+  # ──────────────────────────────────────────────────────
+
+  - package_id: wp-integration
+    task_type: implement
+    description: "End-to-end integration test (plan → prototype → iterate-on-plan convergence → implement) and runtime-mirror sync."
+    role: integration
+    priority: 9
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    depends_on:
+      - "wp-contracts"
+      - "wp-worktree"
+      - "wp-parallel-infra"
+      - "wp-prototype-skill"
+      - "wp-iterate-convergence"
+      - "wp-cleanup"
+      - "wp-docs"
+    scope:
+      write_allow:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "skills/tests/integration/**"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: wp-integration
+      mode: shared
+    locks:
+      files: []
+      keys:
+        - "feature:integration:stage"
+    verification:
+      tier_required: A
+      steps:
+        - name: "Sync runtime mirrors"
+          kind: command
+          command: "bash skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+        - name: "End-to-end integration test"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/integration/test_prototype_convergence.py -v"
+          evidence:
+            artifacts: []
+            result_keys: ["integration_passed"]
+        - name: "OpenSpec strict validate"
+          kind: command
+          command: "openspec validate add-prototyping-stage --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_validated"]
+    outputs:
+      result_keys: ["mirrors_synced", "integration_passed", "openspec_validated"]
+      artifacts: []
+    metadata:
+      loc_estimate: 200
+      package_kind: integration
