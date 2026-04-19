@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: Conditional Worktree Generation — No-API Stub
+  version: 1.0.0
+  description: |
+    This change introduces no HTTP endpoints. This file exists solely to satisfy
+    the `contracts.openapi` requirement in work-packages.schema.json for a
+    skill-internal behavioral change. See contracts/README.md for the full
+    sub-type evaluation (OpenAPI / Database / Event / Type-gen — none apply).
+
+    The observable interface of this change is the CLI surface of
+    `skills/worktree/scripts/worktree.py` and `merge_worktrees.py`; the stdout
+    key=value contract consumed by `eval "$(…)"` callers is verified by
+    regression tests, not schemas.
+paths: {}
+components:
+  schemas: {}
