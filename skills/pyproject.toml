@@ -26,6 +26,7 @@ test = [
 
 [tool.pytest.ini_options]
 testpaths = [
+    "shared/tests",
     "worktree/scripts/tests",
     "coordination-bridge/scripts/tests",
     "validate-packages/scripts/tests",
