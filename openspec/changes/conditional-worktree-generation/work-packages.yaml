@@ -1,0 +1,408 @@
+schema_version: 1
+
+feature:
+  id: conditional-worktree-generation
+  title: "Conditional worktree generation based on execution environment"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  # No functional endpoints — see contracts/README.md for sub-type evaluation.
+  # The OpenAPI file below is a required-by-schema stub with empty paths.
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "A"
+  min_trust_level: 2
+
+packages:
+  # --- Phase 1: EnvironmentProfile helper (foundation for everything else) ---
+  - package_id: wp-env-profile
+    title: "EnvironmentProfile helper: detector + unit tests"
+    task_type: implement
+    description: |
+      Implement skills/shared/environment_profile.py with the three-layer
+      detector (env var > coordinator > heuristic > default) plus complete
+      unit test coverage. This package is the foundation; every other
+      package imports from it.
+
+      Covers tasks.md 1.1-1.6:
+      - 1.1-1.2: env-var layer and unit tests
+      - 1.3-1.4: coordinator layer with 500ms timeout and graceful fall-through
+      - 1.5-1.6: heuristic layer + default + WORKTREE_DEBUG opt-in verbose logging
+      Spec scenarios: worktree-isolation.2, worktree-isolation.3, worktree-isolation.4
+      Design decisions: D1 (helper location), D2 (precedence), D6 (heuristic markers), D7 (coordinator optional)
+    role: python-engineer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "skills/shared/__init__.py"
+        - "skills/shared/environment_profile.py"
+        - "skills/tests/worktree/test_environment_profile.py"
+      keys:
+        - "feature:conditional-worktree-generation:envprofile"
+      ttl_minutes: 120
+      reason: "EnvironmentProfile helper — new module, net new tests"
+    scope:
+      write_allow:
+        - "skills/shared/__init__.py"
+        - "skills/shared/environment_profile.py"
+        - "skills/tests/worktree/test_environment_profile.py"
+        - "skills/tests/worktree/__init__.py"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/conditional-worktree-generation/**"
+      deny:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/worktree/scripts/merge_worktrees.py"
+        - "agent-coordinator/**"
+    worktree:
+      name: wp-env-profile
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/worktree/test_environment_profile.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "type-check"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy skills/shared/environment_profile.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 2: worktree.py short-circuits (depends on helper) ---
+  - package_id: wp-worktree-integration
+    title: "worktree.py: short-circuit every cmd_* on isolation_provided"
+    task_type: implement
+    description: |
+      Wire EnvironmentProfile.detect() into skills/worktree/scripts/worktree.py.
+      Every write command (setup, teardown, pin, unpin, heartbeat, gc)
+      short-circuits with success-stub stdout and one stderr log line when
+      isolation_provided=true. Read-only commands (list, status,
+      resolve-branch) pass through unchanged.
+
+      Covers tasks.md 2.1-2.7:
+      - 2.1-2.2: behavior tests for setup (cloud + local modes)
+      - 2.3: integrate detect() into cmd_setup
+      - 2.4-2.5: tests + integration for teardown/pin/unpin/heartbeat/gc
+      - 2.6-2.7: verify read-only commands unchanged
+      Spec scenarios: worktree-isolation.1, worktree-isolation.2, worktree-isolation.3,
+        worktree-isolation.4, worktree-isolation.9, worktree-isolation.10
+      Design decisions: D3 (no-op not error), D4 (read-only unchanged), D5 (emit toplevel/current-branch)
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-env-profile]
+    locks:
+      files:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/tests/worktree/test_worktree_cloud_mode.py"
+        - "skills/tests/worktree/test_worktree_local_mode.py"
+      keys:
+        - "feature:conditional-worktree-generation:worktree"
+      ttl_minutes: 120
+      reason: "worktree.py short-circuit integration — single file, all cmd_* touched"
+    scope:
+      write_allow:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/tests/worktree/test_worktree_cloud_mode.py"
+        - "skills/tests/worktree/test_worktree_local_mode.py"
+      read_allow:
+        - "skills/shared/**"
+        - "skills/worktree/**"
+        - "skills/tests/worktree/**"
+        - "openspec/changes/conditional-worktree-generation/**"
+      deny:
+        - "skills/worktree/scripts/merge_worktrees.py"
+        - "skills/shared/environment_profile.py"
+        - ".claude/skills/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: wp-worktree-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "behavior-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/worktree/test_worktree_cloud_mode.py skills/tests/worktree/test_worktree_local_mode.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "type-check"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy skills/worktree/scripts/worktree.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 3: merge_worktrees.py short-circuit (parallel with worktree-py) ---
+  - package_id: wp-merge-integration
+    title: "merge_worktrees.py: short-circuit with PR-guidance under cloud mode"
+    task_type: implement
+    description: |
+      Wire EnvironmentProfile.detect() into skills/worktree/scripts/merge_worktrees.py.
+      When isolation_provided=true, exit 0 before any branch resolution or
+      `git merge` invocation, with a single stderr guidance line pointing
+      callers to PR-based integration.
+
+      Covers tasks.md 3.1-3.2.
+      Spec scenarios: worktree-isolation.6 (cloud merge short-circuits with guidance)
+      Design decisions: D8 (merge exits 0 with guidance, not error)
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-env-profile]
+    locks:
+      files:
+        - "skills/worktree/scripts/merge_worktrees.py"
+        - "skills/tests/worktree/test_merge_cloud_mode.py"
+      keys:
+        - "feature:conditional-worktree-generation:merge"
+      ttl_minutes: 60
+      reason: "merge_worktrees.py short-circuit — single-file change"
+    scope:
+      write_allow:
+        - "skills/worktree/scripts/merge_worktrees.py"
+        - "skills/tests/worktree/test_merge_cloud_mode.py"
+      read_allow:
+        - "skills/shared/**"
+        - "skills/worktree/**"
+        - "openspec/changes/conditional-worktree-generation/**"
+      deny:
+        - "skills/worktree/scripts/worktree.py"
+        - "skills/shared/environment_profile.py"
+    worktree:
+      name: wp-merge-integration
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "merge-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/worktree/test_merge_cloud_mode.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 5: Optional coordinator field (parallel with worktree-py & merge) ---
+  - package_id: wp-coordinator-ext
+    title: "Coordinator: optional isolation_provided field on agent registration"
+    task_type: implement
+    description: |
+      Add an optional, nullable isolation_provided field to the coordinator's
+      agent-registration schema. Non-breaking: cloud harnesses opt in by
+      setting it; existing callers that omit it see no change.
+
+      Covers tasks.md 5.1-5.2.
+      Spec scenarios: worktree-isolation.3 (coordinator overrides heuristic)
+      Design decisions: D7 (coordinator integration is optional and non-blocking)
+    role: python-engineer
+    priority: 5
+    depends_on: [wp-env-profile]
+    locks:
+      files:
+        - "agent-coordinator/src/coordinator/discovery.py"
+        - "agent-coordinator/src/coordinator/schemas/agent.py"
+      keys:
+        - "feature:conditional-worktree-generation:coordinator"
+      ttl_minutes: 90
+      reason: "Coordinator discovery schema additive change"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordinator/discovery.py"
+        - "agent-coordinator/src/coordinator/schemas/agent.py"
+        - "agent-coordinator/tests/test_discovery_isolation_field.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "skills/shared/**"
+        - "openspec/changes/conditional-worktree-generation/**"
+      deny:
+        - "skills/worktree/**"
+        - "skills/shared/environment_profile.py"
+    worktree:
+      name: wp-coordinator-ext
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "coordinator-tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_discovery_isolation_field.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 6: Documentation (parallel with worktree-py, merge, coordinator) ---
+  - package_id: wp-docs
+    title: "Documentation: cloud-vs-local execution guide, CLAUDE.md, project.md"
+    task_type: implement
+    description: |
+      Write operator-facing documentation for the new detection signal.
+
+      Covers tasks.md 6.1-6.3:
+      - 6.1: New docs/cloud-vs-local-execution.md — detection precedence,
+        env var values, troubleshooting, WORKTREE_DEBUG=1 usage
+      - 6.2: CLAUDE.md Worktree Management section — cross-reference
+      - 6.3: openspec/project.md — expand "MCP for local, HTTP for cloud" note
+    role: technical-writer
+    priority: 6
+    depends_on: [wp-env-profile]
+    locks:
+      files:
+        - "docs/cloud-vs-local-execution.md"
+        - "CLAUDE.md"
+        - "openspec/project.md"
+      keys:
+        - "feature:conditional-worktree-generation:docs"
+      ttl_minutes: 45
+      # key 'docs' is lowercase-alpha per canonical regex ^feature:[A-Za-z0-9._:-]+:[a-z]+$
+      reason: "Documentation updates — 3 files, no code risk"
+    scope:
+      write_allow:
+        - "docs/cloud-vs-local-execution.md"
+        - "CLAUDE.md"
+        - "openspec/project.md"
+      read_allow:
+        - "docs/**"
+        - "CLAUDE.md"
+        - "skills/shared/**"
+        - "skills/worktree/**"
+        - "openspec/changes/conditional-worktree-generation/**"
+      deny:
+        - "skills/worktree/scripts/**"
+        - "skills/shared/environment_profile.py"
+    worktree:
+      name: wp-docs
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "files-exist"
+          kind: command
+          command: "bash -c 'test -s docs/cloud-vs-local-execution.md && test -s CLAUDE.md && test -s openspec/project.md && echo OK'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["docs_verified"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 4 + Integration: full-suite regression + call-site audit + merge ---
+  - package_id: wp-integration
+    title: "Integration: call-site audit, regression suite, openspec validate, merge"
+    task_type: integrate
+    description: |
+      Phase 4 + integration. Grep every worktree.py and merge_worktrees.py
+      call site across skills/, .claude/skills/, .agents/skills/,
+      .codex/skills/, .gemini/skills/; confirm all use
+      `eval "$(worktree.py setup …)"` or invocations compatible with the
+      cloud-mode success stubs. File follow-up issues for any call site
+      that parses output in ways incompatible with the cloud stub.
+
+      Run full skill test suite and openspec validate --all --strict.
+      Merge all package branches into the feature branch.
+
+      Covers tasks.md 4.1-4.2 + 6.4.
+      Spec scenarios: worktree-isolation.7, worktree-isolation.8, worktree-isolation.9, worktree-isolation.10
+    priority: 1
+    depends_on:
+      - wp-env-profile
+      - wp-worktree-integration
+      - wp-merge-integration
+      - wp-coordinator-ext
+      - wp-docs
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow: ["**"]
+      read_allow: ["**"]
+    worktree:
+      name: wp-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full-test-suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/ -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "openspec-validate"
+          kind: command
+          command: "openspec validate --all --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_status"]
+        - name: "call-site-audit"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import subprocess,sys;r=subprocess.run(['grep','-rn','worktree.py setup','skills/','.claude/skills/','.agents/skills/','.codex/skills/'],capture_output=True,text=True);print(r.stdout);sys.exit(0)\""
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["call_sites_found"]
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"
+        - "pass_count"
