@@ -24,7 +24,7 @@ Agentic coding tools - a collection of systems for coordinating and enhancing AI
 - Layered architecture: Execution → Coordination → Trust → Governance
 - Atomic database operations using PostgreSQL functions
 - Hybrid read/write: Direct reads, coordinated writes
-- MCP for local agents, HTTP for cloud agents
+- MCP for local agents, HTTP for cloud agents. Local multi-agent execution uses git worktrees for filesystem isolation; cloud agents run in ephemeral containers and skip worktree creation via `skills/shared/environment_profile.py`'s `detect()` helper (see [docs/cloud-vs-local-execution.md](../docs/cloud-vs-local-execution.md))
 
 ### Testing Strategy
 - Unit tests for core logic (locks, memory, queue)
