@@ -78,7 +78,7 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 uv sync --all-extras
 
 # Run MCP server (for testing)
-python -m src.coordination_mcp --transport=sse --port=8082
+python -m src.coordination_mcp --transport=http --port=8082
 
 # Run HTTP API
 python -m src.coordination_api  # Runs on :8081
