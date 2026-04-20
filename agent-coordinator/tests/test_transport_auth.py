@@ -90,7 +90,7 @@ class TestRequestApprovalMCP:
         ):
             from src.coordination_mcp import request_approval
 
-            result = await request_approval.fn(
+            result = await request_approval(
                 operation="delete_branch", resource="main"
             )
 
@@ -108,7 +108,7 @@ class TestRequestApprovalMCP:
         ):
             from src.coordination_mcp import request_approval
 
-            result = await request_approval.fn(operation="delete_branch")
+            result = await request_approval(operation="delete_branch")
 
         assert result["success"] is False
         assert "not enabled" in result["error"]
@@ -140,7 +140,7 @@ class TestCheckApprovalMCP:
         ):
             from src.coordination_mcp import check_approval
 
-            result = await check_approval.fn(request_id="req-2")
+            result = await check_approval(request_id="req-2")
 
         assert result["success"] is True
         assert result["request_id"] == "req-2"
@@ -159,7 +159,7 @@ class TestCheckApprovalMCP:
         ):
             from src.coordination_mcp import check_approval
 
-            result = await check_approval.fn(request_id="nonexistent")
+            result = await check_approval(request_id="nonexistent")
 
         assert result["success"] is False
         assert "not found" in result["error"].lower()
@@ -183,7 +183,7 @@ class TestListPolicyVersionsMCP:
         ):
             from src.coordination_mcp import list_policy_versions
 
-            result = await list_policy_versions.fn(policy_name="default", limit=10)
+            result = await list_policy_versions(policy_name="default", limit=10)
 
         assert result["versions"] == fake_versions
         mock_engine.list_policy_versions.assert_awaited_once_with("default", 10)
@@ -217,7 +217,7 @@ class TestRequestPermissionMCP:
         ):
             from src.coordination_mcp import request_permission
 
-            result = await request_permission.fn(
+            result = await request_permission(
                 operation="write_config", justification="Need to update DB settings"
             )
 
@@ -234,7 +234,7 @@ class TestRequestPermissionMCP:
         ):
             from src.coordination_mcp import request_permission
 
-            result = await request_permission.fn(operation="write_config")
+            result = await request_permission(operation="write_config")
 
         assert result["success"] is False
         assert "not enabled" in result["error"]
