@@ -1,0 +1,38 @@
+schema_version: "1.0"
+change_id: migrate-fastmcp-3x
+tier: sequential
+
+packages:
+  - id: wp-main
+    name: "FastMCP 3.x migration — full scope"
+    description: |
+      Migrate agent-coordinator from fastmcp 2.x to 3.x:
+      - Update pyproject.toml dependency floor to >=3.2.3
+      - Convert @mcp.tool() decorators to @mcp.tool (28 tools)
+      - Replace SSE transport with HTTP Streamable
+      - Update mcp_client.py to 3.x Client API
+      - Verify all tests, lint, and type checks pass
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "2.1"
+      - "2.2"
+      - "2.3"
+      - "2.4"
+      - "2.5"
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "4.1"
+      - "4.2"
+      - "4.3"
+      - "4.4"
+    priority: 1
+    dependencies: []
+    scope:
+      write_allow:
+        - "agent-coordinator/**"
+      read_allow:
+        - "**"
+    verification: tier_b
