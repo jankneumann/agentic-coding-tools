@@ -29,14 +29,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from worktree import (  # noqa: E402
     find_entry,
     load_registry,
-    resolve_branch as _resolve_branch,
     resolve_main_repo,
+)
+from worktree import (
+    resolve_branch as _resolve_branch,
+)
+from worktree import (
     resolve_parent_branch as _resolve_parent_branch,
 )
 
 # Shared helper for execution-environment detection.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from shared.environment_profile import detect as _detect_env  # noqa: E402
+# Falls back to a no-op detector when shared/ is not bundled in the
+# installed runtime (install.sh currently only syncs SKILL.md dirs).
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from shared.environment_profile import detect as _detect_env  # noqa: E402
+except ModuleNotFoundError:
+    from dataclasses import dataclass
+    from dataclasses import field as _field
+
+    @dataclass(frozen=True)
+    class _FallbackProfile:
+        isolation_provided: bool = False
+        source: str = "unavailable"
+        details: dict = _field(default_factory=dict)
+
+    def _detect_env(agent_id: str | None = None, **_kw: object) -> _FallbackProfile:  # type: ignore[no-redef]
+        return _FallbackProfile()
 
 
 # ---------------------------------------------------------------------------
