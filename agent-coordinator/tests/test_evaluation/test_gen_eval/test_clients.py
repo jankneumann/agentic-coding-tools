@@ -327,6 +327,63 @@ class TestMcpClient:
         assert result.body == {"result": "lock acquired"}
 
     @pytest.mark.asyncio
+    async def test_execute_call_tool_result_data(self) -> None:
+        """fastmcp 3.x returns CallToolResult with .data attribute."""
+        client = McpClient(mcp_url="http://localhost:8082/mcp")
+        mock_mcp = AsyncMock()
+
+        # Simulate CallToolResult with structured .data
+        call_result = MagicMock(spec=["data", "content"])
+        call_result.data = {"lock_id": "abc123", "success": True}
+        call_result.content = []
+        mock_mcp.call_tool.return_value = call_result
+        client._client = mock_mcp
+
+        step = ActionStep(id="s1", transport="mcp", tool="acquire_lock", params={})
+        ctx = StepContext()
+        result = await client.execute(step, ctx)
+        assert result.body == {"lock_id": "abc123", "success": True}
+
+    @pytest.mark.asyncio
+    async def test_execute_call_tool_result_content(self) -> None:
+        """fastmcp 3.x CallToolResult with .content blocks (no .data)."""
+        client = McpClient(mcp_url="http://localhost:8082/mcp")
+        mock_mcp = AsyncMock()
+
+        # Simulate CallToolResult with content blocks only
+        block = MagicMock(spec=["text"])
+        block.text = '{"success": true, "count": 5}'
+        call_result = MagicMock(spec=["data", "content"])
+        call_result.data = None
+        call_result.content = [block]
+        mock_mcp.call_tool.return_value = call_result
+        client._client = mock_mcp
+
+        step = ActionStep(id="s1", transport="mcp", tool="acquire_lock", params={})
+        ctx = StepContext()
+        result = await client.execute(step, ctx)
+        assert result.body == {"success": True, "count": 5}
+
+    @pytest.mark.asyncio
+    async def test_execute_call_tool_result_content_non_json(self) -> None:
+        """fastmcp 3.x CallToolResult with non-JSON text content."""
+        client = McpClient(mcp_url="http://localhost:8082/mcp")
+        mock_mcp = AsyncMock()
+
+        block = MagicMock(spec=["text"])
+        block.text = "plain text response"
+        call_result = MagicMock(spec=["data", "content"])
+        call_result.data = None
+        call_result.content = [block]
+        mock_mcp.call_tool.return_value = call_result
+        client._client = mock_mcp
+
+        step = ActionStep(id="s1", transport="mcp", tool="acquire_lock", params={})
+        ctx = StepContext()
+        result = await client.execute(step, ctx)
+        assert result.body == {"result": "plain text response"}
+
+    @pytest.mark.asyncio
     async def test_execute_variable_substitution(self) -> None:
         client = McpClient(mcp_url="http://localhost:8082/sse")
         mock_mcp = AsyncMock()
