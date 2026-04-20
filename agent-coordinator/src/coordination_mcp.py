@@ -14,7 +14,7 @@ Usage (Claude Code):
         '{"type":"stdio","command":".venv/bin/python","args":["-m","src.coordination_mcp"],"cwd":"/path/to/agent-coordinator","env":{"DB_BACKEND":"postgres","POSTGRES_DSN":"postgresql://user:pass@localhost:54322/dbname","AGENT_ID":"claude-code-1","AGENT_TYPE":"claude_code"}}'
 
 Usage (standalone for testing):
-    python -m src.coordination_mcp --transport sse --port 8082
+    python -m src.coordination_mcp --transport http --port 8082
 """
 
 import sys
@@ -76,7 +76,7 @@ def get_agent_type() -> str:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def acquire_lock(
     file_path: str,
     reason: str | None = None,
@@ -130,7 +130,7 @@ async def acquire_lock(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def release_lock(file_path: str) -> dict[str, Any]:
     """
     Release a lock you previously acquired.
@@ -158,7 +158,7 @@ async def release_lock(file_path: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def check_locks(file_paths: list[str] | None = None) -> list[dict[str, Any]]:
     """
     Check which files are currently locked.
@@ -194,7 +194,7 @@ async def check_locks(file_paths: list[str] | None = None) -> list[dict[str, Any
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def get_work(task_types: list[str] | None = None) -> dict[str, Any]:
     """
     Claim a task from the work queue.
@@ -237,7 +237,7 @@ async def get_work(task_types: list[str] | None = None) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def complete_work(
     task_id: str,
     success: bool,
@@ -285,7 +285,7 @@ async def complete_work(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def submit_work(
     task_type: str,
     description: str,
@@ -350,7 +350,7 @@ async def submit_work(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_task(task_id: str) -> dict[str, Any]:
     """
     Retrieve a specific task by ID.
@@ -406,7 +406,7 @@ async def get_task(task_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_create(
     title: str,
     description: str | None = None,
@@ -481,7 +481,7 @@ async def issue_create(
         return {"success": False, "reason": str(e)}
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_list(
     status: str | None = None,
     issue_type: str | None = None,
@@ -538,7 +538,7 @@ async def issue_list(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_show(issue_id: str) -> dict[str, Any]:
     """
     Get full details of an issue, including comments and children.
@@ -565,7 +565,7 @@ async def issue_show(issue_id: str) -> dict[str, Any]:
     return {"success": True, "issue": issue.to_dict()}
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_update(
     issue_id: str,
     title: str | None = None,
@@ -630,7 +630,7 @@ async def issue_update(
     return {"success": True, "issue": issue.to_dict()}
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_close(
     issue_id: str | None = None,
     issue_ids: list[str] | None = None,
@@ -680,7 +680,7 @@ async def issue_close(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_comment(
     issue_id: str,
     body: str,
@@ -711,7 +711,7 @@ async def issue_comment(
     return {"success": True, "comment": comment.to_dict()}
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_ready(
     parent_id: str | None = None,
     limit: int = 50,
@@ -749,7 +749,7 @@ async def issue_ready(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_blocked() -> dict[str, Any]:
     """
     List issues blocked by unresolved dependencies.
@@ -773,7 +773,7 @@ async def issue_blocked() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def issue_search(
     query: str,
     limit: int = 50,
@@ -812,7 +812,7 @@ async def issue_search(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def write_handoff(
     summary: str,
     completed_work: list[str] | None = None,
@@ -875,7 +875,7 @@ async def write_handoff(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def read_handoff(
     agent_name: str | None = None,
     limit: int = 1,
@@ -940,7 +940,7 @@ async def read_handoff(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def register_session(
     capabilities: list[str] | None = None,
     current_task: str | None = None,
@@ -986,7 +986,7 @@ async def register_session(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def discover_agents(
     capability: str | None = None,
     status: str | None = None,
@@ -1038,7 +1038,7 @@ async def discover_agents(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def heartbeat() -> dict[str, Any]:
     """
     Send a heartbeat to indicate this agent is still alive.
@@ -1062,7 +1062,7 @@ async def heartbeat() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def cleanup_dead_agents(
     stale_threshold_minutes: int = 15,
 ) -> dict[str, Any]:
@@ -1101,7 +1101,7 @@ async def cleanup_dead_agents(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def remember(
     event_type: str = "discovery",
     summary: str = "",
@@ -1156,7 +1156,7 @@ async def remember(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def recall(
     tags: list[str] | None = None,
     event_type: str | None = None,
@@ -1216,7 +1216,7 @@ async def recall(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def check_guardrails(
     operation_text: str,
     file_paths: list[str] | None = None,
@@ -1287,7 +1287,7 @@ async def check_guardrails(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def get_my_profile() -> dict[str, Any]:
     """
     Get the current agent's profile including trust level and permissions.
@@ -1324,7 +1324,7 @@ async def get_my_profile() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_agent_dispatch_configs() -> dict[str, Any]:
     """
     Get CLI dispatch configurations for all agents with a `cli` section.
@@ -1348,7 +1348,7 @@ async def get_agent_dispatch_configs() -> dict[str, Any]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def query_audit(
     agent_id: str | None = None,
     operation: str | None = None,
@@ -1403,7 +1403,7 @@ async def query_audit(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def check_policy(
     operation: str,
     resource: str = "",
@@ -1450,7 +1450,7 @@ async def check_policy(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
     """
     Validate Cedar policy text against the schema.
@@ -1494,7 +1494,7 @@ async def validate_cedar_policy(policy_text: str) -> dict[str, Any]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def allocate_ports(session_id: str) -> dict[str, Any]:
     """
     Allocate a conflict-free port block for a parallel docker-compose stack.
@@ -1543,7 +1543,7 @@ async def allocate_ports(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def release_ports(session_id: str) -> dict[str, Any]:
     """
     Release a previously allocated port block.
@@ -1570,7 +1570,7 @@ async def release_ports(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def ports_status() -> list[dict[str, Any]]:
     """
     List all active port allocations.
@@ -1615,7 +1615,7 @@ async def ports_status() -> list[dict[str, Any]]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def request_approval(
     operation: str,
     resource: str | None = None,
@@ -1647,7 +1647,7 @@ async def request_approval(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def check_approval(request_id: str) -> dict[str, Any]:
     """Check the status of an approval request."""
     if _transport == "http":
@@ -1673,7 +1673,7 @@ async def check_approval(request_id: str) -> dict[str, Any]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def list_policy_versions(policy_name: str, limit: int = 20) -> dict[str, Any]:
     """List version history for a Cedar policy."""
     if _transport == "http":
@@ -1693,7 +1693,7 @@ async def list_policy_versions(policy_name: str, limit: int = 20) -> dict[str, A
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def request_permission(
     operation: str, justification: str | None = None
 ) -> dict[str, Any]:
@@ -1726,7 +1726,7 @@ async def request_permission(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def register_feature(
     feature_id: str,
     resource_claims: list[str],
@@ -1782,7 +1782,7 @@ async def register_feature(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def deregister_feature(
     feature_id: str,
     status: str = "completed",
@@ -1817,7 +1817,7 @@ async def deregister_feature(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_feature(feature_id: str) -> dict[str, Any]:
     """Get details of a specific registered feature.
 
@@ -1851,7 +1851,7 @@ async def get_feature(feature_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def list_active_features() -> dict[str, Any]:
     """List all active features ordered by merge priority.
 
@@ -1881,7 +1881,7 @@ async def list_active_features() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def analyze_feature_conflicts(
     candidate_feature_id: str,
     candidate_claims: list[str],
@@ -1922,7 +1922,7 @@ async def analyze_feature_conflicts(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def enqueue_merge(
     feature_id: str,
     pr_url: str | None = None,
@@ -1963,7 +1963,7 @@ async def enqueue_merge(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_merge_queue() -> dict[str, Any]:
     """Get all features in the merge queue, ordered by priority.
 
@@ -1992,7 +1992,7 @@ async def get_merge_queue() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_next_merge() -> dict[str, Any]:
     """Get the highest-priority feature ready to merge.
 
@@ -2021,7 +2021,7 @@ async def get_next_merge() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def run_pre_merge_checks(feature_id: str) -> dict[str, Any]:
     """Run pre-merge validation checks on a feature.
 
@@ -2051,7 +2051,7 @@ async def run_pre_merge_checks(feature_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def mark_merged(feature_id: str) -> dict[str, Any]:
     """Mark a feature as merged and deregister it from the registry.
 
@@ -2073,7 +2073,7 @@ async def mark_merged(feature_id: str) -> dict[str, Any]:
     return {"success": success, "feature_id": feature_id}
 
 
-@mcp.tool()
+@mcp.tool
 async def remove_from_merge_queue(feature_id: str) -> dict[str, Any]:
     """Remove a feature from the merge queue without merging.
 
@@ -2113,7 +2113,7 @@ async def _current_trust_level() -> int:
     return int(result.profile.trust_level)
 
 
-@mcp.tool()
+@mcp.tool
 async def compose_train() -> dict[str, Any]:
     """Compose a new speculative merge train from the current queue (R1, R6).
 
@@ -2172,7 +2172,7 @@ async def compose_train() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def eject_from_train(
     feature_id: str,
     reason: str,
@@ -2230,7 +2230,7 @@ async def eject_from_train(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def get_train_status(train_id: str) -> dict[str, Any]:
     """Return every entry currently belonging to a merge train.
 
@@ -2263,7 +2263,7 @@ async def get_train_status(train_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def report_spec_result(
     feature_id: str,
     passed: bool,
@@ -2306,7 +2306,7 @@ async def report_spec_result(
     }
 
 
-@mcp.tool()
+@mcp.tool
 async def affected_tests(changed_files: list[str]) -> dict[str, Any]:
     """Compute which tests cover the given changed files (R9).
 
@@ -2344,7 +2344,7 @@ async def affected_tests(changed_files: list[str]) -> dict[str, Any]:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def report_status(
     agent_id: str,
     change_id: str,
@@ -2445,7 +2445,7 @@ async def report_status(
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def help(topic: str | None = None) -> dict[str, Any]:
     """
     Get help on coordinator capabilities with progressive detail.
@@ -2777,7 +2777,7 @@ async def get_merge_queue_resource() -> str:
 # =============================================================================
 
 
-@mcp.tool()
+@mcp.tool
 async def list_scenarios(
     category: str | None = None,
     interface: str | None = None,
@@ -2821,7 +2821,7 @@ async def list_scenarios(
     ])
 
 
-@mcp.tool()
+@mcp.tool
 async def validate_scenario(
     yaml_content: str,
 ) -> str:
@@ -2856,7 +2856,7 @@ async def validate_scenario(
     })
 
 
-@mcp.tool()
+@mcp.tool
 async def create_scenario(
     category: str,
     description: str,
@@ -2907,7 +2907,7 @@ async def create_scenario(
     return json_mod.dumps(result)
 
 
-@mcp.tool()
+@mcp.tool
 async def run_gen_eval(
     mode: str = "template-only",
     categories: list[str] | None = None,
@@ -3152,9 +3152,9 @@ def main() -> None:
         elif arg.startswith("--port="):
             port = int(arg.split("=")[1])
 
-    if transport == "sse":
-        # Run as SSE server (for testing or remote agents)
-        mcp.run(transport="sse", port=port)
+    if transport == "http":
+        # Run as HTTP Streamable server (for testing or remote agents)
+        mcp.run(transport="http", host="0.0.0.0", port=port)
     else:
         # Run as stdio (for direct Claude Code integration)
         mcp.run(transport="stdio")
