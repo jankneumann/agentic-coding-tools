@@ -1,6 +1,6 @@
 # Spec Delta: agent-coordinator (migrate-fastmcp-3x)
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: MCP Server Framework Version
 
