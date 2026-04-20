@@ -54,7 +54,7 @@ test = [
     "pytest-playwright>=0.7.2",
     "respx>=0.21.0",
     "PyJWT>=2.8.0",
-    "ruff>=0.8.0",
+    "ruff>=0.15.10",
     "mypy>=1.13.0",
     "hypothesis>=6.0.0",
 ]
@@ -64,7 +64,7 @@ dev = [
     "pytest-playwright>=0.7.2",
     "respx>=0.21.0",
     "PyJWT>=2.8.0",
-    "ruff>=0.8.0",
+    "ruff>=0.15.10",
     "mypy>=1.13.0",
     "types-PyYAML>=6.0",
     "asyncpg>=0.30.0",
