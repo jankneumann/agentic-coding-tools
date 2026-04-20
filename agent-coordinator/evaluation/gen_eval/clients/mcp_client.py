@@ -1,7 +1,8 @@
-"""MCP transport client using fastmcp SDK (SSE transport)."""
+"""MCP transport client using fastmcp SDK (HTTP Streamable transport)."""
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Any
 
@@ -11,7 +12,7 @@ from .base import StepContext, StepResult
 
 
 class McpClient:
-    """Execute MCP tool invocations over SSE via the fastmcp SDK."""
+    """Execute MCP tool invocations via the fastmcp 3.x Client."""
 
     def __init__(self, mcp_url: str, default_timeout: float = 30.0) -> None:
         self._mcp_url = mcp_url
@@ -20,10 +21,10 @@ class McpClient:
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
-            from fastmcp import Client as FastMCPClient
+            from fastmcp import Client
 
-            self._client = FastMCPClient(self._mcp_url)
-            await self._client.__aenter__()  # type: ignore[no-untyped-call]
+            self._client = Client(self._mcp_url)
+            await self._client.__aenter__()
         return self._client
 
     # ------------------------------------------------------------------
@@ -50,12 +51,14 @@ class McpClient:
 
             result = await client.call_tool(tool_name, params)
 
-            # Normalise fastmcp response into a body dict
+            # Normalise fastmcp 3.x CallToolResult into a body dict.
+            # Check concrete types first (handles test mocks), then
+            # CallToolResult attributes (.data, .content).
             body: dict[str, Any] = {}
             if isinstance(result, dict):
                 body = result
             elif isinstance(result, list):
-                # fastmcp returns list of content blocks
+                # List of content blocks (legacy or mock)
                 texts = []
                 for item in result:
                     if hasattr(item, "text"):
@@ -65,6 +68,27 @@ class McpClient:
                     else:
                         texts.append(str(item))
                 body = {"result": "\n".join(texts)}
+            elif hasattr(result, "data") and result.data is not None:
+                # CallToolResult.data (structured, fastmcp 3.x)
+                if isinstance(result.data, dict):
+                    body = result.data
+                else:
+                    body = {"result": result.data}
+            elif hasattr(result, "content") and result.content:
+                # CallToolResult.content (content blocks, fastmcp 3.x)
+                texts = []
+                for item in result.content:
+                    if hasattr(item, "text"):
+                        texts.append(item.text)
+                    else:
+                        texts.append(str(item))
+                combined = "\n".join(texts)
+                try:
+                    body = json.loads(combined)
+                    if not isinstance(body, dict):
+                        body = {"result": body}
+                except (json.JSONDecodeError, ValueError):
+                    body = {"result": combined}
             else:
                 body = {"result": str(result)}
 
