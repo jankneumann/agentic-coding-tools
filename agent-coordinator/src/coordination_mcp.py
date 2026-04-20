@@ -3145,19 +3145,25 @@ def main() -> None:
     # Default to stdio transport (for Claude Code integration)
     transport = "stdio"
     port = 8082
+    host = "127.0.0.1"
 
     for arg in sys.argv[1:]:
         if arg.startswith("--transport="):
             transport = arg.split("=")[1]
         elif arg.startswith("--port="):
             port = int(arg.split("=")[1])
+        elif arg.startswith("--host="):
+            host = arg.split("=")[1]
 
     if transport == "http":
         # Run as HTTP Streamable server (for testing or remote agents)
-        mcp.run(transport="http", host="0.0.0.0", port=port)
-    else:
+        mcp.run(transport="http", host=host, port=port)
+    elif transport == "stdio":
         # Run as stdio (for direct Claude Code integration)
         mcp.run(transport="stdio")
+    else:
+        print(f"Unknown transport: {transport!r}. Use 'stdio' or 'http'.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
