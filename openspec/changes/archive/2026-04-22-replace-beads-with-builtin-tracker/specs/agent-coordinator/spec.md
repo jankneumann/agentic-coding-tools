@@ -186,11 +186,9 @@ THEN the outgoing payload equals `{"issue_ids": ["a", "b"]}` — no stray `"issu
 WHEN `try_issue_blocked(limit=7)` is called
 THEN the HTTP request uses method `GET` and path `/issues/blocked?limit=7` with no request body
 
-## MODIFIED Requirements
+### Requirement: Work Queue Issue Extension Backward Compatibility
 
-### Requirement: Work Queue Backward Compatibility
-
-The existing `submit_work`, `get_work`, `complete_work`, and `get_task` MCP tools SHALL continue to function without modification.
+Adding issue-tracking columns to `work_queue` SHALL preserve the existing behavior of `submit_work`, `get_work`, `complete_work`, and `get_task` MCP tools without modification.
 
 New issue-tracking columns SHALL NOT affect the behavior of existing work queue operations.
 
