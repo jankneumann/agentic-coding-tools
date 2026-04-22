@@ -112,9 +112,7 @@ AND `test_billing.py` imports from `src.billing`
 THEN `affected_tests(["src/utils.py"])` SHALL include `tests/test_billing.py`
 AND the edge SHALL have `confidence: "medium"` and `evidence: "transitive_call"`
 
-## MODIFIED Requirements
-
-### Requirement: Architecture Graph Schema (Extended)
+### Requirement: Architecture Graph Test Analysis Extensions
 
 The architecture graph schema SHALL support new node kinds and edge types for test analysis.
 

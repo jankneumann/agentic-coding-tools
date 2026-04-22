@@ -320,9 +320,7 @@ WHEN enqueue is called with `decomposition="stacked"` for a feature that already
 THEN no new flag SHALL be created
 AND the existing flag state SHALL be preserved
 
-## MODIFIED Requirements
-
-### Requirement: Merge Queue Enqueue (Extended) (R13)
+### Requirement: Merge Queue Enqueue Decomposition Parameter (R13)
 
 The existing `enqueue` method SHALL accept an optional `decomposition` parameter indicating whether the entry represents a stacked-diff work package or a traditional feature branch.
 

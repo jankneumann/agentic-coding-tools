@@ -106,8 +106,6 @@ The `/iterate-on-plan` skill SHALL include "assumptions" as a finding type and s
 - **WHEN** checking for plan smells
 - **THEN** the skill SHALL check for "Unstated assumption" — a plan that proceeds on an assumption about scope, technology choice, or constraint that was never confirmed with the user
 
-## MODIFIED Requirements
-
 ### Requirement: Proposal Template Structure
 
 The `openspec/schemas/feature-workflow/templates/proposal.md` template SHALL include an "Approaches Considered" section between "What Changes" and "Impact", with sub-sections for each approach and a "Selected Approach" placeholder.
