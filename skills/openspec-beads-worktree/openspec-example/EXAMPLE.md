@@ -324,13 +324,22 @@ bd update bd-a3f8.2 --assignee "@bob"
 
 ### Variation 3: Iterative Refinement
 
-```bash
-# After first task, refine remaining tasks
-bd show bd-a3f8.2
-bd update bd-a3f8.2 --description "Updated requirements based on Task 1.1 implementation..."
+```python
+from coordination_bridge import try_issue_show, try_issue_update, try_issue_create
 
-# Or create new sub-tasks
-bd create "Add OAuth2 support" --parent bd-a3f8 --priority 2
+# After first task, refine remaining tasks via the coordinator HTTP bridge
+try_issue_show(issue_id=task_id)
+try_issue_update(
+    issue_id=task_id,
+    description="Updated requirements based on Task 1.1 implementation...",
+)
+
+# Or create new sub-tasks under the epic
+try_issue_create(
+    title="Add OAuth2 support",
+    parent_id=epic_id,
+    priority=2,
+)
 ```
 
 ## Troubleshooting This Example

@@ -80,6 +80,26 @@ Read and validate:
 
 ## Phase 2: Convert OpenSpec to Coordinator Issues
 
+### Transport Options
+
+Issue operations can be called two ways, depending on where the caller runs:
+
+| Caller | Use | Example |
+|---|---|---|
+| Claude Code agent (or other MCP client) | MCP tool names | `issue_create(title=...)` via the agent's tool interface |
+| Python script / orchestrator outside an MCP client | Bridge helpers | `from coordination_bridge import try_issue_create; try_issue_create(...)` |
+
+The examples in this skill use MCP-tool-style pseudocode (`issue_create(...)`)
+because the agent running the skill has these tools in its toolbelt. For
+generated scripts that run outside the agent (e.g. worktree bootstrap hooks,
+CI jobs), reach for the bridge helpers in
+`skills/coordination-bridge/scripts/coordination_bridge.py` — same underlying
+HTTP API, stdlib-only transport, SSRF-validated, works anywhere Python runs.
+
+The mapping is one-to-one: `issue_create` ↔ `try_issue_create`,
+`issue_list` ↔ `try_issue_list`, and so on for `show`, `update`, `close`,
+`comment`, `ready`, `blocked`, `search`.
+
 ### Step 2.1: Verify Coordinator Available
 
 Check that the coordinator is running and issue tools are available:
@@ -630,7 +650,7 @@ fi
 issue_close $EPIC_ID --reason "OpenSpec proposal implemented and archived"
 
 # Add summary
-bd comment $EPIC_ID "Implementation Summary:
+issue_comment $EPIC_ID "Implementation Summary:
 - Total tasks: $(issue_list --parent $EPIC_ID --json | jq '. | length')
 - Duration: [manual entry]
 - Worktrees used: $(wc -l < /tmp/worktree_map_$PROPOSAL_NAME.txt)
@@ -654,7 +674,7 @@ echo "✓ Epic closed: $EPIC_ID"
 2. **Track blockers immediately**
    ```bash
    issue_update <id> --status blocked
-   bd comment <id> "Blocked by: [reason]"
+   issue_comment <id> "Blocked by: [reason]"
    ```
 
 3. **Use labels for filtering**
@@ -696,7 +716,7 @@ echo "✓ Epic closed: $EPIC_ID"
 
 3. **Document decisions**
    ```bash
-   bd comment <id> "Decision: [architectural choice]
+   issue_comment <id> "Decision: [architectural choice]
    Rationale: [reasoning]
    Reference: [spec section]"
    ```
@@ -713,7 +733,8 @@ issue_list --json | grep -i "search-term"
 **Problem**: Dependency cycle
 ```bash
 issue_blocked <id> --graph  # Visualize
-bd dep remove <id1> <id2>  # Break cycle
+# Break cycle by clearing depends_on on one side of the cycle:
+issue_update <id1> --depends-on "[]"
 ```
 
 ### Worktree Issues
@@ -750,7 +771,7 @@ issue_list --parent <epic-id> --status in_progress
 
 # Update task
 issue_update <id> --status <status>
-bd comment <id> "Progress update"
+issue_comment <id> "Progress update"
 
 # Worktree management
 git worktree list
