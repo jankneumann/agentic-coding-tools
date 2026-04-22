@@ -5,8 +5,8 @@
 **Agent**: claude | **Session**: N/A
 
 ### Decisions
-1. **Per-origin strategy defaults** — Selected over auto-detection (Approach B) and always-rebase (Approach C) because it leverages existing origin classification with minimal complexity
-2. **Commit quality enforcement at implementation time** — Rather than cleaning up history at merge time, require agents to produce clean conventional commits during `/implement-feature`
+1. **Per-origin strategy defaults** `architectural: merge-pull-requests` — Selected over auto-detection (Approach B) and always-rebase (Approach C) because it leverages existing origin classification with minimal complexity
+2. **Commit quality enforcement at implementation time** `architectural: skill-workflow` — Rather than cleaning up history at merge time, require agents to produce clean conventional commits during `/implement-feature`
 3. **Doc-only approach** — Minimal delta spec added for merge strategy selection; no heavy formal spec changes
 4. **Repo settings update included** — Enable rebase-merge alongside squash in GitHub repo settings via `gh api`
 

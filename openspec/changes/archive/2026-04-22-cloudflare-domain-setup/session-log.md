@@ -5,8 +5,8 @@
 **Agent**: claude_code | **Session**: session_01PSp4stBb1JxAznAHHm1DiH
 
 ### Decisions
-1. **Named Tunnel approach over DNS Proxy** — Provides full service mesh (API + MCP SSE + OpenBao), eliminates Railway hosting cost, and creates provider-portable stable URLs
-2. **Full service mesh DNS** — Subdomains for all services (coord/mcp/vault) rather than just the API, enabling cloud agents to use all transport options
+1. **Named Tunnel approach over DNS Proxy** `architectural: configuration` — Provides full service mesh (API + MCP SSE + OpenBao), eliminates Railway hosting cost, and creates provider-portable stable URLs
+2. **Full service mesh DNS** `architectural: configuration` — Subdomains for all services (coord/mcp/vault) rather than just the API, enabling cloud agents to use all transport options
 3. **Both Docker Compose and standalone service hosting** — Docker for development workflow, systemd/launchd for always-on production
 4. **Sequential tier** — Feature is focused on single architectural boundary (networking/deployment infrastructure)
 
@@ -33,8 +33,8 @@ Planned Cloudflare Tunnel setup for coordinator service mesh. User has a domain 
 
 ### Decisions
 1. **Added wildcard subdomain support to SSRF allowlist** — The existing _validate_url() did exact hostname matching only. Spec required wildcard support. Added ~10 lines to parse wildcard entries and match subdomains.
-2. **Cloudflare profile extends Railway (not base)** — Inherits Railway's Postgres DSN, API host/port, workers. Only overrides coordination_allowed_hosts with wildcard domain.
-3. **No nested profile interpolation** — The profile loader regex does not support nested variable references. Used simple wildcard pattern instead, with COORDINATION_ALLOWED_HOSTS env var overriding at runtime.
+2. **Cloudflare profile extends Railway (not base)** `architectural: configuration` — Inherits Railway's Postgres DSN, API host/port, workers. Only overrides coordination_allowed_hosts with wildcard domain.
+3. **No nested profile interpolation** `architectural: configuration` — The profile loader regex does not support nested variable references. Used simple wildcard pattern instead, with COORDINATION_ALLOWED_HOSTS env var overriding at runtime.
 4. **Comprehensive runbook** — Combined all documentation tasks (zone setup, Railway custom domain, tunnel, agent config, secrets) into a single docs/cloudflare-setup.md with clear sections for each path.
 
 ### Alternatives Considered

@@ -697,3 +697,148 @@ class TestEmitReadme:
         assert "architectural" in readme.lower()
         # Explains generation
         assert "generated" in readme.lower() or "make decisions" in readme.lower()
+
+
+# ── Phase 3 E2E — archive walk -> per-capability files (task 3.5) ────
+
+
+class TestEndToEndArchiveWalk:
+    """End-to-end: synthesized multi-change archive -> emitted capability files.
+
+    Covers the integration between:
+    - archive walk in `archive_index.emit_decisions_from_archive`
+    - extract_decisions() per session-log
+    - emit_decision_index() + emit_readme() for markdown output
+    """
+
+    def test_walks_archive_emits_capability_files_with_readme(
+        self, tmp_path: Path
+    ) -> None:
+        """task 3.5: multi-change archive -> one file per tagged capability,
+        reverse-chronologically ordered, with README listing all capabilities."""
+        # Import archive_index here to avoid circular import at module load
+        sys.path.insert(
+            0, str(Path(__file__).parent.parent / "scripts")
+        )
+        from archive_index import emit_decisions_from_archive  # noqa: E402
+
+        archive = tmp_path / "openspec" / "changes"
+        specs = tmp_path / "openspec" / "specs"
+
+        for cap in (
+            "skill-workflow",
+            "software-factory-tooling",
+            "agent-coordinator",
+            "configuration",
+        ):
+            (specs / cap).mkdir(parents=True)
+            (specs / cap / "spec.md").write_text(f"# {cap}\n")
+
+        # Synthesize 3 archived changes with tagged decisions spanning 3 capabilities
+        _write_session_log(
+            archive / "archive" / "2026-02-06-add-worktree-isolation",
+            """
+            # Session Log
+
+            ## Phase: Plan (2026-02-06)
+
+            ### Decisions
+            1. **Pin worktrees during overnight pauses** `architectural: software-factory-tooling` — prevents GC during idle
+            2. **Use `--` separator for parallel agent branches** `architectural: software-factory-tooling` — git ref collision
+
+            ## Phase: Implementation (2026-02-08)
+
+            ### Decisions
+            1. **Registry JSON** `architectural: software-factory-tooling` — simple metadata-only tracking
+            """,
+        )
+        _write_session_log(
+            archive / "archive" / "2026-03-15-coordinator-profiles",
+            """
+            # Session Log
+
+            ## Phase: Plan (2026-03-15)
+
+            ### Decisions
+            1. **Profile inheritance** `architectural: configuration` — base + override pattern
+            2. **Register extension as MCP server** `architectural: agent-coordinator` — unifies access
+            """,
+        )
+        _write_session_log(
+            archive / "archive" / "2026-04-01-add-decision-tagging",
+            """
+            # Session Log
+
+            ## Phase: Plan (2026-04-01)
+
+            ### Decisions
+            1. **Inline backtick tag on decisions** `architectural: skill-workflow` — sanitizer-compatible
+            """,
+        )
+
+        output = tmp_path / "docs" / "decisions"
+        count = emit_decisions_from_archive(
+            archive_root=archive,
+            output_dir=output,
+            capabilities_root=specs,
+            strict=False,
+        )
+
+        assert count == 6
+        # One file per capability with tagged decisions
+        assert (output / "software-factory-tooling.md").exists()
+        assert (output / "configuration.md").exists()
+        assert (output / "agent-coordinator.md").exists()
+        assert (output / "skill-workflow.md").exists()
+        assert (output / "README.md").exists()
+
+        # Reverse-chronological: within software-factory-tooling, the 2026-02-08
+        # decision appears BEFORE the two 2026-02-06 ones.
+        sft_content = (output / "software-factory-tooling.md").read_text()
+        feb_08_pos = sft_content.index("2026-02-08")
+        feb_06_pos = sft_content.index("2026-02-06")
+        assert feb_08_pos < feb_06_pos
+
+        # README lists every generated capability
+        readme = (output / "README.md").read_text()
+        for cap in (
+            "skill-workflow",
+            "software-factory-tooling",
+            "agent-coordinator",
+            "configuration",
+        ):
+            assert cap in readme
+
+    def test_strict_mode_fails_on_unknown_capability(
+        self, tmp_path: Path
+    ) -> None:
+        """Strict mode (CI) rejects any tag pointing at an unknown capability."""
+        sys.path.insert(
+            0, str(Path(__file__).parent.parent / "scripts")
+        )
+        from archive_index import emit_decisions_from_archive  # noqa: E402
+
+        archive = tmp_path / "openspec" / "changes"
+        specs = tmp_path / "openspec" / "specs"
+        (specs / "known-capability").mkdir(parents=True)
+        (specs / "known-capability" / "spec.md").write_text("# known\n")
+
+        _write_session_log(
+            archive / "archive" / "2026-02-06-demo",
+            """
+            # Session Log
+
+            ## Phase: Plan (2026-02-06)
+
+            ### Decisions
+            1. **Bad tag** `architectural: unknown-capability` — oops
+            """,
+        )
+
+        with pytest.raises(SystemExit):
+            emit_decisions_from_archive(
+                archive_root=archive,
+                output_dir=tmp_path / "docs" / "decisions",
+                capabilities_root=specs,
+                strict=True,
+            )
