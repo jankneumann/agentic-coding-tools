@@ -67,19 +67,19 @@ TDD ordering: within each phase, test tasks come first; implementation tasks dec
 
 ## Phase 3 — Systematic backfill of archived session-logs
 
-- [ ] 3.1 Write unit test for heuristic classifier: given keyword-to-capability mapping, correctly routes sample Decisions and reports confidence scores
+- [x] 3.1 Write unit test for heuristic classifier: given keyword-to-capability mapping, correctly routes sample Decisions and reports confidence scores
   **Dependencies**: 1.2
 
-- [ ] 3.2 Implement `skills/explore-feature/scripts/backfill_decision_tags.py` — proposes `architectural:` tags for all untagged Decisions in archived session-logs, emits JSON report of proposals + confidence scores (no file edits yet)
+- [x] 3.2 Implement `skills/explore-feature/scripts/backfill_decision_tags.py` — proposes `architectural:` tags for all untagged Decisions in archived session-logs, emits JSON report of proposals + confidence scores (no file edits yet)
   **Dependencies**: 3.1
 
-- [ ] 3.3 Run classifier over `openspec/changes/archive/**/session-log.md`; capture proposals JSON under `openspec/changes/add-decision-index/backfill-proposals.json` for review
+- [x] 3.3 Run classifier over `openspec/changes/archive/**/session-log.md`; capture proposals JSON under `openspec/changes/add-decision-index/backfill-proposals.json` for review
   **Dependencies**: 3.2
 
-- [ ] 3.4 Agent review of low-confidence and multi-candidate proposals; apply accepted tags in-place to archived session-logs (markdown edits only)
+- [x] 3.4 Agent review of low-confidence and multi-candidate proposals; apply accepted tags in-place to archived session-logs (markdown edits only)
   **Dependencies**: 3.3
 
-- [ ] 3.5 Write end-to-end test: run emitter against the backfilled archive and assert all 16 capability files are generated, reverse-chronologically ordered, with at least one entry per actively-developed capability
+- [x] 3.5 Write end-to-end test: run emitter against the backfilled archive and assert all 16 capability files are generated, reverse-chronologically ordered, with at least one entry per actively-developed capability
   **Dependencies**: 3.4, 2.9
 
 ---
