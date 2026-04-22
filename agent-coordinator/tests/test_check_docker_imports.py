@@ -24,7 +24,9 @@ _module = importlib.util.module_from_spec(_spec)
 sys.modules["check_docker_imports"] = _module
 _spec.loader.exec_module(_module)
 
+CheckResult = _module.CheckResult
 collect_imports = _module.collect_imports
+collect_runtime_data_refs = _module.collect_runtime_data_refs
 collect_dockerfile_copies = _module.collect_dockerfile_copies
 check_dockerfile_imports = _module.check_dockerfile_imports
 format_report = _module.format_report
@@ -367,3 +369,182 @@ def test_cli_fails_on_missing_src(tmp_path: Path, capsys: pytest.CaptureFixture[
     assert exit_code == 2
     captured = capsys.readouterr()
     assert "src directory not found" in captured.err
+
+
+# =============================================================================
+# collect_runtime_data_refs
+# =============================================================================
+
+
+def test_collect_runtime_data_refs_detects_path_file_pattern(tmp_path: Path) -> None:
+    """Detect Path(__file__).parent.parent / "dirname" referencing a real directory."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "migrations.py").write_text(
+        'from pathlib import Path\n'
+        '_DIR = Path(__file__).resolve().parent.parent / "database" / "migrations"\n'
+    )
+    # Create the directory so it's detected
+    (tmp_path / "database" / "migrations").mkdir(parents=True)
+
+    refs = collect_runtime_data_refs(src, tmp_path)
+    assert "database" in refs
+    assert "src/migrations.py" in refs["database"]
+
+
+def test_collect_runtime_data_refs_ignores_nonexistent_dirs(tmp_path: Path) -> None:
+    """Don't flag directory names that don't actually exist on disk."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text(
+        'from pathlib import Path\n'
+        'p = Path(__file__).parent.parent / "phantom"\n'
+    )
+    # No "phantom" directory created
+
+    refs = collect_runtime_data_refs(src, tmp_path)
+    assert "phantom" not in refs
+
+
+def test_collect_runtime_data_refs_ignores_dotfiles(tmp_path: Path) -> None:
+    """Dotfile directories like .secrets.yaml should be ignored."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text(
+        'from pathlib import Path\n'
+        'p = Path(__file__).parent.parent / ".secrets.yaml"\n'
+    )
+    refs = collect_runtime_data_refs(src, tmp_path)
+    assert ".secrets" not in refs
+
+
+def test_collect_runtime_data_refs_multiple_files(tmp_path: Path) -> None:
+    """Multiple files referencing the same directory are tracked."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text(
+        'from pathlib import Path\n'
+        'p = Path(__file__).parent.parent / "cedar" / "default.cedar"\n'
+    )
+    (src / "b.py").write_text(
+        'from pathlib import Path\n'
+        'p = Path(__file__).parent.parent / "cedar" / "schema.cedarschema"\n'
+    )
+    (tmp_path / "cedar").mkdir()
+
+    refs = collect_runtime_data_refs(src, tmp_path)
+    assert "cedar" in refs
+    assert set(refs["cedar"]) == {"src/a.py", "src/b.py"}
+
+
+# =============================================================================
+# check_dockerfile_imports: runtime data dirs
+# =============================================================================
+
+
+def test_check_detects_missing_data_dir(tmp_path: Path) -> None:
+    """The exact bug: database/ is referenced at runtime but not COPY'd."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "migrations.py").write_text(
+        'from pathlib import Path\n'
+        '_DIR = Path(__file__).resolve().parent.parent / "database" / "migrations"\n'
+    )
+    (tmp_path / "database" / "migrations").mkdir(parents=True)
+    dockerfile = tmp_path / "Dockerfile"
+    dockerfile.write_text("FROM python:3.12-slim\nCOPY src/ /app/src/\n")
+
+    result = check_dockerfile_imports(
+        src_dir=src, dockerfile=dockerfile, project_root=tmp_path,
+    )
+    assert result["status"] == "missing_copies"
+    assert "database" in result["missing_data_dirs"]
+    assert "database" in result["missing_data_refs"]
+
+
+def test_check_passes_when_data_dir_is_copied(tmp_path: Path) -> None:
+    """No error when the referenced data dir IS COPY'd."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "migrations.py").write_text(
+        'from pathlib import Path\n'
+        '_DIR = Path(__file__).resolve().parent.parent / "database" / "migrations"\n'
+    )
+    (tmp_path / "database" / "migrations").mkdir(parents=True)
+    dockerfile = tmp_path / "Dockerfile"
+    dockerfile.write_text(
+        "FROM python:3.12-slim\n"
+        "COPY src/ /app/src/\n"
+        "COPY database/ /app/database/\n"
+    )
+
+    result = check_dockerfile_imports(
+        src_dir=src, dockerfile=dockerfile, project_root=tmp_path,
+    )
+    assert result["status"] == "ok"
+    assert result["missing_data_dirs"] == []
+
+
+def test_check_auto_detected_data_dirs_not_flagged_as_unused(tmp_path: Path) -> None:
+    """Auto-detected runtime refs suppress 'unused' warnings without --data-dir."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "policy.py").write_text(
+        'from pathlib import Path\n'
+        'p = Path(__file__).parent.parent / "cedar" / "policy.cedar"\n'
+    )
+    (tmp_path / "cedar").mkdir()
+    dockerfile = tmp_path / "Dockerfile"
+    dockerfile.write_text(
+        "FROM python:3.12-slim\n"
+        "COPY src/ /app/src/\n"
+        "COPY cedar/ /app/cedar/\n"
+    )
+
+    result = check_dockerfile_imports(
+        src_dir=src, dockerfile=dockerfile, project_root=tmp_path,
+    )
+    assert "cedar" not in result["unused_copies"]
+
+
+def test_format_report_shows_missing_data_dirs() -> None:
+    """format_report includes missing data dirs in the error output."""
+    result = CheckResult(
+        status="missing_copies",
+        missing=[],
+        missing_refs={},
+        missing_data_dirs=["database"],
+        missing_data_refs={"database": ["src/migrations.py"]},
+        unused_copies=[],
+        imports=[],
+        copies=["src"],
+        installed_count=0,
+    )
+    report = format_report(result)
+    assert "data directories loaded at runtime" in report
+    assert "database/" in report
+    assert "src/migrations.py" in report
+
+
+def test_cli_returns_1_on_missing_data_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """CLI exits 1 when a runtime data dir is missing from Dockerfile."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "m.py").write_text(
+        'from pathlib import Path\n'
+        '_D = Path(__file__).parent.parent / "database"\n'
+    )
+    (tmp_path / "database").mkdir()
+    dockerfile = tmp_path / "Dockerfile"
+    dockerfile.write_text("FROM python:3.12-slim\nCOPY src/ /app/src/\n")
+
+    exit_code = main([
+        "--root", str(tmp_path),
+        "--src", str(src),
+        "--dockerfile", str(dockerfile),
+    ])
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "database" in captured.out

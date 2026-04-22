@@ -110,7 +110,9 @@ Two CI jobs enforce this contract:
 1. **`check-docker-imports`** — a static analyzer (`scripts/check_docker_imports.py`)
    that parses every `.py` file under `src/`, collects top-level package names,
    and verifies each is either stdlib, installed in the venv, or COPY'd in the
-   Dockerfile. Fast (~1s), catches the specific bug class.
+   Dockerfile. Also auto-detects runtime data directories referenced via
+   `Path(__file__).parent... / "dirname"` patterns and verifies those are
+   COPY'd too. Fast (~1s), catches both import and data-directory bugs.
 2. **`docker-smoke-import`** — builds the actual Docker image and runs a smoke
    test that imports the critical modules (`src.coordination_api`,
    `src.coordination_mcp`, `src.http_proxy`, `evaluation.gen_eval.mcp_service`)
