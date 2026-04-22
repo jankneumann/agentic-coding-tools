@@ -1,4 +1,12 @@
-"""Two-pass semantic decomposer for markdown proposals.
+"""Headless semantic decomposer for markdown proposals (Mode B).
+
+**Mode B only** — this is the external-API path. When plan-roadmap is
+invoked from an interactive Claude Code session, use Mode A via
+``curator.py`` instead: the orchestrating agent performs semantic
+classification and dependency inference directly, without an external
+API key or a second round of billing. See ``SKILL.md`` for the mode
+matrix; this module stays in place for batch callers like
+``autopilot-roadmap`` where no interactive agent is orchestrating.
 
 Orchestrates four passes to decompose a proposal into a roadmap:
 

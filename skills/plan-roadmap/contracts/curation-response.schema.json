@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/plan-roadmap/curation-response.schema.json",
+  "title": "Plan-Roadmap Curation Response",
+  "description": "Written by the orchestrating Claude Code agent in host-assisted mode (Mode A). Decisions are applied by decomposer's finalize pass to produce the final roadmap.yaml. Each decision targets one original_id from curation-request.json.",
+  "type": "object",
+  "required": ["schema_version", "decisions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "required": ["original_id", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "original_id": {
+          "type": "string",
+          "description": "Must match a candidate's original_id from curation-request.json."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["keep", "drop", "merge"],
+          "description": "keep=retain (with optional overrides); drop=remove; merge=fold into another item."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "One-line reason. Recorded for audit; not behaviorally load-bearing."
+        },
+        "new_id": {
+          "type": "string",
+          "description": "Optional renamed ID. Only meaningful when action=keep."
+        },
+        "title": { "type": "string" },
+        "effort": {
+          "type": "string",
+          "enum": ["XS", "S", "M", "L", "XL"]
+        },
+        "priority": { "type": "integer", "minimum": 1 },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "May reference original_ids from the request OR new_ids declared in other decisions. Normalized on apply."
+        },
+        "merge_into": {
+          "type": "string",
+          "description": "Required when action=merge. May reference an original_id or a new_id."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "action": { "const": "merge" } }, "required": ["action"] },
+          "then": { "required": ["merge_into"] }
+        }
+      ]
+    }
+  }
+}
