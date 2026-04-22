@@ -1,0 +1,699 @@
+"""Tests for per-capability decision-index extraction + emitter.
+
+Covers spec scenarios:
+- skill-workflow.1: Single tagged decision in a phase entry
+- skill-workflow.2: Multiple decisions in one phase targeting different capabilities
+- skill-workflow.3: Untagged decision remains valid (excluded from index)
+- skill-workflow.4: Tag with invalid capability is reported
+- skill-workflow.5: Sanitizer preserves tagged decisions
+- software-factory-tooling.1: Tagged decisions aggregated by capability
+- software-factory-tooling.2: Supersession chain preserved
+- software-factory-tooling.3: Untagged decisions excluded
+- software-factory-tooling.4: New capability directory auto-created
+- software-factory-tooling.5: Incremental regeneration on re-run (byte-identical)
+- software-factory-tooling.6: Malformed tag reported in strict mode
+
+Design decisions: D1 (inline backtick tags), D2 (per-bullet tags),
+D3 (explicit supersession), D4 (emitter pass), D6 (capability files),
+D7 (generated README).
+"""
+
+from __future__ import annotations
+
+import sys
+from datetime import date
+from pathlib import Path
+from textwrap import dedent
+
+import pytest
+
+# Add explore-feature scripts dir and session-log scripts dir
+_SKILLS_DIR = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(_SKILLS_DIR / "explore-feature" / "scripts"))
+sys.path.insert(0, str(_SKILLS_DIR / "session-log" / "scripts"))
+
+from decision_index import (  # noqa: E402
+    TaggedDecision,
+    emit_decision_index,
+    emit_readme,
+    extract_decisions,
+)
+
+# ── Fixtures ────────────────────────────────────────────────────────
+
+
+def _write_session_log(dir_path: Path, content: str) -> Path:
+    """Write a session-log.md in a synthesized change directory.
+
+    Returns the session-log path.
+    """
+    dir_path.mkdir(parents=True, exist_ok=True)
+    log = dir_path / "session-log.md"
+    log.write_text(dedent(content).lstrip("\n"))
+    return log
+
+
+SINGLE_TAGGED_PHASE = """
+# Session Log: 2026-02-06-add-worktree-isolation
+
+---
+
+## Phase: Plan (2026-02-06)
+
+**Agent**: claude-opus | **Session**: session-abc
+
+### Decisions
+1. **Pin worktrees during overnight pauses** `architectural: software-factory-tooling` — prevents GC during idle
+
+### Context
+Small phase.
+"""
+
+
+MULTI_CAPABILITY_PHASE = """
+# Session Log: 2026-03-01-add-coordinator-profiles
+
+---
+
+## Phase: Implementation (2026-03-01)
+
+**Agent**: claude-opus | **Session**: session-xyz
+
+### Decisions
+1. **Use `--` separator for parallel agent branches** `architectural: software-factory-tooling` — `/` would collide with parent feature branch ref
+2. **Extend Phase Entry with archetype hints** `architectural: skill-workflow` — needed for archetype routing
+
+### Context
+Two decisions across two capabilities.
+"""
+
+
+MIXED_TAGGED_UNTAGGED = """
+# Session Log: 2026-02-22-add-bug-scrub-skill
+
+---
+
+## Phase: Plan (2026-02-22)
+
+### Decisions
+1. **Run hooks before collecting signals** `architectural: skill-workflow` — ensures fresh data
+2. **Use pydantic for report models** — internal choice, not a cross-change pattern
+3. **Cache signal output to disk** — routine engineering, not architectural
+"""
+
+
+MULTI_PHASE_LOG = """
+# Session Log: 2026-02-06-add-worktree-isolation
+
+---
+
+## Phase: Plan (2026-02-06)
+
+### Decisions
+1. **Worktree at `.git-worktrees/<change-id>/`** `architectural: software-factory-tooling` — stable relative path
+
+---
+
+## Phase: Implementation (2026-02-08)
+
+### Decisions
+1. **Registry JSON for advisory tracking** `architectural: software-factory-tooling` — JSON is simpler than sqlite for a metadata-only file
+2. **Use `--` separator for agent branches** `architectural: software-factory-tooling` — git ref storage limitation
+"""
+
+
+SUPERSEDES_LOG = """
+# Session Log: 2026-03-25-expose-coordinator-apis
+
+---
+
+## Phase: Implementation (2026-03-25)
+
+### Decisions
+1. **Replace Beads with built-in tracker** `architectural: agent-coordinator` `supersedes: 2026-02-xx-add-beads-integration#D1` — built-in tracker reduces vendor surface
+"""
+
+
+FIRST_OCCURRENCE_LOG = """
+# Session Log: 2026-04-01-demo
+
+---
+
+## Phase: Plan (2026-04-01)
+
+### Decisions
+1. **Double-tagged decision (pathological)** `architectural: skill-workflow` `architectural: agent-coordinator` — should only count first tag per deterministic extraction rule
+"""
+
+
+MALFORMED_CAPABILITY_LOG = """
+# Session Log: 2026-04-15-malformed
+
+---
+
+## Phase: Plan (2026-04-15)
+
+### Decisions
+1. **Bad tag with underscore** `architectural: has_underscore` — underscore is not valid kebab
+2. **Bad tag with uppercase** `architectural: HasUppercase` — uppercase is not valid kebab
+3. **Valid tag afterward** `architectural: skill-workflow` — this one should still extract
+"""
+
+
+# ── Phase 1 tests — TaggedDecision extraction (tasks 1.1, 1.3) ────────
+
+
+class TestExtractDecisions:
+    """Extraction of TaggedDecision records from session-log markdown."""
+
+    def test_extract_single_tagged_decision(self, tmp_path: Path) -> None:
+        """skill-workflow.1: Single tagged decision → one TaggedDecision."""
+        change_dir = tmp_path / "2026-02-06-add-worktree-isolation"
+        log = _write_session_log(change_dir, SINGLE_TAGGED_PHASE)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 1
+        d = decisions[0]
+        assert isinstance(d, TaggedDecision)
+        assert d.capability == "software-factory-tooling"
+        assert d.change_id == "2026-02-06-add-worktree-isolation"
+        assert d.phase_name == "Plan"
+        assert d.phase_date == date(2026, 2, 6)
+        assert d.title == "Pin worktrees during overnight pauses"
+        assert d.rationale == "prevents GC during idle"
+        assert d.supersedes is None
+        assert d.source_offset >= 0
+
+    def test_extract_multiple_capabilities_in_phase(self, tmp_path: Path) -> None:
+        """skill-workflow.2: Two decisions, different capabilities → both extracted."""
+        change_dir = tmp_path / "2026-03-01-add-coordinator-profiles"
+        log = _write_session_log(change_dir, MULTI_CAPABILITY_PHASE)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 2
+        capabilities = {d.capability for d in decisions}
+        assert capabilities == {"software-factory-tooling", "skill-workflow"}
+        titles = {d.title for d in decisions}
+        assert titles == {
+            "Use `--` separator for parallel agent branches",
+            "Extend Phase Entry with archetype hints",
+        }
+        # Both point to the same phase
+        phase_dates = {d.phase_date for d in decisions}
+        assert phase_dates == {date(2026, 3, 1)}
+
+    def test_untagged_decision_excluded(self, tmp_path: Path) -> None:
+        """skill-workflow.3: Untagged decisions excluded from extraction."""
+        change_dir = tmp_path / "2026-02-22-add-bug-scrub-skill"
+        log = _write_session_log(change_dir, MIXED_TAGGED_UNTAGGED)
+
+        decisions = extract_decisions(log)
+
+        # Only the `skill-workflow` one should come through
+        assert len(decisions) == 1
+        assert decisions[0].capability == "skill-workflow"
+        assert decisions[0].title == "Run hooks before collecting signals"
+
+    def test_extract_from_multi_phase_session_log(self, tmp_path: Path) -> None:
+        """Multiple phases → all tagged decisions extracted with correct phase metadata."""
+        change_dir = tmp_path / "2026-02-06-add-worktree-isolation"
+        log = _write_session_log(change_dir, MULTI_PHASE_LOG)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 3
+        plan_decisions = [d for d in decisions if d.phase_name == "Plan"]
+        impl_decisions = [d for d in decisions if d.phase_name == "Implementation"]
+        assert len(plan_decisions) == 1
+        assert len(impl_decisions) == 2
+        assert plan_decisions[0].phase_date == date(2026, 2, 6)
+        assert impl_decisions[0].phase_date == date(2026, 2, 8)
+        # All share the same change_id
+        assert {d.change_id for d in decisions} == {"2026-02-06-add-worktree-isolation"}
+
+    def test_first_occurrence_only_per_bullet(self, tmp_path: Path) -> None:
+        """Bullet with multiple `architectural:` tags → only first is counted."""
+        change_dir = tmp_path / "2026-04-01-demo"
+        log = _write_session_log(change_dir, FIRST_OCCURRENCE_LOG)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 1
+        assert decisions[0].capability == "skill-workflow"  # first tag wins
+
+    def test_extract_decision_with_supersedes_marker(self, tmp_path: Path) -> None:
+        """Decision with both `architectural:` and `supersedes:` → supersedes captured."""
+        change_dir = tmp_path / "2026-03-25-expose-coordinator-apis"
+        log = _write_session_log(change_dir, SUPERSEDES_LOG)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 1
+        d = decisions[0]
+        assert d.capability == "agent-coordinator"
+        assert d.supersedes == "2026-02-xx-add-beads-integration#D1"
+        assert d.title == "Replace Beads with built-in tracker"
+
+    def test_malformed_capability_tag_skipped(self, tmp_path: Path) -> None:
+        """Tag values that don't match kebab-case are skipped silently at extraction.
+
+        Capability existence (i.e., whether `openspec/specs/<cap>/` exists) is validated
+        later by the emitter — but format violations (uppercase, underscore) are caught
+        by the extraction regex and result in no TaggedDecision.
+        """
+        change_dir = tmp_path / "2026-04-15-malformed"
+        log = _write_session_log(change_dir, MALFORMED_CAPABILITY_LOG)
+
+        decisions = extract_decisions(log)
+
+        # Only the `skill-workflow` decision should extract; the underscore + uppercase
+        # variants fail the kebab-case regex.
+        assert len(decisions) == 1
+        assert decisions[0].capability == "skill-workflow"
+
+    def test_missing_session_log_returns_empty(self, tmp_path: Path) -> None:
+        """Design open question #3: non-existent session-log → [] (no warning)."""
+        missing = tmp_path / "nowhere" / "session-log.md"
+
+        decisions = extract_decisions(missing)
+
+        assert decisions == []
+
+    def test_empty_session_log_returns_empty(self, tmp_path: Path) -> None:
+        """Session-log with no Decisions section → []."""
+        change_dir = tmp_path / "2026-01-01-empty"
+        log = _write_session_log(change_dir, "# Session Log\n\n## Phase: Plan (2026-01-01)\n\nNothing here.\n")
+
+        decisions = extract_decisions(log)
+
+        assert decisions == []
+
+    def test_source_offsets_are_distinct(self, tmp_path: Path) -> None:
+        """Multiple decisions in same session-log must have distinct source_offset values."""
+        change_dir = tmp_path / "2026-02-06-add-worktree-isolation"
+        log = _write_session_log(change_dir, MULTI_PHASE_LOG)
+
+        decisions = extract_decisions(log)
+        offsets = [d.source_offset for d in decisions]
+
+        assert len(offsets) == len(set(offsets))
+        assert all(o >= 0 for o in offsets)
+
+
+# ── Phase 1 tests — Sanitizer compatibility (task 1.3) ────────────────
+
+
+class TestSanitizerPreservesTags:
+    """Verify `sanitize_session_log.py` leaves tagged Decisions unredacted (task 1.3)."""
+
+    def test_sanitizer_preserves_tagged_decisions(self) -> None:
+        """skill-workflow.5: Tags survive sanitization; secrets still redacted."""
+        import sanitize_session_log
+
+        content = dedent(
+            """
+            ## Phase: Plan (2026-02-06)
+
+            ### Decisions
+            1. **Pin worktrees during overnight pauses** `architectural: software-factory-tooling` — prevents GC
+            2. **Use `--` separator** `architectural: software-factory-tooling` — git ref storage constraint
+            3. **Adopt archetype routing** `architectural: skill-workflow` — reduces routing ambiguity
+
+            ### Context
+            API key was AWS_SECRET_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE during testing.
+            """
+        ).lstrip("\n")
+
+        sanitized, redactions = sanitize_session_log.sanitize(content)
+
+        # Tagged decision strings survive verbatim
+        assert "`architectural: software-factory-tooling`" in sanitized
+        assert "`architectural: skill-workflow`" in sanitized
+        assert "[REDACTED:" not in sanitized.split("### Context")[0]
+
+        # But secrets in the Context section are still redacted
+        assert "AKIAIOSFODNN7EXAMPLE" not in sanitized
+        assert any(r["type"] for r in redactions)
+
+    def test_sanitizer_preserves_supersedes_marker(self) -> None:
+        """Supersedes marker (second backtick span) also survives sanitization."""
+        import sanitize_session_log
+
+        content = (
+            "1. **Replace Beads with built-in tracker** "
+            "`architectural: agent-coordinator` "
+            "`supersedes: 2026-02-xx-add-beads-integration#D1` "
+            "— built-in tracker reduces vendor surface\n"
+        )
+
+        sanitized, _ = sanitize_session_log.sanitize(content)
+
+        assert "`architectural: agent-coordinator`" in sanitized
+        assert "`supersedes: 2026-02-xx-add-beads-integration#D1`" in sanitized
+
+
+# ── Phase 2 tests — Per-capability emitter (tasks 2.1-2.6) ────────────
+
+
+class TestEmitDecisionIndex:
+    """Per-capability emitter: aggregation, supersession, untagged exclusion, idempotency."""
+
+    @pytest.fixture
+    def capabilities_root(self, tmp_path: Path) -> Path:
+        """Create `openspec/specs/<cap>/spec.md` skeletons for a known capability set."""
+        specs_root = tmp_path / "openspec" / "specs"
+        for cap in ("skill-workflow", "software-factory-tooling", "agent-coordinator"):
+            (specs_root / cap).mkdir(parents=True, exist_ok=True)
+            (specs_root / cap / "spec.md").write_text(f"# {cap}\n")
+        return specs_root
+
+    def test_aggregates_by_capability_reverse_chronological(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.1: Three decisions tagged skill-workflow across
+        three changes → 3 entries in skill-workflow.md, newest first."""
+        decisions = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-add-worktree-isolation",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="Old decision",
+                rationale="first in time",
+                supersedes=None,
+                source_offset=10,
+            ),
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-03-01-add-coordinator-profiles",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 1),
+                title="Middle decision",
+                rationale="second in time",
+                supersedes=None,
+                source_offset=20,
+            ),
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-04-15-latest",
+                phase_name="Implementation",
+                phase_date=date(2026, 4, 15),
+                title="Recent decision",
+                rationale="newest",
+                supersedes=None,
+                source_offset=30,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        index_file = out / "skill-workflow.md"
+        assert index_file.exists()
+        content = index_file.read_text()
+
+        # Newest-first: "Recent decision" appears before "Middle decision" before "Old"
+        recent_pos = content.index("Recent decision")
+        middle_pos = content.index("Middle decision")
+        old_pos = content.index("Old decision")
+        assert recent_pos < middle_pos < old_pos
+
+    def test_decision_record_fields_complete(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Each emitted record contains title, rationale, change-id, phase, date, back-ref."""
+        decisions = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-add-worktree-isolation",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="Pin worktrees overnight",
+                rationale="prevents GC during idle",
+                supersedes=None,
+                source_offset=42,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        content = (out / "skill-workflow.md").read_text()
+
+        assert "Pin worktrees overnight" in content
+        assert "prevents GC during idle" in content
+        assert "2026-02-06-add-worktree-isolation" in content
+        assert "Plan" in content
+        assert "2026-02-06" in content
+        # Back-reference to session-log
+        assert "session-log" in content.lower()
+
+    def test_supersession_chain_preserved(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.2: Supersession marks earlier as superseded,
+        emits bidirectional links, preserves earlier entry."""
+        decisions = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-add-beads-integration",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 10),
+                title="Use Beads for issue tracking",
+                rationale="external tool",
+                supersedes=None,
+                source_offset=100,
+            ),
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-03-25-replace-beads-with-builtin-tracker",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 25),
+                title="Replace Beads with built-in tracker",
+                rationale="reduces vendor surface",
+                supersedes="2026-02-10-add-beads-integration#D1",
+                source_offset=200,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        content = (out / "agent-coordinator.md").read_text()
+
+        # Earlier decision is preserved (not deleted) and marked superseded
+        assert "Use Beads for issue tracking" in content
+        assert "superseded" in content.lower()
+        # Bidirectional links
+        assert "Superseded by" in content
+        assert "2026-03-25-replace-beads-with-builtin-tracker" in content
+        assert "Supersedes" in content
+        assert "2026-02-10-add-beads-integration" in content
+
+    def test_untagged_decisions_excluded(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.3: Emitter only writes decisions that come in
+        as TaggedDecision (by construction, untagged are already filtered at extraction)."""
+        # Simulate only tagged decisions making it to the emitter
+        decisions = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-x",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="Only this one",
+                rationale="tagged",
+                supersedes=None,
+                source_offset=0,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        # Only skill-workflow.md should have non-README content; other capability
+        # files should not be created (they have zero tagged decisions).
+        assert (out / "skill-workflow.md").exists()
+        assert not (out / "software-factory-tooling.md").exists()
+        assert not (out / "agent-coordinator.md").exists()
+
+    def test_unknown_capability_warns_non_strict(
+        self, tmp_path: Path, capabilities_root: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """skill-workflow.4 / software-factory-tooling.6: Unknown capability → warning;
+        non-strict mode skips and continues."""
+        decisions = [
+            TaggedDecision(
+                capability="no-such-capability",
+                change_id="2026-04-01-x",
+                phase_name="Plan",
+                phase_date=date(2026, 4, 1),
+                title="Mystery decision",
+                rationale="tag without matching spec dir",
+                supersedes=None,
+                source_offset=0,
+            ),
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-04-01-x",
+                phase_name="Plan",
+                phase_date=date(2026, 4, 1),
+                title="Valid decision",
+                rationale="capability exists",
+                supersedes=None,
+                source_offset=100,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+
+        import logging
+        with caplog.at_level(logging.WARNING):
+            emit_decision_index(
+                decisions,
+                output_dir=out,
+                capabilities_root=capabilities_root,
+                strict=False,
+            )
+
+        # Non-strict: skips unknown, continues with valid one
+        assert (out / "skill-workflow.md").exists()
+        assert not (out / "no-such-capability.md").exists()
+        # Warning identifies change-id and invalid capability
+        assert any(
+            "no-such-capability" in rec.getMessage() and "2026-04-01-x" in rec.getMessage()
+            for rec in caplog.records
+        )
+
+    def test_unknown_capability_strict_raises(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.6: Strict mode exits non-zero on unknown capability."""
+        decisions = [
+            TaggedDecision(
+                capability="no-such-capability",
+                change_id="2026-04-01-x",
+                phase_name="Plan",
+                phase_date=date(2026, 4, 1),
+                title="Mystery decision",
+                rationale="tag without matching spec dir",
+                supersedes=None,
+                source_offset=0,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+
+        with pytest.raises(SystemExit) as exc_info:
+            emit_decision_index(
+                decisions,
+                output_dir=out,
+                capabilities_root=capabilities_root,
+                strict=True,
+            )
+        assert exc_info.value.code != 0
+
+    def test_byte_identical_on_rerun(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.5: Running emitter twice produces byte-identical output."""
+        decisions = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-x",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="D1",
+                rationale="r1",
+                supersedes=None,
+                source_offset=0,
+            ),
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-03-01-y",
+                phase_name="Implementation",
+                phase_date=date(2026, 3, 1),
+                title="D2",
+                rationale="r2",
+                supersedes=None,
+                source_offset=0,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+
+        emit_decision_index(decisions, output_dir=out, capabilities_root=capabilities_root, strict=False)
+        first = (out / "skill-workflow.md").read_bytes()
+        first_readme = (out / "README.md").read_bytes() if (out / "README.md").exists() else b""
+
+        emit_decision_index(decisions, output_dir=out, capabilities_root=capabilities_root, strict=False)
+        second = (out / "skill-workflow.md").read_bytes()
+        second_readme = (out / "README.md").read_bytes() if (out / "README.md").exists() else b""
+
+        assert first == second
+        assert first_readme == second_readme
+
+    def test_new_capability_file_auto_created(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """software-factory-tooling.4: Decision tagged with capability where file doesn't
+        yet exist → file is created."""
+        decisions = [
+            TaggedDecision(
+                capability="software-factory-tooling",
+                change_id="2026-04-01-x",
+                phase_name="Plan",
+                phase_date=date(2026, 4, 1),
+                title="Brand new decision",
+                rationale="capability exists but file doesn't",
+                supersedes=None,
+                source_offset=0,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        assert not (out / "software-factory-tooling.md").exists()
+
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        assert (out / "software-factory-tooling.md").exists()
+
+
+class TestEmitReadme:
+    """Generated README covers purpose, generation, tagging conventions."""
+
+    def test_generated_readme_listing_capabilities(self, tmp_path: Path) -> None:
+        """README is generated (not hand-maintained) and lists active capabilities."""
+        out = tmp_path / "docs" / "decisions"
+        out.mkdir(parents=True)
+        capabilities = ["skill-workflow", "software-factory-tooling", "agent-coordinator"]
+
+        emit_readme(out, capabilities)
+
+        readme = (out / "README.md").read_text()
+        for cap in capabilities:
+            assert cap in readme
+        # Explains what "architectural" means for tagging
+        assert "architectural" in readme.lower()
+        # Explains generation
+        assert "generated" in readme.lower() or "make decisions" in readme.lower()
