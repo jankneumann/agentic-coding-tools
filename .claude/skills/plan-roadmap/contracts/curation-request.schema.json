@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/plan-roadmap/curation-request.schema.json",
+  "title": "Plan-Roadmap Curation Request",
+  "description": "Emitted by decomposer's structural pass when running in host-assisted mode (Mode A). Lists draft roadmap items the orchestrating Claude Code agent should curate before finalize runs. The agent writes its decisions to curation-response.json.",
+  "type": "object",
+  "required": ["schema_version", "source_proposal", "draft_roadmap_ref", "response_path_hint", "candidates"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "source_proposal": {
+      "type": "string",
+      "description": "Path to the original markdown proposal."
+    },
+    "draft_roadmap_ref": {
+      "type": "string",
+      "description": "Path to roadmap.draft.yaml (the structural-pass output the agent is curating)."
+    },
+    "response_path_hint": {
+      "type": "string",
+      "description": "Suggested path where the agent should write curation-response.json."
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Markdown-formatted instructions for the agent."
+    },
+    "candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/candidate" }
+    }
+  },
+  "$defs": {
+    "candidate": {
+      "type": "object",
+      "required": ["original_id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "original_id": {
+          "type": "string",
+          "description": "Item ID assigned by the structural pass."
+        },
+        "title": { "type": "string" },
+        "body_excerpt": {
+          "type": "string",
+          "description": "First ~500 chars of the source section body."
+        },
+        "parsed_effort": {
+          "type": "string",
+          "enum": ["XS", "S", "M", "L", "XL"]
+        },
+        "parsed_priority": { "type": "integer", "minimum": 1 },
+        "parsed_depends_on": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "parsed_acceptance_outcomes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "heuristic_flags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "likely-narrative",
+              "likely-constraint",
+              "phase-header",
+              "generic-acceptance",
+              "has-capability-keyword",
+              "small-effort-estimate",
+              "no-dependencies-inferred"
+            ]
+          },
+          "description": "Machine-inferred hints so the agent has a head start."
+        }
+      }
+    }
+  }
+}

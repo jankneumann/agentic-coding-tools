@@ -1,5 +1,13 @@
 """Multi-vendor LLM client for structured output.
 
+**Mode B only** — this module is used by the headless semantic
+decomposer (``semantic_decomposer.py``), which is the batch/CI path
+(e.g., ``autopilot-roadmap``). When plan-roadmap is invoked from an
+interactive Claude Code session, use Mode A (host-assisted) via
+``curator.py`` instead; the orchestrating agent performs semantic
+reasoning directly, no external API key required. See ``SKILL.md`` for
+the mode matrix.
+
 Thin wrapper providing vendor-agnostic structured calls with model
 fallback.  Discovers available vendors from environment variables
 (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY) and tries them
