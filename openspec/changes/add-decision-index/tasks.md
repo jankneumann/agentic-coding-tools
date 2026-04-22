@@ -8,56 +8,56 @@ TDD ordering: within each phase, test tasks come first; implementation tasks dec
 
 ## Phase 1 — Tag schema + parser (skill-workflow spec)
 
-- [ ] 1.1 Write unit tests for `TaggedDecision` extraction from Phase Entry markdown
+- [x] 1.1 Write unit tests for `TaggedDecision` extraction from Phase Entry markdown
   **Spec scenarios**: `skill-workflow.1` (single tagged decision), `skill-workflow.2` (multiple decisions, different capabilities), `skill-workflow.3` (untagged decision remains valid)
   **Design decisions**: extraction regex (design.md §Data model)
   **Fixtures**: synthesize session-log fragments covering tagged, untagged, and malformed cases
   **Dependencies**: None
 
-- [ ] 1.2 Implement `skills/explore-feature/scripts/decision_index.py` with `TaggedDecision` dataclass + `extract_decisions(session_log_path: Path) -> list[TaggedDecision]`
+- [x] 1.2 Implement `skills/explore-feature/scripts/decision_index.py` with `TaggedDecision` dataclass + `extract_decisions(session_log_path: Path) -> list[TaggedDecision]`
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write unit test asserting `sanitize_session_log.py` leaves tagged decisions unredacted
+- [x] 1.3 Write unit test asserting `sanitize_session_log.py` leaves tagged decisions unredacted
   **Spec scenarios**: `skill-workflow.5` (sanitizer preserves tags)
   **Fixtures**: session-log with mix of tagged Decisions and genuine secrets; assert tag strings survive, secrets redacted
   **Dependencies**: None
 
-- [ ] 1.4 Update `skills/session-log/SKILL.md` Phase Entry template section to document the `` `architectural: <capability>` `` syntax and provide one tagged + one untagged example
+- [x] 1.4 Update `skills/session-log/SKILL.md` Phase Entry template section to document the `` `architectural: <capability>` `` syntax and provide one tagged + one untagged example
   **Dependencies**: 1.1 (syntax stabilized by tests first)
 
 ---
 
 ## Phase 2 — Per-capability emitter (software-factory-tooling spec)
 
-- [ ] 2.1 Write unit test: decisions across 3 changes tagged `skill-workflow` produce exactly 3 reverse-chronological entries in `skill-workflow.md`
+- [x] 2.1 Write unit test: decisions across 3 changes tagged `skill-workflow` produce exactly 3 reverse-chronological entries in `skill-workflow.md`
   **Spec scenarios**: `software-factory-tooling.1` (aggregation by capability)
   **Dependencies**: 1.2
 
-- [ ] 2.2 Write unit test: supersession resolution marks earlier Decision `superseded` and emits bidirectional cross-references
+- [x] 2.2 Write unit test: supersession resolution marks earlier Decision `superseded` and emits bidirectional cross-references
   **Spec scenarios**: `software-factory-tooling.2` (supersession chain preserved)
   **Design decisions**: explicit supersession syntax `` `supersedes: <change-id>#D<n>` `` (design.md §Supersession mechanism)
   **Dependencies**: 1.2
 
-- [ ] 2.3 Write unit test: untagged Decisions are excluded from all `docs/decisions/*.md` output
+- [x] 2.3 Write unit test: untagged Decisions are excluded from all `docs/decisions/*.md` output
   **Spec scenarios**: `software-factory-tooling.3` (untagged excluded)
   **Dependencies**: 1.2
 
-- [ ] 2.4 Write unit test: Decision tagged with unknown capability triggers warning; `--strict` mode exits non-zero; non-strict mode skips and continues
+- [x] 2.4 Write unit test: Decision tagged with unknown capability triggers warning; `--strict` mode exits non-zero; non-strict mode skips and continues
   **Spec scenarios**: `software-factory-tooling.6` (malformed tag reported), `skill-workflow.4` (invalid capability reported)
   **Dependencies**: 1.2
 
-- [ ] 2.5 Write unit test: running emitter twice produces byte-identical output (deterministic / idempotent)
+- [x] 2.5 Write unit test: running emitter twice produces byte-identical output (deterministic / idempotent)
   **Spec scenarios**: `software-factory-tooling.5` (incremental regeneration on re-run)
   **Dependencies**: 1.2
 
-- [ ] 2.6 Write unit test: Decision tagged with capability whose `docs/decisions/<cap>.md` does not yet exist creates the file
+- [x] 2.6 Write unit test: Decision tagged with capability whose `docs/decisions/<cap>.md` does not yet exist creates the file
   **Spec scenarios**: `software-factory-tooling.4` (new capability directory auto-created)
   **Dependencies**: 1.2
 
-- [ ] 2.7 Implement emitter: `emit_decision_index(decisions: list[TaggedDecision], output_dir: Path, *, strict: bool) -> None` in `decision_index.py`
+- [x] 2.7 Implement emitter: `emit_decision_index(decisions: list[TaggedDecision], output_dir: Path, *, strict: bool) -> None` in `decision_index.py`
   **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
 
-- [ ] 2.8 Implement generated README: `emit_readme(output_dir: Path, capabilities: list[str]) -> None` — writes `docs/decisions/README.md` explaining purpose, generation, how to read
+- [x] 2.8 Implement generated README: `emit_readme(output_dir: Path, capabilities: list[str]) -> None` — writes `docs/decisions/README.md` explaining purpose, generation, how to read
   **Dependencies**: 2.7
 
 - [ ] 2.9 Wire the emitter into `archive_index.py` as a new pass invoked after the existing archive-index walk; respect the existing incremental-indexing checkpoint
