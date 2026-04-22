@@ -1,16 +1,13 @@
 #!/bin/sh
 #
-# Post-merge hook (chained)
+# Post-merge hook
 #
-# beads sync removed — issues now tracked in coordinator
-
-# Run existing hook first
-if [ -x "" ]; then
-    "" "$@"
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -ne 0 ]; then
-        exit $EXIT_CODE
-    fi
-fi
+# Historically this ran `bd import` to sync beads issues from the synced
+# JSONL state. Beads has been replaced with the coordinator issue tracker
+# (see openspec/changes/archive/*-replace-beads-with-builtin-tracker/), so
+# no post-merge sync is needed — issues live in PostgreSQL and are always
+# current.
+#
+# Left as a no-op so the hook remains installable via core.hooksPath.
 
 exit 0
