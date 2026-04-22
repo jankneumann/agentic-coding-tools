@@ -3,7 +3,7 @@ name = "agent-coordinator"
 version = "0.1.0"
 description = "Multi-agent coordination system for AI coding assistants"
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.2.3,<4.0",
