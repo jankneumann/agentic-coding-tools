@@ -60,7 +60,7 @@ TDD ordering: within each phase, test tasks come first; implementation tasks dec
 - [x] 2.8 Implement generated README: `emit_readme(output_dir: Path, capabilities: list[str]) -> None` — writes `docs/decisions/README.md` explaining purpose, generation, how to read
   **Dependencies**: 2.7
 
-- [ ] 2.9 Wire the emitter into `archive_index.py` as a new pass invoked after the existing archive-index walk; respect the existing incremental-indexing checkpoint
+- [x] 2.9 Wire the emitter into `archive_index.py` as a new pass invoked after the existing archive-index walk; respect the existing incremental-indexing checkpoint
   **Dependencies**: 2.7, 2.8
 
 ---
