@@ -384,3 +384,22 @@ gen-eval: ## Run gen-eval in template-only mode (fast, no LLM)
 
 gen-eval-augmented: ## Run gen-eval with CLI-augmented LLM generation (subscription-covered)
 	@$(MAKE) gen-eval GENEVAL_MODE=cli-augmented
+
+# ---------------------------------------------------------------------------
+# decisions — regenerate per-capability decision index from session-log tags
+# ---------------------------------------------------------------------------
+#
+# Walks openspec/changes/ for session-log.md files, extracts Decision bullets
+# tagged `architectural: <capability>`, and writes one markdown file per
+# capability under docs/decisions/. Idempotent — safe to re-run.
+#
+# CI runs this target and fails if `git diff docs/decisions/` is non-empty,
+# catching stale indices caused by missing regeneration after new tags land.
+
+.PHONY: decisions
+decisions: ## Regenerate docs/decisions/ from architectural tags in session-logs
+	@$(PYTHON) skills/explore-feature/scripts/archive_index.py \
+		--emit-decisions \
+		--archive-root openspec/changes \
+		--decisions-output-dir docs/decisions \
+		--capabilities-root openspec/specs

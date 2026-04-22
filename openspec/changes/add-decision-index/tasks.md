@@ -86,13 +86,13 @@ TDD ordering: within each phase, test tasks come first; implementation tasks dec
 
 ## Phase 4 — Make target + CI staleness check
 
-- [ ] 4.1 Add `decisions` target to `Makefile` following the `architecture` target precedent (Makefile:120-127)
+- [x] 4.1 Add `decisions` target to `Makefile` following the `architecture` target precedent (Makefile:120-127)
   **Dependencies**: 2.9
 
-- [ ] 4.2 Add staleness-check step to `.github/workflows/ci.yml`: run `make decisions`, then `git diff --exit-code docs/decisions/`, failing with actionable message if stale
+- [x] 4.2 Add staleness-check step to `.github/workflows/ci.yml`: run `make decisions`, then `git diff --exit-code docs/decisions/`, failing with actionable message if stale
   **Dependencies**: 4.1
 
-- [ ] 4.3 Commit the initial generated `docs/decisions/*.md` set produced from the backfilled archive
+- [x] 4.3 Commit the initial generated `docs/decisions/*.md` set produced from the backfilled archive
   **Dependencies**: 3.5, 4.1
 
 ---

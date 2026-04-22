@@ -89,6 +89,41 @@ jobs:
       - name: Validate specs
         run: openspec validate --strict --all
 
+  # Regenerate docs/decisions/ from architectural tags in session-logs and
+  # fail if the result differs from what's committed. Catches missed
+  # regenerations after new `architectural:` tags are added to a session-log.
+  validate-decision-index:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Regenerate decision index (strict)
+        run: |
+          skills/.venv/bin/python skills/explore-feature/scripts/archive_index.py \
+            --emit-decisions \
+            --archive-root openspec/changes \
+            --decisions-output-dir docs/decisions \
+            --capabilities-root openspec/specs \
+            --strict
+
+      - name: Fail if decision index is stale
+        run: |
+          if ! git diff --exit-code docs/decisions/; then
+            echo "::error::docs/decisions/ is stale. Run 'make decisions' locally and commit the result."
+            exit 1
+          fi
+
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
   # Catches the class of bug where a lazy import references a directory
