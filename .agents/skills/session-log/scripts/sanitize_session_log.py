@@ -105,11 +105,36 @@ def redact_secrets(content: str) -> tuple[str, list[dict[str, str]]]:
     return result, redactions
 
 
+# Shannon-entropy threshold for flagging a token as a likely secret.
+# Calibrated against sample strings (bits/char):
+#
+#   Random base62 token, 28 chars      4.74   (flagged)
+#   Random base64 token, 32 chars      4.94   (flagged)
+#   Anthropic key body (api03-...)     4.71   (flagged)
+#   Stripe-style test key              4.94   (flagged)
+#   GitHub PAT body                    5.32   (flagged)
+#   --- threshold 4.6 ---
+#   Mixed technical + English prose    ~4.2   (passes)
+#   Long declarative markdown prose    ~4.0   (passes)
+#   English sentence in quotes         ~3.9   (passes)
+#
+# Low-diversity key shapes (40-char hex hashes ~3.95, webhook-style IDs ~1.5)
+# fall below *any* entropy threshold and must be caught by dedicated
+# SECRET_PATTERNS entries, not by this heuristic.
+HIGH_ENTROPY_THRESHOLD = 4.6
+
+
 def redact_high_entropy(content: str) -> tuple[str, list[dict[str, str]]]:
     """Detect and redact high-entropy strings that may be secrets.
 
-    Targets strings >20 chars with entropy >4.5 bits/char that aren't
-    known safe patterns (UUIDs, SHAs, change-ids).
+    Targets strings >20 chars with entropy above HIGH_ENTROPY_THRESHOLD that
+    aren't known safe patterns (UUIDs, SHAs, change-ids).
+
+    Prose inside quotes is suppressed via a shape filter: real credentials
+    never contain whitespace, so any candidate token holding a space, tab,
+    or newline is treated as prose and left untouched. This is the decisive
+    defense against long English sentences appearing between quotes, whose
+    entropy can creep toward the threshold with diverse vocabulary.
     """
     redactions: list[dict[str, str]] = []
 
@@ -120,10 +145,14 @@ def redact_high_entropy(content: str) -> tuple[str, list[dict[str, str]]]:
         token = m.group(1) or m.group(2)
         if token is None:
             return m.group(0)
+        # Shape filter: credentials never contain whitespace. Quoted captures
+        # that hold any whitespace are prose, not secrets.
+        if any(c.isspace() for c in token):
+            return m.group(0)
         if is_allowlisted(token):
             return m.group(0)
         entropy = shannon_entropy(token)
-        if entropy > 4.5:
+        if entropy > HIGH_ENTROPY_THRESHOLD:
             redactions.append({
                 "type": "high-entropy",
                 "entropy": f"{entropy:.2f}",

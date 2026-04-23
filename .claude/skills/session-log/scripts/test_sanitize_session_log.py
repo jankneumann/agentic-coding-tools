@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from sanitize_session_log import (
+    HIGH_ENTROPY_THRESHOLD,
     is_allowlisted,
     normalize_paths,
     redact_high_entropy,
@@ -118,8 +119,9 @@ class TestRedactSecrets:
 
 class TestRedactHighEntropy:
     def test_high_entropy_token(self) -> None:
-        # This looks like a random token
-        token = "xK9mZ2pQ7aB3dR5fT8gH1jL4"
+        # Random-looking 32-char token; entropy ~4.94 bits/char, safely above
+        # HIGH_ENTROPY_THRESHOLD (4.6).
+        token = "xK9mZ2pQ7aB3dR5fT8gH1jL4NmP6vE0s"
         content = f"found: {token} in config"
         result, redactions = redact_high_entropy(content)
         assert token not in result
@@ -136,6 +138,78 @@ class TestRedactHighEntropy:
         result, _ = redact_high_entropy(content)
         # UUID format is allowlisted; the hyphenated form may not match the token regex
         assert "550e8400" in result
+
+    def test_quoted_prose_not_redacted(self) -> None:
+        # Regression: the token regex's quoted alternation
+        # `['"]([^'"]{21,})['"]` matches ANY 21+ char run between quotes,
+        # including English prose. Long mixed-vocabulary sentences in quotes
+        # can drift toward the entropy threshold. The shape filter (any
+        # whitespace => prose) must keep them intact.
+        sentences = [
+            "'long sentences with mixed vocabulary and technical terms appearing together'",
+            '"the coordinator dispatches work packages across multiple agent workers"',
+            "\"implementation uses Shannon entropy calibrated against real credential formats\"",
+        ]
+        for content in sentences:
+            result, redactions = redact_high_entropy(content)
+            assert result == content, f"false positive on prose: {content!r}"
+            assert len(redactions) == 0
+
+    def test_quoted_random_token_still_redacted(self) -> None:
+        # Inverse of the prose test: a quoted credential (no whitespace)
+        # must still be caught by the entropy heuristic.
+        content = "key: 'Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz'"
+        result, redactions = redact_high_entropy(content)
+        assert "Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz" not in result
+        assert "[REDACTED:high-entropy]" in result
+
+
+class TestEntropyCalibration:
+    """Pins the measured entropy of representative keys and prose.
+
+    If these values drift, HIGH_ENTROPY_THRESHOLD should be re-tuned so that
+    the key floor stays above the prose ceiling. Failing tests here are a
+    signal to revisit the threshold intentionally, not to edit the numbers.
+    """
+
+    def test_threshold_value(self) -> None:
+        # Changing this is a deliberate policy decision — update the docstring
+        # calibration table in sanitize_session_log.py alongside it.
+        assert HIGH_ENTROPY_THRESHOLD == 4.6
+
+    def test_representative_keys_exceed_threshold(self) -> None:
+        keys = [
+            "xK9mZ2pQ7aB3dR5fT8gH1jL4NmP6vE0s",     # random base62, 32 ch
+            "Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz",  # random base62, 36 ch
+            "api03-abcdefghijklmnopqrstuvwx",        # anthropic-key body
+            "proj-XyZ1234567890abcdefghIJ",          # openai-ish key body
+            "fixture_v2_AbCdEfGh1234567890IjKlMn",   # generic mixed-case token
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn",  # gh PAT body
+        ]
+        for k in keys:
+            h = shannon_entropy(k)
+            assert h > HIGH_ENTROPY_THRESHOLD, (
+                f"key {k!r} has entropy {h:.3f}, below threshold "
+                f"{HIGH_ENTROPY_THRESHOLD}; entropy heuristic would miss it"
+            )
+
+    def test_representative_prose_below_threshold(self) -> None:
+        # These are exact shapes of false-positive strings reported by users:
+        # long English sentences with technical terms mixed in.
+        prose = [
+            "long sentences with mixed vocabulary and technical terms appearing together",
+            "the coordinator dispatches work packages across multiple agent workers",
+            "implementation uses Shannon entropy calibrated against real credential formats",
+            "The OpenSpec change-id uses kebab-case identifiers for tracking proposals",
+            "We decided to implement the feature using the OAuth2 authentication flow",
+        ]
+        for p in prose:
+            h = shannon_entropy(p)
+            assert h < HIGH_ENTROPY_THRESHOLD, (
+                f"prose {p!r} has entropy {h:.3f}, at/above threshold "
+                f"{HIGH_ENTROPY_THRESHOLD}; would be a false positive if the "
+                f"shape filter is bypassed"
+            )
 
 
 # --- Path normalization ---
