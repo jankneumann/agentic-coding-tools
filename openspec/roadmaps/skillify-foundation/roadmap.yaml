@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=../../schemas/roadmap.schema.json
+schema_version: 1
+roadmap_id: skillify-foundation
+source_proposal: openspec/roadmaps/skillify-foundation/proposal.md
+created_at: "2026-04-23T00:00:00Z"
+updated_at: "2026-04-23T00:00:00Z"
+status: planning
+
+policy:
+  default_action: wait_if_budget_exceeded
+  preferred_vendor: claude_code
+
+items:
+  - item_id: ri-01
+    title: "Skill runtime sync (canonical → .claude/.agents) + AGENTS.md ≡ CLAUDE.md invariant"
+    description: >
+      Add /update-skills skill that wraps install.sh + AGENTS.md generation + commit + push.
+      Add sync_agents_md.py and a pre-commit hook that enforces the byte-identity invariant
+      independently. Add an opt-in SessionStart auto-pull hook gated by AGENTIC_AUTO_PULL=1.
+    rationale: >
+      Prerequisite plumbing for ri-02. Closes the manual-sync gap between canonical skills/
+      and runtime .claude/skills/ + .agents/skills/, and populates the currently-empty
+      AGENTS.md so Codex has project context. Without this, skillify-generated skills
+      cannot reach the runtime directories Claude Code and Codex actually read from.
+    change_id: add-update-skills
+    status: candidate
+    priority: 1
+    effort: S
+    depends_on: []
+    acceptance_outcomes:
+      - "/update-skills end-to-end: edit a canonical skill, run /update-skills, see the change in .claude/skills/, .agents/skills/, AGENTS.md updated, single commit pushed."
+      - "Pre-commit hook rejects a commit that modifies CLAUDE.md without regenerating AGENTS.md, with an instructive error message."
+      - "AGENTIC_AUTO_PULL=1 causes SessionStart to pull on a clean tree, no-ops on a dirty tree, and is silent on network failure."
+      - "openspec validate add-update-skills --strict passes."
+      - "All tests in skills/tests/update-skills/ pass."
+
+  - item_id: ri-02
+    title: "/skillify scaffold skill + resolver audit (dark/overlap/missing) + validate-feature integration"
+    description: >
+      Add /skillify skill that scaffolds SKILL.md + scripts + tests + draft OpenSpec change
+      from a skill name and target-repo. Add /audit-resolver skill and resolver_audit.py
+      detecting dark skills, trigger overlaps, and missing scripts. Wire into
+      /validate-feature --phase resolver and CI.
+    rationale: >
+      Converts the team's existing failure-postmortem habit into structured durable artifacts
+      that go through the existing OpenSpec gates. Adds resolver hygiene before the
+      ~45-skill threshold makes dark skills a near-term risk (per article observation:
+      15% of 40+ skills were dark). Depends on ri-01 because skillify-generated skills
+      must reach the runtime directories to be discoverable.
+    change_id: add-skillify-and-resolver-audit
+    status: candidate
+    priority: 2
+    effort: M
+    depends_on:
+      - ri-01
+    acceptance_outcomes:
+      - "/skillify <name> end-to-end: scaffold succeeds, frontmatter is valid YAML, openspec list shows the new change, all generated files staged but not auto-committed."
+      - "resolver_audit.py --json reports a dark_skill finding for a fixture skill with no triggers, a trigger_overlap finding for two fixture skills with identical triggers, a missing_script finding for a SKILL.md referencing a non-existent scripts/ path."
+      - "/validate-feature --phase resolver runs in CI on every PR and fails the job when error-severity findings exist."
+      - "Initial audit run against current skills/ produces a triage list (housekeeping) and the change itself does not block on those existing findings."
+      - "openspec validate add-skillify-and-resolver-audit --strict passes."
+      - "All tests in skills/tests/skillify/ and skills/tests/resolver-audit/ pass."

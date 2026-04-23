@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/resolver-finding.schema.json",
+  "title": "Resolver Audit Finding",
+  "description": "Single finding emitted by resolver_audit.py in --json mode.",
+  "type": "object",
+  "required": ["type", "severity", "skill_name", "path", "message"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["dark_skill", "trigger_overlap", "missing_script"],
+      "description": "Category of the finding."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning"],
+      "description": "Severity. Errors fail --fail-on-findings; warnings do not."
+    },
+    "skill_name": {
+      "type": "string",
+      "description": "Name of the affected skill (matches the directory name under skills/)."
+    },
+    "path": {
+      "type": "string",
+      "description": "Repo-relative path to the file that triggered the finding."
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Line number within `path`, when applicable (e.g. missing_script reference)."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable finding description, including remediation hint where possible."
+    },
+    "related_skills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Other skill names involved in the finding (e.g. trigger_overlap collisions)."
+    },
+    "trigger": {
+      "type": "string",
+      "description": "Trigger phrase involved, when type is trigger_overlap."
+    }
+  }
+}
