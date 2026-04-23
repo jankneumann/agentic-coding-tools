@@ -12,11 +12,13 @@
 
 2. **Pre-commit hook is independent enforcement, not delegated.** The CLAUDE.md to AGENTS.md byte-identity invariant is enforced by a pre-commit hook. The hook runs `sync_agents_md.py --check`. This makes the invariant robust to forgetfulness. It also protects direct git workflows.
 
-3. **Opt-in SessionStart auto-pull via `AGENTIC_AUTO_PULL=1`.** Auto-pulling at SessionStart on dirty trees has known footguns. Default-off opt-in respects user autonomy. The env var is namespaced.
+3. **Pre-commit framework over hand-rolled `.git/hooks/` script.** The hook is configured in `.pre-commit-config.yaml` as a `local` entry. The framework handles install, ordering, file filtering, and skip behavior. A separate `install-hooks.sh` at repo root bootstraps the framework. This keeps hook installation explicit and out of `skills/install.sh`. It also lines up with the broader Python ecosystem norm.
 
-4. **Sequential tier despite coordinator availability.** Coordinator detection returned all capabilities true. The plan-feature rule implies coordinated tier. Deviated to sequential. The change is small. The work is tightly coupled. Parallel decomposition yields no benefit.
+4. **Opt-in SessionStart auto-pull via `AGENTIC_AUTO_PULL=1`.** Auto-pulling at SessionStart on dirty trees has known footguns. Default-off opt-in respects user autonomy. The env var is namespaced.
 
-5. **Branch override accepted in shared checkout.** The harness mandated branch is already checked out in the shared checkout. The worktree script cannot create a second checkout of the same branch. Proceeded in the shared checkout. This is a known tension between the worktree invariant and the harness branch mandate.
+5. **Sequential tier despite coordinator availability.** Coordinator detection returned all capabilities true. The plan-feature rule implies coordinated tier. Deviated to sequential. The change is small. The work is tightly coupled. Parallel decomposition yields no benefit.
+
+6. **Branch override accepted in shared checkout.** The harness mandated branch is already checked out in the shared checkout. The worktree script cannot create a second checkout of the same branch. Proceeded in the shared checkout. This is a known tension between the worktree invariant and the harness branch mandate.
 
 ### Alternatives Considered
 
@@ -33,7 +35,7 @@
 ### Open Questions
 
 - [ ] Should the pre-commit hook also catch direct edits to AGENTS.md? The spec catches drift in either direction. The error message currently only points at the sync script. Defer to implementation.
-- [ ] Where exactly does the pre-commit hook get installed? Existing install.sh does not manage git hooks today. Task 2.3 notes this needs a decision. Defer to implementation.
+- [x] Where exactly does the pre-commit hook get installed? Resolved: use the standard pre-commit framework via `.pre-commit-config.yaml`, with a separate `install-hooks.sh` at repo root that runs `pre-commit install`. See decision 3.
 
 ### Context
 

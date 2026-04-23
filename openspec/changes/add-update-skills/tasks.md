@@ -9,14 +9,14 @@
 - [ ] 1.2 Implement `skills/update-skills/scripts/sync_agents_md.py` (pure-stdlib Python; argparse for `--check` flag; exits 0/1/2 per spec)
   **Dependencies**: 1.1
 
-## Phase 2 — Pre-commit hook for invariant
+## Phase 2 — Pre-commit hook for invariant (uses pre-commit framework)
 
-- [ ] 2.1 Write integration test that simulates a pre-commit context: stage a CLAUDE.md edit without AGENTS.md, run the hook, assert non-zero exit and instructive message
+- [ ] 2.1 Write integration test that simulates a pre-commit context: stage a CLAUDE.md edit without AGENTS.md, invoke the hook entry, assert non-zero exit and instructive message
   **Spec scenarios**: skill-runtime-sync.4 (drift rejection), .5 (in-sync pass)
   **Dependencies**: 1.2
-- [ ] 2.2 Add pre-commit hook script `skills/update-skills/scripts/pre_commit_check_agents_md.sh` that calls `sync_agents_md.py --check`
+- [ ] 2.2 Add `.pre-commit-config.yaml` at repo root with a single `local` hook that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit. Hook id: `agents-md-sync`. Files filter: `^(CLAUDE\.md|AGENTS\.md)$`
   **Dependencies**: 2.1
-- [ ] 2.3 Wire the pre-commit hook into existing project install machinery (decide: extend `install.sh` to install the hook, or add a separate `install-hooks.sh`; document either way)
+- [ ] 2.3 Add `install-hooks.sh` at repo root that bootstraps the pre-commit framework: `uv pip install pre-commit` into the project venv if not present, then `pre-commit install` to wire `.git/hooks/pre-commit`. Idempotent (safe to re-run). Document invocation in CLAUDE.md "Skills" section.
   **Dependencies**: 2.2
 
 ## Phase 3 — `/update-skills` orchestrator

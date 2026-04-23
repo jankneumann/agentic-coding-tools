@@ -16,7 +16,8 @@ Roadmap: `openspec/roadmaps/skillify-foundation/roadmap.yaml` item `ri-01`.
   3. Stage regenerated runtime files + `AGENTS.md`. If staged diff is empty, skip commit (no empty commits). Otherwise commit with `chore(skills): sync runtime copies`.
   4. `git pull --rebase --autostash` then `git push` with bounded retry (max 3 attempts, exponential backoff) to handle concurrent updates.
 - **New script** `skills/update-skills/scripts/sync_agents_md.py` — pure-stdlib Python that copies `CLAUDE.md` → `AGENTS.md`, exits `0` on success, `1` on missing source, `2` on byte-drift when run with `--check`.
-- **New pre-commit check** `.git/hooks/pre-commit.d/check-agents-md-sync` (installed via existing skill install machinery) that runs `sync_agents_md.py --check` and fails the commit if `CLAUDE.md` and `AGENTS.md` have drifted. Enforces the invariant independently of `/update-skills`.
+- **New pre-commit hook** wired through the standard [pre-commit framework](https://pre-commit.com/) via a new `.pre-commit-config.yaml` at repo root. The hook is a `local` entry that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit and fails the commit if `CLAUDE.md` and `AGENTS.md` have drifted. Enforces the invariant independently of `/update-skills`.
+- **New `install-hooks.sh`** at repo root that bootstraps the pre-commit framework (`uv pip install pre-commit` into the project venv, then `pre-commit install`). Separate from `skills/install.sh` so the hooks setup is invoked deliberately and doesn't surprise users who only want to install skills.
 - **Optional SessionStart hook** wired in `.claude/settings.json` and the Codex equivalent: invokes `git pull --rebase --autostash` on the current branch when `AGENTIC_AUTO_PULL=1` is set, no-ops on dirty trees, silent on network failure (exit 0).
 - **CLAUDE.md update**: add a "Generated AGENTS.md" subsection under "Skills" documenting the invariant and the pre-commit hook.
 - **Initial generation**: run the new `sync_agents_md.py` once as part of this change to populate `AGENTS.md`.
@@ -27,8 +28,10 @@ Roadmap: `openspec/roadmaps/skillify-foundation/roadmap.yaml` item `ri-01`.
 - **Affected code**:
   - new: `skills/update-skills/SKILL.md`, `skills/update-skills/scripts/sync_agents_md.py`, `skills/update-skills/scripts/update_skills.py`
   - new: `skills/tests/update-skills/` test files
+  - new: `.pre-commit-config.yaml` (root) with the AGENTS.md sync check as a `local` hook
+  - new: `install-hooks.sh` (root) that bootstraps pre-commit and runs `pre-commit install`
   - modified: `.claude/settings.json` (add SessionStart hook entry, gated by env)
-  - modified: `CLAUDE.md` (add "Generated AGENTS.md" section)
+  - modified: `CLAUDE.md` (add "Generated AGENTS.md" section, document `install-hooks.sh`)
   - generated: `AGENTS.md` (byte-identical to CLAUDE.md)
 - **Operational risk**:
   - Auto-push could race with concurrent updates — mitigated by `git pull --rebase` immediately before push and bounded retry.
