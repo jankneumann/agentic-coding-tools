@@ -22,12 +22,12 @@
 
 ## Phase 3 — `/update-skills` orchestrator
 
-- [ ] 3.1 Write tests for `update_skills.py` covering: install.sh invocation, sync_agents_md.py invocation, no-op when nothing changed (no commit), commit message format, push retry on rejection (mock git), retry exhaustion failure
+- [x] 3.1 Write tests for `update_skills.py` covering: install.sh invocation, sync_agents_md.py invocation, no-op when nothing changed (no commit), commit message format, push retry on rejection (mock git), retry exhaustion failure
   **Spec scenarios**: skill-runtime-sync.1 (propagation), .2 (no-op), .3 (commit message), .a (push success), .b (push retry), .c (retry exhausted)
   **Dependencies**: 1.2
-- [ ] 3.2 Implement `skills/update-skills/scripts/update_skills.py` orchestrator (calls install.sh via subprocess, calls sync_agents_md.py, stages files, checks empty diff, commits with conventional message, pushes with rebase + bounded retry)
+- [x] 3.2 Implement `skills/update-skills/scripts/update_skills.py` orchestrator (calls install.sh via subprocess, calls sync_agents_md.py, stages files, checks empty diff, commits with conventional message, pushes with rebase + bounded retry)
   **Dependencies**: 3.1
-- [ ] 3.3 Write `skills/update-skills/SKILL.md` (frontmatter with `name`, `description`, `category: Infrastructure`, `tags`, `triggers: ["update skills", "sync skills", "update-skills"]`; usage section; pointer to scripts)
+- [x] 3.3 Write `skills/update-skills/SKILL.md` (frontmatter with `name`, `description`, `category: Infrastructure`, `tags`, `triggers: ["update skills", "sync skills", "update-skills"]`; usage section; pointer to scripts)
   **Dependencies**: 3.2
 
 ## Phase 4 — Opt-in SessionStart auto-pull hook
