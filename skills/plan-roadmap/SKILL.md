@@ -17,6 +17,10 @@ Decompose a long-form markdown proposal into a prioritized set of OpenSpec chang
 
 `$ARGUMENTS` - Path to a markdown proposal file, or inline proposal text.
 
+Optional flags:
+- `--workspace <path>` - Override the default output location. If `<path>` is a directory, the roadmap is written to `<path>/roadmap.yaml`; if `<path>` ends in `.yaml`, it is used as the explicit file path.
+- `--force` - Overwrite an existing `roadmap.yaml` at the target location. Without this flag, `/plan-roadmap` aborts on collision to protect operator edits (`status`, `priority`, etc.).
+
 ## Input
 
 A long markdown proposal containing:
@@ -31,6 +35,18 @@ The proposal may be provided as a file path or pasted inline.
 - `roadmap.yaml` conforming to the roadmap schema (`openspec/changes/roadmap-openspec-orchestration/contracts/roadmap.schema.json`)
 - Each item in the roadmap has: `item_id`, `title`, `description`, `effort`, `priority`, `depends_on`, `acceptance_outcomes`
 - Dependency DAG is acyclic (validated before output)
+
+### Output Location
+
+The default workspace is `openspec/roadmaps/<roadmap_id>/roadmap.yaml`, where `<roadmap_id>` is derived from the proposal during decomposition (Pass 2). The parent directory is created automatically.
+
+This convention lets `/autopilot-roadmap <workspace>` consume the result without manual relocation, and supports multiple concurrent roadmaps (one per epic) in the same repo without filename collisions — the workspace directory itself is the namespace.
+
+**Collision behavior**: if `roadmap.yaml` already exists at the target, `/plan-roadmap` aborts with guidance to either pass `--force` (overwrite) or `--workspace <path>` (redirect). This protects operator edits to item `status` / `priority` from being silently clobbered when re-running the skill on the same proposal.
+
+**Caveat**: because `<roadmap_id>` is set during decomposition, the final destination path is only known after Pass 2 completes. The skill prints the resolved path before writing.
+
+Scaffolded per-item change directories remain at `openspec/changes/<change-id>/` (consumed by `/implement-feature`); they are not nested under the roadmap workspace.
 
 ## Steps
 
@@ -66,12 +82,22 @@ Validate the resulting DAG is acyclic.
 
 Display the candidate roadmap items with their dependencies, effort estimates, and acceptance outcomes. Allow the user to approve, modify, or reject individual items.
 
-### 6. Scaffold Approved Changes as OpenSpec Change Directories
+### 6. Resolve Workspace Path and Write `roadmap.yaml`
+
+Determine the output location:
+- If `--workspace <path>` was supplied, use it (directory → `<path>/roadmap.yaml`, or explicit `.yaml` file path).
+- Otherwise, default to `openspec/roadmaps/<roadmap_id>/roadmap.yaml` (relative to repo root).
+
+Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `skills/roadmap-runtime/scripts/models.py`. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the user to re-invoke with `--force` or `--workspace`.
+
+### 7. Scaffold Approved Changes as OpenSpec Change Directories
 
 For each approved item, create an OpenSpec change directory under `openspec/changes/` containing:
 - `proposal.md` with a `parent_roadmap` field linking back to the roadmap
 - `tasks.md` skeleton
 - `specs/` directory
+
+These directories always live at `openspec/changes/<change-id>/` — they are not nested under the roadmap workspace, because `/implement-feature` expects that canonical path.
 
 ## Two-Pass Architecture
 

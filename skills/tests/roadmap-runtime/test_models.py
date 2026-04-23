@@ -142,6 +142,33 @@ class TestRoadmap:
         loaded = load_roadmap(path)
         assert loaded.roadmap_id == roadmap.roadmap_id
 
+    def test_save_creates_parent_directories(self, tmp_path):
+        roadmap = _make_roadmap()
+        path = tmp_path / "openspec" / "roadmaps" / "test-roadmap" / "roadmap.yaml"
+        save_roadmap(roadmap, path)
+        assert path.exists()
+
+    def test_save_aborts_on_existing_file(self, tmp_path):
+        roadmap = _make_roadmap()
+        path = tmp_path / "roadmap.yaml"
+        save_roadmap(roadmap, path)
+
+        with pytest.raises(FileExistsError, match="already exists"):
+            save_roadmap(roadmap, path)
+
+    def test_save_overwrites_when_forced(self, tmp_path):
+        roadmap = _make_roadmap()
+        path = tmp_path / "roadmap.yaml"
+        save_roadmap(roadmap, path)
+        original_mtime = path.stat().st_mtime_ns
+
+        roadmap.items[0].title = "Updated title"
+        save_roadmap(roadmap, path, overwrite=True)
+
+        reloaded = load_roadmap(path)
+        assert reloaded.items[0].title == "Updated title"
+        assert path.stat().st_mtime_ns >= original_mtime
+
 class TestPolicy:
     def test_defaults(self):
         policy = Policy()
