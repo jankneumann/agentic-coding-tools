@@ -54,7 +54,7 @@
 
 ## Phase 6 — Verification
 
-- [ ] 6.1 Run full skill test suite: `skills/.venv/bin/python -m pytest skills/tests/update-skills/ -v`
+- [x] 6.1 Run full skill test suite: `skills/.venv/bin/python -m pytest skills/tests/update-skills/ -v` — **24/24 passed in 6.24s**
   **Dependencies**: All phases
-- [ ] 6.2 Run `openspec validate add-update-skills --strict`
+- [x] 6.2 Run `openspec validate add-update-skills --strict` — **valid**
   **Dependencies**: All phases

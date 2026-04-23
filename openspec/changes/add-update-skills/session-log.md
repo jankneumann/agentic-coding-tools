@@ -78,3 +78,37 @@ This change closes the manual-sync gap between canonical skills and runtime skil
 ### Context
 
 Iteration 1 addressed 8 findings (4 high, 3 medium, 1 low raised to medium during the M6 output-channel rewrite). Two findings required `AskUserQuestion` per the assumption protocol; both received decisive user answers that drove the fixes. All resulting changes pass `openspec validate add-update-skills --strict`. No residual findings at or above the medium threshold — loop terminates after iteration 1.
+
+---
+
+## Phase: Implementation (2026-04-23)
+
+**Agent**: claude_code | **Session**: skillify-pattern
+
+### Decisions
+
+1. **Test fixtures disable commit signing locally.** The session's git is configured with a signing server that only accepts known repo paths. Test repos in tmp dirs can't sign. Fixtures set `commit.gpgsign=false` in the tmp repo only. This is scoped to fixtures and does not bypass signing for real commits on the feature branch.
+
+2. **Propagation via direct cp, not install.sh.** The dev env has no rsync. Both rsync and copy modes refused to run. Switching the whole repo to symlink mode would have deleted many tracked copies. I propagated only the new and modified files directly. Other skills stay as real directories.
+
+3. **AGENTS.md already a symlink.** The repo had AGENTS.md as a symlink to CLAUDE.md from a prior date. The sync script and pre-commit hook work either way. This change formalizes the invariant. It does not pick one representation.
+
+4. **Commit signing for real commits is untouched.** All feature-branch commits were signed normally. Only tmp test fixtures set gpgsign false.
+
+5. **Exit-0 everywhere for auto-pull.** Auto-pull never blocks session start. Network errors, dirty trees, detached HEAD, non-git dir, timeout — all paths log and exit 0.
+
+6. **update_skills.py aborts at each step boundary.** install.sh failure: abort before sync. sync_agents_md failure: abort after install, leave install changes staged for manual recovery. Push retry exhausted: emit `UNPUSHED_COMMIT=<sha>` on stdout for automation + per-attempt summary on stderr, exit 1.
+
+### Alternatives Considered
+
+- **Mock-based orchestrator tests**: rejected. Real-subprocess tests with a tmp repo and a bare origin exercise the actual git + subprocess flow and caught a real issue (commit signing) that mocks would have masked.
+- **Commit the symlink install artifacts**: rejected. Would have produced an 851-file PR diff as git saw the pre-existing copies being replaced by symlinks.
+- **Deeper install.sh surgery to avoid rsync dependency**: rejected. Out of scope per non-goal "no changes to existing install.sh behavior".
+
+### Trade-offs
+
+- Accepted deferring the `install-hooks.sh` end-to-end uv-sync test over blocking implementation. Reason: dev env can[REDACTED:high-entropy]s suggestion to also auto-register the change-id in the coordinator feature registry (CAN_FEATURE_REGISTRY=true) was deferred as a skillify concern — but the infrastructure is here. Revisit after Change B lands.
+
+### Context
+
+All 17 tasks across 6 phases implemented and verified. 24/24 tests green. `openspec validate add-update-skills --strict` passes. One requirement (skill-runtime-sync.6) has partial evidence — structural test only; full uv-sync behavior needs rsync-capable CI. Ready for PR review.
