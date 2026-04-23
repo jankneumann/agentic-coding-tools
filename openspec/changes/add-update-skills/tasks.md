@@ -32,12 +32,12 @@
 
 ## Phase 4 — Opt-in SessionStart auto-pull hook
 
-- [ ] 4.1 Write tests for the SessionStart hook script covering: disabled (env unset), enabled + clean tree (pull invoked), enabled + dirty tree (pull skipped), enabled + network failure (silent exit 0)
+- [x] 4.1 Write tests for the SessionStart hook script covering: disabled (env unset), enabled + clean tree (pull invoked), enabled + dirty tree (pull skipped), enabled + network failure (silent exit 0)
   **Spec scenarios**: skill-runtime-sync.d (auto-pull clean), .e (auto-pull dirty), .f (auto-pull disabled)
   **Dependencies**: None (parallel with Phase 3)
-- [ ] 4.2 Implement `skills/session-bootstrap/scripts/hooks/auto_pull.py` (gated by `AGENTIC_AUTO_PULL=1`, dirty-tree check via `git status --porcelain`, subprocess `git pull --rebase --autostash`, exit 0 on any failure)
+- [x] 4.2 Implement `skills/session-bootstrap/scripts/hooks/auto_pull.py` (gated by `AGENTIC_AUTO_PULL=1`, dirty-tree check via `git status --porcelain`, subprocess `git pull --rebase --autostash`, exit 0 on any failure)
   **Dependencies**: 4.1
-- [ ] 4.3 Wire the auto-pull hook for both runtimes. (a) Add an entry to `.claude/settings.json` SessionStart hooks block (after existing `bootstrap-cloud.sh`, `print_coordinator_env.py`, `register_agent.py` entries) invoking `python3 "$CLAUDE_PROJECT_DIR/.claude/skills/session-bootstrap/scripts/hooks/auto_pull.py"`. (b) Add an invocation of the same `auto_pull.py` to `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (the Codex Maintenance Script entry point), placed after the existing verify/repair logic so a broken repo doesn't block auto-pull diagnostics. Both invocations are gated by `AGENTIC_AUTO_PULL=1` inside `auto_pull.py` itself, so the wiring is unconditional but the behavior is opt-in.
+- [x] 4.3 Wire the auto-pull hook for both runtimes. (a) Add an entry to `.claude/settings.json` SessionStart hooks block (after existing `bootstrap-cloud.sh`, `print_coordinator_env.py`, `register_agent.py` entries) invoking `python3 "$CLAUDE_PROJECT_DIR/.claude/skills/session-bootstrap/scripts/hooks/auto_pull.py"`. (b) Add an invocation of the same `auto_pull.py` to `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (the Codex Maintenance Script entry point), placed after the existing verify/repair logic so a broken repo doesn't block auto-pull diagnostics. Both invocations are gated by `AGENTIC_AUTO_PULL=1` inside `auto_pull.py` itself, so the wiring is unconditional but the behavior is opt-in.
   **Dependencies**: 4.2
   **Spec scenarios**: skill-runtime-sync.d (auto-pull clean), .e (auto-pull dirty), .f (auto-pull disabled), .i (both runtimes covered)
 
