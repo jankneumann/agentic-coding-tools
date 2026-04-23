@@ -23,6 +23,9 @@ test = [
     "pytest>=9.0.3",
     "pyyaml>=6.0",
 ]
+dev = [
+    "pre-commit>=3.7",
+]
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -33,6 +36,7 @@ testpaths = [
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
     "changelog-version/tests",
+    "tests/update-skills",
 ]
 
 [tool.ruff]

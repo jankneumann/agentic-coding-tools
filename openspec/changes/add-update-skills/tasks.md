@@ -2,11 +2,11 @@
 
 ## Phase 1 — Sync script (foundation)
 
-- [ ] 1.1 Write tests for `sync_agents_md.py` covering regenerate mode, check mode (in-sync and drift), and missing-source error
+- [x] 1.1 Write tests for `sync_agents_md.py` covering regenerate mode, check mode (in-sync and drift), and missing-source error
   **Spec scenarios**: skill-runtime-sync.6 (regenerate), .7 (check drift), .8 (check in-sync), .9 (missing source)
   **Contracts**: contracts/README.md (no machine-readable contracts; pure-stdlib script)
   **Dependencies**: None
-- [ ] 1.2 Implement `skills/update-skills/scripts/sync_agents_md.py` (pure-stdlib Python; argparse for `--check` flag; exits 0/1/2 per spec)
+- [x] 1.2 Implement `skills/update-skills/scripts/sync_agents_md.py` (pure-stdlib Python; argparse for `--check` flag; exits 0/1/2 per spec)
   **Dependencies**: 1.1
 
 ## Phase 2 — Pre-commit hook for invariant (uses pre-commit framework)
