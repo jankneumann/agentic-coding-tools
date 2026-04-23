@@ -180,8 +180,8 @@ def execute_roadmap(
             except Exception:
                 logger.debug("Replanner failed (non-fatal)", exc_info=True)
 
-        # Save updated roadmap
-        save_roadmap(roadmap, workspace / "roadmap.yaml")
+        # Save updated roadmap (in-place update — overwrite is expected here)
+        save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
 
     # Build summary
     return _build_summary(roadmap, checkpoint, policy_decisions)
