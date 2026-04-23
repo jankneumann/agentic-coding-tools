@@ -8,7 +8,9 @@ Session-log Phase Entries SHALL support an optional inline `architectural: <capa
 
 The tag SHALL use the syntax `` `architectural: <kebab-case-capability>` `` — a backtick-delimited inline code span containing the literal key `architectural`, a colon, a single space, and a kebab-case identifier matching a capability directory under `openspec/specs/`.
 
-The tag MAY appear anywhere within a Decision bullet's first line (after the title, before the rationale, or at the end). Only the first occurrence per bullet SHALL be counted by the index emitter; subsequent occurrences SHALL be ignored to keep the extraction rule deterministic.
+The tag SHALL appear immediately after the bullet's bold title and before the em-dash `—` rationale delimiter: `N. **<title>** \`architectural: <capability>\` — <rationale>`. This canonical placement keeps extraction deterministic and matches the convention documented in `skills/session-log/SKILL.md`. Only the first occurrence per bullet SHALL be counted by the index emitter; subsequent occurrences (pathological double-tagged bullets) SHALL be ignored.
+
+Decision references (`supersedes: <change-id>#D<n>`) SHALL resolve `<n>` as the 1-indexed bullet position within the source phase entry, counting all Decision bullets — tagged and untagged — so the convention matches what a reader sees in the session-log.
 
 Decision bullets without an `architectural:` tag SHALL remain valid and SHALL NOT be required to include one. Untagged Decisions document decisions that do not warrant cross-change surfacing (routine, scoped, already-superseded-in-same-change, etc.).
 

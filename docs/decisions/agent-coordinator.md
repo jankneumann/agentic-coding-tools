@@ -12,7 +12,7 @@
 **Extend work_queue (Approach A)** — Add labels, parent_id, issue_type, assignee, comments to existing table rather than creating a separate issues table.
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-22-replace-beads-with-builtin-tracker/session-log.md` (D1)
+- Source: [openspec/changes/archive/2026-04-22-replace-beads-with-builtin-tracker/session-log.md](/openspec/changes/archive/2026-04-22-replace-beads-with-builtin-tracker/session-log.md) (D3)
 
 ---
 
@@ -23,4 +23,4 @@
 **IssueService as separate class (D1)** — Delegates to DB directly, not through WorkQueueService, to avoid inheriting agent-coordination semantics (policy checks, guardrails) inappropriate for issue CRUD.
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-22-replace-beads-with-builtin-tracker/session-log.md` (D2)
+- Source: [openspec/changes/archive/2026-04-22-replace-beads-with-builtin-tracker/session-log.md](/openspec/changes/archive/2026-04-22-replace-beads-with-builtin-tracker/session-log.md) (D4)

@@ -36,10 +36,10 @@ docs/decisions/
 
 Each capability file is a reverse-chronological timeline of tagged Decisions, with sections per change and cross-references.
 
-### 3. One-time systematic backfill of archived session-logs
-Walk every change under `openspec/changes/archive/` (~30+ changes as of 2026-04) and retroactively tag Decisions in their `session-log.md` files. Because session-logs are markdown in git, retroactive tagging is a documentation edit, not a process violation. The backfill is a one-shot operation committed alongside the feature.
+### 3. Conservative backfill of archived session-logs with a durable review queue
+Walk every change under `openspec/changes/archive/` (12 of 66 archives contain `session-log.md` — the convention is recent). Extract every untagged Decision as a backfill candidate and classify via a keyword heuristic. Commit the resulting `backfill-proposals.json` as a durable review queue alongside the feature. An initial agent-review pass applies tags for the subset of proposals that obviously describe cross-change architectural patterns; the remainder stay in the queue for subsequent curation passes.
 
-Backfill method: **heuristic + agent-review hybrid**. A classifier script proposes capability assignments based on keyword matching (e.g., "worktree" → `software-factory-tooling`, "coordinator" → `agent-coordinator`, "session-log" → `skill-workflow`) and an agent reviews ambiguous cases. Edit diff is reviewable before commit. Untaggable Decisions (genuinely non-architectural) are left untagged and excluded from the index.
+Backfill method: **heuristic classifier + conservative agent review**. `skills/explore-feature/scripts/backfill_decision_tags.py` proposes capability assignments based on keyword matching (e.g., "worktree" → `software-factory-tooling`, "coordinator" → `agent-coordinator`, "session-log" → `skill-workflow`) with margin-based confidence scores. An agent reviews the proposals and applies tags only where title + rationale obviously describe a cross-change pattern. The goal is **coverage of pivotal decisions, not exhaustive labeling** — auto-applying keyword-high-confidence proposals would poison the index with false positives, because keyword-match confidence and architectural-significance are orthogonal signals.
 
 ### 4. `make decisions` target + CI staleness check
 Add a new Makefile target following the `make architecture` precedent (Makefile:120-127). CI runs `make decisions` and fails if `git diff docs/decisions/` is non-empty after regen, catching stale indices caused by missing tags or forgotten regen. Introducing this is a bonus generalizable pattern — `make architecture` could adopt the same CI check in a follow-up.
