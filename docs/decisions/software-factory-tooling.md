@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-04-23 — add-decision-index
+
+### Phase: Implementation
+
+**Conservative backfill scope: tag ~8 clearly-architectural decisions, leave 133 proposals for future human review** — The classifier emitted 52 high-confidence proposals but title+rationale scanning revealed many were procedural or one-off, not pattern-setting. Hand-picked 8 across `configuration`, `merge-pull-requests`, `agent-coordinator` to maximize capability diversity in docs/decisions/ while avoiding index-poisoning false positives. The remaining proposals stay queued in `backfill-proposals.json` for subsequent reviewers.
+
+- Status: `active`
+- Source: `openspec/changes/**/add-decision-index/session-log.md` (D1)
+
+---
+
+## 2026-04-23 — add-decision-index
+
+### Phase: Implementation
+
+**Emitter CLI lives on `archive_index.py`, not `decision_index.py`** — design.md specified `make decisions` invokes the archive_index script. Keeping `decision_index.py` as a pure library (data model + functions) with the CLI composition on `archive_index.py` matches the architecture-intelligence pattern and mirrors how other skills separate library from orchestrator.
+
+- Status: `active`
+- Source: `openspec/changes/**/add-decision-index/session-log.md` (D3)
+
+---
+
 ## 2026-04-16 — add-decision-index
 
 ### Phase: Plan

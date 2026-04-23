@@ -42,3 +42,32 @@
 
 ### Context
 Planning goal: introduce a per-capability decision index so that archaeology questions about how the system arrived at its current state can be answered per capability rather than by reading many per-change session-logs in chronological order. Exploration revealed the existing Archive Intelligence Pipeline already walks session-logs for machine-readable indexing, so the right move is to extend it with a new emitter rather than add a parallel walker. Sequential tier (no coordinator available, scope small). Gate 1 confirmed Approach A; Gate 2 pending.
+
+---
+
+## Phase: Implementation (2026-04-23)
+
+**Agent**: claude-opus-4-7 | **Session**: N/A
+
+### Decisions
+1. **Conservative backfill scope: tag ~8 clearly-architectural decisions, leave 133 proposals for future human review** `architectural: software-factory-tooling` — The classifier emitted 52 high-confidence proposals but title+rationale scanning revealed many were procedural or one-off, not pattern-setting. Hand-picked 8 across `configuration`, `merge-pull-requests`, `agent-coordinator` to maximize capability diversity in docs/decisions/ while avoiding index-poisoning false positives. The remaining proposals stay queued in `backfill-proposals.json` for subsequent reviewers.
+2. **Permissive regex between capability tag and em-dash** `architectural: skill-workflow` — The design.md extraction regex requires the supersedes span immediately after the architectural span, but real decision bullets may contain additional backtick spans (a second stray `architectural:`, inline code in rationale). Using `.*?` non-greedy between the tag and em-dash handles the "first occurrence wins" rule naturally and without a second pass, at the cost of not catching malformed placements — which is acceptable because malformation means no tag extracted, not miscategorization.
+3. **Emitter CLI lives on `archive_index.py`, not `decision_index.py`** `architectural: software-factory-tooling` — design.md specified `make decisions` invokes the archive_index script. Keeping `decision_index.py` as a pure library (data model + functions) with the CLI composition on `archive_index.py` matches the architecture-intelligence pattern and mirrors how other skills separate library from orchestrator.
+
+### Alternatives Considered
+- Full systematic backfill of all 141 untagged proposals: rejected because the classifier keyword heuristic produces too many false positives at the is-architectural threshold — high confidence in keyword match does not entail high confidence that the decision is pattern-setting. Leaving the JSON as a review queue is consistent with D5 (heuristic + review) and avoids index-poisoning on day one.
+- CLI on `decision_index.py` with no entry point on `archive_index.py`: rejected because the Makefile contract in design.md names `archive_index.py --emit-decisions` as the interface; splitting the CLI location from the design contract would introduce a documentation drift bug.
+- Write tests in `skills/tests/explore-feature/` per the global testing-memory convention: rejected because the work-packages.yaml scope explicitly names `skills/explore-feature/tests/test_decision_index.py`, and the skill already has an established `skills/explore-feature/tests/` convention that `install.sh` correctly excludes from rsync runtime copies. Following local convention is the right call here.
+
+### Trade-offs
+- Accepted 134 unreviewed backfill proposals over exhaustive tagging because per-decision human judgment quality matters more than coverage percentage for an archaeology index. The JSON artifact means the work is queued, not lost.
+- Accepted non-greedy regex flexibility over design.md's stricter form because the real-world decision bullets proved more varied than the spec's anchored example; flexibility here does not compromise determinism.
+- Accepted 5 committed capability files (agent-coordinator, configuration, merge-pull-requests, skill-workflow, software-factory-tooling) over the task-3.5-aspirational "16 capability files". Five capabilities with real entries is a more honest read-side projection than 16 mostly-empty files.
+
+### Open Questions
+- [ ] Should we raise the classifier's confidence threshold (e.g., require confidence ≥ 0.9 AND ≥ 2 keyword hits) before marking a proposal `high-confidence`? Current formula rewards single-keyword matches with no runner-up at 0.9, which inflates the high bucket and may mislead reviewers relying on bucket labels.
+- [ ] Should a follow-up change commit the remaining 51 high-confidence backfill proposals after a human-curated review pass? Or should the backfill be considered complete and future decisions only go-forward?
+- [ ] Should `make decisions` be added to a post-commit hook to catch staleness before CI? Currently the staleness check only fires in CI, meaning local-dev work can land stale indices via merge without fresh signal.
+
+### Context
+Implemented all 25 tasks across 5 phases in a sequential tier within a single worktree over one session. TDD-ordered: wrote test_decision_index.py first (RED), implemented decision_index.py to pass (GREEN), then wired archive_index.py CLI, backfill classifier, and Makefile/CI in order. Light backfill applied to 3 archived session-logs (cloudflare-domain-setup, hybrid-merge-strategy, replace-beads-with-builtin-tracker) yielding 8 new architectural tags across 3 capabilities. Final state: 48 tests passing, openspec validate --strict clean, make decisions idempotent, sanitizer verified to preserve tagged decisions. docs/decisions/ now contains 6 generated files (5 capability timelines + README) populated from 17 total tagged decisions across active and archived changes.
