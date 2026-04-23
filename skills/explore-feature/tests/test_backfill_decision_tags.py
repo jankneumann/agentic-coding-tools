@@ -17,8 +17,6 @@ from datetime import date
 from pathlib import Path
 from textwrap import dedent
 
-import pytest
-
 _SKILLS_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_SKILLS_DIR / "explore-feature" / "scripts"))
 

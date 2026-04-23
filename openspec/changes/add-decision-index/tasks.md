@@ -99,15 +99,15 @@ TDD ordering: within each phase, test tasks come first; implementation tasks dec
 
 ## Phase 5 — Validation
 
-- [ ] 5.1 Run `openspec validate add-decision-index --strict` and confirm zero errors
+- [x] 5.1 Run `openspec validate add-decision-index --strict` and confirm zero errors
   **Dependencies**: all prior phases
 
-- [ ] 5.2 Run full skills test suite: `skills/.venv/bin/python -m pytest skills/tests/ skills/explore-feature/tests/`
+- [x] 5.2 Run full skills test suite: `skills/.venv/bin/python -m pytest skills/tests/ skills/explore-feature/tests/`
   **Dependencies**: all prior phases
 
-- [ ] 5.3 Run `make decisions` twice in succession; confirm second run produces no `git diff` (idempotent)
+- [x] 5.3 Run `make decisions` twice in succession; confirm second run produces no `git diff` (idempotent)
   **Dependencies**: 4.3
 
-- [ ] 5.4 Sanitizer soak: run `sanitize_session_log.py` on a backfilled archived session-log and confirm tagged Decisions survive unredacted
+- [x] 5.4 Sanitizer soak: run `sanitize_session_log.py` on a backfilled archived session-log and confirm tagged Decisions survive unredacted
   **Spec scenarios**: `skill-workflow.5`
   **Dependencies**: 3.4
