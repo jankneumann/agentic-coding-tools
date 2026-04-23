@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://json.schemastore.org/pre-commit-config.json
+#
+# Runs on every `git commit`. Install once via ./install-hooks.sh.
+# This file is the single source of truth for local git hooks.
+
+repos:
+  - repo: local
+    hooks:
+      - id: agents-md-sync
+        name: "AGENTS.md ≡ CLAUDE.md byte-identity"
+        description: >-
+          Guards the invariant that AGENTS.md is a byte-identical copy of CLAUDE.md
+          (Codex and Claude Code read different files; they must carry identical
+          context). Blocks commits that modify CLAUDE.md without regenerating
+          AGENTS.md. Run `python3 skills/update-skills/scripts/sync_agents_md.py`
+          (or `/update-skills`) to fix.
+        entry: python3 skills/update-skills/scripts/sync_agents_md.py --check
+        language: system
+        files: ^(CLAUDE\.md|AGENTS\.md)$
+        pass_filenames: false

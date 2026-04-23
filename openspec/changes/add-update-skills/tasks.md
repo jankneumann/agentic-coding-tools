@@ -11,12 +11,12 @@
 
 ## Phase 2 — Pre-commit hook for invariant (uses pre-commit framework)
 
-- [ ] 2.1 Write integration test that simulates a pre-commit context: stage a CLAUDE.md edit without AGENTS.md, invoke the hook entry, assert non-zero exit and instructive message
+- [x] 2.1 Write integration test that simulates a pre-commit context: stage a CLAUDE.md edit without AGENTS.md, invoke the hook entry, assert non-zero exit and instructive message
   **Spec scenarios**: skill-runtime-sync.4 (drift rejection), .5 (in-sync pass)
   **Dependencies**: 1.2
-- [ ] 2.2 Add `.pre-commit-config.yaml` at repo root with a single `local` hook that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit. Hook id: `agents-md-sync`. Files filter: `^(CLAUDE\.md|AGENTS\.md)$`
+- [x] 2.2 Add `.pre-commit-config.yaml` at repo root with a single `local` hook that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit. Hook id: `agents-md-sync`. Files filter: `^(CLAUDE\.md|AGENTS\.md)$`
   **Dependencies**: 2.1
-- [ ] 2.3 Add `pre-commit` to `skills/pyproject.toml` under the `dev` optional-dependency group. Add `install-hooks.sh` at repo root that: (1) runs `cd skills && uv sync --all-extras` to install the now-pinned pre-commit into `skills/.venv/`, (2) runs `skills/.venv/bin/pre-commit install` to wire `.git/hooks/pre-commit`. Idempotent (safe to re-run — uv sync is a no-op when in-sync; pre-commit install overwrites harmlessly). Document invocation in CLAUDE.md "Skills" section.
+- [x] 2.3 Add `pre-commit` to `skills/pyproject.toml` under the `dev` optional-dependency group. Add `install-hooks.sh` at repo root that: (1) runs `cd skills && uv sync --all-extras` to install the now-pinned pre-commit into `skills/.venv/`, (2) runs `skills/.venv/bin/pre-commit install` to wire `.git/hooks/pre-commit`. Idempotent (safe to re-run — uv sync is a no-op when in-sync; pre-commit install overwrites harmlessly). Document invocation in CLAUDE.md "Skills" section.
   **Dependencies**: 2.2
   **Spec scenarios**: skill-runtime-sync.g (install-hooks idempotent), .h (install-hooks missing uv)
 
