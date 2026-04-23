@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-04-23 — add-decision-index
+
+### Phase: Implementation
+
+**Permissive regex between capability tag and em-dash** — The design.md extraction regex requires the supersedes span immediately after the architectural span, but real decision bullets may contain additional backtick spans (a second stray `architectural:`, inline code in rationale). Using `.*?` non-greedy between the tag and em-dash handles the "first occurrence wins" rule naturally and without a second pass, at the cost of not catching malformed placements — which is acceptable because malformation means no tag extracted, not miscategorization.
+
+- Status: `active`
+- Source: `openspec/changes/**/add-decision-index/session-log.md` (D2)
+
+---
+
 ## 2026-04-16 — add-decision-index
 
 ### Phase: Plan
