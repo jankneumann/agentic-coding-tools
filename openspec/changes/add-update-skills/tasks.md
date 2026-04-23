@@ -16,8 +16,9 @@
   **Dependencies**: 1.2
 - [ ] 2.2 Add `.pre-commit-config.yaml` at repo root with a single `local` hook that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit. Hook id: `agents-md-sync`. Files filter: `^(CLAUDE\.md|AGENTS\.md)$`
   **Dependencies**: 2.1
-- [ ] 2.3 Add `install-hooks.sh` at repo root that bootstraps the pre-commit framework: `uv pip install pre-commit` into the project venv if not present, then `pre-commit install` to wire `.git/hooks/pre-commit`. Idempotent (safe to re-run). Document invocation in CLAUDE.md "Skills" section.
+- [ ] 2.3 Add `pre-commit` to `skills/pyproject.toml` under the `dev` optional-dependency group. Add `install-hooks.sh` at repo root that: (1) runs `cd skills && uv sync --all-extras` to install the now-pinned pre-commit into `skills/.venv/`, (2) runs `skills/.venv/bin/pre-commit install` to wire `.git/hooks/pre-commit`. Idempotent (safe to re-run — uv sync is a no-op when in-sync; pre-commit install overwrites harmlessly). Document invocation in CLAUDE.md "Skills" section.
   **Dependencies**: 2.2
+  **Spec scenarios**: skill-runtime-sync.g (install-hooks idempotent), .h (install-hooks missing uv)
 
 ## Phase 3 — `/update-skills` orchestrator
 
@@ -36,8 +37,9 @@
   **Dependencies**: None (parallel with Phase 3)
 - [ ] 4.2 Implement `skills/session-bootstrap/scripts/hooks/auto_pull.py` (gated by `AGENTIC_AUTO_PULL=1`, dirty-tree check via `git status --porcelain`, subprocess `git pull --rebase --autostash`, exit 0 on any failure)
   **Dependencies**: 4.1
-- [ ] 4.3 Add the auto-pull hook entry to `.claude/settings.json` SessionStart hooks block (after existing `bootstrap-cloud.sh`, `print_coordinator_env.py`, `register_agent.py` entries)
+- [ ] 4.3 Wire the auto-pull hook for both runtimes. (a) Add an entry to `.claude/settings.json` SessionStart hooks block (after existing `bootstrap-cloud.sh`, `print_coordinator_env.py`, `register_agent.py` entries) invoking `python3 "$CLAUDE_PROJECT_DIR/.claude/skills/session-bootstrap/scripts/hooks/auto_pull.py"`. (b) Add an invocation of the same `auto_pull.py` to `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (the Codex Maintenance Script entry point), placed after the existing verify/repair logic so a broken repo doesn't block auto-pull diagnostics. Both invocations are gated by `AGENTIC_AUTO_PULL=1` inside `auto_pull.py` itself, so the wiring is unconditional but the behavior is opt-in.
   **Dependencies**: 4.2
+  **Spec scenarios**: skill-runtime-sync.d (auto-pull clean), .e (auto-pull dirty), .f (auto-pull disabled), .i (both runtimes covered)
 
 ## Phase 5 — Documentation and initial generation
 

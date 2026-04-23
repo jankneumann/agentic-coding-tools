@@ -1,0 +1,20 @@
+{
+  "change_id": "add-update-skills",
+  "current_phase": "PLAN_ITERATE",
+  "previous_phase": "INIT",
+  "cli_review_enabled": false,
+  "coordinator_available": false,
+  "val_review_enabled": false,
+  "started_at": "2026-04-23T00:00:00Z",
+  "mode": "degraded-sequential",
+  "mode_reason": "Coordinator transport=none; only 'claude' CLI present (multi-vendor convergence requires >=2)",
+  "phase_history": [
+    {
+      "phase": "INIT",
+      "entered_at": "2026-04-23T00:00:00Z",
+      "outcome": "complete",
+      "notes": "Complexity gate: allowed=true, no warnings, no checkpoints, val_review_enabled=false"
+    }
+  ],
+  "escalation_reason": null
+}

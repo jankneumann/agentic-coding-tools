@@ -40,3 +40,41 @@
 ### Context
 
 This change closes the manual-sync gap between canonical skills and runtime skill directories. It also populates the currently-empty AGENTS.md by generating it from CLAUDE.md. It is prerequisite plumbing for the next roadmap item (add-skillify-and-resolver-audit). The change is intentionally small and infrastructure-only.
+
+---
+
+## Phase: Plan Iteration 1 (2026-04-23)
+
+**Agent**: claude_code | **Session**: skillify-pattern
+
+### Decisions
+
+1. **Pre-commit installed via `uv sync --all-extras`, not ad-hoc.** Added `pre-commit` as a dev-dependency in `skills/pyproject.toml`. The new `install-hooks.sh` runs `uv sync` + `pre-commit install`. This matches the CLAUDE.md Python-env convention and pins the version in the lockfile.
+
+2. **Auto-pull wired for both Claude Code and Codex.** One shared `auto_pull.py` helper. Two wiring points: `.claude/settings.json` SessionStart hook entry and `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (Codex Maintenance Script). Both paths gated by the same `AGENTIC_AUTO_PULL=1` env var.
+
+3. **Added explicit orchestrator partial-failure scenarios.** Previously the spec only covered the happy path and push retry. Added two scenarios: install.sh failure (abort before sync) and sync-script failure (abort after install.sh, keep install.sh staged for manual recovery).
+
+4. **Specified push-retry output format.** stderr gets human-readable per-attempt summary. stdout gets a single `UNPUSHED_COMMIT=<sha>` line for automation. Backoff timing now explicit: attempt 1 immediately, 1s before attempt 2, 2s before attempt 3. Git push now uses explicit `origin` remote.
+
+5. **Added "Install-hooks bootstrap idempotent" requirement.** New spec requirement with 3 scenarios: first-run install, idempotent re-run, missing-uv error path.
+
+### Alternatives Considered
+
+- `uv pip install pre-commit` ad-hoc install: rejected on user direction. Off-convention. Version unpinned.
+- Pipx system-level install: rejected on user direction. Couples repo to global state.
+- Wire Claude Code only, defer Codex: rejected on user direction. Asymmetry would surprise.
+- Keep the silent-exit scenario unchanged: rejected. The framework prints a status line. The old wording made the test ambiguous.
+
+### Trade-offs
+
+- Accepted a new dev-dependency in `skills/pyproject.toml` over a self-contained install-hooks script. Reason: pinning and convention.
+- Accepted touching `bootstrap-cloud.sh` over Claude-only wiring. Reason: symmetric runtime experience.
+
+### Open Questions
+
+- [ ] None remaining at medium-or-above criticality.
+
+### Context
+
+Iteration 1 addressed 8 findings (4 high, 3 medium, 1 low raised to medium during the M6 output-channel rewrite). Two findings required `AskUserQuestion` per the assumption protocol; both received decisive user answers that drove the fixes. All resulting changes pass `openspec validate add-update-skills --strict`. No residual findings at or above the medium threshold — loop terminates after iteration 1.

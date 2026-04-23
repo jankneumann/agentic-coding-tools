@@ -17,8 +17,9 @@ Roadmap: `openspec/roadmaps/skillify-foundation/roadmap.yaml` item `ri-01`.
   4. `git pull --rebase --autostash` then `git push` with bounded retry (max 3 attempts, exponential backoff) to handle concurrent updates.
 - **New script** `skills/update-skills/scripts/sync_agents_md.py` — pure-stdlib Python that copies `CLAUDE.md` → `AGENTS.md`, exits `0` on success, `1` on missing source, `2` on byte-drift when run with `--check`.
 - **New pre-commit hook** wired through the standard [pre-commit framework](https://pre-commit.com/) via a new `.pre-commit-config.yaml` at repo root. The hook is a `local` entry that runs `python3 skills/update-skills/scripts/sync_agents_md.py --check` on every commit and fails the commit if `CLAUDE.md` and `AGENTS.md` have drifted. Enforces the invariant independently of `/update-skills`.
-- **New `install-hooks.sh`** at repo root that bootstraps the pre-commit framework (`uv pip install pre-commit` into the project venv, then `pre-commit install`). Separate from `skills/install.sh` so the hooks setup is invoked deliberately and doesn't surprise users who only want to install skills.
-- **Optional SessionStart hook** wired in `.claude/settings.json` and the Codex equivalent: invokes `git pull --rebase --autostash` on the current branch when `AGENTIC_AUTO_PULL=1` is set, no-ops on dirty trees, silent on network failure (exit 0).
+- **New `install-hooks.sh`** at repo root that bootstraps the pre-commit framework. It runs `cd skills && uv sync --all-extras` (which installs pre-commit as a pinned dev-dependency declared in `skills/pyproject.toml`), then `skills/.venv/bin/pre-commit install`. Separate from `skills/install.sh` so the hooks setup is invoked deliberately and doesn't surprise users who only want to install skills. Matches the project's uv-sync convention per CLAUDE.md.
+- **Dev-dependency added**: `pre-commit` entry in `skills/pyproject.toml` under the `dev` extra. Installed via `uv sync --all-extras` (already the documented install command for skills).
+- **Optional SessionStart auto-pull** wired for both runtimes: (a) Claude Code via a hook entry in `.claude/settings.json`'s SessionStart block, and (b) Codex via an invocation added to `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (the existing Codex Maintenance Script entry point). Both paths invoke a single `auto_pull.py` helper that runs `git pull --rebase --autostash` on the current branch when `AGENTIC_AUTO_PULL=1` is set, no-ops on dirty trees, silent on network failure (exit 0).
 - **CLAUDE.md update**: add a "Generated AGENTS.md" subsection under "Skills" documenting the invariant and the pre-commit hook.
 - **Initial generation**: run the new `sync_agents_md.py` once as part of this change to populate `AGENTS.md`.
 
@@ -27,11 +28,14 @@ Roadmap: `openspec/roadmaps/skillify-foundation/roadmap.yaml` item `ri-01`.
 - **Affected specs**: new `skill-runtime-sync` capability (this change introduces it). No modifications to existing `skill-workflow` or `skill-consolidation` specs.
 - **Affected code**:
   - new: `skills/update-skills/SKILL.md`, `skills/update-skills/scripts/sync_agents_md.py`, `skills/update-skills/scripts/update_skills.py`
+  - new: `skills/session-bootstrap/scripts/hooks/auto_pull.py` (shared helper invoked by both runtime wiring points)
   - new: `skills/tests/update-skills/` test files
   - new: `.pre-commit-config.yaml` (root) with the AGENTS.md sync check as a `local` hook
-  - new: `install-hooks.sh` (root) that bootstraps pre-commit and runs `pre-commit install`
-  - modified: `.claude/settings.json` (add SessionStart hook entry, gated by env)
-  - modified: `CLAUDE.md` (add "Generated AGENTS.md" section, document `install-hooks.sh`)
+  - new: `install-hooks.sh` (root) that runs `uv sync --all-extras` + `pre-commit install`
+  - modified: `skills/pyproject.toml` (add `pre-commit` to the `dev` extra)
+  - modified: `.claude/settings.json` (add SessionStart auto-pull hook entry, gated by env)
+  - modified: `skills/session-bootstrap/scripts/bootstrap-cloud.sh` (invoke `auto_pull.py` for Codex sessions, gated by same env var)
+  - modified: `CLAUDE.md` (add "Generated AGENTS.md" section, document `install-hooks.sh` and `AGENTIC_AUTO_PULL`)
   - generated: `AGENTS.md` (byte-identical to CLAUDE.md)
 - **Operational risk**:
   - Auto-push could race with concurrent updates — mitigated by `git pull --rebase` immediately before push and bounded retry.
