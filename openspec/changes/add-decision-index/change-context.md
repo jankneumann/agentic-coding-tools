@@ -38,6 +38,8 @@
 
 - **Requirements traced**: 11/11
 - **Tests mapped**: 11/11 requirements have at least one test
-- **Evidence collected**: 11/11 requirements have pass evidence at commit `1a1ba00`
+- **Evidence collected**: 11/11 requirements have pass evidence at commit `1a1ba00`; post-iteration-1 evidence at HEAD passes 54 tests (6 new regressions for the multi-vendor-review findings)
 - **Gaps identified**: none
-- **Deferred items**: 51 high-confidence backfill proposals left in `backfill-proposals.json` for subsequent human review — per D5 the goal is coverage of pivotal decisions, not exhaustive labeling
+- **Deferred items**:
+    - 133 backfill proposals remain in `backfill-proposals.json` for subsequent human review — per D5 + proposal §3, goal is coverage of pivotal decisions, not exhaustive labeling
+    - Accepted-as-low iteration findings: `_SUPERSEDES_REF` regex could be tightened to kebab-only; no-logging on missing session-log; CI failure message could include a diff preview; em-dash-in-rationale edge case. All documented in review-findings.json at `accept` disposition.

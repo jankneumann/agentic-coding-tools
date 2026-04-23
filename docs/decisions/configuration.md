@@ -12,18 +12,7 @@
 **Named Tunnel approach over DNS Proxy** — Provides full service mesh (API + MCP SSE + OpenBao), eliminates Railway hosting cost, and creates provider-portable stable URLs
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-22-cloudflare-domain-setup/session-log.md` (D1)
-
----
-
-## 2026-04-04 — 2026-04-22-cloudflare-domain-setup
-
-### Phase: Implementation
-
-**Cloudflare profile extends Railway (not base)** — Inherits Railway's Postgres DSN, API host/port, workers. Only overrides coordination_allowed_hosts with wildcard domain.
-
-- Status: `active`
-- Source: `openspec/changes/**/2026-04-22-cloudflare-domain-setup/session-log.md` (D1)
+- Source: [openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md](/openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md) (D1)
 
 ---
 
@@ -34,7 +23,18 @@
 **Full service mesh DNS** — Subdomains for all services (coord/mcp/vault) rather than just the API, enabling cloud agents to use all transport options
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-22-cloudflare-domain-setup/session-log.md` (D2)
+- Source: [openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md](/openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md) (D2)
+
+---
+
+## 2026-04-04 — 2026-04-22-cloudflare-domain-setup
+
+### Phase: Implementation
+
+**Cloudflare profile extends Railway (not base)** — Inherits Railway's Postgres DSN, API host/port, workers. Only overrides coordination_allowed_hosts with wildcard domain.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md](/openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md) (D2)
 
 ---
 
@@ -45,4 +45,4 @@
 **No nested profile interpolation** — The profile loader regex does not support nested variable references. Used simple wildcard pattern instead, with COORDINATION_ALLOWED_HOSTS env var overriding at runtime.
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-22-cloudflare-domain-setup/session-log.md` (D2)
+- Source: [openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md](/openspec/changes/archive/2026-04-22-cloudflare-domain-setup/session-log.md) (D3)

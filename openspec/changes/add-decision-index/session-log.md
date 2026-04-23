@@ -71,3 +71,33 @@ Planning goal: introduce a per-capability decision index so that archaeology que
 
 ### Context
 Implemented all 25 tasks across 5 phases in a sequential tier within a single worktree over one session. TDD-ordered: wrote test_decision_index.py first (RED), implemented decision_index.py to pass (GREEN), then wired archive_index.py CLI, backfill classifier, and Makefile/CI in order. Light backfill applied to 3 archived session-logs (cloudflare-domain-setup, hybrid-merge-strategy, replace-beads-with-builtin-tracker) yielding 8 new architectural tags across 3 capabilities. Final state: 48 tests passing, openspec validate --strict clean, make decisions idempotent, sanitizer verified to preserve tagged decisions. docs/decisions/ now contains 6 generated files (5 capability timelines + README) populated from 17 total tagged decisions across active and archived changes.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-04-24)
+
+**Agent**: claude-opus-4-7 | **Session**: N/A
+
+### Decisions
+1. **Use bullet position, not tag-order, for `decision_index_in_phase`** `architectural: skill-workflow` — all three review vendors flagged this independently. `#D<n>` must refer to the natural 1-indexed bullet position a reader sees in the session-log, counting both tagged and untagged Decisions. The prior tag-only counter made supersedes refs fail when an untagged bullet preceded the tagged one. Fix is a regex capture group + one-line assignment; zero change to callers that construct TaggedDecision directly (default remains 1).
+2. **Carry `source_relpath` on TaggedDecision for navigable back-ref links** `architectural: software-factory-tooling` — replaces the glob placeholder `openspec/changes/**/<id>/session-log.md` with the real path captured at extraction time. Rendered as a Markdown link so readers can navigate to the originating phase entry from the per-capability timeline.
+3. **Delete stale capability files on re-emit** `architectural: software-factory-tooling` — removes any `docs/decisions/<cap>.md` whose capability no longer has tagged decisions in the current run. Prevents README-vs-file drift that the CI `git diff` gate cannot catch (orphan-file presence is not a diff). Simple directory scan before writing; README is always regenerated so it stays consistent.
+4. **Narrow spec rather than broaden impl on the four MEDIUM spec/impl gaps** `architectural: skill-workflow` — review surfaced four SHALL clauses the implementation silently narrowed: the `reverted` status enum value, the `incremental` rewrite semantics, the one-file-per-cap-directory requirement, and the tag-may-appear-anywhere placement rule. In each case the shipped behavior is the intentional simpler design, so the correct fix is to update the spec prose to match reality — not to expand code to cover spec claims that were never designed.
+5. **Document conservative backfill in design.md and proposal.md** `architectural: software-factory-tooling` — the `systematic full pass` language in the plan artifacts no longer matches what shipped (8 applied, 133 deferred to the review queue). Updating the prose to describe classifier-propose + agent-curate + durable-review-queue fixes the design/code drift without retroactively changing scope. The engineering call (conservative apply over auto-apply) is documented as the architectural trade-off.
+
+### Alternatives Considered
+- For finding #1 (bullet indexing): update SKILL.md to document that `#D<n>` counts only tagged decisions. Rejected because the natural-read convention is the one humans use when writing `supersedes:` references; making the code match the intuitive convention is cheaper than training every author.
+- For finding #8 (backfill scope mismatch): continue the backfill, apply all 52 high-confidence proposals before merging. Rejected because the classifier keyword-margin confidence is orthogonal to architectural-significance, and a substantial fraction of keyword-high-confidence proposals read as procedural on close inspection. Curating the review queue in later passes is the safer path.
+
+### Trade-offs
+- Accepted narrow-spec-to-match-impl over broaden-impl-to-match-spec in four places because the implementation embodies the intentional design choices; the spec was over-specified at plan time relative to what the design section committed to. Matching SHALLs to shipped behavior is truthful; expanding code to cover aspirational SHALLs adds complexity without design justification.
+- Accepted filesystem deletion in `emit_decision_index` over preserving all historical files because an orphan file is not valuable history — the file content still sits in git, the live index should reflect the live truth, and detecting orphans via CI is impossible given `git diff` sees no content change.
+- Accepted Markdown-link formatting of the back-reference over raw path string because readers on GitHub, IDE previewers, and `gh browse` get a clickable navigation path to the originating phase entry — the design's "back-reference link" requirement implied this, and the glob placeholder never satisfied it.
+
+### Open Questions
+- [ ] Should `_SUPERSEDES_REF` regex be tightened to kebab-case only (per finding #11)? Left at `accept` disposition for now but a defensive warning on malformed refs would reduce silent no-op lookups.
+- [ ] Should the CI staleness job emit a diff preview on failure (per finding #12)? Left at `accept` — the one-line message is terse but the local reproduction is trivial. Worth a follow-up when the job first fires on a real operator.
+- [ ] Should `extract_decisions` log a WARNING when a session-log exists but yields zero Phase matches (per finding #9)? Accepted as a follow-up once the emitter has more production miles.
+
+### Context
+Addressed 8 of 13 findings from the multi-vendor review (`artifacts/wp-main/review-findings.json`): 3 code fixes, 4 spec narrowings, 1 design/proposal prose update. 5 LOW-criticality findings deferred per the `--threshold medium` default. Added 6 regression tests covering the fixes (bullet-position, source-relpath, stale-cleanup, back-ref-real-path, cross-cap-supersession, mixed-tagged-supersedes-resolves). Regenerated `docs/decisions/` — 5 capability files now render real navigable Markdown links and the source lines pass the no-glob assertion. Post-iteration: 54 tests pass, `openspec validate --strict` clean, mypy clean, ruff only flags a pre-existing unused import in `test_archive_index.py` (outside the scope of this work package).

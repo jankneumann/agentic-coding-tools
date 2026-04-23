@@ -290,6 +290,54 @@ class TestExtractDecisions:
 
         assert decisions == []
 
+    def test_decision_index_in_phase_is_bullet_position_not_tag_order(
+        self, tmp_path: Path
+    ) -> None:
+        """Regression: `decision_index_in_phase` must be the 1-indexed bullet
+        position as written in the session-log, not the match-order among
+        tagged decisions. Otherwise `supersedes: <id>#D<n>` references
+        written by a human reading the natural bullet numbers fail to resolve.
+        """
+        change_dir = tmp_path / "2026-02-06-mixed"
+        log = _write_session_log(
+            change_dir,
+            """
+            # Session Log
+
+            ## Phase: Plan (2026-02-06)
+
+            ### Decisions
+            1. **Untagged routine choice** — internal detail, not architectural
+            2. **Tagged architectural call** `architectural: software-factory-tooling` — shapes future work
+            3. **Another tagged call** `architectural: skill-workflow` — different capability
+            """,
+        )
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 2
+        tagged_sft = next(d for d in decisions if d.capability == "software-factory-tooling")
+        tagged_sw = next(d for d in decisions if d.capability == "skill-workflow")
+        # Must match the natural-read "2." and "3." bullet numbers, not "1, 2"
+        # from the tagged-only counter.
+        assert tagged_sft.decision_index_in_phase == 2
+        assert tagged_sw.decision_index_in_phase == 3
+
+    def test_source_relpath_is_captured_from_path_argument(
+        self, tmp_path: Path
+    ) -> None:
+        """`TaggedDecision.source_relpath` carries the path passed to
+        `extract_decisions`, enabling the emitter to render real back-ref links
+        instead of the glob placeholder.
+        """
+        change_dir = tmp_path / "2026-02-06-demo"
+        log = _write_session_log(change_dir, SINGLE_TAGGED_PHASE)
+
+        decisions = extract_decisions(log)
+
+        assert len(decisions) == 1
+        assert decisions[0].source_relpath == str(log)
+
     def test_source_offsets_are_distinct(self, tmp_path: Path) -> None:
         """Multiple decisions in same session-log must have distinct source_offset values."""
         change_dir = tmp_path / "2026-02-06-add-worktree-isolation"
@@ -677,6 +725,194 @@ class TestEmitDecisionIndex:
         )
 
         assert (out / "software-factory-tooling.md").exists()
+
+    def test_stale_capability_file_removed_on_rerun(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Regression: re-running with fewer tagged capabilities should delete
+        the previously-emitted files whose capability no longer has decisions.
+        Without this, removing a tag leaves an orphan `<cap>.md` that CI's
+        `git diff --exit-code` cannot detect (the stale file is unchanged)
+        while README regenerates to list only current caps — so README and
+        capability files drift apart.
+        """
+        initial = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-x",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="D1",
+                rationale="r",
+                supersedes=None,
+                source_offset=0,
+            ),
+            TaggedDecision(
+                capability="software-factory-tooling",
+                change_id="2026-02-06-x",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="D2",
+                rationale="r",
+                supersedes=None,
+                source_offset=10,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            initial,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+        assert (out / "skill-workflow.md").exists()
+        assert (out / "software-factory-tooling.md").exists()
+
+        # Re-emit with only skill-workflow decisions
+        emit_decision_index(
+            [initial[0]],
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        assert (out / "skill-workflow.md").exists()
+        assert not (out / "software-factory-tooling.md").exists()
+        # README still present and regenerated
+        assert (out / "README.md").exists()
+
+    def test_back_reference_uses_source_relpath(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Regression: when `source_relpath` is set, the back-reference
+        rendered in the capability file should be a real navigable path, not
+        a glob placeholder."""
+        decisions = [
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-02-06-demo",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 6),
+                title="Demo",
+                rationale="r",
+                supersedes=None,
+                source_offset=0,
+                source_relpath="openspec/changes/archive/2026-02-06-demo/session-log.md",
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+        content = (out / "skill-workflow.md").read_text()
+
+        assert "openspec/changes/archive/2026-02-06-demo/session-log.md" in content
+        # No glob characters anywhere in the rendered body
+        assert "**/" not in content
+
+    def test_cross_capability_supersession(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Regression: a decision in capability X may explicitly supersede an
+        earlier decision in capability Y. Both files must render the correct
+        bidirectional Supersedes / Superseded-by links."""
+        decisions = [
+            # Earlier decision tagged `agent-coordinator`
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-legacy",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 10),
+                title="Legacy coordinator decision",
+                rationale="original approach",
+                supersedes=None,
+                source_offset=0,
+                decision_index_in_phase=1,
+            ),
+            # Later decision tagged different capability, explicitly supersedes the earlier
+            TaggedDecision(
+                capability="skill-workflow",
+                change_id="2026-03-01-refactor",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 1),
+                title="Cross-capability supersession",
+                rationale="refines workflow pattern",
+                supersedes="2026-02-10-legacy#D1",
+                source_offset=100,
+                decision_index_in_phase=1,
+            ),
+        ]
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            decisions,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        # Both capability files exist
+        ac_content = (out / "agent-coordinator.md").read_text()
+        sw_content = (out / "skill-workflow.md").read_text()
+        # Earlier decision marked superseded with Superseded-by link to later change
+        assert "superseded" in ac_content.lower()
+        assert "2026-03-01-refactor" in ac_content
+        # Later decision shows the Supersedes link
+        assert "Supersedes" in sw_content
+        assert "2026-02-10-legacy" in sw_content
+
+    def test_bullet_position_supersedes_resolves_with_untagged_prefix(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Regression: when the superseded target decision was bullet N in a
+        phase that also had untagged decisions preceding it, a `supersedes:
+        <id>#D<N>` reference must still resolve. This was broken when
+        `decision_index_in_phase` counted only tagged bullets.
+        """
+        earlier_log = """
+            # Session Log
+
+            ## Phase: Plan (2026-02-10)
+
+            ### Decisions
+            1. **Untagged routine choice** — internal detail
+            2. **Legacy architectural call** `architectural: agent-coordinator` — original approach
+        """
+        earlier_dir = tmp_path / "2026-02-10-legacy"
+        earlier_path = _write_session_log(earlier_dir, earlier_log)
+        earlier = extract_decisions(earlier_path)
+        assert len(earlier) == 1
+        # Critical invariant: the tagged bullet retains its natural position.
+        assert earlier[0].decision_index_in_phase == 2
+
+        # Later change explicitly supersedes #D2 — must resolve
+        later = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-03-01-replace",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 1),
+                title="New approach",
+                rationale="replaces the legacy path",
+                supersedes="2026-02-10-legacy#D2",
+                source_offset=0,
+                decision_index_in_phase=1,
+            )
+        ]
+
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            earlier + later,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+        content = (out / "agent-coordinator.md").read_text()
+        # Earlier decision rendered with Superseded-by backlink → lookup resolved
+        assert "superseded" in content.lower()
+        assert "2026-03-01-replace" in content
 
 
 class TestEmitReadme:

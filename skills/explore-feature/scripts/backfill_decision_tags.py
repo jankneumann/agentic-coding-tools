@@ -229,12 +229,15 @@ def _extract_untagged_decisions(
         )
         block = content[block_start:block_end]
 
-        dec_index = 0
         for m in _UNTAGGED_DECISION_RE.finditer(block):
-            dec_index += 1
+            # Use the 1-indexed bullet position, not the match-order counter,
+            # so decision_index values align with the natural `N.` prefix in
+            # session-log.md. This matches `decision_index.py`'s convention and
+            # keeps `supersedes: <id>#D<n>` references resolvable.
+            bullet = int(m.group("index"))
             title = m.group("title").strip()
             rationale = m.group("rationale").strip()
-            results.append((phase_name, phase_date, dec_index, title, rationale))
+            results.append((phase_name, phase_date, bullet, title, rationale))
 
     return results
 

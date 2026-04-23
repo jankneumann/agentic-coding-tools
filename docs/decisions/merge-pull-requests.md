@@ -12,4 +12,4 @@
 **Per-origin strategy defaults** — Selected over auto-detection (Approach B) and always-rebase (Approach C) because it leverages existing origin classification with minimal complexity
 
 - Status: `active`
-- Source: `openspec/changes/**/2026-04-02-hybrid-merge-strategy/session-log.md` (D1)
+- Source: [openspec/changes/archive/2026-04-02-hybrid-merge-strategy/session-log.md](/openspec/changes/archive/2026-04-02-hybrid-merge-strategy/session-log.md) (D1)

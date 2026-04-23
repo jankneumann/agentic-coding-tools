@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-04-24 — add-decision-index
+
+### Phase: Implementation Iteration 1
+
+**Carry `source_relpath` on TaggedDecision for navigable back-ref links** — replaces the glob placeholder `openspec/changes/**/<id>/session-log.md` with the real path captured at extraction time. Rendered as a Markdown link so readers can navigate to the originating phase entry from the per-capability timeline.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D2)
+
+---
+
+## 2026-04-24 — add-decision-index
+
+### Phase: Implementation Iteration 1
+
+**Delete stale capability files on re-emit** — removes any `docs/decisions/<cap>.md` whose capability no longer has tagged decisions in the current run. Prevents README-vs-file drift that the CI `git diff` gate cannot catch (orphan-file presence is not a diff). Simple directory scan before writing; README is always regenerated so it stays consistent.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D3)
+
+---
+
+## 2026-04-24 — add-decision-index
+
+### Phase: Implementation Iteration 1
+
+**Document conservative backfill in design.md and proposal.md** — the `systematic full pass` language in the plan artifacts no longer matches what shipped (8 applied, 133 deferred to the review queue). Updating the prose to describe classifier-propose + agent-curate + durable-review-queue fixes the design/code drift without retroactively changing scope. The engineering call (conservative apply over auto-apply) is documented as the architectural trade-off.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D5)
+
+---
+
 ## 2026-04-23 — add-decision-index
 
 ### Phase: Implementation
@@ -12,7 +45,7 @@
 **Conservative backfill scope: tag ~8 clearly-architectural decisions, leave 133 proposals for future human review** — The classifier emitted 52 high-confidence proposals but title+rationale scanning revealed many were procedural or one-off, not pattern-setting. Hand-picked 8 across `configuration`, `merge-pull-requests`, `agent-coordinator` to maximize capability diversity in docs/decisions/ while avoiding index-poisoning false positives. The remaining proposals stay queued in `backfill-proposals.json` for subsequent reviewers.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D1)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D1)
 
 ---
 
@@ -23,7 +56,7 @@
 **Emitter CLI lives on `archive_index.py`, not `decision_index.py`** — design.md specified `make decisions` invokes the archive_index script. Keeping `decision_index.py` as a pure library (data model + functions) with the CLI composition on `archive_index.py` matches the architecture-intelligence pattern and mirrors how other skills separate library from orchestrator.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D3)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D3)
 
 ---
 
@@ -34,7 +67,7 @@
 **Extend archive-intelligence with a new emitter pass** — reuses the existing walker over `openspec/changes/**/session-log.md`; avoids duplicating archive-discovery and incremental-indexing logic in a parallel script.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D1)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D1)
 
 ---
 
@@ -45,7 +78,7 @@
 **Heuristic classifier plus agent review for systematic backfill** — roughly thirty archived session-logs make pure manual labeling infeasible; pure heuristic produces enough miscategorizations to poison trust in the index on day one; hybrid gives coverage with curation.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D5)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D5)
 
 ---
 
@@ -56,7 +89,7 @@
 **One markdown file per capability under docs/decisions/** — aligns the read-side axis with `openspec/specs/<capability>/`; archaeology questions are asked per-capability, not globally; scrolling a monolithic index does not serve the use case.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D6)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D6)
 
 ---
 
@@ -67,7 +100,7 @@
 **Generated README over hand-maintained README** — the capability set will grow over time (16 today); hand-maintenance diverges from reality; `make decisions` emits the README as part of the same pass.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D8)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D8)
 
 ---
 
@@ -78,4 +111,4 @@
 **Introduce `make decisions` and CI staleness check as a first-class generalizable pattern** — today neither `make architecture` nor any other regenerate-then-diff build step runs in CI, meaning stale generated artifacts can land on main undetected; this change introduces the pattern for decisions and opens a follow-up to extend it to architecture.
 
 - Status: `active`
-- Source: `openspec/changes/**/add-decision-index/session-log.md` (D9)
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D9)

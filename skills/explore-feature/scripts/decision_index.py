@@ -32,7 +32,7 @@ _CAPABILITY = r"[a-z0-9](?:[a-z0-9-]{0,50}[a-z0-9])?"
 """Kebab-case capability identifier, 2-52 chars — matches sanitizer allowlist."""
 
 _DECISION_RE = re.compile(
-    r"^\d+\.\s+\*\*(?P<title>[^*]+)\*\*\s+"
+    r"^(?P<bullet>\d+)\.\s+\*\*(?P<title>[^*]+)\*\*\s+"
     r"`architectural:\s+(?P<capability>" + _CAPABILITY + r")`"
     r".*?"
     r"(?:`supersedes:\s+(?P<supersedes>[^`]+)`.*?)?"
@@ -40,6 +40,10 @@ _DECISION_RE = re.compile(
     re.MULTILINE,
 )
 """Anchored extraction regex for tagged Decision bullets.
+
+Captures the 1-indexed bullet position so `decision_index_in_phase` matches
+the natural-read convention documented in SKILL.md (`#D<n>` = bullet number
+within the phase entry, counting all Decision bullets including untagged).
 
 The permissive `.*?` between the capability tag and the em-dash handles benign
 extras (whitespace, the optional `supersedes:` span, even a second `architectural:`
@@ -71,6 +75,7 @@ class TaggedDecision:
     supersedes: str | None
     source_offset: int
     decision_index_in_phase: int = 1
+    source_relpath: str = ""
 
 
 # ── Extraction ──────────────────────────────────────────────────────
@@ -114,9 +119,7 @@ def extract_decisions(session_log_path: Path) -> list[TaggedDecision]:
         )
         block = content[block_start:block_end]
 
-        dec_index = 0
         for dec_match in _DECISION_RE.finditer(block):
-            dec_index += 1
             supersedes = dec_match.group("supersedes")
             decisions.append(
                 TaggedDecision(
@@ -128,7 +131,8 @@ def extract_decisions(session_log_path: Path) -> list[TaggedDecision]:
                     rationale=dec_match.group("rationale").strip(),
                     supersedes=supersedes.strip() if supersedes else None,
                     source_offset=block_start + dec_match.start(),
-                    decision_index_in_phase=dec_index,
+                    decision_index_in_phase=int(dec_match.group("bullet")),
+                    source_relpath=str(session_log_path),
                 )
             )
 
@@ -186,6 +190,20 @@ def emit_decision_index(
 
     superseded_by_map = _build_supersession_map(by_cap)
 
+    # Delete stale capability files — any previously-emitted <cap>.md for a
+    # capability that no longer has any valid tagged decisions in the current
+    # run. Without this, removing tags leaves orphan files that CI's
+    # `git diff --exit-code` gate cannot detect (the file content is unchanged
+    # — it's the presence that's stale). README is regenerated so it listed
+    # only current capabilities, meaning README and capability files would
+    # otherwise drift apart.
+    will_emit = set(by_cap.keys())
+    for existing in output_dir.glob("*.md"):
+        if existing.name == "README.md":
+            continue
+        if existing.stem not in will_emit:
+            existing.unlink()
+
     for cap, ds in sorted(by_cap.items()):
         file_path = output_dir / f"{cap}.md"
         file_path.write_text(_render_capability_file(cap, ds, superseded_by_map))
@@ -241,7 +259,12 @@ def _render_decision(
 ) -> list[str]:
     superseded_by = superseded_by_map.get((d.change_id, d.decision_index_in_phase))
     status = "superseded" if superseded_by else "active"
-    session_log_link = f"openspec/changes/**/{d.change_id}/session-log.md"
+    # Prefer the concrete path captured at extraction time. Fall back to a
+    # descriptive placeholder for decisions constructed in tests that omit it.
+    if d.source_relpath:
+        source_line = f"- Source: [{d.source_relpath}](/{d.source_relpath}) (D{d.decision_index_in_phase})"
+    else:
+        source_line = f"- Source: `{d.change_id}/session-log.md` (D{d.decision_index_in_phase})"
 
     lines = [
         "---",
@@ -253,7 +276,7 @@ def _render_decision(
         f"**{d.title}** — {d.rationale}",
         "",
         f"- Status: `{status}`",
-        f"- Source: `{session_log_link}` (D{d.decision_index_in_phase})",
+        source_line,
     ]
 
     if d.supersedes:

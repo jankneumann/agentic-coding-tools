@@ -78,18 +78,22 @@ The emitter resolves supersession by (a) parsing the `supersedes:` span, (b) loc
 
 Inferred supersession (e.g., "later Decision in same capability touching same topic") was rejected: it introduces heuristic calls that would be wrong often enough to damage trust in the index.
 
-## Backfill strategy (one-time systematic pass)
+## Backfill strategy (conservative pass + durable review queue)
 
-The user's discovery answer was "systematic full pass" over the ~30+ archived session-logs. Three-step backfill:
+Original plan called for a "systematic full pass" over the ~30+ archived session-logs. Implementation revealed the classifier's keyword-match confidence is orthogonal to architectural-significance: of 141 untagged candidates across 12 archived session-logs (only 12 of 66 archived changes have session-logs — the convention predates the rest), 52 came back as keyword-high-confidence but a substantial fraction of those were procedural or one-off, not pattern-setting. Auto-applying them would poison the index on day one with false positives.
 
-1. **Extract candidate Decisions.** Run a scanner over every archived session-log, emit a JSON file listing every `**Bold Title** — rationale` line as a candidate for tagging. No edits yet.
-2. **Heuristic classifier proposes capability.** Keyword-to-capability mapping (e.g., `worktree|branch|merge_worktrees` → `software-factory-tooling`, `coordinator|lock|claim|queue` → `agent-coordinator`, `session-log|sanitize|phase entry` → `skill-workflow`, `spec|proposal|tasks` → `skill-workflow`, etc.). Classifier emits proposed `architectural:` assignments for each candidate, with a confidence score.
-3. **Agent review + commit.** An agent reviews the proposed assignments, resolves ambiguous cases (low-confidence or multi-category hits), and commits the resulting session-log edits alongside the feature. Decisions genuinely unclassifiable are left untagged — the goal is coverage of pivotal decisions, not exhaustive labeling.
+Revised three-step backfill actually shipped:
+
+1. **Extract candidate Decisions.** `skills/explore-feature/scripts/backfill_decision_tags.py` walks every archived session-log and emits every untagged `**Title** — rationale` line as a candidate, with bullet position preserved. No file edits.
+2. **Heuristic classifier proposes capability.** Keyword-to-capability mapping (e.g., `worktree|branch|merge_worktrees` → `software-factory-tooling`, `coordinator|lock|claim|queue` → `agent-coordinator`, `session-log|sanitize|phase entry` → `skill-workflow`). Classifier emits proposed assignments with margin-based confidence scores into `openspec/changes/add-decision-index/backfill-proposals.json`.
+3. **Agent review + conservative apply.** Agent reviews proposals and applies tags only when title+rationale obviously describe a cross-change architectural pattern. Decisions that pass the keyword heuristic but read as procedural/one-off are left untagged — the goal is **coverage of pivotal decisions, not exhaustive labeling**. Initial pass applied 8 tags across 3 archived session-logs spanning `configuration`, `merge-pull-requests`, and `agent-coordinator`. The remaining proposals stay queued in `backfill-proposals.json` as a durable review queue for later passes.
+
+Combined with the feature's own plan-phase decisions (9 tags across `skill-workflow` and `software-factory-tooling`), the shipped index covers 5 capabilities with 17 tagged decisions — enough to validate the end-to-end pipeline while leaving room for the index to grow as more decisions get curated.
 
 Rejected alternatives for backfill:
-- **Pure heuristic (no review)**: too many miscategorizations; poisons trust in the index on day one
-- **Pure manual**: ~30+ session-logs * multiple Decisions each is too much unaided human work
-- **Skip backfill, tag only going forward**: empty index for months; feature delivers no immediate value; the whole point was to enable "how did we get here" questions about the existing history
+- **Pure heuristic auto-apply**: too many miscategorizations; the classifier's margin-based confidence is a keyword signal, not an architectural-significance signal.
+- **Pure manual**: ~141 candidates is too much unaided human work for a one-shot pass; incremental curation against the classifier's proposals is the path that scales.
+- **Skip backfill, tag only going forward**: would leave the index empty for months and deliver no immediate "how did we get here" value; the conservative pass is a middle ground.
 
 ## Make target + CI staleness check
 
