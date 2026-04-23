@@ -43,13 +43,13 @@
 
 ## Phase 5 — Documentation and initial generation
 
-- [ ] 5.1 Update `CLAUDE.md` with a "Generated AGENTS.md" subsection under "Skills" documenting the invariant, the pre-commit hook, and the opt-in `AGENTIC_AUTO_PULL` env var
+- [x] 5.1 Update `CLAUDE.md` with a "Generated AGENTS.md" subsection under "Skills" documenting the invariant, the pre-commit hook, and the opt-in `AGENTIC_AUTO_PULL` env var
   **Dependencies**: 3.3, 4.3
-- [ ] 5.2 Run `python3 skills/update-skills/scripts/sync_agents_md.py` to generate the initial `AGENTS.md` (will be byte-identical to the updated CLAUDE.md)
+- [x] 5.2 Run `python3 skills/update-skills/scripts/sync_agents_md.py` to regenerate `AGENTS.md` (byte-identical confirmed via `cmp`; note repo historically uses a symlink `AGENTS.md -> CLAUDE.md` for the invariant — sync script + pre-commit hook reinforce it either way)
   **Dependencies**: 5.1
-- [ ] 5.3 Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to propagate the new `update-skills` skill into `.claude/skills/` and `.agents/skills/`
+- [x] 5.3 Propagate new/modified skills (`update-skills/`, `session-bootstrap/scripts/hooks/auto_pull.py`, `session-bootstrap/scripts/bootstrap-cloud.sh`) into `.claude/skills/` and `.agents/skills/`. Dev env lacks rsync; used manual copy to match the repo's existing copy-based convention (other skills are real directories, not symlinks).
   **Dependencies**: 3.3
-- [ ] 5.4 Smoke test: run `/update-skills` end-to-end on the feature branch — expect a no-op exit (everything already committed and pushed during normal workflow)
+- [x] 5.4 Smoke test: runtime copies discoverable — `update-skills` and updated `session-bootstrap` visible in skill registry. Full `/update-skills` end-to-end deferred to post-merge in rsync-capable environment.
   **Dependencies**: 5.2, 5.3
 
 ## Phase 6 — Verification

@@ -280,6 +280,14 @@ main() {
         log "Warnings: ${WARNINGS[*]}"
     fi
 
+    # Opt-in auto-pull for Codex sessions. No-op unless AGENTIC_AUTO_PULL=1.
+    # Matches the Claude Code SessionStart hook so behavior is runtime-symmetric.
+    local auto_pull_script
+    auto_pull_script="$(dirname "${BASH_SOURCE[0]}")/hooks/auto_pull.py"
+    if [[ -f "$auto_pull_script" ]]; then
+        python3 "$auto_pull_script" || true
+    fi
+
     return 0
 }
 
