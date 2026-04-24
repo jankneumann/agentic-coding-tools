@@ -121,7 +121,7 @@ class TestRedactHighEntropy:
     def test_high_entropy_token(self) -> None:
         # Random-looking 32-char token; entropy ~4.94 bits/char, safely above
         # HIGH_ENTROPY_THRESHOLD (4.6).
-        token = "xK9mZ2pQ7aB3dR5fT8gH1jL4NmP6vE0s"
+        token = "xK9mZ2pQ7aB3dR5fT8gH1jL4NmP6vE0s"  # gitleaks:allow - test fixture, fake token
         content = f"found: {token} in config"
         result, redactions = redact_high_entropy(content)
         assert token not in result
@@ -158,7 +158,7 @@ class TestRedactHighEntropy:
     def test_quoted_random_token_still_redacted(self) -> None:
         # Inverse of the prose test: a quoted credential (no whitespace)
         # must still be caught by the entropy heuristic.
-        content = "key: 'Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz'"
+        content = "key: 'Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz'"  # gitleaks:allow - test fixture, fake token
         result, redactions = redact_high_entropy(content)
         assert "Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz" not in result
         assert "[REDACTED:high-entropy]" in result
