@@ -1,0 +1,226 @@
+schema_version: 1
+roadmap_id: symphony
+source_proposal: openspec/roadmaps/symphony/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: dispatcher-daemon
+  title: Symphony-style dispatcher daemon
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Long-running service that polls a tracker on a fixed cadence, owns
+    a single authoritative in-memory orchestrator state (running, claimed, retry_attempts,
+    completed, totals), and dispatches eligible issues under a global concurrency
+    cap. Recovers on restart from tracker state + worktree re-discovery without a
+    runtime DB.
+  acceptance_outcomes:
+  - Daemon stays up >=24h unattended without leaking workspaces
+  - Deterministically dispatches >=50 issues with no duplicate dispatch
+  - Restart recovers running set from tracker + filesystem state
+- item_id: workflow-md-contract
+  title: WORKFLOW.md repo-owned policy contract
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
+  description: YAML front matter (typed runtime config) plus Jinja-like prompt body
+    with strict template semantics (unknown variables/filters fail loudly). Dynamically
+    reloadable without restart. Ships with a JSON schema and validator.
+  acceptance_outcomes:
+  - JSON schema rejects malformed fronts with actionable errors
+  - Strict template engine raises on unknown variable or filter
+  - Reload applies within one poll tick without restarting the daemon
+- item_id: github-tracker-adapter
+  title: GitHub Issues tracker adapter
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - dispatcher-daemon
+  - workflow-md-contract
+  description: 'Primary tracker adapter: fetch candidate issues by label/state, fetch
+    specific states for reconciliation, fetch terminal issues at startup for cleanup,
+    normalize to the common Issue model (id, identifier, priority, state, labels,
+    blocked_by, timestamps). Uses existing GitHub MCP tooling.'
+  acceptance_outcomes:
+  - Parity with Symphony's Linear adapter for required fetch operations
+  - Normalized Issue model validated against shared schema
+  - State comparisons are case-insensitive (lowercase normalization)
+- item_id: workspace-manager-hooks
+  title: Issue-keyed workspace manager with lifecycle hooks
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - workflow-md-contract
+  description: Extend worktree.py to key workspaces by sanitized issue identifier
+    ([A-Za-z0-9._-]) in addition to change-id. Add after_create, before_run, after_run,
+    before_remove hooks with per-hook timeouts. Enforce strict path-containment; after_run
+    failures are logged and ignored.
+  acceptance_outcomes:
+  - Hook invocation order matches Symphony SPEC section 3
+  - after_run failures do not block forward progress
+  - Path containment violations fail closed before agent launch
+- item_id: retry-queue-backoff
+  title: Centralized retry queue with exponential backoff
+  status: candidate
+  priority: 5
+  effort: S
+  depends_on:
+  - dispatcher-daemon
+  description: 'First-class retry queue: retry_attempts[issue_id] = {attempt, due_at_ms,
+    timer_handle, error} with min(10s * 2^(attempt-1), max_retry_backoff_ms). Re-checks
+    tracker state before re-dispatch to avoid retry storms on flapping issues.'
+  acceptance_outcomes:
+  - Backoff schedule is deterministic and bounded
+  - Retry re-check prevents dispatch of now-ineligible issues
+- item_id: agent-runner-port
+  title: Agent-runner port with vendor adapters
+  status: candidate
+  priority: 6
+  effort: L
+  depends_on:
+  - dispatcher-daemon
+  - workflow-md-contract
+  description: 'Vendor-agnostic port: start(workspace, prompt) -> session, stream_events(),
+    cancel(). Normalized event types: turn_started, turn_completed, token_update,
+    rate_limit, approval_request, user_input_requested. Three adapters: Codex (JSON-RPC
+    app-server over stdio), Claude Code CLI, Gemini CLI. user_input_requested is a
+    hard fail.'
+  acceptance_outcomes:
+  - Same daemon drives all three vendors from the same WORKFLOW.md
+  - Normalized event schema covers all Symphony SPEC agent events
+  - user_input_requested terminates the session to prevent hangs
+- item_id: turn-based-continuation
+  title: Turn-based session continuation with tracker re-check
+  status: candidate
+  priority: 7
+  effort: M
+  depends_on:
+  - agent-runner-port
+  description: Within one worker lifetime, stay on the same thread/workspace for up
+    to agent.max_turns, re-checking tracker state between turns. Mid-run transitions
+    to non-eligible states stop the run gracefully and emit a structured run_aborted
+    event.
+  acceptance_outcomes:
+  - Same thread/workspace survives across up to max_turns
+  - Mid-run state transition preserves workspace and emits run_aborted
+- item_id: reconciliation-stall-detection
+  title: Tracker-state reconciliation and stall detection
+  status: candidate
+  priority: 8
+  effort: M
+  depends_on:
+  - retry-queue-backoff
+  - workspace-manager-hooks
+  description: 'Each poll tick: stop runs whose issues transitioned to terminal/inactive;
+    detect stalled sessions via inactivity timeout and kill+retry; clean workspaces
+    for terminal issues at startup. Also reconciles against the worktree registry
+    to GC orphans.'
+  acceptance_outcomes:
+  - Stalled runs killed within stall_timeout_ms
+  - Terminal-state workspaces cleaned on next startup
+  - Orphan worktrees reconciled against registry
+- item_id: tracker-graphql-tool
+  title: Scoped tracker-GraphQL tool for agents
+  status: candidate
+  priority: 9
+  effort: S
+  depends_on:
+  - github-tracker-adapter
+  description: 'Expose a tracker_graphql tool (analog to Symphony''s linear_graphql)
+    that lets the agent run scoped GraphQL/REST ops against the active tracker using
+    daemon credentials. One operation per call with an audit-log entry. Primary: GitHub;
+    Linear variant piggybacks on the Linear adapter.'
+  acceptance_outcomes:
+  - Agent can transition issue state, post comment, link PR without holding raw credentials
+  - Every invocation writes one audit-log entry
+- item_id: token-ratelimit-accounting
+  title: Token, rate-limit, and run accounting
+  status: candidate
+  priority: 10
+  effort: S
+  depends_on:
+  - agent-runner-port
+  description: 'Central aggregation of Symphony''s codex_totals equivalent: per-run
+    and per-daemon input/output/total tokens, runtime seconds, last rate-limit snapshot.
+    Surfaced via structured logs with issue_id, issue_identifier, session_id context
+    keys.'
+  acceptance_outcomes:
+  - Dashboard can answer tokens-per-issue-per-day without log scraping
+  - Rate-limit headroom queryable in real time
+- item_id: operator-http-status-surface
+  title: Operator HTTP status surface
+  status: candidate
+  priority: 11
+  effort: S
+  depends_on:
+  - token-ratelimit-accounting
+  description: Optional FastAPI sidecar exposing /api/v1/state (running, claimed,
+    retry_attempts, totals, rate limits), /api/v1/<issue_id>, /healthz, /metrics.
+    Sidecar failures must not crash the daemon.
+  acceptance_outcomes:
+  - Operator can query live state during long unattended runs
+  - Daemon survives sidecar crashes without state loss
+- item_id: trust-posture-binding
+  title: Trust-posture artifact and deployment-profile binding
+  status: candidate
+  priority: 12
+  effort: M
+  depends_on:
+  - workflow-md-contract
+  description: Require symphony/TRUST_POSTURE.md per deployment declaring approval
+    policy, sandbox mode, network allowlist, coordinator trust level, guardrail posture.
+    Bind to profiles.py and policy_engine.py so posture is enforceable, not just documented.
+  acceptance_outcomes:
+  - Daemon refuses to dispatch when posture fields missing or contradictory
+  - Posture changes are audited
+- item_id: coordinator-integration
+  title: Daemon and coordinator integration
+  status: candidate
+  priority: 13
+  effort: M
+  depends_on:
+  - dispatcher-daemon
+  - reconciliation-stall-detection
+  description: 'Wire the daemon into the coordinator as a peer: register via discovery.py,
+    acquire lock-namespace claims through feature_registry.py on dispatch, write to
+    audit on every state transition, respect guardrails and Cedar policies on pre-flight.
+    Must still operate in COORDINATOR_AVAILABLE=false degraded mode.'
+  acceptance_outcomes:
+  - Daemon runs collide-free with human-triggered /implement-feature
+  - End-to-end audit traceability from dispatch to merge
+  - Degrades gracefully when coordinator is unreachable
+- item_id: linear-tracker-adapter
+  title: Linear tracker adapter (parallel implementation)
+  status: candidate
+  priority: 14
+  effort: S
+  depends_on:
+  - github-tracker-adapter
+  description: Linear GraphQL implementation of the tracker port. Demonstrates that
+    the tracker-port abstraction holds and that we are not locked into one tracker.
+  acceptance_outcomes:
+  - Swap adapter via tracker.kind in WORKFLOW.md with no daemon code changes
+  - Parity with GitHub adapter for the required fetch operations
+- item_id: harness-readiness-audit
+  title: Harness-readiness audit for Symphony-compatibility
+  status: candidate
+  priority: 15
+  effort: S
+  depends_on:
+  - workflow-md-contract
+  - trust-posture-binding
+  description: 'A /harness-audit (or bug-scrub extension) that scores a target repo
+    against Symphony''s implicit prerequisites: hermetic tests, machine-readable build/test/deploy
+    docs, WORKFLOW.md valid, TRUST_POSTURE.md present, openspec initialized, side-effect
+    density from refresh-architecture.'
+  acceptance_outcomes:
+  - Report flags at least the five prerequisite categories with actionable hints
+  - Integrates with existing bug-scrub report format
+created_at: '2026-04-24T05:29:02.900977+00:00'
+updated_at: '2026-04-24T05:29:02.900977+00:00'
