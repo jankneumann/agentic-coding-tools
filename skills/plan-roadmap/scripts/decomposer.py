@@ -38,7 +38,19 @@ _EFFORT_INDEX: dict[Effort, int] = {e: i for i, e in enumerate(_EFFORT_ORDER)}
 # Markdown section markers
 # ---------------------------------------------------------------------------
 _CAPABILITY_MARKERS = re.compile(
-    r"\b(capabilit|feature|function|component|module|service|endpoint|system)\w*\b",
+    r"\b("
+    # Original vocabulary
+    r"capabilit|feature|function|component|module|service|endpoint|system"
+    # Architecture / hexagonal terms (added to address proposals using
+    # ports/adapters/workspace/queue vocabulary that the original keyword
+    # set silently dropped)
+    r"|port|adapter|workspace|subsystem|handler|worker|pipeline"
+    r"|queue|stream|consumer|producer|publisher|subscriber"
+    r"|registry|store|repository|cache|index|broker|gateway|proxy"
+    r"|api|cli|ui|ux|dashboard|view|panel|page|screen"
+    r"|integration|bridge|connector|driver|provider|client"
+    r"|job|task|workflow|orchestrator|scheduler|dispatcher"
+    r")\w*\b",
     re.IGNORECASE,
 )
 _CONSTRAINT_MARKERS = re.compile(
@@ -121,6 +133,45 @@ def validate_proposal(text: str) -> list[str]:
         )
 
     return errors
+
+
+def diagnose_thin_output(
+    proposal_text: str,
+    extracted_count: int,
+    *,
+    min_ratio: float = 0.5,
+) -> str | None:
+    """Return a diagnostic message if extraction looks suspiciously thin.
+
+    Compares item count against H2 heading count. When extraction yields
+    fewer than ``min_ratio`` of the H2s, the structural pass likely missed
+    capabilities the proposal author intended — usually because the author's
+    vocabulary doesn't match ``_CAPABILITY_MARKERS``. Returning a message
+    lets the SKILL.md layer surface this and stop before the agent decides
+    to silently route around the broken pipe by authoring roadmap.yaml from
+    scratch.
+
+    Returns ``None`` when output is healthy.
+    """
+    if not proposal_text:
+        return None
+    h2_count = sum(
+        1
+        for match in _HEADING_RE.finditer(proposal_text)
+        if len(match.group(1)) == 2
+    )
+    if h2_count == 0:
+        return None
+    if extracted_count >= max(1, int(h2_count * min_ratio)):
+        return None
+    return (
+        f"Thin extraction: proposal has {h2_count} H2 sections but decomposer "
+        f"produced only {extracted_count} items (< {min_ratio:.0%} ratio). "
+        f"Likely cause: capability vocabulary mismatch — review the proposal "
+        f"against the template at openspec/schemas/roadmap/templates/proposal.md "
+        f"and prefer capability names like 'Capability:', 'Service:', 'Adapter:', etc. "
+        f"Do NOT proceed by hand-authoring roadmap.yaml; that hides the regression."
+    )
 
 
 # ---------------------------------------------------------------------------
