@@ -163,6 +163,34 @@ class TestRedactHighEntropy:
         assert "Xk9Mz2pQ7aB3dR5fT8gH1jL4NmP6vE0sQaYz" not in result
         assert "[REDACTED:high-entropy]" in result
 
+    def test_quoted_bearer_jwt_still_redacted(self) -> None:
+        # Regression for Codex P1: Authorization: "Bearer <JWT>" has a
+        # space between the "Bearer" prefix and the high-entropy JWT body.
+        # SECRET_PATTERNS' bearer-token regex does NOT match this shape
+        # (it requires token chars immediately after the separator), so
+        # the entropy fallback MUST catch it via per-sub-token scanning.
+        jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123DEFghi"
+        )
+        content = f'Authorization: "Bearer {jwt}"'
+        result, redactions = redact_high_entropy(content)
+        assert jwt not in result, (
+            f"bearer-prefixed JWT was not redacted: {result!r}"
+        )
+        assert "[REDACTED:high-entropy]" in result
+        assert len(redactions) == 1
+
+    def test_multi_word_prose_with_single_long_word_still_safe(self) -> None:
+        # Guard: a prose sentence containing one naturally-long word
+        # (e.g. "internationalization") should still pass through.
+        # Natural words rarely exceed 20 chars AND rarely exceed 4.6 bits
+        # of entropy; this pins both ends of the discriminator.
+        content = '"the internationalization design of the system is comprehensive"'
+        result, redactions = redact_high_entropy(content)
+        assert result == content
+        assert len(redactions) == 0
+
 
 class TestEntropyCalibration:
     """Pins the measured entropy of representative keys and prose.
