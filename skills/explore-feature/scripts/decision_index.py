@@ -54,9 +54,36 @@ _PHASE_RE = re.compile(
     re.MULTILINE,
 )
 
-_SUPERSEDES_REF = re.compile(
+# Supersedes-reference syntax comes in two forms:
+#
+#   <change-id>#<phase-slug>/D<n>   — preferred, unambiguous when a change has
+#                                      multiple phases that both carry a D<n>
+#                                      at the same bullet position.
+#   <change-id>#D<n>                — legacy bare form. Accepted when the
+#                                      target change has only ONE phase with a
+#                                      D<n> at that position; otherwise the
+#                                      emitter warns and skips the link to
+#                                      avoid silently marking multiple phases
+#                                      as superseded.
+_SUPERSEDES_REF_PHASED = re.compile(
+    r"^(?P<change_id>[A-Za-z0-9][A-Za-z0-9._-]*?)"
+    r"#(?P<phase_slug>[a-z0-9][a-z0-9-]*)"
+    r"/D(?P<index>\d+)$"
+)
+_SUPERSEDES_REF_LEGACY = re.compile(
     r"^(?P<change_id>[A-Za-z0-9][A-Za-z0-9._-]*?)#D(?P<index>\d+)$"
 )
+
+
+def _phase_slug(phase_name: str) -> str:
+    """Convert a human-readable phase name to a URL-safe slug.
+
+    Examples:
+        "Plan" -> "plan"
+        "Plan Iteration 2" -> "plan-iteration-2"
+        "Implementation" -> "implementation"
+    """
+    return phase_name.strip().lower().replace(" ", "-")
 
 
 # ── Data model ──────────────────────────────────────────────────────
@@ -214,29 +241,75 @@ def emit_decision_index(
 
 def _build_supersession_map(
     by_cap: dict[str, list[TaggedDecision]],
-) -> dict[tuple[str, int], TaggedDecision]:
-    """Map `(superseded_change_id, decision_index)` → the later decision that supersedes it."""
-    mapping: dict[tuple[str, int], TaggedDecision] = {}
+) -> dict[tuple[str, str, int], TaggedDecision]:
+    """Map `(superseded_change_id, phase_slug, decision_index)` → the later
+    decision that supersedes it.
+
+    Keyed by phase slug to disambiguate multi-phase changes where two phases
+    both carry a D<n> at the same bullet position. Legacy bare `#D<n>` refs
+    are accepted only when the target change has exactly one phase matching
+    that bullet index; otherwise a warning is emitted and the ref is skipped
+    (silently marking multiple phases as superseded would be wrong-but-quiet).
+    """
+    all_tagged = [d for ds in by_cap.values() for d in ds]
+
+    # Count how many phases of each (change_id, bullet_index) exist, so a
+    # legacy bare ref can be accepted only when unambiguous.
+    legacy_candidates: dict[tuple[str, int], list[TaggedDecision]] = defaultdict(list)
+    for d in all_tagged:
+        legacy_candidates[(d.change_id, d.decision_index_in_phase)].append(d)
+
+    mapping: dict[tuple[str, str, int], TaggedDecision] = {}
     for ds in by_cap.values():
         for d in ds:
             if not d.supersedes:
                 continue
-            ref = _SUPERSEDES_REF.match(d.supersedes.strip())
-            if not ref:
-                logger.warning(
-                    "Unparseable supersedes ref %r on %s — expected '<change-id>#D<n>'",
-                    d.supersedes,
-                    d.change_id,
+            ref = d.supersedes.strip()
+
+            phased = _SUPERSEDES_REF_PHASED.match(ref)
+            if phased:
+                key = (
+                    phased.group("change_id"),
+                    phased.group("phase_slug"),
+                    int(phased.group("index")),
                 )
+                mapping[key] = d
                 continue
-            mapping[(ref.group("change_id"), int(ref.group("index")))] = d
+
+            legacy = _SUPERSEDES_REF_LEGACY.match(ref)
+            if legacy:
+                c_id = legacy.group("change_id")
+                idx = int(legacy.group("index"))
+                matches = legacy_candidates.get((c_id, idx), [])
+                if len(matches) > 1:
+                    logger.warning(
+                        "Ambiguous supersedes ref %r on %s — change %s has "
+                        "%d phases carrying D%d; use "
+                        "'<change-id>#<phase-slug>/D<n>' to disambiguate. "
+                        "Skipping the link.",
+                        ref, d.change_id, c_id, len(matches), idx,
+                    )
+                    continue
+                if len(matches) == 1:
+                    target = matches[0]
+                    mapping[(c_id, _phase_slug(target.phase_name), idx)] = d
+                # len(matches) == 0 is silent — the target change may simply
+                # have no session-log in the corpus (e.g., pre-convention
+                # archive); nothing to link.
+                continue
+
+            logger.warning(
+                "Unparseable supersedes ref %r on %s — expected "
+                "'<change-id>#D<n>' or '<change-id>#<phase-slug>/D<n>'",
+                ref, d.change_id,
+            )
     return mapping
 
 
 def _render_capability_file(
     capability: str,
     decisions: list[TaggedDecision],
-    superseded_by_map: dict[tuple[str, int], TaggedDecision],
+    superseded_by_map: dict[tuple[str, str, int], TaggedDecision],
 ) -> str:
     lines: list[str] = [
         f"# Architectural Decisions — {capability}",
@@ -255,9 +328,11 @@ def _render_capability_file(
 
 def _render_decision(
     d: TaggedDecision,
-    superseded_by_map: dict[tuple[str, int], TaggedDecision],
+    superseded_by_map: dict[tuple[str, str, int], TaggedDecision],
 ) -> list[str]:
-    superseded_by = superseded_by_map.get((d.change_id, d.decision_index_in_phase))
+    superseded_by = superseded_by_map.get(
+        (d.change_id, _phase_slug(d.phase_name), d.decision_index_in_phase)
+    )
     status = "superseded" if superseded_by else "active"
     # Prefer the concrete path captured at extraction time. Fall back to a
     # descriptive placeholder for decisions constructed in tests that omit it.

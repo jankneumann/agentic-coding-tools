@@ -914,6 +914,182 @@ class TestEmitDecisionIndex:
         assert "superseded" in content.lower()
         assert "2026-03-01-replace" in content
 
+    def test_phased_supersedes_disambiguates_multi_phase_target(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Regression: when a target change has Plan D1 AND Implementation D1,
+        a `supersedes: <id>#<phase-slug>/D<n>` marker must mark ONLY the named
+        phase as superseded. The legacy bare `#D1` form would collide."""
+        targets = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-multi-phase",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 10),
+                title="Plan-phase decision",
+                rationale="early thinking",
+                supersedes=None,
+                source_offset=0,
+                decision_index_in_phase=1,
+            ),
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-multi-phase",
+                phase_name="Implementation",
+                phase_date=date(2026, 2, 12),
+                title="Implementation-phase decision",
+                rationale="final shape after coding",
+                supersedes=None,
+                source_offset=100,
+                decision_index_in_phase=1,
+            ),
+        ]
+        # Later change targets ONLY the Plan-phase D1 via the phased form.
+        later = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-03-01-refactor",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 1),
+                title="Supersede just the plan call",
+                rationale="scope change",
+                supersedes="2026-02-10-multi-phase#plan/D1",
+                source_offset=0,
+                decision_index_in_phase=1,
+            )
+        ]
+
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            targets + later,
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+        content = (out / "agent-coordinator.md").read_text()
+
+        # Count status markers — exactly one `superseded` (the Plan-phase D1)
+        # and the Implementation-phase D1 must stay `active`.
+        superseded_count = content.count("Status: `superseded`")
+        active_count = content.count("Status: `active`")
+        assert superseded_count == 1, (
+            f"Expected exactly 1 superseded entry (Plan-phase D1), "
+            f"got {superseded_count}. Full content:\n{content}"
+        )
+        assert active_count == 2, (
+            f"Expected exactly 2 active entries (Implementation D1 + "
+            f"later decision), got {active_count}. Full content:\n{content}"
+        )
+
+    def test_ambiguous_bare_supersedes_warns_and_skips(
+        self,
+        tmp_path: Path,
+        capabilities_root: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression: a bare `#D<n>` ref targeting a change with multiple
+        phases carrying that bullet index must emit a WARNING and skip the
+        link rather than silently marking every matching phase as superseded.
+        """
+        targets = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-multi-phase",
+                phase_name="Plan",
+                phase_date=date(2026, 2, 10),
+                title="Plan-phase decision",
+                rationale="plan call",
+                supersedes=None,
+                source_offset=0,
+                decision_index_in_phase=1,
+            ),
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-02-10-multi-phase",
+                phase_name="Implementation",
+                phase_date=date(2026, 2, 12),
+                title="Implementation-phase decision",
+                rationale="impl call",
+                supersedes=None,
+                source_offset=100,
+                decision_index_in_phase=1,
+            ),
+        ]
+        later = [
+            TaggedDecision(
+                capability="agent-coordinator",
+                change_id="2026-03-01-refactor",
+                phase_name="Plan",
+                phase_date=date(2026, 3, 1),
+                title="Ambiguous supersession",
+                rationale="which phase did I mean?",
+                supersedes="2026-02-10-multi-phase#D1",  # bare form — ambiguous!
+                source_offset=0,
+                decision_index_in_phase=1,
+            )
+        ]
+
+        out = tmp_path / "docs" / "decisions"
+        import logging
+        with caplog.at_level(logging.WARNING):
+            emit_decision_index(
+                targets + later,
+                output_dir=out,
+                capabilities_root=capabilities_root,
+                strict=False,
+            )
+
+        content = (out / "agent-coordinator.md").read_text()
+
+        # Warning names the ambiguous ref, the target change, and both phases
+        warning_msgs = [r.getMessage() for r in caplog.records]
+        assert any(
+            "2026-02-10-multi-phase#D1" in m and "2 phases" in m
+            for m in warning_msgs
+        ), f"Expected ambiguity warning; got {warning_msgs!r}"
+
+        # Neither Plan nor Implementation D1 is marked superseded
+        assert content.count("Status: `superseded`") == 0
+
+    def test_bare_supersedes_still_works_when_target_has_single_phase(
+        self, tmp_path: Path, capabilities_root: Path
+    ) -> None:
+        """Backward-compat: legacy bare `#D<n>` remains valid when the target
+        change has exactly one phase carrying that bullet index. No warning."""
+        target = TaggedDecision(
+            capability="agent-coordinator",
+            change_id="2026-02-10-single-phase",
+            phase_name="Plan",
+            phase_date=date(2026, 2, 10),
+            title="Only-phase decision",
+            rationale="nothing to disambiguate",
+            supersedes=None,
+            source_offset=0,
+            decision_index_in_phase=1,
+        )
+        later = TaggedDecision(
+            capability="agent-coordinator",
+            change_id="2026-03-01-refactor",
+            phase_name="Plan",
+            phase_date=date(2026, 3, 1),
+            title="Clean supersession",
+            rationale="unambiguous",
+            supersedes="2026-02-10-single-phase#D1",
+            source_offset=0,
+            decision_index_in_phase=1,
+        )
+
+        out = tmp_path / "docs" / "decisions"
+        emit_decision_index(
+            [target, later],
+            output_dir=out,
+            capabilities_root=capabilities_root,
+            strict=False,
+        )
+
+        content = (out / "agent-coordinator.md").read_text()
+        assert content.count("Status: `superseded`") == 1
+
 
 class TestEmitReadme:
     """Generated README covers purpose, generation, tagging conventions."""

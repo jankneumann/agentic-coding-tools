@@ -117,6 +117,8 @@ Decisions that shape how a capability behaves across multiple changes SHOULD car
 
 The decision index then renders bidirectional **Supersedes** / **Superseded by** links between the two entries. `#D<n>` is the decision's 1-indexed position within its phase entry (e.g., `#D1` for the first bullet in Decisions).
 
+If the target change has multiple phases that both carry a D<n> at the same bullet position (e.g., `Plan` D1 AND `Implementation` D1), use the phased form ``` `supersedes: <change-id>#<phase-slug>/D<n>` ``` — e.g., `` `supersedes: 2026-02-10-example#plan/D1` `` — to disambiguate. The phase slug is the phase name lowercased with spaces replaced by hyphens. The bare form is accepted when unambiguous (target change has only one phase at that bullet index); when ambiguous, the emitter emits a warning and skips the link rather than silently marking every matching phase as superseded.
+
 ## Append-Sanitize-Verify Flow
 
 Every skill follows this 3-step pattern:
