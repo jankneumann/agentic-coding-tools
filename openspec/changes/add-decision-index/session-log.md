@@ -92,24 +92,38 @@ Implemented all 25 tasks across 5 phases in a sequential tier within a single wo
 ### Trade-offs
 - Accepted narrow-spec-to-match-impl over broaden-impl-to-match-spec in four places because the implementation embodies the intentional design choices; the spec was over-specified at plan time relative to what the design section committed to. Matching SHALLs to shipped behavior is truthful; expanding code to cover aspirational SHALLs adds complexity without design justification.
 - Accepted filesystem deletion in `emit_decision_index` over preserving all historical files because an orphan file is not valuable history — the file content still sits in git, the live index should reflect the live truth, and detecting orphans via CI is impossible given `git diff` sees no content change.
-- Accepted Markdown-link formatting of the back-reference over raw path string because readers on GitHub, IDE previewers, and `gh browse` get a clickable navigation path to the originating phase entry — the design's "back-reference link" requirement implied this, and the glob placeholder never satisfied it.
+- Accepted Markdown-link formatting of the back-reference over raw path string because readers on GitHub, IDE previewers, and `gh browse` get a clickable navigation path to the originating phase entry — the design requirement for a `back-reference link` implied this, and the glob placeholder never satisfied it.
 
 ### Open Questions
 - [ ] Should `_SUPERSEDES_REF` regex be tightened to kebab-case only (per finding #11)? Left at `accept` disposition for now but a defensive warning on malformed refs would reduce silent no-op lookups.
-- [ ] Should the CI staleness job emit a diff preview on failure (per finding #12)? Left at `accept` — the one-line message is terse but the local reproduction is trivial. Worth a follow-up when the job first fires on a real operator.
+- [ ] Should the CI staleness job emit a diff preview on failure (per finding #12)? Left at `accept` — the one-line message is terse but the local reproduction is trivial.
 - [ ] Should `extract_decisions` log a WARNING when a session-log exists but yields zero Phase matches (per finding #9)? Accepted as a follow-up once the emitter has more production miles.
 
 ### Context
-Addressed 8 of 13 findings from the multi-vendor review (`artifacts/wp-main/review-findings.json`): 3 code fixes, 4 spec narrowings, 1 design/proposal prose update. 5 LOW-criticality findings deferred per the `--threshold medium` default. Added 6 regression tests covering the fixes (bullet-position, source-relpath, stale-cleanup, back-ref-real-path, cross-cap-supersession, mixed-tagged-supersedes-resolves). Regenerated `docs/decisions/` — 5 capability files now render real navigable Markdown links and the source lines pass the no-glob assertion. Post-iteration: 54 tests pass, `openspec validate --strict` clean, mypy clean, ruff only flags a pre-existing unused import in `test_archive_index.py` (outside the scope of this work package).
+Addressed 8 of 13 findings from the round-1 multi-vendor review (`artifacts/wp-main/review-findings.json`): 3 code fixes, 4 spec narrowings, 1 design/proposal prose update. 5 LOW-criticality findings deferred per the `--threshold medium` default. Added 6 regression tests covering the fixes. Regenerated `docs/decisions/` — 5 capability files now render real navigable Markdown links. Post-iteration: 54 tests pass, `openspec validate --strict` clean, mypy clean.
 
 ---
 
-## Phase: Validation (2026-04-24)
+## Phase: Implementation Iteration 2 (2026-04-24)
 
 **Agent**: claude-opus-4-7 | **Session**: N/A
 
 ### Decisions
-1. **No significant decisions required** — validation of a doc-index generator is mostly skip/pass; the only judgment call was classifying CI dependency failures as pre-existing-unrelated rather than blocking.
+1. **Extended `supersedes:` syntax to `<change-id>#<phase-slug>/D<n>` with bare-form backward compat** `architectural: skill-workflow` — round-2 multi-vendor review (codex, HIGH) caught that a bare `#D<n>` ref targeting a change with multiple phases that both carry D<n> would silently mark every matching phase as superseded. The bug was recorded as an open question in the Plan phase but not closed in iteration 1. Extension keys the supersession map by `(change_id, phase_slug, decision_index)` and accepts bare form only when unambiguous; ambiguous bare refs log a warning and skip the link rather than mis-linking.
+2. **Rebase onto origin/main to clear false-positive scope finding** `architectural: software-factory-tooling` — round-2 codex surfaced `agent-coordinator/agents.yaml:121-122` as a scope violation, but the log shows zero commits on the branch touched that file. The delta came from main advancing (commit f827c5d upgraded codex model 5.4 → 5.5) after the branch forked. Rebasing onto origin/main cleared the delta without changing any feature code; post-rebase 54 tests still pass.
+
+### Alternatives Considered
+- For multi-phase supersession: reject bare form entirely, require phased form always. Rejected because existing references in the current corpus (all single-phase) would all become unparseable, requiring a migration. Backward-compat + disambiguation warning is cheaper.
+- For multi-phase supersession: silently pick the most-recent phase when bare form is ambiguous. Rejected because wrong-but-confident is the exact failure mode the explicit-supersession design (D3) was trying to avoid; a warning + skip is the safer default.
+- For the rebase false positive: annotate the review prompt to use three-dot diff (merge-base-relative) instead of two-dot diff. Rejected as the only fix — the rebase was needed anyway to pick up the main-side model upgrade; the prompt change is a follow-up to reduce future false positives but not a substitute for rebasing.
+
+### Trade-offs
+- Accepted phased-form verbosity over single-syntax simplicity because disambiguation is worth ~10 extra characters when the bug it prevents (silently mis-marking unrelated decisions) cannot be caught by any automated check.
+- Accepted warn-and-skip for ambiguous bare refs over error-and-fail because a strict failure would break the whole `make decisions` pipeline for one ambiguous reference, while skip-with-warning preserves index generation for all unambiguous references.
+
+### Open Questions
+- [x] **Deterministic phase-entry anchor scheme for back-reference links** — RESOLVED this iteration via the `<phase-slug>/D<n>` form. Phase slug is the phase name lowercased with spaces replaced by hyphens (e.g., `Plan Iteration 2` → `plan-iteration-2`).
+- [ ] Should the review dispatcher three-dot-vs-two-dot diff prompt be standardized across all review skills? The round-2 codex false positive would have been prevented if the prompt had said `git diff main...HEAD` instead of `git diff main..HEAD`.
 
 ### Context
-Ran `/validate-feature add-decision-index` against commit `816dc13`. Deploy / Smoke / Gen-Eval / Security / E2E skip (no deployable service or API surface). Architecture clean (0 findings on 26 changed files). Spec compliance: 11/11 requirements verified against the live pipeline — 25 tagged decisions across 5 capability files, deterministic output, sanitizer preserves all tags. Evidence phase N/A (sequential tier, no distributed work-queue results). CI/CD: the new `validate-decision-index` gate passes along with 10 other jobs; 3 pre-existing failures (`SonarCloud`, two `dependency-audit-*` runs flagging the upstream `authlib` CVE-2026-27962) are unrelated to this PR and tracked separately. Result: PASS; ready for `/cleanup-feature` after PR #121 approval.
+Addressed both round-2 multi-vendor review findings: scope-violation false positive cleared by rebasing onto origin/main (picked up 4 new main commits including the codex 5.5 upgrade and a coordinator PR), and the genuine HIGH supersession-ambiguity bug fixed by extending the syntax to include an optional phase slug. 3 new regression tests added (`test_phased_supersedes_disambiguates_multi_phase_target`, `test_ambiguous_bare_supersedes_warns_and_skips`, `test_bare_supersedes_still_works_when_target_has_single_phase`). 57 tests pass; openspec validate --strict clean; ruff/mypy clean. Gemini round-2 produced 6 findings all `accept` — explicit verification that iteration 1 fixes hold. Feature is ready for cleanup.

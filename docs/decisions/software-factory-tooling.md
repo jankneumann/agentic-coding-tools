@@ -18,6 +18,17 @@
 
 ## 2026-04-24 — add-decision-index
 
+### Phase: Implementation Iteration 2
+
+**Rebase onto origin/main to clear false-positive scope finding** — round-2 codex surfaced `agent-coordinator/agents.yaml:121-122` as a scope violation, but the log shows zero commits on the branch touched that file. The delta came from main advancing (commit f827c5d upgraded codex model 5.4 → 5.5) after the branch forked. Rebasing onto origin/main cleared the delta without changing any feature code; post-rebase 54 tests still pass.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D2)
+
+---
+
+## 2026-04-24 — add-decision-index
+
 ### Phase: Implementation Iteration 1
 
 **Delete stale capability files on re-emit** — removes any `docs/decisions/<cap>.md` whose capability no longer has tagged decisions in the current run. Prevents README-vs-file drift that the CI `git diff` gate cannot catch (orphan-file presence is not a diff). Simple directory scan before writing; README is always regenerated so it stays consistent.

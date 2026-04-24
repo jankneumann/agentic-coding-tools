@@ -18,6 +18,17 @@
 
 ## 2026-04-24 — add-decision-index
 
+### Phase: Implementation Iteration 2
+
+**Extended `supersedes:` syntax to `<change-id>#<phase-slug>/D<n>` with bare-form backward compat** — round-2 multi-vendor review (codex, HIGH) caught that a bare `#D<n>` ref targeting a change with multiple phases that both carry D<n> would silently mark every matching phase as superseded. The bug was recorded as an open question in the Plan phase but not closed in iteration 1. Extension keys the supersession map by `(change_id, phase_slug, decision_index)` and accepts bare form only when unambiguous; ambiguous bare refs log a warning and skip the link rather than mis-linking.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-index/session-log.md](/openspec/changes/add-decision-index/session-log.md) (D1)
+
+---
+
+## 2026-04-24 — add-decision-index
+
 ### Phase: Implementation Iteration 1
 
 **Narrow spec rather than broaden impl on the four MEDIUM spec/impl gaps** — review surfaced four SHALL clauses the implementation silently narrowed: the `reverted` status enum value, the `incremental` rewrite semantics, the one-file-per-cap-directory requirement, and the tag-may-appear-anywhere placement rule. In each case the shipped behavior is the intentional simpler design, so the correct fix is to update the spec prose to match reality — not to expand code to cover spec claims that were never designed.
