@@ -29,6 +29,52 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Import the shared environment profile helper. Added to sys.path so the
+# import works whether worktree.py is invoked from the main repo, a
+# .git-worktrees/ entry, or as a shipped copy under .claude/skills/.
+# Falls back to a no-op profile when shared/ is not bundled in the
+# installed runtime (install.sh currently only syncs SKILL.md dirs).
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from shared.environment_profile import EnvironmentProfile, detect  # noqa: E402
+except ModuleNotFoundError:
+    from dataclasses import dataclass, field
+
+    @dataclass(frozen=True)
+    class EnvironmentProfile:  # type: ignore[no-redef]
+        isolation_provided: bool = False
+        source: str = "unavailable"
+        details: dict = field(default_factory=dict)
+
+    def detect(agent_id: str | None = None, **_kw: object) -> EnvironmentProfile:  # type: ignore[no-redef]
+        return EnvironmentProfile()
+
+# ---------------------------------------------------------------------------
+# Environment-aware short-circuit
+# ---------------------------------------------------------------------------
+
+def _short_circuit_if_isolated(op: str, agent_id: str | None = None) -> EnvironmentProfile | None:
+    """Return the detected profile if the caller already has isolation.
+
+    Callers check for a non-None return and emit operation-appropriate
+    success output before exiting. A None return means no short-circuit
+    applies — proceed with the original behavior.
+
+    Args:
+        op: Name of the worktree operation (for diagnostic output).
+        agent_id: Optional agent ID to pass to coordinator detection layer.
+    """
+    profile = detect(agent_id=agent_id)
+    if profile.isolation_provided:
+        print(
+            f"worktree: skipped {op} (isolation_provided=true, "
+            f"source={profile.source})",
+            file=sys.stderr,
+        )
+        return profile
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
@@ -294,7 +340,24 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     The env var lets operator-mandated branches flow through to every caller of
     ``worktree.py setup`` without each skill needing to know about the override.
+
+    When ``EnvironmentProfile.detect()`` reports ``isolation_provided=True``
+    (e.g. a cloud harness ephemeral container), setup short-circuits: it
+    emits ``WORKTREE_PATH`` and ``WORKTREE_BRANCH`` pointing at the
+    current checkout and skips ``.git-worktrees/`` creation entirely.
     """
+    if _short_circuit_if_isolated("setup", agent_id=getattr(args, "agent_id", None)):
+        # Emit the in-place checkout values so downstream `eval` + `cd` is a
+        # no-op. Branch override is preserved: if OPENSPEC_BRANCH_OVERRIDE
+        # is set, the harness is expected to have already checked it out.
+        cwd = os.getcwd()
+        toplevel = run_git("rev-parse", "--show-toplevel", cwd=cwd)
+        current_branch = run_git("branch", "--show-current", cwd=cwd)
+        print(f"WORKTREE_PATH={toplevel}")
+        print(f"WORKTREE_BRANCH={current_branch}")
+        print("ISOLATION_PROVIDED=true", file=sys.stderr)
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -426,7 +489,14 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     If plain removal still fails with the git-specific "working trees
     containing submodules" error, fall back to ``--force``. Other removal
     errors (dirty tree, conflicting edits) are NOT force-overridden.
+
+    Short-circuits to a silent no-op when the caller already has
+    filesystem isolation (see ``EnvironmentProfile.detect``).
     """
+    if _short_circuit_if_isolated("teardown", agent_id=getattr(args, "agent_id", None)):
+        print("REMOVED=skipped")
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -546,7 +616,13 @@ def cmd_detect(_args: argparse.Namespace) -> int:
 
 
 def cmd_heartbeat(args: argparse.Namespace) -> int:
-    """Update the last_heartbeat timestamp for a registered worktree."""
+    """Update the last_heartbeat timestamp for a registered worktree.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("heartbeat", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -606,7 +682,13 @@ def cmd_list(_args: argparse.Namespace) -> int:
 
 
 def cmd_pin(args: argparse.Namespace) -> int:
-    """Mark a worktree as protected from garbage collection."""
+    """Mark a worktree as protected from garbage collection.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("pin", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -628,7 +710,13 @@ def cmd_pin(args: argparse.Namespace) -> int:
 
 
 def cmd_unpin(args: argparse.Namespace) -> int:
-    """Remove garbage collection protection from a worktree."""
+    """Remove garbage collection protection from a worktree.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("unpin", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -699,7 +787,14 @@ def cmd_resolve_branch(args: argparse.Namespace) -> int:
 
 
 def cmd_gc(args: argparse.Namespace) -> int:
-    """Remove stale worktrees based on heartbeat age and pin status."""
+    """Remove stale worktrees based on heartbeat age and pin status.
+
+    No-op when the caller already has filesystem isolation — the
+    ephemeral container/harness manages its own lifecycle.
+    """
+    if _short_circuit_if_isolated("gc", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     force: bool = args.force

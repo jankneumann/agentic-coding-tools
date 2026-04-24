@@ -11,7 +11,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from shared import environment_profile as ep
 
-
 # ---------------------------------------------------------------------------
 # Env-var layer
 # ---------------------------------------------------------------------------
@@ -85,6 +84,13 @@ class TestEnvVarLayer:
 
 class TestCoordinatorLayer:
     """Precedence layer 2: coordinator discovery query."""
+
+    @pytest.fixture(autouse=True)
+    def _set_coordinator_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_coordinator_layer short-circuits to None when COORDINATOR_URL is
+        unset. Every test in this class mocks _query_coordinator and needs
+        the layer to actually run — so seed a fake URL."""
+        monkeypatch.setenv("COORDINATOR_URL", "http://fake-coordinator.test")
 
     def test_coordinator_reports_isolation_provided_true(
         self, monkeypatch: pytest.MonkeyPatch
@@ -261,6 +267,7 @@ class TestPrecedence:
     ) -> None:
         monkeypatch.delenv("AGENT_EXECUTION_ENV", raising=False)
         monkeypatch.delenv("CLAUDE_CODE_CLOUD", raising=False)
+        monkeypatch.setenv("COORDINATOR_URL", "http://fake-coordinator.test")
         fake_dockerenv = tmp_path / ".dockerenv"
         fake_dockerenv.touch()
         monkeypatch.setattr(ep, "_DOCKERENV_PATH", str(fake_dockerenv))
