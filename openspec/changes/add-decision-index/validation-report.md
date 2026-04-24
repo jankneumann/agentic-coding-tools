@@ -17,7 +17,7 @@
 | E2E | skip | No UI |
 | Architecture | pass | `validate_flows.py` on 26 changed files reports 0 findings (0 errors / 0 warnings / 0 info); 0 new entrypoints (emitter is pure file-in/file-out) |
 | Spec Compliance | pass | Task-drift gate passes (0 unchecked / 8 commits). All 11 requirements verified against the live pipeline — see traceability below |
-| Evidence | pass | Work-queue result audit N/A — sequential tier with single `wp-main` package, no distributed work-queue results to validate. `scope_check` and `verification` covered by the normal test gate (54 passing) |
+| Evidence | pass | Requirement traceability: 11/11 rows in `change-context.md` have Files Changed + `Evidence: pass 816dc13` populated, each linked to a named test method. Work-queue result validation is the only sub-check that does not apply to sequential tier (no distributed `artifacts/<pkg>/work-queue-result.json` is produced when a single agent owns the whole `wp-main` scope) |
 | Logs | skip | No runtime logs to scan |
 | CI/CD | pass (with pre-existing unrelated failures) | New `validate-decision-index` job passes. 11 of 14 checks pass. 3 failures pre-date this PR and are unrelated — see CI/CD section below |
 
@@ -36,7 +36,16 @@ All 11 requirements in `change-context.md` verified at commit `816dc13`:
 | software-factory-tooling.5 | `make decisions` run twice in succession; `git diff --stat docs/decisions/` reports no changes → byte-identical |
 | software-factory-tooling.6 | `docs/decisions/README.md` exists, regenerated on every run, lists all 5 active capabilities |
 
-Unit tests: **54 passed** in `skills/explore-feature/tests/` (21 extraction + 15 emission + 2 readme + 2 e2e + 6 regressions + 8 others).
+Unit tests: **54 passed** in `skills/explore-feature/tests/` (21 extraction + 15 emission + 2 readme + 2 e2e + 6 regressions + 8 others) at commit `816dc13`.
+
+## Evidence — note on sequential-tier scope
+
+The Evidence phase is split into two sub-checks in `validate-feature`:
+
+1. **Requirement traceability** — every SHALL clause in the spec deltas has (a) a named test method and (b) an `Evidence: pass <SHA>` entry in `change-context.md`. This **applies to every change regardless of tier** and is the real spec-compliance evidence. Status here: **11/11 rows populated**.
+2. **Work-queue result audit** — validates `artifacts/<pkg>/work-queue-result.json` files against `work-queue-result.schema.json`, checks `contracts_revision` / `plan_revision` alignment, and audits cross-package consistency. These artifacts are only produced by parallel / coordinated tiers where multiple agents execute work packages in their own worktrees; sequential tier has a single agent owning the whole `wp-main` scope and no distributed results to reconcile. Status here: **does not apply** (not a gap — the schema is for multi-agent orchestration).
+
+Not creating synthetic work-queue-result.json for sequential tier is intentional: fabricating it would add ceremony without adding signal. `scope_check` and `verification` that those artifacts would normally encode are covered by (a) the file-scope declaration in `work-packages.yaml` being respected by git diff (nothing outside `write_allow` was modified, confirmable via `git diff --name-only`), and (b) the 54-test suite green at HEAD.
 
 ## CI/CD Status
 
