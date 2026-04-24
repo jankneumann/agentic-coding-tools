@@ -101,3 +101,15 @@ Implemented all 25 tasks across 5 phases in a sequential tier within a single wo
 
 ### Context
 Addressed 8 of 13 findings from the multi-vendor review (`artifacts/wp-main/review-findings.json`): 3 code fixes, 4 spec narrowings, 1 design/proposal prose update. 5 LOW-criticality findings deferred per the `--threshold medium` default. Added 6 regression tests covering the fixes (bullet-position, source-relpath, stale-cleanup, back-ref-real-path, cross-cap-supersession, mixed-tagged-supersedes-resolves). Regenerated `docs/decisions/` — 5 capability files now render real navigable Markdown links and the source lines pass the no-glob assertion. Post-iteration: 54 tests pass, `openspec validate --strict` clean, mypy clean, ruff only flags a pre-existing unused import in `test_archive_index.py` (outside the scope of this work package).
+
+---
+
+## Phase: Validation (2026-04-24)
+
+**Agent**: claude-opus-4-7 | **Session**: N/A
+
+### Decisions
+1. **No significant decisions required** — validation of a doc-index generator is mostly skip/pass; the only judgment call was classifying CI dependency failures as pre-existing-unrelated rather than blocking.
+
+### Context
+Ran `/validate-feature add-decision-index` against commit `816dc13`. Deploy / Smoke / Gen-Eval / Security / E2E skip (no deployable service or API surface). Architecture clean (0 findings on 26 changed files). Spec compliance: 11/11 requirements verified against the live pipeline — 25 tagged decisions across 5 capability files, deterministic output, sanitizer preserves all tags. Evidence phase N/A (sequential tier, no distributed work-queue results). CI/CD: the new `validate-decision-index` gate passes along with 10 other jobs; 3 pre-existing failures (`SonarCloud`, two `dependency-audit-*` runs flagging the upstream `authlib` CVE-2026-27962) are unrelated to this PR and tracked separately. Result: PASS; ready for `/cleanup-feature` after PR #121 approval.
