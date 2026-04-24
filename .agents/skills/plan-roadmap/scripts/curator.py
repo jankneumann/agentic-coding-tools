@@ -256,6 +256,25 @@ def apply_curation(draft: Roadmap, response: dict) -> Roadmap:
         if d.original_id not in orig_ids:
             raise ValueError(f"Decision references unknown original_id: {d.original_id!r}")
 
+    # Validate merge targets point to a known id (either an existing
+    # original_id or a new_id declared by some keep decision). An unresolved
+    # merge target would cause the source item to be silently deleted because
+    # its rewritten edges would later be filtered as unknown.
+    declared_new_ids = {
+        d.new_id for d in decisions
+        if d.action == "keep" and d.new_id is not None
+    }
+    known_ids = orig_ids | declared_new_ids
+    for d in decisions:
+        if d.action == "merge":
+            assert d.merge_into is not None  # schema-guaranteed for action=merge
+            if d.merge_into not in known_ids:
+                raise ValueError(
+                    f"Merge target {d.merge_into!r} (for item {d.original_id!r}) "
+                    f"does not match any original_id or declared new_id; "
+                    f"cannot merge into a non-existent item."
+                )
+
     # Resolve merge chains: a -> b -> c becomes a -> c.
     # Also collapse keep's new_id rename in the same map.
     rename_map: dict[str, str | None] = {}
@@ -286,13 +305,26 @@ def apply_curation(draft: Roadmap, response: dict) -> Roadmap:
             curr = next_curr
         rename_map[start] = curr  # final destination (or None if dropped)
 
+    # After chain resolution, verify no merge decision's target resolved to
+    # a dropped item — that would silently delete the source.
+    for d in decisions:
+        if d.action == "merge":
+            assert d.merge_into is not None
+            target_final = rename_map.get(d.merge_into, d.merge_into)
+            if target_final is None:
+                raise ValueError(
+                    f"Merge target {d.merge_into!r} (for item {d.original_id!r}) "
+                    f"was itself dropped in the curation; "
+                    f"cannot merge into a deleted item."
+                )
+
     # Items without decisions keep their original_id
     for it in draft.items:
         rename_map.setdefault(it.item_id, it.item_id)
 
     # Build the new item list
     new_items: list[RoadmapItem] = []
-    seen_new_ids: set[str] = set()
+    seen_new_ids: dict[str, str] = {}  # final_id -> original_id of winner
     for orig_item in draft.items:
         decision = decisions_by_orig.get(orig_item.item_id)
         final_id = rename_map[orig_item.item_id]
@@ -300,8 +332,13 @@ def apply_curation(draft: Roadmap, response: dict) -> Roadmap:
             continue  # dropped, directly or via merge chain to drop
         if decision is None or decision.action == "keep":
             if final_id in seen_new_ids:
-                continue  # duplicate after rename; earlier item wins
-            seen_new_ids.add(final_id)
+                raise ValueError(
+                    f"Multiple items resolve to final_id {final_id!r}: "
+                    f"both {seen_new_ids[final_id]!r} and "
+                    f"{orig_item.item_id!r}. Keep decisions must "
+                    f"produce unique new_ids."
+                )
+            seen_new_ids[final_id] = orig_item.item_id
             # Mutate in place; Roadmap/RoadmapItem are plain dataclasses
             orig_item.item_id = final_id
             if decision is not None:

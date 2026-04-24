@@ -9,16 +9,14 @@ from pathlib import Path
 
 import pytest
 import yaml
-from jsonschema import Draft202012Validator
-
 from curator import (
     _compute_heuristic_flags,
     apply_curation,
     build_curation_request,
 )
 from decomposer import decompose
+from jsonschema import Draft202012Validator
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus, load_roadmap
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -246,6 +244,45 @@ class TestApplyCuration:
             {"original_id": b, "action": "merge", "merge_into": a, "rationale": "y"},
         ]}
         with pytest.raises(ValueError, match="cycle"):
+            apply_curation(draft_roadmap, response)
+
+    def test_merge_into_unknown_id_rejected(self, draft_roadmap: Roadmap):
+        # Regression for Codex P1 (line 268): a typo'd merge target was
+        # silently accepted, with the source item deleted and its
+        # rewritten deps filtered as unknown later in the pipeline.
+        a = draft_roadmap.items[0].item_id
+        response = {"schema_version": 1, "decisions": [
+            {"original_id": a, "action": "merge",
+             "merge_into": "ri-typo-not-a-real-id", "rationale": "x"},
+        ]}
+        with pytest.raises(ValueError, match="Merge target .* does not match"):
+            apply_curation(draft_roadmap, response)
+
+    def test_merge_into_dropped_item_rejected(self, draft_roadmap: Roadmap):
+        # Regression for Codex P1 (line 268): merge target was a real id
+        # but was itself dropped in the same decision batch. The source
+        # item would be silently deleted via the drop chain.
+        a = draft_roadmap.items[0].item_id
+        b = draft_roadmap.items[1].item_id
+        response = {"schema_version": 1, "decisions": [
+            {"original_id": a, "action": "merge", "merge_into": b, "rationale": "x"},
+            {"original_id": b, "action": "drop", "rationale": "obsolete"},
+        ]}
+        with pytest.raises(ValueError, match="was itself dropped"):
+            apply_curation(draft_roadmap, response)
+
+    def test_colliding_new_ids_rejected(self, draft_roadmap: Roadmap):
+        # Regression for Codex P1 (line 303): two keep decisions that
+        # rename to the same new_id used to silently drop one item.
+        a = draft_roadmap.items[0].item_id
+        b = draft_roadmap.items[1].item_id
+        response = {"schema_version": 1, "decisions": [
+            {"original_id": a, "action": "keep", "new_id": "ri-shared",
+             "rationale": "rename a"},
+            {"original_id": b, "action": "keep", "new_id": "ri-shared",
+             "rationale": "rename b"},
+        ]}
+        with pytest.raises(ValueError, match="Multiple items resolve to final_id"):
             apply_curation(draft_roadmap, response)
 
     def test_depends_on_accepts_new_ids(self, draft_roadmap: Roadmap):
