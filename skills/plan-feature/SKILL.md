@@ -78,10 +78,18 @@ if [[ "$ARGUMENTS" == *"--interview"* ]]; then
 fi
 
 # Auto-enable interview mode when the request is short/vague.
-# Heuristic: ≤ 3 words remaining after stripping flags, OR no verb token.
+# Heuristic: ≤ 3 words remaining after stripping flags, OR no action verb.
+# A short request without a verb ("role based access matrix") is just as
+# vague as a single-word one — the user named a noun phrase but didn't say
+# what to DO with it.
 STRIPPED=$(echo "$ARGUMENTS" | sed -E 's/--(explore|interview)//g' | xargs)
 WORD_COUNT=$(echo "$STRIPPED" | wc -w | tr -d ' ')
-if [[ "$WORD_COUNT" -le 3 ]]; then
+if echo "$STRIPPED" | grep -iqE '\b(add|create|build|make|implement|refactor|fix|update|remove|delete|change|migrate|extract|replace|rename|move|convert|improve|enhance|support|enable|disable|allow|prevent|expose|hide|introduce|ship|merge|split|consolidate|wire|validate|verify|check|test|document|explain|clarify|restructure|rewrite|cleanup|clean|audit|review|rebuild|resolve|investigate|explore|analyze|optimize|tune|polish|harden|stabilize|deprecate)\b'; then
+  HAS_VERB=true
+else
+  HAS_VERB=false
+fi
+if [[ "$WORD_COUNT" -le 3 ]] || [[ "$HAS_VERB" == "false" ]]; then
   INTERVIEW_MODE=true
 fi
 

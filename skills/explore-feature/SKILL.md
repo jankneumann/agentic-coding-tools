@@ -179,7 +179,7 @@ Generate a ranked shortlist (3-7 items), each with:
 - Weighted score using a reproducible formula:
   - `score = impact*0.4 + strategic_fit*0.25 + (4-effort)*0.2 + (4-risk)*0.15 + focus_match*0.1`
   - Use numeric mapping: `low=1`, `med=2`, `high=3`; `S=1`, `M=2`, `L=3`
-  - `focus_match` (0-3): how directly the opportunity addresses the `LOCALIZED_FOCUS` from Step 0.5. `3` = directly addresses the named pain (e.g., focus is "runtime latency in agent dispatch" and opportunity reduces dispatch latency); `2` = addresses the broader bucket but not the specific pain; `1` = tangentially related; `0` = unrelated. If Step 0.5 was skipped, set `focus_match=0` for all and the term contributes nothing.
+  - `focus_match` (0-3): how directly the opportunity addresses `LOCALIZED_FOCUS` (set either by Step 0.5's interview answers or by the direct `$ARGUMENTS` string when the interview was skipped). `3` = directly addresses the named pain (e.g., focus is "runtime latency in agent dispatch" and opportunity reduces dispatch latency); `2` = addresses the broader bucket but not the specific pain; `1` = tangentially related; `0` = unrelated. Only set `focus_match=0` for all items when `LOCALIZED_FOCUS` is empty/unset — a non-empty focus from $ARGUMENTS is just as valid a scoring anchor as one from the interview.
 - `localized_focus_alignment`: one-line note on why the opportunity received its `focus_match` score (e.g., "Reduces dispatch loop p95 by replacing polling with pg_notify -- direct hit on stated pain")
 - Category bucket:
   - `quick-win` (high score, low effort/risk)

@@ -25,6 +25,7 @@ Create an OpenSpec proposal for a new feature. Automatically selects execution t
 
 Optional flags:
 - `--explore` -- Deep-dive mode: more discovery questions (5-8 vs 2-5), more approaches (3-5 vs 2-3), web search for prior art when available
+- `--interview` -- Confidence-gated discovery: replaces the fixed question budget with an adaptive loop that keeps asking (in batches of 2-4) until self-assessed confidence reaches ≥ 0.95 on a five-dimension rubric or the user asks to move on. Prioritizes latent intent ("what you actually want") over surface request ("what you think you should want"). Auto-enabled when `$ARGUMENTS` is short/vague (≤ 3 words or no verb)
 
 ## OpenSpec Execution Preference
 
@@ -68,8 +69,28 @@ Parse optional flags from `$ARGUMENTS`:
 
 ```
 EXPLORE_MODE=false
+INTERVIEW_MODE=false
 if [[ "$ARGUMENTS" == *"--explore"* ]]; then
   EXPLORE_MODE=true
+fi
+if [[ "$ARGUMENTS" == *"--interview"* ]]; then
+  INTERVIEW_MODE=true
+fi
+
+# Auto-enable interview mode when the request is short/vague.
+# Heuristic: ≤ 3 words remaining after stripping flags, OR no action verb.
+# A short request without a verb ("role based access matrix") is just as
+# vague as a single-word one — the user named a noun phrase but didn't say
+# what to DO with it.
+STRIPPED=$(echo "$ARGUMENTS" | sed -E 's/--(explore|interview)//g' | xargs)
+WORD_COUNT=$(echo "$STRIPPED" | wc -w | tr -d ' ')
+if echo "$STRIPPED" | grep -iqE '\b(add|create|build|make|implement|refactor|fix|update|remove|delete|change|migrate|extract|replace|rename|move|convert|improve|enhance|support|enable|disable|allow|prevent|expose|hide|introduce|ship|merge|split|consolidate|wire|validate|verify|check|test|document|explain|clarify|restructure|rewrite|cleanup|clean|audit|review|rebuild|resolve|investigate|explore|analyze|optimize|tune|polish|harden|stabilize|deprecate)\b'; then
+  HAS_VERB=true
+else
+  HAS_VERB=false
+fi
+if [[ "$WORD_COUNT" -le 3 ]] || [[ "$HAS_VERB" == "false" ]]; then
+  INTERVIEW_MODE=true
 fi
 
 # Discovery question bounds
@@ -80,12 +101,16 @@ else
   MIN_QUESTIONS=2; MAX_QUESTIONS=5
   MIN_APPROACHES=2; MAX_APPROACHES=3
 fi
+
+# Interview mode treats MAX_QUESTIONS as a soft ceiling, not a hard cap.
+# Confidence threshold for exiting the discovery loop:
+CONFIDENCE_THRESHOLD=0.95
 ```
 
 Emit tier notification:
 ```
 Tier: <tier> -- <rationale>
-Mode: <standard | explore>
+Mode: <standard | explore>[, interview]
 ```
 
 If `CAN_HANDOFF=true`, read recent handoff context. If `CAN_MEMORY=true`, recall relevant memories.
@@ -173,31 +198,97 @@ This gives the user the same information you have, enabling better answers to th
 
 #### 3b. Discovery Questions
 
-Ask MIN_QUESTIONS to MAX_QUESTIONS clarifying questions using the **AskUserQuestion tool**. Draw from these five categories, selecting the most relevant ones based on the discovered context:
+Ask clarifying questions using the **AskUserQuestion tool**. Draw from these six categories, selecting the most relevant ones based on the discovered context:
 
-1. **Scope boundaries** -- Use AskUserQuestion with preset options.
+1. **Motivation / latent intent** -- Use AskUserQuestion without preset options (open-ended). Ask FIRST when `INTERVIEW_MODE=true`.
+   Goal: separate the user's surface request from the underlying need. A user who asks for "a microservice" may actually want "deployment isolation" -- surfacing that opens better approaches.
+   Examples: "What made you reach for this idea today -- what recent moment or pain triggered it?" / "If this feature existed and worked perfectly, what would you stop having to do?" / "What's the closest thing to this that already exists, and why isn't it enough?"
+
+2. **Scope boundaries** -- Use AskUserQuestion with preset options.
    Examples: "Should <related capability X> be included in scope?" Options: "Yes, include it" / "No, out of scope" / "Defer to a follow-up proposal"
 
-2. **Trade-off preferences** -- Use AskUserQuestion with preset options presenting 2-3 positions.
+3. **Trade-off preferences** -- Use AskUserQuestion with preset options presenting 2-3 positions.
    Examples: "I see a trade-off between <simplicity vs flexibility / speed vs correctness / etc>. Which direction?" Options describe each position.
 
-3. **Constraint discovery** -- Use AskUserQuestion without preset options (open-ended).
+4. **Constraint discovery** -- Use AskUserQuestion without preset options (open-ended).
    Examples: "Are there timeline, compatibility, or performance constraints I should know about?" / "Are there any rejected approaches or past attempts I should avoid?"
 
-4. **Existing decisions** -- Use AskUserQuestion with preset options when specific decisions are discoverable from context.
+5. **Existing decisions** -- Use AskUserQuestion with preset options when specific decisions are discoverable from context.
    Examples: "The codebase currently uses <pattern X> for similar features. Should we follow this pattern or introduce a new one?" Options: "Follow existing pattern" / "New approach because <reason>"
 
-5. **Success criteria** -- Use AskUserQuestion without preset options (open-ended).
+6. **Success criteria** -- Use AskUserQuestion without preset options (open-ended).
    Examples: "What does success look like for this feature?" / "How will you know this feature is working correctly?"
 
 **Rules for question generation:**
 - Questions MUST reference specific discoveries from Step 3a (e.g., "I found spec X covers Y. Should this feature extend that spec or create a new one?")
-- Skip categories that are already clearly answered by `$ARGUMENTS`
+- Skip categories that are already clearly answered by `$ARGUMENTS` (but in `INTERVIEW_MODE`, never skip category 1 -- latent intent)
 - If `EXPLORE_MODE=true`, add prior-art questions: "I found <pattern/library X> is commonly used for this. Should we adopt it, adapt it, or build custom?"
 - Ask questions in batches of 2-4 via AskUserQuestion to avoid overwhelming the user
 - Prioritize questions where the answer would significantly change the approach
 
+#### 3b.i. Standard Discovery Loop (INTERVIEW_MODE=false)
+
+Ask MIN_QUESTIONS to MAX_QUESTIONS clarifying questions in one or two batches, then proceed to Step 4.
+
 **STOP -- Wait for the user to answer all discovery questions before proceeding to Step 4. Do NOT generate any artifacts until all answers are received.**
+
+#### 3b.ii. Confidence-Gated Interview Loop (INTERVIEW_MODE=true)
+
+Replaces the fixed question budget with an adaptive loop. Keeps asking -- in batches of 2-4 -- until self-assessed confidence reaches `CONFIDENCE_THRESHOLD` (default 0.95) on all five dimensions of the rubric, or the user explicitly asks to move on.
+
+**Confidence rubric.** After each answer batch, score each dimension from 0.0 to 1.0:
+
+| Dimension | What it means | Raises score | Lowers score |
+|-----------|---------------|--------------|--------------|
+| `problem_clarity` | I understand the *real* problem, not just the stated request | User articulated a concrete pain and "what they'd stop doing" | Request is solution-shaped with no underlying problem named |
+| `success_criteria` | I know how we'll verify this worked | User gave measurable/observable outcomes | Only vague adjectives ("better", "faster") |
+| `scope_edges` | I know what's in vs. out | User confirmed or excluded related capabilities | Adjacent capabilities remain ambiguous |
+| `hidden_constraints` | I know the non-obvious restrictions | User surfaced timeline, compat, rejected approaches | User gave none and my probing didn't surface any |
+| `why_now` | I understand the triggering context | User named a recent event or deadline | "It just seemed useful" |
+
+**Loop:**
+
+```
+questions_asked = 0
+batch = generate_opening_batch(category=1 first, then 2-4 relevant categories)
+
+while True:
+  ask(batch) via AskUserQuestion
+  wait for answers
+  questions_asked += len(batch)
+
+  scores = self_score_confidence(answers_so_far, rubric)
+  min_score = min(scores.values())
+  log("Confidence: " + format_scores(scores))
+
+  # Exit conditions (checked in order)
+  if min_score >= CONFIDENCE_THRESHOLD and questions_asked >= MIN_QUESTIONS:
+    break
+  if user_said_move_on(answers):
+    break
+  if questions_asked >= MAX_QUESTIONS:
+    # Soft ceiling -- surface confidence and ask permission to continue
+    ask_user_whether_to_continue(scores)
+    if user declines: break
+    # else: continue loop
+
+  # Contradiction check: compare new answers against Step 3a discoveries
+  # and prior answers. A contradiction always spawns a follow-up.
+  contradictions = detect_contradictions(answers, context_summary)
+
+  # Generate next batch targeted at the weakest dimension(s) or contradictions.
+  batch = generate_followup_batch(
+    weakest_dimensions=[d for d,s in scores.items() if s < CONFIDENCE_THRESHOLD],
+    contradictions=contradictions,
+    size=min(4, max(2, num_remaining_gaps)),
+  )
+```
+
+**Surfacing contradictions.** When a user answer conflicts with a Step 3a discovery (e.g., user says "we have no auth today" but the explore agent found an existing auth spec), do NOT paper over it. The next batch includes a direct question: "I found <discovery> which seems to conflict with your answer that <answer>. Can you reconcile these for me?"
+
+**Confidence report.** When the loop exits, print a one-line summary: `Interview complete: <N> questions asked, confidence {problem: 0.95, success: 0.97, scope: 0.92, constraints: 1.0, why_now: 0.95}`. If any dimension is below threshold at exit (because the user moved on), flag it as an explicit assumption in Step 4's proposal.
+
+**STOP -- Do NOT generate any artifacts until the loop exits.**
 
 ### 4. Create Proposal with Approaches [all tiers]
 
@@ -229,6 +320,12 @@ Expected artifact (this step only):
 ### 5. Gate 1: Direction Approval [all tiers]
 
 Present `proposal.md` to the user and ask them to select an approach.
+
+**Latent-intent check (INTERVIEW_MODE=true only).** Before presenting the approach-selection question, surface the trade-off explicitly against the motivation captured in Step 3b category 1:
+
+> "Approach N optimizes for `<X>` and accepts `<trade-off Y>`. Earlier you said the underlying need was `<latent goal Z>`. Does this approach actually get you Z, or are we optimizing for the surface request instead?"
+
+Ask this as a short open-ended AskUserQuestion **before** the selection question. If the user's answer reveals a mismatch, loop back to Step 4 with the corrected objective rather than letting them pick an approach that misses their real goal.
 
 Use **AskUserQuestion** with these options:
 - One option per approach: "Proceed with Approach N: <name>" (description: brief summary of what this means)
