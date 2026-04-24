@@ -1,6 +1,6 @@
 # Roadmap: symphony
 
-> Source: `openspec/roadmaps/symphony/proposal.md` | Status: **planning** | Items: 15
+> Source: `openspec/roadmaps/symphony/proposal.md` | Status: **planning** | Items: 16
 
 
 <!-- GENERATED: begin phase-table -->
@@ -10,19 +10,20 @@
 |----------|------|--------|--------|--------------|
 | 1 | Symphony-style dispatcher daemon | M | candidate | - |
 | 2 | WORKFLOW.md repo-owned policy contract | M | candidate | - |
-| 3 | GitHub Issues tracker adapter | M | candidate | dispatcher-daemon, workflow-md-contract |
+| 3 | Coordinator-native issue tracker adapter (primary) | M | candidate | dispatcher-daemon, workflow-md-contract |
 | 4 | Issue-keyed workspace manager with lifecycle hooks | M | candidate | workflow-md-contract |
 | 5 | Centralized retry queue with exponential backoff | S | candidate | dispatcher-daemon |
 | 6 | Agent-runner port with vendor adapters | L | candidate | dispatcher-daemon, workflow-md-contract |
 | 7 | Turn-based session continuation with tracker re-check | M | candidate | agent-runner-port |
 | 8 | Tracker-state reconciliation and stall detection | M | candidate | retry-queue-backoff, workspace-manager-hooks |
-| 9 | Scoped tracker-GraphQL tool for agents | S | candidate | github-tracker-adapter |
+| 9 | Scoped coordinator-issue tool for agents | S | candidate | coordinator-tracker-adapter |
 | 10 | Token, rate-limit, and run accounting | S | candidate | agent-runner-port |
 | 11 | Operator HTTP status surface | S | candidate | token-ratelimit-accounting |
 | 12 | Trust-posture artifact and deployment-profile binding | M | candidate | workflow-md-contract |
-| 13 | Daemon and coordinator integration | M | candidate | dispatcher-daemon, reconciliation-stall-detection |
-| 14 | Linear tracker adapter (parallel implementation) | S | candidate | github-tracker-adapter |
-| 15 | Harness-readiness audit for Symphony-compatibility | S | candidate | workflow-md-contract, trust-posture-binding |
+| 13 | Daemon and coordinator peer integration | M | candidate | dispatcher-daemon, reconciliation-stall-detection |
+| 14 | GitHub Issues external projection (optional) | S | candidate | coordinator-tracker-adapter |
+| 15 | Linear Issues external projection (optional) | S | candidate | coordinator-tracker-adapter |
+| 16 | Harness-readiness audit for Symphony-compatibility | S | candidate | workflow-md-contract, trust-posture-binding |
 <!-- GENERATED: end phase-table -->
 
 
@@ -33,21 +34,22 @@
 graph TD
     dispatcher-daemon["Symphony-style dispatcher daemon"]
     workflow-md-contract["WORKFLOW.md repo-owned policy contract"]
-    github-tracker-adapter["GitHub Issues tracker adapter"]
+    coordinator-tracker-adapter["Coordinator-native issue tracker adapter"]
     workspace-manager-hooks["Issue-keyed workspace manager with lifec"]
     retry-queue-backoff["Centralized retry queue with exponential"]
     agent-runner-port["Agent-runner port with vendor adapters"]
     turn-based-continuation["Turn-based session continuation with tra"]
     reconciliation-stall-detection["Tracker-state reconciliation and stall d"]
-    tracker-graphql-tool["Scoped tracker-GraphQL tool for agents"]
+    coordinator-issue-tool["Scoped coordinator-issue tool for agents"]
     token-ratelimit-accounting["Token, rate-limit, and run accounting"]
     operator-http-status-surface["Operator HTTP status surface"]
     trust-posture-binding["Trust-posture artifact and deployment-pr"]
-    coordinator-integration["Daemon and coordinator integration"]
-    linear-tracker-adapter["Linear tracker adapter (parallel impleme"]
+    coordinator-integration["Daemon and coordinator peer integration"]
+    github-tracker-adapter["GitHub Issues external projection (optio"]
+    linear-tracker-adapter["Linear Issues external projection (optio"]
     harness-readiness-audit["Harness-readiness audit for Symphony-com"]
-    dispatcher-daemon --> github-tracker-adapter
-    workflow-md-contract --> github-tracker-adapter
+    dispatcher-daemon --> coordinator-tracker-adapter
+    workflow-md-contract --> coordinator-tracker-adapter
     workflow-md-contract --> workspace-manager-hooks
     dispatcher-daemon --> retry-queue-backoff
     dispatcher-daemon --> agent-runner-port
@@ -55,13 +57,14 @@ graph TD
     agent-runner-port --> turn-based-continuation
     retry-queue-backoff --> reconciliation-stall-detection
     workspace-manager-hooks --> reconciliation-stall-detection
-    github-tracker-adapter --> tracker-graphql-tool
+    coordinator-tracker-adapter --> coordinator-issue-tool
     agent-runner-port --> token-ratelimit-accounting
     token-ratelimit-accounting --> operator-http-status-surface
     workflow-md-contract --> trust-posture-binding
     dispatcher-daemon --> coordinator-integration
     reconciliation-stall-detection --> coordinator-integration
-    github-tracker-adapter --> linear-tracker-adapter
+    coordinator-tracker-adapter --> github-tracker-adapter
+    coordinator-tracker-adapter --> linear-tracker-adapter
     workflow-md-contract --> harness-readiness-audit
     trust-posture-binding --> harness-readiness-audit
 ```
@@ -97,19 +100,20 @@ YAML front matter (typed runtime config) plus Jinja-like prompt body with strict
 - [ ] Strict template engine raises on unknown variable or filter
 - [ ] Reload applies within one poll tick without restarting the daemon
 
-### github-tracker-adapter: GitHub Issues tracker adapter
+### coordinator-tracker-adapter: Coordinator-native issue tracker adapter (primary)
 
 - **Status**: candidate
 - **Priority**: 3
 - **Effort**: M
 - **Depends on**: `dispatcher-daemon`, `workflow-md-contract`
 
-Primary tracker adapter: fetch candidate issues by label/state, fetch specific states for reconciliation, fetch terminal issues at startup for cleanup, normalize to the common Issue model (id, identifier, priority, state, labels, blocked_by, timestamps). Uses existing GitHub MCP tooling.
+Primary tracker adapter pointed at the coordinator's built-in issue service (agent-coordinator/src/issue_service.py, migration 017_issue_tracking.sql). Reads candidate issues via MCP/HTTP using existing work_queue + issue extensions (labels, issue_type, parent_id, depends_on UUIDs, assignee, metadata). Status mapping: open=pending, in_progress=running, closed=completed reuses the work-queue lifecycle. Reconciliation and terminal-state fetches route through the same transport the daemon already uses for locks, audit, and guardrails. No external API quotas or tokens required.
 
 **Acceptance outcomes**:
-- [ ] Parity with Symphony's Linear adapter for required fetch operations
-- [ ] Normalized Issue model validated against shared schema
-- [ ] State comparisons are case-insensitive (lowercase normalization)
+- [ ] Daemon polls coordinator issues via same MCP/HTTP transport as other primitives
+- [ ] Labels-based eligibility (e.g. ready-for-agent) and depends_on UUID blockers respected
+- [ ] Status transitions flow through issue_service and are captured in audit_log
+- [ ] Works in both online and coordinator-degraded modes per CAN_QUEUE_WORK capability flag
 
 ### workspace-manager-hooks: Issue-keyed workspace manager with lifecycle hooks
 
@@ -179,18 +183,19 @@ Each poll tick: stop runs whose issues transitioned to terminal/inactive; detect
 - [ ] Terminal-state workspaces cleaned on next startup
 - [ ] Orphan worktrees reconciled against registry
 
-### tracker-graphql-tool: Scoped tracker-GraphQL tool for agents
+### coordinator-issue-tool: Scoped coordinator-issue tool for agents
 
 - **Status**: candidate
 - **Priority**: 9
 - **Effort**: S
-- **Depends on**: `github-tracker-adapter`
+- **Depends on**: `coordinator-tracker-adapter`
 
-Expose a tracker_graphql tool (analog to Symphony's linear_graphql) that lets the agent run scoped GraphQL/REST ops against the active tracker using daemon credentials. One operation per call with an audit-log entry. Primary: GitHub; Linear variant piggybacks on the Linear adapter.
+Agent-callable tool that wraps issue_service operations (transition status, add comment, link PR URL, adjust labels) via the coordinator's MCP/HTTP surface. One scoped operation per call, each automatically captured in audit_log. Replaces Symphony's linear_graphql with a coordinator-native path so agents never hold raw tracker credentials. External projections (GitHub/Linear) receive these changes through their one-way sync, not through the agent tool.
 
 **Acceptance outcomes**:
-- [ ] Agent can transition issue state, post comment, link PR without holding raw credentials
-- [ ] Every invocation writes one audit-log entry
+- [ ] Agent can transition issue state, post comment, link PR without external credentials
+- [ ] Every invocation writes one audit_log entry with issue_id and session_id
+- [ ] Operation surface is intersected with the agent's trust profile
 
 ### token-ratelimit-accounting: Token, rate-limit, and run accounting
 
@@ -212,10 +217,11 @@ Central aggregation of Symphony's codex_totals equivalent: per-run and per-daemo
 - **Effort**: S
 - **Depends on**: `token-ratelimit-accounting`
 
-Optional FastAPI sidecar exposing /api/v1/state (running, claimed, retry_attempts, totals, rate limits), /api/v1/<issue_id>, /healthz, /metrics. Sidecar failures must not crash the daemon.
+Optional FastAPI sidecar exposing /api/v1/state (running, claimed, retry_attempts, totals, rate limits), /api/v1/<issue_id>, /healthz, /metrics, plus a human-readable issues view rendered from coordinator-tracker-adapter. Sidecar failures must not crash the daemon. Provides the UI layer that substitutes for an external tracker.
 
 **Acceptance outcomes**:
 - [ ] Operator can query live state during long unattended runs
+- [ ] Issues view lists coordinator issues with label/status filters
 - [ ] Daemon survives sidecar crashes without state loss
 
 ### trust-posture-binding: Trust-posture artifact and deployment-profile binding
@@ -231,37 +237,51 @@ Require symphony/TRUST_POSTURE.md per deployment declaring approval policy, sand
 - [ ] Daemon refuses to dispatch when posture fields missing or contradictory
 - [ ] Posture changes are audited
 
-### coordinator-integration: Daemon and coordinator integration
+### coordinator-integration: Daemon and coordinator peer integration
 
 - **Status**: candidate
 - **Priority**: 13
 - **Effort**: M
 - **Depends on**: `dispatcher-daemon`, `reconciliation-stall-detection`
 
-Wire the daemon into the coordinator as a peer: register via discovery.py, acquire lock-namespace claims through feature_registry.py on dispatch, write to audit on every state transition, respect guardrails and Cedar policies on pre-flight. Must still operate in COORDINATOR_AVAILABLE=false degraded mode.
+Beyond the tracker adapter, wire the daemon into the coordinator's other primitives: register via discovery.py, acquire lock-namespace claims through feature_registry.py on dispatch, write to audit on every state transition, respect guardrails and Cedar policies on pre-flight. Must still operate in COORDINATOR_AVAILABLE=false degraded mode per capability flags.
 
 **Acceptance outcomes**:
 - [ ] Daemon runs collide-free with human-triggered /implement-feature
 - [ ] End-to-end audit traceability from dispatch to merge
 - [ ] Degrades gracefully when coordinator is unreachable
 
-### linear-tracker-adapter: Linear tracker adapter (parallel implementation)
+### github-tracker-adapter: GitHub Issues external projection (optional)
 
 - **Status**: candidate
 - **Priority**: 14
 - **Effort**: S
-- **Depends on**: `github-tracker-adapter`
+- **Depends on**: `coordinator-tracker-adapter`
 
-Linear GraphQL implementation of the tracker port. Demonstrates that the tracker-port abstraction holds and that we are not locked into one tracker.
+One-way projection from coordinator issues to GitHub Issues for external visibility, human UI, and PR<->issue linking. Runs out of process (e.g. triggered by prioritize-proposals or on issue_service state change). Never reads back from GitHub; coordinator remains the source of truth. Keeps the port-and-adapter pattern intact.
 
 **Acceptance outcomes**:
-- [ ] Swap adapter via tracker.kind in WORKFLOW.md with no daemon code changes
-- [ ] Parity with GitHub adapter for the required fetch operations
+- [ ] Coordinator issue changes appear as GitHub issue updates within N seconds
+- [ ] No back-sync path; GitHub-side edits are ignored
+- [ ] Projection failures do not block the daemon or coordinator
+
+### linear-tracker-adapter: Linear Issues external projection (optional)
+
+- **Status**: candidate
+- **Priority**: 15
+- **Effort**: S
+- **Depends on**: `coordinator-tracker-adapter`
+
+Linear counterpart to the GitHub projection. Demonstrates the external-projection port holds across trackers. Same one-way semantics: coordinator is canonical.
+
+**Acceptance outcomes**:
+- [ ] Swap projection targets via WORKFLOW.md config with no daemon code changes
+- [ ] Feature parity with GitHub projection for required fields
 
 ### harness-readiness-audit: Harness-readiness audit for Symphony-compatibility
 
 - **Status**: candidate
-- **Priority**: 15
+- **Priority**: 16
 - **Effort**: S
 - **Depends on**: `workflow-md-contract`, `trust-posture-binding`
 

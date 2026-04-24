@@ -34,22 +34,28 @@ items:
   - JSON schema rejects malformed fronts with actionable errors
   - Strict template engine raises on unknown variable or filter
   - Reload applies within one poll tick without restarting the daemon
-- item_id: github-tracker-adapter
-  title: GitHub Issues tracker adapter
+- item_id: coordinator-tracker-adapter
+  title: Coordinator-native issue tracker adapter (primary)
   status: candidate
   priority: 3
   effort: M
   depends_on:
   - dispatcher-daemon
   - workflow-md-contract
-  description: 'Primary tracker adapter: fetch candidate issues by label/state, fetch
-    specific states for reconciliation, fetch terminal issues at startup for cleanup,
-    normalize to the common Issue model (id, identifier, priority, state, labels,
-    blocked_by, timestamps). Uses existing GitHub MCP tooling.'
+  description: 'Primary tracker adapter pointed at the coordinator''s built-in issue
+    service (agent-coordinator/src/issue_service.py, migration 017_issue_tracking.sql).
+    Reads candidate issues via MCP/HTTP using existing work_queue + issue extensions
+    (labels, issue_type, parent_id, depends_on UUIDs, assignee, metadata). Status
+    mapping: open=pending, in_progress=running, closed=completed reuses the work-queue
+    lifecycle. Reconciliation and terminal-state fetches route through the same transport
+    the daemon already uses for locks, audit, and guardrails. No external API quotas
+    or tokens required.'
   acceptance_outcomes:
-  - Parity with Symphony's Linear adapter for required fetch operations
-  - Normalized Issue model validated against shared schema
-  - State comparisons are case-insensitive (lowercase normalization)
+  - Daemon polls coordinator issues via same MCP/HTTP transport as other primitives
+  - Labels-based eligibility (e.g. ready-for-agent) and depends_on UUID blockers respected
+  - Status transitions flow through issue_service and are captured in audit_log
+  - Works in both online and coordinator-degraded modes per CAN_QUEUE_WORK capability
+    flag
 - item_id: workspace-manager-hooks
   title: Issue-keyed workspace manager with lifecycle hooks
   status: candidate
@@ -125,20 +131,23 @@ items:
   - Stalled runs killed within stall_timeout_ms
   - Terminal-state workspaces cleaned on next startup
   - Orphan worktrees reconciled against registry
-- item_id: tracker-graphql-tool
-  title: Scoped tracker-GraphQL tool for agents
+- item_id: coordinator-issue-tool
+  title: Scoped coordinator-issue tool for agents
   status: candidate
   priority: 9
   effort: S
   depends_on:
-  - github-tracker-adapter
-  description: 'Expose a tracker_graphql tool (analog to Symphony''s linear_graphql)
-    that lets the agent run scoped GraphQL/REST ops against the active tracker using
-    daemon credentials. One operation per call with an audit-log entry. Primary: GitHub;
-    Linear variant piggybacks on the Linear adapter.'
+  - coordinator-tracker-adapter
+  description: Agent-callable tool that wraps issue_service operations (transition
+    status, add comment, link PR URL, adjust labels) via the coordinator's MCP/HTTP
+    surface. One scoped operation per call, each automatically captured in audit_log.
+    Replaces Symphony's linear_graphql with a coordinator-native path so agents never
+    hold raw tracker credentials. External projections (GitHub/Linear) receive these
+    changes through their one-way sync, not through the agent tool.
   acceptance_outcomes:
-  - Agent can transition issue state, post comment, link PR without holding raw credentials
-  - Every invocation writes one audit-log entry
+  - Agent can transition issue state, post comment, link PR without external credentials
+  - Every invocation writes one audit_log entry with issue_id and session_id
+  - Operation surface is intersected with the agent's trust profile
 - item_id: token-ratelimit-accounting
   title: Token, rate-limit, and run accounting
   status: candidate
@@ -161,10 +170,13 @@ items:
   depends_on:
   - token-ratelimit-accounting
   description: Optional FastAPI sidecar exposing /api/v1/state (running, claimed,
-    retry_attempts, totals, rate limits), /api/v1/<issue_id>, /healthz, /metrics.
-    Sidecar failures must not crash the daemon.
+    retry_attempts, totals, rate limits), /api/v1/<issue_id>, /healthz, /metrics,
+    plus a human-readable issues view rendered from coordinator-tracker-adapter. Sidecar
+    failures must not crash the daemon. Provides the UI layer that substitutes for
+    an external tracker.
   acceptance_outcomes:
   - Operator can query live state during long unattended runs
+  - Issues view lists coordinator issues with label/status filters
   - Daemon survives sidecar crashes without state loss
 - item_id: trust-posture-binding
   title: Trust-posture artifact and deployment-profile binding
@@ -180,37 +192,54 @@ items:
   - Daemon refuses to dispatch when posture fields missing or contradictory
   - Posture changes are audited
 - item_id: coordinator-integration
-  title: Daemon and coordinator integration
+  title: Daemon and coordinator peer integration
   status: candidate
   priority: 13
   effort: M
   depends_on:
   - dispatcher-daemon
   - reconciliation-stall-detection
-  description: 'Wire the daemon into the coordinator as a peer: register via discovery.py,
-    acquire lock-namespace claims through feature_registry.py on dispatch, write to
-    audit on every state transition, respect guardrails and Cedar policies on pre-flight.
-    Must still operate in COORDINATOR_AVAILABLE=false degraded mode.'
+  description: 'Beyond the tracker adapter, wire the daemon into the coordinator''s
+    other primitives: register via discovery.py, acquire lock-namespace claims through
+    feature_registry.py on dispatch, write to audit on every state transition, respect
+    guardrails and Cedar policies on pre-flight. Must still operate in COORDINATOR_AVAILABLE=false
+    degraded mode per capability flags.'
   acceptance_outcomes:
   - Daemon runs collide-free with human-triggered /implement-feature
   - End-to-end audit traceability from dispatch to merge
   - Degrades gracefully when coordinator is unreachable
-- item_id: linear-tracker-adapter
-  title: Linear tracker adapter (parallel implementation)
+- item_id: github-tracker-adapter
+  title: GitHub Issues external projection (optional)
   status: candidate
   priority: 14
   effort: S
   depends_on:
-  - github-tracker-adapter
-  description: Linear GraphQL implementation of the tracker port. Demonstrates that
-    the tracker-port abstraction holds and that we are not locked into one tracker.
+  - coordinator-tracker-adapter
+  description: One-way projection from coordinator issues to GitHub Issues for external
+    visibility, human UI, and PR<->issue linking. Runs out of process (e.g. triggered
+    by prioritize-proposals or on issue_service state change). Never reads back from
+    GitHub; coordinator remains the source of truth. Keeps the port-and-adapter pattern
+    intact.
   acceptance_outcomes:
-  - Swap adapter via tracker.kind in WORKFLOW.md with no daemon code changes
-  - Parity with GitHub adapter for the required fetch operations
+  - Coordinator issue changes appear as GitHub issue updates within N seconds
+  - No back-sync path; GitHub-side edits are ignored
+  - Projection failures do not block the daemon or coordinator
+- item_id: linear-tracker-adapter
+  title: Linear Issues external projection (optional)
+  status: candidate
+  priority: 15
+  effort: S
+  depends_on:
+  - coordinator-tracker-adapter
+  description: 'Linear counterpart to the GitHub projection. Demonstrates the external-projection
+    port holds across trackers. Same one-way semantics: coordinator is canonical.'
+  acceptance_outcomes:
+  - Swap projection targets via WORKFLOW.md config with no daemon code changes
+  - Feature parity with GitHub projection for required fields
 - item_id: harness-readiness-audit
   title: Harness-readiness audit for Symphony-compatibility
   status: candidate
-  priority: 15
+  priority: 16
   effort: S
   depends_on:
   - workflow-md-contract
@@ -222,5 +251,5 @@ items:
   acceptance_outcomes:
   - Report flags at least the five prerequisite categories with actionable hints
   - Integrates with existing bug-scrub report format
-created_at: '2026-04-24T05:29:02.900977+00:00'
-updated_at: '2026-04-24T05:29:02.900977+00:00'
+created_at: '2026-04-24T06:24:27.457690+00:00'
+updated_at: '2026-04-24T06:24:27.457690+00:00'
