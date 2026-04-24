@@ -1,0 +1,17 @@
+# gitleaks configuration — extends the default ruleset with an allowlist for
+# files that intentionally contain fake secret-shaped strings as test fixtures.
+#
+# Convention: only files whose PURPOSE is secret-detection testing belong here.
+# If a file ends up on this list, its contents should be 100% test inputs, so
+# that an accidentally-committed real secret wouldn't have meaningful cover.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Files that contain fake secret-shaped fixtures for testing the sanitizer itself."
+paths = [
+    '''skills/session-log/scripts/test_sanitize_session_log\.py''',
+    '''\.claude/skills/session-log/scripts/test_sanitize_session_log\.py''',
+    '''\.agents/skills/session-log/scripts/test_sanitize_session_log\.py''',
+]
