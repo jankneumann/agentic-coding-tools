@@ -726,35 +726,46 @@ fi
 
 ### 14. Append Session Log
 
-Append a `Validation` phase entry to the session log, then commit and push.
+Construct a `PhaseRecord` for the `Validation` phase and call `write_both()`. Validation phases are typically read-only; emphasize the validation outcomes (pass/fail summary, waivers, deferred issues) in the structured fields rather than free-form prose.
 
-**Phase entry template:**
+**Capture from this validation:**
 
-```markdown
----
+- **Decisions** — Decisions about waivers granted, phases run/skipped, or deferred issues. For clean passes, leave empty (the rendered markdown omits the Decisions section).
+- **Open Questions** — Questions raised by validation that need follow-up (e.g., "Is X behavior intentional?").
+- **Completed Work** — Phases that ran and passed (e.g., `["spec", "evidence", "deploy", "smoke"]`).
+- **Next Steps** — Recommended next workflow step (cleanup, iterate-on-implementation, etc.).
+- **Summary** — 2–3 sentences: what was validated, pass/fail summary, any waivers.
 
-## Phase: Validation (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Context
-<2-3 sentences: what was validated, pass/fail summary, any waivers granted>
-```
-
-**Focus on**: Validation results, phases run, any waivers or deferred issues. For clean validation passes, use "No significant decisions required" in Decisions and focus on Context.
-
-**Sanitize-then-verify:**
+**Persist via `PhaseRecord.write_both()`:**
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name="Validation",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: phases run, pass/fail summary, waivers>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>"),
+    ],
+    completed_work=["spec", "evidence"],   # phases that passed
+    next_steps=["/cleanup-feature <change-id>"],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`). Each step logs warnings on failure but does not raise.
 
 **Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
 
