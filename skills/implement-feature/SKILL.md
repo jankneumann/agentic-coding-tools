@@ -392,46 +392,56 @@ Document patterns, gotchas, and design changes in CLAUDE.md and AGENTS.md.
 
 ### 7.5. Append Session Log [all tiers]
 
-Append an `Implementation` phase entry to the session log, capturing the implementation approach, deviations from plan, and issues encountered.
+Construct a `PhaseRecord` for the `Implementation` phase and call `write_both()`. The structured fields (Decisions, Alternatives, Trade-offs, Completed Work, In Progress, Next Steps, Relevant Files) flow into both the session-log markdown and the coordinator handoff_documents — `wp-integration` and any downstream phase can hydrate the next phase's context from `read_handoff()` rather than re-parsing markdown.
 
-**Phase entry template:**
+**Capture from this implementation:**
 
-```markdown
----
+- **Decisions** — Implementation approach decisions, deviations from plan with rationale, patterns chosen.
+- **Alternatives Considered** — Implementation approaches rejected and why.
+- **Trade-offs** — Trade-offs accepted (e.g., chose simplicity over generality).
+- **Open Questions** — Unresolved questions for validation/cleanup.
+- **Completed Work** — Concrete deliverables landed in this phase (per work-package or per task group).
+- **In Progress** — Work started but not finished (only if any).
+- **Next Steps** — What `validate-feature` should pick up first.
+- **Relevant Files** — Key files produced or substantially modified.
+- **Summary** — 2–3 sentences: what was implemented, deviations from plan.
 
-## Phase: Implementation (<YYYY-MM-DD>)
+**Persist via `PhaseRecord.write_both()`:**
 
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Alternatives Considered
-- <Alternative>: rejected because <reason>
-
-### Trade-offs
-- Accepted <X> over <Y> because <reason>
-
-### Open Questions
-- [ ] <unresolved question>
-
-### Context
-<2-3 sentences: what was implemented, any deviations from plan>
-```
-
-**Focus on**: Implementation approach, deviations from the plan, technical issues encountered, patterns chosen.
-
-**Sanitize-then-verify:**
+This step MUST run BEFORE the `git add .` in Step 8 so the session-log entry is included in the implementation commit.
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision, Alternative, TradeOff, FileRef
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name="Implementation",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: what was implemented, deviations from plan>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>", capability="<kebab-case-capability>"),
+    ],
+    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
+    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
+    open_questions=["<question for validation>"],
+    completed_work=["<deliverable>"],
+    next_steps=["<what validation should check first>"],
+    relevant_files=[FileRef(path="<path>", description="<why it matters>")],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
-
-The session-log.md is included in `git add .` in Step 8.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/implementation-<N>.json`). Each step logs warnings on failure but does not raise. The session-log.md is included in `git add .` in Step 8.
 
 ### 8. Commit Changes [all tiers]
 
