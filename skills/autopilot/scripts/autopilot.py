@@ -51,9 +51,11 @@ class LoopState:
     Schema versions:
         1 — initial
         2 — adds last_handoff_id (phase-record-compaction)
+        3 — adds phase_archetype (per OpenSpec
+            add-per-phase-archetype-resolution; design decision D7)
     """
 
-    schema_version: int = 2
+    schema_version: int = 3
     change_id: str = ""
     current_phase: str = "INIT"
     iteration: int = 0
@@ -75,6 +77,13 @@ class LoopState:
     val_review_enabled: bool = False
     cli_review_enabled: bool = True
     error: str | None = None
+    # NEW (v3): name of the archetype resolved for the current phase. Set by
+    # phase_agent._build_options after a successful coordinator resolution;
+    # remains None when resolution falls back to the harness default (D9) or
+    # for phases where archetype injection is bypassed (operator override
+    # path per D8). Persisted in loop-state.json and emitted in
+    # POST /status/report payloads alongside `phase`.
+    phase_archetype: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -89,9 +98,22 @@ def save_state(state: LoopState, path: str | Path) -> None:
 
 
 def load_state(path: str | Path) -> LoopState:
-    """Deserialize a LoopState from the JSON file at *path*."""
+    """Deserialize a LoopState from the JSON file at *path*.
+
+    Migrates older snapshots forward (D7): v2 files load with
+    ``phase_archetype = None`` and ``schema_version = 3``; the migration is
+    persisted on the next ``save_state`` call.
+    """
     data = json.loads(Path(path).read_text())
-    return LoopState(**{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__})
+    state = LoopState(
+        **{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__}
+    )
+    # v2 → v3 forward migration: bump schema_version on load so callers see
+    # the current shape immediately. phase_archetype defaults to None via the
+    # dataclass default. The new schema_version is persisted on next save.
+    if state.schema_version < 3:
+        state.schema_version = 3
+    return state
 
 
 # ---------------------------------------------------------------------------

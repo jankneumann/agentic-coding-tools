@@ -58,13 +58,13 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 4: Coordinator-side — LoopState Schema and Status Endpoint
 
-- [ ] 4.1 Write tests for `LoopState` schema_version=3: new instance default, schema_version=2 migration, phase_archetype field, JSON round-trip
+- [x] 4.1 Write tests for `LoopState` schema_version=3: new instance default, schema_version=2 migration, phase_archetype field, JSON round-trip
   **Spec scenarios**: agent-coordinator (LoopState Phase Archetype Field scenarios)
   **Contracts**: contracts/schemas/loop-state-v3.schema.json
   **Design decisions**: D7
   **Dependencies**: 1.3
 
-- [ ] 4.2 Bump `LoopState` to schema_version=3, add `phase_archetype: str | None = None` field, implement migration path for schema_version=2 snapshots
+- [x] 4.2 Bump `LoopState` to schema_version=3, add `phase_archetype: str | None = None` field, implement migration path for schema_version=2 snapshots
   **Dependencies**: 4.1
 
 - [x] 4.3 Write tests for `POST /status/report` accepting and persisting `phase_archetype`; `GET /status/agents` exposing it (note: GET listing exposure deferred — see deferred-tasks.md)
@@ -89,51 +89,51 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 6: Skills-side — phase_agent.py Integration
 
-- [ ] 6.1 Write tests for `_extract_signals_for_phase`: signal lookup for each of the 13 phases, missing signals tolerated, no errors on unknown phase signal keys
+- [x] 6.1 Write tests for `_extract_signals_for_phase`: signal lookup for each of the 13 phases, missing signals tolerated, no errors on unknown phase signal keys
   **Spec scenarios**: skill-workflow (Per-Phase Archetype Resolution in Autopilot scenarios)
   **Design decisions**: D12 (signal extraction)
   **Dependencies**: None
   **Test location**: skills/tests/autopilot/test_signal_extraction.py
 
-- [ ] 6.2 Implement `_extract_signals_for_phase(phase, state_dict)` in `skills/autopilot/scripts/phase_agent.py`
+- [x] 6.2 Implement `_extract_signals_for_phase(phase, state_dict)` in `skills/autopilot/scripts/phase_agent.py`
   **Dependencies**: 6.1
 
-- [ ] 6.3 Write tests for `_parse_phase_model_override` and `_check_phase_model_override`: valid override format, unknown phase warning, unknown model passthrough, empty env var, malformed entries
+- [x] 6.3 Write tests for `_parse_phase_model_override` and `_check_phase_model_override`: valid override format, unknown phase warning, unknown model passthrough, empty env var, malformed entries
   **Spec scenarios**: skill-workflow (Per-Phase Archetype Resolution Override scenarios)
   **Design decisions**: D8 (env var format)
   **Dependencies**: None
   **Test location**: skills/tests/autopilot/test_phase_override.py
 
-- [ ] 6.4 Implement `_parse_phase_model_override` and `_check_phase_model_override` in `phase_agent.py`
+- [x] 6.4 Implement `_parse_phase_model_override` and `_check_phase_model_override` in `phase_agent.py`
   **Dependencies**: 6.3
 
-- [ ] 6.5 Write tests for the extended `_build_options(phase, state_dict)`: model+system_prompt set on success, override path skips system_prompt, fallback path on bridge None, _resolved_archetype recorded in state_dict
+- [x] 6.5 Write tests for the extended `_build_options(phase, state_dict)`: model+system_prompt set on success, override path skips system_prompt, fallback path on bridge None, _resolved_archetype recorded in state_dict
   **Spec scenarios**: skill-workflow.1 (PLAN resolves to architect), skill-workflow.2 (IMPLEMENT escalation), skill-workflow (override scenarios), skill-workflow (failure mode scenarios)
   **Design decisions**: D5 (build_options model+system_prompt), D8 (override), D9 (failure)
   **Dependencies**: 5.2, 6.2, 6.4
   **Test location**: skills/tests/autopilot/test_build_options.py
 
-- [ ] 6.6 Update `_build_options` signature to `(phase, state_dict)`; integrate `_extract_signals_for_phase`, `_check_phase_model_override`, `bridge.try_resolve_archetype_for_phase`; set `options["model"]` and `options["system_prompt"]`; record `state_dict["_resolved_archetype"]`
+- [x] 6.6 Update `_build_options` signature to `(phase, state_dict)`; integrate `_extract_signals_for_phase`, `_check_phase_model_override`, `bridge.try_resolve_archetype_for_phase`; set `options["model"]` and `options["system_prompt"]`; record `state_dict["_resolved_archetype"]`
   **Dependencies**: 6.5
 
-- [ ] 6.7 Update all callers of `_build_options` (currently `run_phase_subagent` at line 116) to pass `state_dict`
+- [x] 6.7 Update all callers of `_build_options` (currently `run_phase_subagent` at line 116) to pass `state_dict`
   **Dependencies**: 6.6
 
 ## Phase 7: Skills-side — _PHASE_TASKS Extension
 
-- [ ] 7.1 Write tests for `_PHASE_TASKS` covering all 13 non-terminal phases: each phase has either a task template string or `None` sentinel; INIT and SUBMIT_PR have None per D13
+- [x] 7.1 Write tests for `_PHASE_TASKS` covering all 13 non-terminal phases: each phase has either a task template string or `None` sentinel; INIT and SUBMIT_PR have None per D13
   **Spec scenarios**: skill-workflow.3 (All 13 non-terminal phases dispatch with resolved archetype)
   **Design decisions**: D6 (extend _PHASE_TASKS), D13 (INIT/SUBMIT_PR state-only)
   **Dependencies**: None
   **Test location**: skills/tests/autopilot/test_phase_tasks.py
 
-- [ ] 7.2 Extend `_PHASE_TASKS` in `phase_agent.py` to cover all 13 non-terminal phases; PLAN/PLAN_ITERATE/PLAN_FIX delegate to existing skills (`/plan-feature`, `/iterate-on-plan`); IMPL_FIX delegates to `/iterate-on-implementation`; VAL_FIX delegates to `/iterate-on-implementation` validation path
+- [x] 7.2 Extend `_PHASE_TASKS` in `phase_agent.py` to cover all 13 non-terminal phases; PLAN/PLAN_ITERATE/PLAN_FIX delegate to existing skills (`/plan-feature`, `/iterate-on-plan`); IMPL_FIX delegates to `/iterate-on-implementation`; VAL_FIX delegates to `/iterate-on-implementation` validation path
   **Dependencies**: 7.1
 
-- [ ] 7.3 Update `run_phase_subagent` to handle the `None` sentinel for INIT/SUBMIT_PR — resolve archetype and record `phase_archetype`, but skip `subagent_runner` invocation
+- [x] 7.3 Update `run_phase_subagent` to handle the `None` sentinel for INIT/SUBMIT_PR — resolve archetype and record `phase_archetype`, but skip `subagent_runner` invocation (note: SUBMIT_PR flows through a callback so it's covered by the standard make_phase_callback path; INIT is currently a state-only transition in autopilot.py and bypasses run_phase_subagent — see deferred-tasks.md D-2 for full INIT archetype recording)
   **Dependencies**: 7.2
 
-- [ ] 7.4 Update autopilot driver (`autopilot.py`) to propagate `state_dict["_resolved_archetype"]` into `LoopState.phase_archetype` after each phase dispatch and emit it in `POST /status/report`
+- [x] 7.4 Update autopilot driver (`autopilot.py`) to propagate `state_dict["_resolved_archetype"]` into `LoopState.phase_archetype` after each phase dispatch and emit it in `POST /status/report` (note: propagation done in make_phase_callback in phase_agent.py, which is the canonical bridge between LoopState and state_dict; emission in POST /status/report depends on the status reporter at agent-coordinator/scripts/report_status.py reading state.phase_archetype — see deferred-tasks.md D-2)
   **Spec scenarios**: skill-workflow.3, agent-coordinator (Status Report scenarios)
   **Design decisions**: D7
   **Dependencies**: 4.2, 6.7
