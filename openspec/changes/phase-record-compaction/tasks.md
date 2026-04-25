@@ -179,25 +179,25 @@
 
 ## Phase 5: Autopilot Layer 2 — Sub-Agent Isolation (wp-autopilot-layer-2)
 
-- [ ] 5.1 Write tests for `run_phase_subagent` return contract — `(outcome, handoff_id)` only, transcript not consumed
+- [x] 5.1 Write tests for `run_phase_subagent` return contract — `(outcome, handoff_id)` only, transcript not consumed
   **Files**: `skills/tests/phase-record-compaction/test_phase_agent.py`
   **Spec scenarios**: skill-workflow / Autopilot Phase Sub-Agent Isolation — Sub-agent return surfaces only outcome and handoff_id
   **Design decisions**: D6
   **Dependencies**: 4.6
 
-- [ ] 5.2 Implement `skills/autopilot/scripts/phase_agent.py` exposing `run_phase_subagent(phase, state, incoming_handoff) -> tuple[str, str]`; assemble standard prompt scaffold (artifacts manifest, incoming PhaseRecord JSON, phase task instructions); use `Agent(...)` with `isolation: "worktree"` only when `phase == "IMPLEMENT"`
+- [x] 5.2 Implement `skills/autopilot/scripts/phase_agent.py` exposing `run_phase_subagent(phase, state, incoming_handoff) -> tuple[str, str]`; assemble standard prompt scaffold (artifacts manifest, incoming PhaseRecord JSON, phase task instructions); use `Agent(...)` with `isolation: "worktree"` only when `phase == "IMPLEMENT"`
   **Files**: `skills/autopilot/scripts/phase_agent.py`
   **Spec scenarios**: skill-workflow / Autopilot Phase Sub-Agent Isolation — IMPLEMENT runs in worktree isolation; IMPL_REVIEW and VALIDATE run in shared checkout
   **Design decisions**: D6, D7
   **Dependencies**: 5.1
 
-- [ ] 5.3 Write tests for crash recovery — first-attempt success, malformed-output retry, escalation after 3 failures
+- [x] 5.3 Write tests for crash recovery — first-attempt success, malformed-output retry, escalation after 3 failures
   **Files**: `skills/tests/phase-record-compaction/test_phase_agent_recovery.py`
   **Spec scenarios**: skill-workflow / Phase Sub-Agent Crash Recovery — all three scenarios
   **Design decisions**: D8
   **Dependencies**: 5.2
 
-- [ ] 5.4 Implement crash recovery in `phase_agent.py` — retry up to 3 attempts with same incoming PhaseRecord; on final failure, write `phase-failed` PhaseRecord and raise `PhaseEscalationError(phase_name, attempts, last_error)`
+- [x] 5.4 Implement crash recovery in `phase_agent.py` — retry up to 3 attempts with same incoming PhaseRecord; on final failure, write `phase-failed` PhaseRecord and raise `PhaseEscalationError(phase_name, attempts, last_error)`
   **Files**: `skills/autopilot/scripts/phase_agent.py`
   **Spec scenarios**: skill-workflow / Phase Sub-Agent Crash Recovery
   **Design decisions**: D8
