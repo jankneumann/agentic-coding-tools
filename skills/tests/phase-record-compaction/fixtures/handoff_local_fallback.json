@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-04-25T14:23:51.123456+00:00",
+  "coordinator_error": {
+    "error_type": "unreachable",
+    "message": "HTTPSConnectionPool(host='coord.rotkohl.ai'): Max retries exceeded after 30s",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "autopilot",
+    "session_id": "sess-2026-04-25-9P9o1",
+    "summary": "Wired PhaseRecord through autopilot Layer 1 boundaries. Six handoff sites now populated. Backward-compat snapshot loading verified.",
+    "completed_work": [
+      "Added LoopState.last_handoff_id field with default None",
+      "Bumped LoopState schema_version to 2",
+      "Replaced _maybe_handoff description-string call with PhaseRecord assembly"
+    ],
+    "in_progress": [
+      "Token instrumentation wiring at phase boundaries"
+    ],
+    "decisions": [
+      {
+        "title": "Bump LoopState schema_version to 2",
+        "rationale": "Adding last_handoff_id field requires version increment so serialized snapshots can be migrated forward.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Land token instrumentation",
+      "Hand off to wp-autopilot-layer-2 for sub-agent isolation"
+    ],
+    "relevant_files": [
+      {"path": "skills/autopilot/scripts/autopilot.py", "description": "_maybe_handoff modified at line 712"},
+      {"path": "skills/autopilot/scripts/handoff_builder.py", "description": "New module — per-phase PhaseRecord builders"}
+    ]
+  }
+}

@@ -5,24 +5,24 @@
 
 ## Phase 1: Contracts (wp-contracts)
 
-- [ ] 1.1 Write JSON Schema for `PhaseRecord` at `contracts/schemas/phase-record.schema.json`
+- [x] 1.1 Write JSON Schema for `PhaseRecord` at `contracts/schemas/phase-record.schema.json`
   **Files**: `contracts/schemas/phase-record.schema.json`
   **Spec scenarios**: skill-workflow / Phase Record Data Model — Round-trip equality through markdown
   **Design decisions**: D1, D10
   **Dependencies**: None
 
-- [ ] 1.2 Write JSON Schema for handoff local-file fallback at `contracts/schemas/handoff-local-fallback.schema.json`
+- [x] 1.2 Write JSON Schema for handoff local-file fallback at `contracts/schemas/handoff-local-fallback.schema.json`
   **Files**: `contracts/schemas/handoff-local-fallback.schema.json`
   **Spec scenarios**: skill-workflow / Phase Record Persistence Pipeline — Coordinator unavailable triggers local-file fallback
   **Design decisions**: D3
   **Dependencies**: None
 
-- [ ] 1.3 Write tests asserting JSON Schemas validate sample fixtures
+- [x] 1.3 Write tests asserting JSON Schemas validate sample fixtures
   **Files**: `skills/tests/phase-record-compaction/test_schema_fixtures.py`, `skills/tests/phase-record-compaction/fixtures/phase_record_minimal.json`, `skills/tests/phase-record-compaction/fixtures/phase_record_full.json`, `skills/tests/phase-record-compaction/fixtures/handoff_local_fallback.json`
   **Spec scenarios**: skill-workflow / Phase Record Data Model
   **Dependencies**: 1.1, 1.2
 
-- [ ] 1.4 Write `contracts/README.md` documenting which contract sub-types apply (only schemas; no OpenAPI/DB/event contracts needed)
+- [x] 1.4 Write `contracts/README.md` documenting which contract sub-types apply (only schemas; no OpenAPI/DB/event contracts needed)
   **Files**: `contracts/README.md`
   **Dependencies**: 1.1, 1.2
 
