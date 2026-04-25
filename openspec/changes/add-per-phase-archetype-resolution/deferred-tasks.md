@@ -111,3 +111,37 @@ archetype".
   in the POST body (alongside `phase`).
 - Update `skills/tests/autopilot/test_phase_archetype_e2e.py` (added
   by wp-integration) to assert the round-trip end-to-end.
+
+---
+
+## D-3: Merge-window operator actions
+
+**Origin**: tasks.md 9.4 (install.sh sync) and 9.5 (D10 read-only lock).
+
+**What this implementation does NOT do** (intentional pre-merge deferrals):
+
+1. **Run `skills/install.sh`**: Syncing the runtime skill copies (`.claude/skills/`,
+   `.agents/skills/`) from this branch's `skills/` tree would clobber the
+   more-recent runtime sync from main's commit `d1cbd76` ("re-sync .claude/skills
+   and .agents/skills runtime copies"). The correct moment to run `install.sh` is
+   **after this branch rebases against main**, so the merged tree (including
+   both this change and unrelated runtime updates from main) propagates cleanly.
+
+2. **Pre-register coordinator file lock on `convergence_loop.py`** (D10): This
+   proposal explicitly does not write to `skills/autopilot/scripts/convergence_loop.py`
+   (verified across all 5 implementation commits — no edits to that file). The
+   D10 lock is purely a visibility/coordination courtesy with the
+   `harness-engineering-features` change. Registration requires an authenticated
+   operator session against the coordinator HTTP API and is recorded as a manual
+   step rather than something the implementation does for itself.
+
+**Pickup criteria** (during `/cleanup-feature`):
+- After rebasing this branch on top of latest main, run:
+  ```bash
+  bash skills/install.sh --mode rsync --deps none --python-tools none
+  ```
+  Verify that no runtime-copy mods are silently lost (compare diff against the
+  pre-rebase state).
+- (Optional, advisory) Register the read-only file lock on `convergence_loop.py`
+  via the coordinator HTTP API or MCP tool, with `reason="read-only observation:
+  add-per-phase-archetype-resolution monitors merge state"`.

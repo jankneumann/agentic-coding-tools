@@ -45,4 +45,4 @@
 - **Tests mapped**: 10 requirements have at least one test planned
 - **Evidence collected**: 0/10 (Phase 3 fills after `/validate-feature` runs)
 - **Gaps identified**: ---
-- **Deferred items**: D-1 (`GET /discovery/agents` exposing `phase_archetype`); D-2 (INIT phase archetype recording + status reporter `phase_archetype` emission) — see `deferred-tasks.md`
+- **Deferred items**: D-1 (`GET /discovery/agents` exposing `phase_archetype`); D-2 (INIT phase archetype recording + status reporter `phase_archetype` emission); D-3 (merge-window operator actions: `install.sh` sync after rebase + D10 advisory lock) — see `deferred-tasks.md`
