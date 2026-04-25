@@ -550,46 +550,58 @@ python3 "<skill-base-dir>/../worktree/scripts/worktree.py" pin "<change-id>"
 
 ### 11.5. Append Session Log [all tiers]
 
-Append a `Plan` phase entry to the session log, capturing architecture decisions, scope choices, and tier selection rationale from this planning session.
+Construct a `PhaseRecord` for the `Plan` phase and call `write_both()`. This persists the session-log markdown AND the coordinator handoff from a single in-memory record, so the structured fields (Decisions, Alternatives, Trade-offs, Open Questions) flow into both the human-readable log and the next phase's incoming handoff.
 
-Write the following to `openspec/changes/<change-id>/session-log.md` (the `git add` in Step 11 already covers this file):
+**Capture from this planning session:**
 
-**Phase entry template:**
+- **Decisions** — Architecture decisions, scope boundaries, tier selection rationale. Tag long-lived decisions with `capability="<kebab-case>"` so the per-capability decision index picks them up.
+- **Alternatives Considered** — Approaches considered and rejected during planning, with reasons.
+- **Trade-offs** — Trade-offs accepted, with reasons.
+- **Open Questions** — Unresolved questions for implementation.
+- **Summary** — 2–3 sentences: planning goal and what was decided.
+- **Next Steps** (optional) — What the implementation phase should pick up first.
+- **Relevant Files** (optional) — Key artifacts produced (`proposal.md`, `design.md`, etc.).
 
-```markdown
----
+**Persist via `PhaseRecord.write_both()`:**
 
-## Phase: Plan (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Alternatives Considered
-- <Alternative>: rejected because <reason>
-
-### Trade-offs
-- Accepted <X> over <Y> because <reason>
-
-### Open Questions
-- [ ] <unresolved question>
-
-### Context
-<2-3 sentences: what was the planning goal, what was decided>
-```
-
-**Focus on**: Architecture decisions, scope boundaries, tier selection rationale, key trade-offs made during planning.
-
-**Sanitize-then-verify:**
+This step MUST run BEFORE the `git add` in Step 11 so the session-log entry is included in that commit. If you already committed in Step 11, amend with `git add openspec/changes/<change-id>/ && git commit --amend --no-edit` and re-push.
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision, Alternative, TradeOff, FileRef
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name="Plan",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences on planning goal + decisions>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>", capability="<kebab-case-capability>"),
+    ],
+    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
+    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
+    open_questions=["<question>"],
+    next_steps=["<what implement-feature should tackle first>"],
+    relevant_files=[FileRef(path="openspec/changes/<change-id>/proposal.md", description="approved proposal")],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+`write_both()` runs three best-effort steps internally:
+1. **Append** the rendered markdown to `openspec/changes/<change-id>/session-log.md`
+2. **Sanitize** the file in-place via `sanitize_session_log.py`
+3. **Coordinator handoff** via `try_handoff_write` — falls back to `openspec/changes/<change-id>/handoffs/plan-<N>.json` on failure
+
+Each step logs a warning if it fails but does not raise, so the workflow continues even if the coordinator is unreachable. Verify the rendered `session-log.md`: all populated sections present, no incorrect `[REDACTED:*]` markers, markdown intact. If over-redacted, fix the offending content in your `PhaseRecord` construction and re-run — `write_both()` appends a new entry rather than rewriting in place.
 
 ### 12. Gate 2: Plan Approval [all tiers]
 
