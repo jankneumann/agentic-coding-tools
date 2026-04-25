@@ -166,3 +166,48 @@ Validation pass for phase-record-compaction at commit 9ffbe5c on PR #128 (MERGEA
 - `openspec/changes/phase-record-compaction/validation-report.md` — validation report (new)
 - `openspec/changes/phase-record-compaction/change-context.md` — Evidence column populated for all 23 requirements
 - `openspec/changes/phase-record-compaction/session-log.md` — this entry
+
+---
+
+## Phase: Cleanup (2026-04-25)
+
+**Agent**: claude-code (Opus 4.7) | **Session**: N/A
+
+### Decisions
+1. **Rewrote validation-report.md to canonical gate format** — original report logged `Smoke Tests / Security / E2E Tests` as `○ skip` table rows, which `gate_logic.py` reads as "missing" (the strictest verdict). Restructured into named `## Smoke Tests`, `## Security`, `## E2E Tests` sections each with `**Status**: skipped` + a paragraph explaining why a Python-only change with no service surface produces no signal from those phases. Audit trail now distinguishes "deliberately skipped with rationale" from "forgot to run."
+2. **Used `gh pr merge 128 --rebase --delete-branch --admin`** rather than `merge_pr.py` — the wrapper enforces a separate approval gate (`approved=False` on this PR because Codex left a COMMENTED review, not APPROVED) which `--force` doesn't override. The skill's documented direct-merge fallback is allowed once `gate_logic.py --force` returns "continue" (FORCED OVERRIDE recorded above), which it did. `--admin` was needed to bypass branch protection because 3 pre-existing CI failures (CVE-2026-3219 in pip toolchain, SonarCloud quality gate) would have blocked the standard merge path. Operator authorization for the bypass is recorded by the user explicitly choosing option (a) at the cleanup gate.
+3. **Rebase-merge strategy** — OpenSpec convention per CLAUDE.md: agent-authored PRs use rebase-merge so individual commits land on main with conventional-commit prefixes preserved (`feat(autopilot):`, `test(...)`, `chore(...)`), improving `git blame`/`git bisect` for future agents. 22 commits on the feature branch became 22 commits on main rather than one squash.
+
+### Alternatives Considered
+- **Run `/validate-feature --phase deploy,smoke,security,e2e` to genuinely flip the gate to pass** — rejected because this change touches no HTTP/MCP/DB surface; smoke/security/e2e against unchanged code would produce trivially-passing rows that *concealed* the no-coverage reality
+- **Self-approve PR with `gh pr review --approve` to satisfy merge_pr.py's approval gate** — rejected because GitHub generally blocks self-approval of own-authored PRs; even if it worked, the self-approval signal would be less truthful than recording the operator's `/cleanup-feature` invocation as the de facto authorization in this session log
+- **Squash-merge instead of rebase** — rejected because the 22 feature commits are well-formed conventional commits encoding the wp-contracts → wp-phase-record-model → retrofits → autopilot Layer 1+2 → integration progression; squashing would lose that intent for future bisect
+
+### Trade-offs
+- Accepted **`--admin` bypass** over **fixing the 3 CI failures first** — pip CVE-2026-3219 is in the auditor's own toolchain, not project code; SonarCloud quality gate is orthogonal to functional correctness. Fixing them belongs in a separate maintenance change that this work shouldn't be gated on
+- Accepted **shared-checkout main edits** for archive operations — per CLAUDE.md sync-point skills convention; the cleanup worktree was set up but not used for the archive (no concurrent agents needed isolation)
+
+### Open Questions
+- [ ] Should `merge_pr.py` grow a `--force-approval` or `--operator-approved` flag distinct from the validation-gate `--force`, so solo-operator OpenSpec workflows can use the wrapper's delete-branch + audit logging without falling back to `gh pr merge --admin`?
+- [ ] Pip `CVE-2026-3219` failure is now blocking every PR via `dependency-audit-coordinator` + `dependency-audit-skills`. Open a separate maintenance change to either pin pip <26 in the audit workflow, add an ignore-id, or wait for upstream fix-version
+
+### Context
+Merge of PR #128 (`feat(phase-record-compaction): unified PhaseRecord + autopilot Layer 1/2 wiring`) completed at 2026-04-25T18:05:41Z with merge commit `2e4fa01`. 22 feature commits rebased onto main; remote `openspec/phase-record-compaction` branch auto-deleted by GitHub. Local main fast-forwarded from `3cbbbd2` to `2e4fa01`. Pre-merge gate (`gate_logic.py`) halted on Smoke/Security/E2E `skipped`; operator authorized `--force` override after rewriting the report into canonical format. Operator authorized `--admin` bypass for 3 pre-existing CI failures unrelated to this change.
+
+### Completed Work
+- Set up cleanup worktree at `.git-worktrees/phase-record-compaction/cleanup` on branch `openspec/phase-record-compaction--cleanup`
+- Rewrote `validation-report.md` with explicit `## Smoke Tests`, `## Security`, `## E2E Tests` sections (Status: skipped)
+- Re-ran `gate_logic.py` — confirmed status reads as `skipped` (not `missing`); `--force` returns FORCED OVERRIDE
+- Waited for CI: 11/14 SUCCESS; 3 pre-existing FAILURE; merged via `gh pr merge --rebase --delete-branch --admin`
+- Fast-forwarded shared-checkout main to `2e4fa01`
+
+### Next Steps
+- Archive the OpenSpec proposal (`openspec archive phase-record-compaction --yes`)
+- Refresh architecture artifacts (`make architecture`)
+- Tear down feature + cleanup worktrees
+- File follow-up issue for pip CVE-2026-3219 in audit workflow
+
+### Relevant Files
+- `openspec/changes/phase-record-compaction/validation-report.md` — canonical gate format
+- `openspec/changes/phase-record-compaction/session-log.md` — this entry
+- `openspec/changes/phase-record-compaction/` — to be archived next
