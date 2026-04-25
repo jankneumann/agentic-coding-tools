@@ -76,3 +76,56 @@
 ### Context
 
 Planning the `phase-record-compaction` change to address Opus 4.7's faster context-window accumulation in autopilot runs. The core insight from discussion was that artifacts (proposal.md, tasks.md, review-findings JSONs, validation reports) already capture phase outputs at full fidelity — only the conversation scaffolding around them needs to be discarded at boundaries. The user's mental model — "/clear at phase boundaries, then re-prime with artifacts + compacted handoff" — maps cleanly onto sub-agent isolation with structured handoff payloads. The design unifies the existing session-log and coordinator-handoff persistence mechanisms (currently overlapping ~70% but drifting) behind a single `PhaseRecord` data model, then wires autopilot to populate structured handoffs at existing boundaries (Layer 1) and run heavy phases as ephemeral sub-agents that return only `(outcome, handoff_id)` (Layer 2). Token-counting instrumentation provides a verifiable ≥30% peak-context-reduction success criterion. Approach A (single coordinated change with 6-package DAG) was selected over Approach B (split into model+wiring changes) because the work-package DAG already gives Approach B's parallelism benefit and the integration test pass at `wp-integration` validates end-to-end behavior before merge — something the split approach sacrifices. Risk mitigation: Layer 2 (the highest-risk piece) is positioned as the last leaf, droppable from merge without losing the format unification.
+
+---
+
+## Phase: Implementation — Foundational Checkpoint (2026-04-25)
+
+**Agent**: claude-code (Opus 4.7) | **Session**: N/A
+
+### Decisions
+1. **Adopt foundational-checkpoint execution shape** — User selected this option at implement-time decision point, weighing it against (a) full implementation in one turn, (b) parallel sub-agent dispatch, (c) foundational + skills-retrofit. Reasoning: avoid burning context on the very problem we're solving; ship the load-bearing module + tests + working coordinator integration as a clean checkpoint that downstream packages can consume.
+2. **Restructure `append_phase_entry` into private + public split** — Public `append_phase_entry` is a deprecation-warned shim that calls private `_append_phase_entry_markdown` for the markdown step plus a best-effort coordinator handoff write. Private helper is what `PhaseRecord.write_both()` uses internally. Avoids: (a) DeprecationWarning triggered when write_both calls into the markdown helper, (b) duplicate coordinator writes from write_both → append_phase_entry → coordinator chain.
+3. **Skip legacy shim coordinator write under `PYTEST_CURRENT_TEST` or `SESSION_LOG_LEGACY_HANDOFF=disabled`** — Without this guard the existing test_extract_session_log.py suite ran in 65s (each shim call attempted a real coordinator HTTP call with timeout). With the guard tests run in 0.85s. Production paths are unaffected.
+4. **Use private `_append_phase_entry_markdown` from inside `PhaseRecord.write_both`** `architectural: skill-workflow` — Tagged as architectural decision because future maintainers need to understand the public/private split: write_both must NEVER call the public deprecated shim or it would emit warnings on every workflow phase write.
+
+### Trade-offs
+- Accepted **two API surfaces (private + public)** over **single canonical API** because removing append_phase_entry now would break out-of-tree callers; the shim is shallow and the deprecation warning makes migration discoverable
+- Accepted **best-effort coordinator write in the legacy shim** over **strict no-op** so legacy callers automatically gain the structured-handoff benefit without code changes — the guard env var keeps tests fast
+
+### Open Questions
+- [ ] The 5 remaining packages (wp-skills-retrofit, wp-autopilot-layer-1, wp-autopilot-layer-2, wp-integration) need to be implemented in a follow-up session. They depend on wp-phase-record-model which is now landed and exercised by 65 unit tests.
+- [ ] Should the shim's `_try_legacy_coordinator_handoff` honor a session-id from environment? Currently it constructs a PhaseRecord with `session_id=None` since the legacy API didn't carry one.
+
+### Completed Work
+- Tasks 1.1-1.4 (wp-contracts): JSON Schemas + 13-test fixture suite
+- Tasks 2.1-2.11 (wp-phase-record-model):
+  - PhaseRecord, Decision, Alternative, TradeOff, FileRef, PhaseWriteResult dataclasses (560 LOC)
+  - render_markdown / parse_markdown round-trip with `architectural:` and `supersedes:` span preservation
+  - to_handoff_payload / from_handoff_payload round-trip
+  - 3-step write_both pipeline (markdown → sanitize → coordinator) with best-effort failure semantics
+  - Local-file fallback at `openspec/changes/<id>/handoffs/<phase-slug>-<N>.json` when coordinator unreachable
+  - extract_session_log.py refactored: private `_append_phase_entry_markdown` + public deprecation-warned shim
+  - Session-log template extended in place: Completed Work, In Progress, Next Steps, Relevant Files sections
+  - SKILL.md updated with PhaseRecord API documentation
+  - test_extract_session_log.py extended with 3 tests asserting deprecation contract
+- Quality gates: 100/100 tests pass in 0.85s, mypy strict clean, ruff clean
+
+### In Progress
+- Nothing — clean checkpoint reached.
+
+### Next Steps
+- Continue in fresh session: re-invoke `/implement-feature phase-record-compaction`. Critical-path next: wp-skills-retrofit (6 SKILL.md files) ‖ wp-autopilot-layer-1 (handoff_builder + token meter) → wp-autopilot-layer-2 (sub-agent isolation) → wp-integration (smoke + decision-index check)
+- 27 tasks remain across 4 packages
+
+### Relevant Files
+- `skills/session-log/scripts/phase_record.py` — new module (560 LOC) — PhaseRecord, render/parse, write_both, local-file fallback
+- `skills/session-log/scripts/extract_session_log.py` — refactored: `_append_phase_entry_markdown` (private) + `append_phase_entry` (deprecation-warned shim with best-effort coordinator write)
+- `skills/session-log/SKILL.md` — added PhaseRecord API section + extended phase-entry template (Completed Work, In Progress, Next Steps, Relevant Files)
+- `openspec/schemas/feature-workflow/templates/session-log.md` — added Completed Work and Relevant Files sections
+- `skills/tests/phase-record-compaction/` — new test directory: 65 phase-record tests + 13 schema tests + 3 fixtures
+- `skills/session-log/scripts/test_extract_session_log.py` — 3 new tests for deprecation contract
+- `openspec/changes/phase-record-compaction/change-context.md` — Phase 1 traceability matrix (23 spec scenarios mapped)
+
+### Context
+Implemented the foundational layer of phase-record-compaction in a single conversation turn after the user selected the foundational-checkpoint execution shape. Two work packages landed: wp-contracts (JSON Schemas + 13 fixture-validation tests, already partially completed during planning) and wp-phase-record-model (the full PhaseRecord data model + persistence pipeline + template extension + deprecation shim + 65 unit tests). All quality gates pass (100 tests in 0.85s, mypy strict, ruff). The work is committed and pushable as a clean checkpoint — downstream packages (wp-skills-retrofit, wp-autopilot-layer-1/2, wp-integration) can now be implemented in a follow-up session against a stable PhaseRecord API surface that's exercised by tests and consumed by a working `write_both()` pipeline.

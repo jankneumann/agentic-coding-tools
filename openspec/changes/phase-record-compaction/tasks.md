@@ -28,64 +28,64 @@
 
 ## Phase 2: PhaseRecord Data Model (wp-phase-record-model)
 
-- [ ] 2.1 Write tests for `PhaseRecord` dataclass construction and field validation
+- [x] 2.1 Write tests for `PhaseRecord` dataclass construction and field validation
   **Files**: `skills/tests/phase-record-compaction/test_phase_record_model.py`
   **Spec scenarios**: skill-workflow / Phase Record Data Model — all scenarios
   **Design decisions**: D1
   **Dependencies**: 1.3
 
-- [ ] 2.2 Implement `PhaseRecord`, `Decision`, `Alternative`, `TradeOff`, `FileRef` dataclasses
+- [x] 2.2 Implement `PhaseRecord`, `Decision`, `Alternative`, `TradeOff`, `FileRef` dataclasses
   **Files**: `skills/session-log/scripts/phase_record.py`
   **Spec scenarios**: skill-workflow / Phase Record Data Model
   **Design decisions**: D1
   **Dependencies**: 2.1
 
-- [ ] 2.3 Write tests for `render_markdown()` round-trip and `parse_markdown()`
+- [x] 2.3 Write tests for `render_markdown()` round-trip and `parse_markdown()`
   **Files**: `skills/tests/phase-record-compaction/test_phase_record_markdown.py`
   **Spec scenarios**: skill-workflow / Phase Record Data Model — Round-trip equality through markdown; Empty optional sections render compactly; PhaseRecord Markdown Round-Trip Preserves Decision Index Tags — all scenarios
   **Design decisions**: D10
   **Dependencies**: 2.2
 
-- [ ] 2.4 Implement `PhaseRecord.render_markdown()` and `parse_markdown()` with `architectural:` and `supersedes:` span preservation
+- [x] 2.4 Implement `PhaseRecord.render_markdown()` and `parse_markdown()` with `architectural:` and `supersedes:` span preservation
   **Files**: `skills/session-log/scripts/phase_record.py`
   **Spec scenarios**: skill-workflow / PhaseRecord Markdown Round-Trip Preserves Decision Index Tags
   **Design decisions**: D10
   **Dependencies**: 2.3
 
-- [ ] 2.5 Write tests for `to_handoff_payload()` and `from_handoff_payload()` round-trip
+- [x] 2.5 Write tests for `to_handoff_payload()` and `from_handoff_payload()` round-trip
   **Files**: `skills/tests/phase-record-compaction/test_phase_record_handoff.py`
   **Spec scenarios**: skill-workflow / Phase Record Data Model — Round-trip equality through handoff payload
   **Dependencies**: 2.2
 
-- [ ] 2.6 Implement `to_handoff_payload()` and `from_handoff_payload()` matching `HandoffService.write` arguments
+- [x] 2.6 Implement `to_handoff_payload()` and `from_handoff_payload()` matching `HandoffService.write` arguments
   **Files**: `skills/session-log/scripts/phase_record.py`
   **Spec scenarios**: skill-workflow / Phase Record Data Model
   **Dependencies**: 2.5
 
-- [ ] 2.7 Write tests for `write_both()` — happy path, coordinator unavailable, sanitizer failure, append failure
+- [x] 2.7 Write tests for `write_both()` — happy path, coordinator unavailable, sanitizer failure, append failure
   **Files**: `skills/tests/phase-record-compaction/test_phase_record_write_both.py`
   **Spec scenarios**: skill-workflow / Phase Record Persistence Pipeline — all four scenarios
   **Design decisions**: D2, D3, D4
   **Dependencies**: 2.4, 2.6
 
-- [ ] 2.8 Implement `PhaseRecord.write_both()` three-step pipeline with best-effort failure semantics and local-file fallback
+- [x] 2.8 Implement `PhaseRecord.write_both()` three-step pipeline with best-effort failure semantics and local-file fallback
   **Files**: `skills/session-log/scripts/phase_record.py`
   **Spec scenarios**: skill-workflow / Phase Record Persistence Pipeline
   **Design decisions**: D2, D3, D4
   **Dependencies**: 2.7
 
-- [ ] 2.9 Extend `openspec/schemas/feature-workflow/templates/session-log.md` with `## Completed Work` and `## Relevant Files` sections; update `skills/session-log/SKILL.md` phase-entry template to match
+- [x] 2.9 Extend `openspec/schemas/feature-workflow/templates/session-log.md` with `## Completed Work` and `## Relevant Files` sections; update `skills/session-log/SKILL.md` phase-entry template to match
   **Files**: `openspec/schemas/feature-workflow/templates/session-log.md`, `skills/session-log/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase Record Data Model — Empty optional sections render compactly
   **Dependencies**: 2.8
 
-- [ ] 2.10 Re-implement `append_phase_entry()` as deprecation-warned compatibility shim that constructs a minimal `PhaseRecord` and calls `write_both()`
+- [x] 2.10 Re-implement `append_phase_entry()` as deprecation-warned compatibility shim that constructs a minimal `PhaseRecord` and calls `write_both()`
   **Files**: `skills/session-log/scripts/extract_session_log.py`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption — Legacy append_phase_entry callers continue working
   **Design decisions**: D5
   **Dependencies**: 2.8
 
-- [ ] 2.11 Update `skills/tests/session-log/test_extract_session_log.py` to assert deprecation warning is emitted on `append_phase_entry` call
+- [x] 2.11 Update `skills/tests/session-log/test_extract_session_log.py` to assert deprecation warning is emitted on `append_phase_entry` call
   **Files**: `skills/tests/session-log/test_extract_session_log.py`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption — Legacy append_phase_entry callers continue working
   **Dependencies**: 2.10
