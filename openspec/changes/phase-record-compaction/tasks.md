@@ -149,12 +149,12 @@
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries — Existing autopilot snapshots load without migration
   **Dependencies**: 4.3
 
-- [ ] 4.5 Write tests for `_maybe_handoff` dispatch — calls `handoff_fn(state, PhaseRecord)` instead of description-string; appends `handoff_id` to `state.handoff_ids`; updates `state.last_handoff_id`
+- [x] 4.5 Write tests for `_maybe_handoff` dispatch — calls `handoff_fn(state, PhaseRecord)` instead of description-string; appends `handoff_id` to `state.handoff_ids`; updates `state.last_handoff_id`
   **Files**: `skills/tests/phase-record-compaction/test_autopilot_handoff_dispatch.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries — Handoff is populated on each defined boundary
   **Dependencies**: 4.4, 4.2
 
-- [ ] 4.6 Modify `_maybe_handoff` at `skills/autopilot/scripts/autopilot.py:702-712` to call `handoff_fn(state, build_phase_record(state, prev, next))`; update `handoff_fn` callable signature to `Callable[[LoopState, PhaseRecord], str | None]`; populate `state.handoff_ids` and `state.last_handoff_id` from return value
+- [x] 4.6 Modify `_maybe_handoff` at `skills/autopilot/scripts/autopilot.py:702-712` to call `handoff_fn(state, build_phase_record(state, prev, next))`; update `handoff_fn` callable signature to `Callable[[LoopState, PhaseRecord], str | None]`; populate `state.handoff_ids` and `state.last_handoff_id` from return value
   **Files**: `skills/autopilot/scripts/autopilot.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries
   **Dependencies**: 4.5

@@ -276,7 +276,7 @@ def run_loop(
     implement_fn: Callable[[LoopState], str] | None = None,
     validate_fn: Callable[[LoopState], str] | None = None,
     submit_pr_fn: Callable[[LoopState], str] | None = None,
-    handoff_fn: Callable[[LoopState, str], None] | None = None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None = None,
     memory_fn: Callable[[LoopState, str], str | None] | None = None,
     gate_check_fn: Callable[[LoopState], bool] | None = None,
     converge_fn: Callable[..., Any] | None = None,
@@ -443,7 +443,7 @@ def _run_phase(
     implement_fn: Callable[[LoopState], str] | None,
     validate_fn: Callable[[LoopState], str] | None,
     submit_pr_fn: Callable[[LoopState], str] | None,
-    handoff_fn: Callable[[LoopState, str], None] | None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None,
     memory_fn: Callable[[LoopState, str], str | None] | None,
     gate_check_fn: Callable[[LoopState], bool] | None,
     converge_fn: Callable[..., Any] | None,
@@ -709,10 +709,32 @@ def _maybe_handoff(
     prev_phase: str,
     next_phase: str,
     state: LoopState,
-    handoff_fn: Callable[[LoopState, str], None] | None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None,
 ) -> None:
+    """Dispatch a structured PhaseRecord handoff at known boundaries.
+
+    Builds a PhaseRecord summarizing the just-completed prev_phase via
+    handoff_builder.build_phase_record, calls handoff_fn(state, record),
+    and records the returned handoff_id (if any) on the state.
+
+    handoff_fn signature: ``Callable[[LoopState, PhaseRecord], str | None]``
+    where the return is the coordinator-issued handoff_id (or local
+    fallback marker), or None if no id could be recorded.
+    """
     if handoff_fn is None:
         return
-    if (prev_phase, next_phase) in _HANDOFF_BOUNDARIES:
-        desc = f"Transition {prev_phase} -> {next_phase} for {state.change_id}"
-        handoff_fn(state, desc)
+    if (prev_phase, next_phase) not in _HANDOFF_BOUNDARIES:
+        return
+    try:
+        from handoff_builder import build_phase_record  # type: ignore[import-not-found]
+    except ImportError:
+        logger.warning(
+            "handoff_builder not importable; skipping structured handoff at %s -> %s",
+            prev_phase, next_phase,
+        )
+        return
+    record = build_phase_record(state, prev_phase, next_phase)
+    handoff_id = handoff_fn(state, record)
+    if isinstance(handoff_id, str) and handoff_id:
+        state.handoff_ids.append(handoff_id)
+        state.last_handoff_id = handoff_id
