@@ -203,13 +203,13 @@
   **Design decisions**: D8
   **Dependencies**: 5.3
 
-- [ ] 5.5 Wire `run_phase_subagent` into autopilot for `IMPLEMENT`, `IMPL_REVIEW`, `VALIDATE` phase callbacks; replace inline phase logic with sub-agent dispatch; consume `(outcome, handoff_id)` return only
+- [x] 5.5 Wire `run_phase_subagent` into autopilot for `IMPLEMENT`, `IMPL_REVIEW`, `VALIDATE` phase callbacks; replace inline phase logic with sub-agent dispatch; consume `(outcome, handoff_id)` return only
   **Files**: `skills/autopilot/scripts/autopilot.py`
   **Spec scenarios**: skill-workflow / Autopilot Phase Sub-Agent Isolation
   **Design decisions**: D6
   **Dependencies**: 5.4
 
-- [ ] 5.6 Write tests for `LoopState` opacity — driver context delta after Layer 2 phase return is bounded; sub-agent transcript not in driver state
+- [x] 5.6 Write tests for `LoopState` opacity — driver context delta after Layer 2 phase return is bounded; sub-agent transcript not in driver state
   **Files**: `skills/tests/phase-record-compaction/test_loopstate_opacity.py`
   **Spec scenarios**: skill-workflow / Autopilot Phase Sub-Agent Isolation — Sub-agent return surfaces only outcome and handoff_id
   **Dependencies**: 5.5

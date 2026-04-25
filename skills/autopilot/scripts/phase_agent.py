@@ -307,7 +307,122 @@ def _write_phase_failed_record(
         )
 
 
+# ---------------------------------------------------------------------------
+# Driver-facing wiring helper
+# ---------------------------------------------------------------------------
+
+
+def make_phase_callback(
+    *,
+    phase: str,
+    subagent_runner: SubagentRunner,
+    incoming_handoff_loader: Callable[[str | None], PhaseRecord] | None = None,
+    artifacts_manifest: list[str] | None = None,
+    coordinator_writer: Any = None,
+) -> Callable[[Any], str]:
+    """Produce an autopilot-compatible phase callback wrapping run_phase_subagent.
+
+    The returned callback matches autopilot's existing callback signature
+    ``(state) -> outcome`` while internally:
+      1. Loading the incoming PhaseRecord from state.last_handoff_id
+         (via incoming_handoff_loader, e.g. a coordinator read_handoff).
+      2. Calling ``run_phase_subagent`` with the assembled prompt scaffold.
+      3. Mutating ``state.last_handoff_id`` and ``state.handoff_ids`` with
+         the returned handoff_id.
+      4. Returning ONLY the outcome string to the driver.
+
+    This realizes Layer 2 — the driver-side LoopState delta after the
+    callback returns is bounded to ``last_handoff_id`` + one new entry in
+    ``handoff_ids``. The sub-agent's transcript stays inside this module.
+
+    Args:
+        phase: Phase id to dispatch (e.g. "IMPLEMENT").
+        subagent_runner: Runner that invokes the harness Agent tool.
+        incoming_handoff_loader: ``Callable[[handoff_id | None], PhaseRecord]``
+            used to hydrate the previous phase's record. The default loader
+            constructs an empty bootstrap record when last_handoff_id is None
+            (typical at the very first transition).
+        artifacts_manifest: Optional repo-relative paths to include in the
+            standard prompt scaffold.
+        coordinator_writer: Forwarded to run_phase_subagent for the failure
+            path's phase-failed record.
+
+    Returns:
+        ``(state) -> outcome`` callable suitable for use as
+        ``implement_fn``, ``validate_fn``, or the IMPL_REVIEW phase wrapper
+        in autopilot.run_loop.
+    """
+    loader = incoming_handoff_loader or _default_incoming_loader
+
+    def callback(state: Any) -> str:
+        last_id = getattr(state, "last_handoff_id", None)
+        incoming = loader(last_id)
+        if incoming.change_id == "" and getattr(state, "change_id", ""):
+            incoming.change_id = state.change_id
+
+        state_dict = _state_snapshot(state)
+        outcome, handoff_id = run_phase_subagent(
+            phase=phase,
+            state_dict=state_dict,
+            incoming_handoff=incoming,
+            subagent_runner=subagent_runner,
+            artifacts_manifest=artifacts_manifest,
+            coordinator_writer=coordinator_writer,
+        )
+        # Bounded driver-side state delta — D6
+        state.last_handoff_id = handoff_id
+        if hasattr(state, "handoff_ids"):
+            state.handoff_ids.append(handoff_id)
+        return outcome
+
+    return callback
+
+
+def _default_incoming_loader(handoff_id: str | None) -> PhaseRecord:
+    """Bootstrap loader — returns an empty PhaseRecord when no prior handoff.
+
+    Production use should pass a loader that calls ``read_handoff`` against
+    the coordinator (or reads the local fallback file) and returns a
+    hydrated PhaseRecord. This default exists so make_phase_callback works
+    in tests without coordinator access.
+    """
+    return PhaseRecord(
+        change_id="",
+        phase_name="bootstrap",
+        agent_type="autopilot",
+        summary=(
+            f"No incoming handoff (last_handoff_id={handoff_id!r}). "
+            "Bootstrap phase entry."
+        ),
+    )
+
+
+def _state_snapshot(state: Any) -> dict[str, Any]:
+    """Extract a serializable snapshot of LoopState for the sub-agent prompt.
+
+    Pulls only fields the sub-agent actually needs to reason about the
+    phase. The sub-agent gets its work-context from the incoming handoff
+    and on-disk artifacts, not from the LoopState directly — keeping the
+    snapshot small reduces prompt-size pressure.
+    """
+    fields_of_interest = (
+        "change_id",
+        "current_phase",
+        "iteration",
+        "total_iterations",
+        "max_phase_iterations",
+        "findings_trend",
+        "previous_phase",
+    )
+    out: dict[str, Any] = {}
+    for name in fields_of_interest:
+        if hasattr(state, name):
+            out[name] = getattr(state, name)
+    return out
+
+
 __all__ = [
     "PhaseEscalationError",
+    "make_phase_callback",
     "run_phase_subagent",
 ]
