@@ -77,14 +77,14 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 5: Skills-side — Bridge Helper
 
-- [ ] 5.1 Write tests for `try_resolve_archetype_for_phase`: 200 success returns dict, HTTP 5xx returns None, timeout returns None, structured warning logged
+- [x] 5.1 Write tests for `try_resolve_archetype_for_phase`: 200 success returns dict, HTTP 5xx returns None, timeout returns None, structured warning logged
   **Spec scenarios**: agent-coordinator (Phase Archetype Resolution Bridge Helper scenarios), skill-workflow (Per-Phase Archetype Resolution Failure Mode scenarios)
   **Contracts**: contracts/openapi/v1.yaml
   **Design decisions**: D4 (bridge helper), D9 (failure mode)
   **Dependencies**: 1.1
   **Test location**: skills/tests/coordination-bridge/test_archetype_resolve.py
 
-- [ ] 5.2 Implement `try_resolve_archetype_for_phase(phase, signals) -> dict | None` in `skills/coordination-bridge/scripts/coordination_bridge.py`
+- [x] 5.2 Implement `try_resolve_archetype_for_phase(phase, signals) -> dict | None` in `skills/coordination-bridge/scripts/coordination_bridge.py`
   **Dependencies**: 5.1
 
 ## Phase 6: Skills-side — phase_agent.py Integration
