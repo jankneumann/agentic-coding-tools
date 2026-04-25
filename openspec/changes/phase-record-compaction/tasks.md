@@ -92,49 +92,49 @@
 
 ## Phase 3: Skill Retrofits (wp-skills-retrofit) — Parallelizable Sub-Tasks
 
-- [ ] 3.1 Retrofit `plan-feature` SKILL.md Step 11.5 to use `PhaseRecord.write_both()` instead of `append_phase_entry`
+- [x] 3.1 Retrofit `plan-feature` SKILL.md Step 11.5 to use `PhaseRecord.write_both()` instead of `append_phase_entry`
   **Files**: `skills/plan-feature/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption — A skill produces matching session-log and coordinator content
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.2 Retrofit `iterate-on-plan` SKILL.md to use `PhaseRecord.write_both()`
+- [x] 3.2 Retrofit `iterate-on-plan` SKILL.md to use `PhaseRecord.write_both()`
   **Files**: `skills/iterate-on-plan/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.3 Retrofit `implement-feature` SKILL.md to use `PhaseRecord.write_both()`
+- [x] 3.3 Retrofit `implement-feature` SKILL.md to use `PhaseRecord.write_both()`
   **Files**: `skills/implement-feature/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.4 Retrofit `iterate-on-implementation` SKILL.md to use `PhaseRecord.write_both()`
+- [x] 3.4 Retrofit `iterate-on-implementation` SKILL.md to use `PhaseRecord.write_both()`
   **Files**: `skills/iterate-on-implementation/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.5 Retrofit `validate-feature` SKILL.md to use `PhaseRecord.write_both()`
+- [x] 3.5 Retrofit `validate-feature` SKILL.md to use `PhaseRecord.write_both()`
   **Files**: `skills/validate-feature/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.6 Retrofit `cleanup-feature` SKILL.md to use `PhaseRecord.write_both()`
+- [x] 3.6 Retrofit `cleanup-feature` SKILL.md to use `PhaseRecord.write_both()`
   **Files**: `skills/cleanup-feature/SKILL.md`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption
   **Dependencies**: 2.8, 2.9
 
-- [ ] 3.7 Write integration test: each retrofitted skill produces matching `session-log.md` and `handoff_documents` content for the same phase
+- [x] 3.7 Write integration test: each retrofitted skill produces matching `session-log.md` and `handoff_documents` content for the same phase
   **Files**: `skills/tests/phase-record-compaction/test_skills_integration.py`
   **Spec scenarios**: skill-workflow / Phase-Boundary Skill PhaseRecord Adoption — A skill produces matching session-log and coordinator content
   **Dependencies**: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
 
 ## Phase 4: Autopilot Layer 1 — Handoff Wiring (wp-autopilot-layer-1)
 
-- [ ] 4.1 Write tests for `build_phase_record(state, prev, next)` — produces valid `PhaseRecord` for each `_HANDOFF_BOUNDARIES` pair
+- [x] 4.1 Write tests for `build_phase_record(state, prev, next)` — produces valid `PhaseRecord` for each `_HANDOFF_BOUNDARIES` pair
   **Files**: `skills/tests/phase-record-compaction/test_handoff_builder.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries — Handoff is populated on each defined boundary
   **Dependencies**: 2.8
 
-- [ ] 4.2 Implement `skills/autopilot/scripts/handoff_builder.py` with `build_phase_record(state, prev, next) -> PhaseRecord` and per-phase builders
+- [x] 4.2 Implement `skills/autopilot/scripts/handoff_builder.py` with `build_phase_record(state, prev, next) -> PhaseRecord` and per-phase builders
   **Files**: `skills/autopilot/scripts/handoff_builder.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries
   **Dependencies**: 4.1
