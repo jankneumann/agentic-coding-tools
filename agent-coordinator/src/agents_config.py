@@ -26,6 +26,24 @@ logger = logging.getLogger(__name__)
 
 ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
 
+# Non-terminal autopilot phases that may be mapped to archetypes (per design D11).
+# Terminal phases (DONE, ESCALATE, ERROR) are not mapped.
+NON_TERMINAL_PHASES: tuple[str, ...] = (
+    "INIT",
+    "PLAN",
+    "PLAN_ITERATE",
+    "PLAN_REVIEW",
+    "PLAN_FIX",
+    "IMPLEMENT",
+    "IMPL_ITERATE",
+    "IMPL_REVIEW",
+    "IMPL_FIX",
+    "VALIDATE",
+    "VAL_REVIEW",
+    "VAL_FIX",
+    "SUBMIT_PR",
+)
+
 # ---------------------------------------------------------------------------
 # JSON Schema for archetypes.yaml validation
 # ---------------------------------------------------------------------------
@@ -34,7 +52,9 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["schema_version", "archetypes"],
     "properties": {
-        "schema_version": {"type": "integer", "const": 1},
+        # schema_version=2 enables phase_mapping per OpenSpec
+        # add-per-phase-archetype-resolution; v1 remains valid for legacy configs.
+        "schema_version": {"type": "integer", "enum": [1, 2]},
         "archetypes": {
             "type": "object",
             "minProperties": 1,
@@ -76,6 +96,26 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                     },
                 },
                 "additionalProperties": False,
+            },
+        },
+        "phase_mapping": {
+            "type": ["object", "null"],
+            "propertyNames": {"enum": list(NON_TERMINAL_PHASES)},
+            "additionalProperties": {
+                "type": "object",
+                "required": ["archetype"],
+                "additionalProperties": False,
+                "properties": {
+                    "archetype": {
+                        "type": "string",
+                        "pattern": ARCHETYPE_NAME_PATTERN,
+                    },
+                    "signals": {
+                        "type": "array",
+                        "uniqueItems": True,
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                },
             },
         },
     },
@@ -321,6 +361,34 @@ class ArchetypeConfig:
     model: str
     system_prompt: str
     escalation: EscalationConfig | None = None
+
+
+@dataclass
+class PhaseMappingEntry:
+    """One entry in the ``phase_mapping`` section of ``archetypes.yaml``.
+
+    Maps an autopilot phase to an archetype name plus the list of signal keys
+    that ``_extract_signals_for_phase`` (skills side) reads from ``state_dict``
+    for this phase. Coordinator-side resolution silently drops any signal whose
+    key is not in :attr:`signals`.
+    """
+
+    archetype: str
+    signals: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ResolvedArchetype:
+    """Result of :func:`resolve_archetype_for_phase`.
+
+    Returned to clients of ``POST /archetypes/resolve_for_phase`` and to
+    in-process callers (autopilot phase agent via the bridge helper).
+    """
+
+    model: str
+    system_prompt: str
+    archetype: str
+    reasons: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -735,10 +803,16 @@ def load_archetypes_config(
     Returns a dict mapping archetype names to :class:`ArchetypeConfig`.
     Uses the global cache — subsequent calls return the same dict.
 
+    Also populates the parallel ``_phase_mapping`` cache when the file
+    contains a ``phase_mapping`` section (schema_version=2). The mapping is
+    accessible via :func:`get_phase_mapping`. Raises ``ValueError`` if a
+    ``phase_mapping`` entry references an archetype that is not defined in
+    the same file.
+
     If the file does not exist, returns an empty dict and logs a warning
     (design decision D5: graceful degradation).
     """
-    global _archetypes
+    global _archetypes, _phase_mapping
     if _archetypes is not None:
         return _archetypes
 
@@ -748,6 +822,7 @@ def load_archetypes_config(
     if not path.exists():
         logger.warning("archetypes.yaml not found at %s — falling back to ambient model", path)
         _archetypes = {}
+        _phase_mapping = {}
         return _archetypes
 
     with open(path) as fh:
@@ -776,11 +851,29 @@ def load_archetypes_config(
             escalation=esc_config,
         )
 
+    # Phase mapping (optional, schema_version=2). Validate archetype refs after
+    # all archetypes are constructed so cross-references resolve.
+    raw_mapping = raw.get("phase_mapping") or {}
+    phase_mapping: dict[str, PhaseMappingEntry] = {}
+    for phase_name, entry_data in raw_mapping.items():
+        archetype_name = entry_data["archetype"]
+        if archetype_name not in result:
+            raise ValueError(
+                f"phase_mapping[{phase_name!r}] references undefined archetype "
+                f"{archetype_name!r}; defined archetypes: {sorted(result.keys())}"
+            )
+        phase_mapping[phase_name] = PhaseMappingEntry(
+            archetype=archetype_name,
+            signals=list(entry_data.get("signals", [])),
+        )
+
     _archetypes = result
+    _phase_mapping = phase_mapping
     return _archetypes
 
 
 _archetypes: dict[str, ArchetypeConfig] | None = None
+_phase_mapping: dict[str, PhaseMappingEntry] | None = None
 
 
 def get_archetype(name: str) -> ArchetypeConfig | None:
@@ -797,10 +890,23 @@ def get_archetype(name: str) -> ArchetypeConfig | None:
     return archetype
 
 
+def get_phase_mapping() -> dict[str, PhaseMappingEntry]:
+    """Return the loaded phase_mapping. Loads from the default path on miss.
+
+    Returns ``{}`` for legacy ``schema_version=1`` configs that omit
+    ``phase_mapping`` entirely (per spec agent-archetypes.1).
+    """
+    global _phase_mapping
+    if _phase_mapping is None:
+        load_archetypes_config()
+    return _phase_mapping if _phase_mapping is not None else {}
+
+
 def reset_archetypes_config() -> None:
-    """Reset the global archetypes config cache (for testing)."""
-    global _archetypes
+    """Reset the global archetypes + phase_mapping caches (for testing)."""
+    global _archetypes, _phase_mapping
     _archetypes = None
+    _phase_mapping = None
 
 
 # ---------------------------------------------------------------------------
@@ -847,6 +953,7 @@ def resolve_model(
     package_metadata: dict[str, Any],
     *,
     return_reasons: bool = False,
+    phase: str | None = None,
 ) -> str | tuple[str, list[str]]:
     """Resolve the effective model for a work package.
 
@@ -859,6 +966,9 @@ def resolve_model(
         package_metadata: Dict with optional keys: ``write_allow``,
             ``dependencies``, ``loc_estimate``, ``complexity``.
         return_reasons: If True, return a tuple of (model, reasons).
+        phase: Optional autopilot phase name. Currently used only to enrich
+            log messages (design decision D3); does not change escalation
+            behavior. Reserved for future phase-specific escalation rules.
 
     Returns:
         The resolved model string, or (model, reasons) if *return_reasons*.
@@ -886,10 +996,99 @@ def resolve_model(
 
     if reasons:
         escalated_model = rules.escalate_to
-        logger.info(
-            "Escalating %s to %s: %s",
-            archetype.name, escalated_model, ", ".join(reasons),
-        )
+        if phase:
+            logger.info(
+                "Escalating %s to %s for phase %s: %s",
+                archetype.name, escalated_model, phase, ", ".join(reasons),
+            )
+        else:
+            logger.info(
+                "Escalating %s to %s: %s",
+                archetype.name, escalated_model, ", ".join(reasons),
+            )
         return (escalated_model, reasons) if return_reasons else escalated_model
 
     return (archetype.model, []) if return_reasons else archetype.model
+
+
+# ---------------------------------------------------------------------------
+# Phase-aware archetype resolution (D2: coordinator-owned phase mapping)
+# ---------------------------------------------------------------------------
+
+
+def resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+) -> ResolvedArchetype:
+    """Resolve archetype, model, and system_prompt for an autopilot phase.
+
+    Looks up *phase* in the ``phase_mapping`` section of ``archetypes.yaml``,
+    resolves the configured archetype, and runs the standard escalation
+    pipeline against *signals* (filtered to the keys listed in the phase
+    entry's ``signals`` field — unknown keys are silently dropped).
+
+    Args:
+        phase: One of the 13 non-terminal autopilot phase names.
+        signals: Free-form signal dict from the caller; only keys listed in
+            the phase entry's ``signals`` are used for escalation.
+
+    Returns:
+        A :class:`ResolvedArchetype` carrying the model, system prompt,
+        archetype name, and a reasons trace.
+
+    Raises:
+        KeyError: If *phase* is not present in ``phase_mapping``.
+        RuntimeError: If the cached archetypes config has been mutated such
+            that the phase entry's archetype reference is no longer valid.
+    """
+    if _phase_mapping is None:
+        load_archetypes_config()
+    mapping = _phase_mapping if _phase_mapping is not None else {}
+
+    if phase not in mapping:
+        raise KeyError(
+            f"Phase {phase!r} not found in phase_mapping; "
+            f"defined phases: {sorted(mapping.keys()) or 'none'}"
+        )
+
+    entry = mapping[phase]
+    archetype = get_archetype(entry.archetype)
+    if archetype is None:
+        # Validated at load time; this branch only fires if the cache is mutated.
+        raise RuntimeError(
+            f"phase_mapping[{phase!r}] references undefined archetype "
+            f"{entry.archetype!r} (cache may be stale; call "
+            f"reset_archetypes_config() and reload)"
+        )
+
+    # Filter signals to keys listed in the phase entry — security-style
+    # whitelist that mirrors the spec's "unknown keys silently dropped" rule.
+    filtered: dict[str, Any] = {
+        k: v for k, v in (signals or {}).items() if k in entry.signals
+    }
+
+    model_result = resolve_model(
+        archetype,
+        filtered,
+        return_reasons=True,
+        phase=phase,
+    )
+    # When return_reasons=True, the return type is the tuple branch.
+    assert isinstance(model_result, tuple), (
+        "resolve_model with return_reasons=True must return tuple"
+    )
+    model, escalation_reasons = model_result
+
+    reasons: list[str] = [
+        f"phase={phase} maps to archetype={archetype.name}",
+        *escalation_reasons,
+    ]
+    if not escalation_reasons:
+        reasons.append("no escalation triggered")
+
+    return ResolvedArchetype(
+        model=model,
+        system_prompt=archetype.system_prompt,
+        archetype=archetype.name,
+        reasons=reasons,
+    )

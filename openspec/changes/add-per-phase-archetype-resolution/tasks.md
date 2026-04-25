@@ -24,36 +24,36 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 2: Coordinator-side — Schema and Resolution Function
 
-- [ ] 2.1 Write tests for `load_archetypes_config` with `phase_mapping` section
+- [x] 2.1 Write tests for `load_archetypes_config` with `phase_mapping` section
   **Spec scenarios**: agent-archetypes.1 (Phase mapping is loaded), agent-archetypes.2 (Older without phase_mapping), agent-archetypes.3 (undefined archetype reference)
   **Contracts**: contracts/schemas/archetypes-config-v2.schema.json
   **Design decisions**: D1
   **Dependencies**: 1.2
 
-- [ ] 2.2 Extend `agent-coordinator/src/agents_config.py:load_archetypes_config` to parse `phase_mapping`; add `PhaseMappingEntry` dataclass; bump archetype schema_version handling
+- [x] 2.2 Extend `agent-coordinator/src/agents_config.py:load_archetypes_config` to parse `phase_mapping`; add `PhaseMappingEntry` dataclass; bump archetype schema_version handling
   **Dependencies**: 2.1
 
-- [ ] 2.3 Update `agent-coordinator/archetypes.yaml` to schema_version 2 with the 13-phase mapping (per D11 default table)
+- [x] 2.3 Update `agent-coordinator/archetypes.yaml` to schema_version 2 with the 13-phase mapping (per D11 default table)
   **Design decisions**: D11 (default phase mapping)
   **Dependencies**: 2.2
 
-- [ ] 2.4 Write tests for `resolve_archetype_for_phase` covering known phase, unknown phase (KeyError), and escalation-triggering signals
+- [x] 2.4 Write tests for `resolve_archetype_for_phase` covering known phase, unknown phase (KeyError), and escalation-triggering signals
   **Spec scenarios**: agent-archetypes (Phase Archetype Resolution Function scenarios)
   **Design decisions**: D3 (phase kwarg), D11 (default mapping)
   **Dependencies**: 2.1
 
-- [ ] 2.5 Implement `resolve_archetype_for_phase(phase, signals) -> ResolvedArchetype` in `agent-coordinator/src/agents_config.py`; thread optional `phase` kwarg through `resolve_model` reasons output
+- [x] 2.5 Implement `resolve_archetype_for_phase(phase, signals) -> ResolvedArchetype` in `agent-coordinator/src/agents_config.py`; thread optional `phase` kwarg through `resolve_model` reasons output
   **Dependencies**: 2.2, 2.4
 
 ## Phase 3: Coordinator-side — HTTP Endpoint
 
-- [ ] 3.1 Write tests for `POST /archetypes/resolve_for_phase`: 200 success, 400 malformed, 401 missing key, 404 unknown phase, audit log entry written
+- [x] 3.1 Write tests for `POST /archetypes/resolve_for_phase`: 200 success, 400 malformed, 401 missing key, 404 unknown phase, audit log entry written
   **Spec scenarios**: agent-coordinator.1 (resolution endpoint returns archetype), agent-coordinator.2 (audit trail), agent-coordinator.3 (unknown phase 404), agent-archetypes (Endpoint Contract scenarios)
   **Contracts**: contracts/openapi/v1.yaml
   **Design decisions**: D2
   **Dependencies**: 1.1, 2.5
 
-- [ ] 3.2 Implement `POST /archetypes/resolve_for_phase` handler in `agent-coordinator/src/coordination_api.py`; wire X-API-Key auth; call `resolve_archetype_for_phase`; emit audit event
+- [x] 3.2 Implement `POST /archetypes/resolve_for_phase` handler in `agent-coordinator/src/coordination_api.py`; wire X-API-Key auth; call `resolve_archetype_for_phase`; emit audit event
   **Dependencies**: 3.1
 
 ## Phase 4: Coordinator-side — LoopState Schema and Status Endpoint
@@ -67,12 +67,12 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 - [ ] 4.2 Bump `LoopState` to schema_version=3, add `phase_archetype: str | None = None` field, implement migration path for schema_version=2 snapshots
   **Dependencies**: 4.1
 
-- [ ] 4.3 Write tests for `POST /status/report` accepting and persisting `phase_archetype`; `GET /status/agents` exposing it
+- [x] 4.3 Write tests for `POST /status/report` accepting and persisting `phase_archetype`; `GET /status/agents` exposing it (note: GET listing exposure deferred — see deferred-tasks.md)
   **Spec scenarios**: agent-coordinator (Status Report Payload Phase Archetype Field scenarios)
   **Design decisions**: D7
   **Dependencies**: 4.1
 
-- [ ] 4.4 Extend `POST /status/report` handler to accept and persist `phase_archetype`; extend `GET /status/agents` listing
+- [x] 4.4 Extend `POST /status/report` handler to accept and persist `phase_archetype`; extend `GET /status/agents` listing (note: GET listing exposure deferred — see deferred-tasks.md)
   **Dependencies**: 4.3
 
 ## Phase 5: Skills-side — Bridge Helper
