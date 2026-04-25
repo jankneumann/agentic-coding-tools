@@ -215,6 +215,27 @@ class StatusReportRequest(BaseModel):
     needs_human: bool = False
     event_type: str = Field(default="status.phase_transition", max_length=64)
     metadata: dict[str, Any] | None = None
+    # NEW (OpenSpec add-per-phase-archetype-resolution / agent-coordinator.3):
+    # Optional name of the archetype resolved for the current phase. Older
+    # clients omit this field (no 400 — backward compatible).
+    phase_archetype: str | None = Field(default=None, max_length=64)
+
+
+class ResolveForPhaseRequest(BaseModel):
+    """Request body for ``POST /archetypes/resolve_for_phase``.
+
+    Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
+          agent-archetypes/spec.md -- Phase Archetype Resolution Endpoint Contract.
+    """
+
+    phase: str = Field(max_length=64, description="Non-terminal autopilot phase name.")
+    signals: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Free-form signal dict; coordinator filters to keys listed in "
+            "phase_mapping[phase].signals."
+        ),
+    )
 
 
 class MergeQueueEnqueueRequest(BaseModel):
@@ -1874,6 +1895,69 @@ def create_coordination_api() -> FastAPI:
         return {"full_suite_required": False, "test_files": result}
 
     # --------------------------------------------------------------------- #
+    # ARCHETYPES — per-phase resolution
+    # --------------------------------------------------------------------- #
+
+    @app.post("/archetypes/resolve_for_phase")
+    async def resolve_archetype_for_phase_endpoint(
+        request: ResolveForPhaseRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Resolve archetype + model + system_prompt for an autopilot phase.
+
+        See OpenSpec change `add-per-phase-archetype-resolution`:
+        - specs/agent-coordinator/spec.md (Phase Archetype Resolution Endpoint)
+        - specs/agent-archetypes/spec.md  (Phase Archetype Resolution Endpoint Contract)
+        - contracts/openapi/v1.yaml#/paths/~1archetypes~1resolve_for_phase
+
+        Audit: emits a coordination operation `resolve_archetype_for_phase`
+        with phase + resolved {archetype, model} on every successful call.
+        """
+        from .agents_config import resolve_archetype_for_phase as _resolve
+        from .audit import get_audit_service
+
+        try:
+            resolved = _resolve(request.phase, request.signals)
+        except KeyError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": str(exc), "phase": request.phase},
+            ) from exc
+        except RuntimeError as exc:
+            # Cache mutation / undefined archetype reference at lookup time.
+            raise HTTPException(
+                status_code=500,
+                detail={"error": str(exc), "phase": request.phase},
+            ) from exc
+
+        # Best-effort audit. Failures here MUST NOT block the resolution.
+        try:
+            await get_audit_service().log_operation(
+                agent_id=principal.get("agent_id"),
+                agent_type=principal.get("agent_type"),
+                operation="resolve_archetype_for_phase",
+                parameters={"phase": request.phase, "signals": request.signals},
+                result={
+                    "archetype": resolved.archetype,
+                    "model": resolved.model,
+                },
+                success=True,
+            )
+        except Exception:  # noqa: BLE001
+            import logging as _logging
+            _logging.getLogger(__name__).debug(
+                "Audit logging failed for resolve_archetype_for_phase",
+                exc_info=True,
+            )
+
+        return {
+            "model": resolved.model,
+            "system_prompt": resolved.system_prompt,
+            "archetype": resolved.archetype,
+            "reasons": list(resolved.reasons),
+        }
+
+    # --------------------------------------------------------------------- #
     # STATUS REPORTING
     # --------------------------------------------------------------------- #
 
@@ -1905,7 +1989,10 @@ def create_coordination_api() -> FastAPI:
         if request.needs_human and urgency != "high":
             urgency = "high"
 
-        # Emit coordinator_status NOTIFY via event bus
+        # Emit coordinator_status NOTIFY via event bus.
+        # phase_archetype (when present) flows into the event context so
+        # downstream observers can correlate phase ↔ archetype without a
+        # separate query (per agent-coordinator.3).
         event = CoordinatorEvent(
             event_type=request.event_type,
             channel="coordinator_status",
@@ -1916,6 +2003,7 @@ def create_coordination_api() -> FastAPI:
             change_id=request.change_id or None,
             context={
                 "phase": request.phase,
+                "phase_archetype": request.phase_archetype,
                 "needs_human": request.needs_human,
                 **(request.metadata or {}),
             },

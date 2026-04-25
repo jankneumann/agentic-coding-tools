@@ -1,0 +1,168 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Phase Archetype Resolution API
+  version: 0.1.0
+  description: |
+    HTTP endpoint for resolving an archetype's model and system prompt given an
+    autopilot phase name and signal dictionary. Used by `coordination_bridge`
+    from `skills/autopilot/scripts/phase_agent.py` to populate sub-agent dispatch
+    options with per-phase model selection.
+
+servers:
+  - url: https://coord.rotkohl.ai
+    description: Cloud coordinator
+  - url: http://localhost:8081
+    description: Local coordinator
+
+paths:
+  /archetypes/resolve_for_phase:
+    post:
+      summary: Resolve an archetype for an autopilot phase
+      description: |
+        Returns the model, system_prompt, archetype name, and reasons for a given
+        autopilot phase name and signal dict. Errors with 404 if the phase has no
+        mapping in `archetypes.yaml`.
+      operationId: resolveArchetypeForPhase
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveForPhaseRequest"
+            example:
+              phase: PLAN
+              signals:
+                capabilities_touched: 3
+      responses:
+        "200":
+          description: Resolution succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolveForPhaseResponse"
+              example:
+                model: opus
+                system_prompt: "You are a software architect. Focus on cross-cutting concerns..."
+                archetype: architect
+                reasons:
+                  - "phase=PLAN maps to archetype=architect"
+                  - "no escalation triggered"
+        "400":
+          description: Malformed request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: about:blank
+                title: Bad Request
+                status: 400
+                detail: "Missing required field 'phase'"
+        "401":
+          description: Missing or invalid API key
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: about:blank
+                title: Unauthorized
+                status: 401
+                detail: "Missing X-API-Key header"
+        "404":
+          description: Phase not found in phase_mapping
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                detail: "Phase 'BOGUS' not found in phase_mapping"
+        "500":
+          description: Archetype configuration error
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    ResolveForPhaseRequest:
+      type: object
+      required: [phase]
+      additionalProperties: false
+      properties:
+        phase:
+          type: string
+          description: Autopilot phase name (must be one of the 13 non-terminal phases)
+          enum:
+            - INIT
+            - PLAN
+            - PLAN_ITERATE
+            - PLAN_REVIEW
+            - PLAN_FIX
+            - IMPLEMENT
+            - IMPL_ITERATE
+            - IMPL_REVIEW
+            - IMPL_FIX
+            - VALIDATE
+            - VAL_REVIEW
+            - VAL_FIX
+            - SUBMIT_PR
+        signals:
+          type: object
+          description: Free-form signal dict; coordinator filters to keys listed in phase_mapping[phase].signals
+          additionalProperties: true
+          example:
+            capabilities_touched: 3
+            iteration_count: 1
+
+    ResolveForPhaseResponse:
+      type: object
+      required: [model, system_prompt, archetype, reasons]
+      additionalProperties: false
+      properties:
+        model:
+          type: string
+          description: Resolved model name (e.g., "opus", "sonnet", "haiku")
+        system_prompt:
+          type: string
+          description: Archetype's system prompt
+        archetype:
+          type: string
+          description: Resolved archetype name
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Human-readable explanation of how the resolution was made (phase mapping, escalation triggers, etc.)
+          minItems: 1
+
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem details
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri

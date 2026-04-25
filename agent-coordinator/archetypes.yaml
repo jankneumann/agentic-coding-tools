@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 
 archetypes:
   architect:
@@ -47,3 +47,54 @@ archetypes:
       You are a documentation writer. Update specs, changelogs, and architecture
       artifacts to match implementation reality. Be precise and concise. Follow
       existing formatting conventions.
+
+# ---------------------------------------------------------------------------
+# Phase mapping (OpenSpec change add-per-phase-archetype-resolution, D11).
+#
+# Maps each non-terminal autopilot phase to an archetype. Per-phase signal
+# lists tell the skills-side _extract_signals_for_phase what to lift from
+# state_dict; coordinator-side resolve_archetype_for_phase silently drops
+# any signal whose key is not in this list.
+#
+# Tunable in this YAML — no code changes needed.
+# ---------------------------------------------------------------------------
+phase_mapping:
+  PLAN:
+    archetype: architect
+    signals: [capabilities_touched]
+  PLAN_ITERATE:
+    archetype: architect
+    signals: [capabilities_touched, iteration_count]
+  PLAN_REVIEW:
+    archetype: reviewer
+    signals: [proposal_loc, capabilities_touched]
+  PLAN_FIX:
+    archetype: architect
+    signals: [findings_severity, findings_count]
+  IMPLEMENT:
+    archetype: implementer
+    signals: [loc_estimate, write_allow, dependencies, complexity]
+  IMPL_ITERATE:
+    archetype: implementer
+    signals: [iteration_count, write_allow]
+  IMPL_REVIEW:
+    archetype: reviewer
+    signals: [files_changed, lines_changed]
+  IMPL_FIX:
+    archetype: implementer
+    signals: [findings_severity, findings_count]
+  VALIDATE:
+    archetype: analyst
+    signals: [test_count, suite_duration]
+  VAL_REVIEW:
+    archetype: reviewer
+    signals: [findings_severity]
+  VAL_FIX:
+    archetype: implementer
+    signals: [findings_severity]
+  INIT:
+    archetype: runner
+    signals: []
+  SUBMIT_PR:
+    archetype: runner
+    signals: []

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -36,6 +37,14 @@ _SESSION_LOG_SCRIPTS = _THIS_DIR.parent.parent / "session-log" / "scripts"
 if str(_SESSION_LOG_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SESSION_LOG_SCRIPTS))
 
+# Bridge for the per-phase archetype resolution endpoint (OpenSpec
+# add-per-phase-archetype-resolution; design D4). Imported lazily at module
+# load so tests can monkeypatch try_resolve_archetype_for_phase.
+_BRIDGE_SCRIPTS = _THIS_DIR.parent.parent / "coordination-bridge" / "scripts"
+if str(_BRIDGE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_SCRIPTS))
+
+import coordination_bridge  # type: ignore[import-not-found]  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -47,6 +56,32 @@ _WORKTREE_PHASES: set[str] = {"IMPLEMENT"}
 
 # Crash-recovery cap (D8).
 _MAX_ATTEMPTS = 3
+
+# Per-phase signal keys to lift from state_dict for the coordinator's
+# resolve_archetype_for_phase endpoint (design D12). Mirrors the `signals`
+# field in agent-coordinator/archetypes.yaml -> phase_mapping. Keep this
+# list synchronized with that YAML when phase semantics change.
+_PHASE_SIGNAL_KEYS: dict[str, list[str]] = {
+    "INIT":         [],
+    "PLAN":         ["capabilities_touched"],
+    "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
+    "PLAN_REVIEW":  ["proposal_loc", "capabilities_touched"],
+    "PLAN_FIX":     ["findings_severity", "findings_count"],
+    "IMPLEMENT":    ["loc_estimate", "write_allow", "dependencies", "complexity"],
+    "IMPL_ITERATE": ["iteration_count", "write_allow"],
+    "IMPL_REVIEW":  ["files_changed", "lines_changed"],
+    "IMPL_FIX":     ["findings_severity", "findings_count"],
+    "VALIDATE":     ["test_count", "suite_duration"],
+    "VAL_REVIEW":   ["findings_severity"],
+    "VAL_FIX":      ["findings_severity"],
+    "SUBMIT_PR":    [],
+}
+
+# Operator override env var (D8): "PHASE=model[,PHASE=model]*". Forces a
+# specific model for the named phase; sets options["model"] only — the
+# system_prompt is left to the harness default to keep override behavior
+# predictable.
+_PHASE_MODEL_OVERRIDE_ENV = "AUTOPILOT_PHASE_MODEL_OVERRIDE"
 
 
 class PhaseEscalationError(Exception):
@@ -113,7 +148,7 @@ def run_phase_subagent(
     Raises:
         PhaseEscalationError: After ``max_attempts`` consecutive failures.
     """
-    options = _build_options(phase)
+    options = _build_options(phase, state_dict)
     prompt = _build_prompt(phase, state_dict, incoming_handoff, artifacts_manifest)
 
     last_error = "no error captured"
@@ -156,10 +191,112 @@ def run_phase_subagent(
 # ---------------------------------------------------------------------------
 
 
-def _build_options(phase: str) -> dict[str, Any]:
+def _extract_signals_for_phase(phase: str, state_dict: dict[str, Any]) -> dict[str, Any]:
+    """Lift the per-phase signal keys from *state_dict*.
+
+    Returns a dict containing only those keys listed in
+    :data:`_PHASE_SIGNAL_KEYS` for *phase* and present in *state_dict*.
+    Missing keys are silently dropped (per spec D12). Unknown phases get
+    an empty dict — they pass no signals and the coordinator falls back
+    to the archetype default model.
+    """
+    keys = _PHASE_SIGNAL_KEYS.get(phase, [])
+    return {k: state_dict[k] for k in keys if k in state_dict}
+
+
+def _parse_phase_model_override(raw: str | None) -> dict[str, str]:
+    """Parse ``AUTOPILOT_PHASE_MODEL_OVERRIDE`` into ``{phase: model}``.
+
+    Format: ``<PHASE>=<model>[,<PHASE>=<model>]*``. Whitespace around
+    keys/values is tolerated. Per spec D8:
+
+    - Empty input returns ``{}``.
+    - Entries missing ``=`` are warned and skipped.
+    - Unknown phase names (not in :data:`_PHASE_SIGNAL_KEYS`) are warned
+      and skipped — typo protection.
+    - Empty model values are warned and skipped.
+    - Unknown model names pass through (validated downstream by the harness).
+    """
+    if not raw or not raw.strip():
+        return {}
+    out: dict[str, str] = {}
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        if "=" not in entry:
+            logger.warning(
+                "%s: malformed entry %r (missing '='); skipping",
+                _PHASE_MODEL_OVERRIDE_ENV, entry,
+            )
+            continue
+        phase, model = entry.split("=", 1)
+        phase = phase.strip()
+        model = model.strip()
+        if phase not in _PHASE_SIGNAL_KEYS:
+            logger.warning(
+                "%s: unknown phase %r; skipping (known phases: %s)",
+                _PHASE_MODEL_OVERRIDE_ENV, phase, sorted(_PHASE_SIGNAL_KEYS.keys()),
+            )
+            continue
+        if not model:
+            logger.warning(
+                "%s: empty model for phase %r; skipping",
+                _PHASE_MODEL_OVERRIDE_ENV, phase,
+            )
+            continue
+        out[phase] = model
+    return out
+
+
+def _check_phase_model_override(phase: str) -> str | None:
+    """Return the override model for *phase* if set in the env var, else None."""
+    overrides = _parse_phase_model_override(os.environ.get(_PHASE_MODEL_OVERRIDE_ENV))
+    return overrides.get(phase)
+
+
+def _build_options(phase: str, state_dict: dict[str, Any]) -> dict[str, Any]:
+    """Assemble sub-agent dispatch options for *phase*.
+
+    Resolution order (precedence high → low):
+      1. ``AUTOPILOT_PHASE_MODEL_OVERRIDE`` env var (D8) — sets ``model``
+         only; leaves ``system_prompt`` to the harness default.
+      2. Coordinator archetype resolution (D5) — sets both ``model`` and
+         ``system_prompt`` from the resolved archetype, and records the
+         archetype name in ``state_dict["_resolved_archetype"]`` so
+         ``make_phase_callback`` can propagate it to ``LoopState.phase_archetype``.
+      3. Bridge failure (D9) — leaves ``options`` without ``model`` /
+         ``system_prompt``; the harness default applies; phase still
+         dispatches normally.
+
+    ``isolation="worktree"`` is set independently for phases in
+    :data:`_WORKTREE_PHASES`.
+
+    Mutates *state_dict* by writing ``_resolved_archetype`` only on the
+    archetype-resolution path (path 2). The override path (path 1) does
+    NOT record an archetype because the operator's choice carries no
+    archetype semantics.
+    """
     options: dict[str, Any] = {}
     if phase in _WORKTREE_PHASES:
         options["isolation"] = "worktree"
+
+    # Path 1: operator override
+    override = _check_phase_model_override(phase)
+    if override:
+        options["model"] = override
+        return options
+
+    # Path 2: coordinator archetype resolution
+    signals = _extract_signals_for_phase(phase, state_dict)
+    resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, signals)
+    if resolved is not None:
+        options["model"] = resolved["model"]
+        options["system_prompt"] = resolved["system_prompt"]
+        state_dict["_resolved_archetype"] = resolved["archetype"]
+    # Path 3 (bridge None): leave options untouched. The bridge already
+    # logs a structured warning; no need to double-log here.
+
     return options
 
 
@@ -223,30 +360,93 @@ def _safe_state_dict(state_dict: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-_PHASE_TASKS: dict[str, str] = {
+# Per spec D6: every non-terminal phase has a _PHASE_TASKS entry. State-only
+# phases (INIT, SUBMIT_PR per D13) use a None sentinel — they record their
+# resolved archetype for audit (via the autopilot driver) but do not dispatch
+# a sub-agent.
+_PHASE_TASKS: dict[str, str | None] = {
+    "INIT": None,  # D13: state-only — no sub-agent dispatch
+    "PLAN": (
+        "Run /plan-feature for the change described in state.change_id.\n"
+        "Produce proposal.md, design.md, tasks.md, work-packages.yaml, and\n"
+        "specs/. Return outcome 'created' (or 'exists' if already present),\n"
+        "'failed' on unrecoverable error."
+    ),
+    "PLAN_ITERATE": (
+        "Run /iterate-on-plan for state.change_id. Refine the proposal\n"
+        "across completeness, clarity, feasibility, scope, consistency,\n"
+        "testability, parallelizability, and assumptions axes. Return\n"
+        "outcome 'complete' when refinements settle, 'failed' otherwise."
+    ),
+    "PLAN_REVIEW": (
+        "Run /parallel-review-plan for state.change_id (multi-vendor plan\n"
+        "review). Aggregate findings into a structured PhaseRecord. Return\n"
+        "outcome 'converged' if no blocking findings, 'not_converged'\n"
+        "otherwise, 'max_iter' once max_phase_iterations is exhausted."
+    ),
+    "PLAN_FIX": (
+        "Apply review findings from the previous PLAN_REVIEW handoff via\n"
+        "/iterate-on-plan in fix mode. Return outcome 'fixed' on success,\n"
+        "'stuck' if findings cannot be resolved within the budget."
+    ),
     "IMPLEMENT": (
         "Implement the next slice of work per tasks.md. Commit per task.\n"
         "Push commits to the feature branch. Return outcome 'continue' on\n"
         "success, 'escalate' on unrecoverable error."
+    ),
+    "IMPL_ITERATE": (
+        "Run /iterate-on-implementation for state.change_id. Refine the\n"
+        "implementation by fixing bugs, edge cases, and quality issues.\n"
+        "Return outcome 'complete' when refinements settle, 'failed' otherwise."
     ),
     "IMPL_REVIEW": (
         "Run multi-vendor review against the implementation. Aggregate\n"
         "findings into a structured PhaseRecord. Return outcome 'converged'\n"
         "if no blocking findings, 'iterate' otherwise."
     ),
+    "IMPL_FIX": (
+        "Apply review findings from the previous IMPL_REVIEW handoff via\n"
+        "/iterate-on-implementation in fix mode. Return outcome 'fixed'\n"
+        "on success, 'stuck' if findings cannot be resolved within budget."
+    ),
     "VALIDATE": (
         "Run validation phases (spec, evidence, deploy, smoke, security,\n"
         "e2e) per validate-feature. Aggregate results into a PhaseRecord.\n"
         "Return outcome 'continue' on PASS, 'escalate' on FAIL."
     ),
+    "VAL_REVIEW": (
+        "Review validation findings from the previous VALIDATE handoff.\n"
+        "Identify blocking failures vs. acceptable warnings. Return outcome\n"
+        "'converged' if validation passes critique, 'not_converged' otherwise."
+    ),
+    "VAL_FIX": (
+        "Apply validation findings via /iterate-on-implementation focused\n"
+        "on the specific failures (test fixes, security findings, etc.).\n"
+        "Return outcome 'fixed' on success, 'stuck' otherwise."
+    ),
+    "SUBMIT_PR": None,  # D13: state-only — no sub-agent dispatch
 }
 
 
 def _phase_task_instructions(phase: str) -> str:
-    return _PHASE_TASKS.get(
-        phase,
-        f"Execute phase {phase}. Return (outcome, handoff_id) on completion.",
-    )
+    """Return the task instruction string for *phase*.
+
+    Falls back to a generic execute-and-report instruction for unknown
+    phases (backward-compat with phase strings outside the registered
+    13 non-terminal phases). State-only phases (None sentinel) get a
+    short audit-only instruction; they should not be reaching this
+    function under normal autopilot dispatch.
+    """
+    entry = _PHASE_TASKS.get(phase)
+    if entry is None:
+        if phase in _PHASE_TASKS:
+            # State-only sentinel — emit a short audit-only instruction.
+            return (
+                f"Phase {phase} is a state-only transition. No sub-agent work.\n"
+                "Return ('continue', '<audit-only-handoff-id>')."
+            )
+        return f"Execute phase {phase}. Return (outcome, handoff_id) on completion."
+    return entry
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +574,13 @@ def make_phase_callback(
         state.last_handoff_id = handoff_id
         if hasattr(state, "handoff_ids"):
             state.handoff_ids.append(handoff_id)
+        # D7: propagate the archetype name resolved by _build_options into
+        # LoopState.phase_archetype for audit/observability. Override path
+        # and bridge-failure path leave _resolved_archetype unset, so we
+        # explicitly null the field for those cases (so downstream
+        # observability surfaces "default-fallback" phases).
+        if hasattr(state, "phase_archetype"):
+            state.phase_archetype = state_dict.get("_resolved_archetype")
         return outcome
 
     return callback
