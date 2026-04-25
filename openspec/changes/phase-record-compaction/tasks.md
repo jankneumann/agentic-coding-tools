@@ -216,24 +216,21 @@
 
 ## Phase 6: Integration & Validation (wp-integration)
 
-- [ ] 6.1 Run full pytest suite across `skills/tests/`, `skills/autopilot/scripts/tests/`, `agent-coordinator/tests/` — assert all existing tests pass plus all new tests pass
+- [x] 6.1 Run full pytest suite across `skills/tests/`, `skills/autopilot/scripts/tests/`, `agent-coordinator/tests/` — assert all existing tests pass plus all new tests pass
   **Spec scenarios**: All
   **Dependencies**: 5.6, 4.9, 3.7
 
-- [ ] 6.2 Run `make decisions` against the corpus before and after this change; assert byte-identical output for `docs/decisions/<capability>.md` files
+- [x] 6.2 Run `make decisions` against the corpus before and after this change; assert byte-identical output for `docs/decisions/<capability>.md` files
   **Spec scenarios**: skill-workflow / PhaseRecord Markdown Round-Trip Preserves Decision Index Tags — Decision index regenerator output is unchanged
   **Design decisions**: D10
   **Dependencies**: 2.4
 
-- [ ] 6.3 Smoke-run a representative mid-size feature through autopilot end-to-end (e.g., a small bug-fix proposal) with token instrumentation enabled; collect `phase_token_pre`/`post` audit entries; compute peak-context-reduction percentage
-  **Spec scenarios**: Success Criterion 4 (≥30% peak-context-window reduction)
-  **Design decisions**: D9
-  **Dependencies**: 6.1
+<!-- 6.3 deferred — see deferred-tasks.md for rationale and follow-up plan -->
 
-- [ ] 6.4 Run `openspec validate phase-record-compaction --strict`; fix any spec format errors
+- [x] 6.4 Run `openspec validate phase-record-compaction --strict`; fix any spec format errors
   **Spec scenarios**: All
   **Dependencies**: 5.6, 4.9, 3.7
 
-- [ ] 6.5 Run mypy strict + ruff on all modified files; fix type/lint errors
+- [x] 6.5 Run mypy strict + ruff on all modified files; fix type/lint errors
   **Files**: `skills/session-log/scripts/phase_record.py`, `skills/autopilot/scripts/handoff_builder.py`, `skills/autopilot/scripts/phase_agent.py`, `skills/autopilot/scripts/phase_token_meter.py`, `skills/autopilot/scripts/autopilot.py`
   **Dependencies**: 6.1

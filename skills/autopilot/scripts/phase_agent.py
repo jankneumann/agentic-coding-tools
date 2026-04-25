@@ -357,8 +357,9 @@ def make_phase_callback(
     def callback(state: Any) -> str:
         last_id = getattr(state, "last_handoff_id", None)
         incoming = loader(last_id)
-        if incoming.change_id == "" and getattr(state, "change_id", ""):
-            incoming.change_id = state.change_id
+        state_change_id = getattr(state, "change_id", None)
+        if incoming.change_id == "" and isinstance(state_change_id, str) and state_change_id:
+            incoming.change_id = state_change_id
 
         state_dict = _state_snapshot(state)
         outcome, handoff_id = run_phase_subagent(
