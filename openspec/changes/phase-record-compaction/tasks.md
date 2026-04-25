@@ -159,13 +159,13 @@
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries
   **Dependencies**: 4.5
 
-- [ ] 4.7 Write tests for `phase_token_meter.py` — SDK path, proxy fallback, disabled path
+- [x] 4.7 Write tests for `phase_token_meter.py` — SDK path, proxy fallback, disabled path
   **Files**: `skills/tests/phase-record-compaction/test_phase_token_meter.py`
   **Spec scenarios**: skill-workflow / Context Window Token Instrumentation — all three scenarios
   **Design decisions**: D9
   **Dependencies**: None
 
-- [ ] 4.8 Implement `skills/autopilot/scripts/phase_token_meter.py` with `measure_context(messages) -> int`; SDK primary, proxy fallback, env-var disable
+- [x] 4.8 Implement `skills/autopilot/scripts/phase_token_meter.py` with `measure_context(messages) -> int`; SDK primary, proxy fallback, env-var disable
   **Files**: `skills/autopilot/scripts/phase_token_meter.py`
   **Spec scenarios**: skill-workflow / Context Window Token Instrumentation
   **Design decisions**: D9
