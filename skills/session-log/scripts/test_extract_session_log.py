@@ -3,19 +3,65 @@
 from __future__ import annotations
 
 import tempfile
+import warnings
 from pathlib import Path
 
 import pytest
-
 from extract_session_log import (
+    _append_phase_entry_markdown,
     append_merge_entry,
     append_phase_entry,
     count_phase_iterations,
     generate_self_summary_prompt,
 )
 
+# --- Deprecation contract ---
 
-# --- append_phase_entry ---
+
+class TestAppendPhaseEntryDeprecation:
+    """append_phase_entry is now a deprecation-warned shim around
+    PhaseRecord.write_both(). Existing markdown behavior is preserved
+    (no diff in session-log.md output) but each call must emit a
+    DeprecationWarning to prompt migration."""
+
+    def test_emits_deprecation_warning(self, tmp_path: Path) -> None:
+        log_path = tmp_path / "session-log.md"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            append_phase_entry(
+                "c", "Plan", "### Context\nbody.", session_log_path=log_path
+            )
+        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert len(deprecation_warnings) == 1
+        msg = str(deprecation_warnings[0].message)
+        assert "append_phase_entry" in msg
+        assert "PhaseRecord" in msg
+
+    def test_warning_does_not_block_path_return(self, tmp_path: Path) -> None:
+        """The shim must still return the Path on success even with the warning."""
+        log_path = tmp_path / "session-log.md"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            result = append_phase_entry(
+                "c", "Plan", "body.", session_log_path=log_path
+            )
+        assert result == log_path
+        assert log_path.exists()
+
+    def test_internal_helper_does_not_warn(self, tmp_path: Path) -> None:
+        """The private _append_phase_entry_markdown is the un-deprecated path
+        used by PhaseRecord.write_both() — it must not emit a warning."""
+        log_path = tmp_path / "session-log.md"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _append_phase_entry_markdown(
+                "c", "Plan", "body.", session_log_path=log_path
+            )
+        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert deprecation_warnings == []
+
+
+# --- append_phase_entry (markdown behavior preserved) ---
 
 
 class TestAppendPhaseEntry:

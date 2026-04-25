@@ -59,6 +59,48 @@ python3 scripts/sanitize_session_log.py input.md output.md --dry-run
 
 **Exit codes**: 0 = success, 1 = sanitization error (do NOT commit the output).
 
+### `scripts/phase_record.py` (preferred API)
+
+Unified data model that renders to both session-log markdown AND coordinator handoff JSON from a single in-memory object. Use this in place of `append_phase_entry` for new code.
+
+**Dataclasses**: `PhaseRecord`, `Decision`, `Alternative`, `TradeOff`, `FileRef`, `PhaseWriteResult`.
+
+**Usage from Python (skill entry-point)**:
+
+```python
+from phase_record import PhaseRecord, Decision, FileRef
+
+record = PhaseRecord(
+    change_id="my-change",
+    phase_name="Plan",
+    agent_type="claude_code",
+    summary="Selected approach A; deferred X.",
+    decisions=[
+        Decision(title="Use approach A", rationale="...", capability="skill-workflow"),
+    ],
+    relevant_files=[FileRef(path="src/foo.py", description="entrypoint")],
+)
+
+result = record.write_both()
+# result.markdown_path → Path to session-log.md
+# result.handoff_id    → coordinator handoff_id (or None on fallback)
+# result.handoff_local_path → openspec/changes/<id>/handoffs/<phase>-<N>.json on fallback
+# result.warnings      → list of soft-failure messages (each step is best-effort)
+```
+
+**Persistence pipeline** (3 best-effort steps; failures log warnings but never raise):
+1. **append markdown** → `openspec/changes/<change-id>/session-log.md`
+2. **sanitize in-place** → runs `sanitize_session_log.py` on the file
+3. **coordinator write** → `try_handoff_write` via `coordination_bridge`, OR fallback to `openspec/changes/<change-id>/handoffs/<phase-slug>-<N>.json`
+
+**Round-trip APIs**:
+- `record.render_markdown()` → markdown (preserves `architectural:` and `supersedes:` inline spans)
+- `parse_markdown(text, change_id=...)` → reconstructs PhaseRecord
+- `record.to_handoff_payload()` → dict matching `HandoffService.write` arguments
+- `PhaseRecord.from_handoff_payload(d, change_id=..., phase_name=...)` → reconstructs
+
+**Why prefer this over `append_phase_entry`**: `append_phase_entry` is now a deprecation-warned shim that internally constructs a minimal PhaseRecord and calls `write_both()`. Using `PhaseRecord(...).write_both()` directly gives you structured fields (Decisions, Alternatives, Trade-offs, Completed Work, etc.) instead of free-form markdown content, which the coordinator can consume via `read_handoff` and the next phase can hydrate via `PhaseRecord.from_handoff_payload`.
+
 ## Phase Entry Template
 
 Each workflow phase appends a section following this structure:
@@ -83,11 +125,25 @@ Each workflow phase appends a section following this structure:
 ### Open Questions
 - [ ] <unresolved question>
 
+### Completed Work
+- <concrete deliverable landed in this phase>
+
+### In Progress
+- <work started but not finished>
+
+### Next Steps
+- <what the next phase should pick up>
+
+### Relevant Files
+- `<path/to/file.py>` — <short description of why this file matters>
+
 ### Context
 <2-3 sentences: what was the goal, what happened>
 ```
 
-**Section names must be identical across all skills**: Decisions, Alternatives Considered, Trade-offs, Open Questions, Context.
+**Section names must be identical across all skills**: Decisions, Alternatives Considered, Trade-offs, Open Questions, Completed Work, In Progress, Next Steps, Relevant Files, Context.
+
+The four added sections (Completed Work, In Progress, Next Steps, Relevant Files) are **optional** — omit them when empty. They mirror the structured `PhaseRecord` fields written to the coordinator handoff (see `skills/session-log/scripts/phase_record.py`), so a skill using `PhaseRecord(...).write_both()` produces matching content in both `session-log.md` and `handoff_documents`.
 
 **When no decisions were made** (e.g., validation passed cleanly): include Context, write "No significant decisions required" in Decisions, omit other sections.
 
