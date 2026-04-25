@@ -1,0 +1,390 @@
+schema_version: 1
+
+feature:
+  id: add-per-phase-archetype-resolution
+  title: "Per-phase archetype resolution in autopilot"
+  plan_revision: 1
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/openapi/v1.yaml"
+    files:
+      - "contracts/openapi/v1.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "A"
+  min_trust_level: 2
+
+packages:
+  # --- Phase 1: Contracts (root, no deps) ---
+  - package_id: wp-contracts
+    title: "Contracts — OpenAPI + JSON schemas (root)"
+    task_type: implement
+    description: |
+      Generate and validate the OpenAPI contract for POST /archetypes/resolve_for_phase
+      and JSON schemas for archetypes-config v2 and LoopState v3. These are the
+      coordination boundary between coordinator-side and skills-side packages.
+
+      Covers tasks.md 1.1-1.3.
+      Spec scenarios: agent-coordinator (Phase Archetype Resolution Endpoint),
+        agent-archetypes (Per-Phase Archetype Mapping), agent-coordinator (LoopState v3).
+      Design decisions: D1 (phase_mapping schema), D2 (HTTP endpoint shape), D7 (LoopState bump).
+    role: technical-writer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-per-phase-archetype-resolution/contracts/openapi/v1.yaml"
+        - "openspec/changes/add-per-phase-archetype-resolution/contracts/schemas/archetypes-config-v2.schema.json"
+        - "openspec/changes/add-per-phase-archetype-resolution/contracts/schemas/loop-state-v3.schema.json"
+      keys:
+        - "feature:add-per-phase-archetype-resolution:contracts"
+      ttl_minutes: 60
+      reason: "Contracts generation — OpenAPI + JSON Schemas"
+    scope:
+      write_allow:
+        - "openspec/changes/add-per-phase-archetype-resolution/contracts/**"
+      read_allow:
+        - "openspec/changes/add-per-phase-archetype-resolution/**"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/**"
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "json-schema-syntax"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json; [json.load(open(p)) for p in [\"openspec/changes/add-per-phase-archetype-resolution/contracts/schemas/archetypes-config-v2.schema.json\", \"openspec/changes/add-per-phase-archetype-resolution/contracts/schemas/loop-state-v3.schema.json\"]]; print(\"OK\")'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["json_schema_status"]
+        - name: "openapi-syntax"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import yaml; yaml.safe_load(open(\"openspec/changes/add-per-phase-archetype-resolution/contracts/openapi/v1.yaml\")); print(\"OK\")'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openapi_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+
+  # --- Phase 2: Coordinator-side implementation (depends on contracts) ---
+  - package_id: wp-coordinator
+    title: "Coordinator: schema, resolve function, HTTP endpoint, LoopState"
+    task_type: implement
+    description: |
+      Coordinator-side implementation: extend archetypes.yaml schema with phase_mapping,
+      add resolve_archetype_for_phase function, implement POST /archetypes/resolve_for_phase
+      handler, bump LoopState to schema_version=3 with phase_archetype field, extend
+      POST /status/report payload. Includes coordinator-side unit and integration tests.
+
+      Covers tasks.md 2.1-2.5, 3.1-3.2, 4.1-4.4.
+      Spec scenarios: agent-archetypes.1-3 (loader), agent-archetypes (resolution function),
+        agent-coordinator.1-3 (endpoint), agent-coordinator (LoopState v3),
+        agent-coordinator (Status Report payload).
+      Design decisions: D1, D2, D3, D7, D11.
+    role: python-engineer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/archetypes.yaml"
+      keys:
+        - "feature:add-per-phase-archetype-resolution:coordinator"
+      ttl_minutes: 240
+      reason: "Coordinator-side implementation: agents_config + coordination_api + LoopState"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/changes/add-per-phase-archetype-resolution/**"
+      deny:
+        - "skills/**"
+        - "openspec/specs/**"
+    worktree:
+      name: wp-coordinator
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "unit-tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -v -k 'archetype or phase_archetype or resolve_for_phase or loop_state'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "type-check"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+        - name: "ruff"
+          kind: command
+          command: "agent-coordinator/.venv/bin/ruff check agent-coordinator/src/agents_config.py agent-coordinator/src/coordination_api.py"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 3a: Skills bridge helper (parallel with wp-coordinator) ---
+  - package_id: wp-skills-bridge
+    title: "Skills bridge: try_resolve_archetype_for_phase helper"
+    task_type: implement
+    description: |
+      Add try_resolve_archetype_for_phase helper to coordination_bridge with failure
+      tolerance: returns None on any HTTP/network error; structured warnings logged.
+
+      Runs in parallel with wp-coordinator since both depend only on wp-contracts.
+
+      Covers tasks.md 5.1-5.2.
+      Spec scenarios: agent-coordinator (Phase Archetype Resolution Bridge Helper).
+      Design decisions: D4 (bridge helper), D9 (failure mode).
+    role: python-engineer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/tests/coordination-bridge/test_archetype_resolve.py"
+      keys:
+        - "feature:add-per-phase-archetype-resolution:bridge"
+      ttl_minutes: 120
+      reason: "Skills bridge helper — single function add to coordination_bridge"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/tests/coordination-bridge/**"
+      read_allow:
+        - "skills/coordination-bridge/**"
+        - "openspec/changes/add-per-phase-archetype-resolution/**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/autopilot/**"
+        - "openspec/specs/**"
+    worktree:
+      name: wp-skills-bridge
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "bridge-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge/test_archetype_resolve.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "type-check"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy skills/coordination-bridge/scripts/coordination_bridge.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 3b: Skills autopilot integration (depends on coordinator + bridge) ---
+  - package_id: wp-skills-autopilot
+    title: "Skills autopilot: _build_options, _PHASE_TASKS, override, signals"
+    task_type: implement
+    description: |
+      Skills-side autopilot integration: extend _build_options with archetype resolution
+      via the coordination bridge, add _extract_signals_for_phase per the 13-phase signal
+      schema, parse and apply AUTOPILOT_PHASE_MODEL_OVERRIDE env var, extend _PHASE_TASKS
+      to cover all 13 non-terminal phases (None sentinel for INIT/SUBMIT_PR per D13),
+      propagate state_dict["_resolved_archetype"] into LoopState.phase_archetype.
+
+      D10: Pre-register a coordinator file lock on convergence_loop.py with
+      intent="read-only observation" so the conflict with harness-engineering-features
+      is visible to both authors. This package does NOT write to convergence_loop.py.
+
+      Covers tasks.md 6.1-6.7, 7.1-7.4.
+      Spec scenarios: skill-workflow.1-3, skill-workflow (override scenarios),
+        skill-workflow (failure mode scenarios).
+      Design decisions: D5 (model+system_prompt), D6 (extend _PHASE_TASKS),
+        D8 (override env var), D9 (failure), D10 (D10 read-only lock), D12 (signals), D13 (INIT/SUBMIT_PR).
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-coordinator, wp-skills-bridge]
+    locks:
+      files:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/tests/autopilot/test_signal_extraction.py"
+        - "skills/tests/autopilot/test_phase_override.py"
+        - "skills/tests/autopilot/test_build_options.py"
+        - "skills/tests/autopilot/test_phase_tasks.py"
+      keys:
+        - "feature:add-per-phase-archetype-resolution:autopilot"
+      ttl_minutes: 240
+      reason: "Skills autopilot integration — phase_agent + autopilot + 4 new test modules"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/tests/autopilot/**"
+      read_allow:
+        - "skills/autopilot/**"
+        - "skills/coordination-bridge/**"
+        - "openspec/changes/add-per-phase-archetype-resolution/**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "openspec/specs/**"
+    worktree:
+      name: wp-skills-autopilot
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "autopilot-unit-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/ -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "type-check"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy skills/autopilot/scripts/phase_agent.py skills/autopilot/scripts/autopilot.py --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_status"]
+        - name: "ruff"
+          kind: command
+          command: "skills/.venv/bin/ruff check skills/autopilot/scripts/phase_agent.py skills/autopilot/scripts/autopilot.py"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_status"]
+    outputs:
+      result_keys:
+        - "files_modified"
+        - "test_count"
+        - "pass_count"
+
+  # --- Phase 4: Integration (e2e, docs, install.sh) ---
+  - package_id: wp-integration
+    title: "Integration: e2e tests, docs, runtime skill sync"
+    task_type: integrate
+    description: |
+      End-to-end integration tests against live coordinator: full autopilot run
+      with archetype assertions; failure-mode test (coordinator unreachable);
+      override-path test. Operator docs (autopilot SKILL.md, agent-coordinator
+      CLAUDE.md, new docs/autopilot-phase-archetype-resolution.md). Runtime
+      skill sync via install.sh. Pre-register read-only file lock on
+      convergence_loop.py per D10.
+
+      Covers tasks.md 8.1-8.3, 9.1-9.5.
+      Spec scenarios: full coverage of skill-workflow.3 (e2e),
+        agent-coordinator (Status Report scenarios via e2e).
+      Design decisions: All design decisions verified in e2e.
+    role: python-engineer
+    priority: 4
+    depends_on: [wp-skills-autopilot]
+    locks:
+      files:
+        - "skills/autopilot/SKILL.md"
+        - "agent-coordinator/CLAUDE.md"
+        - "docs/autopilot-phase-archetype-resolution.md"
+      keys:
+        - "feature:add-per-phase-archetype-resolution:integration"
+      ttl_minutes: 120
+      reason: "Integration tests, docs, install.sh sync"
+    scope:
+      write_allow:
+        - "skills/autopilot/SKILL.md"
+        - "skills/tests/autopilot/test_phase_archetype_e2e.py"
+        - "skills/tests/autopilot/test_phase_archetype_failure_e2e.py"
+        - "skills/tests/autopilot/test_phase_override_e2e.py"
+        - "agent-coordinator/CLAUDE.md"
+        - "docs/autopilot-phase-archetype-resolution.md"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/autopilot/scripts/**"
+        - "skills/coordination-bridge/scripts/**"
+        - "openspec/specs/**"
+    worktree:
+      name: wp-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 2
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "e2e-integration-tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/ -v -m integration"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["test_count", "pass_count"]
+        - name: "openspec-validate"
+          kind: command
+          command: "openspec validate add-per-phase-archetype-resolution --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_status"]
+        - name: "skills-install-sync"
+          kind: command
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["sync_status"]
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"
+        - "pass_count"
