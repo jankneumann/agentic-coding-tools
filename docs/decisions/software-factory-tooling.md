@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Plan
+
+**Sub-agent isolation only for IMPLEMENT, IMPL_REVIEW, VALIDATE** — These are the heaviest phases; IMPLEMENT additionally uses `isolation: "worktree"` for file mutations. Lighter phases (PLAN, INIT, transitions) stay in the driver conversation. Driver receives only `(outcome, handoff_id)` from sub-agents — never the transcript.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D4)
+
+---
+
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Plan
+
+**Crash recovery: retry from scratch up to 3 attempts** — Phases write artifacts incrementally; a re-run sees prior partial state and continues. Simplest model that preserves work. After 3 failures, write `phase-failed` PhaseRecord and raise `PhaseEscalationError` to operator.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D5)
+
+---
+
 ## 2026-04-24 — 2026-04-24-add-decision-index
 
 ### Phase: Implementation Iteration 1

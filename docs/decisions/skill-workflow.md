@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Plan
+
+**Unify session-log and coordinator handoff behind a single PhaseRecord** — Both formats already overlap ~70% (Context↔summary, Decisions↔decisions). Drift is structural risk; one in-memory dataclass renderable to both formats removes drift by construction. Existing `LoopState.handoff_ids` field (line 64) is dead code today — populating it is backward-compat.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D1)
+
+---
+
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Plan
+
+**Best-effort failure semantics for write_both()** — Each of (markdown append, sanitize, coordinator write) is independent; failures log warnings without raising. Matches existing sanitizer behavior at `skills/session-log/SKILL.md:138`. Strict atomicity would couple every phase boundary to coordinator availability.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D2)
+
+---
+
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Plan
+
+**Local-file fallback at `openspec/changes/<id>/handoffs/<phase>-<N>.json`** — When coordinator is unreachable, JSON payload writes to a git-tracked local file with the same content. Auto-numbered like `count_phase_iterations`. Restores synchronization at the next phase boundary.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D3)
+
+---
+
+## 2026-04-25 — phase-record-compaction
+
+### Phase: Implementation — Foundational Checkpoint
+
+**Use private `_append_phase_entry_markdown` from inside `PhaseRecord.write_both`** — Tagged as architectural decision because future maintainers need to understand the public/private split: write_both must NEVER call the public deprecated shim or it would emit warnings on every workflow phase write.
+
+- Status: `active`
+- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D4)
+
+---
+
 ## 2026-04-24 — 2026-04-24-add-decision-index
 
 ### Phase: Implementation Iteration 1
