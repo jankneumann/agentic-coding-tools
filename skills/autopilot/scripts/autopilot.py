@@ -46,9 +46,14 @@ except ImportError:
 
 @dataclass
 class LoopState:
-    """Persistent state for the autopilot loop."""
+    """Persistent state for the autopilot loop.
 
-    schema_version: int = 1
+    Schema versions:
+        1 — initial
+        2 — adds last_handoff_id (phase-record-compaction)
+    """
+
+    schema_version: int = 2
     change_id: str = ""
     current_phase: str = "INIT"
     iteration: int = 0
@@ -62,6 +67,7 @@ class LoopState:
     implementation_strategy: dict[str, str] = field(default_factory=dict)
     memory_ids: list[str] = field(default_factory=list)
     handoff_ids: list[str] = field(default_factory=list)
+    last_handoff_id: str | None = None
     started_at: str = ""
     phase_started_at: str = ""
     previous_phase: str | None = None
