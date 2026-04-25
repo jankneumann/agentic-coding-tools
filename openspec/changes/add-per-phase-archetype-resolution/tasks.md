@@ -4,19 +4,19 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 1: Contracts and Schemas
 
-- [ ] 1.1 Write OpenAPI 3.1 contract for `POST /archetypes/resolve_for_phase` with request/response/error schemas
+- [x] 1.1 Write OpenAPI 3.1 contract for `POST /archetypes/resolve_for_phase` with request/response/error schemas
   **Spec scenarios**: agent-coordinator (Phase Archetype Resolution Endpoint scenarios), agent-archetypes (Phase Archetype Resolution Endpoint Contract scenarios)
   **Contracts**: contracts/openapi/v1.yaml — new `/archetypes/resolve_for_phase` path
   **Design decisions**: D2 (HTTP endpoint shape)
   **Dependencies**: None
 
-- [ ] 1.2 Write JSON Schema for the extended `archetypes.yaml` (`schema_version: 2` with `phase_mapping`)
+- [x] 1.2 Write JSON Schema for the extended `archetypes.yaml` (`schema_version: 2` with `phase_mapping`)
   **Spec scenarios**: agent-archetypes (Per-Phase Archetype Mapping scenarios)
   **Contracts**: contracts/schemas/archetypes-config-v2.schema.json
   **Design decisions**: D1 (phase_mapping schema)
   **Dependencies**: None
 
-- [ ] 1.3 Write JSON Schema for `LoopState` `schema_version: 3` with `phase_archetype` field
+- [x] 1.3 Write JSON Schema for `LoopState` `schema_version: 3` with `phase_archetype` field
   **Spec scenarios**: agent-coordinator (LoopState Phase Archetype Field scenarios)
   **Contracts**: contracts/schemas/loop-state-v3.schema.json
   **Design decisions**: D7 (LoopState schema bump)
