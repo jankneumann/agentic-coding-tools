@@ -20,8 +20,39 @@
 | Spec Compliance (change-context) | ✓ pass | **23/23** requirements verified at commit 9ffbe5c. Evidence column populated. skill-workflow.21 verified by alternate signals (markdown round-trip tests + commit `9ffbe5c chore(decisions): regenerate index` + CI `validate-decision-index` passing) since `check_decisions_roundtrip.py` was never authored |
 | Work Package Evidence (7.5) | ○ skip | No `artifacts/<package-id>/work-queue-result.json` files — implemented sequentially without coordinator-driven per-package result emission. Per-package verification properties verified via test runs above |
 | CI/CD | ⚠ partial | **11 pass / 3 fail.** All test/spec/build gates pass: validate-specs, test, test-skills, test-infra-skills, test-integration, validate-decision-index, gen-eval, formal-coordination, secret-scan, check-docker-imports, docker-smoke-import. **Failures are pre-existing infra noise, not caused by this change**: dependency-audit-coordinator + dependency-audit-skills both flag `CVE-2026-3219` in `pip 26.0.1` (the auditor's own toolchain dependency, not project code); SonarCloud Code Analysis (quality-gate threshold) |
-| Deploy / Smoke / Security / E2E | ○ skip | This change modifies Python skill scripts and SKILL.md files only — no HTTP API, MCP tool, or DB surface changes. Live-deployment phases would not produce signal |
 | Logs Analysis | ○ skip | No deploy phase ran |
+
+## Smoke Tests
+
+**Status**: skipped
+
+This change modifies Python skill scripts (`phase_record.py`, `handoff_builder.py`, `phase_agent.py`, `phase_token_meter.py`) and 6 SKILL.md files only. No HTTP API, MCP tool surface, or database schema is touched. Running the smoke test suite (health endpoint probes, auth enforcement, CORS preflight, error sanitization, security headers) against the deployed coordinator service would only re-verify behavior of unchanged code — producing no new regression signal for this change.
+
+The skill-level coverage that *would* be tested by smoke is instead covered at the unit/integration layer:
+- 169 tests in `skills/tests/phase-record-compaction/` exercise PhaseRecord round-trip, write_both pipeline (including coordinator-unavailable fallback), autopilot dispatch wiring, sub-agent isolation, crash recovery, and per-skill PhaseRecord adoption.
+- The skills_integration test parametrizes by skill name and asserts each of the 6 retrofitted SKILL.md files references `PhaseRecord(...).write_both()` and not the legacy `append_phase_entry` pattern.
+
+Operator authorization required to skip and proceed via `--force` on `gate_logic.py`.
+
+## Security
+
+**Status**: skipped
+
+OWASP Dependency-Check + ZAP scans target the live deployment's HTTP/MCP surface for vulnerable dependencies and runtime exploits. This change adds no new dependencies (the new modules import only from `skills/session-log/scripts/phase_record.py`, `skills/autopilot/scripts/`, and the existing standard library + `anthropic` SDK already in the project) and modifies no request-handling code paths.
+
+The pre-existing dependency-audit CI jobs do run on this PR — both fail with `CVE-2026-3219` in `pip 26.0.1` (the auditor's *own* toolchain dependency, not project code), which is a repository-wide pre-existing finding unrelated to this change.
+
+Operator authorization required to skip and proceed via `--force` on `gate_logic.py`.
+
+## E2E Tests
+
+**Status**: skipped
+
+End-to-end Playwright tests cover browser-driven user flows against the deployed application. This repository has no UI surface (it ships a coordinator HTTP API + MCP server + Python skill scripts), and no `tests/e2e/` directory exists. There is nothing E2E-shaped for this change to break.
+
+The cross-skill integration test (`skills/tests/phase-record-compaction/test_skills_integration.py::TestPerPhaseRoundTrip`) provides the equivalent coverage at the workflow boundary: it parametrizes across all 6 phase-boundary skills and verifies that `session-log.md` content matches `handoff_documents` payload for each.
+
+Operator authorization required to skip and proceed via `--force` on `gate_logic.py`.
 
 ## Deferred Items (carried from `deferred-tasks.md`)
 
