@@ -132,3 +132,61 @@ class TestHandoffFnCallableContract:
         _maybe_handoff("PLAN_REVIEW", "IMPLEMENT", state, fn)
         assert len(captured) == 1
         assert isinstance(captured[0], PhaseRecord)
+
+
+class TestTokenMeterFnWiring:
+    """token_meter_fn fires phase_token_pre and phase_token_post around handoff."""
+
+    def test_pre_and_post_called_at_boundary(self, state: LoopState) -> None:
+        events: list[tuple[str, str, str]] = []
+
+        def token_meter(
+            s: LoopState, event: str, prev: str, nxt: str,
+        ) -> None:
+            events.append((event, prev, nxt))
+
+        fn = _CapturingHandoffFn(ids=["h-1"])
+        _maybe_handoff(
+            "PLAN_REVIEW", "IMPLEMENT", state, fn,
+            token_meter_fn=token_meter,
+        )
+
+        # pre then post, both with the same prev/next
+        assert events == [
+            ("phase_token_pre", "PLAN_REVIEW", "IMPLEMENT"),
+            ("phase_token_post", "PLAN_REVIEW", "IMPLEMENT"),
+        ]
+        # handoff still happened
+        assert state.last_handoff_id == "h-1"
+
+    def test_meter_failure_does_not_crash_dispatch(
+        self, state: LoopState,
+    ) -> None:
+        """A raising token_meter_fn must not block the handoff (D9 — token
+        instrumentation is best-effort)."""
+
+        def boom(*_args: Any) -> None:
+            raise RuntimeError("network down")
+
+        fn = _CapturingHandoffFn(ids=["h-99"])
+        _maybe_handoff(
+            "VALIDATE", "SUBMIT_PR", state, fn,
+            token_meter_fn=boom,
+        )
+        # The handoff still completed despite the meter raising
+        assert state.handoff_ids == ["h-99"]
+        assert state.last_handoff_id == "h-99"
+
+    def test_meter_not_called_for_non_boundary(
+        self, state: LoopState,
+    ) -> None:
+        events: list[Any] = []
+
+        def token_meter(*args: Any) -> None:
+            events.append(args)
+
+        fn = _CapturingHandoffFn()
+        _maybe_handoff(
+            "INIT", "PLAN", state, fn, token_meter_fn=token_meter,
+        )
+        assert events == []
