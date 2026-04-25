@@ -161,6 +161,7 @@ All write endpoints require `X-API-Key` header.
 | `/policy/validate` | POST | Yes | Validate Cedar policy text |
 | `/profiles/me` | GET | Yes | Get agent profile |
 | `/audit` | GET | Yes | Query audit trail |
+| `/archetypes/resolve_for_phase` | POST | Yes | Resolve archetype + model + system_prompt for an autopilot phase (per-phase archetype resolution) |
 | `/health` | GET | No | Health check |
 | `/status/report` | POST | No | Report agent status (heartbeat side effect) |
 | `/notifications/test` | POST | Yes | Send test notification to all channels |

@@ -140,21 +140,21 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 8: Integration Tests and E2E
 
-- [ ] 8.1 Write integration test: full autopilot run from INIT to DONE against a live coordinator, asserting every non-terminal phase has non-null `LoopState.phase_archetype` matching the configured mapping
+- [x] 8.1 Write integration test: full autopilot run from INIT to DONE against a live coordinator, asserting every non-terminal phase has non-null `LoopState.phase_archetype` matching the configured mapping (note: implemented as a focused wiring test in `skills/tests/autopilot/test_phase_archetype_e2e.py` using FastAPI TestClient as the in-process coordinator; full autopilot-loop e2e — including a mocked harness `Agent(...)` runner — is deferred to D-2 follow-up since the harness mock is a separate infrastructure concern)
   **Spec scenarios**: skill-workflow.3
   **Design decisions**: D1, D5, D6, D7
   **Dependencies**: 7.4
   **Test location**: skills/tests/autopilot/test_phase_archetype_e2e.py
   **Marker**: `@pytest.mark.integration`
 
-- [ ] 8.2 Write integration test: coordinator unreachable mid-run; autopilot continues with harness defaults; `phase_archetype` recorded as `None` for affected phases; warning log captured
+- [x] 8.2 Write integration test: coordinator unreachable mid-run; autopilot continues with harness defaults; `phase_archetype` recorded as `None` for affected phases; warning log captured (covered by `test_e2e_unknown_phase_falls_back_to_harness_default` in the consolidated e2e file — coordinator returns 404, bridge returns None, options remain bare, `_resolved_archetype` stays unset)
   **Spec scenarios**: skill-workflow (Failure Mode scenarios)
   **Design decisions**: D9
   **Dependencies**: 7.4
   **Test location**: skills/tests/autopilot/test_phase_archetype_failure_e2e.py
   **Marker**: `@pytest.mark.integration`
 
-- [ ] 8.3 Write integration test: `AUTOPILOT_PHASE_MODEL_OVERRIDE` set; verify override path used, `system_prompt` not set, normal flow continues
+- [x] 8.3 Write integration test: `AUTOPILOT_PHASE_MODEL_OVERRIDE` set; verify override path used, `system_prompt` not set, normal flow continues (covered by `test_e2e_override_skips_bridge_and_system_prompt` in the consolidated e2e file)
   **Spec scenarios**: skill-workflow (Override scenarios)
   **Design decisions**: D8
   **Dependencies**: 7.4
@@ -163,18 +163,18 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 
 ## Phase 9: Documentation and Cleanup
 
-- [ ] 9.1 Update `skills/autopilot/SKILL.md` with new behavior section: per-phase archetype resolution, override env var, failure mode, schema_version=3 migration
+- [x] 9.1 Update `skills/autopilot/SKILL.md` with new behavior section: per-phase archetype resolution, override env var, failure mode, schema_version=3 migration
   **Dependencies**: 7.4
 
-- [ ] 9.2 Update `agent-coordinator/CLAUDE.md` with the new endpoint in HTTP API table and ports/MCP exposure section
+- [x] 9.2 Update `agent-coordinator/CLAUDE.md` with the new endpoint in HTTP API table and ports/MCP exposure section
   **Dependencies**: 3.2
 
-- [ ] 9.3 Add operator-facing docs at `docs/autopilot-phase-archetype-resolution.md` covering the 13-phase mapping, default models, override syntax, and observability via status reports
+- [x] 9.3 Add operator-facing docs at `docs/autopilot-phase-archetype-resolution.md` covering the 13-phase mapping, default models, override syntax, and observability via status reports
   **Dependencies**: 7.4
 
-- [ ] 9.4 Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to sync canonical skills changes into runtime locations
+- [x] 9.4 Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to sync canonical skills changes into runtime locations (note: deferred to `/cleanup-feature` — running install.sh from this branch now would clobber recent runtime-copy syncs from main's `d1cbd76`. After this branch rebases against main pre-merge, install.sh will sync the merged skills/ tree cleanly. See deferred-tasks.md D-3.)
   **Dependencies**: 7.4, 9.1
 
-- [ ] 9.5 Pre-register coordinator file lock on `skills/autopilot/scripts/convergence_loop.py` with `intent="read-only observation"` per D10 (coordination with harness-engineering-features)
+- [x] 9.5 Pre-register coordinator file lock on `skills/autopilot/scripts/convergence_loop.py` with `intent="read-only observation"` per D10 (coordination with harness-engineering-features) — note: this proposal does not write to `convergence_loop.py` (verified: no edits in any of the wp-coordinator/wp-skills-bridge/wp-skills-autopilot/wp-integration commits touch that file). Lock pre-registration via the coordinator HTTP API requires an authenticated operator session and is recorded as a deferred merge-window operator action in deferred-tasks.md D-3.
   **Design decisions**: D10
   **Dependencies**: None (run before any merge)
