@@ -277,6 +277,7 @@ def run_loop(
     validate_fn: Callable[[LoopState], str] | None = None,
     submit_pr_fn: Callable[[LoopState], str] | None = None,
     handoff_fn: Callable[[LoopState, Any], str | None] | None = None,
+    token_meter_fn: Callable[[LoopState, str, str, str], None] | None = None,
     memory_fn: Callable[[LoopState, str], str | None] | None = None,
     gate_check_fn: Callable[[LoopState], bool] | None = None,
     converge_fn: Callable[..., Any] | None = None,
@@ -406,8 +407,11 @@ def run_loop(
         prev_phase = state.current_phase
         _apply_transition(state, outcome, status_fn=status_fn)
 
-        # Write handoff at major boundaries
-        _maybe_handoff(prev_phase, state.current_phase, state, handoff_fn)
+        # Write handoff at major boundaries (with optional token instrumentation)
+        _maybe_handoff(
+            prev_phase, state.current_phase, state, handoff_fn,
+            token_meter_fn=token_meter_fn,
+        )
 
         save_state(state, state_path)
 
@@ -710,6 +714,7 @@ def _maybe_handoff(
     next_phase: str,
     state: LoopState,
     handoff_fn: Callable[[LoopState, Any], str | None] | None,
+    token_meter_fn: Callable[[LoopState, str, str, str], None] | None = None,
 ) -> None:
     """Dispatch a structured PhaseRecord handoff at known boundaries.
 
@@ -720,11 +725,27 @@ def _maybe_handoff(
     handoff_fn signature: ``Callable[[LoopState, PhaseRecord], str | None]``
     where the return is the coordinator-issued handoff_id (or local
     fallback marker), or None if no id could be recorded.
+
+    token_meter_fn signature:
+        ``Callable[[LoopState, event_type, prev_phase, next_phase], None]``
+    The driver calls it twice per boundary: once with event_type=
+    "phase_token_pre" before the handoff, and once with "phase_token_post"
+    after. Implementations typically call ``phase_token_meter.measure_context``
+    against the current driver context and emit an audit entry to the
+    coordinator. Failures inside token_meter_fn are caught and logged
+    (token instrumentation must never crash the loop — D9).
     """
     if handoff_fn is None:
         return
     if (prev_phase, next_phase) not in _HANDOFF_BOUNDARIES:
         return
+
+    if token_meter_fn is not None:
+        try:
+            token_meter_fn(state, "phase_token_pre", prev_phase, next_phase)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("token_meter_fn (pre) failed: %s", exc)
+
     try:
         from handoff_builder import build_phase_record  # type: ignore[import-not-found]
     except ImportError:
@@ -738,3 +759,9 @@ def _maybe_handoff(
     if isinstance(handoff_id, str) and handoff_id:
         state.handoff_ids.append(handoff_id)
         state.last_handoff_id = handoff_id
+
+    if token_meter_fn is not None:
+        try:
+            token_meter_fn(state, "phase_token_post", prev_phase, next_phase)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("token_meter_fn (post) failed: %s", exc)

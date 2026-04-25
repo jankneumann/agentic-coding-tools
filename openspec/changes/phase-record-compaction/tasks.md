@@ -171,7 +171,7 @@
   **Design decisions**: D9
   **Dependencies**: 4.7
 
-- [ ] 4.9 Wire `measure_context()` calls into autopilot at each `_HANDOFF_BOUNDARIES` transition; emit `phase_token_pre` and `phase_token_post` audit entries via coordinator
+- [x] 4.9 Wire `measure_context()` calls into autopilot at each `_HANDOFF_BOUNDARIES` transition; emit `phase_token_pre` and `phase_token_post` audit entries via coordinator
   **Files**: `skills/autopilot/scripts/autopilot.py`
   **Spec scenarios**: skill-workflow / Context Window Token Instrumentation
   **Design decisions**: D9
