@@ -282,51 +282,56 @@ Fix any failures before proceeding. If fixes introduce new issues, address them 
 
 ### 8.5. Append Session Log
 
-Append a `Plan Iteration <N>` phase entry to the session log, capturing what changed in this iteration and why.
+Construct a `PhaseRecord` for the `Plan Iteration <N>` phase and call `write_both()`. The iteration number is auto-computed from prior `Plan Iteration` entries in the session-log so the agent does not have to count manually.
 
-**Determine iteration number:**
-- Read `openspec/changes/<change-id>/session-log.md` (if it exists)
-- Count existing `## Phase: Plan Iteration` headers
-- N = count + 1
+**Capture from this iteration:**
 
-**Phase entry template:**
+- **Decisions** — Decisions about which findings to address, which to defer, and how to restructure the proposal.
+- **Alternatives Considered** — Approaches considered and rejected during this iteration.
+- **Trade-offs** — Trade-offs accepted in scoping the iteration.
+- **Open Questions** — Unresolved questions remaining after the iteration.
+- **Completed Work** — Concrete fixes landed in this iteration (per-finding).
+- **Summary** — 2–3 sentences: which findings were addressed, what changed.
 
-```markdown
----
+**Persist via `PhaseRecord.write_both()`:**
 
-## Phase: Plan Iteration <N> (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Alternatives Considered
-- <Alternative>: rejected because <reason>
-
-### Trade-offs
-- Accepted <X> over <Y> because <reason>
-
-### Open Questions
-- [ ] <unresolved question>
-
-### Context
-<2-3 sentences: what findings were addressed, what changed>
-```
-
-**Focus on**: Which findings were addressed, which were deferred, key decisions about proposal changes.
-
-**Sanitize-then-verify:**
+This step MUST run BEFORE the `git add` in Step 9 so the session-log entry is included in that commit.
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision, Alternative, TradeOff
+from extract_session_log import count_phase_iterations
+
+n = count_phase_iterations(
+    "Plan Iteration", "openspec/changes/<change-id>/session-log.md"
+) + 1
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name=f"Plan Iteration {n}",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: findings addressed, what changed>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>"),
+    ],
+    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
+    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
+    open_questions=["<question>"],
+    completed_work=["<finding addressed>"],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
-
-The session-log.md is inside `openspec/changes/$CHANGE_ID/` so it will be picked up by the existing `git add` in Step 9.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/plan-iteration-<n>-<N>.json`). Each step logs warnings on failure but does not raise — the workflow continues even if the coordinator is unreachable. The session-log.md is inside `openspec/changes/$CHANGE_ID/` so it will be picked up by the existing `git add` in Step 9.
 
 ### 9. Commit Iteration
 
