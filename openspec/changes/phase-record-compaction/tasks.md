@@ -139,12 +139,12 @@
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries
   **Dependencies**: 4.1
 
-- [ ] 4.3 Write tests for `LoopState` schema bump — `last_handoff_id` field, backward-compat snapshot loading
+- [x] 4.3 Write tests for `LoopState` schema bump — `last_handoff_id` field, backward-compat snapshot loading
   **Files**: `skills/tests/phase-record-compaction/test_loopstate_schema.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries — Existing autopilot snapshots load without migration
   **Dependencies**: None
 
-- [ ] 4.4 Add `last_handoff_id: str | None = None` field to `LoopState` in `skills/autopilot/scripts/autopilot.py:47-72`; bump `schema_version` to 2; ensure `from_dict`/`to_dict` round-trip preserves new field; existing snapshots load with `last_handoff_id=None`
+- [x] 4.4 Add `last_handoff_id: str | None = None` field to `LoopState` in `skills/autopilot/scripts/autopilot.py:47-72`; bump `schema_version` to 2; ensure `from_dict`/`to_dict` round-trip preserves new field; existing snapshots load with `last_handoff_id=None`
   **Files**: `skills/autopilot/scripts/autopilot.py`
   **Spec scenarios**: skill-workflow / Coordinator Handoff Population at Autopilot Phase Boundaries — Existing autopilot snapshots load without migration
   **Dependencies**: 4.3
