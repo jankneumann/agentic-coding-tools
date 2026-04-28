@@ -40,6 +40,12 @@ COPY evaluation/ /app/evaluation/
 COPY database/ /app/database/
 COPY agents.yaml /app/agents.yaml
 COPY teams.yaml /app/teams.yaml
+# archetypes.yaml is read at runtime by src/agents_config.py:load_archetypes_config
+# (`Path(__file__).parent.parent / "archetypes.yaml"`). It powers per-phase
+# archetype resolution at POST /archetypes/resolve_for_phase. Without this
+# COPY the endpoint returns 404 for every phase because phase_mapping never
+# loads. Same Dockerfile contract as agents.yaml/teams.yaml above.
+COPY archetypes.yaml /app/archetypes.yaml
 
 # Create non-root user and switch to it
 RUN groupadd --system appuser && \
