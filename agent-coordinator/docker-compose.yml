@@ -186,6 +186,54 @@ services:
     profiles:
       - cloudflared
 
+  # Coordination HTTP API (FastAPI app built from the local Dockerfile).
+  # Opt-in: docker compose --profile api up -d
+  #
+  # When unstarted, local dev runs the API as a separate process
+  # (`python -m src.coordination_api`) for fast iteration against `docker
+  # compose up postgres`. Starting this service is the path for full deploy
+  # + smoke + e2e validation phases that need a live HTTP target — see
+  # /validate-feature SKILL.md.
+  #
+  # POSTGRES_DSN, COORDINATION_API_KEYS, etc. are parameterized via
+  # `${COORDINATOR_*}` operator-facing variables; defaults wire to the
+  # in-stack postgres via Docker DNS. Override the operator variable to
+  # point at an external postgres or rotate the dev API key without
+  # editing this file.
+  coordinator-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${AGENT_COORDINATOR_REST_PORT:-8081}:8081"
+    environment:
+      DB_BACKEND: postgres
+      POSTGRES_DSN: "${COORDINATOR_POSTGRES_DSN:-postgresql://postgres:postgres@postgres:5432/postgres}"
+      COORDINATION_API_KEYS: "${COORDINATOR_API_KEYS:-dev-key-001}"
+      COORDINATION_API_KEY_IDENTITIES: "${COORDINATOR_API_KEY_IDENTITIES:-{}}"
+      # Legacy supabase vars are required at config import time even when
+      # DB_BACKEND=postgres (config.py:61 raises if either is missing).
+      # Placeholder values are inert when the postgres backend is active.
+      SUPABASE_URL: "${SUPABASE_URL:-http://localhost:54321}"
+      SUPABASE_SERVICE_KEY: "${SUPABASE_SERVICE_KEY:-dev-supabase-key-unused-with-postgres-backend}"
+      AGENT_ID: "${COORDINATOR_AGENT_ID:-cloud-coordinator}"
+      AGENT_TYPE: "${COORDINATOR_AGENT_TYPE:-coordinator}"
+    healthcheck:
+      test:
+        - CMD
+        - /app/.venv/bin/python
+        - -c
+        - "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8081/health', timeout=2).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    profiles:
+      - api
+
 volumes:
   postgres-data:
   langfuse-clickhouse-data:
