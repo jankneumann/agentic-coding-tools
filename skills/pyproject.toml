@@ -26,6 +26,9 @@ test = [
 ]
 
 [tool.pytest.ini_options]
+# Make tests/_shared importable as `from skill_invariants import ...` from any
+# per-skill test_skill_md.py file. See skills/tests/_shared/skill_invariants.py.
+pythonpath = ["tests/_shared"]
 testpaths = [
     "shared/tests",
     "worktree/scripts/tests",
@@ -35,6 +38,33 @@ testpaths = [
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
     "changelog-version/tests",
+    # Engineering-methodology skills (added by add-engineering-methodology-skills change).
+    # Phase 0 scaffold:
+    "tests/_shared",
+    "tests/install_sh",
+    # Phase 1 new methodology skills (added per-skill by Phase 1 work packages):
+    "tests/test-driven-development",
+    "tests/debugging-and-error-recovery",
+    "tests/context-engineering",
+    "tests/source-driven-development",
+    "tests/performance-optimization",
+    "tests/frontend-ui-engineering",
+    "tests/api-and-interface-design",
+    "tests/browser-testing-with-devtools",
+    "tests/deprecation-and-migration",
+    "tests/documentation-and-adrs",
+    # Phase 2 ADAPT-target invariant tests (added per-skill by Phase 2 work packages):
+    "tests/implement-feature",
+    "tests/plan-feature",
+    "tests/simplify",
+    "tests/parallel-review-plan",
+    "tests/parallel-review-implementation",
+    "tests/security-review",
+    "tests/bug-scrub",
+    "tests/tech-debt-analysis",
+    "tests/cleanup-feature",
+    "tests/explore-feature",
+    "tests/parallel-infrastructure",
 ]
 
 [tool.ruff]

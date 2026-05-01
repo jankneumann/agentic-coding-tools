@@ -336,6 +336,89 @@ remove_deprecated_skills() {
   fi
 }
 
+# Sync the skills/references/ shared library (a sibling to skill dirs, NOT a skill itself)
+# alongside the installed skills. Skills cite paths like `references/security-checklist.md`
+# which resolve relative to the parent of the installed skill.
+sync_references_library() {
+  local dest_dir="$1"
+  local refs_src="$SCRIPT_DIR/references"
+
+  if [[ ! -d "$refs_src" ]]; then
+    return 0
+  fi
+
+  local refs_dest="$dest_dir/references"
+  if [[ "$MODE" == "symlink" ]]; then
+    if [[ -e "$refs_dest" || -L "$refs_dest" ]]; then
+      if [[ $FORCE -eq 1 ]]; then
+        rm -rf "$refs_dest"
+      else
+        echo "  skip  references (destination exists; use --force to replace)"
+        return 0
+      fi
+    fi
+    ln -s "$refs_src" "$refs_dest"
+    echo "  refs  references -> $refs_src (symlinked library)"
+  else
+    mkdir -p "$refs_dest"
+    rsync -a --checksum --delete "$refs_src/" "$refs_dest/"
+    echo "  refs  references -> $refs_dest (shared library, not a skill)"
+  fi
+}
+
+# Scan every skill's SKILL.md frontmatter for `related:` entries and warn on unknown
+# targets. Advisory only — exits 0 even on warnings.
+validate_related_keys() {
+  local warnings=0
+  for skill_path in "${skills[@]}"; do
+    local skill_md="$skill_path/SKILL.md"
+    local skill_name
+    skill_name="$(basename "$skill_path")"
+    [[ -f "$skill_md" ]] || continue
+
+    # Extract related: list from YAML frontmatter (between leading --- markers).
+    # Capture lines that look like `  - <name>` inside a `related:` block.
+    local related_targets
+    related_targets="$(awk '
+      BEGIN { in_fm=0; in_related=0 }
+      /^---$/ { in_fm=!in_fm; next }
+      !in_fm { next }
+      /^related:[[:space:]]*$/ { in_related=1; next }
+      /^related:[[:space:]]*\[/ {
+        # Inline list form: related: [a, b, c]
+        gsub(/^related:[[:space:]]*\[/, "")
+        gsub(/\].*$/, "")
+        gsub(/[[:space:]]/, "")
+        n = split($0, items, ",")
+        for (i=1; i<=n; i++) if (items[i] != "") print items[i]
+        next
+      }
+      in_related && /^[[:space:]]+-[[:space:]]+/ {
+        sub(/^[[:space:]]+-[[:space:]]+/, "")
+        gsub(/[[:space:]]/, "")
+        if ($0 != "") print
+        next
+      }
+      in_related && /^[^[:space:]]/ { in_related=0 }
+    ' "$skill_md")"
+
+    [[ -z "$related_targets" ]] && continue
+
+    while IFS= read -r target; do
+      [[ -z "$target" ]] && continue
+      if [[ ! -d "$SCRIPT_DIR/$target" ]] || [[ ! -f "$SCRIPT_DIR/$target/SKILL.md" ]]; then
+        echo "  related: warning — $skill_name declares related: [$target] but no such skill exists at $SCRIPT_DIR/$target/SKILL.md" >&2
+        warnings=$((warnings + 1))
+      fi
+    done <<< "$related_targets"
+  done
+
+  if [[ $warnings -gt 0 ]]; then
+    echo "related: validation: $warnings warning(s) (non-fatal)" >&2
+  fi
+  return 0
+}
+
 echo "Installing ${#skills[@]} skill directorie(s) from: $SCRIPT_DIR"
 echo "Target root: $TARGET_ROOT"
 echo "Mode: $MODE"
@@ -438,7 +521,11 @@ for agent in "${agent_list[@]}"; do
     fi
     total_installed=$((total_installed + 1))
   done
+
+  sync_references_library "$dest_dir"
 done
+
+validate_related_keys
 
 python_venv_path="$(resolve_target_relative_path "$PYTHON_VENV")"
 run_skill_dependency_hooks "$DEPS_MODE"

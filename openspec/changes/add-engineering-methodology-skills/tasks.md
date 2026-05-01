@@ -4,48 +4,48 @@ Phase ordering is sequential at the phase level; within Phases 1 and 2, packages
 
 ## Phase 0 — Scaffold the convention (sequential, work package `wp-scaffold`)
 
-- [ ] 0.1 Write tests for `install.sh` `references/` rsync handling
+- [x] 0.1 Write tests for `install.sh` `references/` rsync handling
   - **Spec scenarios**: `skill-workflow.references-installed-alongside-skills`, `skill-workflow.references-not-auto-discovered`
   - **Design decisions**: D3 (references/ as sibling library)
   - **Dependencies**: None
   - Add `skills/tests/install_sh/test_references_rsync.py` with two cases: (a) rsync mode places `skills/references/*.md` under `.claude/skills/references/` and `.agents/skills/references/`; (b) `references/` is excluded from skill-discovery enumeration.
 
-- [ ] 0.2 Create `skills/references/` library
+- [x] 0.2 Create `skills/references/` library
   - **Spec scenarios**: `skill-workflow.references-installed-alongside-skills`
   - **Design decisions**: D3
   - **Dependencies**: 0.1
   - Create `skills/references/security-checklist.md`, `performance-checklist.md`, `accessibility-checklist.md`, `testing-patterns.md` (port content from external repo's references), and `skill-tail-template.md` (canonical tail-block template with placeholders + one filled example per section).
 
-- [ ] 0.3 Write tests for `related:` frontmatter validation
+- [x] 0.3 Write tests for `related:` frontmatter validation
   - **Spec scenarios**: `skill-workflow.related-key-parsed`, `skill-workflow.install-warns-on-unknown`, `skill-workflow.related-optional`
   - **Design decisions**: D4 (related: advisory)
   - **Dependencies**: None
   - Add `skills/tests/install_sh/test_related_validation.py`: a fixture skill with `related: [test-driven-development]` parses cleanly; a fixture with `related: [nonexistent]` produces a warning to stderr; a fixture with no `related:` key emits no warning.
 
-- [ ] 0.4 Extend `skills/install.sh` for `references/` rsync and `related:` validation
+- [x] 0.4 Extend `skills/install.sh` for `references/` rsync and `related:` validation
   - **Spec scenarios**: All under "Shared References Library" and "`related:` Frontmatter Key" requirements
   - **Design decisions**: D3, D4
   - **Dependencies**: 0.1, 0.2, 0.3
   - Add a branch in the skill-discovery loop that handles directories without `SKILL.md` as flat-rsync sources (currently they would be silently skipped). Add a `validate_related_keys()` shell function that scans every installed `SKILL.md` for `related:` and warns when targets don't exist. Tests from 0.1 and 0.3 must pass.
 
-- [ ] 0.5 Write tests for shared `conftest.py` invariant helpers
+- [x] 0.5 Write tests for shared `conftest.py` invariant helpers
   - **Spec scenarios**: `skill-workflow.frontmatter-parse-failure-caught`, `skill-workflow.missing-tail-block-caught`, `skill-workflow.reference-cross-link-rot-caught`
   - **Design decisions**: D2 (content invariants over CI lint)
   - **Dependencies**: None
   - Add `skills/tests/_shared/test_conftest_helpers.py`: each of the 5 assertion helpers (`assert_frontmatter_parses`, `assert_required_keys_present`, `assert_references_resolve`, `assert_related_resolve`, `assert_tail_block_present`) is invoked against a deliberately-broken fixture skill and a known-good fixture skill, asserting fail/pass respectively.
 
-- [ ] 0.6 Create `skills/tests/_shared/conftest.py` with the 5 assertion helpers
+- [x] 0.6 Create `skills/tests/_shared/conftest.py` with the 5 assertion helpers
   - **Spec scenarios**: All under "Content-Invariant Test Framework for Skills"
   - **Design decisions**: D2
   - **Dependencies**: 0.5
   - Implement the 5 helpers with clear failure messages. Reuse `skills/shared/` Python utilities where applicable.
 
-- [ ] 0.7 Update `skills/pyproject.toml` `[tool.pytest.ini_options]` `testpaths`
+- [x] 0.7 Update `skills/pyproject.toml` `[tool.pytest.ini_options]` `testpaths`
   - **Spec scenarios**: `skill-workflow.test-paths-registered`
   - **Dependencies**: 0.6
   - Append the 18 new test paths: 10 new methodology skills + 8 ADAPT-target test dirs (some already exist; only append the missing). Verify `cd skills && uv run pytest --collect-only` enumerates them.
 
-- [ ] 0.8 Document tail-block convention in `docs/skills-workflow.md`
+- [x] 0.8 Document tail-block convention in `docs/skills-workflow.md`
   - **Spec scenarios**: `skill-workflow.user-invocable-skill-ships-tail-block`, `skill-workflow.tail-block-template-available`
   - **Design decisions**: D2
   - **Dependencies**: 0.2 (template exists)

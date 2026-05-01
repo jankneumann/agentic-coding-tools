@@ -503,6 +503,52 @@ Generated OpenSpec assets for Claude, Codex, and Gemini must map equivalently to
 
 For the complete parallel workflow implementation reference — including work-package lifecycle, DAG scheduling, execution protocol, escalation handling, circuit breaking, and cross-feature coordination — see [`parallel-agentic-development.md`](parallel-agentic-development.md).
 
+## Skill Tail-Block Convention
+
+Every skill where `user_invocable: true` MUST end its `SKILL.md` with three sub-sections in this exact order:
+
+1. `## Common Rationalizations` — a Markdown table with two columns ("Rationalization" / "Why it's wrong") naming at least three excuses an agent (or human) might use to skip the skill's discipline, with the counterargument for each.
+2. `## Red Flags` — a bullet list of at least three observable signals that the skill is being violated (something a reviewer or sister-agent can scan for).
+3. `## Verification` — a numbered checklist of at least three items a reviewer or agent runs to confirm the skill was actually applied.
+
+**Why this exists.** The tail block turns a skill from prose into a testable contract. By predicting failure modes up front, the skill makes "I'll skip X because Y" auditable, gives reviewers concrete signals to look for, and gives the next agent a checklist that proves the skill was applied (not just nominally invoked).
+
+**Canonical template.** Authors copy-paste from [`skills/references/skill-tail-template.md`](../skills/references/skill-tail-template.md). The template includes placeholder structures and one filled-in example per section.
+
+**Enforcement.** Content invariants are tested by `assert_tail_block_present` in [`skills/tests/_shared/skill_invariants.py`](../skills/tests/_shared/skill_invariants.py). Each user-invocable skill ships a `skills/tests/<skill-name>/test_skill_md.py` that imports the assertion and runs it against its own `SKILL.md`. Skills missing the tail block fail their per-skill test.
+
+**Exemptions.** `user_invocable: false` skills (infrastructure / orchestrator-loaded) are exempt — they're never directly executed by an operator and their invariants are tested by the calling skill.
+
+## Shared References Library
+
+The `skills/references/` directory hosts reusable Markdown checklists cited by multiple skills. Skills cite paths like `references/security-checklist.md`, which `install.sh` rsyncs to `.claude/skills/references/` and `.agents/skills/references/` so the relative path resolves at runtime.
+
+Current contents:
+
+- [`skill-tail-template.md`](../skills/references/skill-tail-template.md) — canonical tail-block template
+- [`security-checklist.md`](../skills/references/security-checklist.md) — OWASP Top 10 prevention + secrets discipline
+- [`performance-checklist.md`](../skills/references/performance-checklist.md) — frontend Core Web Vitals + backend latency budgets
+- [`accessibility-checklist.md`](../skills/references/accessibility-checklist.md) — WCAG 2.1 AA
+- [`testing-patterns.md`](../skills/references/testing-patterns.md) — test pyramid, AAA, DAMP, Beyonce Rule, Prove-It Pattern
+
+The references library has no `SKILL.md` and is not auto-discovered as a skill. It is a sibling of skill directories under `skills/`, treated as a flat content library.
+
+## `related:` Frontmatter Key
+
+Skills may declare an optional `related:` key in frontmatter to cross-reference kindred skills. The key is **advisory** — declaring `related: [foo]` does not require `foo` to be installed before this skill, unlike `requires:`. Use `related:` for graph rendering and discovery; use `requires:` for hard dependencies.
+
+```yaml
+---
+name: test-driven-development
+description: ...
+related:
+  - debugging-and-error-recovery
+  - browser-testing-with-devtools
+---
+```
+
+`install.sh` validates that every `related:` target points to an existing skill at install time. Unknown targets emit a warning to stderr but do NOT fail the install. The content-invariant test framework's `assert_related_resolve` enforces validity at test time.
+
 ## Formal Specification
 
 The skills workflow is formally specified with requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, feature validation (with inline security scanning), bug-scrub signal collection, and fix-scrub remediation tiers.
