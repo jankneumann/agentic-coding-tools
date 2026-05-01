@@ -1,0 +1,718 @@
+schema_version: 1
+
+feature:
+  id: add-engineering-methodology-skills
+  title: "Add engineering methodology skills (10 new + 8 adapted + tail-block convention)"
+  plan_revision: 1
+  created_by: claude-opus-4-7
+  created_at: "2026-05-01T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # Phase 0 — Scaffold the convention (sequential, gates everything else)
+  # ─────────────────────────────────────────────────────────────────────
+
+  - package_id: wp-scaffold
+    title: "Scaffold: references library, install.sh extension, shared test framework"
+    task_type: implement
+    description: |
+      Phase 0 ships the convention before any content lands. Outputs:
+        - skills/references/ with 4 checklist files + skill-tail-template.md
+        - install.sh extension for references/ rsync + related: validation
+        - skills/tests/_shared/conftest.py with 5 invariant assertion helpers
+        - skills/pyproject.toml testpaths updated for 18 new test dirs
+        - docs/skills-workflow.md tail-block convention section
+      Covers tasks 0.1–0.8.
+      Spec scenarios: skill-workflow.references-installed-alongside-skills,
+        references-not-auto-discovered, related-key-parsed,
+        install-warns-on-unknown, related-optional, frontmatter-parse-failure-caught,
+        missing-tail-block-caught, reference-cross-link-rot-caught,
+        test-paths-registered, user-invocable-skill-ships-tail-block,
+        tail-block-template-available
+      Design decisions: D2, D3, D4
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/tests/_shared/conftest.py"
+        - "skills/tests/_shared/__init__.py"
+        - "skills/tests/install_sh/test_references_rsync.py"
+        - "skills/tests/install_sh/test_related_validation.py"
+        - "skills/tests/_shared/test_conftest_helpers.py"
+        - "skills/references/security-checklist.md"
+        - "skills/references/performance-checklist.md"
+        - "skills/references/accessibility-checklist.md"
+        - "skills/references/testing-patterns.md"
+        - "skills/references/skill-tail-template.md"
+        - "docs/skills-workflow.md"
+      keys:
+        - "feature:add-engineering-methodology-skills:scaffold"
+        - "feature:add-engineering-methodology-skills:references"
+        - "feature:add-engineering-methodology-skills:installsh"
+      ttl_minutes: 120
+      reason: "Phase 0 scaffold: install.sh extension, references library, shared test framework. All subsequent packages depend on these."
+    scope:
+      write_allow:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+        - "skills/tests/_shared/**"
+        - "skills/tests/install_sh/**"
+        - "docs/skills-workflow.md"
+      read_allow:
+        - "skills/**"
+        - "docs/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/test-driven-development/**"
+        - "skills/debugging-and-error-recovery/**"
+        - "skills/context-engineering/**"
+        - "skills/source-driven-development/**"
+        - "skills/performance-optimization/**"
+        - "skills/frontend-ui-engineering/**"
+        - "skills/api-and-interface-design/**"
+        - "skills/browser-testing-with-devtools/**"
+        - "skills/deprecation-and-migration/**"
+        - "skills/documentation-and-adrs/**"
+    worktree:
+      name: wp-scaffold
+      mode: isolated
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "install.sh dry-run with references"
+          kind: command
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none --target /tmp/wp-scaffold-target"
+          evidence:
+            artifacts:
+              - "skills/references/security-checklist.md"
+              - "skills/references/skill-tail-template.md"
+            result_keys:
+              - "install_sh_exit_code"
+              - "references_synced_count"
+        - name: "shared invariant helpers test"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/_shared/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/_shared/conftest.py"
+              - "skills/tests/_shared/test_conftest_helpers.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+        - name: "install.sh integration tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/install_sh/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/install_sh/test_references_rsync.py"
+              - "skills/tests/install_sh/test_related_validation.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "install_sh_exit_code"
+        - "references_synced_count"
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Phase 1 — New methodology skills (4 parallel packages)
+  # All depend on wp-scaffold; mutually independent.
+  # ─────────────────────────────────────────────────────────────────────
+
+  - package_id: wp-skills-testing-quality
+    title: "New skills: TDD + debugging + browser-testing"
+    task_type: implement
+    description: |
+      Author 3 new SKILL.md files with their content-invariant tests:
+        - test-driven-development (user_invocable: true)
+        - debugging-and-error-recovery (user_invocable: true)
+        - browser-testing-with-devtools (user_invocable: false)
+      Preserve external repo's npm/jest examples; add pytest equivalents.
+      Covers tasks 1.1.1–1.1.6.
+      Spec scenarios: skill-workflow.new-methodology-skill-auto-discovered,
+        user-invocable-assignment-honored, frontmatter-schema-preserved,
+        all tail-block scenarios for the two user_invocable skills.
+      Design decisions: D5, D7
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-scaffold]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/test-driven-development/SKILL.md"
+        - "skills/debugging-and-error-recovery/SKILL.md"
+        - "skills/browser-testing-with-devtools/SKILL.md"
+        - "skills/tests/test-driven-development/test_skill_md.py"
+        - "skills/tests/debugging-and-error-recovery/test_skill_md.py"
+        - "skills/tests/browser-testing-with-devtools/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:clustertesting"
+      ttl_minutes: 120
+      reason: "Three new methodology skills + their tests. Cluster: testing/quality."
+    scope:
+      write_allow:
+        - "skills/test-driven-development/**"
+        - "skills/debugging-and-error-recovery/**"
+        - "skills/browser-testing-with-devtools/**"
+        - "skills/tests/test-driven-development/**"
+        - "skills/tests/debugging-and-error-recovery/**"
+        - "skills/tests/browser-testing-with-devtools/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+    worktree:
+      name: wp-skills-testing-quality
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/test-driven-development/ skills/tests/debugging-and-error-recovery/ skills/tests/browser-testing-with-devtools/ -v"
+          evidence:
+            artifacts:
+              - "skills/test-driven-development/SKILL.md"
+              - "skills/debugging-and-error-recovery/SKILL.md"
+              - "skills/browser-testing-with-devtools/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-skills-knowledge
+    title: "New skills: context-engineering + source-driven-development"
+    task_type: implement
+    description: |
+      Author 2 new SKILL.md files (both user_invocable: false — orchestrator-loaded).
+        - context-engineering (5-level hierarchy, packing strategies, anti-patterns)
+        - source-driven-development (DETECT→FETCH→IMPLEMENT→CITE)
+      Tie context-engineering examples to coordinator/work-package/worktree.
+      Wire source-driven-development to langfuse/neon-postgres/use-railway via related:.
+      Covers tasks 1.2.1–1.2.4.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-scaffold]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/context-engineering/SKILL.md"
+        - "skills/source-driven-development/SKILL.md"
+        - "skills/tests/context-engineering/test_skill_md.py"
+        - "skills/tests/source-driven-development/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:clusterknowledge"
+      ttl_minutes: 120
+      reason: "Two new orchestrator-loaded methodology skills + tests."
+    scope:
+      write_allow:
+        - "skills/context-engineering/**"
+        - "skills/source-driven-development/**"
+        - "skills/tests/context-engineering/**"
+        - "skills/tests/source-driven-development/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+    worktree:
+      name: wp-skills-knowledge
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/context-engineering/ skills/tests/source-driven-development/ -v"
+          evidence:
+            artifacts:
+              - "skills/context-engineering/SKILL.md"
+              - "skills/source-driven-development/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-skills-engineering
+    title: "New skills: API design + frontend-UI + performance"
+    task_type: implement
+    description: |
+      Author 3 new SKILL.md files (all user_invocable: true).
+        - api-and-interface-design (Hyrum's Law, contract-first, discriminated unions)
+          Add Python pydantic/dataclass/Protocol/Literal-discriminated-union examples.
+        - frontend-ui-engineering ("AI aesthetic" anti-pattern, state ladder, WCAG 2.1 AA)
+          Reference skills/references/accessibility-checklist.md.
+        - performance-optimization (MEASURE→IDENTIFY→FIX→VERIFY→GUARD)
+          Reference skills/references/performance-checklist.md. Add backend perf section.
+      Covers tasks 1.3.1–1.3.6.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-scaffold]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/api-and-interface-design/SKILL.md"
+        - "skills/frontend-ui-engineering/SKILL.md"
+        - "skills/performance-optimization/SKILL.md"
+        - "skills/tests/api-and-interface-design/test_skill_md.py"
+        - "skills/tests/frontend-ui-engineering/test_skill_md.py"
+        - "skills/tests/performance-optimization/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:clusterengineering"
+      ttl_minutes: 120
+      reason: "Three new engineering-practice methodology skills + tests."
+    scope:
+      write_allow:
+        - "skills/api-and-interface-design/**"
+        - "skills/frontend-ui-engineering/**"
+        - "skills/performance-optimization/**"
+        - "skills/tests/api-and-interface-design/**"
+        - "skills/tests/frontend-ui-engineering/**"
+        - "skills/tests/performance-optimization/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+    worktree:
+      name: wp-skills-engineering
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/api-and-interface-design/ skills/tests/frontend-ui-engineering/ skills/tests/performance-optimization/ -v"
+          evidence:
+            artifacts:
+              - "skills/api-and-interface-design/SKILL.md"
+              - "skills/frontend-ui-engineering/SKILL.md"
+              - "skills/performance-optimization/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-skills-governance
+    title: "New skills: deprecation-and-migration + documentation-and-adrs"
+    task_type: implement
+    description: |
+      Author 2 new SKILL.md files (both user_invocable: true).
+        - deprecation-and-migration (Churn Rule, Strangler/Adapter/FF migration patterns)
+          Tie to OpenSpec deprecation workflow via related: [update-specs, cleanup-feature].
+        - documentation-and-adrs (ADR template, lifecycle PROPOSED→ACCEPTED→SUPERSEDED)
+          Reference docs/decisions/.
+      Covers tasks 1.4.1–1.4.4.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-scaffold]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/deprecation-and-migration/SKILL.md"
+        - "skills/documentation-and-adrs/SKILL.md"
+        - "skills/tests/deprecation-and-migration/test_skill_md.py"
+        - "skills/tests/documentation-and-adrs/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:clustergovernance"
+      ttl_minutes: 120
+      reason: "Two new lifecycle/governance methodology skills + tests."
+    scope:
+      write_allow:
+        - "skills/deprecation-and-migration/**"
+        - "skills/documentation-and-adrs/**"
+        - "skills/tests/deprecation-and-migration/**"
+        - "skills/tests/documentation-and-adrs/**"
+      read_allow:
+        - "skills/**"
+        - "docs/decisions/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+    worktree:
+      name: wp-skills-governance
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/deprecation-and-migration/ skills/tests/documentation-and-adrs/ -v"
+          evidence:
+            artifacts:
+              - "skills/deprecation-and-migration/SKILL.md"
+              - "skills/documentation-and-adrs/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Phase 2 — Adaptations + tail block (3 parallel packages)
+  # All depend on wp-scaffold; mutually independent and independent of Phase 1
+  # because file scopes are disjoint (Phase 1 owns NEW skill dirs;
+  # Phase 2 owns EXISTING skill dirs).
+  # ─────────────────────────────────────────────────────────────────────
+
+  - package_id: wp-adapt-lifecycle
+    title: "Adapt: implement-feature + plan-feature + simplify (pilot)"
+    task_type: refactor
+    description: |
+      Combined edit pass: extracted patterns + tail block in single commit per skill.
+        - implement-feature: Rules 0–5 + NOTICED BUT NOT TOUCHING template + tail block.
+        - plan-feature: XS/S/M/L/XL sizing + and-split heuristic + checkpoint cadence + tail block.
+        - simplify: Chesterton's Fence + Rule of 500 + pattern catalog + tail block (also a pilot).
+      Covers tasks 2.1.1–2.1.6.
+      Design decisions: D6 (combined edit), D7 (TDD-first ordering).
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-scaffold]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/implement-feature/SKILL.md"
+        - "skills/plan-feature/SKILL.md"
+        - "skills/simplify/SKILL.md"
+        - "skills/tests/implement-feature/test_skill_md.py"
+        - "skills/tests/plan-feature/test_skill_md.py"
+        - "skills/tests/simplify/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:adaptlifecycle"
+      ttl_minutes: 120
+      reason: "Adapt 3 lifecycle skills with extracted patterns + tail block."
+    scope:
+      write_allow:
+        - "skills/implement-feature/SKILL.md"
+        - "skills/plan-feature/SKILL.md"
+        - "skills/simplify/**"
+        - "skills/tests/implement-feature/**"
+        - "skills/tests/plan-feature/**"
+        - "skills/tests/simplify/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+        - "skills/parallel-infrastructure/**"
+    worktree:
+      name: wp-adapt-lifecycle
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/implement-feature/ skills/tests/plan-feature/ skills/tests/simplify/ -v"
+          evidence:
+            artifacts:
+              - "skills/implement-feature/SKILL.md"
+              - "skills/plan-feature/SKILL.md"
+              - "skills/simplify/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-adapt-review
+    title: "Adapt: parallel-review-* + security-review + bug-scrub/tech-debt pilots + schema"
+    task_type: refactor
+    description: |
+      Combined edit pass for review skills + the review-findings.schema.json extension.
+        - parallel-review-plan, parallel-review-implementation: 5-axis + severity prefixes + tail block.
+        - security-review: preventive-mode (three-tier boundary + OWASP Top 10) + tail block.
+        - bug-scrub, tech-debt-analysis: tail-block pilots only (no other content edits).
+        - review-findings.schema.json: add axis + severity required fields.
+      Covers tasks 2.2.1–2.2.8.
+      Spec scenarios: all under "Review Findings Schema Extension" + tail-block requirements.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-scaffold]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/security-review/SKILL.md"
+        - "skills/bug-scrub/SKILL.md"
+        - "skills/tech-debt-analysis/SKILL.md"
+        - "skills/parallel-infrastructure/schemas/review-findings.schema.json"
+        - "skills/tests/parallel-infrastructure/test_review_findings_schema.py"
+        - "skills/tests/parallel-review-plan/test_skill_md.py"
+        - "skills/tests/parallel-review-implementation/test_skill_md.py"
+        - "skills/tests/security-review/test_skill_md.py"
+        - "skills/tests/bug-scrub/test_skill_md.py"
+        - "skills/tests/tech-debt-analysis/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:adaptreview"
+        - "contract:review-findings.v2"
+      ttl_minutes: 120
+      reason: "Adapt 5 review skills + schema extension. Schema is internal to parallel-infrastructure."
+    scope:
+      write_allow:
+        - "skills/parallel-review-plan/**"
+        - "skills/parallel-review-implementation/**"
+        - "skills/security-review/SKILL.md"
+        - "skills/bug-scrub/SKILL.md"
+        - "skills/tech-debt-analysis/SKILL.md"
+        - "skills/parallel-infrastructure/schemas/review-findings.schema.json"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/tests/parallel-review-plan/**"
+        - "skills/tests/parallel-review-implementation/**"
+        - "skills/tests/security-review/**"
+        - "skills/tests/bug-scrub/**"
+        - "skills/tests/tech-debt-analysis/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+    worktree:
+      name: wp-adapt-review
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests + schema test"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/ skills/tests/parallel-review-plan/ skills/tests/parallel-review-implementation/ skills/tests/security-review/ skills/tests/bug-scrub/ skills/tests/tech-debt-analysis/ -v"
+          evidence:
+            artifacts:
+              - "skills/parallel-infrastructure/schemas/review-findings.schema.json"
+              - "skills/parallel-review-plan/SKILL.md"
+              - "skills/parallel-review-implementation/SKILL.md"
+              - "skills/security-review/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+              - "schema_validation_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+        - "schema_validation_passed"
+
+  - package_id: wp-adapt-sync
+    title: "Adapt: cleanup-feature + merge-pull-requests + explore-feature + CLAUDE.md"
+    task_type: refactor
+    description: |
+      Combined edit pass for sync-point skills + light pull into CLAUDE.md.
+        - cleanup-feature: 5%→25%→50%→100% staged rollout + rollback triggers + pre-launch checklist + tail block.
+        - merge-pull-requests: Save Point Pattern + Change Summary template + tail block.
+        - explore-feature: How Might We + 8 ideation lenses + NOT DOING list + tail block.
+        - CLAUDE.md: Save Point + Change Summary template subsection (no skill, just doc).
+      Covers tasks 2.3.1–2.3.7.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-scaffold]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/explore-feature/SKILL.md"
+        - "CLAUDE.md"
+        - "skills/tests/cleanup-feature/test_skill_md.py"
+        - "skills/tests/merge-pull-requests/test_skill_md.py"
+        - "skills/tests/explore-feature/test_skill_md.py"
+      keys:
+        - "feature:add-engineering-methodology-skills:adaptsync"
+        - "feature:add-engineering-methodology-skills:claudemd"
+      ttl_minutes: 120
+      reason: "Adapt 3 sync-point skills + light pull into CLAUDE.md."
+    scope:
+      write_allow:
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/merge-pull-requests/SKILL.md"
+        - "skills/explore-feature/SKILL.md"
+        - "CLAUDE.md"
+        - "skills/tests/cleanup-feature/**"
+        - "skills/tests/merge-pull-requests/**"
+        - "skills/tests/explore-feature/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-engineering-methodology-skills/**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+        - "skills/parallel-infrastructure/**"
+    worktree:
+      name: wp-adapt-sync
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "cluster invariant tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/cleanup-feature/ skills/tests/merge-pull-requests/ skills/tests/explore-feature/ -v"
+          evidence:
+            artifacts:
+              - "skills/cleanup-feature/SKILL.md"
+              - "skills/merge-pull-requests/SKILL.md"
+              - "skills/explore-feature/SKILL.md"
+              - "CLAUDE.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Phase 3 — Integration (sequential, depends on all Phase 1 + Phase 2)
+  # ─────────────────────────────────────────────────────────────────────
+
+  - package_id: wp-integration
+    title: "Integration: related: cross-refs, install.sh dry-run, full pytest, openspec validate, docs"
+    task_type: implement
+    description: |
+      Final integration. After all skills are written and adapted, this package:
+        - Populates related: cross-references across all 21 affected skills.
+        - Runs full skills/install.sh dry-run with rsync mode.
+        - Runs full skills/.venv/bin/python -m pytest.
+        - Runs openspec validate add-engineering-methodology-skills --strict.
+        - Updates docs/lessons-learned.md and README.md.
+        - Smoke-tests orchestrator integration points.
+      Covers tasks 3.1–3.7.
+    role: backend-implementer
+    priority: 4
+    depends_on:
+      - wp-skills-testing-quality
+      - wp-skills-knowledge
+      - wp-skills-engineering
+      - wp-skills-governance
+      - wp-adapt-lifecycle
+      - wp-adapt-review
+      - wp-adapt-sync
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "docs/lessons-learned.md"
+        - "README.md"
+      keys:
+        - "feature:add-engineering-methodology-skills:integration"
+      ttl_minutes: 120
+      reason: "Final integration: cross-refs, validation, docs."
+    scope:
+      write_allow:
+        - "skills/*/SKILL.md"
+        - "docs/lessons-learned.md"
+        - "README.md"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "skills/references/**"
+        - "skills/parallel-infrastructure/schemas/**"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "full pytest suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/ -v"
+          evidence:
+            artifacts:
+              - "skills/tests/"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+              - "tests_collected"
+        - name: "install.sh full rsync dry run"
+          kind: command
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none --target /tmp/wp-integration-target"
+          evidence:
+            artifacts:
+              - "skills"
+              - "openspec/changes/add-engineering-methodology-skills/work-packages.yaml"
+            result_keys:
+              - "install_sh_exit_code"
+              - "skills_installed_count"
+        - name: "openspec validate strict"
+          kind: command
+          command: "openspec validate add-engineering-methodology-skills --strict"
+          evidence:
+            artifacts:
+              - "openspec/changes/add-engineering-methodology-skills/"
+            result_keys:
+              - "openspec_validate_exit_code"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+        - "tests_collected"
+        - "install_sh_exit_code"
+        - "skills_installed_count"
+        - "openspec_validate_exit_code"
