@@ -57,6 +57,20 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 - **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
+### Save Point Pattern and Change Summary template
+
+**Save Point Pattern**: While iterating on a complex change, commit at each working slice (use `wip:` prefix). Squash before final merge. Lets you revert to a known-good state without losing progress.
+
+**Change Summary template**: Include in every agent-authored PR description:
+
+```
+CHANGES MADE: <bullet list>
+DIDN'T TOUCH: <out-of-scope items intentionally not addressed>
+CONCERNS: <known issues, follow-ups, things reviewers should challenge>
+```
+
+For the full pattern, see `skills/merge-pull-requests/SKILL.md`.
+
 ## Skills
 
 - **Canonical source**: `skills/` at repo root. ALWAYS edit skills here.

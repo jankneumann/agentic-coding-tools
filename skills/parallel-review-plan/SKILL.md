@@ -40,6 +40,53 @@ The reviewer receives these artifacts as context but MUST NOT modify them:
 - `openspec/changes/<change-id>/contracts/` (if present)
 - `openspec/changes/<change-id>/work-packages.yaml` (if present)
 
+## Five-Axis Finding Schema
+
+Every finding produced by this skill MUST be classified into BOTH dimensions below. The JSON Schema at `openspec/schemas/review-findings.schema.json` enforces both fields as `required` — output that omits either is rejected by the validator in Step 4.
+
+### Five Axes (the `axis` field)
+
+Adopted from the `code-review-and-quality` reference skill. Pick exactly one:
+
+| Axis | What it covers |
+|---|---|
+| `correctness` | Does the plan, when implemented, produce the right answer? Bugs, off-by-one, missing requirements, ambiguous SHALL clauses. |
+| `readability` | Will a future reader understand intent? Naming, structure, spec clarity, ambiguous prose. |
+| `architecture` | Does the design fit the system? Module boundaries, layering, coupling, dependency direction, contract shape. |
+| `security` | Does the plan introduce or fail to prevent security risk? Auth gaps, input-validation holes, secret handling, OWASP categories. |
+| `performance` | Will the implementation be fast and scalable enough? N+1, unbounded queries, missing pagination, hot-path allocations. |
+
+The legacy `type` enum (`spec_gap`, `contract_mismatch`, etc. — see Step 3) is preserved for backward compatibility; `axis` is the new mandatory categorization that all reviewers — human or vendor — must agree on.
+
+### Five Severity Prefixes (the `severity` field)
+
+Every finding's `description` MUST begin with one of these markers. The `severity` enum value MUST match the prefix.
+
+| Prefix | Severity value | Meaning |
+|---|---|---|
+| `Critical` | `critical` | Blocks merge. Must be fixed before implementation begins (or before the PR merges). |
+| `Nit` | `nit` | Should fix but does not block. Quality, naming, minor structure. |
+| `Optional` | `optional` | Consider it. Author may accept or reject without further discussion. |
+| `FYI` | `fyi` | Informational. Surfaces context the author may not have known; no action required. |
+| `none` | `none` | Positive observation. Names what the plan got right so good patterns survive review. |
+
+Example finding (note prefix and matching `severity`):
+
+```json
+{
+  "id": 1,
+  "axis": "security",
+  "severity": "critical",
+  "type": "security",
+  "criticality": "high",
+  "description": "Critical: Requirement R3 admits unauthenticated DELETE on /v1/users/{id} — missing auth precondition.",
+  "resolution": "Add a SHALL clause requiring an authenticated session with role=admin before the DELETE handler executes.",
+  "disposition": "fix"
+}
+```
+
+Reviewers MUST NOT collapse multiple severities onto one finding (split them). Reviewers MUST NOT use a severity that contradicts the `disposition` (e.g., `severity: critical` with `disposition: accept` is incoherent — escalate instead).
+
 ## Steps
 
 ### 1. Load Review Context
@@ -240,3 +287,28 @@ This skill is intentionally simple and self-contained so it can be dispatched to
 - No side effects (no git commits, no lock acquisition)
 
 When this skill is dispatched *to* another vendor by the orchestrator, only Steps 1-5 run (the vendor produces findings). Step 6 (multi-vendor dispatch) only runs when this skill is the *primary* reviewer — i.e., when invoked directly by the user or the orchestrating agent.
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "I only found one issue, so I'll skip the axis/severity classification — the description is enough" | The schema rejects findings without `axis` and `severity`; cross-vendor consensus relies on these fields to match equivalent findings. Skipping = the dispatcher discards your review. |
+| "This finding spans two axes — I'll just pick one" | Pick the dominant axis and split the rest into separate findings. Mashing two axes into one description means consensus matching cannot deduplicate against another vendor who split them. |
+| "The plan looks fine — I'll just emit zero findings" | A review with zero findings is suspicious. At minimum, emit `severity: none` positive observations naming what the plan got right; this signals the review actually happened rather than timed out. |
+| "The orchestrator will catch contradictions between `severity` and `disposition`" | It won't — the orchestrator routes by `disposition`. Inconsistent severity/disposition pairs survive into the consensus and confuse downstream automation. Make them coherent at write time. |
+
+## Red Flags
+
+- A `review-findings-plan.json` file with findings that lack the `axis` field — the schema validation step (Step 4) was skipped or its output ignored.
+- Every finding has the same severity (e.g., everything is `Critical`). A real review covers a spectrum; uniform severity means the reviewer wasn't actually grading.
+- Description prose does NOT start with the matching severity prefix (`Critical:` / `Nit:` / `Optional:` / `FYI:` / nothing-for-`none`). The prefix is the human-readable signal; if it disagrees with the enum value, the reviewer wrote the JSON without re-reading the prose.
+- A `security`-axis finding with `disposition: accept`. Security findings are never silently accepted; if the risk is real, the disposition must be `fix` or `escalate`.
+- Findings reference file paths or line ranges that don't exist in the plan artifacts (proposal/design/specs). The reviewer hallucinated context.
+
+## Verification
+
+1. Run the JSON Schema validator from Step 4 and confirm `Valid` — this proves `axis` and `severity` are present on every finding.
+2. Spot-check 3 findings: confirm the `description` text begins with the prefix matching the `severity` enum value (e.g., `severity: critical` ↔ description starts with `Critical:`).
+3. Confirm at least two different `axis` values appear across the findings array (a single-axis review missed the other four dimensions of the schema).
+4. Confirm `disposition` is coherent with `severity`: `critical`/`nit` → `fix`; `optional`/`fyi` → `accept`; `none` → `accept`; mismatches must be `escalate` with a justification in `resolution`.
+5. Confirm `reviewer_vendor` is populated — anonymous findings cannot participate in consensus.

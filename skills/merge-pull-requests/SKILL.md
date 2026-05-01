@@ -343,6 +343,47 @@ Then offer actions:
 5. **Wait** - (if checks pending) Wait for CI to complete, then re-validate
 6. **Re-run CI** - (if checks failed) Re-run failed workflow runs
 
+#### Save Point Pattern
+
+When iterating on a complex merge resolution (rebase conflicts, repeated CI fixes, multi-step "address comments" passes), **commit at every working slice** with a `wip:` prefix. Squash before final merge.
+
+```bash
+# After each working slice (tests pass, lint passes, the change makes sense in isolation):
+git add -A
+git commit -m "wip: <description of the slice that just started working>"
+
+# Before opening / re-opening for review, squash the wip commits into logical units:
+git rebase -i <base-branch>     # mark wip: commits as `s` (squash) into a parent
+# OR if the operator prefers a single squashed commit at merge:
+gh pr merge --squash             # GitHub squashes them at merge time
+```
+
+**Why this matters:** A complex merge resolution often takes 5-30 incremental fixes. Without save points, a single mistake can lose all the prior progress. With `wip:` save points you can `git reset --hard <last-wip-sha>` to return to the most recent known-good state without re-doing everything. The squash step at the end keeps the public history clean.
+
+The `wip:` prefix is the agreed signal: any commit starting with `wip:` is **assumed to be squashed before merge** and should never appear on `main`. This skill's pre-merge gate refuses to merge a PR whose head commit message starts with `wip:` unless `--strategy squash` is in effect.
+
+#### Change Summary template
+
+Every PR ready-for-review MUST include the following template in its description. Reviewers depend on it; the bot scaffolds it; the skill's gate checks for it.
+
+```
+CHANGES MADE:
+- <bullet list of what this PR actually does>
+
+DIDN'T TOUCH:
+- <out-of-scope items intentionally not addressed — name them so reviewers don't ask>
+
+CONCERNS:
+- <known issues, follow-ups, things reviewers should challenge>
+```
+
+**Why all three sections matter:**
+- `CHANGES MADE` forces the author to enumerate the actual changes (not just link the title) — exposes scope creep early.
+- `DIDN'T TOUCH` pre-empts the most common reviewer round-trip ("why didn't you also fix X?"). Naming the boundary up front saves a review cycle.
+- `CONCERNS` is the author's invitation to be challenged. A PR with `CONCERNS: none` after a non-trivial change is a **red flag**: real changes always have at least one open question.
+
+If a PR is missing this section, this skill flags it as `description-incomplete` during the interactive review and offers to scaffold the template into the body before merging.
+
 #### Merge Strategy Selection
 
 The merge strategy is selected based on PR origin to balance history preservation with cleanliness:
@@ -558,3 +599,32 @@ Output a full report:
 - **Subprocess timeout**: All `gh`/`git` calls have timeouts (30-60s) to prevent hangs
 - **API rate limits**: Scripts use `gh` CLI which handles token refresh; if rate-limited, wait and retry
 - **Stacked PRs**: Warn about dependency chain before allowing close/merge
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "I'll skip the Change Summary — the PR title is self-explanatory" | Titles compress; summaries enumerate. Reviewers waste time inferring scope from diffs when `DIDN'T TOUCH` would have answered the question in one line. |
+| "`wip:` save points clutter history — I'll just be careful and not break anything" | Careful is a plan that fails the first time. Save points are insurance; squashing at merge erases the clutter. The cost is zero, the upside is recovering hours of lost progress. |
+| "All my CONCERNS are minor — I'll write `CONCERNS: none`" | Non-trivial changes always have at least one open question. `none` signals either the author hasn't thought hard enough, or is hiding doubts to get the PR through. |
+| "Auto-merge is on; I don't need to triage" | Auto-merge merges when checks pass — it doesn't catch obsolete fixes, conflicting PR pairs, or stale base-branch failures. Triage is the layer above auto-merge, not redundant with it. |
+| "CI is flaky, just rerun" | `rerun-checks` replays the SAME merge commit. If the failure is a stale-base issue, rerun is theatre — `refresh-branch` is the real fix. See Step 5b. |
+
+## Red Flags
+
+- A merged PR's description has no `CHANGES MADE / DIDN'T TOUCH / CONCERNS` block.
+- A PR's head commit starts with `wip:` and is being merged with `--rebase` (the wip commit will land on main).
+- The same CI check fails identically across 3+ unrelated PRs but the operator keeps clicking "Re-run failed jobs" instead of refreshing branches.
+- An obsolete-classified PR was merged anyway because "the diff looked harmless".
+- The merge log for the day is empty even though PRs were merged (decision history lost).
+- A stacked PR's base PR was closed without warning the operator about the chain.
+
+## Verification
+
+1. The merge log entry for today (`docs/merge-logs/<YYYY-MM-DD>.md`) lists every PR processed with its origin, action, and rationale — not just the merged ones.
+2. For every merged PR with a non-trivial diff (>50 lines or >3 files), the PR description contained the Change Summary template before merge (check via `gh pr view <pr> --json body`).
+3. No commit on `main` has a message starting with `wip:` after this skill ran (`git log main --since=<start-time> --pretty=%s | grep -i ^wip:` returns empty).
+4. Stale-base CI failures were resolved with `refresh-branch`, not repeated `rerun-checks` (the merge log records which strategy was used and why).
+5. Obsolete PRs were closed with the explanatory comment (not silently), and the close reason is recorded in the merge log.
+
+

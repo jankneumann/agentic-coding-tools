@@ -26,6 +26,9 @@ test = [
 ]
 
 [tool.pytest.ini_options]
+# Multiple sibling test directories ship `test_skill_md.py`; without importlib
+# mode, pytest's default rootdir-based import causes module-name collisions.
+addopts = ["--import-mode=importlib"]
 # Make tests/_shared importable as `from skill_invariants import ...` from any
 # per-skill test_skill_md.py file. See skills/tests/_shared/skill_invariants.py.
 pythonpath = ["tests/_shared"]
