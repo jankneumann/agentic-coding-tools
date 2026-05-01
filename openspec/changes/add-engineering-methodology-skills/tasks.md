@@ -235,31 +235,31 @@ Phase ordering is sequential at the phase level; within Phases 1 and 2, packages
 
 ## Phase 3 — Integration and validation (sequential, `wp-integration`)
 
-- [ ] 3.1 Populate `related:` cross-references across all 21 affected skills
+- [x] 3.1 Populate `related:` cross-references across all 21 affected skills
   - **Spec scenarios**: `skill-workflow.related-key-parsed`
   - **Design decisions**: D4
   - **Dependencies**: All Phase 1 and Phase 2 tasks
   - Add `related:` keys connecting kindred skills (e.g., `test-driven-development` ↔ `debugging-and-error-recovery`; `frontend-ui-engineering` ↔ `browser-testing-with-devtools`; `deprecation-and-migration` ↔ `update-specs`). Validate with install.sh.
 
-- [ ] 3.2 Run full `skills/install.sh --mode rsync --deps none --python-tools none` dry run
+- [x] 3.2 Run full `skills/install.sh --mode rsync --deps none --python-tools none` dry run
   - **Dependencies**: 3.1
   - Verify all 10 new skills install, all 8 adapted skills install, `references/` is rsynced, no warnings on unknown `related:` targets.
 
-- [ ] 3.3 Run `cd skills && uv run pytest`
+- [x] 3.3 Run `cd skills && uv run pytest`
   - **Dependencies**: 3.1
   - Full test suite. All 18 new test directories collected. All content invariants pass. No regressions in pre-existing tests.
 
-- [ ] 3.4 Run `openspec validate add-engineering-methodology-skills --strict`
+- [x] 3.4 Run `openspec validate add-engineering-methodology-skills --strict`
   - **Dependencies**: All artifacts complete
   - Spec deltas validate against schema. Strict mode enforces canonical headers and scenarios.
 
-- [ ] 3.5 Update `docs/lessons-learned.md` with the methodology-layer addition
+- [x] 3.5 Update `docs/lessons-learned.md` with the methodology-layer addition
   - **Dependencies**: 3.2, 3.3
   - One short section: "Adopted external methodology skills (10) and folded patterns into 8 existing skills. Convention: tail block on user-invocable skills enforced by content-invariant tests at `skills/tests/_shared/conftest.py`."
 
 - [ ] 3.6 Update `README.md` and slash-command catalogue (if maintained) with the 7 new user-invocable skills
   - **Dependencies**: 3.2
 
-- [ ] 3.7 Verify orchestrator integration points still function
+- [x] 3.7 Verify orchestrator integration points still function
   - **Dependencies**: 3.2, 3.3
   - Smoke-test `plan-feature` Step 6 (TDD ordering reference) and `validate-feature` smoke phase (browser-testing-with-devtools reference) by reading the SKILL.md outputs to confirm `related:` references resolve and no broken cross-links.

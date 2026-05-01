@@ -47,3 +47,41 @@
 ### Context
 
 Planning followed the `/plan-feature` skill end-to-end in coordinated tier. Discovery agent surfaced 3 in-progress changes (none with file conflict), confirmed `install.sh` auto-discovers any `SKILL.md`-bearing directory, confirmed the `requires:` precedent for adding `related:`, and confirmed `pyproject.toml` `testpaths` is explicit and must be updated for each new test dir. Two operator decisions at the discovery gate (tail-block scope = user-invocable-only; tests = full content invariants) shaped Phase 0 scope. Approach C selected at Gate 1. All planning artifacts validated: `openspec validate --strict` pass, `validate_work_packages.py` pass, `parallel_zones.py --validate-packages` confirmed scope and lock disjointness across the 7 parallel packages.
+
+---
+
+## Phase: Implementation (2026-05-01)
+
+**Agent**: claude-opus-4-7 (cloud harness orchestrator + 7 parallel general-purpose sub-agents) | **Session**: claude/review-external-skills-1Cuh7
+
+### Decisions
+
+1. **Phase 0 executed directly by orchestrator** — references library, install.sh extension, content-invariant test framework, docs convention. ~1600 LoC across 17 files. Independent commit `d238378` to provide a clean checkpoint before fan-out.
+
+2. **Phase 1+2 dispatched as 7 parallel sub-agents in a single message** — disjoint write scopes (verified by parallel_zones --validate-packages at plan time) made parallel-without-locks safe. Each sub-agent received a self-contained ~3000-token prompt with WRITE allow / DO NOT touch rules, source URL for porting, frontmatter schema, tail-block requirement, test pattern, and a hard "do not commit" rule.
+
+3. **Single batched commit for Phase 1+2** — per-package atomic commits weren't viable when 7 sub-agents land concurrently. Commit `23ffe48` includes all Phase 1 (10 new skills) + Phase 2 (8 ADAPT edits + schema + CLAUDE.md). Per-package context is preserved in the commit body's structured breakdown.
+
+4. **`--import-mode=importlib` added to pyproject.toml** — necessary fix for sibling test_skill_md.py basename collisions. 4 of 7 sub-agents independently surfaced this. Treated as Phase 0 infra correction (logically belonged there) rather than a separate change.
+
+### Alternatives Considered
+
+- **Per-package atomic commits**: Rejected. Sub-agent file landings interleave non-deterministically; staging by file-path glob would have raced with in-flight writes. Single batched commit + structured commit message preserves per-package traceability.
+- **Wait for all 7 sub-agents before committing anything**: Rejected. Stop-hook fired after the first sub-agent returned; committing in a single push at the end risked losing all work if the session terminated mid-flight.
+- **Author Phase 1+2 directly without sub-agents**: Rejected. Estimated ~5500 LoC of skill content; sequential authoring would have consumed many times the wall-clock and main-context budget.
+
+### Trade-offs
+
+- Accepted **larger-than-ideal commit (5500+ LoC)** for Phase 1+2 in exchange for parallel execution speed. Mitigated by structured commit message that lists each package's changes.
+- Accepted **work-packages.yaml file-path drift** (review-findings.schema.json actually lives at openspec/schemas/, not skills/parallel-infrastructure/schemas/). Sub-agent found the real file and edited it; commit message documents the deviation.
+- Accepted **simplify skill created from scratch** (didn't exist on disk despite being labeled a "tail-block pilot"). Sub-agent created a 98-line stub with Chesterton's Fence + Rule of 500 + pattern catalog + tail block — covers the spec scenario.
+
+### Open Questions
+
+- [ ] `related:` graph could be visualized — the `related:` frontmatter key is now populated across 18 skills but no rendering tool exists yet. Deferred per design D4.
+- [ ] CI lint rule for tail-block enforcement — content invariants in `skills/tests/_shared/skill_invariants.py` cover the convention at test time, but a pre-commit hook or CI lint that checks every `user_invocable: true` SKILL.md would catch violations earlier. Deferred per design D2.
+- [ ] Pre-existing `tests/merge-pull-requests/test_classify.py` collection error (ImportError on `check_clean_worktree` from `shared`). Worked around with `--ignore`. Not in scope of this change but worth filing as a follow-up.
+
+### Context
+
+7 sub-agents dispatched in parallel; all 7 completed successfully. Total output: 10 new SKILL.md files (~3500 LoC) + 8 ADAPT-target edits (~600 LoC of additions across existing skills) + schema extension + CLAUDE.md subsection + 19 new test files (~340 test cases). All 353 tests pass with `--import-mode=importlib`; 8 skip cleanly when rsync is unavailable. `openspec validate --strict` passes. `install.sh` integration dry-run produces 104 symlinks and zero `related:` warnings (all cross-references resolve). Branch `claude/review-external-skills-1Cuh7` ready for PR.
