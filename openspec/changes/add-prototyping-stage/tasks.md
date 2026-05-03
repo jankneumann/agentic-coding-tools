@@ -146,21 +146,21 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 7 — Documentation (wp-docs)
 
-- [ ] 7.1 Write doc-lint test verifying `/prototype-feature` appears in skills-workflow flow diagram and has a "Divergence is first-class" principle section
+- [x] 7.1 Write doc-lint test verifying `/prototype-feature` appears in skills-workflow flow diagram and has a "Divergence is first-class" principle section
   **Spec scenarios**: skill-workflow.WorkflowDocumentationUpdates.workflow-doc-describes-prototype-stage
   **Dependencies**: None
 
-- [ ] 7.2 Write doc-lint test verifying CLAUDE.md workflow diagram references `/prototype-feature` and `/iterate-on-plan --prototype-context`
+- [x] 7.2 Write doc-lint test verifying CLAUDE.md workflow diagram references `/prototype-feature` and `/iterate-on-plan --prototype-context`
   **Spec scenarios**: skill-workflow.WorkflowDocumentationUpdates.claude-md-workflow-diagram-updated
   **Dependencies**: None
 
-- [ ] 7.3 Update `docs/skills-workflow.md` — add prototype stage to flow diagram; add "Divergence is first-class on both sides of the approval gate" under Design Principles
+- [x] 7.3 Update `docs/skills-workflow.md` — add prototype stage to flow diagram; add "Divergence is first-class on both sides of the approval gate" under Design Principles
   **Dependencies**: 7.1
 
-- [ ] 7.4 Update `CLAUDE.md` — add `/prototype-feature` to the workflow section; add `--prototype-context` note under `/iterate-on-plan`
+- [x] 7.4 Update `CLAUDE.md` — add `/prototype-feature` to the workflow section; add `--prototype-context` note under `/iterate-on-plan`
   **Dependencies**: 7.2
 
-- [ ] 7.5 Add a short example to `docs/skills-workflow.md` showing a full invocation: plan → prototype → iterate-on-plan (convergence) → implement
+- [x] 7.5 Add a short example to `docs/skills-workflow.md` showing a full invocation: plan → prototype → iterate-on-plan (convergence) → implement
   **Dependencies**: 7.3
 
 ## Phase 8 — Integration (wp-integration)
