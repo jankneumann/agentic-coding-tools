@@ -4,19 +4,19 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 1 — Contracts (wp-contracts)
 
-- [ ] 1.1 Write JSON Schema validation tests for `VariantDescriptor`
+- [x] 1.1 Write JSON Schema validation tests for `VariantDescriptor`
   **Spec scenarios**: skill-workflow.VariantDescriptorSchema.published
   **Contracts**: contracts/schemas/variant-descriptor.schema.json
   **Design decisions**: D9
   **Dependencies**: None
 
-- [ ] 1.2 Author `contracts/schemas/variant-descriptor.schema.json` — fields per D9
+- [x] 1.2 Author `contracts/schemas/variant-descriptor.schema.json` — fields per D9
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write `contracts/README.md` documenting evaluated contract sub-types (no OpenAPI/DB/event contracts apply to this skill-definition change; VariantDescriptor is the only contract)
+- [x] 1.3 Write `contracts/README.md` documenting evaluated contract sub-types (no OpenAPI/DB/event contracts apply to this skill-definition change; VariantDescriptor is the only contract)
   **Dependencies**: 1.2
 
-- [ ] 1.4 Add synthesis-plan schema stub (`contracts/schemas/synthesis-plan.schema.json`) describing the output of `synthesize_variants()`
+- [x] 1.4 Add synthesis-plan schema stub (`contracts/schemas/synthesis-plan.schema.json`) describing the output of `synthesize_variants()`
   **Spec scenarios**: skill-workflow.VariantDescriptorSchema.synthesis_plan
   **Design decisions**: D9
   **Dependencies**: 1.2
