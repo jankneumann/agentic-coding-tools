@@ -6,6 +6,54 @@ A structured feature development workflow for AI-assisted coding. Skills are reu
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.
 
+## Design Principles
+
+### Divergence is first-class on both sides of the approval gate
+
+Most agent workflows treat the proposal-approval gate as a funnel: many ideas in, one approved plan out, one implementation. The reality is that *both* the generation side (before approval) and the review side (after approval) benefit from running multiple paths in parallel and synthesizing the best parts back together — what Uber called "let many AIs explore the design space" in their AI-prototyping write-up.
+
+This workflow has divergence on both sides of the gate:
+
+- **Generation side** — `/prototype-feature` dispatches N parallel variant agents (default 3) that each produce a working skeleton from the approved proposal under different angles (`simplest`, `extensible`, `pragmatic`). Humans pick-and-choose per aspect (data_model / api / tests / layout); `/iterate-on-plan --prototype-context` synthesizes the picks back into `design.md` and `tasks.md` before `/implement-feature` runs.
+- **Review side** — `/parallel-review-plan` and `/parallel-review-implementation` dispatch N parallel reviewer vendors that produce competing finding sets; the consensus synthesizer reconciles confirmed/unconfirmed/disagreement findings into a single review report.
+
+The two halves share the same parallel-infrastructure machinery (work queue, result schemas, consensus synthesizer extended with `VariantDescriptor` + `synthesize_variants`). Prototyping is opt-in (operator invokes it explicitly; `/iterate-on-plan` may emit a `workflow.prototype-recommended` advisory when uncertainty in the plan is high — ≥3 high-criticality clarity+feasibility findings in one batch).
+
+#### Example: full prototype-aware workflow
+
+```bash
+# 1. Plan
+/plan-feature "add a delivery-pipeline cache so reruns skip pre-computed work"
+
+# 2. Iterate on the plan a few times to make sure the proposal is honest
+/iterate-on-plan add-delivery-cache
+
+# (Suppose iterate emits 3 high-criticality clarity+feasibility findings —
+#  it appends a workflow.prototype-recommended advisory. You decide to act.)
+
+# 3. Prototype: dispatch 3 variants under different angles
+/prototype-feature add-delivery-cache
+#   → prototype/add-delivery-cache/v1  (simplest)    — claude
+#   → prototype/add-delivery-cache/v2  (extensible)  — codex
+#   → prototype/add-delivery-cache/v3  (pragmatic)   — gemini
+#   → /validate-feature --phase smoke,spec scores each
+#   → AskUserQuestion captures per-aspect picks
+#   → openspec/changes/add-delivery-cache/prototype-findings.md written
+
+# 4. Converge: synthesize picks back into design.md/tasks.md
+/iterate-on-plan add-delivery-cache --prototype-context add-delivery-cache
+#   → emits convergence.merge-data-model-v1-and-v2 (humans picked both)
+#   → emits convergence.rewrite-tests (no variant got tests right)
+#   → refines design.md and tasks.md on the FEATURE branch (not prototype branches)
+
+# 5. Implement against the converged plan
+/implement-feature add-delivery-cache
+# …
+
+# 6. Cleanup deletes the prototype/* branches alongside the feature branch
+/cleanup-feature add-delivery-cache
+```
+
 ## Unified Skills with Tiered Execution
 
 Each workflow skill auto-selects its execution tier at startup based on coordinator availability and feature complexity:
@@ -22,6 +70,8 @@ Each workflow skill auto-selects its execution tier at startup based on coordina
 /plan-feature <description>                            Proposal approval gate
   /iterate-on-plan <change-id> (optional)              Refines plan before approval
   /parallel-review-plan <change-id> (optional)         Independent plan review (vendor-diverse)
+  /prototype-feature <change-id> (optional)            N parallel variant skeletons (divergence on the generation side)
+  /iterate-on-plan <change-id> --prototype-context <change-id>   Convergence: synthesize variants back into design.md/tasks.md
 /implement-feature <change-id>                         PR review gate (auto-validates: spec, evidence)
   /iterate-on-implementation <change-id>               Refinement complete
   /parallel-review-implementation <change-id>          Per-package review (vendor-diverse)
@@ -49,6 +99,8 @@ See [Parallel Agentic Development](parallel-agentic-development.md) for the full
 ```
 /plan-feature <description>                            Proposal approval gate
   /iterate-on-plan <change-id> (optional)              Refines plan before approval
+  /prototype-feature <change-id> (optional)            Dispatch N parallel variant skeletons; capture human pick-and-choose
+  /iterate-on-plan <change-id> --prototype-context <change-id>   Convergence-aware refinement using variant outcomes
 /implement-feature <change-id>                         PR review gate
   /iterate-on-implementation <change-id>               Refinement complete
   /refresh-architecture [mode] (optional)              Regenerate/validate architecture artifacts
@@ -75,6 +127,8 @@ Architecture refresh callout:
 | `/refresh-architecture` (optional) | Source code + existing architecture artifacts | Current architecture context for planning, implementation checks, and validation |
 | `/plan-feature` | Discovery/context | Proposal approval |
 | `/iterate-on-plan` (optional) | Existing proposal | Higher-quality approved proposal |
+| `/prototype-feature` (optional) | Approved proposal + spec deltas | N variant skeletons on `prototype/<change-id>/v<n>` branches; `prototype-findings.md` with pick-and-choose results |
+| `/iterate-on-plan --prototype-context` (optional) | `prototype-findings.md` + variant diffs | Refined `design.md`/`tasks.md` with `convergence.*` findings synthesizing the picked aspects |
 | `/implement-feature` | Approved proposal/spec/tasks | PR review |
 | `/iterate-on-implementation` (optional) | Implementation branch | Higher-confidence PR |
 | `/validate-feature` (optional) | Implemented branch | Cleanup decision (includes inline security scanning) |
