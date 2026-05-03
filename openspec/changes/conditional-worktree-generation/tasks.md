@@ -79,12 +79,12 @@ All task groups are TDD-ordered: tests before the implementation they verify. Ev
 
 ## Phase 5 — Optional coordinator extension
 
-- [ ] **5.1** **(deferred — follow-up PR)** Write coordinator integration tests — register an agent-id with `isolation_provided=true`; assert `EnvironmentProfile.detect()` returns `source="coordinator"` when queried under that agent-id. The coordinator layer in `environment_profile.py` is implemented and unit-tested with mocks; end-to-end coordinator registration is deferred pending the schema change in 5.2.
+- [x] **5.1** **(migrated → issue #137)** Write coordinator integration tests — register an agent-id with `isolation_provided=true`; assert `EnvironmentProfile.detect()` returns `source="coordinator"` when queried under that agent-id. The coordinator layer in `environment_profile.py` is implemented and unit-tested with mocks; end-to-end coordinator registration is deferred pending the schema change in 5.2.
   - **Spec scenarios**: worktree-isolation.3 (coordinator overrides heuristic)
   - **Design decisions**: D7 (optional, non-blocking)
   - **Dependencies**: 4.2
 
-- [ ] **5.2** **(deferred — follow-up PR)** Add optional `isolation_provided` field to the coordinator's agent registration schema — non-breaking (default `null`, treated as unknown). Add to the agent-registration API/MCP tool signature behind the existing `CAN_DISCOVER` capability flag. Deferred to a coordinator-side PR since this repo's worktree.py already consumes the field if the coordinator reports it.
+- [x] **5.2** **(migrated → issue #137)** Add optional `isolation_provided` field to the coordinator's agent registration schema — non-breaking (default `null`, treated as unknown). Add to the agent-registration API/MCP tool signature behind the existing `CAN_DISCOVER` capability flag. Deferred to a coordinator-side PR since this repo's worktree.py already consumes the field if the coordinator reports it.
   - **Dependencies**: 5.1
 
 ## Phase 6 — Documentation and rollout
@@ -100,3 +100,10 @@ All task groups are TDD-ordered: tests before the implementation they verify. Ev
 
 - [x] **6.4** Run full test suite (`skills/.venv/bin/python -m pytest skills/tests/`) and capture output in change's evidence directory.
   - **Dependencies**: 6.1, 6.2, 6.3
+
+## Migration Notes
+
+Deferred items migrated during `/cleanup-feature` on 2026-05-03:
+
+- **5.1 + 5.2** → GitHub issue #137 (`Coordinator: add isolation_provided to agent registration schema`) — coordinator-side schema and integration test, non-blocking because the env-var and heuristic detection layers already provide the signal in cloud harnesses today. Labels: `followup`, `openspec:conditional-worktree-generation`, `coordinator`.
+- **#127** (install.sh did not bundle `skills/shared/`) → fixed in this `/cleanup-feature` run; explicit `SHARED_LIBS=(shared)` allowlist added to `skills/install.sh` so installed runtimes import the real `environment_profile` module instead of falling through to the no-op stub.
