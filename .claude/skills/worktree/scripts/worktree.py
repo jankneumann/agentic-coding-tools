@@ -166,52 +166,70 @@ def default_branch(
     return base
 
 
+PROTOTYPE_BRANCH_PREFIX = "prototype"
+_VALID_BRANCH_PREFIXES = frozenset({PROTOTYPE_BRANCH_PREFIX})
+
+
 def resolve_branch(
     change_id: str,
     agent_id: str | None = None,
     prefix: str | None = None,
     explicit: str | None = None,
     env: dict[str, str] | None = None,
+    branch_prefix: str | None = None,
 ) -> str:
     """Resolve the branch name a caller should use, applying override precedence.
 
-    Resolution proceeds in two steps:
+    Resolution proceeds in three steps:
 
-    1. **Base resolution** (the parent feature/session branch):
+    1. **Explicit override** (highest precedence):
        - ``explicit`` — if passed, used verbatim as the final branch and returned
-         immediately. This preserves backward compatibility with callers like
-         ``openspec-beads-worktree`` that pre-compose their own fully-qualified
-         task branches and pass them via ``--branch``.
+         immediately, even when ``branch_prefix`` is also set. This preserves
+         backward compatibility with callers like ``openspec-beads-worktree``
+         that pre-compose their own fully-qualified task branches.
+
+    2. **Branch-prefix scheme** (for prototype variants):
+       - When ``branch_prefix='prototype'``, the result is
+         ``prototype/<change-id>/<agent-id>`` (with '/' separator, not '--').
+         The prototype workflow never creates a parent ``prototype/<change-id>``
+         branch, so the git ref-storage limitation that forces '--' for the
+         openspec/<change-id> case doesn't apply. ``OPENSPEC_BRANCH_OVERRIDE``
+         is intentionally ignored here — the operator's session branch governs
+         the parent feature branch (see ``resolve_parent_branch``), but the
+         variants still need to land on prototype/* so cleanup-feature can
+         find and delete them by pattern.
+
+    3. **Base resolution + agent suffix** (the original two-layer logic):
        - ``OPENSPEC_BRANCH_OVERRIDE`` env var — operator-mandated base branch
          (e.g. Claude cloud harness sets ``claude/fix-branch-mismatch-9P9o1``).
          When set, it replaces the ``openspec/<change-id>`` default as the base.
        - ``default_branch`` namespace — ``<prefix>/<change-id>`` or
          ``openspec/<change-id>``.
-
-    2. **Agent suffix** (for parallel disambiguation):
-       When ``agent_id`` is provided, ``--<agent-id>`` is appended to the base.
-       This ensures parallel work-package agents get distinct branches:
-
-           claude/fix-branch-mismatch-9P9o1--wp-backend
-           claude/fix-branch-mismatch-9P9o1--wp-frontend
-           claude/fix-branch-mismatch-9P9o1--cleanup
-
-       These then merge back into the base (parent) branch via
-       ``merge_worktrees.py``. The ``--`` separator (not ``/``) is required
-       because git cannot have both ``refs/heads/a/b`` and ``refs/heads/a/b/c``
-       simultaneously — using ``/`` would make the base branch conflict with
-       any agent sub-branches.
-
-    ``explicit`` is treated as a full override that bypasses agent-suffix
-    composition entirely, because the caller has already made an explicit
-    naming choice.
+       - When ``agent_id`` is provided, ``--<agent-id>`` is appended to the base
+         (the '--' separator is required because git cannot have both
+         ``refs/heads/a/b`` and ``refs/heads/a/b/c`` simultaneously).
 
     Passing empty/whitespace strings is treated as "not set" and falls through
-    to the next layer.
+    to the next layer. Unknown ``branch_prefix`` values raise ``ValueError``;
+    argparse blocks them at the CLI layer via ``choices=`` but library callers
+    deserve a loud failure too.
     """
-    # Explicit caller-composed branch wins verbatim (skips agent suffix too)
+    # Explicit caller-composed branch wins verbatim (skips all composition)
     if explicit:
         return explicit
+
+    if branch_prefix is not None and branch_prefix not in _VALID_BRANCH_PREFIXES:
+        raise ValueError(
+            f"Unknown branch_prefix={branch_prefix!r}. "
+            f"Allowed: {sorted(_VALID_BRANCH_PREFIXES)} or None."
+        )
+
+    if branch_prefix == PROTOTYPE_BRANCH_PREFIX:
+        # Variants under prototype/<change>/<agent>. '/' is safe here because
+        # no parent ``prototype/<change>`` ref is ever created.
+        if agent_id:
+            return f"{PROTOTYPE_BRANCH_PREFIX}/{change_id}/{agent_id}"
+        return f"{PROTOTYPE_BRANCH_PREFIX}/{change_id}"
 
     environ = env if env is not None else os.environ
     override = (environ.get("OPENSPEC_BRANCH_OVERRIDE") or "").strip()
@@ -365,13 +383,22 @@ def cmd_setup(args: argparse.Namespace) -> int:
     change_id: str = args.change_id
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
+    branch_prefix: str | None = getattr(args, "branch_prefix", None)
 
-    branch = resolve_branch(change_id, agent_id, prefix, explicit=args.branch)
+    branch = resolve_branch(
+        change_id, agent_id, prefix,
+        explicit=args.branch,
+        branch_prefix=branch_prefix,
+    )
     if not args.branch and branch != default_branch(change_id, agent_id, prefix):
-        # Emit diagnostic so operators can confirm the env override took effect
-        print("BRANCH_OVERRIDE_SOURCE=env", file=sys.stderr)
+        # Emit diagnostic so operators can confirm which override took effect
+        source = "branch-prefix" if branch_prefix else "env"
+        print(f"BRANCH_OVERRIDE_SOURCE={source}", file=sys.stderr)
         print(f"BRANCH_OVERRIDE_VALUE={branch}", file=sys.stderr)
 
+    # Worktree path layout is unaffected by branch_prefix — prototype variants
+    # live at .git-worktrees/<change>/<agent>/, the same shape that work-package
+    # agents use. The prototype namespace lives only in the branch name.
     wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
 
     # Check if already in the target worktree
@@ -424,8 +451,14 @@ def cmd_setup(args: argparse.Namespace) -> int:
     registry = load_registry(main_repo)
     existing = find_entry(registry, change_id, agent_id)
     now = _utcnow_iso()
+    # Prototype worktrees auto-pin per D4: they must survive the 24h GC timer
+    # because /cleanup-feature is the only thing that should delete them, and
+    # the gap between dispatch and cleanup can span days while humans iterate.
+    auto_pin = branch_prefix == PROTOTYPE_BRANCH_PREFIX
     if existing:
         existing["last_heartbeat"] = now
+        if auto_pin:
+            existing["pinned"] = True
     else:
         registry["entries"].append({
             "change_id": change_id,
@@ -434,9 +467,11 @@ def cmd_setup(args: argparse.Namespace) -> int:
             "worktree_path": str(wt_path),
             "created_at": now,
             "last_heartbeat": now,
-            "pinned": False,
+            "pinned": auto_pin,
         })
     save_registry(main_repo, registry)
+    if auto_pin:
+        print("AUTO_PINNED=true (branch-prefix=prototype)", file=sys.stderr)
 
     # Bootstrap the worktree (copy .env, install deps, sync skills)
     bootstrapped = False
@@ -898,6 +933,20 @@ def main() -> int:
         ),
     )
     setup_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
+    setup_parser.add_argument(
+        "--branch-prefix",
+        dest="branch_prefix",
+        choices=sorted(_VALID_BRANCH_PREFIXES),
+        default=None,
+        help=(
+            "Alternate branch namespace. Currently 'prototype' is the only "
+            "supported value: it produces 'prototype/<change-id>/<agent-id>' "
+            "branches (with '/' separator) and auto-pins the worktree so it "
+            "survives the 24h GC timer until /cleanup-feature deletes it. "
+            "Wins over OPENSPEC_BRANCH_OVERRIDE for the variant branch but "
+            "leaves the parent feature branch untouched."
+        ),
+    )
     setup_parser.add_argument(
         "--no-bootstrap", action="store_true",
         help="Skip environment bootstrap (deps, .env copy, skills sync)",
