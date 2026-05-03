@@ -23,23 +23,23 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 2 — Worktree Extension (wp-worktree)
 
-- [ ] 2.1 Write tests for `worktree.py setup --branch-prefix prototype` composition with `--agent-id`
+- [x] 2.1 Write tests for `worktree.py setup --branch-prefix prototype` composition with `--agent-id`
   **Spec scenarios**: skill-workflow.PrototypeWorktreeSupport.branch-creation, branch-override-composition
   **Design decisions**: D4
   **Dependencies**: None
 
-- [ ] 2.2 Write tests for prototype worktree pinning (survives 24h GC timer)
+- [x] 2.2 Write tests for prototype worktree pinning (survives 24h GC timer)
   **Spec scenarios**: skill-workflow.PrototypeWorktreeSupport.worktree-pin
   **Design decisions**: D4
   **Dependencies**: None
 
-- [ ] 2.3 Add `--branch-prefix` flag to `skills/worktree/scripts/worktree.py` setup subcommand
+- [x] 2.3 Add `--branch-prefix` flag to `skills/worktree/scripts/worktree.py` setup subcommand
   **Dependencies**: 2.1
 
-- [ ] 2.4 Extend `resolve_branch` to honor `--branch-prefix prototype` alongside `OPENSPEC_BRANCH_OVERRIDE` precedence
+- [x] 2.4 Extend `resolve_branch` to honor `--branch-prefix prototype` alongside `OPENSPEC_BRANCH_OVERRIDE` precedence
   **Dependencies**: 2.3
 
-- [ ] 2.5 Auto-pin worktrees created with `--branch-prefix prototype`
+- [x] 2.5 Auto-pin worktrees created with `--branch-prefix prototype`
   **Dependencies**: 2.2, 2.3
 
 ## Phase 3 — Parallel Infrastructure Schema (wp-parallel-infra)
