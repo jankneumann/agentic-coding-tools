@@ -174,3 +174,30 @@ Validation PASS for add-per-phase-archetype-resolution. Critical gates (spec dri
 ### Context
 Re-validation against the new coordinator-api compose stack (commit 637cc12) promoted deploy/smoke/e2e/logs from skip to pass and rewrote the validation-report.md to expose canonical phase sections that the pre-merge gate parses.
 
+
+---
+
+## Phase: Cleanup (2026-05-03)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Re-validate against the new compose stack instead of `--force`** — PR #129 commit 637cc12 added the `coordinator-api` compose service specifically to make deploy/smoke/e2e runnable; using the new infra to produce real evidence (and exposing canonical `## Smoke Tests`/`## Security`/`## E2E Tests` sections in `validation-report.md`) was the principled path over a `--force` gate bypass.
+2. **Rebase-merge over squash** — Per repo merge-strategy contract: agent-authored OpenSpec PRs use rebase-merge so each conventional commit (one per work package + finalization commits) appears individually on `main`. PR #129 had 10 well-structured commits.
+3. **D-1 / D-2 → GitHub issues, D-3 → applied during cleanup** — Coordinator transport was `none` so D-1/D-2 went to issues #135/#136 with `followup` + `openspec:add-per-phase-archetype-resolution` labels. D-3 (`skills/install.sh` runtime sync after rebase) was the natural cleanup-time action.
+4. **Skip retroactive Cleanup PhaseRecord via `write_both()` — append directly to archived session-log** — Writing a PhaseRecord requires the change directory to exist at `openspec/changes/<change-id>/`, which the archive step had already moved. Direct append to the archived log preserves the canonical section ordering without re-running archive.
+
+### Completed Work
+- Pre-merge gate: re-ran `gate_logic.py` after rewriting validation-report.md → PASS (Smoke=pass, Security=pass, E2E=pass).
+- Merge: `gh pr merge 129 --rebase --delete-branch` succeeded; merge commit 92879d3 on main; remote feature branch deleted.
+- Deferred-task migration: D-1 → issue #135, D-2 → issue #136, D-3 applied (install.sh synced 82 skill dirs).
+- Archive: `openspec archive add-per-phase-archetype-resolution --yes` — added 10 requirements (agent-archetypes +3, agent-coordinator +4, skill-workflow +3); `openspec validate --all --strict` 21/21 PASS.
+- Compose teardown: `docker compose --profile api down` removed coordinator-api + postgres + network.
+
+### Next Steps
+- Push archive commit + skill-runtime sync to origin/main.
+- Teardown cleanup + implementation worktrees and prune remote tracking branches.
+- Optional follow-ups (out of scope here): regenerate decision-index to clear `validate-decision-index` CI failure; reconcile SonarCloud advisory.
+
+### Context
+PR #129 merged on 2026-05-03 19:55:48Z (commit 92879d3). All 10 commits replayed onto main via rebase-merge, preserving granular conventional history (wp-contracts → wp-skills-bridge → wp-coordinator → wp-skills-autopilot → wp-integration → finalization → re-validation → migration-notes). Two CI checks failed but were pre-existing and unrelated: `validate-decision-index` (decision-index drift on main), `SonarCloud Code Analysis` (advisory threshold).

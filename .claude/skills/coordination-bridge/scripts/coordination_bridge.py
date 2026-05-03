@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 from typing import Any
 from urllib import error as url_error
 from urllib import parse as url_parse
 from urllib import request as url_request
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "1.5"))
 
@@ -138,7 +141,7 @@ def _coordinator_state(
     if flags:
         capability_flags.update(flags)
 
-    response = {
+    response: dict[str, Any] = {
         "status": "ok" if available else "skipped",
         "COORDINATOR_AVAILABLE": available,
         "COORDINATION_TRANSPORT": transport,
@@ -1120,6 +1123,81 @@ def try_issue_search(
         http_url=http_url,
         api_key=api_key,
     )
+
+
+_ARCHETYPE_RESOLVE_REQUIRED_FIELDS = ("model", "system_prompt", "archetype", "reasons")
+
+
+def try_resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> dict[str, Any] | None:
+    """Resolve archetype, model, and system_prompt for an autopilot phase.
+
+    Returns the response body dict ``{model, system_prompt, archetype, reasons}``
+    on HTTP 200, or ``None`` on any failure (missing URL, network error,
+    timeout, non-200 status, malformed response). Failures emit a structured
+    WARNING via the module logger and never raise.
+
+    Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
+          agent-coordinator/spec.md -- Phase Archetype Resolution Bridge Helper.
+    Design decisions: D4 (bridge helper), D9 (failure mode).
+    """
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: missing_http_url; "
+            "set COORDINATION_API_URL or AUTOPILOT_PHASE_MODEL_OVERRIDE to mitigate",
+            phase,
+        )
+        return None
+
+    resolved_key = _resolve_api_key(api_key)
+    payload: dict[str, Any] = {"phase": phase, "signals": signals or {}}
+    response = _http_request(
+        method="POST",
+        path="/archetypes/resolve_for_phase",
+        payload=payload,
+        http_url=resolved_url,
+        api_key=resolved_key,
+        timeout=timeout,
+    )
+    status = response.get("status_code")
+    if status != 200:
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: HTTP status=%s error=%s; "
+            "phase will dispatch with harness defaults; set AUTOPILOT_PHASE_MODEL_OVERRIDE "
+            "to force a specific model",
+            phase,
+            status,
+            response.get("error"),
+        )
+        return None
+
+    data = response.get("data")
+    if not isinstance(data, dict):
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "(expected dict, got %s)",
+            phase,
+            type(data).__name__,
+        )
+        return None
+
+    if not all(k in data for k in _ARCHETYPE_RESOLVE_REQUIRED_FIELDS):
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "(missing required fields; got keys=%s)",
+            phase,
+            sorted(data.keys()),
+        )
+        return None
+
+    return data
 
 
 def _main(argv: list[str] | None = None) -> int:

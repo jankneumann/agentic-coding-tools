@@ -245,6 +245,48 @@ At each state transition, report:
 [autopilot] CLI review: enabled | disabled (--no-review or no vendor CLIs)
 ```
 
+## Per-Phase Archetype Resolution
+
+Each non-terminal phase resolves an archetype (e.g. `architect`, `implementer`,
+`reviewer`, `analyst`, `runner`) before the sub-agent dispatches. The resolved
+archetype determines both the model (`opus`/`sonnet`/`haiku`) and the system
+prompt the sub-agent runs with. Mapping lives coordinator-side at
+`agent-coordinator/archetypes.yaml` under `phase_mapping`.
+
+**Default mapping** (per design D11; tunable in `archetypes.yaml`):
+
+| Phases | Archetype | Default model |
+|---|---|---|
+| `PLAN`, `PLAN_ITERATE`, `PLAN_FIX` | `architect` | opus |
+| `PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW` | `reviewer` | opus |
+| `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_FIX` | `implementer` | sonnet (escalates to opus on size signals) |
+| `VALIDATE`, `VAL_FIX` | `analyst` | sonnet |
+| `INIT`, `SUBMIT_PR` | `runner` | haiku |
+
+**Operator override** — force a specific model for one or more phases via the
+`AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. Format:
+`<PHASE>=<model>[,<PHASE>=<model>]*`. Example:
+
+```bash
+export AUTOPILOT_PHASE_MODEL_OVERRIDE="PLAN=opus,IMPL_REVIEW=sonnet,VALIDATE=haiku"
+```
+
+Override sets `options["model"]` only; the `system_prompt` is left to the
+harness default to keep override behavior predictable. Unknown phase names
+are warned and ignored; unknown model names pass through (validated by the
+harness).
+
+**Failure mode** — if the coordinator endpoint is unreachable or returns an
+error, the bridge logs a structured warning and the phase dispatches with the
+harness default model. `LoopState.phase_archetype` is recorded as `null` for
+such phases so observability dashboards can flag default-fallback runs.
+
+**Observability** — `LoopState.phase_archetype` (schema_version=3) is
+persisted in `loop-state.json` and (when wired) emitted in
+`POST /status/report` payloads alongside the `phase` field.
+
+See `docs/autopilot-phase-archetype-resolution.md` for the full operator guide.
+
 ## Output
 
 - `openspec/changes/<change-id>/loop-state.json` — Full loop state (resumable)
