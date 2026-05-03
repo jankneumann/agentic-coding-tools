@@ -32,8 +32,10 @@ from typing import Any
 # Import the shared environment profile helper. Added to sys.path so the
 # import works whether worktree.py is invoked from the main repo, a
 # .git-worktrees/ entry, or as a shipped copy under .claude/skills/.
-# Falls back to a no-op profile when shared/ is not bundled in the
-# installed runtime (install.sh currently only syncs SKILL.md dirs).
+# install.sh syncs skills/shared/ alongside skill dirs (see SHARED_LIBS).
+# The ModuleNotFoundError fallback below is defensive — only triggered if
+# shared/ is missing from the runtime layout (e.g. an out-of-tree install
+# or stripped environment).
 try:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from shared.environment_profile import EnvironmentProfile, detect  # noqa: E402
