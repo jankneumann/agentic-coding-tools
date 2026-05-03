@@ -44,21 +44,21 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 3 — Parallel Infrastructure Schema (wp-parallel-infra)
 
-- [ ] 3.1 Write unit tests for `synthesize_variants(descriptors) -> synthesis_plan`
+- [x] 3.1 Write unit tests for `synthesize_variants(descriptors) -> synthesis_plan`
   **Spec scenarios**: skill-workflow.VariantDescriptorSchema.synthesis_plan
   **Contracts**: contracts/schemas/variant-descriptor.schema.json, contracts/schemas/synthesis-plan.schema.json
   **Design decisions**: D9
   **Dependencies**: 1.2, 1.4
 
-- [ ] 3.2 Write test covering variant grouping by aspect (data_model, api, tests, layout)
+- [x] 3.2 Write test covering variant grouping by aspect (data_model, api, tests, layout)
   **Spec scenarios**: skill-workflow.PrototypeFindingsArtifact.human-pick-and-choose
   **Design decisions**: D7, D9
   **Dependencies**: None
 
-- [ ] 3.3 Add `VariantDescriptor` dataclass/TypedDict in `skills/parallel-infrastructure/scripts/variant_descriptor.py`
+- [x] 3.3 Add `VariantDescriptor` dataclass/TypedDict in `skills/parallel-infrastructure/scripts/variant_descriptor.py`
   **Dependencies**: 3.1, 3.2
 
-- [ ] 3.4 Implement `synthesize_variants()` — produces synthesis_plan from list of descriptors
+- [x] 3.4 Implement `synthesize_variants()` — produces synthesis_plan from list of descriptors
   **Dependencies**: 3.3
 
 ## Phase 4 — Prototype Feature Skill (wp-prototype-skill)
