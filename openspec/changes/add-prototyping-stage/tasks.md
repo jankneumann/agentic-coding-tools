@@ -136,12 +136,12 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 6 — Cleanup Extension (wp-cleanup)
 
-- [ ] 6.1 Write tests for prototype branch cleanup — local and remote deletion alongside feature branch
+- [x] 6.1 Write tests for prototype branch cleanup — local and remote deletion alongside feature branch
   **Spec scenarios**: skill-workflow.CleanupIncludesPrototypeBranches.prototype-cleanup-on-merge, stale-state-without-findings
   **Design decisions**: D4
   **Dependencies**: 2.3
 
-- [ ] 6.2 Extend `skills/cleanup-feature/SKILL.md` — prototype cleanup step before archive
+- [x] 6.2 Extend `skills/cleanup-feature/SKILL.md` — prototype cleanup step before archive
   **Dependencies**: 6.1
 
 ## Phase 7 — Documentation (wp-docs)
