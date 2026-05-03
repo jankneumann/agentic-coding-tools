@@ -7,6 +7,8 @@ Usage: ./install.sh [--target <directory>] [--agents <list>] [--mode <symlink|rs
 
 Install skills into agent config directories using symlinks or synced copies.
 Any directory under skills/ with SKILL.md is installed automatically.
+Top-level shared helper libraries (skills/shared/) are installed alongside
+skills so runtime imports resolve from the installed copy.
 
 Options:
   --target <directory>   Base directory that contains .claude/.agents
@@ -293,6 +295,16 @@ install_python_tools() {
   echo "  export PATH=\"$venv_path/bin:\$PATH\""
 }
 
+# Top-level shared helper libraries that ship alongside skills. These are
+# directories directly under skills/ that lack a SKILL.md but contain Python
+# modules imported from skill scripts at runtime (e.g. worktree.py imports
+# shared.environment_profile via parent.parent.parent path resolution).
+# Install in the same destinations as skills so the import path resolves
+# under .claude/skills/<lib>/ and .agents/skills/<lib>/.
+SHARED_LIBS=(
+  shared
+)
+
 # Deprecated skills that have been superseded by unified skills.
 # These are removed from agent config dirs before installing current skills.
 DEPRECATED_SKILLS=(
@@ -435,6 +447,54 @@ for agent in "${agent_list[@]}"; do
       mkdir -p "$dest_path"
       rsync -a --checksum --delete --exclude='tests/' --exclude='__pycache__/' "$skill_path/" "$dest_path/"
       echo "  $sync_label  $skill_name -> $dest_path"
+    fi
+    total_installed=$((total_installed + 1))
+  done
+
+  for lib_name in "${SHARED_LIBS[@]}"; do
+    lib_src="$SCRIPT_DIR/$lib_name"
+    if [[ ! -d "$lib_src" ]]; then
+      echo "  skip  $lib_name (shared lib not present at $lib_src)"
+      continue
+    fi
+
+    lib_dest="$dest_dir/$lib_name"
+    lib_src_real="$(canonicalize_existing_dir "$lib_src")"
+    lib_dest_real="$(canonicalize_target_path "$lib_dest")"
+
+    if [[ "$lib_src_real" == "$lib_dest_real" ]]; then
+      echo "  skip  $lib_name (source and destination are the same path)"
+      total_skipped=$((total_skipped + 1))
+      continue
+    fi
+
+    if [[ -e "$lib_dest" || -L "$lib_dest" ]]; then
+      if [[ "$MODE" == "symlink" ]]; then
+        if [[ $FORCE -eq 1 ]]; then
+          rm -rf "$lib_dest"
+        else
+          echo "  skip  $lib_name (destination exists; use --force to replace)"
+          total_skipped=$((total_skipped + 1))
+          continue
+        fi
+      elif [[ -L "$lib_dest" || ! -d "$lib_dest" ]]; then
+        if [[ $FORCE -eq 1 ]]; then
+          rm -rf "$lib_dest"
+        else
+          echo "  skip  $lib_name (destination conflicts; use --force to replace)"
+          total_skipped=$((total_skipped + 1))
+          continue
+        fi
+      fi
+    fi
+
+    if [[ "$MODE" == "symlink" ]]; then
+      ln -s "$lib_src" "$lib_dest"
+      echo "  link  $lib_name (shared) -> $lib_src"
+    else
+      mkdir -p "$lib_dest"
+      rsync -a --checksum --delete --exclude='tests/' --exclude='__pycache__/' "$lib_src/" "$lib_dest/"
+      echo "  $sync_label  $lib_name (shared) -> $lib_dest"
     fi
     total_installed=$((total_installed + 1))
   done
