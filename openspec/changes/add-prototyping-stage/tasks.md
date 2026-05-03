@@ -103,35 +103,35 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 5 — Iterate-on-Plan Extension (wp-iterate-convergence)
 
-- [ ] 5.1 Write tests for `--prototype-context` flag parsing and context loading
+- [x] 5.1 Write tests for `--prototype-context` flag parsing and context loading
   **Spec scenarios**: skill-workflow.ConvergenceViaIterateOnPlan.convergence-mode-activated
   **Design decisions**: D1
   **Dependencies**: 4.8
 
-- [ ] 5.2 Write tests that existing iterate-on-plan behavior is unchanged when flag absent
+- [x] 5.2 Write tests that existing iterate-on-plan behavior is unchanged when flag absent
   **Spec scenarios**: skill-workflow.ConvergenceViaIterateOnPlan.convergence-without-context
   **Design decisions**: D1
   **Dependencies**: None
 
-- [ ] 5.3 Write tests for missing-artifact fail-fast path
+- [x] 5.3 Write tests for missing-artifact fail-fast path
   **Spec scenarios**: skill-workflow.ConvergenceViaIterateOnPlan.missing-prototype-artifacts
   **Dependencies**: None
 
-- [ ] 5.4 Write tests for `workflow.prototype-recommended` threshold (emits at ≥3 high clarity+feasibility findings; silent below)
+- [x] 5.4 Write tests for `workflow.prototype-recommended` threshold (emits at ≥3 high clarity+feasibility findings; silent below)
   **Spec scenarios**: skill-workflow.PrototypeRecommendationSignal.threshold-met, threshold-not-met, advisory-only
   **Design decisions**: D8
   **Dependencies**: None
 
-- [ ] 5.5 Extend `skills/iterate-on-plan/SKILL.md` — document convergence mode step, `convergence.*` finding types, prototype-recommended signal
+- [x] 5.5 Extend `skills/iterate-on-plan/SKILL.md` — document convergence mode step, `convergence.*` finding types, prototype-recommended signal
   **Dependencies**: 5.1, 5.2, 5.3, 5.4
 
-- [ ] 5.6 Add prototype-context loader to `skills/iterate-on-plan/scripts/` — reads `prototype-findings.md`, variant diffs, validation reports
+- [x] 5.6 Add prototype-context loader to `skills/iterate-on-plan/scripts/` — reads `prototype-findings.md`, variant diffs, validation reports
   **Dependencies**: 5.5, 4.8
 
-- [ ] 5.7 Add `convergence.*` finding types to iterate-on-plan's finding taxonomy
+- [x] 5.7 Add `convergence.*` finding types to iterate-on-plan's finding taxonomy
   **Dependencies**: 5.6
 
-- [ ] 5.8 Add `workflow.prototype-recommended` advisory finding emitter
+- [x] 5.8 Add `workflow.prototype-recommended` advisory finding emitter
   **Dependencies**: 5.5
 
 ## Phase 6 — Cleanup Extension (wp-cleanup)
