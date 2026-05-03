@@ -63,42 +63,42 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 4 — Prototype Feature Skill (wp-prototype-skill)
 
-- [ ] 4.1 Write tests for variant dispatch — count validation, angle-count matching, out-of-bounds rejection
+- [x] 4.1 Write tests for variant dispatch — count validation, angle-count matching, out-of-bounds rejection
   **Spec scenarios**: skill-workflow.PrototypeFeatureSkill.default-variant-dispatch, custom-variant-count-and-angles, variant-count-out-of-bounds
   **Design decisions**: D2, D5
   **Dependencies**: None
 
-- [ ] 4.2 Write tests for isolated worktree per variant — no cross-branch writes
+- [x] 4.2 Write tests for isolated worktree per variant — no cross-branch writes
   **Spec scenarios**: skill-workflow.PrototypeFeatureSkill.isolated-worktree-per-variant
   **Design decisions**: D4
   **Dependencies**: 2.3
 
-- [ ] 4.3 Write tests for vendor diversity — sufficient, insufficient, recorded policy
+- [x] 4.3 Write tests for vendor diversity — sufficient, insufficient, recorded policy
   **Spec scenarios**: skill-workflow.VendorDiversityPolicy.sufficient, insufficient, recorded
   **Design decisions**: D3
   **Dependencies**: None
 
-- [ ] 4.4 Write tests for scoring — smoke/spec phases invoked, heavy phases not invoked, skeleton-deploy failure surfaces
+- [x] 4.4 Write tests for scoring — smoke/spec phases invoked, heavy phases not invoked, skeleton-deploy failure surfaces
   **Spec scenarios**: skill-workflow.VariantScoring.smoke-and-spec, skeleton-fails-to-deploy
   **Design decisions**: D6
   **Dependencies**: None
 
-- [ ] 4.5 Write tests for `prototype-findings.md` production — schema conformance, human-picks recorded
+- [x] 4.5 Write tests for `prototype-findings.md` production — schema conformance, human-picks recorded
   **Spec scenarios**: skill-workflow.PrototypeFindingsArtifact.findings-artifact-produced, human-pick-and-choose
   **Contracts**: contracts/schemas/variant-descriptor.schema.json
   **Design decisions**: D7
   **Dependencies**: 1.2, 3.3
 
-- [ ] 4.6 Create `skills/prototype-feature/SKILL.md` — full skill definition with steps, gates, inputs, outputs
+- [x] 4.6 Create `skills/prototype-feature/SKILL.md` — full skill definition with steps, gates, inputs, outputs
   **Dependencies**: 4.1, 4.2, 4.3, 4.4, 4.5
 
-- [ ] 4.7 Create `skills/prototype-feature/scripts/dispatch_variants.py` — worktree setup, Task() agent dispatch, vendor-diversity policy
+- [x] 4.7 Create `skills/prototype-feature/scripts/dispatch_variants.py` — worktree setup, Task() agent dispatch, vendor-diversity policy
   **Dependencies**: 4.6, 2.3, 3.3
 
-- [ ] 4.8 Create `skills/prototype-feature/scripts/collect_outcomes.py` — run `/validate-feature --phase smoke,spec` per variant; aggregate VariantDescriptors
+- [x] 4.8 Create `skills/prototype-feature/scripts/collect_outcomes.py` — run `/validate-feature --phase smoke,spec` per variant; aggregate VariantDescriptors
   **Dependencies**: 4.7
 
-- [ ] 4.9 Create `skills/prototype-feature/angles.yaml` — default angle prompts per D5
+- [x] 4.9 Create `skills/prototype-feature/angles.yaml` — default angle prompts per D5
   **Dependencies**: 4.6
 
 ## Phase 5 — Iterate-on-Plan Extension (wp-iterate-convergence)
