@@ -178,3 +178,11 @@ Tasks ordered TDD-first within each phase. Implementation tasks declare dependen
 - [x] 9.5 Pre-register coordinator file lock on `skills/autopilot/scripts/convergence_loop.py` with `intent="read-only observation"` per D10 (coordination with harness-engineering-features) — note: this proposal does not write to `convergence_loop.py` (verified: no edits in any of the wp-coordinator/wp-skills-bridge/wp-skills-autopilot/wp-integration commits touch that file). Lock pre-registration via the coordinator HTTP API requires an authenticated operator session and is recorded as a deferred merge-window operator action in deferred-tasks.md D-3.
   **Design decisions**: D10
   **Dependencies**: None (run before any merge)
+
+## Migration Notes
+
+Deferred items (see `deferred-tasks.md`) migrated during `/cleanup-feature` on 2026-05-03:
+
+- **D-1** → GitHub issue #135 (`Expose phase_archetype in GET /discovery/agents listing`) — labels: `followup`, `openspec:add-per-phase-archetype-resolution`, `enhancement`
+- **D-2** → GitHub issue #136 (`Wire INIT phase archetype recording + autopilot status reporter emission`) — same labels
+- **D-3** → Applied during this `/cleanup-feature` run: `skills/install.sh` runs after merge; D10 advisory file lock is informational only.
