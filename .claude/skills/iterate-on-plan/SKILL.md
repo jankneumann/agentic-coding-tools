@@ -18,13 +18,18 @@ Iteratively refine an OpenSpec proposal after `/plan-feature` creates it. Each i
 
 ## Arguments
 
-`$ARGUMENTS` - OpenSpec change-id (required), optionally followed by `--max <N>` (default: 3), `--threshold <level>` (default: "medium"; values: "critical", "high", "medium", "low"), and `--vendor-review` (dispatch multi-vendor review after iterate loop converges; automatic in coordinated tier)
+`$ARGUMENTS` - OpenSpec change-id (required), optionally followed by:
+- `--max <N>` (default: 3)
+- `--threshold <level>` (default: "medium"; values: "critical", "high", "medium", "low")
+- `--vendor-review` — dispatch multi-vendor review after iterate loop converges; automatic in coordinated tier
+- `--prototype-context <change-id>` — **convergence mode** (added by add-prototyping-stage / D1). When present, the skill loads `prototype-findings.md`, variant branch diffs, and validation reports as additional context, then emits `convergence.*` findings to refine `design.md` and `tasks.md` based on the picks captured by `/prototype-feature`. The change-id MUST match the iteration target. Fails fast if no findings file exists.
 
 ## Prerequisites
 
 - OpenSpec proposal exists at `openspec/changes/<change-id>/` with at least proposal.md, tasks.md, and one spec delta
 - Run `/plan-feature` first if no proposal exists
 - Proposal has NOT yet been approved (this skill refines before approval)
+- For `--prototype-context`: `/prototype-feature <change-id>` must have been run first and produced `openspec/changes/<change-id>/prototype-findings.md`
 
 ## OpenSpec Execution Preference
 
@@ -124,6 +129,41 @@ openspec status --change "$CHANGE_ID"
 ```
 
 Ensure `openspec/changes/<change-id>/plan-findings.md` exists and append each iteration's findings there.
+
+### 3.7. Load Prototype Context (Conditional — Convergence Mode)
+
+**Skipped when `--prototype-context` is NOT in argv.** The convergence path is always explicit per D1 / spec; iterate-on-plan does NOT auto-discover `prototype-findings.md`.
+
+When `--prototype-context <change-id>` is present, load the artifacts the `/prototype-feature` skill produced:
+
+```python
+from prototype_context import PrototypeContextMissing, load_prototype_context
+
+try:
+    ctx = load_prototype_context(
+        change_dir=Path("openspec/changes") / PROTOTYPE_CONTEXT_CHANGE_ID
+    )
+except PrototypeContextMissing as exc:
+    # Fail fast — the user explicitly asked for prototype-aware refinement,
+    # so silently downgrading to non-convergence iteration would be wrong.
+    raise SystemExit(f"--prototype-context: {exc}")
+```
+
+`ctx.descriptors` carries the parsed VariantDescriptors; `ctx.synthesis_plan` carries the per-aspect picks and pre-classified `convergence.*` recommended findings (computed via `parallel-infrastructure.synthesize_variants`).
+
+In step 5 (Review and Analyze), seed the iteration's finding list with `ctx.synthesis_plan["recommended_findings"]` so they appear alongside the standard clarity/feasibility/etc findings the analyzer produces. The convergence findings drive design.md and tasks.md refinements that synthesize the picked aspects from the variant branches.
+
+Also load the per-variant branch diffs as context (read-only — diffs are inputs, not edits):
+
+```bash
+for desc in $(ctx.descriptors); do
+  git diff main..."${desc.branch}" > /tmp/prototype-diff-"${desc.variant_id}".patch
+done
+```
+
+Refinement commits land on `$FEATURE_BRANCH` — never on prototype branches. The prototype branches stay untouched until `/cleanup-feature` deletes them.
+
+**Spec scenarios covered**: `ConvergenceViaIterateOnPlan.convergence-mode-activated`, `convergence-without-context` (the negative — not loading anything), `missing-prototype-artifacts` (fail fast).
 
 ### 4. Begin Iteration Loop
 
@@ -228,6 +268,15 @@ Produce a **structured plan analysis** with findings in this format:
 | security | `security` | Direct mapping |
 | performance | `performance` | Direct mapping |
 
+**Convergence finding taxonomy** (only emitted in convergence mode — when `--prototype-context` was supplied; produced by `parallel-infrastructure.synthesize_variants` and seeded into the iteration's findings list at step 3.7):
+
+| Finding Type | When Emitted | Resolution Hint |
+|---|---|---|
+| `convergence.merge-<aspect>-<vA>-and-<vB>` | Multiple variants picked for the same aspect (data_model / api / tests / layout) — humans wanted bits of both | Refine `design.md` to combine the picked elements; don't silently pick one |
+| `convergence.rewrite-<aspect>` | Zero variants picked for an aspect — none of them got it right | Rewrite the aspect in `design.md` from other context (proposal, spec deltas) — don't carry forward any variant's take |
+| `convergence.prefer-variant-<aspect>` | Single variant picked for an aspect (default source recorded in synthesis_plan) | The pick is unambiguous; refine to use that variant's approach |
+| `workflow.prototype-recommended` | NOT a convergence finding — the **inverse advisory** emitted by step 6.5 when this iteration produces ≥3 high-criticality clarity+feasibility findings (D8) | Suggest running `/prototype-feature` BEFORE the next iteration; never auto-trigger |
+
 ### 6. Check Termination Conditions
 
 **Stop iterating if:**
@@ -237,6 +286,28 @@ Produce a **structured plan analysis** with findings in this format:
 **If stopping**, skip to the **After Loop** section below.
 
 **Otherwise**, continue to step 7.
+
+### 6.5. Maybe Emit Prototype-Recommended Advisory (D8)
+
+After the standard finding analysis in step 5 produces this iteration's `findings` list, run the prototype-recommended emitter:
+
+```python
+from prototype_recommended import maybe_emit_prototype_recommended
+
+advisory = maybe_emit_prototype_recommended(findings, change_id=CHANGE_ID)
+if advisory is not None:
+    findings.append(advisory)
+```
+
+The emitter returns a single `workflow.prototype-recommended` finding when this iteration produced ≥3 high-criticality findings in the `clarity` or `feasibility` dimensions (combined). The advisory:
+
+- Has `criticality=low` so it sorts to the bottom of the report (it's a hint, not a fix-required item)
+- Names the triggering finding types in its description so the human knows WHY prototyping was suggested
+- Suggests `/prototype-feature <change-id>` as the next command — but never invokes it automatically (D8 is opt-in)
+
+If the threshold is not met, the emitter returns None and nothing is appended.
+
+**Spec scenarios covered**: `PrototypeRecommendationSignal.threshold-met`, `threshold-not-met`, `advisory-only`.
 
 ### 7. Implement Improvements
 

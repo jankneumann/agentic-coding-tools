@@ -165,16 +165,16 @@ Tasks are ordered TDD-first within each phase: test tasks precede implementation
 
 ## Phase 8 — Integration (wp-integration)
 
-- [ ] 8.1 End-to-end integration test: small synthetic change runs `/plan-feature` → `/prototype-feature` (3 variants, single vendor) → `/iterate-on-plan --prototype-context` → verify `design.md` and `tasks.md` were refined with `convergence.*` findings
+- [x] 8.1 End-to-end integration test: small synthetic change runs `/plan-feature` → `/prototype-feature` (3 variants, single vendor) → `/iterate-on-plan --prototype-context` → verify `design.md` and `tasks.md` were refined with `convergence.*` findings
   **Spec scenarios**: skill-workflow.ConvergenceViaIterateOnPlan.convergence-mode-activated + scoring + findings scenarios
   **Design decisions**: D1, D3, D6, D7
   **Dependencies**: 4.8, 5.7, 5.8
 
-- [ ] 8.2 Install skills to runtime mirrors (`.claude/skills/`, `.agents/skills/`) via `bash skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none`
+- [x] 8.2 Install skills to runtime mirrors (`.claude/skills/`, `.agents/skills/`) via `bash skills/install.sh --mode rsync --agents claude,agents --deps none --python-tools none`
   **Dependencies**: 4.6, 5.5, 6.2
 
-- [ ] 8.3 Run full test suite (`skills/.venv/bin/python -m pytest skills/tests/`) and `openspec validate add-prototyping-stage --strict`
+- [x] 8.3 Run full test suite (`skills/.venv/bin/python -m pytest skills/tests/`) and `openspec validate add-prototyping-stage --strict`
   **Dependencies**: all prior
 
-- [ ] 8.4 Verify merge-log phase captures prototype-stage artifacts when present
+- [x] 8.4 Verify merge-log phase captures prototype-stage artifacts when present
   **Dependencies**: 8.1

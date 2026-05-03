@@ -407,6 +407,22 @@ openspec validate --strict
 # Uses the resolved FEATURE_BRANCH to honor OPENSPEC_BRANCH_OVERRIDE
 git branch -d "$FEATURE_BRANCH" 2>/dev/null || true
 
+# Delete prototype variant branches (per add-prototyping-stage / D4).
+# These are prototype/<change-id>/v<n> branches created by /prototype-feature
+# and retained through the feature lifecycle for synthesis traceability.
+# The helper enumerates and force-deletes — variant branches were
+# exploratory and aren't expected to be merged into main (the chosen
+# design landed on the feature branch via /iterate-on-plan synthesis,
+# not via a merge of any single variant).
+python3 "<skill-base-dir>/scripts/cleanup_prototype.py" "${CHANGE_ID}" || true
+
+# Then push deletions for the prototype branches that had remote tracking
+# (best-effort — silently skip remotes that never had them).
+for variant_branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/prototype/${CHANGE_ID}/); do
+  remote_branch="${variant_branch#origin/}"
+  git push origin --delete "${remote_branch}" 2>/dev/null || true
+done
+
 # Prune remote tracking branches
 git fetch --prune
 ```
@@ -440,6 +456,16 @@ if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" ${AGENT_FLAG}
+
+# Remove prototype variant worktrees (per add-prototyping-stage / D4).
+# These are .git-worktrees/<change-id>/v<n>/ created by /prototype-feature
+# and auto-pinned to survive the 24h GC. /cleanup-feature is what unpins +
+# removes them. Tear down v1..v6 best-effort — most invocations won't have
+# all six, but the loop covers the spec's max.
+for vid in v1 v2 v3 v4 v5 v6; do
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" unpin "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+done
 
 # Garbage-collect stale worktrees
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
