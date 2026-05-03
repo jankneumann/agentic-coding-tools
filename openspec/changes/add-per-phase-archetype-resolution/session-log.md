@@ -150,3 +150,27 @@ Implemented per-phase archetype resolution across 5 work packages (coordinator, 
 ### Context
 Validation PASS for add-per-phase-archetype-resolution. Critical gates (spec drift, openspec validate, requirement traceability, work-package evidence) all pass. 4 phases skipped (deploy/smoke/e2e/logs) due to compose-stack lacking a coordinator API service; 23 in-process FastAPI TestClient tests cover the equivalent surface. CI: 6 pass / 4 fail with all 4 failures pre-existing and unrelated to this PR.
 
+---
+
+## Phase: Validation (2026-05-03)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Re-validate via deployed stack rather than --force gate override** — The infra extension (PR #129 commit 637cc12) was created precisely to enable deploy/smoke/e2e against a real coordinator-api. Running the gate against the new stack produces real evidence; --force would have shipped the same skip rationale a second time without exercising the new infrastructure.
+2. **Keep both tabular Phase Results and canonical phase sections in the report** — The tabular form is for human readers; the canonical `## Smoke Tests`/`## Security`/`## E2E Tests` sections with `**Status**: pass` are what gate_logic.py parses. Both serve different audiences and don't conflict.
+
+### Completed Work
+- deploy: docker compose --profile api up -d --build coordinator-api (healthy <2s)
+- smoke: 10/10 passed (1 CORS preflight skipped intentionally)
+- security: PASS, triggered_count=0, no threshold findings
+- e2e: 19/19 passed against live ParadeDB (audit, handoffs, memory, work_queue, locks, guardrails, auth, health)
+- validation-report.md rewritten in canonical gate-parseable format
+- pre-merge gate now PASSES (was halting on missing phase sections)
+
+### Next Steps
+- proceed with cleanup-feature merge + archive
+
+### Context
+Re-validation against the new coordinator-api compose stack (commit 637cc12) promoted deploy/smoke/e2e/logs from skip to pass and rewrote the validation-report.md to expose canonical phase sections that the pre-merge gate parses.
+

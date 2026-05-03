@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-03T19:51:04.730815+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: ",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Re-validation against the new coordinator-api compose stack (commit 637cc12) promoted deploy/smoke/e2e/logs from skip to pass and rewrote the validation-report.md to expose canonical phase sections that the pre-merge gate parses.",
+    "completed_work": [
+      "deploy: docker compose --profile api up -d --build coordinator-api (healthy <2s)",
+      "smoke: 10/10 passed (1 CORS preflight skipped intentionally)",
+      "security: PASS, triggered_count=0, no threshold findings",
+      "e2e: 19/19 passed against live ParadeDB (audit, handoffs, memory, work_queue, locks, guardrails, auth, health)",
+      "validation-report.md rewritten in canonical gate-parseable format",
+      "pre-merge gate now PASSES (was halting on missing phase sections)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Re-validate via deployed stack rather than --force gate override",
+        "rationale": "The infra extension (PR #129 commit 637cc12) was created precisely to enable deploy/smoke/e2e against a real coordinator-api. Running the gate against the new stack produces real evidence; --force would have shipped the same skip rationale a second time without exercising the new infrastructure.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep both tabular Phase Results and canonical phase sections in the report",
+        "rationale": "The tabular form is for human readers; the canonical `## Smoke Tests`/`## Security`/`## E2E Tests` sections with `**Status**: pass` are what gate_logic.py parses. Both serve different audiences and don't conflict.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "proceed with cleanup-feature merge + archive"
+    ],
+    "relevant_files": []
+  }
+}
