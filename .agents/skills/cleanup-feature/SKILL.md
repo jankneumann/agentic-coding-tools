@@ -77,7 +77,12 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup)"
+# --sibling places the cleanup worktree at .git-worktrees/<change-id>--cleanup/
+# (peer of the implementation worktree at .git-worktrees/<change-id>/) rather
+# than nested inside it. The nested layout used to leave `cleanup/` as an
+# untracked directory in the impl worktree's git status and forced a
+# `git worktree remove --force` for the cleanup-of-cleanup case.
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup --sibling)"
 cd "$WORKTREE_PATH"
 
 # The cleanup worktree is on its OWN scratch branch (with the --cleanup suffix),
@@ -447,8 +452,10 @@ Remove all worktrees for this feature (including the cleanup worktree).
 # Return to shared checkout first (cleanup worktree is about to be removed)
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
-# Remove cleanup worktree
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
+# Remove cleanup worktree (sibling layout — see Step 1).
+# The teardown autodetects the alternate layout if a legacy nested cleanup
+# worktree exists, so this flag stays correct across the migration window.
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup --sibling
 
 # Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
