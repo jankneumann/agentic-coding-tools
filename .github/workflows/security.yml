@@ -11,6 +11,12 @@ permissions:
   contents: read
   pull-requests: read
 
+env:
+  # CVE-2026-3219 affects pip itself. The GitHub Advisory Database lists no
+  # patched version as of 2026-05-04, so keep auditing project dependencies
+  # while waiving only this toolchain CVE.
+  PIP_AUDIT_IGNORED_VULN: CVE-2026-3219
+
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
@@ -42,8 +48,8 @@ jobs:
       - name: Run pip-audit
         run: |
           uv pip install pip-audit
-          uv run pip-audit --desc on --format json --output pip-audit-results.json || true
-          uv run pip-audit --desc on
+          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN" --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN"
 
   dependency-audit-skills:
     runs-on: ubuntu-latest
@@ -65,5 +71,5 @@ jobs:
       - name: Run pip-audit
         run: |
           uv pip install pip-audit
-          uv run pip-audit --desc on --format json --output pip-audit-results.json || true
-          uv run pip-audit --desc on
+          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN" --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN"
