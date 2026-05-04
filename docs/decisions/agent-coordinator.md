@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-04-25 — 2026-05-03-add-per-phase-archetype-resolution
+
+### Phase: Implementation
+
+**Inline implementation instead of multi-agent dispatch** — Coordinator was available (true coordinated tier eligible), but a single Claude session with full repo context honors TDD-RED-GREEN per task more cleanly than spawning isolated Agent(isolation:worktree) subagents. Coordinator audit + D10 lock benefits preserved by routing through coordination_bridge.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-03-add-per-phase-archetype-resolution/session-log.md](/openspec/changes/archive/2026-05-03-add-per-phase-archetype-resolution/session-log.md) (D1)
+
+---
+
+## 2026-04-25 — 2026-05-03-add-per-phase-archetype-resolution
+
+### Phase: Implementation
+
+**Defer GET /discovery/agents persistence (D-1)** — wp-coordinator scope (write_allow) covers agents_config, coordination_api, archetypes.yaml only. Persisting phase_archetype on the AgentInfo record requires editing discovery.py + adding a DB migration — both outside scope. Status reports forward the value via the event bus context, covering the primary in-flight observability need.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-03-add-per-phase-archetype-resolution/session-log.md](/openspec/changes/archive/2026-05-03-add-per-phase-archetype-resolution/session-log.md) (D3)
+
+---
+
 ## 2026-04-06 — 2026-04-22-replace-beads-with-builtin-tracker
 
 ### Phase: Plan

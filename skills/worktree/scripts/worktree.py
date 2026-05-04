@@ -120,18 +120,37 @@ def worktree_path(
     change_id: str,
     agent_id: str | None = None,
     prefix: str | None = None,
+    sibling: bool = False,
 ) -> Path:
     """Compute the worktree path under .git-worktrees/.
 
-    Patterns:
+    Default patterns (sibling=False — nested under <change-id>):
       .git-worktrees/<change-id>/                        (no agent, no prefix)
       .git-worktrees/<change-id>/<agent-id>/             (agent, no prefix)
       .git-worktrees/<prefix>/<change-id>/               (no agent, prefix)
       .git-worktrees/<prefix>/<change-id>/<agent-id>/    (agent + prefix)
+
+    Sibling patterns (sibling=True — agent worktree placed next to <change-id>
+    instead of inside it, mirroring the '--' separator used in branch names):
+      .git-worktrees/<change-id>--<agent-id>/            (agent, no prefix)
+      .git-worktrees/<prefix>/<change-id>--<agent-id>/   (agent + prefix)
+
+    Use sibling=True for sync-point worktrees like cleanup-feature whose
+    nested layout would otherwise pollute the parent worktree's `git status`
+    with an untracked subdirectory and force a `--force` teardown when both
+    worktrees are still alive. Parallel work-package agents stay nested
+    (the change-id parent is the natural grouping for related work).
+
+    sibling=True with no agent_id is silently a no-op — there is nothing to
+    place as a sibling — and falls through to the default change-id path.
     """
     base = main_repo / ".git-worktrees"
     if prefix:
         base = base / prefix
+
+    if sibling and agent_id:
+        return base / f"{change_id}--{agent_id}"
+
     base = base / change_id
     if agent_id:
         base = base / agent_id
@@ -384,6 +403,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
     branch_prefix: str | None = getattr(args, "branch_prefix", None)
+    sibling: bool = bool(getattr(args, "sibling", False))
 
     branch = resolve_branch(
         change_id, agent_id, prefix,
@@ -399,7 +419,9 @@ def cmd_setup(args: argparse.Namespace) -> int:
     # Worktree path layout is unaffected by branch_prefix — prototype variants
     # live at .git-worktrees/<change>/<agent>/, the same shape that work-package
     # agents use. The prototype namespace lives only in the branch name.
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
+    # `sibling=True` opts agent worktrees into a peer path next to the change
+    # dir; see worktree_path() docstring for the rationale.
+    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
 
     # Check if already in the target worktree
     try:
@@ -539,8 +561,21 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     change_id: str = args.change_id
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
+    sibling: bool = bool(getattr(args, "sibling", False))
 
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
+    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
+
+    # Tolerate setups that created the worktree in the OPPOSITE layout.
+    # Without this, an operator who set up nested but tears down with
+    # --sibling (or vice-versa) would get "No worktree found" and have to
+    # manually clean up. Search for the alternate layout when the primary
+    # path is missing.
+    if not wt_path.is_dir() and agent_id:
+        alt_path = worktree_path(
+            main_repo, change_id, agent_id, prefix, sibling=not sibling,
+        )
+        if alt_path.is_dir():
+            wt_path = alt_path
 
     if not wt_path.is_dir():
         print(f"No worktree found for {change_id}"
@@ -951,6 +986,16 @@ def main() -> int:
         "--no-bootstrap", action="store_true",
         help="Skip environment bootstrap (deps, .env copy, skills sync)",
     )
+    setup_parser.add_argument(
+        "--sibling", action="store_true",
+        help=(
+            "Place the agent worktree as a peer of the change-id dir "
+            "(.git-worktrees/<change-id>--<agent-id>/) instead of inside "
+            "it. Use for sync-point worktrees like cleanup-feature whose "
+            "nested layout would otherwise pollute the parent worktree's "
+            "git status with an untracked subdirectory. Requires --agent-id."
+        ),
+    )
     setup_parser.set_defaults(func=cmd_setup)
 
     # teardown
@@ -958,6 +1003,15 @@ def main() -> int:
     teardown_parser.add_argument("change_id", help="Change ID or identifier")
     _add_agent_id_flag(teardown_parser)
     teardown_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
+    teardown_parser.add_argument(
+        "--sibling", action="store_true",
+        help=(
+            "Match the layout used at setup time. Teardown automatically "
+            "falls back to the alternate layout if the primary path is "
+            "missing, so this flag is informational unless you have both "
+            "layouts coexisting for the same agent-id."
+        ),
+    )
     teardown_parser.set_defaults(func=cmd_teardown)
 
     # status
