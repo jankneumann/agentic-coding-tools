@@ -1,25 +1,35 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (18 symbols)"]
+    agents_config["agents_config (31 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
-    config["config (39 symbols)"]
-    coordination_api["coordination_api (71 symbols)"]
-    coordination_cli["coordination_cli (32 symbols)"]
-    coordination_mcp["coordination_mcp (55 symbols)"]
+    config["config (41 symbols)"]
+    coordination_api["coordination_api (121 symbols)"]
+    coordination_cli["coordination_cli (33 symbols)"]
+    coordination_mcp["coordination_mcp (77 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (21 symbols)"]
+    feature_flags["feature_flags (26 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
+    git_adapter["git_adapter (25 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
     guardrails["guardrails (15 symbols)"]
     handoffs["handoffs (14 symbols)"]
+    help_service["help_service (6 symbols)"]
+    http_proxy["http_proxy (68 symbols)"]
+    issue_service["issue_service (21 symbols)"]
+    langfuse_middleware["langfuse_middleware (5 symbols)"]
+    langfuse_tracing["langfuse_tracing (10 symbols)"]
     locks["locks (18 symbols)"]
     memory["memory (13 symbols)"]
     merge_queue["merge_queue (17 symbols)"]
+    merge_train["merge_train (30 symbols)"]
+    merge_train_service["merge_train_service (29 symbols)"]
+    merge_train_types["merge_train_types (14 symbols)"]
     migrations["migrations (5 symbols)"]
     network_policies["network_policies (8 symbols)"]
     notifications____init__["notifications.__init__ (1 symbols)"]
@@ -35,11 +45,13 @@ flowchart TB
     port_allocator["port_allocator (12 symbols)"]
     profile_loader["profile_loader (14 symbols)"]
     profiles["profiles (14 symbols)"]
+    refresh_rpc_client["refresh_rpc_client (12 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
     status["status (6 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     agents_config -->|"call"| profile_loader
@@ -58,14 +70,22 @@ flowchart TB
     coordination_api -->|"call, import"| feature_registry
     coordination_api -->|"call, import"| guardrails
     coordination_api -->|"call, import"| handoffs
+    coordination_api -->|"call, import"| help_service
+    coordination_api -->|"call, import"| issue_service
+    coordination_api -->|"import"| langfuse_middleware
+    coordination_api -->|"call, import"| langfuse_tracing
     coordination_api -->|"call, import"| locks
     coordination_api -->|"call, import"| memory
     coordination_api -->|"call, import"| merge_queue
+    coordination_api -->|"import"| merge_train
+    coordination_api -->|"call, import"| merge_train_service
     coordination_api -->|"call, import"| migrations
     coordination_api -->|"call, import"| notifications__notifier
     coordination_api -->|"call, import"| policy_engine
     coordination_api -->|"call, import"| port_allocator
     coordination_api -->|"call, import"| profiles
+    coordination_api -->|"call, import"| refresh_rpc_client
+    coordination_api -->|"call, import"| session_grants
     coordination_api -->|"call, import"| telemetry
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
@@ -75,6 +95,7 @@ flowchart TB
     coordination_cli -->|"call, import"| feature_registry
     coordination_cli -->|"call, import"| guardrails
     coordination_cli -->|"call, import"| handoffs
+    coordination_cli -->|"call, import"| help_service
     coordination_cli -->|"call, import"| locks
     coordination_cli -->|"call, import"| memory
     coordination_cli -->|"call, import"| merge_queue
@@ -88,13 +109,19 @@ flowchart TB
     coordination_mcp -->|"call, import"| feature_registry
     coordination_mcp -->|"call, import"| guardrails
     coordination_mcp -->|"call, import"| handoffs
+    coordination_mcp -->|"call, import"| help_service
+    coordination_mcp -->|"call"| http_proxy
+    coordination_mcp -->|"call, import"| issue_service
     coordination_mcp -->|"call, import"| locks
     coordination_mcp -->|"call, import"| memory
     coordination_mcp -->|"call, import"| merge_queue
+    coordination_mcp -->|"import"| merge_train
+    coordination_mcp -->|"call, import"| merge_train_service
     coordination_mcp -->|"call, import"| migrations
     coordination_mcp -->|"call, import"| policy_engine
     coordination_mcp -->|"call, import"| port_allocator
     coordination_mcp -->|"call, import"| profiles
+    coordination_mcp -->|"call, import"| refresh_rpc_client
     coordination_mcp -->|"call, import"| session_grants
     coordination_mcp -->|"call, import"| telemetry
     coordination_mcp -->|"call, import"| work_queue
@@ -118,6 +145,13 @@ flowchart TB
     handoffs -->|"call, import"| config
     handoffs -->|"call, import"| db
     handoffs -->|"call, import"| policy_engine
+    http_proxy -->|"call"| config
+    issue_service -->|"call, import"| config
+    issue_service -->|"call, import"| db
+    issue_service -->|"call"| discovery
+    langfuse_middleware -->|"call, import"| config
+    langfuse_middleware -->|"call, import"| langfuse_tracing
+    langfuse_tracing -->|"call, import"| config
     locks -->|"call"| approval
     locks -->|"call, import"| audit
     locks -->|"call, import"| config
@@ -131,7 +165,17 @@ flowchart TB
     merge_queue -->|"call"| approval
     merge_queue -->|"call, import"| audit
     merge_queue -->|"call, import"| db
+    merge_queue -->|"call"| feature_flags
     merge_queue -->|"call, import"| feature_registry
+    merge_train -->|"import"| git_adapter
+    merge_train -->|"call, import"| merge_train_types
+    merge_train_service -->|"call"| approval
+    merge_train_service -->|"call, import"| db
+    merge_train_service -->|"call, import"| feature_registry
+    merge_train_service -->|"import"| git_adapter
+    merge_train_service -->|"call, import"| merge_train
+    merge_train_service -->|"import"| merge_train_types
+    merge_train_service -->|"import"| refresh_rpc_client
     migrations -->|"call, import"| config
     network_policies -->|"call, import"| config
     network_policies -->|"call, import"| db
@@ -155,6 +199,7 @@ flowchart TB
     session_grants -->|"call, import"| db
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
+    work_queue -->|"call, import"| agents_config
     work_queue -->|"call, import"| audit
     work_queue -->|"call, import"| config
     work_queue -->|"call, import"| db

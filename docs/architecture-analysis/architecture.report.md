@@ -1,26 +1,24 @@
 # Architecture Report
 
-**agent-coordinator** — Multi-agent coordination MCP server
-
-Generated: 2026-04-03T21:23:08.199824+00:00  
-Git SHA: `3a1f688a0389ecac2053ee83b9eaed14d1333d7f`
+Generated: 2026-05-04T01:52:13.494735+00:00  
+Git SHA: `c9749ccc6c9243d3b6873770388beedb67554a7b`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (79 tools, 9 resources, 2 prompts), backed by **24 Postgres tables**. The codebase contains 562 functions (237 async) and 126 classes.
+This is a **Python MCP server** with 54 modules exposing **82 MCP endpoints** (69 tools, 11 resources, 2 prompts), backed by **24 Postgres tables**. The codebase contains 827 functions (369 async) and 184 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1085 |
-| Total edges | 569 |
-| Python modules | 43 |
-| Functions | 562 (237 async) |
-| Classes | 126 |
-| Mcp Endpoints | 90 |
+| Total nodes | 1471 |
+| Total edges | 901 |
+| Python modules | 54 |
+| Functions | 827 (369 async) |
+| Classes | 184 |
+| Mcp Endpoints | 82 |
 | DB tables | 24 |
-| Python nodes | 731 |
+| Python nodes | 1117 |
 | Sql nodes | 354 |
 
 ## Module Responsibility Map
@@ -29,26 +27,36 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 
 | Module | Layer | Role | In / Out |
 |--------|-------|------|----------|
-| `agents_config` | Service | Load and validate ``agents.yaml``. | 6 / 3 |
-| `approval` | Service | Parse a datetime value from various formats. | 10 / 2 |
+| `agents_config` | Foundation | Load and validate ``agents.yaml``. | 8 / 4 |
+| `approval` | Service | Parse a datetime value from various formats. | 13 / 2 |
 | `assurance` | Service | — | 0 / 0 |
-| `audit` | Foundation | Get the global audit service instance. | 37 / 4 |
-| `config` | Foundation | Get the global configuration instance. | 57 / 2 |
-| `coordination_api` | Entry | Verify the API key for write operations. | 0 / 93 |
-| `coordination_cli` | Service | Bridge async service calls to synchronous CLI. | 0 / 36 |
-| `coordination_mcp` | Entry | Get the current agent ID from config. | 0 / 78 |
-| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 39 / 4 |
+| `audit` | Foundation | Get the global audit service instance. | 38 / 4 |
+| `config` | Foundation | Get the global configuration instance. | 66 / 2 |
+| `coordination_api` | Entry | Verify the API key for write operations. | 0 / 141 |
+| `coordination_cli` | Service | Bridge async service calls to synchronous CLI. | 0 / 40 |
+| `coordination_mcp` | Entry | Get the current agent ID from config. | 0 / 157 |
+| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 43 / 4 |
 | `db_postgres` | Service | Coerce a PostgREST filter string value to the appropriate Python type. | 1 / 1 |
-| `discovery` | Service | Get the global discovery service instance. | 11 / 8 |
+| `discovery` | Service | Get the global discovery service instance. | 16 / 8 |
 | `docker_manager` | Service | Return ``True`` if the ``colima`` binary is on PATH. | 0 / 0 |
 | `event_bus` | Foundation | Classify event urgency based on type. | 13 / 0 |
-| `feature_registry` | Foundation | Get the global feature registry service instance. | 22 / 8 |
+| `feature_flags` | Service | Convert a change-id into a canonical flag name. | 1 / 0 |
+| `feature_registry` | Foundation | Get the global feature registry service instance. | 24 / 8 |
+| `git_adapter` | Service | Raise InvalidRefNameError if ref_name does not match SPECULATIVE_REF_PATTERN. | 2 / 0 |
 | `github_coordination` | Service | Get the global GitHub coordination service instance. | 0 / 4 |
 | `guardrails` | Foundation | Reset cached metric instruments (for testing). | 12 / 10 |
 | `handoffs` | Foundation | Get the global handoff service instance. | 11 / 9 |
+| `help_service` | Foundation | Return a compact overview of all capability groups. | 15 / 0 |
+| `http_proxy` | Service | Validate URL against SSRF allowlist. | 56 / 1 |
+| `issue_service` | Service | Get the global issue service instance. | 21 / 5 |
+| `langfuse_middleware` | Service | Extract agent identity from the request API key. | 1 / 4 |
+| `langfuse_tracing` | Service | Initialize the Langfuse client from configuration. | 7 / 2 |
 | `locks` | Foundation | Lazy-init metric instruments. Returns None tuple when disabled. | 17 / 16 |
 | `memory` | Foundation | Get the global memory service instance. | 11 / 8 |
-| `merge_queue` | Foundation | Parse an ISO datetime string, returning None for empty/None. | 23 / 9 |
+| `merge_queue` | Foundation | Parse an ISO datetime string, returning None for empty/None. | 23 / 10 |
+| `merge_train` | Foundation | Return the set of partition keys an entry belongs to. | 5 / 5 |
+| `merge_train_service` | Service | Build a TrainEntry from a Feature's merge_queue metadata. | 13 / 11 |
+| `merge_train_types` | Service | Return the set of lock-key namespaces a repo-relative path likely belongs to. | 5 / 0 |
 | `migrations` | Service | Return sorted list of (sequence_number, filename, path) for all migration files. | 5 / 2 |
 | `network_policies` | Service | Get the global network policy service instance. | 2 / 4 |
 | `notifications` | Service | Send an event notification. Returns True on success. | 3 / 6 |
@@ -63,14 +71,15 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 | `policy_sync` | Service | Return the singleton PolicySyncService instance. | 0 / 0 |
 | `port_allocator` | Service | Return the global ``PortAllocatorService`` singleton. | 9 / 1 |
 | `profile_loader` | Service | Recursively merge *override* into a copy of *base*. | 3 / 0 |
-| `profiles` | Foundation | Get the global profiles service instance. | 11 / 7 |
+| `profiles` | Foundation | Get the global profiles service instance. | 12 / 7 |
+| `refresh_rpc_client` | Foundation | Shell out to ``affected_tests.py`` and parse the returned test list. | 6 / 0 |
 | `risk_scorer` | Service | Get the global risk scorer instance. | 0 / 2 |
-| `session_grants` | Service | Parse a datetime value from various formats. | 2 / 3 |
+| `session_grants` | Service | Parse a datetime value from various formats. | 5 / 3 |
 | `status` | Service | Generate an 8-character URL-safe token. | 4 / 0 |
-| `teams` | Service | Get the global teams configuration. | 1 / 0 |
+| `teams` | Service | Get the global teams configuration. | 2 / 0 |
 | `telemetry` | Foundation | Initialize OpenTelemetry providers based on environment configuration. | 21 / 0 |
 | `watchdog` | Service | Return the singleton WatchdogService. | 3 / 4 |
-| `work_queue` | Foundation | Get the global work queue service instance. | 17 / 31 |
+| `work_queue` | Foundation | Get the global work queue service instance. | 17 / 33 |
 
 **Layers**: Entry = exposes MCP endpoints; Service = domain logic; Foundation = imported by 3+ modules (config, db, audit).
 
@@ -82,90 +91,53 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 ┌─────────────────────────────────────────────────┐
 │  ENTRY       coordination_api, coordination_mcp  │
 │             ↓ imports ↓                          │
-│  SERVICE     agents_config, approval, assurance, coordination_cli│
-│              db_postgres, discovery, docker_manager, github_coordination│
-│              migrations, network_policies, notifications, notifications.base│
-│              notifications.gmail, notifications.notifier, notifications.relay, notifications.telegram│
-│              notifications.templates, notifications.webhook, policy_sync, port_allocator│
-│              profile_loader, risk_scorer, session_grants, status│
-│              teams, watchdog                     │
+│  SERVICE     approval, assurance, coordination_cli, db_postgres│
+│              discovery, docker_manager, feature_flags, git_adapter│
+│              github_coordination, http_proxy, issue_service, langfuse_middleware│
+│              langfuse_tracing, merge_train_service, merge_train_types, migrations│
+│              network_policies, notifications, notifications.base, notifications.gmail│
+│              notifications.notifier, notifications.relay, notifications.telegram, notifications.templates│
+│              notifications.webhook, policy_sync, port_allocator, profile_loader│
+│              risk_scorer, session_grants, status, teams│
+│              watchdog                            │
 │             ↓ imports ↓                          │
-│  FOUNDATION  audit, config, db, event_bus, feature_registry, guardrails, handoffs, locks, memory, merge_queue, policy_engine, profiles, telemetry, work_queue│
+│  FOUNDATION  agents_config, audit, config, db, event_bus, feature_registry, guardrails, handoffs, help_service, locks, memory, merge_queue, merge_train, policy_engine, profiles, refresh_rpc_client, telemetry, work_queue│
 └─────────────────────────────────────────────────┘
 ```
 
 **Single points of failure** — changes to these modules ripple widely:
 
-- `config` — imported by 19 modules
-- `db` — imported by 18 modules
+- `config` — imported by 22 modules
+- `db` — imported by 20 modules
 - `audit` — imported by 13 modules
 - `policy_engine` — imported by 6 modules
 - `telemetry` — imported by 6 modules
-- `profiles` — imported by 4 modules
-- `feature_registry` — imported by 4 modules
+- `feature_registry` — imported by 5 modules
 - `guardrails` — imported by 4 modules
+- `profiles` — imported by 4 modules
+- `refresh_rpc_client` — imported by 3 modules
 - `merge_queue` — imported by 3 modules
-- `memory` — imported by 3 modules
+- `agents_config` — imported by 3 modules
 - `locks` — imported by 3 modules
-- `work_queue` — imported by 3 modules
+- `memory` — imported by 3 modules
 - `event_bus` — imported by 3 modules
+- `merge_train` — imported by 3 modules
 - `handoffs` — imported by 3 modules
+- `work_queue` — imported by 3 modules
+- `help_service` — imported by 3 modules
 
 ## Entry Points
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [python_analysis.json](python_analysis.json)*
 
-### Tools (40)
-
-| Endpoint | Description |
-|----------|-------------|
-| `acquire_lock` | Acquire an exclusive lock on a file before modifying it. |
-| `allocate_ports` | Allocate a conflict-free port block for a parallel docker-compose stack. |
-| `analyze_feature_conflicts` | Analyze resource conflicts between a candidate and active features. |
-| `check_approval` | Check the status of an approval request. |
-| `check_guardrails` | Check an operation for destructive patterns. |
-| `check_locks` | Check which files are currently locked. |
-| `check_policy` | Check if an operation is authorized by the policy engine. |
-| `cleanup_dead_agents` | Clean up agents that have stopped responding. |
-| `complete_work` | Mark a claimed task as completed. |
-| `deregister_feature` | Deregister a feature (mark as completed or cancelled). |
-| `discover_agents` | Discover other agents working in this coordination system. |
-| `enqueue_merge` | Add a feature to the merge queue for ordered merging. |
-| `get_agent_dispatch_configs` | Get CLI dispatch configurations for all agents with a `cli` section. |
-| `get_feature` | Get details of a specific registered feature. |
-| `get_merge_queue` | Get all features in the merge queue, ordered by priority. |
-| `get_my_profile` | Get the current agent's profile including trust level and permissions. |
-| `get_next_merge` | Get the highest-priority feature ready to merge. |
-| `get_task` | Retrieve a specific task by ID. |
-| `get_work` | Claim a task from the work queue. |
-| `heartbeat` | Send a heartbeat to indicate this agent is still alive. |
-| `list_active_features` | List all active features ordered by merge priority. |
-| `list_policy_versions` | List version history for a Cedar policy. |
-| `mark_merged` | Mark a feature as merged and deregister it from the registry. |
-| `ports_status` | List all active port allocations. |
-| `query_audit` | Query the audit trail for recent operations. |
-| `read_handoff` | Read previous handoff documents for session continuity. |
-| `recall` | Recall relevant memories from past sessions. |
-| `register_feature` | Register a feature with its resource claims for cross-feature coordination. |
-| `register_session` | Register this agent session for discovery by other agents. |
-| `release_lock` | Release a lock you previously acquired. |
-| `release_ports` | Release a previously allocated port block. |
-| `remember` | Store an episodic memory for cross-session learning. |
-| `remove_from_merge_queue` | Remove a feature from the merge queue without merging. |
-| `report_status` | Report agent status (phase transitions, escalations) to the coordinator. |
-| `request_approval` | Request human approval for a high-risk operation. |
-| `request_permission` | Request a session-scoped permission grant. |
-| `run_pre_merge_checks` | Run pre-merge validation checks on a feature. |
-| `submit_work` | Submit a new task to the work queue. |
-| `validate_cedar_policy` | Validate Cedar policy text against the schema. |
-| `write_handoff` | Write a handoff document to preserve session context. |
-
-### Resources (9)
+### Resources (11)
 
 | Endpoint | Description |
 |----------|-------------|
 | `audit://recent` | Recent audit log entries. |
 | `features://active` | Active features in the registry with their resource claims and priorities. |
+| `gen-eval://coverage` | Gen-eval scenario coverage summary by category. |
+| `gen-eval://report` | Latest gen-eval report summary. |
 | `guardrails://patterns` | Active guardrail patterns for destructive operation detection. |
 | `handoffs://recent` | Recent handoff documents from agent sessions. |
 | `locks://current` | All currently active file locks. |
@@ -181,23 +153,46 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 | `coordinate_file_edit` | Template for safely editing a file with coordination. |
 | `start_work_session` | Template for starting a coordinated work session. |
 
-### Other (39)
+### Other (69)
 
 | Endpoint | Description |
 |----------|-------------|
 | `/agents/dispatch-configs` | Get CLI dispatch configs for agents with cli sections. |
 | `/approvals/pending` | List pending approval requests. |
+| `/approvals/request` | Submit a human-in-the-loop approval request. |
+| `/approvals/{request_id}` | Check the status of an approval request. |
 | `/approvals/{request_id}/decide` | Approve or deny an approval request. |
+| `/archetypes/resolve_for_phase` | Resolve archetype + model + system_prompt for an autopilot phase. |
 | `/audit` | Query audit trail entries. |
+| `/discovery/agents` | Discover agents with optional capability/status filters. |
+| `/discovery/cleanup` | Clean up stale agent sessions and release their locks. |
+| `/discovery/heartbeat` | Send a heartbeat for an agent session. |
+| `/discovery/register` | Register an agent session for discovery. |
 | `/features/active` | List all active features ordered by merge priority. |
 | `/features/conflicts` | Analyze resource conflicts between a candidate and active features. |
 | `/features/deregister` | Deregister a feature (mark completed/cancelled). |
 | `/features/register` | Register a feature with resource claims. |
 | `/features/{feature_id}` | Get details of a specific feature. |
+| `/gen-eval/create` | Generate a scaffold scenario YAML from a description. |
+| `/gen-eval/run` | Run gen-eval testing against the coordinator's interfaces. |
+| `/gen-eval/scenarios` | List gen-eval scenarios, optionally filtered by category or interface. |
+| `/gen-eval/validate` | Validate a gen-eval scenario YAML document. |
 | `/guardrails/check` | Check an operation for destructive patterns. |
 | `/handoffs/read` | Read previous handoff documents for session continuity. |
 | `/handoffs/write` | Write a handoff document for session continuity. |
-| `/health` | Health check endpoint with database connectivity check. |
+| `/health` | Human-facing health summary without affecting platform liveness. |
+| `/help` | Compact overview of all coordinator capabilities. |
+| `/help/{topic}` | Detailed help for a specific capability group. |
+| `/issues/blocked` | List issues blocked by unresolved dependencies. Read-only, no auth. |
+| `/issues/close` | Close one or more issues. |
+| `/issues/comment` | Add a comment to an issue. |
+| `/issues/create` | Create a new issue. |
+| `/issues/list` | List issues with optional filters. |
+| `/issues/ready` | List issues with no unresolved dependencies (ready to work on). |
+| `/issues/search` | Search issues by text matching in title and description. |
+| `/issues/update` | Update an issue. |
+| `/issues/{issue_id}` | Get full issue details. |
+| `/live` | Cheap liveness probe for container platforms. |
 | `/locks/acquire` | Acquire a file lock. Cloud agents call this before modifying files. |
 | `/locks/release` | Release a file lock. |
 | `/locks/status/{file_path:path}` | Check lock status for a file. Read-only, no API key required. |
@@ -209,8 +204,14 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 | `/merge-queue/merged/{feature_id}` | Mark a feature as merged and deregister it. |
 | `/merge-queue/next` | Get the highest-priority feature ready to merge. |
 | `/merge-queue/{feature_id}` | Remove a feature from the merge queue without merging. |
+| `/merge-train/affected-tests` | Compute the test subset for a given set of changed files (R9). |
+| `/merge-train/compose` | Compose a new speculative merge train from the current queue. |
+| `/merge-train/eject` | Eject a feature from its current merge train. |
+| `/merge-train/report-result` | Record the result of speculative CI verification. |
+| `/merge-train/status/{train_id}` | Return every entry currently belonging to ``train_id``. |
 | `/notifications/status` | Get event bus and notification system status. |
 | `/notifications/test` | Send a test notification through the event bus. |
+| `/permissions/request` | Request a session-scoped permission grant. |
 | `/policies/{policy_name}/rollback` | Rollback a Cedar policy to a previous version. |
 | `/policies/{policy_name}/versions` | List version history for a Cedar policy. |
 | `/policy/check` | Check if an operation is authorized by the policy engine. |
@@ -219,6 +220,7 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 | `/ports/release` | Release a port allocation for a session. |
 | `/ports/status` | List all active port allocations. Read-only, no API key required. |
 | `/profiles/me` | Get the calling agent's profile. |
+| `/ready` | Readiness probe that verifies required dependencies. |
 | `/status/report` | Accept status reports from agent hooks (Stop/SubagentStop). |
 | `/work/claim` | Claim a task from the work queue. |
 | `/work/complete` | Mark a task as completed. |
@@ -229,18 +231,18 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**1479 findings** across 5 categories:
+**2123 findings** across 5 categories:
 
-### Orphan — 609
+### Orphan — 946
 
-609 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+946 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'approval' is unreachable from any entrypoint or test
 - 'assurance' is unreachable from any entrypoint or test
 - 'audit' is unreachable from any entrypoint or test
-- ... and 604 more
+- ... and 941 more
 
 ### Pattern Consistency — 2
 
@@ -249,80 +251,80 @@ This is a **Python MCP server** with 43 modules exposing **90 MCP endpoints** (7
 - 'IF' uses PascalCase but most columns use snake_case
 - 'IF' uses PascalCase but most columns use snake_case
 
-### Reachability — 90
+### Reachability — 82
 
-90 entrypoints have downstream dependencies but no DB writes or side effects.
+82 entrypoints have downstream dependencies but no DB writes or side effects.
 
-Breakdown: 88 info, 2 warning.
+Breakdown: 76 info, 6 warning.
 
 - Entrypoint 'acquire_lock' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'release_lock' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'check_lock_status' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'store_memory' has downstream dependencies but none touch a DB or produce side effects
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
-- ... and 85 more
+- ... and 77 more
 
-### Test Coverage — 688
+### Test Coverage — 1011
 
-688 functions lack test references — consider adding tests for critical paths.
+1011 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 683 more
+- ... and 1006 more
 
-### Disconnected Flow (expected) — 90
+### Disconnected Flow (expected) — 82
 
-90 MCP routes have no frontend callers — expected (clients are AI agents).
+82 MCP routes have no frontend callers — expected for an MCP server (clients are AI agents, not browsers).
 
-- Backend route 'release_lock' has no frontend callers
-- Backend route 'check_guardrails' has no frontend callers
-- Backend route 'check_approval' has no frontend callers
-- Backend route 'read_handoff' has no frontend callers
-- Backend route 'request_permission' has no frontend callers
-- ... and 85 more
+- Backend route 'notifications_status' has no frontend callers
+- Backend route 'discovery_heartbeat' has no frontend callers
+- Backend route 'list_pending_approvals' has no frontend callers
+- Backend route 'get_merge_queue_endpoint' has no frontend callers
+- Backend route 'check_approval_endpoint' has no frontend callers
+- ... and 77 more
 
 ## High-Impact Nodes
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-52 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+64 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
-| `config.get_config` | 85 | Critical — affects 85 downstream functions (23 modules affected) |
-| `policy_engine.get_policy_engine` | 32 | Critical — affects 32 downstream functions (6 modules affected) |
-| `coordination_cli._print_dict` | 26 | Critical — affects 26 downstream functions (modules: coordination_cli) |
+| `config.get_config` | 171 | Critical — affects 171 downstream functions (28 modules affected) |
+| `http_proxy.get_client` | 107 | Critical — affects 107 downstream functions (modules: coordination_mcp, http_proxy) |
+| `http_proxy._error_response` | 107 | Critical — affects 107 downstream functions (modules: coordination_mcp, http_proxy) |
+| `http_proxy._request` | 106 | Critical — affects 106 downstream functions (modules: coordination_mcp, http_proxy) |
+| `http_proxy._agent_identity` | 72 | Critical — affects 72 downstream functions (modules: coordination_mcp, http_proxy) |
+| `policy_engine.get_policy_engine` | 43 | Critical — affects 43 downstream functions (6 modules affected) |
+| `coordination_api.resolve_identity` | 30 | Critical — affects 30 downstream functions (modules: coordination_api) |
+| `config` | 28 | Critical — affects 28 downstream functions (28 modules affected) |
+| `coordination_api.authorize_operation` | 27 | Critical — affects 27 downstream functions (modules: coordination_api) |
+| `coordination_cli._print_dict` | 27 | Critical — affects 27 downstream functions (modules: coordination_cli) |
+| `coordination_cli._output` | 26 | Critical — affects 26 downstream functions (modules: coordination_cli) |
+| `audit.get_audit_service` | 25 | Critical — affects 25 downstream functions (13 modules affected) |
 | `coordination_cli._run` | 25 | Critical — affects 25 downstream functions (modules: coordination_cli) |
-| `coordination_cli._output` | 25 | Critical — affects 25 downstream functions (modules: coordination_cli) |
-| `config` | 24 | Critical — affects 24 downstream functions (24 modules affected) |
-| `audit.get_audit_service` | 24 | Critical — affects 24 downstream functions (13 modules affected) |
-| `db.create_db_client` | 22 | Critical — affects 22 downstream functions (20 modules affected) |
-| `db_postgres` | 21 | Critical — affects 21 downstream functions (21 modules affected) |
-| `db.get_db` | 21 | Critical — affects 21 downstream functions (19 modules affected) |
-| `db` | 20 | Critical — affects 20 downstream functions (20 modules affected) |
+| `db.create_db_client` | 24 | Critical — affects 24 downstream functions (22 modules affected) |
+| `db_postgres` | 23 | Critical — affects 23 downstream functions (23 modules affected) |
+| `db.get_db` | 23 | Critical — affects 23 downstream functions (21 modules affected) |
+| `db` | 22 | Critical — affects 22 downstream functions (22 modules affected) |
 | `merge_queue.get_merge_queue_service` | 20 | Critical — affects 20 downstream functions (modules: coordination_api, coordination_cli, coordination_mcp) |
-| `coordination_api.resolve_identity` | 19 | High — test `coordination_api` changes thoroughly (modules: coordination_api) |
-| `feature_registry.get_feature_registry_service` | 18 | High — test `feature_registry` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp, merge_queue) |
-| `coordination_api.authorize_operation` | 16 | High — test `coordination_api` changes thoroughly (modules: coordination_api) |
-| `profile_loader.interpolate` | 16 | High — test `profile_loader` changes thoroughly (5 modules affected) |
-| `profile_loader._load_secrets_file` | 15 | High — test `profile_loader` changes thoroughly (5 modules affected) |
+| `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
+| `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
+| `profile_loader.interpolate` | 17 | High — test `profile_loader` changes thoroughly (6 modules affected) |
+| `profile_loader._load_secrets_file` | 16 | High — test `profile_loader` changes thoroughly (6 modules affected) |
+| `teams.TeamsConfig.validate` | 16 | High — test `teams` changes thoroughly (6 modules affected) |
+| `audit` | 14 | High — test `audit` changes thoroughly (14 modules affected) |
 | `work_queue.get_work_queue_service` | 14 | High — test `work_queue` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp) |
-| `audit` | 13 | High — test `audit` changes thoroughly (13 modules affected) |
-| `teams.TeamsConfig.validate` | 12 | High — test `teams` changes thoroughly (5 modules affected) |
-| `agents_config._default_agents_path` | 11 | High — test `agents_config` changes thoroughly (modules: agents_config, config, coordination_api, coordination_mcp) |
-| `agents_config._default_secrets_path` | 11 | High — test `agents_config` changes thoroughly (modules: agents_config, config, coordination_api, coordination_mcp) |
-| `agents_config.load_agents_config._parse_mode` | 11 | High — test `agents_config` changes thoroughly (modules: agents_config, config, coordination_api, coordination_mcp) |
-| `locks.get_lock_service` | 11 | High — test `locks` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp) |
-| `agents_config.load_agents_config` | 10 | High — test `agents_config` changes thoroughly |
-| `telemetry` | 9 | Moderate |
-| `notifications.templates._esc` | 9 | Moderate |
-| `telemetry.get_tracer` | 9 | Moderate |
-| `network_policies` | 8 | Moderate |
-| `profiles` | 8 | Moderate |
-| ... | | 22 more |
+| `profiles.get_profiles_service` | 13 | High — test `profiles` changes thoroughly (modules: coordination_api, coordination_mcp, policy_engine, work_queue) |
+| `agents_config._default_agents_path` | 12 | High — test `agents_config` changes thoroughly (5 modules affected) |
+| `agents_config._default_secrets_path` | 12 | High — test `agents_config` changes thoroughly (5 modules affected) |
+| `agents_config.load_agents_config._parse_mode` | 12 | High — test `agents_config` changes thoroughly (5 modules affected) |
+| `agents_config.load_agents_config` | 11 | High — test `agents_config` changes thoroughly (5 modules affected) |
+| ... | | 34 more |
 
 ## Code Health Indicators
 
@@ -332,9 +334,9 @@ Breakdown: 88 info, 2 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 237/562 (42%) |
-| Docstring coverage | 419/562 (75%) |
-| Dead code candidates | 281 |
+| Async ratio | 369/827 (45%) |
+| Docstring coverage | 639/827 (77%) |
+| Dead code candidates | 425 |
 
 ### Hot Functions
 
@@ -342,40 +344,50 @@ Functions called by the most other functions — changes here have wide blast ra
 
 | Function | Callers |
 |----------|---------|
-| `config.get_config` | 38 |
+| `http_proxy._request` | 53 |
+| `config.get_config` | 44 |
+| `http_proxy.get_config` | 44 |
+| `http_proxy._agent_identity` | 36 |
+| `coordination_api.resolve_identity` | 30 |
+| `coordination_api.authorize_operation` | 27 |
+| `coordination_cli._output` | 26 |
+| `audit.get_audit_service` | 25 |
 | `coordination_cli._run` | 25 |
-| `coordination_cli._output` | 25 |
-| `audit.get_audit_service` | 24 |
-| `db.get_db` | 21 |
-| `merge_queue.get_merge_queue_service` | 20 |
-| `coordination_api.resolve_identity` | 19 |
-| `feature_registry.get_feature_registry_service` | 18 |
-| `policy_engine.get_policy_engine` | 17 |
-| `coordination_api.authorize_operation` | 16 |
+| `git_adapter.SubprocessGitAdapter._run` | 25 |
 
 ### Dead Code Candidates
 
-281 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+425 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
-- **agents_config** (4): `get_mcp_env`, `get_agent_config`, `reset_agents_config`, `get_agent_isolation`
+- **agents_config** (7): `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, `compose_prompt`, ... (+1)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
 - **audit** (6): `from_dict`, `db`, `log_operation`, `_insert_audit_entry`, `query`, `timed`
-- **config** (4): `is_enabled`, `create_client`, `from_env`, `reset_config`
+- **config** (5): `is_enabled`, `create_client`, `from_env`, `from_env`, `reset_config`
 - **coordination_api** (4): `verify_api_key`, `create_coordination_api`, `lifespan`, `main`
-- **coordination_cli** (26): `cmd_health`, `cmd_feature_register`, `cmd_feature_deregister`, `cmd_feature_show`, `cmd_feature_list`, `cmd_feature_conflicts`, ... (+20)
-- **coordination_mcp** (1): `main`
+- **coordination_cli** (27): `cmd_health`, `cmd_feature_register`, `cmd_feature_deregister`, `cmd_feature_show`, `cmd_feature_list`, `cmd_feature_conflicts`, ... (+21)
+- **coordination_mcp** (60): `acquire_lock`, `release_lock`, `check_locks`, `get_work`, `complete_work`, `submit_work`, ... (+54)
 - **db** (17): `rpc`, `query`, `insert`, `update`, `delete`, `close`, ... (+11)
 - **db_postgres** (7): `_get_pool`, `rpc`, `query`, `insert`, `update`, `delete`, ... (+1)
 - **discovery** (5): `db`, `register`, `discover`, `heartbeat`, `cleanup_dead_agents`
 - **docker_manager** (2): `start_container`, `wait_for_healthy`
 - **event_bus** (13): `to_json`, `running`, `failed`, `on_event`, `start`, `stop`, ... (+7)
+- **feature_flags** (15): `is_enabled`, `to_yaml_dict`, `load`, `_load_unlocked`, `_get_registry`, `resolve_flag`, ... (+9)
 - **feature_registry** (6): `db`, `register`, `deregister`, `get_feature`, `get_active_features`, `analyze_conflicts`
+- **git_adapter** (11): `create_speculative_ref`, `delete_speculative_refs`, `fast_forward_main`, `get_changed_files`, `list_speculative_refs`, `_ensure_git_version`, ... (+5)
 - **github_coordination** (9): `from_dict`, `db`, `parse_lock_labels`, `parse_branch`, `sync_label_locks`, `sync_branch_tracking`, ... (+3)
 - **guardrails** (5): `reset_guardrail_instruments`, `from_dict`, `db`, `_load_patterns`, `check_operation`
 - **handoffs** (4): `db`, `write`, `read`, `get_recent`
+- **help_service** (1): `_register`
+- **http_proxy** (1): `shutdown_client`
+- **issue_service** (12): `to_dict`, `to_dict`, `db`, `create`, `list_issues`, `show`, ... (+6)
+- **langfuse_middleware** (1): `dispatch`
+- **langfuse_tracing** (4): `create_span`, `end_span`, `trace_operation`, `reset_langfuse`
 - **locks** (7): `is_valid_lock_key`, `db`, `acquire`, `release`, `check`, `extend`, ... (+1)
 - **memory** (3): `db`, `remember`, `recall`
 - **merge_queue** (8): `db`, `registry`, `enqueue`, `get_queue`, `get_next_to_merge`, `run_pre_merge_checks`, ... (+2)
+- **merge_train** (6): `validate_post_speculation_claims`, `reset_blocked_entry`, `reset_abandoned_entry`, `execute_wave_merge`, `cleanup_orphaned_speculative_refs`, `gc_aged_speculative_refs`
+- **merge_train_service** (20): `db`, `registry`, `git_adapter`, `refresh_client`, `_load_entries`, `_save_entry`, ... (+14)
+- **merge_train_types** (5): `is_terminal`, `to_metadata_dict`, `all_passed`, `all_entries`, `total_entry_count`
 - **network_policies** (2): `db`, `check_domain`
 - **notifications** (38): `send`, `test`, `supports_reply`, `send`, `test`, `supports_reply`, ... (+32)
 - **policy_engine** (25): `db`, `check_operation`, `_do_check_operation`, `check_network_access`, `list_policy_versions`, `rollback_policy`, ... (+19)
@@ -383,6 +395,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **port_allocator** (6): `env_snippet`, `allocate`, `release`, `status`, `_cleanup_expired`, `reset_port_allocator`
 - **profile_loader** (2): `resolve_dynamic_dsn`, `_replace`
 - **profiles** (5): `from_dict`, `db`, `get_profile`, `check_operation`, `_log_denial`
+- **refresh_rpc_client** (4): `is_graph_stale`, `trigger_refresh`, `get_refresh_status`, `_invoke`
 - **risk_scorer** (10): `db`, `compute_score`, `get_violation_count`, `_trust_factor`, `_operation_factor`, `_resource_factor`, ... (+4)
 - **session_grants** (7): `db`, `request_grant`, `get_active_grants`, `has_grant`, `revoke_grants`, `_row_to_grant`, ... (+1)
 - **status** (1): `cleanup_expired_tokens`
@@ -395,37 +408,37 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**760 independent groups** identified. The largest interconnected group has 262 modules; 956 modules are leaf nodes (safe to modify in isolation).
+**958 independent groups** identified. The largest interconnected group has 409 modules; 1220 modules are leaf nodes (safe to modify in isolation).
 
-**24 high-impact modules** act as coupling points — parallel changes touching these need coordination.
+**32 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (262 members spanning 31 modules): `agents_config`, `approval`, `audit`, `config`, `coordination_api`, `coordination_cli`, `coordination_mcp`, `db`
-  ... and 23 more modules
+**Group 0** (409 members spanning 39 modules): `agents_config`, `approval`, `audit`, `config`, `coordination_api`, `coordination_cli`, `coordination_mcp`, `db`
+  ... and 31 more modules
 
-**Group 1** (29 members spanning 29 modules): `agents_config`, `approval`, `audit`, `config`, `coordination_api`, `coordination_cli`, `coordination_mcp`, `db`
-  ... and 21 more modules
+**Group 1** (38 members spanning 38 modules): `agents_config`, `approval`, `audit`, `config`, `coordination_api`, `coordination_cli`, `coordination_mcp`, `db`
+  ... and 30 more modules
 
-**Group 2** (14 members spanning 1 modules): `notifications`
+**Group 2** (18 members spanning 3 modules): `merge_train`, `merge_train_service`, `merge_train_types`
 
-**Group 3** (9 members spanning 1 modules): `db_postgres`
+**Group 3** (14 members spanning 1 modules): `notifications`
 
-**Group 4** (6 members spanning 1 modules): `docker_manager`
+**Group 4** (9 members spanning 1 modules): `db_postgres`
 
-**Group 5** (5 members spanning 4 modules): `approval`, `locks`, `merge_queue`, `session_grants`
+**Group 5** (7 members spanning 5 modules): `approval`, `locks`, `merge_queue`, `merge_train_service`, `session_grants`
 
-**Group 6** (4 members spanning 3 modules): `discovery`, `feature_registry`, `work_queue`
+**Group 6** (6 members spanning 1 modules): `docker_manager`
 
-**Group 7** (2 members spanning 2 modules): `network_policies`, `policy_engine`
+**Group 7** (6 members spanning 1 modules): `git_adapter`
 
-**Group 8** (2 members spanning 1 modules): `port_allocator`
+**Group 8** (5 members spanning 4 modules): `discovery`, `feature_registry`, `issue_service`, `work_queue`
 
-**Group 9** (2 members spanning 2 modules): `telemetry`, `work_queue`
+**Group 9** (3 members spanning 1 modules): `merge_train`
 
-### Leaf Modules (956)
+### Leaf Modules (1220)
 
-956 modules have no dependents — changes are fully isolated. 750 of the 760 groups are singletons.
+1220 modules have no dependents — changes are fully isolated. 941 of the 958 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -435,7 +448,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (731 nodes)"]
+    Backend["Backend (1117 nodes)"]
     Database["Database (354 nodes)"]
 ```
 
@@ -444,26 +457,36 @@ flowchart TB
 ```mermaid
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (18 symbols)"]
+    agents_config["agents_config (31 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
-    config["config (39 symbols)"]
-    coordination_api["coordination_api (71 symbols)"]
-    coordination_cli["coordination_cli (32 symbols)"]
-    coordination_mcp["coordination_mcp (55 symbols)"]
+    config["config (41 symbols)"]
+    coordination_api["coordination_api (121 symbols)"]
+    coordination_cli["coordination_cli (33 symbols)"]
+    coordination_mcp["coordination_mcp (77 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (21 symbols)"]
+    feature_flags["feature_flags (26 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
+    git_adapter["git_adapter (25 symbols)"]
     github_coordination["github_coordination (16 symbols)"]
     guardrails["guardrails (15 symbols)"]
     handoffs["handoffs (14 symbols)"]
+    help_service["help_service (6 symbols)"]
+    http_proxy["http_proxy (68 symbols)"]
+    issue_service["issue_service (21 symbols)"]
+    langfuse_middleware["langfuse_middleware (5 symbols)"]
+    langfuse_tracing["langfuse_tracing (10 symbols)"]
     locks["locks (18 symbols)"]
     memory["memory (13 symbols)"]
     merge_queue["merge_queue (17 symbols)"]
+    merge_train["merge_train (30 symbols)"]
+    merge_train_service["merge_train_service (29 symbols)"]
+    merge_train_types["merge_train_types (14 symbols)"]
     migrations["migrations (5 symbols)"]
     network_policies["network_policies (8 symbols)"]
     notifications____init__["notifications.__init__ (1 symbols)"]
@@ -479,11 +502,13 @@ flowchart TB
     port_allocator["port_allocator (12 symbols)"]
     profile_loader["profile_loader (14 symbols)"]
     profiles["profiles (14 symbols)"]
+    refresh_rpc_client["refresh_rpc_client (12 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
     status["status (6 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     agents_config -->|"call"| profile_loader
@@ -502,14 +527,22 @@ flowchart TB
     coordination_api -->|"call, import"| feature_registry
     coordination_api -->|"call, import"| guardrails
     coordination_api -->|"call, import"| handoffs
+    coordination_api -->|"call, import"| help_service
+    coordination_api -->|"call, import"| issue_service
+    coordination_api -->|"import"| langfuse_middleware
+    coordination_api -->|"call, import"| langfuse_tracing
     coordination_api -->|"call, import"| locks
     coordination_api -->|"call, import"| memory
     coordination_api -->|"call, import"| merge_queue
+    coordination_api -->|"import"| merge_train
+    coordination_api -->|"call, import"| merge_train_service
     coordination_api -->|"call, import"| migrations
     coordination_api -->|"call, import"| notifications__notifier
     coordination_api -->|"call, import"| policy_engine
     coordination_api -->|"call, import"| port_allocator
     coordination_api -->|"call, import"| profiles
+    coordination_api -->|"call, import"| refresh_rpc_client
+    coordination_api -->|"call, import"| session_grants
     coordination_api -->|"call, import"| telemetry
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
@@ -519,6 +552,7 @@ flowchart TB
     coordination_cli -->|"call, import"| feature_registry
     coordination_cli -->|"call, import"| guardrails
     coordination_cli -->|"call, import"| handoffs
+    coordination_cli -->|"call, import"| help_service
     coordination_cli -->|"call, import"| locks
     coordination_cli -->|"call, import"| memory
     coordination_cli -->|"call, import"| merge_queue
@@ -532,13 +566,19 @@ flowchart TB
     coordination_mcp -->|"call, import"| feature_registry
     coordination_mcp -->|"call, import"| guardrails
     coordination_mcp -->|"call, import"| handoffs
+    coordination_mcp -->|"call, import"| help_service
+    coordination_mcp -->|"call"| http_proxy
+    coordination_mcp -->|"call, import"| issue_service
     coordination_mcp -->|"call, import"| locks
     coordination_mcp -->|"call, import"| memory
     coordination_mcp -->|"call, import"| merge_queue
+    coordination_mcp -->|"import"| merge_train
+    coordination_mcp -->|"call, import"| merge_train_service
     coordination_mcp -->|"call, import"| migrations
     coordination_mcp -->|"call, import"| policy_engine
     coordination_mcp -->|"call, import"| port_allocator
     coordination_mcp -->|"call, import"| profiles
+    coordination_mcp -->|"call, import"| refresh_rpc_client
     coordination_mcp -->|"call, import"| session_grants
     coordination_mcp -->|"call, import"| telemetry
     coordination_mcp -->|"call, import"| work_queue
@@ -562,6 +602,13 @@ flowchart TB
     handoffs -->|"call, import"| config
     handoffs -->|"call, import"| db
     handoffs -->|"call, import"| policy_engine
+    http_proxy -->|"call"| config
+    issue_service -->|"call, import"| config
+    issue_service -->|"call, import"| db
+    issue_service -->|"call"| discovery
+    langfuse_middleware -->|"call, import"| config
+    langfuse_middleware -->|"call, import"| langfuse_tracing
+    langfuse_tracing -->|"call, import"| config
     locks -->|"call"| approval
     locks -->|"call, import"| audit
     locks -->|"call, import"| config
@@ -575,7 +622,17 @@ flowchart TB
     merge_queue -->|"call"| approval
     merge_queue -->|"call, import"| audit
     merge_queue -->|"call, import"| db
+    merge_queue -->|"call"| feature_flags
     merge_queue -->|"call, import"| feature_registry
+    merge_train -->|"import"| git_adapter
+    merge_train -->|"call, import"| merge_train_types
+    merge_train_service -->|"call"| approval
+    merge_train_service -->|"call, import"| db
+    merge_train_service -->|"call, import"| feature_registry
+    merge_train_service -->|"import"| git_adapter
+    merge_train_service -->|"call, import"| merge_train
+    merge_train_service -->|"import"| merge_train_types
+    merge_train_service -->|"import"| refresh_rpc_client
     migrations -->|"call, import"| config
     network_policies -->|"call, import"| config
     network_policies -->|"call, import"| db
@@ -599,6 +656,7 @@ flowchart TB
     session_grants -->|"call, import"| db
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
+    work_queue -->|"call, import"| agents_config
     work_queue -->|"call, import"| audit
     work_queue -->|"call, import"| config
     work_queue -->|"call, import"| db
