@@ -1,5 +1,21 @@
 # Agent Coordinator - Design
 
+> **Status: HISTORICAL DESIGN DOCUMENT (original draft).**
+> This file captures the original architectural design intent for the Agent Coordinator and is preserved for context. **It does not reflect the current implementation.** Notable divergences from current code:
+> - The current backend defaults to **PostgreSQL via ParadeDB** (Docker Compose). Supabase is supported as an optional cloud-managed backend selected via `DB_BACKEND=supabase`. The "Supabase for Coordination State" decision and the `SUPABASE_*` env vars described below reflect the original Phase 1 plan, not current default configuration.
+> - The **Verification Gateway** layer described here was retired (see `agent-coordinator/CLAUDE.md`); the cloud write path is `src/coordination_api.py`.
+> - MCP registration in current Claude Code is via `claude mcp add-json --scope user`, not by editing `~/.claude/mcp.json` (which Claude Code does not read).
+> - The local `docker-compose.yml` is now a single ParadeDB Postgres service, not the three-service Supabase stack referenced below.
+> - Components added since this draft: guardrails engine, agent profiles + trust levels, audit log, Cedar policy engine, agent discovery + heartbeat, episodic memory, notifications (Gmail/Telegram/webhook), watchdog, network policies, port allocator, feature registry, merge queue.
+>
+> For current authoritative documentation see:
+> - [`openspec/specs/agent-coordinator/spec.md`](../../openspec/specs/agent-coordinator/spec.md) — formal requirements (current contract)
+> - [`agent-coordinator/CLAUDE.md`](../../agent-coordinator/CLAUDE.md) — current architecture, env vars, and APIs
+> - [`agent-coordinator/README.md`](../../agent-coordinator/README.md) — setup and usage
+> - [`docs/agent-coordinator.md`](../agent-coordinator.md) — overview and design pointers
+>
+> A companion historical artifact lives at [`agent-coordinator-design-v1.md`](agent-coordinator-design-v1.md).
+
 ## Context
 
 This system coordinates multiple AI coding agents working on shared codebases. The architecture must handle:

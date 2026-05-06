@@ -6,11 +6,12 @@ Agentic coding tools - a collection of systems for coordinating and enhancing AI
 - **OpenSpec**: Spec-driven development workflow for AI assistants
 
 ## Tech Stack
-- Python 3.11+
+- Python 3.11+ (managed via `uv`)
 - FastMCP (MCP server framework)
 - FastAPI (HTTP API)
-- Supabase (PostgreSQL, real-time, auth)
-- Docker (local development)
+- PostgreSQL — ParadeDB by default for local development (Docker Compose); Supabase supported as an optional cloud-managed backend
+- asyncpg for direct Postgres access; Cedar policy engine (optional) for authorization
+- Docker / Docker Compose (local development and ParadeDB)
 
 ## Project Conventions
 
@@ -28,9 +29,9 @@ Agentic coding tools - a collection of systems for coordinating and enhancing AI
 
 ### Testing Strategy
 - Unit tests for core logic (locks, memory, queue)
-- Integration tests with mock Supabase
+- Integration tests against a real Postgres (ParadeDB container) — mocks have proven unreliable for catching asyncpg/JSONB issues
 - E2E tests with multiple agent instances
-- Pytest as test framework
+- Pytest as test framework; CI excludes `e2e` and `integration` markers (they need a running DB)
 
 ### Git Workflow
 - Main branch: `main`
@@ -49,7 +50,8 @@ Agentic coding tools - a collection of systems for coordinating and enhancing AI
 - Cloud agents cannot use MCP (no stdio access)
 
 ## External Dependencies
-- Supabase: Database, real-time subscriptions, auth
-- GitHub Actions: Tier 1 verification execution
-- E2B: Cloud sandbox for Tier 2 verification
-- Local NTM: Integration/system test execution
+- PostgreSQL via ParadeDB (default local) or Supabase (optional cloud-managed)
+- Docker Compose for local stack provisioning (ParadeDB, optional API container)
+- GitHub Actions for CI (lint, type-check, unit tests; integration/e2e excluded)
+- OpenBao / Vault (optional) for credential management — see [docs/openbao-secret-management.md](../docs/openbao-secret-management.md)
+- Notification channels (optional): Gmail SMTP/IMAP, Telegram Bot API, or generic webhook

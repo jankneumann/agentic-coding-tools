@@ -1,6 +1,19 @@
 # Agent Coordinator System
 
-## OpenSpec v1.0
+> **Status: HISTORICAL DESIGN DOCUMENT (v1.0, 2024).**
+> This file captures the original design intent for the Agent Coordinator and is preserved for context. **It does not reflect the current implementation.** Notable divergences from current code:
+> - The current backend defaults to **PostgreSQL via ParadeDB** (Docker Compose), with Supabase as an optional cloud-managed alternative — not Supabase as the primary backbone described below.
+> - The **Verification Gateway** layer described here was retired (see `agent-coordinator/CLAUDE.md`); the cloud write path is `src/coordination_api.py`.
+> - Current MCP registration is via `claude mcp add-json --scope user`, not by editing `~/.claude/mcp.json` (which Claude Code does not read).
+> - Components added since this doc: guardrails engine, agent profiles + trust levels, audit log, Cedar policy engine, agent discovery + heartbeat, episodic memory, notifications (Gmail/Telegram/webhook), watchdog, network policies.
+>
+> For current authoritative documentation see:
+> - [`agent-coordinator/CLAUDE.md`](../../agent-coordinator/CLAUDE.md) — current architecture, env vars, and APIs
+> - [`agent-coordinator/README.md`](../../agent-coordinator/README.md) — setup and usage
+> - [`docs/agent-coordinator.md`](../agent-coordinator.md) — overview and design pointers
+> - [`openspec/specs/agent-coordinator/spec.md`](../../openspec/specs/agent-coordinator/spec.md) — formal requirements
+
+## OpenSpec v1.0 (original draft)
 
 ---
 

@@ -10,7 +10,7 @@ A multi-agent coordination system that enables local agents (Claude Code CLI, Co
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **Phase 1 (MVP)** | File locking, work queue, MCP server, Supabase persistence | **Implemented** |
+| **Phase 1 (MVP)** | File locking, work queue, MCP server, PostgreSQL persistence | **Implemented** |
 | **Phase 2** | HTTP API for cloud agents, episodic memory, GitHub-mediated coordination | **Implemented** |
 | **Phase 3** | Guardrails engine, agent profiles, network policies, audit trail, Cedar policy engine | **Implemented** |
 | Phase 4 | Multi-agent orchestration via Strands SDK, AgentCore integration | Specified |
@@ -278,11 +278,11 @@ The system SHALL support configurable verification policies that determine routi
 
 ### Requirement: Database Persistence
 
-The system SHALL use Supabase as the coordination backbone with PostgreSQL for persistence.
+The system SHALL use PostgreSQL as the coordination backbone, supporting two interchangeable backends selected via the `DB_BACKEND` environment variable: ParadeDB (default for local development, via Docker Compose) or Supabase (optional cloud-managed alternative).
 
-- All coordination state SHALL be stored in Supabase tables
+- All coordination state SHALL be stored in PostgreSQL tables, accessible from either backend via the `DatabaseClient` protocol
 - Critical operations SHALL use PostgreSQL functions for atomicity
-- Row Level Security (RLS) SHALL be used for access control
+- Row Level Security (RLS) SHALL be used for access control where the deployed backend supports it (Supabase enforces RLS via PostgREST; standalone PostgREST/ParadeDB deployments may use the bootstrap-installed roles for equivalent access control)
 
 #### Scenario: Atomic lock acquisition
 - **WHEN** lock acquisition is attempted
@@ -291,6 +291,12 @@ The system SHALL use Supabase as the coordination backbone with PostgreSQL for p
 #### Scenario: Atomic task claiming
 - **WHEN** task claiming is attempted
 - **THEN** system uses `FOR UPDATE SKIP LOCKED` pattern to prevent race conditions
+
+#### Scenario: Backend selection
+- **WHEN** `DB_BACKEND=postgres` and `POSTGRES_DSN` are set
+- **THEN** the coordinator SHALL connect to PostgreSQL via asyncpg (the default ParadeDB path)
+- **AND WHEN** `DB_BACKEND=supabase` and `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` are set
+- **THEN** the coordinator SHALL connect to Supabase via PostgREST
 
 ---
 
@@ -785,10 +791,10 @@ The port allocator SHALL be accessible via HTTP endpoints for cloud agents.
 
 ### Requirement: Standalone operation
 
-The port allocator service MUST function without Supabase, database connections, or any other coordination service being configured.
+The port allocator service MUST function without any database backend (ParadeDB, Supabase, or otherwise) or other coordination service being configured.
 
 #### Scenario: No database configured
-- **WHEN** `SUPABASE_URL` is not set and `DB_BACKEND` is not configured
+- **WHEN** neither `POSTGRES_DSN` nor `SUPABASE_URL` is set and `DB_BACKEND` is not configured
 - **THEN** `allocate_ports` and `release_ports` SHALL still work correctly using in-memory state
 - **AND** no database connection SHALL be attempted by the port allocator
 
