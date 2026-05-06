@@ -15,9 +15,13 @@ The resolution SHALL:
 
 The 13 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`.
 
-The `skills/autopilot/SKILL.md` orchestration prose SHALL invoke the harness `Agent(...)` tool for at least the following phases: `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `PLAN_ITERATE`, `PLAN_REVIEW`. The dispatch SHALL pass the resolved `model` and SHALL fold the resolved `system_prompt` into the agent's prompt text using the separator `\n\n---\n\n`.
+The `skills/autopilot/SKILL.md` orchestration prose SHALL invoke the harness `Agent(...)` tool for the following 7 phases: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the resolved `model` and SHALL fold the resolved `system_prompt` into the agent's prompt text using the fixed separator `\n\n---\n\n` (the literal four-character newline-newline-three-dashes-newline-newline string, asserted verbatim).
 
 State-only phases (`INIT`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver in `autopilot.run_loop`, even though they do not dispatch a sub-agent.
+
+Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL record `LoopState.phase_archetype` for audit purposes via the convergence loop's existing audit path, but SHALL NOT receive a separate `Agent(...)` dispatch block in SKILL.md (the convergence loop in `convergence_loop.py` handles their dispatch internally).
+
+The skill-delegated `PLAN` phase (which invokes `/plan-feature`) SHALL NOT receive an explicit `Agent(...)` dispatch block; it SHALL continue to dispatch via the existing skill-invocation path because `/plan-feature` itself manages sub-agent dispatch internally.
 
 #### Scenario: PLAN phase resolves to architect archetype
 
@@ -99,11 +103,19 @@ Fallback behavior:
 
 `skills/autopilot/scripts/phase_agent.py` SHALL expose two pure-Python helper entry points that the SKILL.md orchestration prose calls across the prose/Python boundary:
 
-1. **`build_phase_dispatch_kwargs(phase, change_id)`** — returns a JSON-serializable dict containing `{prompt, model, system_prompt, isolation, archetype}` for the given phase. The function SHALL be a pure read of LoopState plus a single bridge call to `try_resolve_archetype_for_phase`. It SHALL also write the resolved archetype name to `openspec/changes/<change-id>/.phase-resolution-cache.json` so the apply-outcome helper can read it.
+1. **`build_phase_dispatch_kwargs(phase: str, change_id: str) -> dict`** — returns a JSON-serializable dict containing `{prompt, model, system_prompt, isolation, archetype}` for the given phase. The function SHALL:
+   - Validate `change_id` against the regex `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` and raise `ValueError` on failure.
+   - Read `loop-state.json` from `openspec/changes/<change_id>/loop-state.json`.
+   - Hydrate or bootstrap an incoming `PhaseRecord` from `state.last_handoff_id`.
+   - Call `_build_options(phase, state_dict)` and `_build_prompt(phase, ...)` internally.
+   - Atomically write `openspec/changes/<change_id>/.phase-resolution-cache.json` containing `{schema_version, change_id, phase, archetype, checksum}` where `checksum` is the SHA-256 of `change_id + phase + archetype`.
 
-2. **`apply_phase_outcome(change_id, phase, outcome, handoff_id)`** — updates `loop-state.json` with the new `last_handoff_id`, appends to `handoff_ids`, and sets `phase_archetype` from the cache file. SHALL be idempotent (safe to call twice with the same `handoff_id`).
+2. **`apply_phase_outcome(change_id: str, phase: str, outcome: str, handoff_id: str) -> None`** — updates `loop-state.json` with the new `last_handoff_id`, appends to `handoff_ids` (skipping if already present), and sets `phase_archetype` from the cache file. The function SHALL:
+   - Be idempotent — calling twice with the same arguments leaves `loop-state.json` in the same final state, with `handoff_id` appearing exactly once in `handoff_ids`.
+   - Validate the cache file's `change_id`, `phase`, and `checksum`. On any mismatch (parse error, missing file, change-id mismatch, phase mismatch, checksum mismatch), set `phase_archetype = None`, log a structured warning, and continue without raising.
+   - On successful apply, delete the cache file.
 
-Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose can shell out to them with structured arguments.
+Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose can shell out to them with structured arguments. The CLI surface is `runner.py build-dispatch --phase X --change-id Y` and `runner.py apply-outcome --phase X --change-id Y --outcome Z --handoff-id H`.
 
 #### Scenario: build_phase_dispatch_kwargs returns dispatch-ready dict
 
@@ -128,3 +140,27 @@ Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose
 - **WHEN** `apply_phase_outcome` is called with `--phase IMPLEMENT --change-id <id>`
 - **THEN** `LoopState.phase_archetype` SHALL be set to `None`
 - **AND** a structured warning SHALL be logged identifying the cache/phase mismatch
+
+#### Scenario: Joined prompt preserves phase task instructions even when phase prompt contains "---"
+
+- **GIVEN** an archetype's `system_prompt` is `"You are the implementer. Follow contracts."`
+- **AND** the resolved phase prompt for IMPLEMENT contains the substring `"\n---\n"` (e.g., a markdown rule inside task instructions)
+- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "<id>")` is called
+- **THEN** the returned `prompt` SHALL begin with the system_prompt followed by exactly one occurrence of the literal separator `"\n\n---\n\n"`
+- **AND** the original phase-prompt content SHALL appear in the returned `prompt` unchanged after the separator
+- **AND** all key task-instruction tokens (e.g., `"change_id"`, `"submit"`, `"complete"`) from the phase prompt SHALL appear in the returned `prompt`
+
+#### Scenario: build_phase_dispatch_kwargs rejects path-traversal change_id
+
+- **GIVEN** an attacker-controlled `change_id` value `"../../etc/passwd"`
+- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "../../etc/passwd")` is called
+- **THEN** the function SHALL raise `ValueError` before any filesystem access
+- **AND** no file SHALL be created or read outside `openspec/changes/`
+
+#### Scenario: Joined prompt token budget is enforced
+
+- **GIVEN** the joined prompt for any phase exceeds 75% of the resolved model's context window
+- **WHEN** the wp-skills-autopilot token-budget CI check runs across all 7 sub-agent-dispatching phases
+- **THEN** the check SHALL fail with a non-zero exit code
+- **AND** the failure message SHALL identify the phase, the joined-prompt token count, and the model context window
+- **AND** at the 60-75% range the check SHALL emit a warning but exit zero
