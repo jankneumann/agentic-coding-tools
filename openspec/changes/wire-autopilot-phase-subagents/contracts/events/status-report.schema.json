@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coord.rotkohl.ai/schemas/status-report.json",
+  "title": "POST /status/report request body",
+  "description": "Status report payload sent by the autopilot status reporter (agent-coordinator/scripts/report_status.py). Extended to include phase_archetype per change wire-autopilot-phase-subagents.",
+  "type": "object",
+  "required": ["agent_id", "change_id", "phase"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "Stable agent identifier (e.g. 'autopilot-<change-id>-<agent>')",
+      "examples": ["autopilot-wire-autopilot-phase-subagents-claude"]
+    },
+    "change_id": {
+      "type": "string",
+      "description": "OpenSpec change-id this status report relates to",
+      "examples": ["wire-autopilot-phase-subagents"]
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "INIT", "PLAN", "PLAN_ITERATE", "PLAN_REVIEW", "PLAN_FIX",
+        "IMPLEMENT", "IMPL_ITERATE", "IMPL_REVIEW", "IMPL_FIX",
+        "VALIDATE", "VAL_REVIEW", "VAL_FIX",
+        "SUBMIT_PR", "ESCALATE", "DONE"
+      ],
+      "description": "Current autopilot phase id"
+    },
+    "phase_archetype": {
+      "type": ["string", "null"],
+      "enum": ["architect", "reviewer", "implementer", "analyst", "runner", null],
+      "description": "Resolved archetype for the current phase. Null when no archetype was resolved (coordinator unreachable, harness Agent unavailable, or override path with no archetype semantics).",
+      "examples": ["implementer", null]
+    },
+    "message": {
+      "type": "string",
+      "description": "Free-text status message"
+    },
+    "needs_human": {
+      "type": "boolean",
+      "description": "Set when the agent requires human intervention to continue"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": ["progress", "blocked", "completed", "failed"],
+      "description": "Type of status event"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Free-form metadata bag",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "agent_id": "autopilot-feat-x",
+      "change_id": "feat-x",
+      "phase": "IMPLEMENT",
+      "phase_archetype": "implementer",
+      "message": "implementing wp-backend",
+      "needs_human": false,
+      "event_type": "progress"
+    },
+    {
+      "agent_id": "autopilot-feat-x",
+      "change_id": "feat-x",
+      "phase": "PLAN",
+      "phase_archetype": null,
+      "message": "running with harness defaults — coordinator was unreachable",
+      "needs_human": false,
+      "event_type": "progress"
+    }
+  ]
+}

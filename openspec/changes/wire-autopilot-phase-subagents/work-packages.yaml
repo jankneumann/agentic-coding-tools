@@ -1,0 +1,347 @@
+schema_version: 1
+
+feature:
+  id: "wire-autopilot-phase-subagents"
+  title: "Wire autopilot per-phase sub-agent dispatch into production"
+  plan_revision: 1
+  created_by: "claude-code-opus-4-7"
+  created_at: "2026-05-05T19:30:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/wire-autopilot-phase-subagents/contracts/openapi/discovery-agents.yaml"
+    files:
+      - "openspec/changes/wire-autopilot-phase-subagents/contracts/openapi/discovery-agents.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  - package_id: "wp-contracts"
+    title: "Author SQL migration, JSON schema, and OpenAPI delta"
+    task_type: "contracts"
+    role: "architect"
+    description: >
+      Lay down the three contract artifacts before implementation
+      packages diverge: the SQL migration adding phase_archetype, the
+      JSON schema for the extended POST /status/report payload, and the
+      OpenAPI delta for GET /discovery/agents. All implementation packages
+      depend on these landing first so they have a stable reference.
+    depends_on: []
+    priority: 1
+    locks:
+      files:
+        - "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql"
+        - "openspec/changes/wire-autopilot-phase-subagents/contracts/events/status-report.schema.json"
+        - "openspec/changes/wire-autopilot-phase-subagents/contracts/openapi/discovery-agents.yaml"
+      keys:
+        - "feature:wire-autopilot-phase-subagents:contracts"
+      ttl_minutes: 60
+      reason: "Authoring the contract triple — schema is the coordination boundary"
+    scope:
+      write_allow:
+        - "openspec/changes/wire-autopilot-phase-subagents/contracts/**"
+      read_allow:
+        - "openspec/changes/wire-autopilot-phase-subagents/**"
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/scripts/report_status.py"
+    worktree:
+      name: "wp-contracts"
+      mode: "isolated"
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    metadata:
+      loc_estimate: 60
+      complexity: "low"
+      package_kind: "config"
+    inputs:
+      design_decisions: ["D6", "D8"]
+      spec_scenarios:
+        - "agent-coordinator-spec → Migration applies without backfill"
+        - "agent-coordinator-spec → Status report with phase_archetype is persisted"
+        - "agent-coordinator-spec → AgentInfo round-trip via heartbeat and discovery"
+    outputs:
+      result_keys:
+        - "contracts.db.migration_filename"
+        - "contracts.events.status_report_schema"
+        - "contracts.openapi.discovery_agents_delta"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "openspec-validate"
+          kind: "command"
+          command: "openspec validate wire-autopilot-phase-subagents --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec.validate.exit_code"]
+        - name: "json-schema-self-check"
+          kind: "command"
+          command: "skills/.venv/bin/python -c 'import json,jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"openspec/changes/wire-autopilot-phase-subagents/contracts/events/status-report.schema.json\")))'"
+          evidence:
+            artifacts: []
+            result_keys: ["jsonschema.valid"]
+
+  - package_id: "wp-skills-autopilot"
+    title: "Build dispatch helpers, runner CLI, and rewrite SKILL.md phase blocks"
+    task_type: "implementation"
+    role: "implementer"
+    description: >
+      Implement build_phase_dispatch_kwargs and apply_phase_outcome in
+      phase_agent.py, expose them via skills/autopilot/scripts/runner.py,
+      add the INIT state-only archetype recorder to autopilot.py, and
+      rewrite the per-phase blocks in SKILL.md to invoke the harness
+      Agent(...) tool with explicit fallback to the inline path.
+    depends_on: ["wp-contracts"]
+    priority: 2
+    locks:
+      files:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/runner.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/SKILL.md"
+      keys:
+        - "feature:wire-autopilot-phase-subagents:autopilot"
+      ttl_minutes: 180
+      reason: "Core wiring — phase_agent helpers, runner CLI, SKILL.md prose"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/runner.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/SKILL.md"
+        - "skills/tests/autopilot/**"
+      read_allow:
+        - "skills/autopilot/**"
+        - "skills/coordination-bridge/**"
+        - "skills/session-log/**"
+        - "agent-coordinator/archetypes.yaml"
+        - "openspec/changes/wire-autopilot-phase-subagents/**"
+    worktree:
+      name: "wp-skills-autopilot"
+      mode: "isolated"
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    metadata:
+      loc_estimate: 350
+      complexity: "medium"
+      package_kind: "integration"
+    inputs:
+      design_decisions: ["D1", "D2", "D3", "D4", "D5", "D7"]
+      spec_scenarios:
+        - "skill-workflow-spec → Production autopilot run dispatches harness Agent with resolved model"
+        - "skill-workflow-spec → INIT phase records archetype despite being state-only"
+        - "skill-workflow-spec → build_phase_dispatch_kwargs returns dispatch-ready dict"
+        - "skill-workflow-spec → apply_phase_outcome updates loop state and is idempotent"
+        - "skill-workflow-spec → apply_phase_outcome with mismatched cache writes null archetype"
+        - "skill-workflow-spec → Harness Agent tool not exposed, fallback to inline path"
+    outputs:
+      result_keys:
+        - "autopilot.runner.cli_entrypoint"
+        - "autopilot.skill_md.dispatch_block_count"
+        - "autopilot.helpers.build_phase_dispatch_kwargs"
+        - "autopilot.helpers.apply_phase_outcome"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "pytest-skills-autopilot"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/ -q"
+          evidence:
+            artifacts: []
+            result_keys: ["pytest.exit_code", "pytest.test_count"]
+        - name: "ruff-skills-autopilot"
+          kind: "command"
+          command: "skills/.venv/bin/python -m ruff check skills/autopilot/scripts/"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff.exit_code"]
+        - name: "mypy-skills-autopilot"
+          kind: "command"
+          command: "skills/.venv/bin/python -m mypy skills/autopilot/scripts/phase_agent.py skills/autopilot/scripts/runner.py skills/autopilot/scripts/autopilot.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy.exit_code"]
+
+  - package_id: "wp-coordinator-status-discovery"
+    title: "Wire phase_archetype into status reporter, discovery service, and DB"
+    task_type: "implementation"
+    role: "implementer"
+    description: >
+      Apply the SQL migration into agent-coordinator/database/migrations/
+      with the next sequence number; extend AgentInfo with phase_archetype;
+      update DiscoveryService.heartbeat to accept and persist; surface in
+      GET /discovery/agents response; modify report_status.py to read
+      phase_archetype from loop-state.json and POST it. Closes deferred
+      D-1 and D-2 from the archived per-phase-archetype-resolution change.
+    depends_on: ["wp-contracts"]
+    priority: 2
+    locks:
+      files:
+        - "agent-coordinator/scripts/report_status.py"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "feature:wire-autopilot-phase-subagents:coordinator"
+        - "db:schema:agent_sessions"
+        - "api:GET /discovery/agents"
+        - "api:POST /status/report"
+      ttl_minutes: 180
+      reason: "Coordinator + discovery + status reporter wiring; DB migration"
+    scope:
+      write_allow:
+        - "agent-coordinator/scripts/report_status.py"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/database/migrations/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/changes/wire-autopilot-phase-subagents/**"
+    worktree:
+      name: "wp-coordinator-status-discovery"
+      mode: "isolated"
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    metadata:
+      loc_estimate: 250
+      complexity: "medium"
+      package_kind: "migration"
+    inputs:
+      design_decisions: ["D6", "D8"]
+      spec_scenarios:
+        - "agent-coordinator-spec → Status report with phase_archetype is persisted"
+        - "agent-coordinator-spec → Status report without phase_archetype is accepted"
+        - "agent-coordinator-spec → report_status.py reads phase_archetype from loop-state.json"
+        - "agent-coordinator-spec → AgentInfo round-trip via heartbeat and discovery"
+        - "agent-coordinator-spec → Migration applies without backfill"
+    outputs:
+      result_keys:
+        - "coordinator.migration.filename"
+        - "coordinator.discovery.agent_info_field"
+        - "coordinator.status_reporter.phase_archetype_wired"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "pytest-coordinator"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/ -q -m 'not e2e and not integration'"
+          evidence:
+            artifacts: []
+            result_keys: ["pytest.exit_code", "pytest.test_count"]
+        - name: "ruff-coordinator"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m ruff check agent-coordinator/src/ agent-coordinator/scripts/"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff.exit_code"]
+        - name: "mypy-coordinator"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m mypy agent-coordinator/src/discovery.py agent-coordinator/src/coordination_api.py agent-coordinator/scripts/report_status.py --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy.exit_code"]
+        - name: "migration-smoke-test"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_phase_archetype_persistence.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["pytest.migration.exit_code"]
+
+  - package_id: "wp-integration"
+    title: "End-to-end test, audit-log validator, runtime sync, docs update"
+    task_type: "integration"
+    role: "implementer"
+    description: >
+      Final cross-package verification. Add the mocked-Agent end-to-end
+      test for the full autopilot loop, the heartbeat-to-discovery
+      round-trip test, the inline-fallback regression test, and the
+      audit-log validator script for manual rollout cross-check. Run
+      install.sh to sync runtime skill copies. Update the operator doc
+      at docs/autopilot-phase-archetype-resolution.md.
+    depends_on: ["wp-skills-autopilot", "wp-coordinator-status-discovery"]
+    priority: 3
+    locks:
+      files:
+        - "skills/tests/autopilot/test_phase_dispatch_e2e.py"
+        - "agent-coordinator/tests/test_phase_archetype_persistence.py"
+        - "skills/autopilot/scripts/audit_log_validator.py"
+        - "docs/autopilot-phase-archetype-resolution.md"
+        - ".claude/skills/autopilot/**"
+        - ".agents/skills/autopilot/**"
+      keys:
+        - "feature:wire-autopilot-phase-subagents:integration"
+      ttl_minutes: 120
+      reason: "End-to-end tests + runtime sync + docs"
+    scope:
+      write_allow:
+        - "skills/tests/autopilot/**"
+        - "agent-coordinator/tests/**"
+        - "skills/autopilot/scripts/audit_log_validator.py"
+        - "docs/autopilot-phase-archetype-resolution.md"
+        - ".claude/skills/autopilot/**"
+        - ".agents/skills/autopilot/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: "wp-integration"
+      mode: "isolated"
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    metadata:
+      loc_estimate: 220
+      complexity: "medium"
+      package_kind: "integration"
+    inputs:
+      design_decisions: ["D1", "D5", "D6", "D8"]
+      spec_scenarios:
+        - "skill-workflow-spec → All 13 non-terminal phases dispatch with resolved archetype"
+        - "skill-workflow-spec → Production autopilot run dispatches harness Agent with resolved model"
+        - "skill-workflow-spec → Harness Agent tool not exposed, fallback to inline path"
+        - "skill-workflow-spec → Coordinator unreachable, autopilot continues"
+        - "agent-coordinator-spec → AgentInfo round-trip via heartbeat and discovery"
+        - "agent-coordinator-spec → Status report with phase_archetype is persisted"
+    outputs:
+      result_keys:
+        - "integration.e2e_test.exit_code"
+        - "integration.audit_log_validator.opus_count"
+        - "integration.audit_log_validator.sonnet_count"
+        - "integration.runtime_sync.exit_code"
+        - "integration.docs.updated_paths"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "pytest-e2e"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_phase_dispatch_e2e.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["pytest.e2e.exit_code"]
+        - name: "pytest-coordinator-roundtrip"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_phase_archetype_persistence.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["pytest.roundtrip.exit_code"]
+        - name: "runtime-sync"
+          kind: "command"
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none"
+          evidence:
+            artifacts: []
+            result_keys: ["install.exit_code"]
+        - name: "openspec-validate-strict"
+          kind: "command"
+          command: "openspec validate wire-autopilot-phase-subagents --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec.validate.exit_code"]
