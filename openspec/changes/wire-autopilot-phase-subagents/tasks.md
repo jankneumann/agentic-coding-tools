@@ -92,20 +92,51 @@ phase blocks. Depends on `wp-contracts`.
   **Dependencies**: 2.7
 
 - [ ] 2.9 Write a snapshot test for the joined system_prompt + phase prompt
-  rendering — verify the `\n\n---\n\n` separator appears and the
-  system_prompt is clearly delimited from the task prompt
-  **Spec scenarios**: skill-workflow-spec → "Production autopilot run dispatches harness Agent with resolved model"
-  **Design decisions**: D2 (folding semantics)
+  rendering. The test SHALL include a phase prompt that itself contains
+  `\n---\n` (markdown rule inside task instructions) and assert via
+  regex that (a) exactly one occurrence of the literal SEPARATOR
+  `"\n\n---\n\n"` appears between the system prompt and the phase prompt,
+  (b) all key task-instruction tokens (`change_id`, `submit`, `complete`)
+  from the phase prompt survive the fold unchanged
+  **Spec scenarios**: skill-workflow-spec → "Joined prompt preserves phase task instructions even when phase prompt contains '---'"
+  **Design decisions**: D2 (folding semantics + separator clash mitigation)
   **Dependencies**: 2.1
 
-- [ ] 2.10 Update `skills/autopilot/SKILL.md`: replace each "Invoke
-  /implement-feature" / "/iterate-on-implementation" / "/validate-feature"
-  prose block with an explicit 3-step dispatch (build kwargs → call Agent →
-  apply outcome). Keep an explicit "if dispatch fails or no archetype
-  resolves, fall through to inline `/<skill>`" fallback per D5
+- [ ] 2.9a Write tests for path-traversal rejection in
+  `build_phase_dispatch_kwargs`: verify ValueError is raised for inputs
+  like `"../../etc/passwd"`, `"foo/bar"`, empty string, strings longer
+  than 128 chars, and strings with non-ASCII characters
+  **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs rejects path-traversal change_id"
+  **Design decisions**: D4 (cache file path validation)
+  **Dependencies**: 2.1
+
+- [ ] 2.9b Write the per-phase token-budget CI gate at
+  `skills/autopilot/scripts/token_budget_check.py`. Iterates over all
+  7 sub-agent-dispatching phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
+  IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW), computes the joined
+  prompt size, compares against the resolved model's context window:
+  fails (exit 1) at >75%, warns at 60-75%, passes silently below 60%.
+  Add a CI step in the work-package's verification block invoking it
+  **Spec scenarios**: skill-workflow-spec → "Joined prompt token budget is enforced"
+  **Design decisions**: Risks → Prompt-size pressure
+  **Dependencies**: 2.2, 2.6
+
+- [ ] 2.10 Update `skills/autopilot/SKILL.md`: replace the existing prose
+  blocks for the **7 sub-agent-dispatching phases** (PLAN_ITERATE,
+  PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE,
+  VAL_REVIEW) with explicit 3-step dispatch blocks (build kwargs → call
+  Agent → apply outcome). Each block ends with an explicit "if dispatch
+  fails OR no archetype resolves, fall through to inline `/<skill>`"
+  fallback clause per D5. Phases NOT rewritten: INIT, PLAN, PLAN_FIX,
+  IMPL_FIX, VAL_FIX, SUBMIT_PR (per the dispatch matrix in design.md)
   **Spec scenarios**: skill-workflow-spec → "Production autopilot run dispatches harness Agent with resolved model", "Harness Agent tool not exposed, fallback to inline path"
-  **Design decisions**: D1, D5
+  **Design decisions**: D1, D5; design.md "Phase-by-phase dispatch matrix"
   **Dependencies**: 2.6, 2.8
+
+- [ ] 2.11 Add `openspec/changes/*/.phase-resolution-cache.json` to the
+  project `.gitignore`
+  **Design decisions**: D4 (cache file lifecycle)
+  **Dependencies**: None
 
 ## Phase 3 — Coordinator status reporter and discovery (`wp-coordinator-status-discovery`)
 
@@ -162,24 +193,59 @@ parallel with Phase 2.
   **Design decisions**: D6, D8
   **Dependencies**: 3.4, 3.6
 
-- [ ] 3.8 Verify `coordination_api.report_status` already forwards
-  `phase_archetype` through the event bus (per archived change). If a gap
-  exists between event bus and discovery write, close it
+- [ ] 3.8 Read `agent-coordinator/src/coordination_api.py` `discovery_register`
+  and `report_status` endpoint handlers (cite line ranges in the commit
+  message). Confirm by code inspection that the archived change's event
+  bus path forwards `phase_archetype` from POST /status/report into the
+  discovery service's persistence layer. If the inspection finds NO such
+  forwarding, add the wiring inline: extend the `StatusReportRequest`
+  Pydantic model to include `phase_archetype: str | None = None`,
+  forward to `DiscoveryService.heartbeat(phase_archetype=...)`, and
+  cover with a regression test
   **Spec scenarios**: agent-coordinator-spec → "Status report with phase_archetype is persisted"
   **Design decisions**: D6, D8
   **Dependencies**: 3.7
+
+- [ ] 3.9 Add Pydantic enum validation to `StatusReportRequest`:
+  `phase_archetype: Literal["architect","reviewer","implementer","analyst","runner"] | None = None`.
+  Verify that out-of-enum POSTs return HTTP 422 (FastAPI default
+  validation error). Regression test asserts both the 422 response and
+  that the agent_sessions row remains unchanged
+  **Spec scenarios**: agent-coordinator-spec → "POST /status/report rejects out-of-enum phase_archetype values"
+  **Design decisions**: Risks → DB-layer enum enforcement
+  **Dependencies**: 3.7
+
+- [ ] 3.10 Add client-side enum validation to `report_status.py`:
+  before including `phase_archetype` in the POST body, validate it
+  against the allowed set. If invalid (local file tampering or older
+  client writing wrong values), drop the field and log a structured
+  warning instead of forwarding
+  **Spec scenarios**: agent-coordinator-spec → "report_status.py drops invalid phase_archetype values from POST"
+  **Design decisions**: Risks → DB-layer enum enforcement (defense in depth)
+  **Dependencies**: 3.6
 
 ## Phase 4 — Integration validation (`wp-integration`)
 
 Final cross-package verification. Depends on Phase 2 and Phase 3.
 
 - [ ] 4.1 Write end-to-end test `skills/tests/autopilot/test_phase_dispatch_e2e.py`
-  using a mocked harness `Agent(...)` runner. Run autopilot through one full
-  loop. Assert: every non-terminal phase's `LoopState.phase_archetype` matches
-  `archetypes.yaml::phase_mapping`; every dispatch was called with the
-  resolved model; cache file is reset between phases
-  **Spec scenarios**: skill-workflow-spec → "All 13 non-terminal phases dispatch with resolved archetype", "Production autopilot run dispatches harness Agent with resolved model"
-  **Design decisions**: D1, D3, D4, D7
+  using a mocked harness `Agent(...)` runner. Run autopilot through one
+  full loop from INIT to DONE. Assertions:
+  - Every non-terminal phase's `LoopState.phase_archetype` is non-null
+    and matches `archetypes.yaml::phase_mapping`.
+  - **INIT specifically** records `phase_archetype = "runner"` despite
+    NOT calling the mocked Agent (state-only path per D7).
+  - **SUBMIT_PR specifically** records `phase_archetype = "runner"`
+    despite NOT calling the mocked Agent (state-only path per D7).
+  - The 7 sub-agent-dispatching phases (PLAN_ITERATE, PLAN_REVIEW,
+    IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW) each
+    invoke the mocked Agent exactly once with `model` set to the
+    resolved phase mapping.
+  - The cache file `.phase-resolution-cache.json` is created and
+    deleted between consecutive phases (assert it does not exist
+    after `apply_phase_outcome` succeeds).
+  **Spec scenarios**: skill-workflow-spec → "All 13 non-terminal phases dispatch with resolved archetype", "Production autopilot run dispatches harness Agent with resolved model", "INIT phase records archetype despite being state-only"
+  **Design decisions**: D1, D3, D4, D7; design.md "Phase-by-phase dispatch matrix"
   **Dependencies**: 2.10, 3.4
 
 - [ ] 4.2 Write end-to-end test `agent-coordinator/tests/test_phase_archetype_persistence.py`
@@ -191,10 +257,17 @@ Final cross-package verification. Depends on Phase 2 and Phase 3.
   **Design decisions**: D6, D8
   **Dependencies**: 3.4, 3.6, 3.7
 
-- [ ] 4.3 Write inline-fallback regression test — when `Agent(...)` is not
-  exposed (mocked absence), SKILL.md dispatch falls through; LoopState
-  records `phase_archetype = None`; warning is emitted
-  **Spec scenarios**: skill-workflow-spec → "Harness Agent tool not exposed, fallback to inline path", "Coordinator unreachable, autopilot continues"
+- [ ] 4.3 Write inline-fallback regression tests covering three failure
+  modes:
+  - (a) `Agent(...)` not exposed (mocked absence) → SKILL.md dispatch
+    falls through; LoopState records `phase_archetype = None`; warning
+    emitted.
+  - (b) Coordinator returns HTTP 503 for `POST /archetypes/resolve_for_phase`
+    → bridge returns `None`; build_phase_dispatch_kwargs returns options
+    without `model` or `system_prompt`; SKILL.md falls through.
+  - (c) Bridge raises `TimeoutError` mid-resolution → bridge returns
+    `None`; autopilot does not crash or retry inside the same dispatch.
+  **Spec scenarios**: skill-workflow-spec → "Harness Agent tool not exposed, fallback to inline path", "Coordinator unreachable, autopilot continues", "Network timeout falls back gracefully"
   **Design decisions**: D5
   **Dependencies**: 2.10
 

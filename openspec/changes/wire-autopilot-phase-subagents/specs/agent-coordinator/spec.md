@@ -44,6 +44,21 @@ The status reporter SHALL:
 - **THEN** the POST body SHALL omit `phase_archetype` (or send `null`)
 - **AND** the call SHALL succeed without error
 
+#### Scenario: report_status.py drops invalid phase_archetype values from POST
+
+- **GIVEN** `loop-state.json` contains a `phase_archetype` value not in the enum (e.g., `"malicious_value"` introduced by local file tampering)
+- **WHEN** `report_status.py` reads the file
+- **THEN** `report_status.py` SHALL validate the value against the allowed enum (`architect`, `reviewer`, `implementer`, `analyst`, `runner`, `null`)
+- **AND** if invalid, SHALL send `null` in the POST body instead of forwarding the invalid value
+- **AND** SHALL log a structured warning identifying the invalid value
+
+#### Scenario: POST /status/report rejects out-of-enum phase_archetype values
+
+- **WHEN** a client sends `POST /status/report` with `phase_archetype: "not_an_archetype"`
+- **THEN** the response status SHALL be `422` (validation error)
+- **AND** the persisted database row SHALL be unchanged
+- **AND** the rejection SHALL come from the API layer (Pydantic enum validation), independently of any database constraint
+
 ## ADDED Requirements
 
 ### Requirement: AgentInfo Phase Archetype Persistence

@@ -199,18 +199,82 @@ parallel-execution pattern the repo doesn't currently use.
 4. Once a real run validates the wiring, archive this change and close
    the deferred-tasks D-1 and D-2 tickets.
 
+## Impact
+
+- **Operator visibility**: After this change, `loop-state.json` shows
+  the resolved archetype for every phase of a real autopilot run.
+  `GET /discovery/agents` exposes which archetype each agent is currently
+  running under. Coordinator audit logs will (subject to the existing
+  audit pipeline) show distinct opus calls during PLAN_REVIEW /
+  IMPL_REVIEW and sonnet calls during IMPLEMENT, instead of a single
+  model for the whole session.
+- **Model-cost distribution**: Today autopilot runs use whatever model
+  the operator started the session with — typically opus. After this
+  change, IMPLEMENT and IMPL_ITERATE phases use sonnet (per
+  `phase_mapping`), reducing cost on the per-task work while keeping
+  opus for review and planning where it matters most.
+- **Observability dashboards**: `phase_archetype` becomes a filterable
+  dimension. Queries like "how often do reviewer-archetype phases
+  escalate to ESCALATE state?" become trivial.
+- **No user-facing API breakage**: All API additions are optional fields;
+  older clients continue to function. The migration is forward-compatible
+  with `NULL` defaults for existing rows.
+
 ## Risks
 
 - **Prompt-size pressure**: Pre-pending `system_prompt` to the per-phase
   task instruction may push individual `Agent()` calls toward token
   limits, especially for IMPL_REVIEW which carries large change context.
-  Mitigation: phase_token_meter already tracks per-phase prompt tokens;
-  add a CI check that flags phases trending toward 80% of budget.
+  Mitigation: a new task in `wp-skills-autopilot` adds a CI check that
+  fails the build if any phase's joined prompt exceeds **75% of the
+  resolved model's context window**, and warns at 60%. These thresholds
+  are explicit, not "trending."
 - **Harness `system_prompt` semantics**: The harness `Agent(...)` tool
-  may not honor `system_prompt` as an option. If so, we fold `system_prompt`
-  into the `prompt` text. Mitigation: confirm during work-package
-  wp-skills-autopilot-runner.
+  has no `system_prompt` parameter (verified by inspecting tool schemas
+  during planning). We fold `system_prompt` into the `prompt` text with
+  a fixed `\n\n---\n\n` separator (D2). The fold is unconditional, not
+  contingent on harness capability detection.
 - **Discovery migration backfill**: Existing rows in the agent-status
   table will have `NULL` for the new `phase_archetype` column. That's
   semantically correct (we don't know historical archetypes) and
   forward-compatible. No backfill required.
+- **DB-layer enum enforcement**: The TEXT column accepts arbitrary
+  values at the SQL layer absent constraints. Mitigation: the migration
+  adds a `CHECK (phase_archetype IS NULL OR phase_archetype IN ('architect',
+  'reviewer', 'implementer', 'analyst', 'runner'))` constraint, so the
+  database itself rejects malformed values even if the API layer has a
+  bug.
+- **Cache file path traversal**: `.phase-resolution-cache.json` lives
+  under `openspec/changes/<change-id>/`. The change-id pattern is
+  validated against OpenSpec's standard regex
+  (`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`) before any path construction;
+  `..` and `/` are excluded by the character class.
+
+## Resolved planning questions (formerly Open)
+
+The original design enumerated three open questions. All three were
+resolved during planning iteration before implementation begins:
+
+- **Q1 — `apply_phase_outcome.py` idempotency**: *MUST be idempotent.*
+  Safe to call twice with the same `(change_id, phase, outcome,
+  handoff_id)`. Asserted by task 2.3.
+- **Q2 — Cache file integrity**: *MUST validate via SHA-256 checksum.*
+  Cache schema includes a checksum over `change_id + phase + archetype`;
+  any mismatch yields a `phase_archetype=None` write rather than a
+  raise. Asserted by task 2.4.
+- **Q3 — E2E test harness**: *In-process FastAPI TestClient*, matching
+  the archived `test_phase_archetype_e2e.py` pattern. Hermetic; no
+  external coordinator dependency.
+
+## Out of scope (pre-existing concerns not addressed here)
+
+- `GET /discovery/agents` and `POST /status/report` are unauthenticated
+  in the current coordinator (per `agent-coordinator/CLAUDE.md`). Adding
+  `phase_archetype` to either endpoint does not worsen the existing
+  exposure. Auth tightening on these endpoints is a separate
+  proposal — do not bundle.
+- A persistent index on `agent_sessions.phase_archetype` is intentionally
+  omitted (low-cardinality, 5 enum values, existing primary-key index
+  serves expected queries). If observability queries grow to need
+  filtering by archetype across all agents at scale, add a partial
+  index in a follow-up.

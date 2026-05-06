@@ -206,6 +206,13 @@ packages:
       read_allow:
         - "agent-coordinator/**"
         - "openspec/changes/wire-autopilot-phase-subagents/**"
+        # report_status.py reads phase_archetype from loop-state.json,
+        # whose schema (LoopState v3) is owned by skills/autopilot/.
+        # The schema is stable (v3 already in main from the archived
+        # change), so wp-coordinator-status-discovery and wp-skills-autopilot
+        # can develop in parallel against the existing schema.
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/phase_agent.py"
     worktree:
       name: "wp-coordinator-status-discovery"
       mode: "isolated"
@@ -283,9 +290,12 @@ packages:
       ttl_minutes: 120
       reason: "End-to-end tests + runtime sync + docs"
     scope:
+      # Tighter scopes than the implementation packages: wp-integration
+      # only writes the specific e2e test files plus runtime mirror dirs.
+      # Unit tests are owned by their respective implementation packages.
       write_allow:
-        - "skills/tests/autopilot/**"
-        - "agent-coordinator/tests/**"
+        - "skills/tests/autopilot/test_phase_dispatch_e2e.py"
+        - "agent-coordinator/tests/test_phase_archetype_persistence.py"
         - "skills/autopilot/scripts/audit_log_validator.py"
         - "docs/autopilot-phase-archetype-resolution.md"
         - ".claude/skills/autopilot/**"
