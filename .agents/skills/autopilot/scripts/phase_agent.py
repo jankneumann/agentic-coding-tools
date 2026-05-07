@@ -701,20 +701,38 @@ def _checksum_for_cache(change_id: str, phase: str, archetype: str | None) -> st
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Write *payload* to *path* via tempfile + os.replace (atomic on POSIX)."""
+    """Write *payload* to *path* via tempfile + os.replace (atomic on POSIX).
+
+    Guarantees: on any failure path the temp file is unlinked AND the
+    underlying file descriptor is closed. The two have to be tracked
+    separately because `os.fdopen` could (theoretically — extremely
+    rare) raise after `mkstemp` returned, in which case the with-block
+    never owns the fd and we'd leak it without an explicit close.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(
         prefix=path.name + ".",
         suffix=".tmp",
         dir=str(path.parent),
     )
+    fd_consumed = False
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh = os.fdopen(fd, "w", encoding="utf-8")
+        fd_consumed = True  # the file object now owns the fd
+        try:
             json.dump(payload, fh, indent=2, sort_keys=True)
             fh.write("\n")
+        finally:
+            fh.close()
         os.replace(tmp, path)
     except Exception:
-        # Best-effort cleanup if the rename failed (e.g. permissions).
+        # Two distinct cleanup concerns: an orphaned fd (only when
+        # os.fdopen failed) and an orphaned tmp file (always).
+        if not fd_consumed:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
         try:
             os.unlink(tmp)
         except OSError:

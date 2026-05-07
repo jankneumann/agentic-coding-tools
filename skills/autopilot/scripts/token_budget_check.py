@@ -137,7 +137,10 @@ def _evaluate_phase(
 ) -> PhaseReport:
     system_prompt = _synthetic_system_prompt()
     phase_prompt = _build_phase_prompt(phase)
-    joined = f"{system_prompt}\n\n---\n\n{phase_prompt}"
+    # Reuse phase_agent's canonical separator so a future change to the
+    # constant propagates here automatically (closes IMPL_ITERATE finding
+    # SC#1: hardcoded literal would let CI silently pass broken builds).
+    joined = f"{system_prompt}{phase_agent._PROMPT_SEPARATOR}{phase_prompt}"
 
     model = _FALLBACK_MODEL_BY_PHASE.get(phase, "default")
     context_window = (
