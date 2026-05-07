@@ -145,7 +145,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file lifecycle)
   **Dependencies**: None
 
-- [ ] 2.12 Write a test that exercises the `_FIX` phase archetype-inheritance
+- [x] 2.12 Write a test that exercises the `_FIX` phase archetype-inheritance
   path: drive a fake convergence loop that does NOT converge on round 1,
   triggering PLAN_FIX. Assert `LoopState.phase_archetype` retains the
   value set by the preceding PLAN_REVIEW (i.e. convergence_loop does
