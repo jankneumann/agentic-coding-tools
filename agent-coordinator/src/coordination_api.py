@@ -2144,6 +2144,10 @@ def create_coordination_api() -> FastAPI:
                     if a.last_heartbeat
                     else None,
                     "started_at": a.started_at.isoformat() if a.started_at else None,
+                    # wire-autopilot-phase-subagents (D-1): surface the resolved
+                    # archetype for the agent's current phase. None for legacy
+                    # rows that pre-date the migration.
+                    "phase_archetype": a.phase_archetype,
                 }
                 for a in result.agents
             ],
