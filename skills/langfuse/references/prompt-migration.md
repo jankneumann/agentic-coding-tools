@@ -19,6 +19,20 @@ echo $LANGFUSE_HOST         # https://cloud.langfuse.com or self-hosted
 
 If not set, ask user to configure them first.
 
+## Choose the write surface: MCP vs CLI
+
+For step 5 (creating prompts in Langfuse) and step 7 (relabeling versions), prefer the **Langfuse MCP server** when it's registered — one tool call per prompt instead of a Bash → npx → JSON-parse round-trip.
+
+| Operation | Preferred (MCP) | Fallback (CLI) |
+|---|---|---|
+| Create text prompt | `mcp__langfuse__createTextPrompt` | `npx langfuse-cli api prompts create --type text ...` |
+| Create chat prompt | `mcp__langfuse__createChatPrompt` | `npx langfuse-cli api prompts create --type chat ...` |
+| Move `production` label | `mcp__langfuse__updatePromptLabels` | `npx langfuse-cli api prompts patch ...` |
+| List existing prompts (avoid duplicates) | `mcp__langfuse__listPrompts` | `npx langfuse-cli api prompts list --json` |
+| Inspect a prompt before refactor | `mcp__langfuse__getPrompt` | `npx langfuse-cli api prompts get --name ... --json` |
+
+Check MCP availability with `mcp__langfuse__listPrompts({})` — if it returns "tool not found", the MCP server isn't registered. See `references/mcp-setup.md` to add it (or run `bash skills/langfuse/scripts/install-mcp.sh`). Either path produces identical results in Langfuse; the MCP path is just cheaper to invoke.
+
 ## Migration Flow
 
 ```

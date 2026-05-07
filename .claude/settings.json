@@ -65,6 +65,10 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/skills/session-bootstrap/scripts/hooks/check_compact.py",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "test -x \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/.venv/bin/python && \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/scripts/langfuse_hook.py || true"
           }
         ]
       }
