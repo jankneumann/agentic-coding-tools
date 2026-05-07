@@ -38,11 +38,12 @@ The skill-delegated `PLAN` phase (which invokes `/plan-feature`) SHALL NOT recei
 - **AND** the resolved `model` SHALL be `"opus"` (escalated from `sonnet`)
 - **AND** `state_dict["_resolved_archetype"]` SHALL be `"implementer"`
 
-#### Scenario: All 13 non-terminal phases dispatch with resolved archetype
+#### Scenario: 10 of 13 non-terminal phases set phase_archetype
 
 - **WHEN** autopilot completes a full state machine run from INIT to DONE
-- **THEN** every non-terminal phase transition SHALL have set `LoopState.phase_archetype` to a non-null value before dispatch
-- **AND** the values for `INIT, PLAN, PLAN_ITERATE, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR` SHALL each match the configured `phase_mapping` archetype
+- **THEN** the following 10 phases SHALL have set `LoopState.phase_archetype` to a non-null value matching `phase_mapping`: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW`, `SUBMIT_PR`
+- **AND** the convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit `phase_archetype` from their preceding REVIEW phase via the shared `LoopState` (no separate write — convergence_loop never overwrites the field)
+- **AND** if a `_FIX` phase runs without a preceding successful REVIEW (e.g. quorum lost on round 1), `LoopState.phase_archetype` MAY be `null` for that phase — this is acceptable per the design and SHALL NOT cause autopilot to escalate
 
 #### Scenario: Production autopilot run dispatches harness Agent with resolved model
 
@@ -111,9 +112,10 @@ Fallback behavior:
    - Atomically write `openspec/changes/<change_id>/.phase-resolution-cache.json` containing `{schema_version, change_id, phase, archetype, checksum}` where `checksum` is the SHA-256 of `change_id + phase + archetype`.
 
 2. **`apply_phase_outcome(change_id: str, phase: str, outcome: str, handoff_id: str) -> None`** — updates `loop-state.json` with the new `last_handoff_id`, appends to `handoff_ids` (skipping if already present), and sets `phase_archetype` from the cache file. The function SHALL:
-   - Be idempotent — calling twice with the same arguments leaves `loop-state.json` in the same final state, with `handoff_id` appearing exactly once in `handoff_ids`.
-   - Validate the cache file's `change_id`, `phase`, and `checksum`. On any mismatch (parse error, missing file, change-id mismatch, phase mismatch, checksum mismatch), set `phase_archetype = None`, log a structured warning, and continue without raising.
-   - On successful apply, delete the cache file.
+   - Be idempotent — calling twice with the same `(change_id, phase, outcome, handoff_id)` leaves `loop-state.json` in the same final state, with `handoff_id` appearing exactly once in `handoff_ids` and `phase_archetype` preserving the value written by the first call (NOT overwritten with `None` on the second call even though the cache file was deleted by the first).
+   - Detect replay via the rule: if loaded `state.last_handoff_id == handoff_id` AND `state.previous_phase == phase` (or `state.current_phase == phase`), treat the call as a replay. In replay mode, preserve `phase_archetype` and skip the cache validation (cache is allowed to be missing — the prior successful call deleted it).
+   - When NOT a replay, validate the cache file's `change_id`, `phase`, and `checksum`. On any mismatch (parse error, missing file, change-id mismatch, phase mismatch, checksum mismatch), set `phase_archetype = None`, log a structured warning, and continue without raising.
+   - On successful non-replay apply, delete the cache file (atomic rename to a temp path then unlink, so a crash mid-delete leaves the cache discoverable).
 
 Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose can shell out to them with structured arguments. The CLI surface is `runner.py build-dispatch --phase X --change-id Y` and `runner.py apply-outcome --phase X --change-id Y --outcome Z --handoff-id H`.
 
@@ -126,13 +128,23 @@ Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose
 - **AND** `isolation` SHALL be `"worktree"` (since IMPLEMENT is in `_WORKTREE_PHASES`)
 - **AND** `openspec/changes/<id>/.phase-resolution-cache.json` SHALL contain `{"phase": "IMPLEMENT", "archetype": "implementer", "change_id": "<id>"}`
 
-#### Scenario: apply_phase_outcome updates loop state and is idempotent
+#### Scenario: apply_phase_outcome updates loop state and is idempotent under replay
 
-- **GIVEN** `loop-state.json` exists at version 3
-- **WHEN** `python3 runner.py apply-outcome --change-id <id> --phase IMPLEMENT --outcome continue --handoff-id h-abc` is invoked twice in succession
-- **THEN** after both calls `LoopState.last_handoff_id` SHALL be `"h-abc"`
-- **AND** `LoopState.handoff_ids` SHALL contain `"h-abc"` exactly once
-- **AND** `LoopState.phase_archetype` SHALL match the cached archetype for IMPLEMENT
+- **GIVEN** `loop-state.json` exists at version 3 and the cache file `.phase-resolution-cache.json` is present with phase=IMPLEMENT, archetype=implementer
+- **WHEN** `python3 runner.py apply-outcome --change-id <id> --phase IMPLEMENT --outcome continue --handoff-id h-abc` is invoked
+- **THEN** `LoopState.last_handoff_id` SHALL equal `"h-abc"`, `LoopState.handoff_ids` SHALL contain `"h-abc"`, `LoopState.phase_archetype` SHALL equal `"implementer"`, and the cache file SHALL be deleted
+- **WHEN** the same command is invoked a second time (replay scenario — cache file is now absent because the first call deleted it)
+- **THEN** `apply_phase_outcome` SHALL detect the replay via `state.last_handoff_id == "h-abc"` AND `state.previous_phase == "IMPLEMENT"`
+- **AND** `LoopState.phase_archetype` SHALL still equal `"implementer"` (preserved, NOT overwritten with `null`)
+- **AND** `LoopState.handoff_ids` SHALL contain `"h-abc"` exactly once (no duplicate append)
+- **AND** the missing cache file SHALL NOT cause an error or warning
+
+#### Scenario: PLAN_FIX inherits phase_archetype from PLAN_REVIEW
+
+- **GIVEN** autopilot just completed `PLAN_REVIEW` with `LoopState.phase_archetype = "reviewer"` and convergence did not converge
+- **WHEN** the loop transitions to `PLAN_FIX`
+- **THEN** `LoopState.phase_archetype` SHALL still equal `"reviewer"` after PLAN_FIX completes (convergence_loop never overwrites the field)
+- **AND** the convergence loop SHALL NOT call `build_phase_dispatch_kwargs` for the PLAN_FIX phase
 
 #### Scenario: apply_phase_outcome with mismatched cache writes null archetype
 
