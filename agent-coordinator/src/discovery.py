@@ -29,6 +29,10 @@ class AgentInfo:
     last_heartbeat: datetime | None = None
     started_at: datetime | None = None
     delegated_from: str | None = None
+    # wire-autopilot-phase-subagents (D-1): the resolved per-phase archetype
+    # for the agent's most recent autopilot phase. ``None`` for legacy agents
+    # that pre-date the migration or for agents whose phases are state-only.
+    phase_archetype: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AgentInfo":
@@ -49,6 +53,7 @@ class AgentInfo:
             last_heartbeat=parse_dt(data.get("last_heartbeat")),
             started_at=parse_dt(data.get("started_at")),
             delegated_from=data.get("delegated_from"),
+            phase_archetype=data.get("phase_archetype"),
         )
 
 
@@ -204,6 +209,7 @@ class DiscoveryService:
         self,
         session_id: str | None = None,
         agent_id: str | None = None,
+        phase_archetype: str | None = None,
     ) -> HeartbeatResult:
         """Send a heartbeat to indicate the agent is still alive.
 
@@ -212,6 +218,13 @@ class DiscoveryService:
             agent_id: Agent whose most recent active session should be
                 heartbeated.  Ignored when *session_id* is provided.
                 Falls back to the coordinator's own config when both are None.
+            phase_archetype: Optional resolved archetype name
+                (``architect | reviewer | implementer | analyst | runner``)
+                for the agent's current autopilot phase. When provided, the
+                value is forwarded to the ``agent_heartbeat`` RPC and persisted
+                via ``COALESCE``-on-the-SQL-side, so passing ``None`` does
+                NOT clear an existing value (wire-autopilot-phase-subagents,
+                deferred D-1).
 
         Returns:
             HeartbeatResult indicating success
@@ -237,13 +250,14 @@ class DiscoveryService:
             except Exception:
                 pass  # Fall through to config default
 
+        rpc_params: dict[str, Any] = {
+            "p_session_id": resolved_session_id or config.agent.session_id,
+        }
+        if phase_archetype is not None:
+            rpc_params["p_phase_archetype"] = phase_archetype
+
         try:
-            result = await self.db.rpc(
-                "agent_heartbeat",
-                {
-                    "p_session_id": resolved_session_id or config.agent.session_id,
-                },
-            )
+            result = await self.db.rpc("agent_heartbeat", rpc_params)
         except Exception:
             return HeartbeatResult(success=False, error="database_unavailable")
 

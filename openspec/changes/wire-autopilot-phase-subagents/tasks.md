@@ -157,7 +157,7 @@ phase blocks. Depends on `wp-contracts`.
 Closes deferred D-1 and D-2. Depends on `wp-contracts`. Can run in
 parallel with Phase 2.
 
-- [ ] 3.1 Write tests for the SQL migration application against a real Postgres
+- [x] 3.1 Write tests for the SQL migration application against a real Postgres
   test container. Verifies: (a) the column is added without altering
   existing rows; (b) the CHECK constraint rejects out-of-enum values;
   (c) the updated `discover_agents()` RPC returns `phase_archetype`
@@ -170,21 +170,21 @@ parallel with Phase 2.
   **Design decisions**: D8; codex review R1-004
   **Dependencies**: 1.2
 
-- [ ] 3.2 Apply the migration into `agent-coordinator/database/migrations/`
+- [x] 3.2 Apply the migration into `agent-coordinator/database/migrations/`
   with the next available sequence number; verify it loads at coordinator
   startup
   **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill"
   **Design decisions**: D8
   **Dependencies**: 3.1
 
-- [ ] 3.3 Write tests for `AgentInfo.phase_archetype` round-trip via
+- [x] 3.3 Write tests for `AgentInfo.phase_archetype` round-trip via
   `DiscoveryService.heartbeat` and `GET /discovery/agents`
   **Spec scenarios**: agent-coordinator-spec → "AgentInfo round-trip via heartbeat and discovery", "AgentInfo without phase_archetype defaults to None"
   **Contracts**: `contracts/openapi/discovery-agents.yaml`
   **Design decisions**: D8
   **Dependencies**: 1.4
 
-- [ ] 3.4 Extend `AgentInfo` dataclass with `phase_archetype: str | None = None`;
+- [x] 3.4 Extend `AgentInfo` dataclass with `phase_archetype: str | None = None`;
   extend `DiscoveryService.heartbeat(...)` to accept and forward
   `phase_archetype` to the `agent_heartbeat` SQL RPC; extend
   `DiscoveryService.discover(...)` to parse `phase_archetype` from the
@@ -200,14 +200,14 @@ parallel with Phase 2.
   **Design decisions**: D8; codex review R1-004 (RPC update is required, ALTER TABLE alone is insufficient)
   **Dependencies**: 3.2, 3.3
 
-- [ ] 3.5 Write tests for `report_status.py` reading `phase_archetype` from
+- [x] 3.5 Write tests for `report_status.py` reading `phase_archetype` from
   `loop-state.json` and including it in the POST body
   **Spec scenarios**: agent-coordinator-spec → "report_status.py reads phase_archetype from loop-state.json", "report_status.py handles missing phase_archetype gracefully"
   **Contracts**: `contracts/events/status-report.schema.json`
   **Design decisions**: D6
   **Dependencies**: 1.3
 
-- [ ] 3.6 Modify `agent-coordinator/scripts/report_status.py` to read
+- [x] 3.6 Modify `agent-coordinator/scripts/report_status.py` to read
   `state.phase_archetype` from `loop-state.json` (line ~97-100) and add to
   POST body (line ~118-128). Pass through to `coordination_api.report_status`
   endpoint
@@ -215,13 +215,13 @@ parallel with Phase 2.
   **Design decisions**: D6
   **Dependencies**: 3.5
 
-- [ ] 3.7 Write tests for `coordination_api.report_status` accepting the new
+- [x] 3.7 Write tests for `coordination_api.report_status` accepting the new
   field and forwarding it through the event bus to discovery persistence
   **Spec scenarios**: agent-coordinator-spec → "Status report with phase_archetype is persisted"
   **Design decisions**: D6, D8
   **Dependencies**: 3.4, 3.6
 
-- [ ] 3.8 Read `agent-coordinator/src/coordination_api.py` `discovery_register`
+- [x] 3.8 Read `agent-coordinator/src/coordination_api.py` `discovery_register`
   and `report_status` endpoint handlers (cite line ranges in the commit
   message). Confirm by code inspection that the archived change's event
   bus path forwards `phase_archetype` from POST /status/report into the
@@ -234,7 +234,7 @@ parallel with Phase 2.
   **Design decisions**: D6, D8
   **Dependencies**: 3.7
 
-- [ ] 3.9 Add Pydantic enum validation to `StatusReportRequest`:
+- [x] 3.9 Add Pydantic enum validation to `StatusReportRequest`:
   `phase_archetype: Literal["architect","reviewer","implementer","analyst","runner"] | None = None`.
   Verify that out-of-enum POSTs return HTTP 422 (FastAPI default
   validation error). Regression test asserts both the 422 response and
@@ -243,7 +243,7 @@ parallel with Phase 2.
   **Design decisions**: Risks → DB-layer enum enforcement
   **Dependencies**: 3.7
 
-- [ ] 3.10 Add client-side enum validation to `report_status.py`:
+- [x] 3.10 Add client-side enum validation to `report_status.py`:
   before including `phase_archetype` in the POST body, validate it
   against the allowed set. If invalid (local file tampering or older
   client writing wrong values), drop the field and log a structured
