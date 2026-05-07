@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/review-cache-layout.schema.json",
+  "title": "ReviewCacheManifest",
+  "description": "Manifest for an on-disk vendor-findings checkpoint. Written by both convergence_loop.py:converge() (in-process) and review_dispatcher.py CLI; read by consensus_synthesizer.py CLI as the fallback synthesis input.",
+  "type": "object",
+  "required": ["schema_version", "change_id", "review_type", "created_at", "vendors"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Layout version. Readers MUST refuse unknown versions."
+    },
+    "change_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "OpenSpec change-id this checkpoint belongs to."
+    },
+    "review_type": {
+      "type": "string",
+      "enum": ["plan", "implementation"],
+      "description": "Which review phase produced these findings."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp when the manifest was written."
+    },
+    "vendors": {
+      "type": "array",
+      "description": "One entry per vendor that produced findings. MAY be empty for empty review rounds.",
+      "items": {
+        "type": "object",
+        "required": ["name", "findings_path", "finding_count"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Vendor identifier (e.g., 'claude', 'codex', 'gemini')."
+          },
+          "findings_path": {
+            "type": "string",
+            "pattern": "^findings-[a-z0-9_-]+-(plan|implementation)\\.json$",
+            "description": "Relative filename under .review-cache/ for this vendor's findings."
+          },
+          "finding_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of findings in the per-vendor file. Used for sanity checks."
+          }
+        }
+      }
+    }
+  }
+}

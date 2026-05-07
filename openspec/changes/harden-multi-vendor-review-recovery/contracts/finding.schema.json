@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.local/contracts/finding.schema.json",
+  "title": "PerVendorFindingsFile",
+  "description": "Schema for findings-{vendor}-{review_type}.json files in .review-cache/. Each file is an array of findings produced by a single vendor in a single review round.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "type", "criticality", "description", "disposition", "vendor"],
+    "additionalProperties": true,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Vendor-scoped unique identifier for this finding."
+      },
+      "type": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Finding category (e.g., 'logic-error', 'security', 'style')."
+      },
+      "criticality": {
+        "type": "string",
+        "enum": ["low", "medium", "high", "blocking"]
+      },
+      "description": {
+        "type": "string",
+        "minLength": 1
+      },
+      "disposition": {
+        "type": "string",
+        "enum": ["fix", "regenerate", "accept", "escalate"]
+      },
+      "resolution": {
+        "type": "string",
+        "description": "Optional human-readable resolution note."
+      },
+      "file_path": {
+        "type": ["string", "null"]
+      },
+      "line_range": {
+        "description": "Line range. Currently typed permissively to tolerate vendors that emit either {start,end} or 'N-M' string. The latter shape causes the consensus_synthesizer.py:59 bug — out of scope here, addressed by separate proposal.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "start": {"type": ["integer", "null"]},
+              "end": {"type": ["integer", "null"]}
+            },
+            "additionalProperties": false
+          },
+          {"type": "string"},
+          {"type": "null"}
+        ]
+      },
+      "vendor": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Vendor identifier matching the file's filename component."
+      }
+    }
+  }
+}
