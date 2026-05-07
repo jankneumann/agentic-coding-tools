@@ -140,7 +140,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D1, D5; design.md "Phase-by-phase dispatch matrix"
   **Dependencies**: 2.6, 2.8
 
-- [ ] 2.11 Add `openspec/changes/*/.phase-resolution-cache.json` to the
+- [x] 2.11 Add `openspec/changes/*/.phase-resolution-cache.json` to the
   project `.gitignore`
   **Design decisions**: D4 (cache file lifecycle)
   **Dependencies**: None
