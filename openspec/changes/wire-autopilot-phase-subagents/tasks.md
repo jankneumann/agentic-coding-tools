@@ -83,13 +83,13 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D3
   **Dependencies**: 2.5
 
-- [ ] 2.7 Write tests for `autopilot._resolve_phase_archetype_for_state_only`
+- [x] 2.7 Write tests for `autopilot._resolve_phase_archetype_for_state_only`
   — INIT records archetype despite no sub-agent dispatch
   **Spec scenarios**: skill-workflow-spec → "INIT phase records archetype despite being state-only"
   **Design decisions**: D7
   **Dependencies**: None
 
-- [ ] 2.8 Implement `autopilot._resolve_phase_archetype_for_state_only(state, phase)`
+- [x] 2.8 Implement `autopilot._resolve_phase_archetype_for_state_only(state, phase)`
   and call it at INIT phase entry inside `run_loop`. SUBMIT_PR similarly
   **Spec scenarios**: skill-workflow-spec → "INIT phase records archetype despite being state-only"
   **Design decisions**: D7
