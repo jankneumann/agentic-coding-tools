@@ -53,18 +53,28 @@ This proposal provides the bridge from "designed" to "running."
 
 ### D1: SKILL.md prose dispatches the harness `Agent(...)` tool
 
-**What**: Each non-terminal phase section in `skills/autopilot/SKILL.md`
-gets an explicit dispatch block of the form:
+**What**: Each of the 7 sub-agent-dispatching phases in
+`skills/autopilot/SKILL.md` (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
+IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW) gets an explicit
+dispatch block of the form:
 
 ```
-1. Run `python3 ... build_phase_dispatch_kwargs.py --phase IMPLEMENT --change-id <id>`
-2. Parse the JSON output. Capture `prompt`, `model`, `system_prompt`, `isolation`.
-3. Call `Agent(prompt=<system_prompt>\n\n<prompt>, model=<model>, isolation=<isolation>)`.
+1. Run `python3 .../runner.py build-dispatch --phase IMPLEMENT --change-id <id>`
+2. Parse the JSON output. Capture `prompt`, `model`, `isolation`.
+   Treat `prompt` as opaque — it is already the final, fully-folded text
+   (system_prompt prepended with separator inside the helper, per D2).
+3. Call `Agent(prompt=<prompt>, model=<model>, isolation=<isolation>)`.
+   No string concatenation, no folding, no separator manipulation in prose.
 4. Parse the agent's last message for `(outcome, handoff_id)` per the protocol in
    `phase_agent._validate_result`.
-5. Update LoopState via `python3 ... apply_phase_outcome.py --change-id <id>
+5. Update LoopState via `python3 .../runner.py apply-outcome --change-id <id>
    --phase IMPLEMENT --outcome <outcome> --handoff-id <handoff_id>`.
 ```
+
+The contract in step 3 — "treat prompt as opaque" — is non-negotiable.
+Every cross-vendor reviewer flagged the alternative (SKILL.md doing
+the fold itself) as a double-prepend hazard. Folding lives **only**
+in `build_phase_dispatch_kwargs`.
 
 **Why**: Matches the established repo convention. Every parallel-execution
 skill in this codebase has SKILL.md instruct the orchestrator to call
@@ -76,17 +86,50 @@ introduce a second pattern. Vendor CLIs are not always installed, and
 worktree isolation primitives don't compose with subprocess calls.
 Rejected at Gate 1 as Approach C.
 
-### D2: `system_prompt` is folded into `prompt` text with a fixed `\n\n---\n\n` separator
+### D2: `system_prompt` is folded into `prompt` text with a fixed `\n\n---\n\n` separator — and folded **inside `build_phase_dispatch_kwargs`**, never in SKILL.md
 
 **What**: The harness `Agent(...)` tool surface in this codebase does not
-expose a `system_prompt` parameter. The dispatch block prepends the
-resolved archetype's `system_prompt` to the per-phase task prompt with
-a fixed separator:
+expose a `system_prompt` parameter. The fold happens **once**, inside
+`build_phase_dispatch_kwargs`. The returned `prompt` field is the
+final, fully-folded string. SKILL.md passes that `prompt` through to
+`Agent(...)` unchanged — no concatenation, no further prepending, no
+separator manipulation in prose.
+
+```python
+# Inside build_phase_dispatch_kwargs (Python, single source of truth)
+SEPARATOR = "\n\n---\n\n"
+folded_prompt = f"{system_prompt}{SEPARATOR}{phase_prompt}"
+return {
+    "prompt": folded_prompt,        # already final
+    "system_prompt": system_prompt, # echoed back for audit/observability only
+    "model": ...,
+    "isolation": ...,
+    "archetype": ...,
+}
+```
 
 ```
-SEPARATOR = "\n\n---\n\n"
-prompt = f"{system_prompt}{SEPARATOR}{phase_prompt}"
+# SKILL.md prose (treats prompt as opaque)
+result = Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+               isolation=<dispatch.isolation>)
 ```
+
+The `system_prompt` field in the returned dict is redundant for
+dispatch (already folded into `prompt`) but is preserved so the audit
+log validator and observability dashboards can see what was used,
+even after folding. SKILL.md MUST NOT use it for prompt assembly.
+
+**Existing in-process path is unchanged**: `phase_agent._build_options`
+continues to set `options["system_prompt"]` for the in-process
+`run_phase_subagent` callers (used by `make_phase_callback` and the
+unit tests). That path was built for an earlier design where the
+harness was assumed to accept `system_prompt`; the production path
+(via `build_phase_dispatch_kwargs`) now does the fold itself, making
+the in-process `system_prompt` option dead code on the production
+path. We leave it in place to preserve unit-test compatibility, but
+it is not consulted by SKILL.md or the orchestrator. Gemini's
+finding `harness-system-prompt-discrepancy` flags this dead code; it
+is intentional and documented here.
 
 The separator is **fixed**, not parameterized — every phase uses the
 same separator, every dispatch in this skill uses it, and it is
@@ -230,8 +273,16 @@ test path and the cross-process production path respectively.
   - **Deleted** by `apply_phase_outcome` after a successful state write
     (cleanup-on-success). On failure, the cache stays so a manual retry
     can pick up where it left off.
-- **Validation in `apply_phase_outcome`** (resolves implicit ambiguity
-  flagged by review):
+- **Replay rule (resolves R1-002 idempotency-vs-lifecycle conflict)**:
+  Before any cache validation, if `loop-state.json` already has
+  `last_handoff_id == --handoff-id arg` AND `current_phase` (or
+  `previous_phase`) matches `--phase arg`, treat the call as a replay.
+  In replay mode, `apply_phase_outcome` SHALL preserve the existing
+  `phase_archetype` value (do not overwrite, do not null) and SHALL
+  NOT append a duplicate entry to `handoff_ids`. The cache is allowed
+  to be missing on replay (the previous successful call deleted it).
+- **Validation in `apply_phase_outcome`** (only runs when NOT in
+  replay mode):
   - Parse the JSON. On parse error → write `phase_archetype=None` and
     log a structured warning; do NOT raise.
   - Verify `cache.change_id == --change-id arg` (string equality).
@@ -372,7 +423,7 @@ parallel, then `wp-integration` last. See `work-packages.yaml`.
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Prompt-size bloat from system_prompt + task prompt + state JSON | Medium | Medium | `phase_token_meter` already tracks per-phase prompt tokens; CI check at 80% of model context window |
+| Prompt-size bloat from system_prompt + task prompt + state JSON | Medium | Medium | `phase_token_meter` already tracks per-phase prompt tokens; CI check fails at >75% of model context window, warns at 60-75%. Thresholds are uniform across proposal, design, tasks, and spec — see proposal Risks for justification |
 | Cache file `.phase-resolution-cache.json` goes stale across resumes | Low | Low | `apply_phase_outcome` validates cache phase matches its `--phase` arg; if mismatch, write `phase_archetype=None` and warn |
 | Discovery service migration races with running agents | Low | Medium | Run migration before deploying coordinator update; `phase_archetype` defaults to NULL for existing rows |
 | Orchestrator forgets to call `apply_phase_outcome` after `Agent()` | Medium | High | SKILL.md dispatch block makes it explicit step 3 of 3; e2e test asserts `last_handoff_id` updates after each phase |
@@ -414,14 +465,14 @@ explicit `Agent(...)` dispatch blocks (per D1):
 | `PLAN` | Skill-delegated | Yes (via `/plan-feature`'s own dispatch) | No — proposal-creation stays inline |
 | `PLAN_ITERATE` | **Sub-agent dispatch** | Yes (via `make_phase_callback` flow) | **Yes — explicit Agent() block** |
 | `PLAN_REVIEW` | **Sub-agent dispatch** | Yes | **Yes — explicit Agent() block** |
-| `PLAN_FIX` | Convergence-loop-driven (no separate dispatch) | Yes (recorded for audit) | No — happens inside `convergence_loop.converge` |
+| `PLAN_FIX` | Convergence-loop-driven (no separate dispatch) | **No** — `phase_archetype` retains the value set by the preceding `PLAN_REVIEW` (LoopState carries it forward; convergence_loop never overwrites it) | No — happens inside `convergence_loop.converge` |
 | `IMPLEMENT` | **Sub-agent dispatch** with `isolation="worktree"` | Yes | **Yes — explicit Agent() block** |
 | `IMPL_ITERATE` | **Sub-agent dispatch** | Yes | **Yes — explicit Agent() block** |
 | `IMPL_REVIEW` | **Sub-agent dispatch** | Yes | **Yes — explicit Agent() block** |
-| `IMPL_FIX` | Convergence-loop-driven | Yes (recorded for audit) | No — happens inside `convergence_loop.converge` |
+| `IMPL_FIX` | Convergence-loop-driven | **No** — retains `IMPL_REVIEW`'s value | No |
 | `VALIDATE` | **Sub-agent dispatch** | Yes | **Yes — explicit Agent() block** |
 | `VAL_REVIEW` | **Sub-agent dispatch** (when enabled) | Yes | **Yes — explicit Agent() block** |
-| `VAL_FIX` | Convergence-loop-driven | Yes (recorded for audit) | No — happens inside `convergence_loop.converge` |
+| `VAL_FIX` | Convergence-loop-driven | **No** — retains `VAL_REVIEW`'s value | No |
 | `SUBMIT_PR` | State-only (D7) | Yes (via `_resolve_phase_archetype_for_state_only`) | No — stays as state transition |
 
 **Total SKILL.md rewrite count**: 7 phases get explicit `Agent(...)`

@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "reviewer": "claude-opus-4-7",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "completeness",
+      "criticality": "high",
+      "description": "Design.md 'Phase-by-phase dispatch matrix' (lines 411-425) and spec scenario 'All 13 non-terminal phases dispatch with resolved archetype' (specs/skill-workflow/spec.md line 41) promise that PLAN_FIX/IMPL_FIX/VAL_FIX phases record phase_archetype 'via the convergence loop's existing audit path'. That audit path does not exist: `grep phase_archetype skills/autopilot/scripts/convergence_loop.py` returns zero matches. No task in tasks.md adds this wiring. As written, every *_FIX phase will leave LoopState.phase_archetype as None on real runs, violating the spec scenario at line 45 ('values for ... PLAN_FIX, IMPL_FIX, ... VAL_FIX SHALL each match the configured phase_mapping archetype').",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 411, "end": 425}
+    },
+    {
+      "id": "F2",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "phase_archetype length constraint mismatch. The contracts SQL migration adds `CHECK (LENGTH(phase_archetype) <= 32)` (contracts/db/0NN_add_phase_archetype.sql:21), but the existing API model already has `Field(default=None, max_length=64)` at agent-coordinator/src/coordination_api.py:221. A 33-64-char value would pass API validation and fail the DB CHECK, raising IntegrityError at heartbeat time. Either tighten the API to max_length=32 (recommended; matches longest archetype name 'implementer'=11 chars with comfortable headroom) or relax the DB to <=64.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {"start": 20, "end": 22}
+    },
+    {
+      "id": "F3",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "Token-budget threshold inconsistency across artifacts. proposal.md:230-231 says 'fails the build if any phase's joined prompt exceeds 75% of the resolved model's context window, and warns at 60%'. design.md:375 risks table says 'CI check at 80% of model context window'. tasks.md:117-119 says 'fails (exit 1) at >75%, warns at 60-75%, passes silently below 60%'. Pick one set of thresholds and update the other two artifacts.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 375, "end": 375}
+    },
+    {
+      "id": "F4",
+      "type": "clarity",
+      "criticality": "medium",
+      "description": "_resolve_phase_archetype_for_state_only resolution path is underspecified. design.md D7 (line 286-298) introduces the function but does not state whether it (a) calls coordination_bridge.try_resolve_archetype_for_phase (which can return None on coordinator failure), or (b) reads phase_mapping locally from a static source. The spec scenario at specs/skill-workflow/spec.md:56-61 requires INIT to record 'runner' deterministically. If implementation chooses (a), spec scenario fails when coordinator is unreachable; if (b), there is no source-of-truth file specified. Recommend explicit decision: state-only resolver SHALL load archetype name from agent-coordinator/archetypes.yaml::phase_mapping (or a vendored copy) without HTTP calls, since INIT/SUBMIT_PR have empty signal lists and need no coordinator-side dynamic resolution.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 286, "end": 298}
+    },
+    {
+      "id": "F5",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Goal G1 in design.md (line 28-29) overclaims: 'Every non-terminal autopilot phase actually dispatches with the archetype-resolved model and system_prompt.' The dispatch matrix at lines 411-425 shows only 7 of 13 non-terminal phases dispatch a sub-agent (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW). INIT, PLAN, PLAN_FIX, IMPL_FIX, VAL_FIX, SUBMIT_PR do not. Reword G1 as 'Every sub-agent-dispatching phase' or 'Every phase that resolves an archetype records it on LoopState'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 28, "end": 29}
+    },
+    {
+      "id": "F6",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "Task 2.9b assumes a CI gate that imports _build_prompt for every dispatching phase to compute token counts, but offers no recipe for constructing the synthetic state_dict and incoming PhaseRecord required by the prompt assembler. _build_prompt at skills/autopilot/scripts/phase_agent.py:303 requires 'incoming_handoff: PhaseRecord' and 'artifacts_manifest: list[str] | None'. Without a deterministic fixture, the CI gate's measurements are not reproducible. Either specify a fixture file path or make the gate a runtime sampler instead of a static check.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 113, "end": 122}
+    },
+    {
+      "id": "F7",
+      "type": "efficiency",
+      "criticality": "low",
+      "description": "Task 2.9b creates a new `skills/autopilot/scripts/token_budget_check.py` while skills/autopilot/scripts/phase_token_meter.py already exposes `measure_context()`. Duplicating context-measurement logic risks drift between the runtime meter and the CI gate. Reuse phase_token_meter (or extend it) rather than introducing a parallel measurement path.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 113, "end": 122}
+    },
+    {
+      "id": "F8",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Backward-compat claim mismatch. proposal.md Impact section (line 219-221) says 'No user-facing API breakage: All API additions are optional fields; older clients continue to function.' But task 3.9 tightens StatusReportRequest from `phase_archetype: str | None = Field(default=None, max_length=64)` to `Literal[\"architect\",\"reviewer\",\"implementer\",\"analyst\",\"runner\"] | None = None`. Any prior client that sent an arbitrary string (including older agentic-coding-tools versions experimenting with custom archetype names) will now get HTTP 422 instead of 200. Either soften task 3.9 to accept-but-warn, or update the proposal Impact statement to call out the validation tightening as a (likely safe but real) breaking change.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {"start": 219, "end": 221}
+    },
+    {
+      "id": "F9",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "proposal.md 'What Changes' item 4 (line 64-69) describes the INIT-phase archetype recorder as `_resolve_phase_archetype_for_state_only` but only mentions INIT. design.md D7 (line 286) and the dispatch matrix list both INIT and SUBMIT_PR as state-only phases needing the resolver. Update item 4 to mention both phases explicitly.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {"start": 64, "end": 69}
+    },
+    {
+      "id": "F10",
+      "type": "clarity",
+      "criticality": "low",
+      "description": "Task 3.8 wording is misleading. It says 'extend the StatusReportRequest Pydantic model to include phase_archetype: str | None = None'. That field already exists at agent-coordinator/src/coordination_api.py:221 (added by the archived per-phase-archetype-resolution change). The actual gap is in the request handler at coordination_api.py:1980-2010: `discovery.heartbeat(agent_id=request.agent_id)` is called WITHOUT phase_archetype, and the field is only forwarded into the event-bus context (not persisted to the agent_sessions row). Reword task 3.8 to say: 'Verify that StatusReportRequest is already extended; if not, extend it. Then wire request.phase_archetype through DiscoveryService.heartbeat(phase_archetype=...) so it persists in the agent_sessions row, not just emitted via the event bus.'",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 196, "end": 207}
+    },
+    {
+      "id": "F11",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "Task 4.1 asserts that '.phase-resolution-cache.json is created and deleted between consecutive phases (assert it does not exist after apply_phase_outcome succeeds)'. INIT and SUBMIT_PR are state-only and do not invoke build_phase_dispatch_kwargs (per dispatch matrix), so no cache file is ever created for those phases. The assertion needs a per-phase carve-out or the test will fail on the state-only phases. Reword: 'For each of the 7 sub-agent-dispatching phases, the cache file SHALL be created during build-dispatch and SHALL not exist after apply-outcome.'",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 244, "end": 247}
+    },
+    {
+      "id": "F12",
+      "type": "clarity",
+      "criticality": "medium",
+      "description": "design.md D2 (line 121-123) says 'Test 2.9 covers this case explicitly with a phase prompt containing `---` and asserts (a) the separator after the system prompt is exactly the SEPARATOR constant string and (b) key task-instruction keywords from `phase_prompt` survive the fold unchanged. This is asserted via regex (not just substring presence).' But the actual test in tasks.md 2.9 (line 96-101) says 'assert via regex that (a) exactly one occurrence of the literal SEPARATOR `\"\\n\\n---\\n\\n\"` appears'. If the phase prompt itself contains the literal separator, 'exactly one occurrence' is wrong: there will be at least two. Reword to: 'the joined prompt begins with system_prompt + SEPARATOR (anchored to start), and the substring after that anchor matches the original phase_prompt verbatim'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 94, "end": 103}
+    },
+    {
+      "id": "F13",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "Cache schema includes `schema_version: 1` (design.md line 218) but no validation behavior is defined for version mismatch. The validation list at lines 235-244 covers parse error, change_id mismatch, phase mismatch, and checksum mismatch — but a future cache file with `schema_version: 2` would currently pass all those checks if the field set still includes change_id+phase+archetype+checksum. Add: 'If schema_version != 1, treat as parse error: write phase_archetype=None and warn.'",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 215, "end": 244}
+    },
+    {
+      "id": "F14",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "VAL_REVIEW is conditionally enabled by the existing `val_review_enabled` flag in LoopState (also shown in schemas/SKILL.md). Task 2.10 lists VAL_REVIEW as one of the 7 phases that gets a SKILL.md dispatch block but does not specify how the dispatch block handles the `val_review_enabled = false` case. The block needs an explicit guard: 'if val_review_enabled is false, skip dispatch and transition straight to next phase'. Otherwise the rewrite breaks `--no-review` autopilot runs.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 124, "end": 134}
+    },
+    {
+      "id": "F15",
+      "type": "clarity",
+      "criticality": "low",
+      "description": "Migration sequence-number coordination is hand-wavy. contracts/db/0NN_add_phase_archetype.sql comment (lines 4-7) says the implementer is responsible for choosing max+1 'and verifying no parallel PR has claimed the same number'. No automated check is specified. Last migration on main is 022_add_missing_profile_operations.sql so this PR will land 023. If a parallel PR also lands 023, both migrations clash silently in the migration runner. Add a CI gate that fails when two migration files share a numeric prefix, or pin the rename to wp-coordinator-status-discovery's verification step.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {"start": 4, "end": 7}
+    },
+    {
+      "id": "F16",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Spec text (specs/skill-workflow/spec.md line 16) lists '13 non-terminal phases': INIT, PLAN, PLAN_ITERATE, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR. This matches the events schema (contracts/events/status-report.schema.json) which adds ESCALATE, DONE as terminals. Good. But the modified requirement at spec line 18 then says 'SHALL invoke the harness Agent(...) tool for the following 7 phases' — explicit and clear. The contradiction window is closed by the dispatch matrix in design.md. Recommend cross-linking the spec line 18 list to design.md's dispatch matrix to make the 7-vs-13 distinction immediately discoverable inside the spec itself.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md",
+      "line_range": {"start": 16, "end": 22}
+    },
+    {
+      "id": "F17",
+      "type": "clarity",
+      "criticality": "low",
+      "description": "Migration uses CONSTRAINT phase_archetype_enum CHECK with the literal list ('architect','reviewer','implementer','analyst','runner'). Adding/removing an archetype in agent-coordinator/archetypes.yaml will silently diverge from this DB constraint until the next migration. No test asserts that archetypes.yaml's set of archetypes equals the DB CHECK list. Add a small test or CI step (in wp-contracts or wp-coordinator-status-discovery's verification) that loads archetypes.yaml and asserts the archetype set equals the CHECK list parsed from the migration file, so future archetype additions trigger a CI failure pointing to the SQL.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {"start": 13, "end": 22}
+    },
+    {
+      "id": "F18",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "Risk 'Multi-agent safety: cache is per-change' (design.md line 250-253) acknowledges that two concurrent autopilot runs against the same change would clobber the cache, but says 'highly unusual'. Convergence-loop reviews (parallel-review-plan, parallel-review-implementation) dispatch multiple vendor agents in parallel for the SAME phase under the same change-id — this is not unusual, it is the normal case. The cache file as designed is single-writer. Either (a) make the cache key per-(change_id, phase) so concurrent phases don't collide, or (b) confirm explicitly that build_phase_dispatch_kwargs is only called from autopilot's sequential prose driver and never from the parallel review path, and document why.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {"start": 250, "end": 253}
+    },
+    {
+      "id": "F19",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "tasks.md 4.3 covers three failure modes for inline fallback (Agent unavailable, coordinator 503, TimeoutError) but does not cover the 'apply_phase_outcome called when cache file is missing entirely' case. design.md line 235 says 'Parse the JSON. On parse error → write phase_archetype=None'. A missing file should be treated similarly. Add an explicit test scenario for cache-file-not-found.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {"start": 260, "end": 272}
+    },
+    {
+      "id": "F20",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Proposal/design refer to the migration target as 'agent-status table' (proposal.md line 24, design.md line 304), but the actual table name is `agent_sessions` (verified at agent-coordinator/database/migrations/001_core_schema.sql:79 and 003_agent_discovery.sql which adds discovery columns). The contracts SQL file uses agent_sessions correctly. Update proposal/design prose to use 'agent_sessions table' so reviewers don't grep for a non-existent agent-status table.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {"start": 24, "end": 26}
+    }
+  ]
+}

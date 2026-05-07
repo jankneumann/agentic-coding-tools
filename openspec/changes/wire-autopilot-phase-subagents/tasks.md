@@ -60,10 +60,14 @@ phase blocks. Depends on `wp-contracts`.
   **Dependencies**: 2.1
 
 - [ ] 2.4 Implement `phase_agent.apply_phase_outcome(change_id, phase, outcome,
-  handoff_id)`. Loads loop-state.json, validates cache phase matches arg,
-  updates `last_handoff_id` / `handoff_ids` / `phase_archetype`, saves
-  **Spec scenarios**: skill-workflow-spec → "apply_phase_outcome updates loop state and is idempotent"
-  **Design decisions**: D4
+  handoff_id)`. Loads loop-state.json, **first checks the replay rule**
+  (`state.last_handoff_id == handoff_id AND state.previous_phase == phase`)
+  and short-circuits to a no-op preserving phase_archetype if matched.
+  When NOT in replay, validates cache change_id+phase+checksum, updates
+  `last_handoff_id` / `handoff_ids` / `phase_archetype`, atomically
+  deletes the cache, saves
+  **Spec scenarios**: skill-workflow-spec → "apply_phase_outcome updates loop state and is idempotent under replay"
+  **Design decisions**: D4 (cache file lifecycle + replay rule)
   **Dependencies**: 2.3
 
 - [ ] 2.5 Write CLI integration test for `runner.py` — both `build-dispatch`
@@ -138,17 +142,32 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file lifecycle)
   **Dependencies**: None
 
+- [ ] 2.12 Write a test that exercises the `_FIX` phase archetype-inheritance
+  path: drive a fake convergence loop that does NOT converge on round 1,
+  triggering PLAN_FIX. Assert `LoopState.phase_archetype` retains the
+  value set by the preceding PLAN_REVIEW (i.e. convergence_loop does
+  not overwrite the field). This test guards against R1-009-class
+  regressions where _FIX phases would silently null the field
+  **Spec scenarios**: skill-workflow-spec → "PLAN_FIX inherits phase_archetype from PLAN_REVIEW"
+  **Design decisions**: design.md "Phase-by-phase dispatch matrix" — _FIX rows
+  **Dependencies**: 2.4, 2.10
+
 ## Phase 3 — Coordinator status reporter and discovery (`wp-coordinator-status-discovery`)
 
 Closes deferred D-1 and D-2. Depends on `wp-contracts`. Can run in
 parallel with Phase 2.
 
 - [ ] 3.1 Write tests for the SQL migration application against a real Postgres
-  test container — verifies the column is added without altering existing
-  data
-  **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill"
+  test container. Verifies: (a) the column is added without altering
+  existing rows; (b) the CHECK constraint rejects out-of-enum values;
+  (c) the updated `discover_agents()` RPC returns `phase_archetype`
+  in its JSONB response after a heartbeat; (d) the updated
+  `agent_heartbeat()` RPC accepts the new `p_phase_archetype` parameter
+  and persists it via `COALESCE(p_phase_archetype, phase_archetype)`
+  (heartbeats with no value passed don't null the field)
+  **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill", "AgentInfo round-trip via heartbeat and discovery"
   **Contracts**: `contracts/db/0NN_add_phase_archetype.sql`
-  **Design decisions**: D8
+  **Design decisions**: D8; codex review R1-004
   **Dependencies**: 1.2
 
 - [ ] 3.2 Apply the migration into `agent-coordinator/database/migrations/`
@@ -166,10 +185,19 @@ parallel with Phase 2.
   **Dependencies**: 1.4
 
 - [ ] 3.4 Extend `AgentInfo` dataclass with `phase_archetype: str | None = None`;
-  extend `DiscoveryService.heartbeat` to accept and persist; surface the
-  field in `GET /discovery/agents` response
+  extend `DiscoveryService.heartbeat(...)` to accept and forward
+  `phase_archetype` to the `agent_heartbeat` SQL RPC; extend
+  `DiscoveryService.discover(...)` to parse `phase_archetype` from the
+  `discover_agents` RPC's JSONB response and place it on the returned
+  `AgentInfo`; surface the field in the `GET /discovery/agents` response
+  builder at `coordination_api.py:2122` (the discovery_agents() handler
+  builds the response dict by hand — `phase_archetype` must be added
+  to the per-agent dict construction). The migration in 3.2 already
+  updates the two SQL RPCs (`discover_agents`, `agent_heartbeat`) so
+  they accept and return the new field — task 3.4 is the Python side
+  of that contract
   **Spec scenarios**: agent-coordinator-spec → "AgentInfo round-trip via heartbeat and discovery"
-  **Design decisions**: D8
+  **Design decisions**: D8; codex review R1-004 (RPC update is required, ALTER TABLE alone is insufficient)
   **Dependencies**: 3.2, 3.3
 
 - [ ] 3.5 Write tests for `report_status.py` reading `phase_archetype` from
