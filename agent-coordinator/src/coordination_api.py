@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -215,10 +215,19 @@ class StatusReportRequest(BaseModel):
     needs_human: bool = False
     event_type: str = Field(default="status.phase_transition", max_length=64)
     metadata: dict[str, Any] | None = None
-    # NEW (OpenSpec add-per-phase-archetype-resolution / agent-coordinator.3):
-    # Optional name of the archetype resolved for the current phase. Older
-    # clients omit this field (no 400 — backward compatible).
-    phase_archetype: str | None = Field(default=None, max_length=64)
+    # wire-autopilot-phase-subagents (D-2, task 3.9): Pydantic ``Literal``
+    # enforces enum membership at the API boundary, returning HTTP 422 for
+    # out-of-enum values. This complements the SQL CHECK constraint
+    # (defense in depth) and the report_status.py client-side validation.
+    # Older clients omit this field (no 400 — backward compatible) — the
+    # ``| None`` admits both omission and explicit ``null``.
+    phase_archetype: Literal[
+        "architect",
+        "reviewer",
+        "implementer",
+        "analyst",
+        "runner",
+    ] | None = Field(default=None)
 
 
 class ResolveForPhaseRequest(BaseModel):
@@ -1977,10 +1986,19 @@ def create_coordination_api() -> FastAPI:
 
         _log = _logging.getLogger(__name__)
 
-        # Update heartbeat for the reporting agent (not the coordinator itself)
+        # Update heartbeat for the reporting agent (not the coordinator itself).
+        # wire-autopilot-phase-subagents (task 3.8): forward phase_archetype
+        # so the value lands in agent_sessions.phase_archetype via the
+        # agent_heartbeat RPC (and surfaces in /discovery/agents). The
+        # archived per-phase-archetype-resolution change added the field to
+        # the request body and the event-bus context, but stopped short of
+        # the discovery persistence path — closing that gap inline here.
         try:
             discovery = get_discovery_service()
-            await discovery.heartbeat(agent_id=request.agent_id)
+            await discovery.heartbeat(
+                agent_id=request.agent_id,
+                phase_archetype=request.phase_archetype,
+            )
         except Exception:  # noqa: BLE001
             _log.debug("Heartbeat update failed for status report", exc_info=True)
 

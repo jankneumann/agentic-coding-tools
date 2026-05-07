@@ -215,13 +215,13 @@ parallel with Phase 2.
   **Design decisions**: D6
   **Dependencies**: 3.5
 
-- [ ] 3.7 Write tests for `coordination_api.report_status` accepting the new
+- [x] 3.7 Write tests for `coordination_api.report_status` accepting the new
   field and forwarding it through the event bus to discovery persistence
   **Spec scenarios**: agent-coordinator-spec → "Status report with phase_archetype is persisted"
   **Design decisions**: D6, D8
   **Dependencies**: 3.4, 3.6
 
-- [ ] 3.8 Read `agent-coordinator/src/coordination_api.py` `discovery_register`
+- [x] 3.8 Read `agent-coordinator/src/coordination_api.py` `discovery_register`
   and `report_status` endpoint handlers (cite line ranges in the commit
   message). Confirm by code inspection that the archived change's event
   bus path forwards `phase_archetype` from POST /status/report into the
@@ -234,7 +234,7 @@ parallel with Phase 2.
   **Design decisions**: D6, D8
   **Dependencies**: 3.7
 
-- [ ] 3.9 Add Pydantic enum validation to `StatusReportRequest`:
+- [x] 3.9 Add Pydantic enum validation to `StatusReportRequest`:
   `phase_archetype: Literal["architect","reviewer","implementer","analyst","runner"] | None = None`.
   Verify that out-of-enum POSTs return HTTP 422 (FastAPI default
   validation error). Regression test asserts both the 422 response and
