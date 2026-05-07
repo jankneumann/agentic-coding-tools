@@ -157,7 +157,7 @@ phase blocks. Depends on `wp-contracts`.
 Closes deferred D-1 and D-2. Depends on `wp-contracts`. Can run in
 parallel with Phase 2.
 
-- [ ] 3.1 Write tests for the SQL migration application against a real Postgres
+- [x] 3.1 Write tests for the SQL migration application against a real Postgres
   test container. Verifies: (a) the column is added without altering
   existing rows; (b) the CHECK constraint rejects out-of-enum values;
   (c) the updated `discover_agents()` RPC returns `phase_archetype`
@@ -170,7 +170,7 @@ parallel with Phase 2.
   **Design decisions**: D8; codex review R1-004
   **Dependencies**: 1.2
 
-- [ ] 3.2 Apply the migration into `agent-coordinator/database/migrations/`
+- [x] 3.2 Apply the migration into `agent-coordinator/database/migrations/`
   with the next available sequence number; verify it loads at coordinator
   startup
   **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill"
