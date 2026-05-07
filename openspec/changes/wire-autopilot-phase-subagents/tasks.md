@@ -177,14 +177,14 @@ parallel with Phase 2.
   **Design decisions**: D8
   **Dependencies**: 3.1
 
-- [ ] 3.3 Write tests for `AgentInfo.phase_archetype` round-trip via
+- [x] 3.3 Write tests for `AgentInfo.phase_archetype` round-trip via
   `DiscoveryService.heartbeat` and `GET /discovery/agents`
   **Spec scenarios**: agent-coordinator-spec → "AgentInfo round-trip via heartbeat and discovery", "AgentInfo without phase_archetype defaults to None"
   **Contracts**: `contracts/openapi/discovery-agents.yaml`
   **Design decisions**: D8
   **Dependencies**: 1.4
 
-- [ ] 3.4 Extend `AgentInfo` dataclass with `phase_archetype: str | None = None`;
+- [x] 3.4 Extend `AgentInfo` dataclass with `phase_archetype: str | None = None`;
   extend `DiscoveryService.heartbeat(...)` to accept and forward
   `phase_archetype` to the `agent_heartbeat` SQL RPC; extend
   `DiscoveryService.discover(...)` to parse `phase_archetype` from the
