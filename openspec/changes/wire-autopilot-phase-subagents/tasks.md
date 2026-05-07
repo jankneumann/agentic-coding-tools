@@ -95,7 +95,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D7
   **Dependencies**: 2.7
 
-- [ ] 2.9 Write a snapshot test for the joined system_prompt + phase prompt
+- [x] 2.9 Write a snapshot test for the joined system_prompt + phase prompt
   rendering. The test SHALL include a phase prompt that itself contains
   `\n---\n` (markdown rule inside task instructions) and assert via
   regex that (a) exactly one occurrence of the literal SEPARATOR
@@ -106,7 +106,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D2 (folding semantics + separator clash mitigation)
   **Dependencies**: 2.1
 
-- [ ] 2.9a Write tests for path-traversal rejection in
+- [x] 2.9a Write tests for path-traversal rejection in
   `build_phase_dispatch_kwargs`: verify ValueError is raised for inputs
   like `"../../etc/passwd"`, `"foo/bar"`, empty string, strings longer
   than 128 chars, and strings with non-ASCII characters
