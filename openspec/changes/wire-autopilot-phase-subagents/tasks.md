@@ -37,14 +37,14 @@ diverge. Tier B (CI). All implementation packages depend on this phase.
 Build the helpers, the runner CLI entry, and rewrite the SKILL.md
 phase blocks. Depends on `wp-contracts`.
 
-- [ ] 2.1 Write unit tests for `phase_agent.build_phase_dispatch_kwargs` —
+- [x] 2.1 Write unit tests for `phase_agent.build_phase_dispatch_kwargs` —
   returns dict with required keys; cache file is written; cache file is
   schema-correct
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
   **Design decisions**: D3 (dict return), D2 (system_prompt folding)
   **Dependencies**: None
 
-- [ ] 2.2 Implement `phase_agent.build_phase_dispatch_kwargs(phase, change_id)`
+- [x] 2.2 Implement `phase_agent.build_phase_dispatch_kwargs(phase, change_id)`
   in `skills/autopilot/scripts/phase_agent.py`. Pure function calling
   `_build_options` + `_build_prompt` + cache write. Folds `system_prompt`
   into prompt with `\n\n---\n\n` separator
@@ -52,14 +52,14 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D2, D3
   **Dependencies**: 2.1
 
-- [ ] 2.3 Write unit tests for `phase_agent.apply_phase_outcome` — idempotent;
+- [x] 2.3 Write unit tests for `phase_agent.apply_phase_outcome` — idempotent;
   loop-state.json fields update correctly; cache mismatch writes null
   archetype
   **Spec scenarios**: skill-workflow-spec → "apply_phase_outcome updates loop state and is idempotent", "apply_phase_outcome with mismatched cache writes null archetype"
   **Design decisions**: D4 (cache file), Q1 (idempotency)
   **Dependencies**: 2.1
 
-- [ ] 2.4 Implement `phase_agent.apply_phase_outcome(change_id, phase, outcome,
+- [x] 2.4 Implement `phase_agent.apply_phase_outcome(change_id, phase, outcome,
   handoff_id)`. Loads loop-state.json, **first checks the replay rule**
   (`state.last_handoff_id == handoff_id AND state.previous_phase == phase`)
   and short-circuits to a no-op preserving phase_archetype if matched.
@@ -70,32 +70,32 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file lifecycle + replay rule)
   **Dependencies**: 2.3
 
-- [ ] 2.5 Write CLI integration test for `runner.py` — both `build-dispatch`
+- [x] 2.5 Write CLI integration test for `runner.py` — both `build-dispatch`
   and `apply-outcome` subcommands work from shell, JSON output is parseable
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
   **Design decisions**: D3
   **Dependencies**: 2.1, 2.3
 
-- [ ] 2.6 Create `skills/autopilot/scripts/runner.py` with argparse-based CLI
+- [x] 2.6 Create `skills/autopilot/scripts/runner.py` with argparse-based CLI
   exposing `build-dispatch` and `apply-outcome` subcommands wrapping the
   helpers
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
   **Design decisions**: D3
   **Dependencies**: 2.5
 
-- [ ] 2.7 Write tests for `autopilot._resolve_phase_archetype_for_state_only`
+- [x] 2.7 Write tests for `autopilot._resolve_phase_archetype_for_state_only`
   — INIT records archetype despite no sub-agent dispatch
   **Spec scenarios**: skill-workflow-spec → "INIT phase records archetype despite being state-only"
   **Design decisions**: D7
   **Dependencies**: None
 
-- [ ] 2.8 Implement `autopilot._resolve_phase_archetype_for_state_only(state, phase)`
+- [x] 2.8 Implement `autopilot._resolve_phase_archetype_for_state_only(state, phase)`
   and call it at INIT phase entry inside `run_loop`. SUBMIT_PR similarly
   **Spec scenarios**: skill-workflow-spec → "INIT phase records archetype despite being state-only"
   **Design decisions**: D7
   **Dependencies**: 2.7
 
-- [ ] 2.9 Write a snapshot test for the joined system_prompt + phase prompt
+- [x] 2.9 Write a snapshot test for the joined system_prompt + phase prompt
   rendering. The test SHALL include a phase prompt that itself contains
   `\n---\n` (markdown rule inside task instructions) and assert via
   regex that (a) exactly one occurrence of the literal SEPARATOR
@@ -106,7 +106,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D2 (folding semantics + separator clash mitigation)
   **Dependencies**: 2.1
 
-- [ ] 2.9a Write tests for path-traversal rejection in
+- [x] 2.9a Write tests for path-traversal rejection in
   `build_phase_dispatch_kwargs`: verify ValueError is raised for inputs
   like `"../../etc/passwd"`, `"foo/bar"`, empty string, strings longer
   than 128 chars, and strings with non-ASCII characters
@@ -114,18 +114,21 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file path validation)
   **Dependencies**: 2.1
 
-- [ ] 2.9b Write the per-phase token-budget CI gate at
+- [x] 2.9b Write the per-phase token-budget CI gate at
   `skills/autopilot/scripts/token_budget_check.py`. Iterates over all
   7 sub-agent-dispatching phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
   IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW), computes the joined
   prompt size, compares against the resolved model's context window:
   fails (exit 1) at >75%, warns at 60-75%, passes silently below 60%.
   Add a CI step in the work-package's verification block invoking it
+  (NOTE: work-packages.yaml verification-block edit is outside this
+  agent's write_allow scope; left for the integration package or the
+  orchestrator to wire as a CI step)
   **Spec scenarios**: skill-workflow-spec → "Joined prompt token budget is enforced"
   **Design decisions**: Risks → Prompt-size pressure
   **Dependencies**: 2.2, 2.6
 
-- [ ] 2.10 Update `skills/autopilot/SKILL.md`: replace the existing prose
+- [x] 2.10 Update `skills/autopilot/SKILL.md`: replace the existing prose
   blocks for the **7 sub-agent-dispatching phases** (PLAN_ITERATE,
   PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE,
   VAL_REVIEW) with explicit 3-step dispatch blocks (build kwargs → call
@@ -137,12 +140,12 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D1, D5; design.md "Phase-by-phase dispatch matrix"
   **Dependencies**: 2.6, 2.8
 
-- [ ] 2.11 Add `openspec/changes/*/.phase-resolution-cache.json` to the
+- [x] 2.11 Add `openspec/changes/*/.phase-resolution-cache.json` to the
   project `.gitignore`
   **Design decisions**: D4 (cache file lifecycle)
   **Dependencies**: None
 
-- [ ] 2.12 Write a test that exercises the `_FIX` phase archetype-inheritance
+- [x] 2.12 Write a test that exercises the `_FIX` phase archetype-inheritance
   path: drive a fake convergence loop that does NOT converge on round 1,
   triggering PLAN_FIX. Assert `LoopState.phase_archetype` retains the
   value set by the preceding PLAN_REVIEW (i.e. convergence_loop does
