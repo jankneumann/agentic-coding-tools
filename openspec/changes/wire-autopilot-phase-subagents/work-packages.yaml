@@ -355,3 +355,9 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["openspec.validate.exit_code"]
+        - name: "token-budget-check"
+          kind: "command"
+          command: "skills/.venv/bin/python skills/autopilot/scripts/token_budget_check.py"
+          evidence:
+            artifacts: []
+            result_keys: ["token_budget.exit_code", "token_budget.max_phase_pct"]

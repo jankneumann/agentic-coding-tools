@@ -29,15 +29,22 @@ try:
 except ImportError:
     converge = None  # type: ignore[assignment]
 
+# coordination_bridge ships under skills/coordination-bridge/scripts/. Make
+# sure that directory is on sys.path so the lazy import inside
+# _resolve_phase_archetype_for_state_only resolves it. The actual import
+# is lazy (inside the function) to avoid mypy strict-mode complications
+# with cross-package import-not-found warnings.
+_BRIDGE_SCRIPTS = _SCRIPTS_DIR.parent.parent / "coordination-bridge" / "scripts"
+if str(_BRIDGE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_SCRIPTS))
+
 try:
     from complexity_gate import assess_complexity  # type: ignore[import-untyped]
 except ImportError:
     assess_complexity = None  # type: ignore[assignment]
 
 try:
-    from implementation_strategy_selector import (
-        select_strategies,  # type: ignore[import-untyped]
-    )
+    from implementation_strategy_selector import select_strategies  # type: ignore[import-untyped]
 except ImportError:
     select_strategies = None  # type: ignore[assignment]
 
@@ -212,6 +219,61 @@ class PhaseFn(Protocol):
     def __call__(self, state: LoopState, **kwargs: Any) -> str:
         """Execute phase work and return an outcome string."""
         ...
+
+
+# ---------------------------------------------------------------------------
+# State-only archetype resolver (D7 — wire-autopilot-phase-subagents)
+# ---------------------------------------------------------------------------
+
+# Phases that record `phase_archetype` on the state machine itself rather
+# than via a sub-agent dispatch. Per D7 these are INIT and SUBMIT_PR.
+_STATE_ONLY_PHASES: frozenset[str] = frozenset({"INIT", "SUBMIT_PR"})
+
+
+def _resolve_phase_archetype_for_state_only(
+    state: LoopState,
+    phase: str,
+) -> None:
+    """Resolve and record the archetype for a state-only phase.
+
+    State-only phases (INIT, SUBMIT_PR) do not dispatch a sub-agent — they
+    are state transitions executed inline by the loop driver. The spec
+    requires `LoopState.phase_archetype` to be populated for these phases
+    too, so observability dashboards can correlate every non-terminal
+    phase with its archetype.
+
+    The resolution path mirrors `phase_agent._build_options`'s archetype
+    branch: it queries the coordinator via
+    ``coordination_bridge.try_resolve_archetype_for_phase(phase, signals)``
+    and records the resolved archetype name on `state.phase_archetype`.
+
+    On any failure (bridge unavailable, coordinator returns None,
+    malformed response), `state.phase_archetype` is left as None — this
+    matches the bridge-failure fallback semantics from
+    `add-per-phase-archetype-resolution` D9.
+    """
+    if phase not in _STATE_ONLY_PHASES:
+        # Defensive — caller is expected to gate on _STATE_ONLY_PHASES, but
+        # keep the function tolerant rather than raising.
+        return
+    try:
+        # Lazy import keeps the cross-package dependency out of module-load
+        # type checking and gracefully degrades if the bridge module is
+        # missing (e.g., minimal harness environments).
+        import coordination_bridge  # type: ignore[import-not-found]
+        resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, {})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "_resolve_phase_archetype_for_state_only(%s) bridge raised: %s; "
+            "leaving phase_archetype=None",
+            phase, exc,
+        )
+        return
+    if not isinstance(resolved, dict):
+        return
+    archetype = resolved.get("archetype")
+    if isinstance(archetype, str) and archetype:
+        state.phase_archetype = archetype
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +613,9 @@ def _phase_init(
 ) -> str:
     """Run complexity assessment and configure the loop accordingly."""
     state.phase_started_at = _now_iso()
+    # D7: state-only phases must still record phase_archetype so observability
+    # surfaces are uniform across the 13 non-terminal phases.
+    _resolve_phase_archetype_for_state_only(state, "INIT")
 
     if assess_complexity_fn is not None:
         wp_path = change_dir / "work-packages.yaml"
@@ -700,6 +765,8 @@ def _phase_submit_pr(
 ) -> str:
     """Delegate to PR submission callback (stub if absent)."""
     state.phase_started_at = _now_iso()
+    # D7: state-only phases must still record phase_archetype.
+    _resolve_phase_archetype_for_state_only(state, "SUBMIT_PR")
     if submit_pr_fn is not None:
         return submit_pr_fn(state)
     return "created"

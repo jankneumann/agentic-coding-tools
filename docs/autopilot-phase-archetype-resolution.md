@@ -172,16 +172,125 @@ resolved = try_resolve_archetype_for_phase(
 # returns dict on 200, None on failure (logs WARNING)
 ```
 
-## Deferred Items
+## Deferred Items — Closed by `wire-autopilot-phase-subagents`
 
-See `openspec/changes/add-per-phase-archetype-resolution/deferred-tasks.md`:
-- **D-1**: Persist `phase_archetype` on the discovery agent record so
-  `GET /discovery/agents` returns it. Today the value flows through the
-  event bus only.
-- **D-2**: Wire `INIT` archetype recording (currently a state-only
-  transition that bypasses `run_phase_subagent`) and have
-  `agent-coordinator/scripts/report_status.py` include
-  `phase_archetype` in its `POST /status/report` payload by reading
-  `state.phase_archetype` from `loop-state.json`.
+D-1 and D-2 from the original change are now closed by
+`openspec/changes/wire-autopilot-phase-subagents/` (planned 2026-05-05,
+landed 2026-05-07):
 
-Both are additive follow-ups; the core feature is functional today.
+- **D-1 closed**: `agent_sessions.phase_archetype TEXT` column added in
+  migration `023_add_phase_archetype.sql`, with a `CHECK` constraint
+  enforcing the 5-value enum at the DB layer. The `discover_agents()`
+  RPC returns `phase_archetype` in JSONB; `agent_heartbeat()` accepts
+  optional `p_phase_archetype` with `COALESCE` semantics so older
+  callers continue to work.
+- **D-2 closed**: `report_status.py` reads `state.phase_archetype` from
+  `loop-state.json` and includes it in `POST /status/report` (with
+  client-side enum validation that drops invalid values). INIT and
+  SUBMIT_PR archetype recording wired via
+  `autopilot._resolve_phase_archetype_for_state_only()`.
+
+## Production-path execution diagram
+
+```
+┌──── orchestrator agent (SKILL.md driven) ────┐
+│                                                │
+│  for each non-terminal phase:                  │
+│    1. runner.py build-dispatch                 │
+│       → folds system_prompt with separator     │
+│       → writes .phase-resolution-cache.json    │
+│       → returns JSON {prompt, model, ...}      │
+│                                                │
+│    2. Agent(prompt=..., model=...,             │
+│             isolation=...)                     │
+│       → harness dispatches with archetype model│
+│       → returns (outcome, handoff_id)          │
+│                                                │
+│    3. runner.py apply-outcome                  │
+│       → replay rule first; else validate cache │
+│       → updates loop-state.json                │
+│       → atomically deletes cache               │
+│                                                │
+│  on Stop hook:                                 │
+│    report_status.py reads loop-state.json      │
+│      → POSTs phase_archetype to coordinator    │
+│      → DiscoveryService persists in            │
+│        agent_sessions row                      │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+## Phase-by-phase dispatch matrix
+
+| Phase | Sub-agent dispatch? | Archetype recorded? |
+|---|---|---|
+| `INIT` | No (state-only) | Yes — `runner` |
+| `PLAN` | No (delegated to `/plan-feature`) | Yes — `architect` |
+| `PLAN_ITERATE`, `PLAN_REVIEW` | **Yes** (Agent block) | Yes |
+| `PLAN_FIX` | No (convergence-loop) | Inherited from PLAN_REVIEW |
+| `IMPLEMENT` | **Yes** with `isolation="worktree"` | Yes |
+| `IMPL_ITERATE`, `IMPL_REVIEW` | **Yes** | Yes |
+| `IMPL_FIX` | No (convergence-loop) | Inherited from IMPL_REVIEW |
+| `VALIDATE`, `VAL_REVIEW` (when enabled) | **Yes** | Yes |
+| `VAL_FIX` | No (convergence-loop) | Inherited from VAL_REVIEW |
+| `SUBMIT_PR` | No (state-only) | Yes — `runner` |
+
+Total dispatching phases: 7 of 13.
+
+## Inline fallback
+
+When the coordinator is unreachable OR the harness `Agent(...)` tool is
+not available, autopilot falls through to the existing prose path:
+invoke the slash-command skill inline. `LoopState.phase_archetype` is
+recorded as `None` for affected phases; a structured warning is logged.
+This is the documented and tested behavior — see spec scenarios
+"Coordinator unreachable, autopilot continues" and "Harness Agent tool
+not exposed, fallback to inline path".
+
+## Manual rollout cross-check
+
+After a real autopilot run completes, validate the archetype mapping
+was applied by counting model calls in the coordinator audit log:
+
+```bash
+python3 skills/autopilot/scripts/audit_log_validator.py \
+    --audit-log <path-to-coordinator-audit.jsonl> \
+    --change-id <your-change-id> \
+    [--archetypes-yaml agent-coordinator/archetypes.yaml]
+```
+
+The validator reads `loop-state.json`, derives the expected
+(model → count) distribution from `phase_mapping`, and compares against
+the audit log's actual model counts. Exit 0 = match, 1 = mismatch
+(detailed findings on stdout), 2 = file not found.
+
+## Token-budget CI gate
+
+Folding `system_prompt` into the per-phase task prompt risks token-limit
+pressure for IMPL_REVIEW (large change context). The CI gate at
+`skills/autopilot/scripts/token_budget_check.py` runs over all 7
+sub-agent-dispatching phases:
+
+- **fails** (exit 1) if any phase exceeds **75%** of the resolved model's
+  context window
+- **warns** (exit 0 with stderr) at 60-75%
+- **passes silently** below 60%
+
+Wired into `wp-integration`'s verification block in `work-packages.yaml`.
+
+## Cache file lifecycle
+
+`.phase-resolution-cache.json` is the single shared scratch state
+introduced by this design:
+
+1. **Write**: `build_phase_dispatch_kwargs` writes atomically via
+   `os.replace(tmp, final)`.
+2. **Read**: `apply_phase_outcome` validates `change_id`, `phase`,
+   `sha256` checksum.
+3. **Delete**: on successful state write, the cache is deleted.
+4. **Replay**: a second call with the same `(change_id, phase, outcome,
+   handoff_id)` detects replay via `last_handoff_id` match and skips
+   cache validation — the missing cache (deleted by the first call)
+   is expected.
+
+The cache path is in `.gitignore` and is per-change, never committed.

@@ -40,11 +40,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from policy import (  # type: ignore[import-untyped]
-    PolicyDecision,
-    VendorLimit,
-    evaluate_policy,
-)
+from policy import PolicyDecision, VendorLimit, evaluate_policy  # type: ignore[import-untyped]
 from replanner import replan  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
