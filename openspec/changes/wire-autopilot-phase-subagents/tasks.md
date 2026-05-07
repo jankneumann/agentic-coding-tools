@@ -200,14 +200,14 @@ parallel with Phase 2.
   **Design decisions**: D8; codex review R1-004 (RPC update is required, ALTER TABLE alone is insufficient)
   **Dependencies**: 3.2, 3.3
 
-- [ ] 3.5 Write tests for `report_status.py` reading `phase_archetype` from
+- [x] 3.5 Write tests for `report_status.py` reading `phase_archetype` from
   `loop-state.json` and including it in the POST body
   **Spec scenarios**: agent-coordinator-spec → "report_status.py reads phase_archetype from loop-state.json", "report_status.py handles missing phase_archetype gracefully"
   **Contracts**: `contracts/events/status-report.schema.json`
   **Design decisions**: D6
   **Dependencies**: 1.3
 
-- [ ] 3.6 Modify `agent-coordinator/scripts/report_status.py` to read
+- [x] 3.6 Modify `agent-coordinator/scripts/report_status.py` to read
   `state.phase_archetype` from `loop-state.json` (line ~97-100) and add to
   POST body (line ~118-128). Pass through to `coordination_api.report_status`
   endpoint
@@ -243,7 +243,7 @@ parallel with Phase 2.
   **Design decisions**: Risks → DB-layer enum enforcement
   **Dependencies**: 3.7
 
-- [ ] 3.10 Add client-side enum validation to `report_status.py`:
+- [x] 3.10 Add client-side enum validation to `report_status.py`:
   before including `phase_archetype` in the POST body, validate it
   against the allowed set. If invalid (local file tampering or older
   client writing wrong values), drop the field and log a structured
