@@ -124,6 +124,7 @@ The active-agent guard checks `.git-worktrees/.registry.json` for non-stale entr
 - [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns
 - [Architecture Artifacts](docs/architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
 - [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
+- [Skills Catalogue](docs/skills-catalogue.md) — Discoverable index of every skill grouped by purpose; trigger + related + user_invocable per skill
 - [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
 - [OpenBao Secret Management](docs/openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
 - [Cross-Repo Setup](docs/cross-repo-setup.md) — Using skills, scripts, and MCP servers in other repositories

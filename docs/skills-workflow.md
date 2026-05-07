@@ -2,6 +2,8 @@
 
 A structured feature development workflow for AI-assisted coding. Skills are reusable Claude Code slash commands that guide features from proposal through implementation to completion, with human approval gates at each stage.
 
+> Looking for the full list of skills with one-line summaries? See [`skills-catalogue.md`](skills-catalogue.md). This document covers *how* skills are designed and composed; the catalogue covers *what* each skill does.
+
 ## Overview
 
 The workflow breaks feature development into discrete stages, each handled by a dedicated skill. Every stage ends at a natural approval gate where a human reviews and approves before the next stage begins. This design supports asynchronous workflows where an AI agent can do focused work, then hand off for review.

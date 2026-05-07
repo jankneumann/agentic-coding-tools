@@ -257,7 +257,7 @@ Phase ordering is sequential at the phase level; within Phases 1 and 2, packages
   - **Dependencies**: 3.2, 3.3
   - One short section: "Adopted external methodology skills (10) and folded patterns into 8 existing skills. Convention: tail block on user-invocable skills enforced by content-invariant tests at `skills/tests/_shared/conftest.py`."
 
-- [ ] 3.6 Update `README.md` and slash-command catalogue (if maintained) with the 7 new user-invocable skills
+- [x] 3.6 Skills catalogue created at docs/skills-catalogue.md (replaces deferred README slash-command catalogue)
   - **Dependencies**: 3.2
 
 - [x] 3.7 Verify orchestrator integration points still function
