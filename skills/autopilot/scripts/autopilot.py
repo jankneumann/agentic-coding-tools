@@ -30,15 +30,13 @@ except ImportError:
     converge = None  # type: ignore[assignment]
 
 # coordination_bridge ships under skills/coordination-bridge/scripts/. Make
-# sure that directory is on sys.path before we import the bridge helper.
+# sure that directory is on sys.path so the lazy import inside
+# _resolve_phase_archetype_for_state_only resolves it. The actual import
+# is lazy (inside the function) to avoid mypy strict-mode complications
+# with cross-package import-not-found warnings.
 _BRIDGE_SCRIPTS = _SCRIPTS_DIR.parent.parent / "coordination-bridge" / "scripts"
 if str(_BRIDGE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_BRIDGE_SCRIPTS))
-
-try:
-    import coordination_bridge  # type: ignore[import-not-found]
-except ImportError:  # pragma: no cover — defensive
-    coordination_bridge = None  # type: ignore[assignment]
 
 try:
     from complexity_gate import assess_complexity  # type: ignore[import-untyped]
@@ -254,13 +252,15 @@ def _resolve_phase_archetype_for_state_only(
     matches the bridge-failure fallback semantics from
     `add-per-phase-archetype-resolution` D9.
     """
-    if coordination_bridge is None:
-        return
     if phase not in _STATE_ONLY_PHASES:
         # Defensive — caller is expected to gate on _STATE_ONLY_PHASES, but
         # keep the function tolerant rather than raising.
         return
     try:
+        # Lazy import keeps the cross-package dependency out of module-load
+        # type checking and gracefully degrades if the bridge module is
+        # missing (e.g., minimal harness environments).
+        import coordination_bridge  # type: ignore[import-not-found]
         resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, {})
     except Exception as exc:  # noqa: BLE001
         logger.warning(

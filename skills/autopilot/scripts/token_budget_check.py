@@ -35,8 +35,8 @@ _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
-import phase_agent  # noqa: E402
-from phase_record import PhaseRecord  # noqa: E402  type: ignore[import-not-found]
+import phase_agent  # type: ignore[import-not-found]  # noqa: E402
+from phase_record import PhaseRecord  # type: ignore[import-not-found]  # noqa: E402
 
 # 7 sub-agent-dispatching phases per the design's "Phase-by-phase
 # dispatch matrix" (canonical source of truth — D1).
