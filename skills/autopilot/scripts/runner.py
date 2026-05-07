@@ -60,6 +60,14 @@ def _cmd_build_dispatch(args: argparse.Namespace) -> int:
 
 
 def _cmd_apply_outcome(args: argparse.Namespace) -> int:
+    # Reject empty/whitespace-only IDs early. argparse only checks the
+    # arg is present, not non-empty; phase_agent rejects deeper but the
+    # CLI surface is the right place to fail fast.
+    for name in ("change_id", "phase", "outcome", "handoff_id"):
+        val = getattr(args, name, "")
+        if not isinstance(val, str) or not val.strip():
+            sys.stderr.write(f"runner: --{name.replace('_', '-')} must be a non-empty string\n")
+            return 2
     try:
         phase_agent.apply_phase_outcome(
             change_id=args.change_id,
