@@ -114,13 +114,16 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file path validation)
   **Dependencies**: 2.1
 
-- [ ] 2.9b Write the per-phase token-budget CI gate at
+- [x] 2.9b Write the per-phase token-budget CI gate at
   `skills/autopilot/scripts/token_budget_check.py`. Iterates over all
   7 sub-agent-dispatching phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
   IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW), computes the joined
   prompt size, compares against the resolved model's context window:
   fails (exit 1) at >75%, warns at 60-75%, passes silently below 60%.
   Add a CI step in the work-package's verification block invoking it
+  (NOTE: work-packages.yaml verification-block edit is outside this
+  agent's write_allow scope; left for the integration package or the
+  orchestrator to wire as a CI step)
   **Spec scenarios**: skill-workflow-spec → "Joined prompt token budget is enforced"
   **Design decisions**: Risks → Prompt-size pressure
   **Dependencies**: 2.2, 2.6
