@@ -70,13 +70,13 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D4 (cache file lifecycle + replay rule)
   **Dependencies**: 2.3
 
-- [ ] 2.5 Write CLI integration test for `runner.py` — both `build-dispatch`
+- [x] 2.5 Write CLI integration test for `runner.py` — both `build-dispatch`
   and `apply-outcome` subcommands work from shell, JSON output is parseable
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
   **Design decisions**: D3
   **Dependencies**: 2.1, 2.3
 
-- [ ] 2.6 Create `skills/autopilot/scripts/runner.py` with argparse-based CLI
+- [x] 2.6 Create `skills/autopilot/scripts/runner.py` with argparse-based CLI
   exposing `build-dispatch` and `apply-outcome` subcommands wrapping the
   helpers
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
