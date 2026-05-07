@@ -317,6 +317,55 @@ git add .claude/skills/ .agents/skills/
 git commit -m "chore: sync skills from agentic-coding-tools"
 ```
 
+## Adopting Langfuse in another repo
+
+Langfuse is the team's default LLM observability platform. The `langfuse` skill bundles three integration mechanisms behind one front door: skill knowledge, the CLI (`npx langfuse-cli`), and the MCP server (`mcp__langfuse__*` for prompt management).
+
+### Two-command setup
+
+```bash
+# 1. Sync the skill from agentic-coding-tools (along with all other skills)
+cd ~/Coding/agentic-coding-tools
+bash skills/install.sh --target ~/Coding/<your-repo> --mode rsync --force \
+  --deps none --python-tools none
+
+# 2. Register the Langfuse MCP server in the target repo
+cd ~/Coding/<your-repo>
+LANGFUSE_PUBLIC_KEY=pk-lf-... \
+LANGFUSE_SECRET_KEY=sk-lf-... \
+  bash .claude/skills/langfuse/scripts/install-mcp.sh
+```
+
+Then export `LANGFUSE_BASIC_AUTH` from your shell profile so `.mcp.json` can interpolate it:
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
+export LANGFUSE_HOST=https://cloud.langfuse.com  # or regional / self-hosted variant
+export LANGFUSE_BASIC_AUTH=$(printf '%s:%s' \
+  "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64)
+```
+
+### Optional: lock to read-only
+
+Pass `--lock-read-only` to add deny rules for the three write tools (`createTextPrompt`, `createChatPrompt`, `updatePromptLabels`) into `.claude/settings.json`. Useful for shared repos where prompt versioning goes through a release process.
+
+### Optional: stream session transcripts to Langfuse
+
+To make Claude Code session transcripts appear as Langfuse traces alongside server-side spans, wire `langfuse_hook.py` (or your project's equivalent) into the `Stop` matcher in `.claude/settings.json`. See `skills/langfuse/references/stop-hook.md` for both patterns (project venv vs `uv run`).
+
+### Per-region URLs
+
+| Region | MCP URL |
+|---|---|
+| EU cloud | `https://cloud.langfuse.com/api/public/mcp` |
+| US cloud | `https://us.cloud.langfuse.com/api/public/mcp` |
+| Japan | `https://jp.cloud.langfuse.com/api/public/mcp` |
+| HIPAA | `https://hipaa.cloud.langfuse.com/api/public/mcp` |
+| Self-hosted | `<your-langfuse-host>/api/public/mcp` |
+
+Pass `--host us|jp|hipaa` (or `--host self-hosted --url <full-url>`) to `install-mcp.sh` for non-EU deployments.
+
 ## Reference
 
 - [`skills/install.sh --help`](../skills/install.sh) — Full flag reference

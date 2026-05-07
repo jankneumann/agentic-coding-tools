@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "langfuse": {
+      "type": "http",
+      "url": "https://cloud.langfuse.com/api/public/mcp",
+      "headers": {
+        "Authorization": "Basic ${LANGFUSE_BASIC_AUTH}"
+      }
+    }
+  }
+}
