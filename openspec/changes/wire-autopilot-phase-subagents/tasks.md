@@ -37,14 +37,14 @@ diverge. Tier B (CI). All implementation packages depend on this phase.
 Build the helpers, the runner CLI entry, and rewrite the SKILL.md
 phase blocks. Depends on `wp-contracts`.
 
-- [ ] 2.1 Write unit tests for `phase_agent.build_phase_dispatch_kwargs` —
+- [x] 2.1 Write unit tests for `phase_agent.build_phase_dispatch_kwargs` —
   returns dict with required keys; cache file is written; cache file is
   schema-correct
   **Spec scenarios**: skill-workflow-spec → "build_phase_dispatch_kwargs returns dispatch-ready dict"
   **Design decisions**: D3 (dict return), D2 (system_prompt folding)
   **Dependencies**: None
 
-- [ ] 2.2 Implement `phase_agent.build_phase_dispatch_kwargs(phase, change_id)`
+- [x] 2.2 Implement `phase_agent.build_phase_dispatch_kwargs(phase, change_id)`
   in `skills/autopilot/scripts/phase_agent.py`. Pure function calling
   `_build_options` + `_build_prompt` + cache write. Folds `system_prompt`
   into prompt with `\n\n---\n\n` separator
