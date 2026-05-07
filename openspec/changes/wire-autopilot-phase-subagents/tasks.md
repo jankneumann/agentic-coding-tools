@@ -128,7 +128,7 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: Risks → Prompt-size pressure
   **Dependencies**: 2.2, 2.6
 
-- [ ] 2.10 Update `skills/autopilot/SKILL.md`: replace the existing prose
+- [x] 2.10 Update `skills/autopilot/SKILL.md`: replace the existing prose
   blocks for the **7 sub-agent-dispatching phases** (PLAN_ITERATE,
   PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE,
   VAL_REVIEW) with explicit 3-step dispatch blocks (build kwargs → call
