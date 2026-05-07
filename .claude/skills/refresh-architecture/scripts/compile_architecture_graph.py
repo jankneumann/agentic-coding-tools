@@ -45,15 +45,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "insights"))
 
 from arch_utils.graph_io import load_graph, save_json  # noqa: E402
-from insights import (
-    cross_layer_linker,  # noqa: E402
-    db_linker,  # noqa: E402
-    flow_tracer,  # noqa: E402
-    graph_builder,  # noqa: E402
-    impact_ranker,  # noqa: E402
-    summary_builder,  # noqa: E402
-    test_linker,  # noqa: E402
-)
+from insights import cross_layer_linker  # noqa: E402
+from insights import db_linker  # noqa: E402
+from insights import flow_tracer  # noqa: E402
+from insights import graph_builder  # noqa: E402
+from insights import impact_ranker  # noqa: E402
+from insights import summary_builder  # noqa: E402
+from insights import test_linker  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

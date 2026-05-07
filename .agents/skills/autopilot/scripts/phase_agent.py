@@ -23,10 +23,13 @@ Per design D8:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import re
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -629,8 +632,383 @@ def _state_snapshot(state: Any) -> dict[str, Any]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Production-path helpers (wire-autopilot-phase-subagents)
+#
+# These two functions form the prose↔Python boundary used by SKILL.md per
+# design D1/D2/D3/D4. They are invoked across separate process invocations
+# (one for build-dispatch, one for apply-outcome), so all state lives on
+# disk in `loop-state.json` plus a tiny per-run cache file.
+# ---------------------------------------------------------------------------
+
+# Fixed separator used to fold `system_prompt` into the dispatched prompt
+# (D2). NOT parameterized — every dispatch in this skill uses this exact
+# string and spec scenarios assert it verbatim.
+_PROMPT_SEPARATOR = "\n\n---\n\n"
+
+# OpenSpec change-id pattern (also enforced by OpenSpec itself). Rejects
+# `..`, `/`, empty strings, oversized values, and non-ASCII characters
+# before any path is constructed.
+_CHANGE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+# Filename of the per-run resolution cache, written by build-dispatch and
+# consumed (then deleted) by apply-outcome. Lives inside the change dir.
+_RESOLUTION_CACHE_FILENAME = ".phase-resolution-cache.json"
+
+
+def _validate_change_id(change_id: str) -> None:
+    """Raise ValueError if *change_id* fails the OpenSpec pattern (D4)."""
+    if not isinstance(change_id, str) or not _CHANGE_ID_PATTERN.match(change_id):
+        raise ValueError(
+            f"invalid change_id {change_id!r}: must match "
+            f"{_CHANGE_ID_PATTERN.pattern!r} (no '..', '/', or non-ASCII)"
+        )
+
+
+def _change_dir(change_id: str) -> Path:
+    """Return the absolute path to ``openspec/changes/<change_id>/``.
+
+    Resolves against the current working directory and verifies the
+    resolved path lives under ``<cwd>/openspec/changes/`` — defense in
+    depth on top of the regex check in :func:`_validate_change_id`.
+    """
+    base = Path.cwd().resolve() / "openspec" / "changes"
+    candidate = (base / change_id).resolve()
+    if base != candidate.parent:
+        # Defensive: the regex makes this unreachable, but verify anyway.
+        raise ValueError(
+            f"change_id {change_id!r} resolves outside openspec/changes/"
+        )
+    return candidate
+
+
+def _cache_path(change_id: str) -> Path:
+    return _change_dir(change_id) / _RESOLUTION_CACHE_FILENAME
+
+
+def _state_path(change_id: str) -> Path:
+    return _change_dir(change_id) / "loop-state.json"
+
+
+def _checksum_for_cache(change_id: str, phase: str, archetype: str | None) -> str:
+    """SHA-256 over change_id + phase + archetype (or 'null')."""
+    arch_bytes = (archetype if archetype is not None else "null").encode("utf-8")
+    h = hashlib.sha256()
+    h.update(change_id.encode("utf-8"))
+    h.update(phase.encode("utf-8"))
+    h.update(arch_bytes)
+    return h.hexdigest()
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Write *payload* to *path* via tempfile + os.replace (atomic on POSIX)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(
+        prefix=path.name + ".",
+        suffix=".tmp",
+        dir=str(path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+        os.replace(tmp, path)
+    except Exception:
+        # Best-effort cleanup if the rename failed (e.g. permissions).
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_unlink(path: Path) -> None:
+    """Atomically remove *path* by renaming to a sibling temp first.
+
+    Per D4 cleanup-on-success: a crash mid-delete leaves the cache
+    discoverable under a different name rather than half-deleted.
+    """
+    if not path.exists():
+        return
+    tmp = path.with_name(path.name + ".unlinking")
+    try:
+        os.replace(path, tmp)
+    except OSError:
+        # Best-effort fallback to direct unlink.
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    try:
+        tmp.unlink()
+    except OSError:
+        pass
+
+
+def _hydrate_incoming_handoff(
+    change_id: str,
+    last_handoff_id: str | None,
+    current_phase: str,
+) -> PhaseRecord:
+    """Bootstrap a PhaseRecord for the prompt scaffold.
+
+    Cross-process production path can't easily reach back into the
+    coordinator for a structured handoff, so we synthesize a minimal
+    bootstrap record. The sub-agent reads concrete state from disk
+    artifacts (proposal.md, design.md, loop-state.json) anyway.
+    """
+    return PhaseRecord(
+        change_id=change_id,
+        phase_name=f"bootstrap (current_phase={current_phase})",
+        agent_type="autopilot",
+        summary=(
+            f"Bootstrap incoming handoff for phase {current_phase!r} "
+            f"(last_handoff_id={last_handoff_id!r}). The sub-agent should "
+            "read on-disk artifacts for concrete prior context."
+        ),
+    )
+
+
+def build_phase_dispatch_kwargs(
+    phase: str,
+    change_id: str,
+) -> dict[str, Any]:
+    """Return the dispatch payload for a phase sub-agent (D3).
+
+    Side effect: writes ``openspec/changes/<change_id>/.phase-resolution-cache.json``
+    so :func:`apply_phase_outcome` can later propagate the resolved
+    archetype into ``LoopState.phase_archetype``.
+
+    Args:
+        phase: Phase id (e.g. "IMPLEMENT", "PLAN_ITERATE").
+        change_id: OpenSpec change identifier. Must match
+            ``^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`` (raises ``ValueError``
+            otherwise — before any filesystem access).
+
+    Returns:
+        ``{prompt, model, system_prompt, isolation, archetype}``. ``prompt``
+        is the **already-folded** final string SKILL.md passes verbatim
+        to ``Agent(...)`` — no further concatenation in prose.
+    """
+    # Validation runs before any path construction to make path-traversal
+    # attempts a hard fail rather than a partial side-effect.
+    _validate_change_id(change_id)
+
+    state_dict = _read_state_dict(change_id)
+    state_dict["change_id"] = change_id  # ensure available for signal extraction
+    current_phase = state_dict.get("current_phase", phase)
+    last_handoff_id = state_dict.get("last_handoff_id")
+
+    incoming = _hydrate_incoming_handoff(change_id, last_handoff_id, current_phase)
+
+    # _build_options writes _resolved_archetype into state_dict on the
+    # archetype path; we read it back below to populate the cache.
+    options = _build_options(phase, state_dict)
+    phase_prompt = _build_prompt(phase, state_dict, incoming, artifacts_manifest=None)
+
+    system_prompt = options.get("system_prompt")
+    model = options.get("model")
+    isolation = options.get("isolation")
+    archetype = state_dict.get("_resolved_archetype")
+
+    if isinstance(system_prompt, str) and system_prompt:
+        folded_prompt = f"{system_prompt}{_PROMPT_SEPARATOR}{phase_prompt}"
+    else:
+        folded_prompt = phase_prompt
+
+    # Cache write — atomic. Schema v1 per D4.
+    cache_payload: dict[str, Any] = {
+        "schema_version": 1,
+        "change_id": change_id,
+        "phase": phase,
+        "archetype": archetype,
+        "checksum": _checksum_for_cache(change_id, phase, archetype),
+    }
+    _atomic_write_json(_cache_path(change_id), cache_payload)
+
+    return {
+        "prompt": folded_prompt,
+        "model": model,
+        "system_prompt": system_prompt,
+        "isolation": isolation,
+        "archetype": archetype,
+    }
+
+
+def _read_state_dict(change_id: str) -> dict[str, Any]:
+    """Load loop-state.json for *change_id*, returning a dict snapshot.
+
+    Missing files yield a minimal dict with just `change_id` so the
+    helper still functions during the very first phase (before
+    autopilot has written the state file).
+    """
+    path = _state_path(change_id)
+    if not path.exists():
+        return {"change_id": change_id}
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "phase_agent: failed to read %s (%s); falling back to bare state",
+            path, exc,
+        )
+        return {"change_id": change_id}
+    if isinstance(data, dict):
+        return data
+    return {"change_id": change_id}
+
+
+def _read_cache(change_id: str) -> dict[str, Any] | None:
+    """Read the resolution cache, returning None on any error or missing file."""
+    path = _cache_path(change_id)
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "phase_agent: failed to parse cache file %s (%s); treating as missing",
+            path, exc,
+        )
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def apply_phase_outcome(
+    change_id: str,
+    phase: str,
+    outcome: str,  # noqa: ARG001 — accepted for API symmetry, not yet consumed
+    handoff_id: str,
+) -> None:
+    """Update loop-state.json after a phase sub-agent returns (D4).
+
+    Idempotent: calling twice with the same arguments leaves the state
+    unchanged (no duplicate handoff_id append, no archetype overwrite).
+
+    Replay rule: if loaded ``state.last_handoff_id == handoff_id`` AND
+    ``state.previous_phase == phase`` (or ``state.current_phase == phase``),
+    treat as a replay — preserve ``phase_archetype`` and skip cache
+    validation entirely. The prior successful call deleted the cache, so
+    a missing cache on replay is expected and SHALL NOT raise.
+
+    Otherwise: validate cache change_id+phase+checksum, write
+    ``phase_archetype`` from the cache (or None on any mismatch), and
+    atomically delete the cache.
+    """
+    _validate_change_id(change_id)
+
+    state_path = _state_path(change_id)
+    if not state_path.exists():
+        # No state file means nothing to update — log and return rather
+        # than raising. This is consistent with the lenient cache path.
+        logger.warning(
+            "phase_agent.apply_phase_outcome: %s does not exist; nothing to update",
+            state_path,
+        )
+        return
+
+    try:
+        state = json.loads(state_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "phase_agent.apply_phase_outcome: failed to read %s (%s); aborting update",
+            state_path, exc,
+        )
+        return
+
+    if not isinstance(state, dict):
+        logger.warning(
+            "phase_agent.apply_phase_outcome: unexpected state shape in %s; aborting",
+            state_path,
+        )
+        return
+
+    is_replay = (
+        state.get("last_handoff_id") == handoff_id
+        and (
+            state.get("previous_phase") == phase
+            or state.get("current_phase") == phase
+        )
+    )
+
+    if is_replay:
+        # Preserve phase_archetype, ensure handoff_ids has the id at most once.
+        ids = state.get("handoff_ids")
+        if isinstance(ids, list) and handoff_id not in ids:
+            ids.append(handoff_id)
+            state["handoff_ids"] = ids
+        # Note: spec says replay should NOT cause an error or warning even
+        # when the cache file is absent. We deliberately don't peek at it.
+        _save_state(state_path, state)
+        return
+
+    # Non-replay path: cache validation governs the archetype write.
+    cache = _read_cache(change_id)
+    archetype: str | None = None
+    if cache is None:
+        logger.warning(
+            "phase_agent.apply_phase_outcome: cache missing for change=%s phase=%s; "
+            "writing phase_archetype=None",
+            change_id, phase,
+        )
+    else:
+        cache_change_id = cache.get("change_id")
+        cache_phase = cache.get("phase")
+        cache_checksum = cache.get("checksum")
+        cache_archetype = cache.get("archetype")
+        if cache_change_id != change_id:
+            logger.warning(
+                "phase_agent.apply_phase_outcome: cache change_id mismatch "
+                "(expected=%s, got=%s); writing phase_archetype=None",
+                change_id, cache_change_id,
+            )
+        elif cache_phase != phase:
+            logger.warning(
+                "phase_agent.apply_phase_outcome: cache phase mismatch "
+                "(expected=%s, got=%s); writing phase_archetype=None",
+                phase, cache_phase,
+            )
+        else:
+            expected = _checksum_for_cache(
+                change_id, phase,
+                cache_archetype if isinstance(cache_archetype, str) else None,
+            )
+            if cache_checksum != expected:
+                logger.warning(
+                    "phase_agent.apply_phase_outcome: cache checksum mismatch for "
+                    "change=%s phase=%s; writing phase_archetype=None",
+                    change_id, phase,
+                )
+            else:
+                # archetype may legitimately be None (bridge fallback).
+                archetype = cache_archetype if isinstance(cache_archetype, str) else None
+
+    # Update state fields.
+    ids = state.get("handoff_ids")
+    if not isinstance(ids, list):
+        ids = []
+    if handoff_id not in ids:
+        ids.append(handoff_id)
+    state["handoff_ids"] = ids
+    state["last_handoff_id"] = handoff_id
+    state["phase_archetype"] = archetype
+
+    _save_state(state_path, state)
+    _atomic_unlink(_cache_path(change_id))
+
+
+def _save_state(path: Path, state: dict[str, Any]) -> None:
+    """Persist *state* dict to *path* atomically."""
+    _atomic_write_json(path, state)
+
+
 __all__ = [
     "PhaseEscalationError",
+    "apply_phase_outcome",
+    "build_phase_dispatch_kwargs",
     "make_phase_callback",
     "run_phase_subagent",
 ]

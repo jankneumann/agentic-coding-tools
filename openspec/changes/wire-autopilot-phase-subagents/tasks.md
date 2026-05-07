@@ -259,7 +259,7 @@ parallel with Phase 2.
 
 Final cross-package verification. Depends on Phase 2 and Phase 3.
 
-- [ ] 4.1 Write end-to-end test `skills/tests/autopilot/test_phase_dispatch_e2e.py`
+- [x] 4.1 Write end-to-end test `skills/tests/autopilot/test_phase_dispatch_e2e.py`
   using a mocked harness `Agent(...)` runner. Run autopilot through one
   full loop from INIT to DONE. Assertions:
   - Every non-terminal phase's `LoopState.phase_archetype` is non-null
@@ -279,7 +279,7 @@ Final cross-package verification. Depends on Phase 2 and Phase 3.
   **Design decisions**: D1, D3, D4, D7; design.md "Phase-by-phase dispatch matrix"
   **Dependencies**: 2.10, 3.4
 
-- [ ] 4.2 Write end-to-end test `agent-coordinator/tests/test_phase_archetype_persistence.py`
+- [x] 4.2 Write end-to-end test `agent-coordinator/tests/test_phase_archetype_persistence.py`
   asserting full round-trip: autopilot writes `phase_archetype` to loop-state →
   report_status.py POSTs → coordinator persists → `GET /discovery/agents`
   returns the value. Use FastAPI TestClient (in-process) per archived test
@@ -288,7 +288,7 @@ Final cross-package verification. Depends on Phase 2 and Phase 3.
   **Design decisions**: D6, D8
   **Dependencies**: 3.4, 3.6, 3.7
 
-- [ ] 4.3 Write inline-fallback regression tests covering three failure
+- [x] 4.3 Write inline-fallback regression tests covering three failure
   modes:
   - (a) `Agent(...)` not exposed (mocked absence) → SKILL.md dispatch
     falls through; LoopState records `phase_archetype = None`; warning
@@ -302,7 +302,7 @@ Final cross-package verification. Depends on Phase 2 and Phase 3.
   **Design decisions**: D5
   **Dependencies**: 2.10
 
-- [ ] 4.4 Author `skills/autopilot/scripts/audit_log_validator.py` — reads a
+- [x] 4.4 Author `skills/autopilot/scripts/audit_log_validator.py` — reads a
   coordinator audit log file (or queries the audit endpoint), counts model
   calls per archetype, and asserts opus-vs-sonnet distribution matches
   `phase_mapping` over a real run. Used for the manual rollout validation
@@ -311,11 +311,11 @@ Final cross-package verification. Depends on Phase 2 and Phase 3.
   **Design decisions**: G2, G3 (proposal goals)
   **Dependencies**: 4.1
 
-- [ ] 4.5 Run `bash skills/install.sh --mode rsync --deps none --python-tools none`
+- [x] 4.5 Run `bash skills/install.sh --mode rsync --deps none --python-tools none`
   to sync runtime skill copies (`.claude/skills/`, `.agents/skills/`)
   **Dependencies**: 2.10
 
-- [ ] 4.6 Update `docs/autopilot-phase-archetype-resolution.md` with the
+- [x] 4.6 Update `docs/autopilot-phase-archetype-resolution.md` with the
   production-path execution diagram from `design.md` plus the manual
   validation steps
   **Spec scenarios**: skill-workflow-spec → "Production autopilot run dispatches harness Agent with resolved model"
