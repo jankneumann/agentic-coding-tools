@@ -52,14 +52,14 @@ phase blocks. Depends on `wp-contracts`.
   **Design decisions**: D2, D3
   **Dependencies**: 2.1
 
-- [ ] 2.3 Write unit tests for `phase_agent.apply_phase_outcome` — idempotent;
+- [x] 2.3 Write unit tests for `phase_agent.apply_phase_outcome` — idempotent;
   loop-state.json fields update correctly; cache mismatch writes null
   archetype
   **Spec scenarios**: skill-workflow-spec → "apply_phase_outcome updates loop state and is idempotent", "apply_phase_outcome with mismatched cache writes null archetype"
   **Design decisions**: D4 (cache file), Q1 (idempotency)
   **Dependencies**: 2.1
 
-- [ ] 2.4 Implement `phase_agent.apply_phase_outcome(change_id, phase, outcome,
+- [x] 2.4 Implement `phase_agent.apply_phase_outcome(change_id, phase, outcome,
   handoff_id)`. Loads loop-state.json, **first checks the replay rule**
   (`state.last_handoff_id == handoff_id AND state.previous_phase == phase`)
   and short-circuits to a no-op preserving phase_archetype if matched.
