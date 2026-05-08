@@ -46,6 +46,19 @@ Use `docs/coordination-detection-template.md` as the shared detection preamble.
 - Execute hooks only when the matching `CAN_*` flag is `true`
 - If coordinator is unavailable, continue with standalone behavior
 
+## Active-Agent Guard (Sync-Point Skill)
+
+Before any other work, verify exclusive access — this skill operates on `main` and must not race other agents:
+
+```bash
+python skills/shared/active_agents.py
+```
+
+- Exit `0`: no active agents → proceed.
+- Exit `1`: one or more active agents hold worktrees → **stop**, surface the list to the operator (the script's stdout already prints it), and ask whether to wait or pass `--force`. Never auto-force.
+
+An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See `skills/shared/active_agents.py` and CLAUDE.md "Sync-Point Skills" for the contract; `docs/mental-models.md` gap G10 for the rationale.
+
 ## Steps
 
 ### 0. Detect Coordinator and Read Handoff
