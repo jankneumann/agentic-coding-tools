@@ -45,3 +45,53 @@
 ### Context
 Planned a CLI-fallback recovery mechanism for the in-process multi-vendor review converge() API. The in-process flow loses vendor findings on synthesis failure; the CLI's existing per-vendor on-disk checkpoint pattern survives such failures. Selected Approach 1 (auto-fallback to CLI subprocess + reuse .review-cache/ layout + observable recovery via two new ConvergenceResult fields).
 
+---
+
+## Phase: Plan Iteration 1 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Manifest is a superset, not a replacement (D6)** `architectural: multi-vendor-review` — Existing review_dispatcher.py:write_manifest writes {review_type, target, dispatches[], quorum_requested, quorum_received}. Replacing it would lose model_used/elapsed_seconds/error_class — operationally valuable forensic data. Superset preserves all existing fields AND adds schema_version/change_id/created_at/vendors[]. Existing CLI consumers continue working unchanged.
+2. **Add new --findings-dir argument to consensus_synthesizer.py CLI (D7)** `architectural: multi-vendor-review` — Verified by reading the actual CLI source: main() uses argparse nargs='+' requiring explicit file list. The original design assumed a flag that doesn't exist. Adding --findings-dir as a new mode (in mutually exclusive argparse group with --findings) makes the fallback path clean while preserving backward compatibility with existing CLI users.
+3. **Add R6 Checkpoint Path Safety as new requirement** `architectural: multi-vendor-review` — Vendor names interpolate into filenames; artifacts_dir is caller-controlled. Without explicit path-safety scenarios, implementers might trust inputs and create symlink-injection or path-traversal vulnerabilities. Spec scenarios force the rejecting code to be written, not just the accepting code.
+4. **Sanitize secrets from fallback diagnostics and audit payloads** `architectural: multi-vendor-review` — subprocess_stderr_tail and original_exception_message could carry API keys or PII from the synthesizer's environment. Best-effort regex replacement of known vendor key formats (sk-..., AIza..., bearer tokens) before persistence. Documented as best-effort — high-entropy strings pass through unchanged.
+5. **Reframe Phase 8.3 as Post-Merge Action in proposal.md** — User explicitly said the consensus_synthesizer.py:59 line_range bug is a separate proposal. Listing it as a numbered task created scope confusion. Moved to a 'Post-Merge Actions' section in proposal.md so it's documented without being conflated with this proposal's tasks.
+
+### Alternatives Considered
+- Replace the existing manifest format (cleaner schema, no superset): rejected because Loses model_used / elapsed_seconds / error_class — fields that operators actually use today. Breaking change for downstream CLI consumers. Superset preserves data with zero callsite changes elsewhere.
+- Have converge() glob the checkpoint dir and pass file lists to existing --findings: rejected because Pushes layout knowledge into converge() that should live in the synthesizer (the manifest reader). Fragile — file-listing semantics differ between in-process loader and subprocess invocation. --findings-dir centralizes.
+- Add fallback latency metric (Langfuse / StatsD) as a hard requirement: rejected because Speculative observability. The audit events specified in R5 are sufficient for this change's recovery story. Implementations MAY add metrics; the spec doesn't require them. Defer to a follow-up if observed insufficient.
+- Lazy-write checkpoints only on synthesis failure: rejected because Contradicts D1/D2: the load-bearing architectural choice is that checkpoints exist BEFORE synthesis, not after failure. Lazy-writing preserves the same failure mode we're trying to fix.
+
+### Trade-offs
+- Accepted Manifest grows from 5 fields to 9 fields over Cleaner replacement-style schema because Backward compatibility for existing CLI consumers outweighs schema minimalism. additionalProperties:false plus schema_version=1 lock the shape; future drift requires explicit version bump.
+- Accepted Two CLI input modes (--findings and --findings-dir) on consensus_synthesizer.py over Single-mode CLI with internal mode selection because Argparse mutually-exclusive group expresses the choice precisely at the argument layer. Single-mode would require sentinel values or magic strings to distinguish 'list of files' from 'directory'.
+- Accepted Best-effort secret sanitization (regex of known formats) over No sanitization (raw stderr stored) because Secret formats evolve faster than regex updates. A best-effort floor is better than no floor. High-entropy strings without known prefixes still pass through; documented as known limitation.
+
+### Open Questions
+- [ ] Is the 4 KB stderr-tail buffer sufficient for diagnosis, or do operators need the full stderr captured to a separate file? Current spec says 4 KB; revisit if observed insufficient in production.
+- [ ] Should `--findings-dir` mode also accept a manifest path directly (not just a directory containing the manifest)? Current spec says directory only. Defer unless a use case emerges.
+
+### Completed Work
+- C1 (CLI flag mismatch): Added D7, new task 2.3 to add --findings-dir argument to consensus_synthesizer.py main()
+- C2 (manifest superset): Added D6, rewrote contracts/review-cache-layout.schema.json as superset, updated R1 with two new scenarios for shape preservation
+- H1 (path traversal): Added R6 Checkpoint Path Safety with 4 scenarios; new test coverage in task 0.1
+- H2 (schema validation before write): Added scenario to R1 requiring validation; reflected in task 0.2
+- H3 (return type inconsistency): Fixed proposal.md to say dict[str, list[ReviewFinding]] matching design.md
+- H4 (caller test enumeration): Updated task 3.3 with explicit grep step
+- H5 (R3.S4 dedicated test): Added task 5.1.5 isolating subprocess argv assertions
+- M1 (manifest write error scenario): Added to R2
+- M2 (subprocess executable not found): Added scenarios to R3
+- M3 (audit checkpoint_dir): Added field to R5 payload
+- M4 (stderr/exception sanitization): Added to R3 + new task 5.2.5
+- M5 (R5 happy path no-emission): Added scenario
+- M6 (.review-cache lifecycle): Added to R1
+- M7 (atomic manifest write): Added scenario to R1
+- M8 (concrete CLI command in spec): Updated R2.S2 with explicit syntax
+- L4 (Phase 8.3 reframe): Removed from numbered tasks, moved to Post-Merge Actions in proposal.md
+- Bumped LOC estimates: wp-checkpoint-helper 200->280, wp-cli-refactor 180->220, wp-converge-recovery 350->420 (total now 1190 vs prior 1010)
+
+### Context
+Self-review surfaced two CRITICAL issues that would have broken implementation: (1) the proposal assumed a `--findings-dir` flag that consensus_synthesizer.py CLI doesn't accept, and (2) the proposed manifest schema was a REPLACEMENT not a SUPERSET of the existing review_dispatcher.py manifest, which would have lost forensically valuable dispatch metadata. Both fixes landed plus 5 high-priority security/consistency fixes. Spec grew from 5 requirements to 6 (added Path Safety) and from 14 to 24 scenarios.
+

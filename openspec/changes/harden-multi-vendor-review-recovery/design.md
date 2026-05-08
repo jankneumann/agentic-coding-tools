@@ -15,8 +15,15 @@ The change sits at the seam between two existing components:
 │                                                                          │
 │   checkpoint_findings.py         ← NEW: shared write/read helpers        │
 │   ├── write_vendor_findings(artifacts_dir, vendor_findings, review_type) │
+│   │       — validates against finding.schema.json BEFORE write           │
 │   ├── read_vendor_findings(cache_dir) -> dict[str, list[ReviewFinding]]  │
-│   └── write_manifest(cache_dir, change_id, vendors, review_type)         │
+│   ├── write_manifest(cache_dir, change_id, review_type, vendors,         │
+│   │                  dispatches=None, quorum_requested=None,             │
+│   │                  quorum_received=None, target=None)                  │
+│   │       — writes superset shape; in-process callers omit dispatches    │
+│   │       — atomic-rename: write to .tmp, fsync, rename                  │
+│   └── _validate_path_safety(artifacts_dir, vendor, review_type)          │
+│           — Path.resolve(); rejects ../, vendor with non-[A-Za-z0-9_-]   │
 └────────────────────────────────────┬─────────────────────────────────────┘
                                      │ imports
                                      ▼
@@ -86,6 +93,26 @@ The shared `checkpoint_findings` module lives under `skills/autopilot/scripts/` 
 
 **How to apply.** Wrap the audit call in a `try/except Exception:` with a `logger.warning()` in the except block. Never let audit failures propagate.
 
+### D6: Manifest is a superset, not a replacement
+
+**Context.** The original proposal assumed we'd replace the existing `review_dispatcher.py:write_manifest()` shape with our new one. PLAN_ITERATE caught that the existing manifest carries dispatch metadata (`model_used`, `elapsed_seconds`, `error_class`) that consumers (and operators reading audit logs) currently rely on.
+
+**Decision.** The new schema is a **superset**. All existing fields (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`) are preserved. New fields (`schema_version`, `change_id`, `created_at`, `vendors[]`) are added. In-process callers that lack dispatch metadata write `dispatches: []`.
+
+**Why.** Replacing breaks downstream consumers and loses operationally valuable data. Adding is additive and backward-compatible. The schema is a single document with `additionalProperties: false`, so any future drift requires an explicit schema bump (D7 — version 1 → 2 with reader rejection of unknown versions).
+
+**How to apply.** Future writers MUST go through `checkpoint_findings.write_manifest()`. Direct `json.dump(...)` of manifest data is prohibited. Future fields must be additive within `schema_version=1` or trigger a version bump.
+
+### D7: New `--findings-dir` argument on `consensus_synthesizer.py`
+
+**Context.** The existing CLI requires `--findings <file1> <file2>...` (`nargs="+"`). The fallback path needs the CLI to accept a directory and discover files itself, otherwise `converge()` has to glob and pass file lists across a process boundary.
+
+**Decision.** Add `--findings-dir <path>` as an alternative input mode to `consensus_synthesizer.py main()`. The directory mode reads `<dir>/review-manifest.json` and follows `vendors[].findings_path`. The existing `--findings <file1>...` mode is preserved unchanged for backward compatibility.
+
+**Why.** Symmetric with `checkpoint_findings.read_vendor_findings()`: both accept a directory and use the manifest for enumeration. Consistent input shape for the in-process loader and the CLI loader. Avoids ad-hoc glob logic in `converge()`.
+
+**How to apply.** The two modes SHALL be mutually exclusive at the argparse level. `--findings` and `--findings-dir` SHALL be in a mutually exclusive group; the parser rejects passing both. Tests cover both modes.
+
 ## Component Interactions
 
 ### Happy path (no fallback fires)
@@ -110,21 +137,31 @@ caller → converge()
         ├─→ orchestrator.dispatch_and_wait()      → list[VendorResult]
         ├─→ checkpoint_findings.write_vendor_findings(...)  ← already on disk
         ├─→ synthesizer.synthesize(...)           → raises SynthesisError(E1)
-        ├─→ _invoke_synthesizer_cli(cache_dir, review_type)
-        │   └─→ subprocess: consensus_synthesizer.py --findings-dir <cache_dir>
-        │       → exit 0, writes consensus-report.json to cache_dir
-        ├─→ parse consensus-report.json
-        ├─→ emit_audit_event("convergence.fallback_recovered", {...})
+        ├─→ _invoke_synthesizer_cli(cache_dir, review_type, change_id, output_path)
+        │   └─→ subprocess: consensus_synthesizer.py
+        │         --findings-dir <cache_dir>
+        │         --review-type <type>
+        │         --target <change_id>
+        │         --output <output_path>
+        │       → exit 0, writes consensus-report.json to <output_path>
+        ├─→ parse consensus-report.json (with schema validation)
+        ├─→ sanitize stderr tail and exception message (R3)
+        ├─→ emit_audit_event("convergence.fallback_recovered", {
+        │      change_id, review_type, original_exception_class,
+        │      original_exception_message_sanitized, checkpoint_dir, timestamp
+        │    })
         └─→ return ConvergenceResult(
               ...,
               recovered_via_fallback=True,
               fallback_diagnostics={
                 "original_exception_class": "SynthesisError",
-                "original_exception_message": "...",
-                "subprocess_stderr_tail": "",
+                "original_exception_message": "<sanitized>",
+                "subprocess_stderr_tail": "<sanitized, last 4KB>",
               },
             )
 ```
+
+NOTE: `--findings-dir` is a NEW argument added to `consensus_synthesizer.py main()` as part of this proposal. The existing `--findings <file1> <file2>...` mode remains for backward compatibility. The directory mode reads `.review-cache/review-manifest.json` to enumerate per-vendor finding files via `vendors[].findings_path` entries (no glob).
 
 ### Double-failure path
 
@@ -145,7 +182,9 @@ Identical to double-failure path but with `subprocess.TimeoutExpired` triggering
 
 ## Data Shapes
 
-### `review-manifest.json` (canonical)
+### `review-manifest.json` (canonical — SUPERSET of existing CLI manifest)
+
+The shared manifest preserves all fields the existing `review_dispatcher.py:write_manifest()` writes (so existing CLI consumers continue working unchanged) AND adds new fields that the in-process flow and the fallback CLI both need.
 
 ```json
 {
@@ -153,6 +192,31 @@ Identical to double-failure path but with `subprocess.TimeoutExpired` triggering
   "change_id": "harden-multi-vendor-review-recovery",
   "review_type": "implementation",
   "created_at": "2026-05-07T14:30:00Z",
+
+  "target": "harden-multi-vendor-review-recovery",
+  "dispatches": [
+    {
+      "vendor": "claude",
+      "success": true,
+      "model_used": "claude-opus-4.7",
+      "models_attempted": ["claude-opus-4.7"],
+      "elapsed_seconds": 14.2,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.4",
+      "models_attempted": ["gpt-5.4"],
+      "elapsed_seconds": 11.8,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 2,
+
   "vendors": [
     {
       "name": "claude",
@@ -167,6 +231,12 @@ Identical to double-failure path but with `subprocess.TimeoutExpired` triggering
   ]
 }
 ```
+
+**Field origin**:
+- `schema_version`, `change_id`, `created_at`, `vendors[]` — NEW in this proposal.
+- `target`, `dispatches[]`, `quorum_requested`, `quorum_received` — preserved from the existing `review_dispatcher.py:write_manifest()` shape so downstream readers don't break.
+
+**In-process callers** (the `converge()` flow) do not have `model_used`/`elapsed_seconds`/etc, so they write `dispatches: []` and populate `quorum_requested`/`quorum_received` from vendor counts. The schema permits `dispatches: []` so both call sites validate.
 
 ### `findings-{vendor}-{review_type}.json` (canonical, unchanged from CLI)
 

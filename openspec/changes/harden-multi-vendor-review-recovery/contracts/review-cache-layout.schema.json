@@ -2,15 +2,25 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.local/contracts/review-cache-layout.schema.json",
   "title": "ReviewCacheManifest",
-  "description": "Manifest for an on-disk vendor-findings checkpoint. Written by both convergence_loop.py:converge() (in-process) and review_dispatcher.py CLI; read by consensus_synthesizer.py CLI as the fallback synthesis input.",
+  "description": "Manifest for an on-disk vendor-findings checkpoint. Superset of the manifest currently written by review_dispatcher.py:write_manifest() — preserves all existing fields (review_type, target, dispatches[], quorum_requested, quorum_received) AND adds new fields needed for the in-process converge() flow and the CLI subprocess fallback (schema_version, change_id, created_at, vendors[]).",
   "type": "object",
-  "required": ["schema_version", "change_id", "review_type", "created_at", "vendors"],
+  "required": [
+    "schema_version",
+    "change_id",
+    "review_type",
+    "created_at",
+    "vendors",
+    "target",
+    "dispatches",
+    "quorum_requested",
+    "quorum_received"
+  ],
   "additionalProperties": false,
   "properties": {
     "schema_version": {
       "type": "integer",
       "const": 1,
-      "description": "Layout version. Readers MUST refuse unknown versions."
+      "description": "Layout version. Readers MUST refuse unknown versions. Bump triggers a schema migration."
     },
     "change_id": {
       "type": "string",
@@ -27,9 +37,47 @@
       "format": "date-time",
       "description": "ISO-8601 UTC timestamp when the manifest was written."
     },
+
+    "target": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Existing field preserved from review_dispatcher.py. Typically equal to change_id; the existing CLI uses 'target' as a generic feature/package identifier."
+    },
+    "dispatches": {
+      "type": "array",
+      "description": "Existing field preserved from review_dispatcher.py. Per-vendor dispatch metadata (model used, latency, error class). MAY be empty when written by an in-process caller without dispatch metadata.",
+      "items": {
+        "type": "object",
+        "required": ["vendor", "success"],
+        "additionalProperties": false,
+        "properties": {
+          "vendor": {"type": "string", "minLength": 1},
+          "success": {"type": "boolean"},
+          "model_used": {"type": ["string", "null"]},
+          "models_attempted": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "elapsed_seconds": {"type": ["number", "null"]},
+          "error": {"type": ["string", "null"]},
+          "error_class": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "quorum_requested": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Existing field preserved from review_dispatcher.py."
+    },
+    "quorum_received": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Existing field preserved from review_dispatcher.py."
+    },
+
     "vendors": {
       "type": "array",
-      "description": "One entry per vendor that produced findings. MAY be empty for empty review rounds.",
+      "description": "NEW field. Index of per-vendor finding files for the fallback CLI to enumerate. MAY be empty for empty review rounds.",
       "items": {
         "type": "object",
         "required": ["name", "findings_path", "finding_count"],
@@ -38,12 +86,13 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "description": "Vendor identifier (e.g., 'claude', 'codex', 'gemini')."
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Vendor identifier. Pattern enforced for path safety (no separators, no dots, no spaces)."
           },
           "findings_path": {
             "type": "string",
-            "pattern": "^findings-[a-z0-9_-]+-(plan|implementation)\\.json$",
-            "description": "Relative filename under .review-cache/ for this vendor's findings."
+            "pattern": "^findings-[A-Za-z0-9_-]+-(plan|implementation)\\.json$",
+            "description": "Relative filename under .review-cache/ for this vendor's findings. MUST be a simple filename (no directory components, no '..')."
           },
           "finding_count": {
             "type": "integer",
