@@ -2,7 +2,7 @@
   "blocking_findings": [],
   "change_id": "wire-autopilot-phase-subagents",
   "cli_review_enabled": true,
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
@@ -11,7 +11,9 @@
     0,
     3,
     14,
-    5
+    5,
+    8,
+    4
   ],
   "handoff_ids": [
     "val-self-demo-1778256669"
@@ -28,9 +30,9 @@
     "wp-skills-autopilot": "claude (Agent isolation worktree)"
   },
   "packages_status": {},
-  "phase_archetype": "analyst",
+  "phase_archetype": "runner",
   "phase_started_at": "2026-05-07T18:43:12.875075+00:00",
-  "previous_phase": "IMPL_REVIEW",
+  "previous_phase": "VAL_REVIEW",
   "schema_version": 3,
   "started_at": "2026-05-06T02:13:52.795817+00:00",
   "total_iterations": 2,
