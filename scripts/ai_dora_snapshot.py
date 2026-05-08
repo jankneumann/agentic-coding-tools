@@ -106,12 +106,14 @@ class CoordinatorSource:
 
     def fetch(self, window: Window) -> dict:
         # TODO(source: coordinator): replace with HTTP calls to coord API.
-        # Endpoints expected (verify against agent-coordinator/):
-        #   GET /events?since=...&until=...   → phase transitions, validation results
-        #   GET /claims?since=...             → work-package claims and outcomes
-        #   GET /tokens?since=...             → phase_token_pre/post audit-trail entries
-        # Returned shape consumed by metric computers below; document it here
-        # once the adapter is wired so future readers can reason about it.
+        # Endpoints (verified against agent-coordinator/src/coordination_api.py):
+        #   GET  /audit                      → token + phase events incl. phase_token_pre/post
+        #   POST /work/get                   → in-flight work-package state
+        #   POST /issues/list                → ticket/issue queue
+        #   GET  /issues/blocked             → ticket-rail bottlenecks
+        # The /audit endpoint is the primary feed for outer-loop metrics
+        # (token cost per phase, phase pass/fail counts).
+        # Document the returned shape here once the adapter is wired.
         raise NotImplementedError("CoordinatorSource.fetch is a stub")
 
 

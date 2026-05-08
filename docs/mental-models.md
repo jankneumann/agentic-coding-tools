@@ -34,10 +34,10 @@ If you read nothing else, read this section.
 - The **head chef** is `/autopilot` (or you, when you drive the workflow manually). The head chef plans service, sequences tickets, and owns the pass.
 - A **ticket** is an OpenSpec change-id (`openspec/changes/<id>/`). Mise en place for that ticket is its `proposal.md`, `design.md`, `tasks.md`, and any contracts under `contracts/`.
 - The **kitchen brigade** is the set of skills under `skills/`. Each skill is a station with a defined role.
-- The **pass** is `/validate-feature` and `/cleanup-feature`. Nothing reaches the customer (main branch, then production) without crossing the pass.
+- The **pass** is `/validate-feature` and `/cleanup-feature`. Nothing reaches the customer (main branch, then production) without crossing the pass. The hard-gate phases — *Smoke Tests, Security, E2E Tests* — are enumerated in `skills/validate-feature/scripts/gate_logic.py` (`REQUIRED_PHASES`); spec/evidence/deploy run as soft gates that do not block merge.
 - **Slowification** lives in the planning skills (`/explore-feature`, `/plan-feature`, `/iterate-on-plan`, `/prototype-feature`, `/parallel-review-plan`).
-- **Simplification** lives in the OpenSpec change → work-package decomposition, the worktree isolation model, and the explicit list of sync-point skills.
-- **Amplification** lives in vendor-diverse review, coordinator events, validation phase escalation, and PR webhook subscriptions.
+- **Simplification** lives in the OpenSpec change → work-package decomposition, the worktree isolation model (`skills/worktree/scripts/worktree.py`), and the explicit list of sync-point skills.
+- **Amplification** lives in vendor-diverse review, coordinator events (`agent-coordinator/src/coordination_api.py`), validation phase escalation (`skills/validate-feature/scripts/gate_logic.py`), and PR webhook subscriptions.
 - The **outer loop** (where DORA metrics live) is the coordinator's view of completed roadmap items. The **middle loop** is the per-PR/per-change cycle. The **inner loop** is what happens inside one agent turn or `/quick-task`.
 
 The rest of this document expands each of these and grounds them in specific files.
@@ -60,10 +60,10 @@ This shift is the reason this repo exists. The single-developer-with-Copilot mod
 | Station chefs (sauté, pâtissier, garde manger, grill) | Specialists per technique | Vendor-diverse reviewers in `/parallel-review-plan` and `/parallel-review-implementation`; specialist skills like `/security-review`, `/gen-eval`, `/refresh-architecture` |
 | Line cooks | Execute one ticket end-to-end at a station | Work-package agents in coordinated tier; sequential-tier agents |
 | Prep cooks (mise en place) | Pre-stage everything before service | `/explore-feature`, `/plan-feature`, `/prototype-feature`, OpenSpec proposal artifacts, [`docs/architecture-artifacts.md`](architecture-artifacts.md) |
-| Expediter | Final integration; calls "all day" and times the plates | `merge_worktrees.py`, `/merge-pull-requests`, sync-point skills |
-| Dishwasher | Resets stations between tickets | `worktree.py teardown`, `worktree.py gc`, the cleanup half of `/cleanup-feature` |
-| The pass | Last quality check; nothing leaves without crossing it | `/validate-feature` phases (spec → evidence → deploy → smoke → security → e2e) |
-| The ticket rail | Single source of truth for what's in flight | Coordinator claims/locks, `.git-worktrees/.registry.json`, `openspec/changes/<id>/` |
+| Expediter | Final integration; calls "all day" and times the plates | `skills/worktree/scripts/merge_worktrees.py`, `/merge-pull-requests`, sync-point skills |
+| Dishwasher | Resets stations between tickets | `skills/worktree/scripts/worktree.py` (`teardown`, `gc`), the cleanup half of `/cleanup-feature` |
+| The pass | Last quality check; nothing leaves without crossing it | `/validate-feature` — soft gates (spec, evidence, deploy) run for signal; hard gates (Smoke / Security / E2E) enforced by `skills/validate-feature/scripts/gate_logic.py:REQUIRED_PHASES` |
+| The ticket rail | Single source of truth for what's in flight | Coordinator claims/locks (`agent-coordinator/src/coordination_api.py` — `/work/*`, `/locks/*`, `/issues/*`), `.git-worktrees/.registry.json`, `openspec/changes/<id>/` |
 | Andon cord | "Stop the line" signal | Validation-phase failures; `subscribe_pr_activity` webhook events; vendor-disagreement in parallel review |
 
 > *Why this metaphor and not just "factory"?* The factory metaphor is excellent for throughput, scenario packs, and quality gates — and we use it (see [`software-factory-tooling.md`](software-factory-tooling.md)). But factories don't have customers waiting. Restaurants do. The kitchen vocabulary captures the live, latency-sensitive, "service tempo" character of running multiple agents against a deadline. Tickets do not stack indefinitely; the pass blocks if anyone is in the weeds. That tension is real in agent orchestration and the kitchen language names it.
@@ -125,7 +125,7 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 | Branch naming with `--` separator (`openspec/<change-id>--<agent-id>`) | Avoids git ref storage collisions; small but real isolation |
 | Sync-point skills (the named three: `/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) | Names the *only* places that touch main; everything else is forbidden from doing so |
 | Phase isolation (sub-agents for IMPLEMENT, IMPL_REVIEW, VALIDATE per [`docs/decisions/software-factory-tooling.md`](decisions/software-factory-tooling.md)) | Heavy phases run in their own conversation; driver receives only `(outcome, handoff_id)` |
-| Public vs holdout scenario visibility (per [`software-factory-tooling.md`](software-factory-tooling.md)) | Implementation cannot see the validation surprises — they exist in a separate filesystem location and are filtered at runtime |
+| Public vs holdout scenario visibility (per [`software-factory-tooling.md`](software-factory-tooling.md)) | Manifest fields (`visibility: public\|holdout`) are documented; for *this* repo, scenarios live flat under `agent-coordinator/evaluation/gen_eval/scenarios/` and the directory split is aspirational guidance for adopters (see also gap G11) |
 | `EnvironmentProfile.isolation_provided` (`skills/shared/environment_profile.py`) | Cloud harness vs local — the substrate provides isolation in cloud; the skill semantics stay identical |
 
 > **The strongest simplification artifact in this repo is the explicit naming of sync-point skills.** Most agentic systems pretend all skills are equal; this one calls out the three places where convergence happens (`/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) and constrains everything else to worktrees. That is how Toyota runs thousands of parallel stations without explosion — the andon and the takt time are *named* convergence rules.
@@ -139,12 +139,12 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 | Amplification artifact | What it surfaces |
 |---|---|
 | `/parallel-review-plan` and `/parallel-review-implementation` | Vendor-diverse second opinions; disagreement between vendors is high-signal |
-| Coordinator events / heartbeats (`.git-worktrees/.registry.json`) | Failed or stalled agents are visible in registry, not hidden in transcripts |
-| `/validate-feature --phase` ladder | Phase failure stops the next phase; the whole chain becomes one big andon |
+| Coordinator events / heartbeats | Failed or stalled agents are visible in `.git-worktrees/.registry.json` and via `agent-coordinator/src/coordination_api.py` (`/audit`, `/work/get`), not hidden in transcripts |
+| `/validate-feature` hard-gate ladder | `skills/validate-feature/scripts/gate_logic.py` enumerates `REQUIRED_PHASES` (Smoke / Security / E2E); a `fail` status in `validation-report.md` halts `pre_merge_gate` |
 | `subscribe_pr_activity` | Webhook events wake the session on CI failure or review comment |
-| `gen-eval` public/holdout scenarios | Holdout failures fire only at the validation gate — surprise alarms that rehearse production failures |
-| `rework-report.json` (per [`software-factory-tooling.md`](software-factory-tooling.md)) | Maps failed scenarios to owners and recommended actions (`iterate` / `revise-spec` / `defer` / `block-cleanup`) |
-| Token instrumentation (`phase_token_pre/post`, see [`docs/decisions/observability.md`](decisions/observability.md)) | Cost spikes become visible at phase boundaries |
+| `gen-eval` scenarios under `agent-coordinator/evaluation/gen_eval/scenarios/` | Failures rehearse production behavior at the validation gate (lock-lifecycle, audit-trail, work-queue, handoffs, etc.) |
+| `rework-report.json` (emitted by `skills/validate-feature/scripts/rework_report.py`) | Maps failed scenarios to owners and recommended actions (`iterate` / `revise-spec` / `defer` / `block-cleanup`) |
+| Token instrumentation (`phase_token_pre/post` audit-trail entries — emitted in `skills/autopilot/scripts/autopilot.py`, see [`docs/decisions/observability.md`](decisions/observability.md)) | Cost spikes become visible at phase boundaries |
 | `docs/lock-key-namespaces.md`, `coordination-bridge` skill | Lock contention is named, not hidden |
 
 **The danger-zone behavior this prevents:** a single agent silently retrying a failing tool call eight times while burning tokens; a CI failure landing on main because no human noticed; one vendor's hallucination shipping because no second opinion was asked.
@@ -200,9 +200,9 @@ The proposed scorecard, slotted by loop:
 
 | Loop | Classical DORA | AI-coding-specific addition | Source events in this repo |
 |---|---|---|---|
-| **Inner** | (intentionally none — too noisy at this cadence) | Prompt-to-accepted-edit ratio; turns per accepted patch; tool-call retry rate within a turn | Agent transcripts; coordinator events |
-| **Middle** | Lead time per PR; CI pass rate | Validation-phase pass rate by phase; review-cycle count to merge; vendor-diverse review divergence (signal-of-disagreement); rework-report action distribution; iteration count to merge | `/validate-feature` exit codes; `rework-report.json`; PR review history; gen-eval scorecards |
-| **Outer** | Deploy frequency; change failure rate; MTTR | Roadmap-item lead time; rollback rate by AI-authored vs human-authored; defect escape rate from `/validate-feature` to production; cost per merged feature (tokens × agent-hours); tier-selection accuracy (did simple-tiered work actually need coordinated?) | `roadmap-runtime` learning log; coordinator metrics; `phase_token_pre/post` audit-trail entries; merge strategy history |
+| **Inner** | (intentionally none — too noisy at this cadence) | Prompt-to-accepted-edit ratio; turns per accepted patch; tool-call retry rate within a turn | Agent transcripts; coordinator `/audit` |
+| **Middle** | Lead time per PR; CI pass rate | Validation-phase pass rate by phase; review-cycle count to merge; vendor-diverse review divergence (signal-of-disagreement); rework-report action distribution; iteration count to merge | `validation-report.md` parsed by `gate_logic.py`; `rework-report.json` from `rework_report.py`; PR review history; gen-eval results |
+| **Outer** | Deploy frequency; change failure rate; MTTR | Roadmap-item lead time; rollback rate by AI-authored vs human-authored; defect escape rate from `/validate-feature` to production; cost per merged feature (tokens × agent-hours); tier-selection accuracy (did simple-tiered work actually need coordinated?) | `roadmap-runtime` learning log; coordinator `/audit` (token + phase events), `/work/get`, `/issues/list`; merge strategy history; `phase_token_pre/post` audit-trail entries |
 
 A few specific notes for this codebase:
 
@@ -242,7 +242,7 @@ WTWO's amplification is meaningless without **swarming**: when the line stops, m
 
 ### G2. The expediter is not staffed
 
-The kitchen brigade has a dedicated expediter — the person at the pass who calls "all day," times the plates, and refuses outgoing work that is not right. In this repo, the expediter role is *split* across `/cleanup-feature` (which does merge + worktree GC + spec update + branch cleanup — four jobs) and `/merge-pull-requests` (sync-point skill). Neither is purely an expediter; both are also doing dishwasher work.
+The kitchen brigade has a dedicated expediter — the person at the pass who calls "all day," times the plates, and refuses outgoing work that is not right. In this repo, the expediter role is *split* across `/cleanup-feature` (which does merge + worktree GC + spec update + branch cleanup — four jobs) and `/merge-pull-requests` (sync-point skill). The closest thing to a pure expediter primitive is `pre_merge_gate()` in `skills/validate-feature/scripts/gate_logic.py`, which inspects `validation-report.md` and returns `('continue', ...)` or `('halt', reason)` — but it is a function, not a staffed station with its own skill.
 
 **The gap to close:** if you wanted to add a `/expedite` skill that only inspects readiness — does the rework-report block? are there pending vendor disagreements? — and refuses to call merge until the answer is clean, where would it live? The role is implicit today, not first-class.
 
@@ -260,9 +260,9 @@ Nothing in this codebase celebrates "PR count" or "lines generated." But nothing
 
 ### G5. The ticket rail is fragmented
 
-The kitchen has *one* ticket rail. This repo has at least four representations of in-flight work: the coordinator's claims, `.git-worktrees/.registry.json`, `openspec/changes/<id>/`, and GitHub PRs. The `coordination-bridge` skill exists exactly because this fragmentation is real. The metaphor of "one rail" is aspirational here.
+The kitchen has *one* ticket rail. This repo has at least four representations of in-flight work, and the coordinator API alone exposes three of them as separate endpoint families: `/work/*` (claims), `/issues/*` (the issue tracker, which is itself a ticket rail), and `/locks/*` (which gates the others). Add `.git-worktrees/.registry.json`, `openspec/changes/<id>/`, and GitHub PRs and you have at least six surfaces to consult to know what is in flight. The `coordination-bridge` skill exists exactly because this fragmentation is real.
 
-**The gap to close:** a single `make tickets` (or equivalent) command that joins all four sources into one view does not exist as a top-level affordance. The data is there; the union is not.
+**The gap to close:** a single `make tickets` (or equivalent) command that joins all sources into one view does not exist as a top-level affordance. The data is there; the union is not.
 
 ### G6. Andon-cord latency is unmeasured
 
@@ -287,6 +287,30 @@ Slowification artifacts in this repo all rehearse *forward* design — what to b
 A real kitchen has a service end. Stations break down, the pass closes, dishwashers reset. This system runs continuously. The "service tempo" intuition that makes the kitchen metaphor useful for orchestration breaks down for *capacity planning* — there is no "we are at full coverage and cannot accept new tickets" state. Worktree GC and pinning are a partial answer, but not a capacity ceiling.
 
 **The gap to close:** the metaphor is a *guide*, not a contract. Where it implies behavior the system does not implement, the doc should note it. This section is that note.
+
+### G10. The sync-point active-agent guard is documented but unwired
+
+`CLAUDE.md` asserts a contract for sync-point skills:
+
+> **Exclusive access**: Must not run while other agents hold active worktrees. Use `shared.check_no_active_agents()` to verify before proceeding.
+
+Searching the repo for that function (or any close variant — `active_agent`, `no_active`, `registry stale`) finds it nowhere in `skills/`. `skills/shared/` contains exactly three things: `__init__.py`, `environment_profile.py`, and `tests/`. The function the contract names does not exist. So either (a) sync-point skills are silently *not* enforcing the guard, (b) some equivalent check exists under another name and `CLAUDE.md` is stale, or (c) the contract is honored by convention only.
+
+This is the most danger-zone gap in the list. Wiring `/cleanup-feature` against a guarantee that does not run is exactly the "improvising under pressure, problems hide and compound" pattern WTWO names. A sync-point skill that races another agent on `main` will produce a non-deterministic merge with no clear failure signal — the worst kind of silent corruption.
+
+**The gap to close:** implement `skills/shared/active_agents.py` (or whichever module owns it), exporting `check_no_active_agents(force: bool=False) -> tuple[bool, list[ActiveAgent]]` that reads `.git-worktrees/.registry.json`, applies the documented 1-hour stale threshold, and returns the active set. Have `/cleanup-feature`, `/merge-pull-requests`, and `/update-specs` call it as their first action. Surface the failure as a hard error (not a warning) unless `--force` is passed.
+
+### G11. Public/holdout scenario visibility is documented as the design but not implemented in this repo
+
+`docs/software-factory-tooling.md` describes a three-layer enforcement of public/holdout visibility:
+
+1. directory structure (`public/` and `holdout/` subdirs),
+2. manifest metadata (`visibility: public|holdout`),
+3. runtime filtering.
+
+In *this* repo, the gen-eval scenarios at `agent-coordinator/evaluation/gen_eval/scenarios/` are flat — no `public/` or `holdout/` subdirectories exist. Either the visibility is enforced purely through manifest metadata + runtime filtering (layers 2 and 3 only) or it is not enforced at all. The amplification table in Part 2.3 originally claimed the directory split provides isolation; that claim is incorrect for this repo. The layered enforcement described in `software-factory-tooling.md` is **prescriptive guidance for adopters**, not a description of this repo's state.
+
+**The gap to close:** either implement the directory split here (cheap; mostly a `git mv` + manifest update) or change the amplification claim to "scenarios are flagged via manifest metadata; filesystem-level isolation is recommended for adopting projects."
 
 ---
 
