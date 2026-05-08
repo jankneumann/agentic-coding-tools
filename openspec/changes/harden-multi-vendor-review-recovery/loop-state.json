@@ -1,9 +1,17 @@
 {
   "schema_version": 3,
   "change_id": "harden-multi-vendor-review-recovery",
-  "current_phase": "PLAN_ITERATE",
+  "current_phase": "IMPLEMENT",
   "previous_phase": "PLAN_REVIEW",
-  "escalation_resolved": "User chose option 1: re-frame as durable-checkpoint + manual recovery. Proposal substantially revised (proposal.md, spec.md, tasks.md, design.md, work-packages.yaml, contracts/) to drop R3 (auto subprocess fallback) and reflect the corrected architecture. LOC estimate dropped from 1190 to 780.",
+  "plan_review_summary": {
+    "rounds": 3,
+    "iterations": 4,
+    "round_1": {"blocking": 1, "outcome": "ESCALATE -> user chose architecture pivot"},
+    "round_2": {"blocking": 0, "high": 5, "outcome": "iterate-and-fix"},
+    "round_3": {"blocking": 0, "high": 2, "medium": 4, "outcome": "iterate-and-fix"},
+    "convergence_pattern": "diminishing-severity (catastrophic -> impl-blocking -> polish)"
+  },
+  "escalation_resolved": "User chose option 1 in round 1: re-frame as durable-checkpoint + manual recovery. Plan rewritten across 4 iterations addressing 30+ findings. LOC estimate dropped from 1190 to 720.",
   "started_at": "2026-05-08T00:00:00Z",
   "force_bypass": true,
   "cli_review_enabled": true,
