@@ -214,19 +214,28 @@ A few specific notes for this codebase:
 
 # Part 5 — The AI-DORA scorecard skeleton
 
-A starter implementation lives at [`scripts/ai_dora_snapshot.py`](../scripts/ai_dora_snapshot.py). It is intentionally a skeleton: it defines the metric shape, the source contract, and the output format, with stub data fetchers marked `TODO(source: …)`. You wire each fetcher to the real data source (coordinator HTTP API, learning-log files, GitHub, etc.) as you prefer.
+An implementation lives at [`scripts/ai_dora_snapshot.py`](../scripts/ai_dora_snapshot.py) with tests at [`scripts/tests/test_ai_dora_snapshot.py`](../scripts/tests/test_ai_dora_snapshot.py). It defines the metric shape, the source contract, and the output format. The `CoordinatorSource` adapter is wired against the coordinator's `GET /audit` endpoint (auth via `X-API-Key`); `RegistrySource` and `RepoSource` are still stubs marked `TODO(source: …)`.
 
-What the skeleton commits to:
+What the script commits to:
 
 - **One module, one CLI.** `python scripts/ai_dora_snapshot.py --window 30d --output md` prints a markdown table; `--output json` prints structured data.
 - **Three source adapters** (`CoordinatorSource`, `RegistrySource`, `RepoSource`) with explicit interfaces. Adding a new source means adding one class.
 - **Loop-bucketed metrics.** The output groups metrics under *Inner / Middle / Outer* so readers cannot accidentally compare across cadences.
-- **No silent zeros.** When a source is unavailable, the metric is reported as `unavailable: <reason>` rather than `0`. Avoids the "looks great because the pipe is broken" failure mode.
+- **No silent zeros.** When a source is unavailable or the data needed for a metric is missing, the metric is reported as `unavailable: <reason>` rather than `0`. Avoids the "looks great because the pipe is broken" failure mode.
+- **Cross-source joins are explicit.** `cost_per_merged_feature` joins `coord` (token deltas from `phase_token_pre/post` audit ops) with `repo` (merge denominator); the metric reports its source as `coordinator+repo` and the reason field names which side is missing when one is.
+- **Tests use canned audit responses.** A `CannedCoordinator` subclass overrides `_get` to return fixed payloads — 28 tests run against synthetic data without touching the network.
 
-What the skeleton intentionally does *not* commit to:
+What the script intentionally does *not* commit to:
 
 - The exact data store (Postgres? jsonl files? GitHub Actions outputs?). The fetcher interface is enough to defer that decision.
 - A dashboard. The script outputs markdown and JSON; if you want a Grafana panel later, that is a separate concern.
+
+What is still stubbed:
+
+- `RegistrySource.fetch` — reads `.git-worktrees/.registry.json` already, but the learning-log walk for tier-choice outcomes is a `TODO`.
+- `RepoSource.fetch` — returns empty merge / rework / validation collections; the `git log --first-parent main` walk and `rework-report.json` discovery is the next concrete piece of work.
+
+Run the tests with: `pytest scripts/tests/test_ai_dora_snapshot.py -v`
 
 ---
 

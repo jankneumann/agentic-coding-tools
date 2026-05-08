@@ -28,11 +28,14 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Callable, Iterable, Protocol
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -91,11 +94,23 @@ class Source(Protocol):
 
 @dataclass
 class CoordinatorSource:
-    """Pulls claims, heartbeats, phase events, token usage from the coordinator."""
+    """Pulls audit-trail entries from the coordinator HTTP API.
+
+    Reads `GET /audit` (auth via X-API-Key) which returns a flat list of audit
+    entries: ``{id, agent_id, agent_type, operation, parameters, result,
+    duration_ms, success, created_at}``. The endpoint exposes only ``limit`` as
+    a server-side filter (no since/until), so this adapter over-fetches and
+    filters by ``created_at`` against ``window`` client-side.
+
+    See agent-coordinator/src/coordination_api.py:1132 for the implementation
+    and agent-coordinator/CLAUDE.md "HTTP API Endpoints" for the full surface.
+    """
 
     name: str = "coordinator"
     api_url: str = field(default_factory=lambda: os.environ.get("COORD_API_URL", ""))
     api_key: str = field(default_factory=lambda: os.environ.get("COORD_API_KEY", ""))
+    fetch_limit: int = 5000
+    timeout_seconds: float = 10.0
 
     def available(self) -> tuple[bool, str]:
         if not self.api_url:
@@ -104,17 +119,45 @@ class CoordinatorSource:
             return False, "COORD_API_KEY not set"
         return True, ""
 
+    def _get(self, path: str, params: dict[str, str] | None = None) -> dict:
+        """Issue an authenticated GET to the coordinator API.
+
+        Subclass and override to inject canned responses in tests.
+        """
+        url = self.api_url.rstrip("/") + path
+        if params:
+            url += "?" + urlencode(params)
+        req = Request(url, headers={"X-API-Key": self.api_key, "Accept": "application/json"})
+        with urlopen(req, timeout=self.timeout_seconds) as resp:
+            return json.loads(resp.read())
+
     def fetch(self, window: Window) -> dict:
-        # TODO(source: coordinator): replace with HTTP calls to coord API.
-        # Endpoints (verified against agent-coordinator/src/coordination_api.py):
-        #   GET  /audit                      → token + phase events incl. phase_token_pre/post
-        #   POST /work/get                   → in-flight work-package state
-        #   POST /issues/list                → ticket/issue queue
-        #   GET  /issues/blocked             → ticket-rail bottlenecks
-        # The /audit endpoint is the primary feed for outer-loop metrics
-        # (token cost per phase, phase pass/fail counts).
-        # Document the returned shape here once the adapter is wired.
-        raise NotImplementedError("CoordinatorSource.fetch is a stub")
+        raw = self._get("/audit", {"limit": str(self.fetch_limit)})
+        entries: list[dict] = []
+        for entry in raw.get("entries", []) or []:
+            ts = entry.get("created_at")
+            if not ts:
+                continue
+            try:
+                t = datetime.fromisoformat(ts)
+            except (TypeError, ValueError):
+                continue
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=timezone.utc)
+            if window.start <= t <= window.end:
+                entries.append(entry)
+
+        by_op: dict[str, list[dict]] = {}
+        for entry in entries:
+            by_op.setdefault(str(entry.get("operation", "unknown")), []).append(entry)
+
+        return {
+            "entries": entries,
+            "by_operation": by_op,
+            "total_in_window": len(entries),
+            "fetch_limit": self.fetch_limit,
+            "limit_hit": len(raw.get("entries", []) or []) >= self.fetch_limit,
+        }
 
 
 @dataclass
@@ -182,20 +225,34 @@ def m_turns_per_accepted_patch(bundle: dict) -> Metric:
     if coord is None:
         return unavailable("turns_per_accepted_patch", Loop.INNER,
                            "coordinator source unavailable", "coordinator")
-    # TODO(metric): count agent turns vs accepted edits within turn-level events.
     return Metric(name="turns_per_accepted_patch", loop=Loop.INNER, value=None,
-                  status=Status.UNAVAILABLE, reason="not yet implemented",
+                  status=Status.UNAVAILABLE,
+                  reason="requires turn-boundary markers in audit; /audit currently records "
+                         "tool calls but not agent turns",
                   source="coordinator", unit="ratio")
 
 
 def m_tool_retry_rate(bundle: dict) -> Metric:
+    """Failure rate as a proxy for retries.
+
+    A failed coordinator operation is overwhelmingly followed by a retry from the
+    agent (or by an escalation to the operator), so failure rate is a usable
+    leading indicator of retries even before turn-level data is in audit.
+    """
     coord = bundle.get("coordinator")
     if coord is None:
         return unavailable("tool_retry_rate", Loop.INNER,
                            "coordinator source unavailable", "coordinator")
-    return Metric(name="tool_retry_rate", loop=Loop.INNER, value=None,
-                  status=Status.UNAVAILABLE, reason="not yet implemented",
-                  source="coordinator", unit="ratio")
+    entries = coord.get("entries") or []
+    if not entries:
+        return unavailable("tool_retry_rate", Loop.INNER,
+                           "no audit entries in window", "coordinator")
+    total = len(entries)
+    failures = sum(1 for e in entries if not e.get("success", True))
+    rate = failures / total
+    return Metric(name="tool_retry_rate", loop=Loop.INNER, value=round(rate, 3),
+                  status=Status.OK, unit="ratio (failures/total)",
+                  source="coordinator")
 
 
 def m_validation_phase_pass_rate(bundle: dict) -> Metric:
@@ -240,8 +297,16 @@ def m_vendor_review_divergence(bundle: dict) -> Metric:
     if coord is None:
         return unavailable("vendor_review_divergence", Loop.MIDDLE,
                            "coordinator source unavailable", "coordinator")
+    by_op = coord.get("by_operation") or {}
+    review_ops = by_op.get("review_dispatch", []) + by_op.get("review_complete", [])
+    if not review_ops:
+        return unavailable("vendor_review_divergence", Loop.MIDDLE,
+                           "no review_dispatch / review_complete operations in audit window",
+                           "coordinator")
     return Metric(name="vendor_review_divergence", loop=Loop.MIDDLE, value=None,
-                  status=Status.UNAVAILABLE, reason="not yet implemented",
+                  status=Status.UNAVAILABLE,
+                  reason="review events present but divergence requires the per-vendor verdict "
+                         "shape (not currently parsed from audit `result` field)",
                   source="coordinator", unit="ratio")
 
 
@@ -272,12 +337,16 @@ def m_change_failure_rate(bundle: dict) -> Metric:
 
 def m_lead_time_for_changes(bundle: dict) -> Metric:
     coord = bundle.get("coordinator")
-    if coord is None:
+    repo = bundle.get("repo")
+    if coord is None or repo is None:
         return unavailable("lead_time_for_changes", Loop.OUTER,
-                           "coordinator source unavailable", "coordinator")
+                           "needs coordinator (work-claim timestamps) and repo (merge timestamps); "
+                           f"have coordinator={coord is not None}, repo={repo is not None}",
+                           "coordinator+repo")
     return Metric(name="lead_time_for_changes", loop=Loop.OUTER, value=None,
-                  status=Status.UNAVAILABLE, reason="not yet implemented",
-                  source="coordinator", unit="hours")
+                  status=Status.UNAVAILABLE,
+                  reason="cross-source join (work_claim → merge_commit) not yet wired",
+                  source="coordinator+repo", unit="hours")
 
 
 def m_tier_selection_accuracy(bundle: dict) -> Metric:
@@ -294,13 +363,44 @@ def m_tier_selection_accuracy(bundle: dict) -> Metric:
 
 
 def m_cost_per_merged_feature(bundle: dict) -> Metric:
+    """Sum of phase_token_post deltas in window, divided by merge count.
+
+    Joins coordinator audit (token deltas) with repo merges (denominator).
+    Token deltas are emitted by skills/autopilot/scripts/autopilot.py at each
+    `_HANDOFF_BOUNDARIES` transition (see docs/decisions/observability.md).
+    """
     coord = bundle.get("coordinator")
+    repo = bundle.get("repo")
     if coord is None:
         return unavailable("cost_per_merged_feature", Loop.OUTER,
                            "coordinator source unavailable", "coordinator")
-    return Metric(name="cost_per_merged_feature", loop=Loop.OUTER, value=None,
-                  status=Status.UNAVAILABLE, reason="not yet implemented",
-                  source="coordinator", unit="tokens")
+    by_op = coord.get("by_operation") or {}
+    token_entries = by_op.get("phase_token_post", []) + by_op.get("phase_token_pre", [])
+    if not token_entries:
+        return unavailable("cost_per_merged_feature", Loop.OUTER,
+                           "no phase_token_pre / phase_token_post operations in audit window",
+                           "coordinator")
+    total_tokens = 0
+    for e in token_entries:
+        result = e.get("result") or {}
+        # Token instrumentation records absolute pre/post counts; the delta is post-pre.
+        # Until the autopilot adapter writes a normalized 'tokens' field, accept either
+        # 'tokens' (preferred) or fall back to result['count'].
+        n = result.get("tokens", result.get("count"))
+        if isinstance(n, (int, float)):
+            total_tokens += int(n)
+    if repo is None:
+        return Metric(name="cost_per_merged_feature", loop=Loop.OUTER,
+                      value=total_tokens, status=Status.OK,
+                      unit="tokens (no merge denominator — repo source unavailable)",
+                      source="coordinator")
+    merges = repo.get("merges") or []
+    if not merges:
+        return unavailable("cost_per_merged_feature", Loop.OUTER,
+                           "no merges in window — denominator is zero", "coordinator+repo")
+    avg = total_tokens / len(merges)
+    return Metric(name="cost_per_merged_feature", loop=Loop.OUTER, value=round(avg, 1),
+                  status=Status.OK, unit="tokens/merge", source="coordinator+repo")
 
 
 METRIC_FNS: list[Callable[[dict], Metric] | Callable[[dict, Window], Metric]] = [
