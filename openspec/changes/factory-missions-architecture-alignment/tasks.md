@@ -223,20 +223,26 @@
 ## Phase 8: Integration (wp-integration)
 
 - [ ] 8.1 Run full `validate-feature` end-to-end on the sample frontend: deploy → smoke → gen-eval (Playwright path) → security → e2e
+  **Status:** DEFERRED to real CI. This cloud-harness session lacks Docker for `deploy` and `npx playwright` with browser binaries for the gen-eval Playwright path. Runner unit tests (WP7 `test_runner.py`) cover the subprocess wiring with stubs; the missing-CLI degradation path (exit 127) is tested explicitly. Full live-execution validation should run in a CI environment with Docker + `npx playwright install` available.
   **Dependencies**: 7.12
 
-- [ ] 8.2 Verify `consensus_synthesizer.py` produces a single ranked finding list combining scrutiny + behavioral findings on a synthetic test change
+- [x] 8.2 Verify `consensus_synthesizer.py` produces a single ranked finding list combining scrutiny + behavioral findings on a synthetic test change
   **Spec scenarios**: evaluation-framework: "Synthesizer merges gen-eval and reviewer findings"
+  **Verified:** synthetic 3-vendor (claude=3, codex=2, gen-eval=4) → consensus.json with 9 ranked findings, exact stdout `merged: claude=3, codex=2, gen-eval=4`
   **Dependencies**: 5.5
 
 - [ ] 8.3 Verify `harness-engineering-features` rebases cleanly: cherry-pick its open commits onto this branch's HEAD and confirm no conflicts in `docs/lessons-learned.md`, `docs/parallel-agentic-development.md`, `consensus_synthesizer.py`, or `validate-feature/SKILL.md`
+  **Status:** DEFERRED. The `harness-engineering-features` feature branch is not present in this checkout — only its OpenSpec proposal directory exists. Rebase verification should be performed at merge time when both branches are ready. Conflict-risk analysis: WP1+WP2 are strictly additive (0 deletions in `docs/lessons-learned.md` and `docs/parallel-agentic-development.md`); WP4 deletes 5 lines in `validate-feature/SKILL.md` (the inner template-only block, replaced by a mode-selection wrapper) and WP5 deletes 7 lines in `consensus_synthesizer.py` (the `--findings nargs+` argparse pattern, modernized to `--input-dir` autodiscovery while preserving the `--findings` mode). These deletions may cause merge conflicts requiring manual resolution if `harness-engineering-features` modifies the same lines.
   **Dependencies**: 2.6, 5.5, 4.4
 
-- [ ] 8.4 Run `openspec validate factory-missions-architecture-alignment --strict` and fix any spec-format issues
+- [x] 8.4 Run `openspec validate factory-missions-architecture-alignment --strict` and fix any spec-format issues
+  **Verified:** `Change 'factory-missions-architecture-alignment' is valid`
   **Dependencies**: 8.1, 8.2
 
-- [ ] 8.5 Run `validate_work_packages.py` and `parallel_zones.py --validate-packages` to confirm no scope overlap
+- [x] 8.5 Run `validate_work_packages.py` and `parallel_zones.py --validate-packages` to confirm no scope overlap
+  **Verified:** schema PASS, depends_on_refs PASS, dag_cycles PASS, lock_keys PASS, scope_overlap PASS, lock_overlap PASS
   **Dependencies**: All implementation tasks
 
-- [ ] 8.6 Update `skills/install.sh` consumers if any new skill (`skills/playwright-validator/`) needs rsync targets
+- [x] 8.6 Update `skills/install.sh` consumers if any new skill (`skills/playwright-validator/`) needs rsync targets
+  **Verified:** `install.sh` auto-discovers any directory under `skills/` with `SKILL.md`. `skills/playwright-validator/SKILL.md` exists; no manual rsync target needed.
   **Dependencies**: 7.8
