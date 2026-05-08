@@ -7,8 +7,31 @@ Usage:
 import argparse
 import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
+
+from .openspec_seed import InvalidChangeId, validate_change_id  # noqa: F401  (InvalidChangeId re-exported for callers)
+
+logger = logging.getLogger(__name__)
+
+# Exit code for usage errors per BSD sysexits.h convention. Used when
+# --openspec-change fails the regex validation. Argparse's default of 2
+# is not specific enough; the spec calls for 64.
+EX_USAGE = 64
+
+
+def _argparse_change_id(value: str) -> str:
+    """argparse type= adapter: maps InvalidChangeId to argparse.ArgumentTypeError.
+
+    Argparse will then call ``parser.error`` which exits with the configured
+    status (we install a custom error handler in :func:`parse_args` that
+    overrides argparse's default 2 to 64 for this specific failure).
+    """
+    try:
+        return validate_change_id(value)
+    except InvalidChangeId as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -16,6 +39,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="gen-eval",
         description="Generator-Evaluator testing framework",
     )
+
+    # Override argparse's default exit status (2) with EX_USAGE (64) for
+    # --openspec-change validation failures, per the spec contract.
+    original_error = parser.error
+
+    def _error(message: str) -> None:
+        # message is e.g. "argument --openspec-change: change-id MUST match ..."
+        if "--openspec-change" in message and "change-id MUST match" in message:
+            parser.print_usage(sys.stderr)
+            sys.stderr.write(f"{parser.prog}: error: {message}\n")
+            sys.exit(EX_USAGE)
+        original_error(message)
+
+    parser.error = _error  # type: ignore[method-assign]
+
     parser.add_argument(
         "--descriptor",
         type=Path,
@@ -93,6 +131,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0.95,
         help="Minimum pass rate to exit 0 (default: 0.95)",
     )
+    parser.add_argument(
+        "--openspec-change",
+        type=_argparse_change_id,
+        default=None,
+        help=(
+            "OpenSpec change-id whose Requirement+Scenario blocks augment "
+            "the cli-augmented prompt as constraints. Must match "
+            "^[a-zA-Z0-9_-]+$ (no path separators or shell metacharacters). "
+            "Effective only with --mode cli-augmented."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -120,6 +169,7 @@ async def main(args: argparse.Namespace) -> int:
     from .evaluator import Evaluator
     from .generator import TemplateGenerator
     from .hybrid_generator import HybridGenerator
+    from .openspec_seed import ParsedScenario, parse_openspec_change
     from .orchestrator import GenEvalOrchestrator
     from .reports import generate_json_report, generate_markdown_report
 
@@ -133,6 +183,7 @@ async def main(args: argparse.Namespace) -> int:
         max_iterations=args.max_iterations,
         parallel_scenarios=args.parallel,
         changed_features_ref=args.changed_features_ref,
+        openspec_change_id=args.openspec_change,
         report_format=args.report_format,
         fail_threshold=args.fail_threshold,
         seed_data=not args.no_services,
@@ -140,6 +191,49 @@ async def main(args: argparse.Namespace) -> int:
         categories=args.categories,
         verbose=args.verbose,
     )
+
+    # Parse OpenSpec scenarios when requested. The flag's regex validation
+    # already ran at argparse time, so args.openspec_change is guaranteed
+    # to be a safe basename when set. If the change directory or specs/
+    # subdir is missing, log a warning and degrade to descriptor-only
+    # generation (no OpenSpec content in prompt) per spec contract.
+    openspec_scenarios: list[ParsedScenario] = []
+    if args.openspec_change:
+        if config.mode != "cli-augmented":
+            logger.warning(
+                "--openspec-change is effective only in --mode cli-augmented; "
+                "ignoring (current mode=%s)",
+                config.mode,
+            )
+        else:
+            change_dir = Path("openspec/changes") / args.openspec_change
+            if not change_dir.exists():
+                logger.warning(
+                    "openspec change directory not found: %s; "
+                    "continuing with descriptor-only generation",
+                    change_dir,
+                )
+            else:
+                specs_dir = change_dir / "specs"
+                if not specs_dir.exists():
+                    logger.warning(
+                        "openspec specs directory missing: %s; "
+                        "continuing with descriptor-only generation",
+                        specs_dir,
+                    )
+                else:
+                    openspec_scenarios = parse_openspec_change(change_dir)
+                    if openspec_scenarios:
+                        logger.info(
+                            "openspec_seed: parsed %d scenario(s) from %s",
+                            len(openspec_scenarios),
+                            specs_dir,
+                        )
+                    else:
+                        logger.info(
+                            "no Requirement+Scenario blocks found in %s",
+                            specs_dir,
+                        )
 
     if args.verbose:
         print(f"gen-eval: loading descriptor from {args.descriptor}")
@@ -168,7 +262,11 @@ async def main(args: argparse.Namespace) -> int:
     if config.mode == "template-only":
         generator = TemplateGenerator(descriptor, config)
     else:
-        generator = HybridGenerator(descriptor, config)
+        generator = HybridGenerator(
+            descriptor,
+            config,
+            openspec_scenarios=openspec_scenarios or None,
+        )
 
     # 5. Create evaluator
     evaluator = Evaluator(descriptor, registry)

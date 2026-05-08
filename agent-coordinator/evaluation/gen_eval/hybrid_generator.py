@@ -14,6 +14,7 @@ from .config import GenEvalConfig
 from .descriptor import InterfaceDescriptor
 from .generator import TemplateGenerator
 from .models import EvalFeedback, Scenario
+from .openspec_seed import ParsedScenario
 from .sdk_generator import SDKBackend, SDKBackendError, SDKGenerator
 
 logger = logging.getLogger(__name__)
@@ -119,10 +120,12 @@ class HybridGenerator:
         cli_generator: CLIGenerator | None = None,
         sdk_generator: SDKGenerator | None = None,
         adaptive_backend: AdaptiveBackend | None = None,
+        openspec_scenarios: list[ParsedScenario] | None = None,
     ) -> None:
         self.descriptor = descriptor
         self.config = config
         self.feedback = feedback
+        self.openspec_scenarios = openspec_scenarios
 
         self.template_generator = template_generator or TemplateGenerator(
             descriptor=descriptor, config=config, feedback=feedback
@@ -155,12 +158,14 @@ class HybridGenerator:
             config=config,
             backend=adaptive_backend.cli,
             feedback=feedback,
+            openspec_scenarios=openspec_scenarios,
         )
         self.sdk_generator = sdk_generator or SDKGenerator(
             descriptor=descriptor,
             config=config,
             backend=adaptive_backend.sdk or SDKBackend(),
             feedback=feedback,
+            openspec_scenarios=openspec_scenarios,
         )
 
     async def generate(

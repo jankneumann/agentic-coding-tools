@@ -31,6 +31,7 @@ Run the generator-evaluator testing framework against live or local services. Ge
 - `--output-dir <path>` (default: `.`) — Report output directory
 - `--no-services` — Skip service startup/teardown
 - `--verbose` — Enable verbose output
+- `--openspec-change <change-id>` — OpenSpec change-id whose `### Requirement:` and `#### Scenario:` blocks augment the cli-augmented prompt as additional constraints. Effective only with `--mode cli-augmented`. The change-id MUST match `^[a-zA-Z0-9_-]+$` (alphanumeric, underscore, hyphen only — no path separators or shell metacharacters); invalid values cause exit status 64 before any filesystem walk. When the change directory or its `specs/` subdirectory is missing, gen-eval logs a warning and falls back to descriptor-only generation. Generated `Scenario` objects emitted under this flag include a `source.openspec_scenario` field of the form `openspec/changes/<id>/specs/<rel>.md:<line-start>-<line-end>` so failures can be traced to the originating Requirement.
 
 ## Steps
 
@@ -126,6 +127,12 @@ With CLI-augmented generation (subscription-covered):
 
 ```bash
 /gen-eval --mode cli-augmented --time-budget 30
+```
+
+Augmenting the cli-augmented prompt with OpenSpec scenarios from an active change:
+
+```bash
+/gen-eval --mode cli-augmented --openspec-change my-feature-change-id
 ```
 
 Against specific categories:
