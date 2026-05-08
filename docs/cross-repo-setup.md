@@ -321,22 +321,29 @@ git commit -m "chore: sync skills from agentic-coding-tools"
 
 Langfuse is the team's default LLM observability platform. The `langfuse` skill bundles three integration mechanisms behind one front door: skill knowledge, the CLI (`npx langfuse-cli`), and the MCP server (`mcp__langfuse__*` for prompt management).
 
-### Two-command setup
+### Three-command setup (cross-agent)
+
+`install-mcp.sh` registers the Langfuse MCP server with Claude Code (`<repo>/.mcp.json`), Codex (`~/.codex/config.toml`), and Gemini (`~/.gemini/settings.json`) in one shot. Pair it with the OpenBao bridge for credentials and the Stop-hook installer for Claude Code session traces.
 
 ```bash
-# 1. Sync the skill from agentic-coding-tools (along with all other skills)
+# 1. Sync skills from agentic-coding-tools (langfuse + bao-vault among others)
 cd ~/Coding/agentic-coding-tools
 bash skills/install.sh --target ~/Coding/<your-repo> --mode rsync --force \
   --deps none --python-tools none
 
-# 2. Register the Langfuse MCP server in the target repo
 cd ~/Coding/<your-repo>
-LANGFUSE_PUBLIC_KEY=pk-lf-... \
-LANGFUSE_SECRET_KEY=sk-lf-... \
-  bash .claude/skills/langfuse/scripts/install-mcp.sh
+
+# 2. Resolve LANGFUSE_* into the current shell from OpenBao
+eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+
+# 3. Register the MCP server with all three agents and (optionally) the Stop hook
+bash skills/langfuse/scripts/install-mcp.sh
+python3 skills/langfuse/scripts/install_stop_hook.py    # Claude Code only
 ```
 
-Then export `LANGFUSE_BASIC_AUTH` from your shell profile so `.mcp.json` can interpolate it:
+`langfuse_env.sh` reads `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` from OpenBao (KV path `secret/coordinator` by default), computes `LANGFUSE_BASIC_AUTH = base64(public:secret)`, and emits `export` lines. `install-mcp.sh` then uses the env vars: Claude Code gets `${LANGFUSE_BASIC_AUTH}` interpolated at server-start time; Codex and Gemini get the literal token written into their user-global config (their TOML/JSON loaders don't interpolate env vars in headers).
+
+Without OpenBao, set the keys manually:
 
 ```bash
 export LANGFUSE_PUBLIC_KEY=pk-lf-...
@@ -346,13 +353,25 @@ export LANGFUSE_BASIC_AUTH=$(printf '%s:%s' \
   "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64)
 ```
 
-### Optional: lock to read-only
+### What gets registered where
 
-Pass `--lock-read-only` to add deny rules for the three write tools (`createTextPrompt`, `createChatPrompt`, `updatePromptLabels`) into `.claude/settings.json`. Useful for shared repos where prompt versioning goes through a release process.
+| Agent | File | Scope | Token form |
+|---|---|---|---|
+| Claude Code | `<repo>/.mcp.json` | Project (committed) | `${LANGFUSE_BASIC_AUTH}` (env var ref) |
+| Codex CLI | `~/.codex/config.toml` | User-global (Codex has no project-scope file) | Literal base64 |
+| Gemini CLI | `~/.gemini/settings.json` | User-global | Literal base64 |
+
+`install-mcp.sh` is idempotent and reversible per-target. Skip flags: `--claude-only`, `--no-codex`, `--no-gemini`. See `skills/langfuse/references/mcp-setup.md` for the full reference.
+
+### Optional: lock to read-only (Claude Code only)
+
+Pass `--lock-read-only` to add deny rules for the three write tools (`createTextPrompt`, `createChatPrompt`, `updatePromptLabels`) into `.claude/settings.json`. Useful for shared repos where prompt versioning goes through a release process. The flag does not affect Codex or Gemini — gate write tools in those agents' own permission systems if needed.
 
 ### Optional: stream session transcripts to Langfuse
 
-To make Claude Code session transcripts appear as Langfuse traces alongside server-side spans, wire `langfuse_hook.py` (or your project's equivalent) into the `Stop` matcher in `.claude/settings.json`. See `skills/langfuse/references/stop-hook.md` for both patterns (project venv vs `uv run`).
+`python3 skills/langfuse/scripts/install_stop_hook.py` adds a Stop-hook entry to `.claude/settings.json` whose command is `bash "$CLAUDE_PROJECT_DIR"/skills/langfuse/scripts/run_stop_hook.sh`. The wrapper resolves OpenBao credentials, sets `LANGFUSE_ENABLED=true`, and invokes `agent-coordinator/scripts/langfuse_hook.py`. Claude Code only — Codex and Gemini have no Stop-hook equivalent today.
+
+Use `--user` for `~/.claude/settings.json` instead of project-scoped, or `--remove` to uninstall. See `skills/langfuse/references/stop-hook.md` for details.
 
 ### Per-region URLs
 

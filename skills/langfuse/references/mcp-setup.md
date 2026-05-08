@@ -28,13 +28,41 @@ Documentation: https://langfuse.com/docs/api-and-data-platform/features/mcp-serv
 
 Uses HTTP Basic auth with project-scoped API keys (`LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`), base64-encoded as `pk-lf-...:sk-lf-...`.
 
-**Never commit the resolved base64 token.** Use `${VAR}` interpolation in `.mcp.json` so the token is read from the environment at runtime.
+**Never commit the resolved base64 token to a project-scoped file.** For `.mcp.json` (Claude Code), use `${VAR}` interpolation so the token is read from the environment at runtime. User-global config files for Codex and Gemini do hold a literal token — see [Cross-agent registration](#cross-agent-registration) below.
 
-Compute the base64 token once, export it from your shell profile (or `.envrc` / OpenBao), and reference it from `.mcp.json`:
+### Resolving credentials from OpenBao
+
+The recommended source of `LANGFUSE_*` values is OpenBao (matches the rest of this repo's secret-management pattern — see `docs/openbao-secret-management.md`). The bao-vault skill ships a one-line bridge:
 
 ```bash
+eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+```
+
+This reads `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` from your OpenBao KV path (defaults: `secret/coordinator`), computes `LANGFUSE_BASIC_AUTH` from the public+secret pair, and emits four `export` lines into the current shell. It is safe to run unconditionally — when `BAO_ADDR` is unset or the keys are already in the environment, it falls back silently.
+
+### Computing the token by hand
+
+If OpenBao is not configured, do it manually:
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
 export LANGFUSE_BASIC_AUTH=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64)
 ```
+
+## Cross-agent registration
+
+`bash skills/langfuse/scripts/install-mcp.sh` registers the server with **all three agents in one shot** (Claude Code, Codex, Gemini). Pass `--claude-only`, `--no-codex`, or `--no-gemini` to skip any.
+
+| Agent | File | Scope | Auth header value |
+|---|---|---|---|
+| Claude Code | `<repo>/.mcp.json` | Project (committed) | `Basic ${LANGFUSE_BASIC_AUTH}` (env var ref — interpolated at server start) |
+| Codex CLI | `~/.codex/config.toml` | **User-global** (Codex has no project-scope MCP file) | `Basic <literal-token>` (Codex's TOML reader does not interpolate env vars in headers) |
+| Gemini CLI | `~/.gemini/settings.json` | **User-global** | `Basic <literal-token>` (same reason) |
+
+The literal token written into Codex/Gemini configs is `base64(LANGFUSE_PUBLIC_KEY:LANGFUSE_SECRET_KEY)` — i.e. exactly what Claude Code computes at runtime. It is sensitive but not _more_ sensitive than the keys themselves: rotate the keys in the Langfuse UI to invalidate.
+
+The `install-mcp.sh` script is idempotent and reversible per-target — re-running updates only the `langfuse` entry, leaves other MCP servers alone, and `git restore .mcp.json` (or hand-deleting the section in user-global files) cleanly uninstalls.
 
 ## Registration scopes
 
@@ -46,11 +74,9 @@ Choose where to register based on how broadly the team uses Langfuse:
 | **User** | `~/.claude.json` → `mcpServers` | "Use Langfuse everywhere" without per-repo config. Not version-controlled. |
 | **Local override** | `<repo>/.claude/settings.local.json` | Per-developer overrides, secrets, or experimental setup. Gitignored. |
 
-## Project-scoped registration (default)
+## Project-scoped registration for Claude Code (`.mcp.json`)
 
-`bash skills/langfuse/scripts/install-mcp.sh` produces this. Read/write by default — pass `--lock-read-only` to additionally insert deny rules for the three write tools.
-
-### `<repo>/.mcp.json`
+`bash skills/langfuse/scripts/install-mcp.sh --claude-only` produces this. Read/write by default — pass `--lock-read-only` to additionally insert deny rules for the three write tools.
 
 ```json
 {
@@ -69,6 +95,39 @@ Choose where to register based on how broadly the team uses Langfuse:
 Notes:
 - `${LANGFUSE_BASIC_AUTH}` is interpolated at runtime; the literal string stays in the file. Do **not** run `claude mcp add` — it has been observed to expand `${VAR}` placeholders and write resolved tokens back to the file (see anthropics/claude-code#18692).
 - Swap the `url` for your region or self-hosted host.
+
+## Codex registration (`~/.codex/config.toml`)
+
+`install-mcp.sh` writes:
+
+```toml
+[mcp_servers.langfuse]
+url = "https://cloud.langfuse.com/api/public/mcp"
+
+[mcp_servers.langfuse.headers]
+Authorization = "Basic <literal-base64-token>"
+```
+
+User-global; Codex CLI loads it on every invocation. Re-running `install-mcp.sh` strips and replaces the `[mcp_servers.langfuse]` (and `.headers`) sections in place — adjacent sections are preserved.
+
+## Gemini registration (`~/.gemini/settings.json`)
+
+`install-mcp.sh` writes/merges:
+
+```json
+{
+  "mcpServers": {
+    "langfuse": {
+      "httpUrl": "https://cloud.langfuse.com/api/public/mcp",
+      "headers": {
+        "Authorization": "Basic <literal-base64-token>"
+      }
+    }
+  }
+}
+```
+
+User-global. Re-running updates only the `langfuse` key; other MCP servers in `mcpServers` are preserved.
 
 ### Optional: lock to read-only via deny rules
 
