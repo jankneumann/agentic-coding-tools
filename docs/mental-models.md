@@ -60,7 +60,7 @@ This shift is the reason this repo exists. The single-developer-with-Copilot mod
 | Station chefs (sauté, pâtissier, garde manger, grill) | Specialists per technique | Vendor-diverse reviewers in `/parallel-review-plan` and `/parallel-review-implementation`; specialist skills like `/security-review`, `/gen-eval`, `/refresh-architecture` |
 | Line cooks | Execute one ticket end-to-end at a station | Work-package agents in coordinated tier; sequential-tier agents |
 | Prep cooks (mise en place) | Pre-stage everything before service | `/explore-feature`, `/plan-feature`, `/prototype-feature`, OpenSpec proposal artifacts, [`docs/architecture-artifacts.md`](architecture-artifacts.md) |
-| Expediter | Final integration; calls "all day" and times the plates | `skills/worktree/scripts/merge_worktrees.py`, `/merge-pull-requests`, sync-point skills |
+| Expediter | Inspects readiness at the pass; refuses outgoing work that is not right | `/expedite` (read-only verdict); `skills/worktree/scripts/merge_worktrees.py`, `/merge-pull-requests`, and `/cleanup-feature` perform the actions the expediter clears |
 | Dishwasher | Resets stations between tickets | `skills/worktree/scripts/worktree.py` (`teardown`, `gc`), the cleanup half of `/cleanup-feature` |
 | The pass | Last quality check; nothing leaves without crossing it | `/validate-feature` — soft gates (spec, evidence, deploy) run for signal; hard gates (Smoke / Security / E2E) enforced by `skills/validate-feature/scripts/gate_logic.py:REQUIRED_PHASES` |
 | The ticket rail | Single source of truth for what's in flight | Coordinator claims/locks (`agent-coordinator/src/coordination_api.py` — `/work/*`, `/locks/*`, `/issues/*`), `.git-worktrees/.registry.json`, `openspec/changes/<id>/` |
@@ -249,11 +249,22 @@ WTWO's amplification is meaningless without **swarming**: when the line stops, m
 
 **The gap to close:** when `/validate-feature --phase smoke` fails, does the system trigger additional reviewers, a different vendor, or a fresh perspective? Or does the same agent retry? A retry without perspective change is a danger-zone tell.
 
-### G2. The expediter is not staffed
+### G2. The expediter — closed (residual noted)
 
-The kitchen brigade has a dedicated expediter — the person at the pass who calls "all day," times the plates, and refuses outgoing work that is not right. In this repo, the expediter role is *split* across `/cleanup-feature` (which does merge + worktree GC + spec update + branch cleanup — four jobs) and `/merge-pull-requests` (sync-point skill). The closest thing to a pure expediter primitive is `pre_merge_gate()` in `skills/validate-feature/scripts/gate_logic.py`, which inspects `validation-report.md` and returns `('continue', ...)` or `('halt', reason)` — but it is a function, not a staffed station with its own skill.
+**Original gap.** The kitchen brigade has a dedicated expediter — the person at the pass who calls "all day," times the plates, and refuses outgoing work that is not right. In this repo, the role was *split* across `/cleanup-feature` (which does merge + worktree GC + spec update + branch cleanup — four jobs) and `/merge-pull-requests` (sync-point skill). The closest expediter primitive was `pre_merge_gate()` in `skills/validate-feature/scripts/gate_logic.py` — a function, not a staffed station.
 
-**The gap to close:** if you wanted to add a `/expedite` skill that only inspects readiness — does the rework-report block? are there pending vendor disagreements? — and refuses to call merge until the answer is clean, where would it live? The role is implicit today, not first-class.
+**Close.** A first-class `/expedite` skill now sits between `/validate-feature` and the sync-point skills:
+
+- `skills/expedite/SKILL.md` — the agent-facing instructions.
+- `skills/expedite/scripts/expedite.py` — read-only verdict producer. Inspects three checks:
+  1. Active-agent guard (delegates to `skills/shared/active_agents.py`).
+  2. Validation hard gates (delegates to `skills/validate-feature/scripts/gate_logic.py:pre_merge_gate` against the change's `validation-report.md`).
+  3. Rework report status (delegates to `rework_report.load_rework_report` and inspects `summary_action`; `block-cleanup` and `iterate` block, `defer` and `none` pass, missing report skips).
+- `skills/expedite/scripts/tests/test_expedite.py` — 28 tests covering each check's branches, the path-probing fallback chain, end-to-end composition, and CLI exit codes.
+
+The skill is **read-only** by contract: it does not merge, push, teardown worktrees, update specs, re-validate, or auto-fix. It refuses outgoing work or it doesn't — nothing in between. This is the kitchen-brigade pass: the expediter inspects, the line cooks (or sous chef) act on the verdict.
+
+**Residual.** The original gap framing also asked "are there pending vendor disagreements?" — that check is not yet implemented because the per-vendor verdict shape from `/parallel-review-implementation` is not currently parsed from coordinator audit `result` fields (this is the same residual called out in `m_vendor_review_divergence` of `scripts/ai_dora_snapshot.py`). When the audit-trail schema for review events stabilizes, add a fourth check `check_vendor_review_divergence(audit_bundle)` to `expedite.py`. The gap is otherwise closed.
 
 ### G3. Output metrics are absent — but so is the explicit guard
 
@@ -337,7 +348,7 @@ Quick lookup. Read across the row to translate between vocabularies.
 |---|---|---|---|---|
 | Head chef | Plant manager | (orchestration) | All three (decides which to read) | `/autopilot`, `/autopilot-roadmap` |
 | Sous chef | Line supervisor | Amplification (calls swarms) | Middle | `/implement-feature`, `/cleanup-feature` |
-| Expediter | QA at outbound | Amplification + Simplification | Middle → Outer | (split: `/cleanup-feature` + `/merge-pull-requests`) |
+| Expediter | QA at outbound | Amplification + Simplification | Middle → Outer | `/expedite` (the readiness gate); `/cleanup-feature` and `/merge-pull-requests` perform the actions the expediter clears |
 | Mise en place | Pre-staged scenario pack | Slowification | Middle (informs) | OpenSpec proposal artifacts; `/plan-feature`; archive intelligence |
 | Ticket | Work order | (carrier) | All three | OpenSpec change-id |
 | The pass | Outbound QA gate | Amplification (stop the line) | Middle | `/validate-feature` |
