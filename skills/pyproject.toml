@@ -36,6 +36,7 @@ testpaths = [
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
     "changelog-version/tests",
+    "expedite/scripts/tests",
 ]
 
 [tool.ruff]
