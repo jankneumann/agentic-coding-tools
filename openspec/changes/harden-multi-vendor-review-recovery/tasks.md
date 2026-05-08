@@ -10,7 +10,13 @@ Tasks are TDD-ordered within each phase. Each test task lists the spec scenarios
   - **Spec scenarios**: skill-workflow.R1.S1 (round-trip), skill-workflow.R1.S2 (manifest sufficient), skill-workflow.R1.S3 (manifest preserves existing fields), skill-workflow.R1.S4 (in-process callers without dispatch metadata), skill-workflow.R1.S5 (atomic write), skill-workflow.R1.S6 (concurrent dirs), skill-workflow.R5.S1 (artifacts_dir normalized), skill-workflow.R5.S2 (vendor name rejected), skill-workflow.R5.S3 (review_type constrained), skill-workflow.R5.S4 (manifest-referenced paths stay within dir)
   - **Contracts**: `contracts/review-cache-layout.schema.json` (manifest superset), `contracts/finding.schema.json` (per-vendor wrapper-object shape)
   - **Dependencies**: None — test file lives at `skills/tests/parallel-infrastructure/test_checkpoint_findings.py`
-- [ ] 0.2 Implement `skills/parallel-infrastructure/scripts/checkpoint_findings.py` with `write_vendor_findings` (atomic-rename), `read_vendor_findings`, `write_manifest` (atomic-rename + parent-dir fsync; accepts optional `dispatches`/`quorum_*` for CLI callers), `read_manifest`, `_validate_path_safety`. Place under `parallel-infrastructure/` to keep dependency direction one-way (autopilot imports from parallel-infrastructure).
+- [ ] 0.2 Implement `skills/parallel-infrastructure/scripts/checkpoint_findings.py` with:
+  - `write_vendor_findings(out_dir, vendor, review_type, target, findings, reviewer_vendor=None)` — wraps the raw `findings` list into the `{review_type, target, reviewer_vendor, findings}` envelope before writing. `reviewer_vendor` defaults to `vendor` if not specified. Atomic-rename. Validates `vendor` against `[A-Za-z0-9_-]+` regex BEFORE any disk operation.
+  - `read_vendor_findings(out_dir) -> dict[str, list[ReviewFinding]]` — reads via the manifest's `vendors[]` index, validates path safety on each `findings_path`, returns vendor-keyed dict.
+  - `write_manifest(out_dir, review_type, target, vendors, change_id=None, dispatches=None, quorum_requested=None, quorum_received=None)` — `change_id`, `dispatches`, `quorum_*` all optional (CLI callers omit `change_id`; in-process callers populate it; in-process callers without dispatch metadata pass `dispatches=None` which becomes `[]`). Computes `quorum_received` from `dispatches` if provided (count of `success=true`), else from `vendors` count. Atomic-rename + parent-dir fsync.
+  - `read_manifest(out_dir) -> ManifestData`
+  - `_validate_path_safety(artifacts_dir, vendor, review_type)` — `Path.resolve()` for artifacts_dir; regex check on vendor; enum check on review_type.
+  - Verify existing vendor names in the codebase (`agents.yaml`, vendor adapter configs) match the regex; expand the regex or document migration if any non-compliant names found.
   - **Dependencies**: 0.1
 - [ ] 0.3 Author `contracts/review-cache-layout.schema.json` (superset schema preserving review_dispatcher.py fields + new fields) and `contracts/finding.schema.json` (per-vendor finding-FILE shape — wrapper object with `findings: [...]`, NOT raw array). Verify the schema accepts the existing `review_dispatcher.py:write_manifest()` output shape (so existing CLI consumers stay valid).
   - **Spec scenarios**: skill-workflow.R1.S3, skill-workflow.R1.S4
@@ -30,12 +36,12 @@ The CLI dispatcher routes through `checkpoint_findings.write_manifest()` and `wr
 - [ ] 1.3 Run the existing `parallel-infrastructure` test suite end-to-end; assert no regressions. Grep for any caller that reads the manifest or globs the output dir: `grep -rn "review-manifest\|findings-.*-plan\.json\|findings-.*-implementation\.json" skills/ tests/` and verify each accessed field/path still resolves.
   - **Dependencies**: 1.2
 
-## Phase 2: ConvergenceResult observability fields
+## Phase 2: ConvergenceResult observability field
 
-- [ ] 2.1 Write tests for `ConvergenceResult` shape — defaults are `checkpoint_dir=None` and `synthesis_failed=False`. Existing-caller backward-compat: every test that constructed a `ConvergenceResult` before this change continues to pass without modification.
-  - **Spec scenarios**: skill-workflow.R3.S1 (existing callers), skill-workflow.R3.S2 (recovery-aware callers), skill-workflow.R3.S3 (synthesis_failed default)
+- [ ] 2.1 Write tests for `ConvergenceResult` shape — default is `checkpoint_dir=None`. Existing-caller backward-compat: every test that constructed a `ConvergenceResult` before this change continues to pass without modification.
+  - **Spec scenarios**: skill-workflow.R3.S1 (existing callers), skill-workflow.R3.S2 (recovery-aware callers can locate checkpoint)
   - **Dependencies**: None
-- [ ] 2.2 Add `checkpoint_dir: Path | None = None` and `synthesis_failed: bool = False` to `ConvergenceResult`.
+- [ ] 2.2 Add `checkpoint_dir: Path | None = None` to `ConvergenceResult`. Do NOT add a `synthesis_failed: bool` field — round 2 review showed it would be unreachable from `converge()` (the synthesis exception propagates without a result being constructed).
   - **Dependencies**: 2.1
 - [ ] 2.3 Run all existing `converge()` callers' tests; assert no regressions. Discover callers explicitly: `grep -rn "from convergence_loop import\|import convergence_loop\|convergence_loop\.converge" skills/ tests/` and ensure every test module covering a discovered caller is in the test command.
   - **Dependencies**: 2.2
@@ -45,17 +51,22 @@ The CLI dispatcher routes through `checkpoint_findings.write_manifest()` and `wr
 - [ ] 3.1 Write tests for in-process checkpointing — successful path writes manifest+findings AND populates `result.checkpoint_dir`; synthesis-failure path leaves manifest+findings on disk AND propagates the original exception (no fallback); empty review round still produces manifest.
   - **Spec scenarios**: skill-workflow.R2.S1 (success path), skill-workflow.R2.S2 (synthesis failure preserves checkpoint and propagates), skill-workflow.R2.S3 (empty round), skill-workflow.R2.S4 (checkpoint write permission error)
   - **Dependencies**: 0.2, 2.2
-- [ ] 3.2 Modify `converge()` to call `checkpoint_findings.write_vendor_findings()` and `write_manifest()` after `orchestrator.dispatch_and_wait()` returns and BEFORE `synthesizer.synthesize()` runs. Pass `model_used`/`elapsed_seconds`/`error_class` from `ReviewResult` objects through to the manifest's `dispatches[]`. On synthesis exception, propagate the original exception (no try/except wrapper around synthesis); the exception propagates through the caller's normal path with the checkpoint already on disk.
+- [ ] 3.2 Modify `converge()` to call `checkpoint_findings.write_vendor_findings()` and `write_manifest()` after `orchestrator.dispatch_and_wait()` returns and BEFORE `synthesizer.synthesize()` runs. Pass `model_used`/`elapsed_seconds`/`error_class` from `ReviewResult` objects through to the manifest's `dispatches[]`. Wrap `synthesizer.synthesize()` in a NARROW `try/except Exception:` that emits the structured-log entry (Phase 4) and then re-raises the ORIGINAL exception unmodified. The narrow try/except is necessary to log; it does NOT swallow, fall back, or transform the exception.
   - **Dependencies**: 3.1
 - [ ] 3.3 Verify checkpoint files survive a synthesis exception (manual integration test in addition to unit tests). Run a controlled synthesis-time exception and assert the checkpoint files exist and are parseable by an out-of-band synthesizer invocation.
   - **Dependencies**: 3.2
 
-## Phase 4: Audit log emission for synthesis failures
+## Phase 4: Structured-log emission for synthesis failures and checkpoint-write failures
 
-- [ ] 4.1 Write tests for audit emission — `convergence.synthesis_failed_with_checkpoint` on synthesis failure with checkpoint, NO event on happy path, audit-emission failure does not mask the original synthesis exception.
-  - **Spec scenarios**: skill-workflow.R4.S1 (failure emits one event), skill-workflow.R4.S2 (success emits no event), skill-workflow.R4.S3 (audit failure does not mask)
+This phase uses Python's standard `logging` module — NOT the coordinator audit endpoint. Round 2 review caught that `coordination_bridge.try_emit_audit_event()` does not exist and the agent-coordinator HTTP API has no `POST /audit/log` endpoint. Adding both is out of scope for this proposal; structured logging at level ERROR is sufficient for chronic-failure detection by log-aggregation tools.
+
+- [ ] 4.1 Write tests for log emission — `convergence.synthesis_failed_with_checkpoint` ERROR-level log entry on synthesis failure with checkpoint, `convergence.checkpoint_write_failed` ERROR-level log entry on checkpoint write failure, NO log entry on happy path, logging failure does not mask the original exception (Python's `logging` already absorbs handler failures by default; verify this).
+  - **Spec scenarios**: skill-workflow.R4.S1 (synthesis failure emits log entry), skill-workflow.R4.S2 (success emits no log entry), skill-workflow.R4.S3 (checkpoint write failure emits different log entry), skill-workflow.R4.S4 (logging failure does not mask)
   - **Dependencies**: 3.2
-- [ ] 4.2 Implement audit event emission in `converge()` synthesis-failure path. Use `coordination_bridge.try_emit_audit_event(...)` so coordinator unavailability is non-fatal. Wrap the audit call in `try/except Exception:` with `logger.warning()`. Emit event BEFORE re-raising the original synthesis exception. Include `checkpoint_dir` (absolute path post-`Path.resolve()`) in payload.
+- [ ] 4.2 Implement log emission in `converge()`:
+  - Use `logger.error("convergence.synthesis_failed_with_checkpoint", extra={...})` in the narrow synthesis try/except (Phase 3.2). Structured payload contains `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `checkpoint_dir`, `timestamp`. After logging, re-raise the original exception.
+  - Use `logger.error("convergence.checkpoint_write_failed", extra={...})` in a separate narrow try/except around `checkpoint_findings.write_*()`. Structured payload contains `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`. After logging, re-raise the original OSError/PermissionError.
+  - No coordinator dependency. No new bridge function. No new HTTP endpoint.
   - **Dependencies**: 4.1
 
 ## Phase 5: Integration test reproducing the original failure mode

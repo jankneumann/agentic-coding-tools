@@ -1,105 +1,77 @@
 {
   "review_type": "plan",
   "target": "harden-multi-vendor-review-recovery",
-  "reviewer_vendor": "gpt-5-codex",
+  "reviewer_vendor": "codex",
   "findings": [
     {
       "id": 1,
-      "type": "architecture",
+      "type": "contract_mismatch",
       "criticality": "high",
-      "description": "The planned fallback only wraps `synthesizer.synthesize()`, but the cited `line_range` crash occurs in `Finding.from_dict()` before synthesis in the current converge path (`convergence_loop.py:255-263`, `consensus_synthesizer.py:49-60`). As written, the original trigger can still abort before checkpoint/fallback recovery runs.",
+      "description": "`contracts/finding.schema.json:41` defines `criticality` as `low|medium|high|blocking`, but the existing review findings schema and consensus synthesizer use `critical`, not `blocking` (`openspec/schemas/review-findings.schema.json:19`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py:125`). This schema would reject valid existing `critical` findings and accept `blocking`, which the synthesizer ranks as the default lowest severity.",
       "disposition": "fix",
-      "resolution": "Checkpoint raw `ReviewResult.findings` immediately after dispatch and make the recovery boundary cover conversion plus synthesis, or explicitly handle conversion failures before invoking the fallback.",
-      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "resolution": "Change the contract enum to `low|medium|high|critical`, or explicitly update the synthesizer and existing review schemas in this proposal if `blocking` is intended.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/finding.schema.json",
       "line_range": {
-        "start": 255,
-        "end": 263
+        "start": 41,
+        "end": 43
       },
-      "vendor": "gpt-5-codex"
+      "vendor": "codex"
     },
     {
       "id": 2,
-      "type": "resilience",
+      "type": "compatibility",
       "criticality": "high",
-      "description": "The fallback subprocess invokes the same `consensus_synthesizer.py` loader, which also calls `Finding.from_dict()` on each finding (`consensus_synthesizer.py:467-471`), so deterministic malformed input such as `line_range: \"10-20\"` will fail both primary and fallback paths. The proposed Phase 7 test stubs the CLI to succeed, so it verifies plumbing but not real recovery from the motivating bug.",
+      "description": "`review-cache-layout.schema.json:7` makes `change_id` required, but the current dispatcher CLI has no change-id or target argument and currently writes the manifest with hardcoded target `cli-dispatch` at `review_dispatcher.py:1371`. The migration tasks do not specify where the new required `change_id` value comes from, so the promised manifest superset is underspecified for the CLI path.",
       "disposition": "fix",
-      "resolution": "Either include a tolerant parser for `--findings-dir`, fix the `line_range` parser in this proposal, or narrow the claim to durable checkpointing plus manual recovery rather than automatic recovery for deterministic synthesizer bugs.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
-      "line_range": {
-        "start": 112,
-        "end": 118
-      },
-      "vendor": "gpt-5-codex"
-    },
-    {
-      "id": 3,
-      "type": "contract_mismatch",
-      "criticality": "high",
-      "description": "`review-cache-layout.schema.json` requires `schema_version`, `change_id`, `created_at`, and `vendors` with `additionalProperties: false`, but the existing `review_dispatcher.py:write_manifest()` writes only `review_type`, `target`, `dispatches`, `quorum_requested`, and `quorum_received`. This contradicts task 0.3's requirement that the schema accept the existing manifest output shape.",
-      "disposition": "fix",
-      "resolution": "Either make the reader/schema accept legacy manifests and migrate them, or update the task wording to require only newly written manifests to validate while adding an explicit backward-compatibility test for existing consumers.",
+      "resolution": "Add an explicit dispatcher CLI argument/source for `change_id` and update tasks/tests, or make `change_id` optional for generic CLI dispatch manifests while preserving existing `target`.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
       "line_range": {
         "start": 7,
-        "end": 18
+        "end": 17
       },
-      "vendor": "gpt-5-codex"
+      "vendor": "codex"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`tasks.md:48` says synthesis exceptions propagate with \"no try/except wrapper around synthesis,\" but `tasks.md:58` requires emitting an audit event before re-raising the original synthesis exception. The implementation cannot satisfy audit-on-failure without catching the synthesis exception at least long enough to audit and re-raise.",
+      "disposition": "fix",
+      "resolution": "Revise task 3.2 to prohibit fallback/swallowing, not exception handling, and specify a narrow `try/except` that emits audit and re-raises the original exception.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 48,
+        "end": 58
+      },
+      "vendor": "codex"
     },
     {
       "id": 4,
-      "type": "contract_mismatch",
-      "criticality": "high",
-      "description": "`finding.schema.json` defines each per-vendor findings file as a raw array, but the current dispatcher writes `result.findings` as a top-level review-findings object and the synthesizer CLI reads `data.get(\"findings\", [])`. This breaks the proposal's claim that per-vendor finding files remain byte-identical and risks breaking existing `--findings` consumers.",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "The spec says `ConvergenceResult` fields let callers detect synthesis failure (`spec.md:86`), but also says no `ConvergenceResult` is returned on the typical failure path (`spec.md:90`, `design.md:243`). As written, `synthesis_failed=True` has no observable API path or task that proves a caller can receive it after `converge()` raises.",
       "disposition": "fix",
-      "resolution": "Define the contracted per-vendor file as the existing review-findings object shape, or explicitly support both object and array forms with tests proving legacy files still load unchanged.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/finding.schema.json",
+      "resolution": "Either remove the `synthesis_failed` claim/field, or define a typed exception carrying `checkpoint_dir` and a partial `ConvergenceResult`, with tests for that observable contract.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
       "line_range": {
-        "start": 1,
-        "end": 10
+        "start": 84,
+        "end": 90
       },
-      "vendor": "gpt-5-codex"
+      "vendor": "codex"
     },
     {
       "id": 5,
-      "type": "compatibility",
-      "criticality": "high",
-      "description": "The proposal treats `.review-cache/` as the CLI's existing layout, but `review_dispatcher.py` currently writes directly under `--output-dir` and existing skills glob `reviews/findings-*-plan.json`. Routing the dispatcher through a helper that always writes `<artifacts_dir>/.review-cache/` would silently move artifacts and break documented CLI workflows.",
-      "disposition": "fix",
-      "resolution": "Make the helper support the dispatcher's existing direct-output layout or update all CLI consumers, docs, and glob patterns with a compatibility shim that preserves current paths.",
-      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
-      "line_range": {
-        "start": 1354,
-        "end": 1372
-      },
-      "vendor": "gpt-5-codex"
-    },
-    {
-      "id": 6,
-      "type": "security",
-      "criticality": "medium",
-      "description": "R6 requires unsafe vendor names to be rejected, but `finding.schema.json` only requires `vendor` to be a non-empty string and would validate values containing path separators or `..`. Because this schema is described as the contract validated before write, the contract itself does not enforce the stated path-safety invariant.",
-      "disposition": "fix",
-      "resolution": "Add the same `^[A-Za-z0-9_-]+$` pattern to `finding.schema.json`'s `vendor` field and test that schema validation rejects unsafe vendor identifiers before helper logic writes files.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/finding.schema.json",
-      "line_range": {
-        "start": 56,
-        "end": 59
-      },
-      "vendor": "gpt-5-codex"
-    },
-    {
-      "id": 7,
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "The spec makes cleanup deletion a SHALL (`spec.md:21`), but tasks.md labels cleanup behavior as an open question/out of scope and no work package can modify `/cleanup-feature`. This leaves a normative requirement with no implementation owner or verification task.",
+      "description": "`contracts/README.md` still describes CLI subprocess fallback and old fallback audit events at lines 3, 11, 12, and 21, despite the revised proposal explicitly dropping automatic recovery. It also says both schemas declare `schema_version: 1` at line 25, but `finding.schema.json` has no `schema_version` field.",
       "disposition": "fix",
-      "resolution": "Move the cleanup deletion statement out of the ADDED requirement into a post-merge/open-question note, or add tasks and a work package that modify and test cleanup-feature retention/deletion behavior.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "resolution": "Rewrite the contracts README around durable checkpoints plus manual invocation, remove fallback event language, and either add `schema_version` to the finding-file schema or stop claiming it exists there.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/README.md",
       "line_range": {
-        "start": 21,
-        "end": 21
+        "start": 3,
+        "end": 25
       },
-      "vendor": "gpt-5-codex"
+      "vendor": "codex"
     }
   ]
 }

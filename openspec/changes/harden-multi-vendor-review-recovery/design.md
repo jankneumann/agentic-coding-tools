@@ -83,15 +83,15 @@ The shared `checkpoint_findings` module lives under `skills/parallel-infrastruct
 
 **How to apply.** Future writers SHALL use the wrapper object shape. Tightening or restructuring the per-vendor file is a separate proposal.
 
-### D5: Audit emission failures do not mask the synthesis exception
+### D5: Use Python's standard `logging` module, not coordinator audit events
 
-**Context.** What if the coordinator audit endpoint is unreachable when we try to emit `convergence.synthesis_failed_with_checkpoint`?
+**Context.** Round 2 review caught that the proposal referenced a `coordination_bridge.try_emit_audit_event()` helper that doesn't exist, plus a `POST /audit/log` HTTP endpoint that doesn't exist either. The agent-coordinator's audit infrastructure is read-only via `GET /audit` plus an internal `audit_service.log_operation()` not exposed publicly. Adding both endpoint + bridge function would substantially expand scope.
 
-**Decision.** Audit emission is best-effort. A failed audit emission emits a warning to the local log but does NOT prevent the original synthesis exception from propagating.
+**Decision.** Emit observability events via Python's standard `logging` module at level `ERROR` with structured payload (`extra={...}`). Use stable string identifiers in the log message (`convergence.synthesis_failed_with_checkpoint`, `convergence.checkpoint_write_failed`) so log-aggregation tools can filter by them. Do NOT introduce a new HTTP audit endpoint or a new bridge helper.
 
-**Why.** The synthesis exception is the diagnostically interesting one. Layering an audit failure on top would mask the actual cause. Matches `coordination-bridge` convention.
+**Why.** Logging primitive already exists. Operators monitoring `journalctl`, `loki`, or any log-aggregation system can filter by the stable strings and detect chronic failures. The trade-off is that events live in logs not in the coordinator's audit table — but the coordinator's audit table isn't actually queryable for these events without adding endpoints, so the trade-off is "what we can deliver in this proposal" vs "what we'd ship in a separate audit-infrastructure proposal."
 
-**How to apply.** Wrap the audit call in a `try/except Exception:` with `logger.warning()`. Emit BEFORE re-raising the synthesis exception.
+**How to apply.** Use `logger.error("convergence.synthesis_failed_with_checkpoint", extra={...})`. Don't wrap in try/except — Python's `logging` already absorbs handler failures. The narrow `try/except Exception:` is only around `synthesizer.synthesize()`, for the purpose of logging the structured payload before re-raising.
 
 ### D6: Path safety is enforced at write-time, not just read-time
 
@@ -130,11 +130,13 @@ caller → converge()
         ├─→ checkpoint_findings.write_vendor_findings(...)
         ├─→ checkpoint_findings.write_manifest(...)
         ├─→ synthesizer.synthesize(...)           → raises SynthesisError(E1)
-        ├─→ try_emit_audit_event("convergence.synthesis_failed_with_checkpoint", {
-        │     change_id, review_type, original_exception_class,
-        │     original_exception_message, checkpoint_dir, timestamp
+        ├─→ logger.error("convergence.synthesis_failed_with_checkpoint", extra={
+        │     "change_id": ..., "review_type": ...,
+        │     "original_exception_class": "SynthesisError",
+        │     "original_exception_message": "...", "checkpoint_dir": "...",
+        │     "timestamp": "..."
         │   })
-        │   └─→ on audit failure: logger.warning(); does not raise
+        │   └─→ Python's logging absorbs handler failures by default
         └─→ raise SynthesisError(E1)  ← ORIGINAL exception propagates
 ```
 
@@ -237,10 +239,9 @@ class ConvergenceResult:
 
     # NEW — observability of durability
     checkpoint_dir: Path | None = None
-    synthesis_failed: bool = False
 ```
 
-`checkpoint_dir` is set on successful checkpoint write, regardless of whether synthesis subsequently succeeds. `synthesis_failed` is `True` when checkpoint succeeded but synthesis raised — but note that in the current design the synthesis exception propagates and a `ConvergenceResult` is NOT returned in the typical path. The field is for partial-result reconstruction in callers that catch the exception.
+`checkpoint_dir` is set on successful checkpoint write, regardless of whether synthesis subsequently succeeds. Round 2 review pruned a second `synthesis_failed: bool` field as unreachable — when synthesis raises, the exception propagates and no `ConvergenceResult` is returned, so a flag for "synthesis failed" has no observable code path. The Python exception itself is the signal that synthesis failed; callers needing recovery context locate `<artifacts_dir>/.review-cache/` from caller-known state (the `artifacts_dir` they passed in).
 
 ## Edge Cases
 

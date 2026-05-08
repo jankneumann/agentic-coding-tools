@@ -4,115 +4,69 @@
   "reviewer_vendor": "claude_code",
   "findings": [
     {
-      "id": "claude-001",
+      "id": "claude-r2-001",
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "Spec R1 requires the manifest to be a superset (preserves dispatches[], etc.) but provides no scenario covering the case where the existing review_dispatcher.py is invoked WHILE the new in-process converge() is also writing a manifest at the same artifacts_dir. The 'distinct artifacts_dir' invariant (R1.S3) prevents cross-call contention but doesn't address mixed call-site contention.",
+      "description": "design.md:215 says in-process callers without dispatch metadata write 'quorum_requested: <N vendors>, quorum_received: <N vendors>' — but `quorum_received` should reflect actual SUCCESSFUL vendors, not the requested count. If 3 vendors were requested and 1 timed out, `quorum_received` should be 2, not 3. The current text would mislead operators reading the manifest.",
       "disposition": "fix",
-      "resolution": "Add scenario clarifying that two writers (CLI and in-process) writing to the same directory IS undefined behavior, and document in design.md as a known constraint.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
-      "line_range": {
-        "start": 25,
-        "end": 50
-      },
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-002",
-      "type": "testability",
-      "criticality": "medium",
-      "description": "R3.S7 (sanitization) names specific vendor key prefixes (sk-, AIza...) but doesn't specify the FULL test corpus implementers should use. Different teams will choose different prefix lists, and tests written by one team may not catch regressions in another. The contract for 'best-effort' is too loose for objective verification.",
-      "disposition": "fix",
-      "resolution": "Add a referenceable corpus to design.md or contracts/: e.g., sanitization-test-corpus.json containing input/expected-output pairs that all tests SHALL include. Treat the corpus as the contract; sanitizers may go further but MUST handle every entry.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
-      "line_range": {
-        "start": 95,
-        "end": 110
-      },
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-003",
-      "type": "architecture",
-      "criticality": "low",
-      "description": "checkpoint_findings.py lives under skills/autopilot/scripts/ but is imported by parallel-infrastructure/scripts/review_dispatcher.py per the design. This creates a downstream dependency from parallel-infrastructure on autopilot, where previously the dependency direction was the other way (autopilot imports ReviewOrchestrator from parallel-infrastructure). The proposal acknowledges and rejects the alternative; flagging because a future contributor may not realize the directional inversion when refactoring.",
-      "disposition": "accept",
-      "resolution": "Add a one-line comment at the top of checkpoint_findings.py noting that this module is shared and imported from parallel-infrastructure \u2014 and that moving it requires updating both call sites.",
+      "resolution": "Update design.md and (if applicable) spec.md R1.S4 to specify: in-process callers SHALL set `quorum_received` to the count of vendors with non-empty findings (or another concrete success criterion); `quorum_requested` SHALL be the count of vendors dispatched.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
-      "line_range": {
-        "start": 1,
-        "end": 35
-      },
+      "line_range": {"start": 210, "end": 220},
       "vendor": "claude_code"
     },
     {
-      "id": "claude-004",
+      "id": "claude-r2-002",
       "type": "spec_gap",
       "criticality": "medium",
-      "description": "R5 requires `convergence.fallback_recovered` and `convergence.fallback_failed` audit events but does not specify event ordering. If a single converge() call has both a synthesis failure AND a subsequent successful CLI fallback, only one event fires (recovered). But what if the audit emission for `recovered` partially fails (e.g., write succeeds but ack fails)? Could a stale agent retry and emit a duplicate? Idempotency is not specified.",
+      "description": "R3.S3 (synthesis_failed defaults to False on happy path) is testable only if a ConvergenceResult is constructed. But the design says when synthesis raises, the exception propagates and a result is NOT returned. So the only way `synthesis_failed=True` can be observed is if a caller wraps converge() in try/except and constructs their own partial result. Spec doesn't say which callers do this. The field is essentially documented but never set by converge() itself.",
       "disposition": "fix",
-      "resolution": "Add scenario to R5 stating: each converge() invocation SHALL emit at most one fallback event (recovered or failed, never both). Idempotency on retries is the audit transport's responsibility, not converge()'s.",
+      "resolution": "Either (a) drop `synthesis_failed` from the dataclass since converge() never sets it (callers that catch the exception know synthesis failed without a flag), OR (b) document at least one caller that constructs a partial ConvergenceResult and sets the flag, justifying the field's existence.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
-      "line_range": {
-        "start": 145,
-        "end": 175
-      },
+      "line_range": {"start": 88, "end": 110},
       "vendor": "claude_code"
     },
     {
-      "id": "claude-005",
-      "type": "correctness",
-      "criticality": "high",
-      "description": "Task 5.4 says: 'Skip fallback if the in-process exception is OSError/PermissionError from the checkpoint write itself.' But the task ordering puts the checkpoint write at task 4.2 (Phase 4) BEFORE the fallback wrapper at task 5.4 (Phase 5). If checkpoint writing fails, control never reaches synthesis (because the checkpoint write happens before synthesis). So the 'skip fallback on checkpoint write failure' guard is never reached \u2014 the flow already crashed at the checkpoint write. The guard is redundant.",
-      "disposition": "fix",
-      "resolution": "Remove the redundant 'skip fallback' guard from task 5.4, OR add a scenario clarifying the order: if the checkpoint write fails, converge() raises the OSError/PermissionError directly, BEFORE any synthesis attempt. Update R2.S4 (manifest write permission error) to explicitly say synthesis is never attempted.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
-      "line_range": {
-        "start": 95,
-        "end": 110
-      },
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-006",
-      "type": "contract_mismatch",
+      "id": "claude-r2-003",
+      "type": "observability",
       "criticality": "medium",
-      "description": "review-cache-layout.schema.json marks ALL of {schema_version, change_id, review_type, created_at, vendors, target, dispatches, quorum_requested, quorum_received} as required. But R1.S5 (in-process callers) says in-process callers don't have dispatch metadata. The schema requires `dispatches` to be present (an empty array is valid), but if a future in-process caller writes nothing for `dispatches`, the schema will reject the manifest. The contract and the spec are aligned, but the test in task 0.3 should verify both 'dispatches: []' AND 'absent dispatches key' cases.",
+      "description": "The audit event `convergence.synthesis_failed_with_checkpoint` is only emitted when synthesis fails WITH checkpoint present. If the checkpoint write itself fails (OSError/PermissionError before synthesis), there is NO audit event. Operators relying on `query_audit('convergence.synthesis_failed_with_checkpoint')` to detect chronic synthesis issues would miss the case where the system can't even checkpoint. This is a silent failure mode.",
       "disposition": "fix",
-      "resolution": "Either (a) make `dispatches` optional in the schema with default [], or (b) explicitly require in-process callers to write `dispatches: []` (already implied by R1.S5 but make it crisp). Update task 0.3 to test both shapes.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
-      "line_range": {
-        "start": 8,
-        "end": 25
-      },
+      "resolution": "Add a parallel audit event `convergence.checkpoint_write_failed` emitted when the checkpoint write raises before synthesis is attempted. Include `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`. Same best-effort emission pattern (audit failures don't mask the OSError).",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 117, "end": 145},
       "vendor": "claude_code"
     },
     {
-      "id": "claude-007",
+      "id": "claude-r2-004",
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "review-cache-layout.schema.json marks `dispatches`, `quorum_requested`, `quorum_received` as required AND `additionalProperties: false`. After this proposal lands, all manifests have these fields. But operators inspecting a manifest from BEFORE this proposal landed (e.g., archived `.review-cache/` from a prior run) would fail schema validation. The schema description says these manifests will be 'regenerated next time the dispatcher runs' but doesn't define what 'regenerated' means for an archived/read-only directory.",
+      "disposition": "accept",
+      "resolution": "Document in contracts/README.md that legacy manifests don't validate against schema_version=1 and operators wanting to inspect them should treat them as a separate (un-versioned) format. No code change needed; just clarify expectations.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
+      "line_range": {"start": 7, "end": 25},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-005",
       "type": "testability",
       "criticality": "low",
-      "description": "Phase 7 integration test (task 7.1) uses a 'controlled synthesis-time exception (e.g., feed line_range: \"10-20\" string)'. But the new finding.schema.json explicitly accepts both shapes. The integration test will pass schema validation (because the schema is permissive) but trigger the in-process synthesizer crash. This is intentional \u2014 but the test description should make it explicit so future maintainers don't tighten the schema and accidentally make the test fixture unreachable.",
+      "description": "Task 1.3 says 'grep for any caller that reads the manifest or globs the output dir.' But this is a one-time grep at implementation time, not a regression-detecting test. If someone adds a new caller post-merge that violates the manifest contract, nothing catches it. The shared manifest format is a coordination boundary; consumers SHOULD be enforced via fixture-based tests, not grep.",
       "disposition": "fix",
-      "resolution": "Update task 7.1 description to note: 'finding.schema.json deliberately accepts the malformed string shape; if the schema is later tightened (separate proposal), this fixture must be regenerated.'",
+      "resolution": "Add a test fixture in skills/tests/parallel-infrastructure/ that loads each known manifest consumer's reading code (or a representative subset) against synthetic manifests (CLI-shape, in-process-shape, both with empty dispatches). Run as part of wp-cli-migrate's verification.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
-      "line_range": {
-        "start": 130,
-        "end": 145
-      },
+      "line_range": {"start": 38, "end": 42},
       "vendor": "claude_code"
     },
     {
-      "id": "claude-008",
-      "type": "observability",
+      "id": "claude-r2-006",
+      "type": "spec_gap",
       "criticality": "low",
-      "description": "R5 requires `checkpoint_dir` in audit payload but does not require the path to be the SAME format (relative vs absolute) across `recovered` and `failed` events. If the implementation uses `Path.resolve()` for path-safety in R6 but writes the resolved path in one event and the unresolved path in another, querying audit by checkpoint_dir becomes inconsistent.",
+      "description": "Spec R5 (Path Safety) S2 rejects vendor names outside `[A-Za-z0-9_-]+`. But the existing dispatcher's vendor names include `gpt-5-codex` and `claude_code` — both compliant. Are there any vendor adapter configs in agents.yaml or elsewhere that emit names with periods, dots, or version qualifiers? The constraint should be verified against the actual vendor name set used in production, not just the development examples.",
       "disposition": "fix",
-      "resolution": "Add to R5 requirement paragraph: `checkpoint_dir` SHALL be the resolved absolute path (post-Path.resolve()) consistent across events for the same converge() invocation.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
-      "line_range": {
-        "start": 145,
-        "end": 160
-      },
+      "resolution": "Add a verification step to task 0.2 that grep's existing vendor names from the codebase (`agents.yaml`, vendor adapter configs) and asserts they all match the regex. If any don't, expand the regex to accept them OR document migration plan for non-compliant names.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {"start": 18, "end": 28},
       "vendor": "claude_code"
     }
   ]

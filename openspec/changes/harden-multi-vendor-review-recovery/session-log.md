@@ -135,3 +135,50 @@ Self-review surfaced two CRITICAL issues that would have broken implementation: 
 ### Context
 Major re-scope after multi-vendor PLAN_REVIEW (claude+codex+gemini) converged on a fundamental architectural flaw: the proposed CLI subprocess fallback uses the same Finding.from_dict() parser as the in-process path, so both paths fail identically on the motivating bug. Dropped automatic recovery (R3); reframed proposal as durable-checkpoint-plus-manual-recovery. Spec compressed from 6 requirements / 24 scenarios to 5 requirements / 17 scenarios. LOC estimate dropped from 1190 to 780. Contract schemas corrected (per-vendor file is wrapper object, not raw array). Helper relocated under parallel-infrastructure/ to fix dependency cycle.
 
+---
+
+## Phase: Plan Iteration 3 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Use Python logging.error() instead of nonexistent coordinator audit primitive** `architectural: multi-vendor-review` — Gemini round-2 finding #1 verified: try_emit_audit_event doesn't exist in coordination_bridge; POST /audit/log doesn't exist on the agent-coordinator API. Adding both would substantially expand scope. Python's logging module with structured payload (extra={...}) is sufficient for chronic-failure detection by log-aggregation tools.
+2. **Drop ConvergenceResult.synthesis_failed field** `architectural: multi-vendor-review` — Three-vendor consensus (codex r2 #4, gemini r2 #3, claude r2 #2) caught that the field is unreachable: when synthesis raises, the exception propagates and no ConvergenceResult is constructed. A boolean only set in a partial-result path none of our callers actually use was over-engineering driven by the original auto-recovery framing.
+3. **Make change_id optional in manifest schema** `architectural: multi-vendor-review` — Codex r2 #2 + gemini r2 #2 caught: the existing review_dispatcher.py CLI has no change_id concept (uses hardcoded target='cli-dispatch'). Adding a CLI argument expands scope; making the field optional in the schema lets the dispatcher continue working as-is while in-process callers populate it.
+4. **Fix criticality enum: blocking -> critical** `architectural: multi-vendor-review` — Codex r2 #1 caught and grep verified: existing review-findings.schema.json uses [low, medium, high, critical] and consensus_synthesizer.py's _higher_criticality() ranks accordingly. My finding.schema.json had [low, medium, high, blocking], which would have rejected every existing valid finding.
+5. **Helper centralizes wire-format envelope construction** `architectural: multi-vendor-review` — Gemini r2 #5 caught that ReviewOrchestrator returns raw findings, not the wrapper object. Putting envelope construction in checkpoint_findings.write_vendor_findings() rather than in callers keeps the wire-format contract centralized and prevents future callers from accidentally writing raw arrays (the original mistake my own findings file made).
+6. **Add convergence.checkpoint_write_failed log event for the silent-failure case** `architectural: multi-vendor-review` — My own claude-r2-003: if the checkpoint write itself fails (OSError before synthesis), there's no observability beyond the bare exception. Adding a second log event closes that gap symmetrically with the synthesis-failure case.
+
+### Alternatives Considered
+- Add try_emit_audit_event() and POST /audit/log endpoint as part of this proposal: rejected because Substantial scope expansion (Python helper + FastAPI endpoint + tests + DB schema for new event types). Out of proportion with the durability primitive's scope. File as a separate observability-infrastructure proposal if needed; this proposal uses Python logging, which is sufficient.
+- Keep synthesis_failed and define a custom exception that carries a partial ConvergenceResult: rejected because Adds Python machinery (custom exception class, attribute conventions) for minor benefit. The exception itself + caller-known artifacts_dir are sufficient to locate the checkpoint. Premature complexity.
+- Add --change-id argument to review_dispatcher.py CLI: rejected because Expands the dispatcher's CLI surface for a field that's only meaningful to in-process callers. Making the field optional is structurally cleaner: callers that have a change_id provide one; callers that don't, don't.
+
+### Trade-offs
+- Accepted Observability via Python logs, not coordinator audit table over Building a new audit-event endpoint and bridge function because Logs are queryable via standard tools (journalctl, loki, etc.). The coordinator's audit table is the right home for fine-grained operational events long-term, but adding a write endpoint expands scope. Logs first; audit endpoint as a follow-up if needed.
+- Accepted One observability field on ConvergenceResult, not two over Belt-and-suspenders flag for synthesis failure because The exception is a perfectly observable signal. A second flag was duplicate information for the failure path and noise on the success path.
+- Accepted Optional change_id in manifest schema over Mandatory change_id requiring CLI argument expansion because Tolerating null preserves the existing dispatcher's current behavior exactly. In-process callers always have a change_id and populate it; CLI callers don't and write null.
+
+### Open Questions
+- [ ] Should observability eventually move to coordinator audit events (current logs-only approach)? Track via a follow-up proposal if log-based detection proves insufficient in production. Likely needs a /audit/log endpoint + bridge function.
+- [ ] The criticality enum [low, medium, high, critical] differs from some other code paths' use of 'blocking'. This proposal aligns with the existing review-findings schema and synthesizer, which is the right reference. If a separate codepath uses 'blocking', that's a discrepancy worth investigating outside this proposal.
+
+### Completed Work
+- Fixed contracts/finding.schema.json: criticality enum [low, medium, high, critical] (was: blocking) — matches existing review-findings.schema.json and consensus_synthesizer.py rankings
+- Made change_id optional in contracts/review-cache-layout.schema.json: removed from required[]; type allows null; description explains CLI dispatcher writes null while in-process callers populate
+- Dropped ConvergenceResult.synthesis_failed field across spec.md, design.md, tasks.md, proposal.md (3-vendor consensus on unreachability)
+- Replaced 'audit event' framing with 'structured log entry' in spec.md R4: uses Python logging.error() with extra={} payload, NOT coordination_bridge.try_emit_audit_event() (which doesn't exist)
+- Added R4.S3 (separate convergence.checkpoint_write_failed log entry) for the silent-failure case where checkpoint write fails before synthesis attempt
+- Updated R1 to require helper to construct the wire-format envelope (review_type, target, reviewer_vendor wrapper) rather than expecting callers to pre-wrap
+- Added R1.S6 (quorum_received reflects actual successful vendors, not requested count) and R1.S7 (change_id optional for CLI)
+- Updated tasks.md task 0.2 to specify the helper signatures including envelope construction; added vendor-name regex verification step
+- Updated tasks.md task 3.2 to allow narrow try/except around synthesizer.synthesize() for the purpose of logging (not fallback/swallowing)
+- Updated tasks.md Phase 4 to use Python logging.error() — no coordinator dependency, no new bridge function
+- Rewrote contracts/README.md to remove all stale 'fallback' / 'subprocess' / 'fallback_recovered' / 'fallback_failed' references and reflect the new framing
+- Updated design.md D5: Python logging instead of coordinator audit. Updated component-interaction diagrams to show logger.error() instead of try_emit_audit_event()
+- Updated proposal.md What Changes section to drop synthesis_failed; added context on why structured logs instead of coordinator audit
+- Re-validated: openspec --strict passes, work-packages validates, JSON schemas parse
+
+### Context
+Round 2 of multi-vendor review (post-iteration-2) caught implementation-impossibility issues my self-review missed: a function that doesn't exist (try_emit_audit_event), an enum mismatch with existing data (criticality: blocking vs critical), an unreachable field (synthesis_failed), an unowned manifest field (change_id with no CLI source), stale README content, and missing helper-injection clarification. Fixed all of them. Notable simplification: replaced the nonexistent coordinator audit primitive with Python's standard logging module.
+

@@ -6,7 +6,6 @@
   "type": "object",
   "required": [
     "schema_version",
-    "change_id",
     "review_type",
     "created_at",
     "vendors",
@@ -23,9 +22,8 @@
       "description": "Layout version. Readers MUST refuse unknown versions. Bump triggers a schema migration."
     },
     "change_id": {
-      "type": "string",
-      "minLength": 1,
-      "description": "OpenSpec change-id this checkpoint belongs to."
+      "type": ["string", "null"],
+      "description": "OpenSpec change-id this checkpoint belongs to. OPTIONAL because the existing review_dispatcher.py CLI has no change_id concept (it uses `target` for generic feature/package identifiers). In-process callers SHALL populate this field; CLI callers MAY omit or pass null."
     },
     "review_type": {
       "type": "string",
