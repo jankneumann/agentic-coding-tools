@@ -23,6 +23,24 @@
 # whose archetypes list includes "architect". Agents with no archetypes
 # field (or an empty list) are backward-compatible and can claim any task.
 
+# vendor_diversity policy: when a worker (implementer) and a validator (reviewer
+# or behavioral validator) are dispatched to the same OpenSpec change, the
+# dispatcher selects them from different vendors. This avoids shared
+# training-data biases between the agent that wrote the code and the agent that
+# reviews it — a validator with the same training distribution is more likely
+# to confirm the worker's design choices than to challenge them.
+#
+# When only one vendor is available (single-vendor environment, or rate limits
+# exhausted alternatives), the dispatcher logs a warning and continues with the
+# single vendor (fallback: warn_and_continue). The policy can be disabled by
+# setting `enforce_for` to an empty list. Scope `per_change` means the
+# constraint applies across all packages within one OpenSpec change.
+policies:
+  vendor_diversity:
+    enforce_for: [worker_vs_validator]
+    fallback: warn_and_continue
+    scope: per_change
+
 agents:
   # ---------------------------------------------------------------------------
   # Claude Code
