@@ -188,7 +188,7 @@ packages:
 
   - package_id: wp-converge-checkpoint
     task_type: implement
-    description: "Add ConvergenceResult.checkpoint_dir + .synthesis_failed fields, in-process checkpoint write before synthesis, and audit event emission on synthesis failure. NO subprocess fallback — synthesis failures propagate to caller; the checkpoint enables manual recovery only."
+    description: "Add ConvergenceResult.checkpoint_dir field, in-process checkpoint write before synthesis, and structured ERROR-level log emission on synthesis failure (event: convergence.synthesis_failed_with_checkpoint) and on checkpoint write failure (event: convergence.checkpoint_write_failed). NO subprocess fallback, NO synthesis_failed field, NO coordinator audit endpoint dependency — synthesis failures propagate to caller; the checkpoint enables manual recovery only; logs via Python's standard logging module."
     role: infrastructure
     priority: 4
     timeout_minutes: 100
@@ -294,7 +294,7 @@ packages:
             result_keys: ["integration_test_passed"]
         - name: "Doc lint"
           kind: command
-          command: "skills/.venv/bin/python -c 'from pathlib import Path; doc = Path(\"docs/parallel-agentic-development.md\").read_text(); assert \"checkpoint_dir\" in doc and \"synthesis_failed\" in doc'"
+          command: "skills/.venv/bin/python -c 'from pathlib import Path; doc = Path(\"docs/parallel-agentic-development.md\").read_text(); assert \"checkpoint_dir\" in doc and \"convergence.synthesis_failed_with_checkpoint\" in doc'"
           evidence:
             artifacts:
               - "docs/parallel-agentic-development.md"

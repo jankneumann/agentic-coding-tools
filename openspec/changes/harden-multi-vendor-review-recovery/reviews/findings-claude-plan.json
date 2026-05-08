@@ -4,69 +4,47 @@
   "reviewer_vendor": "claude_code",
   "findings": [
     {
-      "id": "claude-r2-001",
-      "type": "spec_gap",
+      "id": "claude-r3-001",
+      "type": "testability",
       "criticality": "medium",
-      "description": "design.md:215 says in-process callers without dispatch metadata write 'quorum_requested: <N vendors>, quorum_received: <N vendors>' — but `quorum_received` should reflect actual SUCCESSFUL vendors, not the requested count. If 3 vendors were requested and 1 timed out, `quorum_received` should be 2, not 3. The current text would mislead operators reading the manifest.",
+      "description": "Spec R4.S1 says 'log entry whose message contains the literal `convergence.synthesis_failed_with_checkpoint`'. This is fragile to log-message-formatter changes (e.g., a logging.Formatter that mangles the message). A more durable test contract is to assert on the structured payload's `event` key (e.g., extra={'event': 'convergence.synthesis_failed_with_checkpoint', ...}) rather than scanning message text.",
       "disposition": "fix",
-      "resolution": "Update design.md and (if applicable) spec.md R1.S4 to specify: in-process callers SHALL set `quorum_received` to the count of vendors with non-empty findings (or another concrete success criterion); `quorum_requested` SHALL be the count of vendors dispatched.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
-      "line_range": {"start": 210, "end": 220},
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-r2-002",
-      "type": "spec_gap",
-      "criticality": "medium",
-      "description": "R3.S3 (synthesis_failed defaults to False on happy path) is testable only if a ConvergenceResult is constructed. But the design says when synthesis raises, the exception propagates and a result is NOT returned. So the only way `synthesis_failed=True` can be observed is if a caller wraps converge() in try/except and constructs their own partial result. Spec doesn't say which callers do this. The field is essentially documented but never set by converge() itself.",
-      "disposition": "fix",
-      "resolution": "Either (a) drop `synthesis_failed` from the dataclass since converge() never sets it (callers that catch the exception know synthesis failed without a flag), OR (b) document at least one caller that constructs a partial ConvergenceResult and sets the flag, justifying the field's existence.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
-      "line_range": {"start": 88, "end": 110},
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-r2-003",
-      "type": "observability",
-      "criticality": "medium",
-      "description": "The audit event `convergence.synthesis_failed_with_checkpoint` is only emitted when synthesis fails WITH checkpoint present. If the checkpoint write itself fails (OSError/PermissionError before synthesis), there is NO audit event. Operators relying on `query_audit('convergence.synthesis_failed_with_checkpoint')` to detect chronic synthesis issues would miss the case where the system can't even checkpoint. This is a silent failure mode.",
-      "disposition": "fix",
-      "resolution": "Add a parallel audit event `convergence.checkpoint_write_failed` emitted when the checkpoint write raises before synthesis is attempted. Include `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`. Same best-effort emission pattern (audit failures don't mask the OSError).",
+      "resolution": "Update the spec to require an `event` key in the structured `extra={}` payload set to a stable string identifier, and assert on that key in tests rather than message-text scanning. The literal string can still appear in the message for human readability, but the test contract is the structured key.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
       "line_range": {"start": 117, "end": 145},
       "vendor": "claude_code"
     },
     {
-      "id": "claude-r2-004",
-      "type": "compatibility",
-      "criticality": "low",
-      "description": "review-cache-layout.schema.json marks `dispatches`, `quorum_requested`, `quorum_received` as required AND `additionalProperties: false`. After this proposal lands, all manifests have these fields. But operators inspecting a manifest from BEFORE this proposal landed (e.g., archived `.review-cache/` from a prior run) would fail schema validation. The schema description says these manifests will be 'regenerated next time the dispatcher runs' but doesn't define what 'regenerated' means for an archived/read-only directory.",
-      "disposition": "accept",
-      "resolution": "Document in contracts/README.md that legacy manifests don't validate against schema_version=1 and operators wanting to inspect them should treat them as a separate (un-versioned) format. No code change needed; just clarify expectations.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
-      "line_range": {"start": 7, "end": 25},
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-r2-005",
-      "type": "testability",
-      "criticality": "low",
-      "description": "Task 1.3 says 'grep for any caller that reads the manifest or globs the output dir.' But this is a one-time grep at implementation time, not a regression-detecting test. If someone adds a new caller post-merge that violates the manifest contract, nothing catches it. The shared manifest format is a coordination boundary; consumers SHOULD be enforced via fixture-based tests, not grep.",
-      "disposition": "fix",
-      "resolution": "Add a test fixture in skills/tests/parallel-infrastructure/ that loads each known manifest consumer's reading code (or a representative subset) against synthetic manifests (CLI-shape, in-process-shape, both with empty dispatches). Run as part of wp-cli-migrate's verification.",
-      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
-      "line_range": {"start": 38, "end": 42},
-      "vendor": "claude_code"
-    },
-    {
-      "id": "claude-r2-006",
+      "id": "claude-r3-002",
       "type": "spec_gap",
       "criticality": "low",
-      "description": "Spec R5 (Path Safety) S2 rejects vendor names outside `[A-Za-z0-9_-]+`. But the existing dispatcher's vendor names include `gpt-5-codex` and `claude_code` — both compliant. Are there any vendor adapter configs in agents.yaml or elsewhere that emit names with periods, dots, or version qualifiers? The constraint should be verified against the actual vendor name set used in production, not just the development examples.",
+      "description": "Task 5.1 references 'skill-workflow.R4.S1 (audit emitted)' but R4.S1 was renamed to 'synthesis failure emits log entry' in iteration 3 (no longer audit). The reference is correct (R4.S1 still exists with new wording), but the task's parenthetical description is stale.",
       "disposition": "fix",
-      "resolution": "Add a verification step to task 0.2 that grep's existing vendor names from the codebase (`agents.yaml`, vendor adapter configs) and asserts they all match the regex. If any don't, expand the regex to accept them OR document migration plan for non-compliant names.",
+      "resolution": "Update task 5.1 description: skill-workflow.R4.S1 (synthesis failure log entry emitted), not 'audit emitted'.",
       "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
-      "line_range": {"start": 18, "end": 28},
+      "line_range": {"start": 75, "end": 75},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r3-003",
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Path safety regex `[A-Za-z0-9_-]+` for vendor names was verified compliant with current vendor names (claude_code, gpt-5-codex, gemini). But it would reject names with periods (e.g., 'claude.opus-4.7'), version qualifiers ('claude-3.7-sonnet@v2'), or namespaces ('anthropic/claude-3'). Such names are common in vendor configs and may appear in future. The regex is defensive but possibly TOO defensive.",
+      "disposition": "accept",
+      "resolution": "Document the trade-off in design.md D6: the regex prioritizes filename safety over name expressiveness; if future vendor names need periods or @-tags, expand the regex (period and @ are filesystem-safe, but `:`, `/`, `\\`, NUL, leading `..` are not).",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+      "line_range": {"start": 96, "end": 110},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r3-004",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "R1.S5 (atomic manifest write) covers the manifest with parent-dir fsync, but R1.S1 (round-trip preserves vendor findings) doesn't explicitly require per-vendor finding files to be written atomically too. Tasks.md task 0.2 says both use atomic-rename, but the spec only mandates it for the manifest.",
+      "disposition": "fix",
+      "resolution": "Update R1 (the requirement statement before scenarios) to require atomic-rename + parent-dir fsync for BOTH per-vendor finding files AND the manifest. Or add a new scenario R1.S{N}: 'Per-vendor finding-file write is atomic'.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 22, "end": 35},
       "vendor": "claude_code"
     }
   ]

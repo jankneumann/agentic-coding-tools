@@ -34,7 +34,7 @@ What this proposal explicitly does NOT deliver (Non-goals, deferred to follow-up
 - **MODIFIED**: `ConvergenceResult` dataclass — gains `checkpoint_dir: Path | None` (set when checkpoint was written successfully). Defaults preserve backward compatibility for existing consumers. (An earlier draft also added `synthesis_failed: bool`; round 2 review pruned it as unreachable — the Python exception is already an observable signal that synthesis failed.)
 - **MODIFIED**: `skills/parallel-infrastructure/scripts/review_dispatcher.py` — `write_manifest()` calls the shared helper. Per-vendor finding-file writes also route through the helper. **Behavior change**: the manifest gains new fields (`schema_version`, `change_id`, `created_at`, `vendors[]`) while preserving all existing fields (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`). Per-vendor files preserve their existing wrapper shape (`{review_type, target, reviewer_vendor, findings: [...]}`). **No artifact relocation** — files stay where the dispatcher already writes them; the manifest format becomes a strict superset.
 - **NEW SPEC**: `skill-workflow` capability gains 4 ADDED requirements: checkpoint layout, in-process checkpointing, observability fields, and path safety. Plus 1 requirement for audit emission of synthesis-failure-with-checkpoint events.
-- **NEW TESTS**: Round-trip tests for `checkpoint_findings.py`, integration test that injects a synthesis-time exception and asserts the checkpoint files survive on disk and `ConvergenceResult.synthesis_failed=True`.
+- **NEW TESTS**: Round-trip tests for `checkpoint_findings.py`, integration test that injects a synthesis-time exception and asserts (a) the original exception propagates, (b) the checkpoint files survive on disk, (c) the `convergence.synthesis_failed_with_checkpoint` log entry was emitted with the correct structured payload.
 
 ### Selected Approach
 
@@ -83,7 +83,7 @@ The original Approach 1 was "auto-fallback to CLI subprocess." Multi-vendor PLAN
   - Checkpoint location: `<artifacts_dir>/.review-cache/` for in-process callers; CLI dispatcher continues writing directly under `--output-dir` (no relocation, just routing through the shared helper for the manifest format).
   - Manifest format: superset of existing; old fields preserved.
   - Per-vendor finding files: existing wrapper-object shape (`{review_type, target, reviewer_vendor, findings: [...]}`) preserved.
-  - On synthesis failure with checkpoint present: original exception propagates to caller; `ConvergenceResult.synthesis_failed=True` if any partial result is constructed; audit event records the failure with checkpoint path.
+  - On synthesis failure with checkpoint present: original exception propagates to caller; structured ERROR-level log entry (`convergence.synthesis_failed_with_checkpoint`) records the failure with checkpoint path.
 - **Backwards compatibility**: existing `ConvergenceResult` consumers continue to work (new fields default to `None`/`False`). Existing CLI consumers reading the manifest continue to work (every existing field is preserved). No artifact paths move.
 - **Non-goals** (out of scope for this change):
   - Fix for `consensus_synthesizer.py:59` `line_range` type bug — separate Post-Merge Action proposal.
@@ -106,4 +106,4 @@ These are not tasks of this proposal:
 ## Open Questions
 
 - **Q1**: Should the checkpoint directory survive `/cleanup-feature` for forensic value, or be deleted along with other artifacts? Default plan: delete (matches existing review artifact lifecycle). This proposal does NOT add a SHALL requirement for cleanup deletion (such a requirement would have no implementation owner here — `/cleanup-feature` would need its own task). If retention is desired, file a follow-up.
-- **Q2**: Will the dormant `harness-engineering-features` proposal's planned `ConvergenceResult` shape changes conflict with our `checkpoint_dir` / `synthesis_failed` additions when it resumes? Mitigation: planning-time lock keys make contention visible. Merge order resolves.
+- **Q2**: Will the dormant `harness-engineering-features` proposal's planned `ConvergenceResult` shape changes conflict with our `checkpoint_dir` field when it resumes? Mitigation: planning-time lock keys make contention visible. Merge order resolves.
