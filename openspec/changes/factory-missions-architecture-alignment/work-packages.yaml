@@ -1,0 +1,621 @@
+schema_version: 1
+
+feature:
+  id: factory-missions-architecture-alignment
+  title: "Factory Missions Architecture Alignment — vocabulary, validator unification, vendor diversity, frontend validator"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # No OpenAPI surface in this change. README is the contracts entrypoint per repo convention.
+    primary: "openspec/changes/factory-missions-architecture-alignment/contracts/README.md"
+    files:
+      - "openspec/changes/factory-missions-architecture-alignment/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — schema deltas, new contract files (root of DAG)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — schema deltas and new contract files"
+    task_type: contracts
+    description: |
+      Add `behavioral_failure` to review-findings.schema.json type enum.
+      Add new contract files: frontend-descriptor.schema.json, agents-policy-schema.json, gen-eval-cli.md, findings-vendor-source.md.
+      Establishes the coordination boundary for all downstream work packages.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/review-findings.schema.json"
+      keys:
+        - "contract:findings-schema"
+        - "contract:frontend-descriptor"
+        - "contract:agents-policy"
+        - "contract:gen-eval-cli"
+        - "contract:findings-vendor-source"
+      ttl_minutes: 60
+      reason: "Schema and contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/changes/factory-missions-architecture-alignment/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: factory-missions-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema files validate as JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(f))) for f in [\"openspec/schemas/review-findings.schema.json\", \"openspec/changes/factory-missions-architecture-alignment/contracts/frontend-descriptor.schema.json\", \"openspec/changes/factory-missions-architecture-alignment/contracts/agents-policy-schema.json\"]]'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "schemas_valid"
+    metadata:
+      loc_estimate: 200
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "schemas_valid"
+      artifacts:
+        - "openspec/changes/factory-missions-architecture-alignment/contracts/README.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp1-readme-attention — README rewrite (DOCS, parallel-safe)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp1-readme-attention
+    title: "WP1 — README opener with attention-bottleneck framing and Three-Roles section"
+    task_type: docs
+    description: |
+      Rewrite README.md opener to lead with the attention-bottleneck framing.
+      Add a top-level "Three Roles: Orchestrator / Workers / Validators" section before the Projects list.
+      Map every user-invocable skill in skills/ onto exactly one role.
+    role: docs-writer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "README.md"
+      keys:
+        - "feature:factory-missions-readme:docs"
+      ttl_minutes: 60
+      reason: "README opener rewrite"
+    scope:
+      write_allow:
+        - "README.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: factory-missions-wp1
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "README content assertions"
+          kind: command
+          command: "grep -q 'human attention' README.md && grep -qE '^##? .*Three Roles' README.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "readme_assertions_pass"
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "readme_assertions_pass"
+      artifacts:
+        - "README.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp2-docs-vocabulary — additive doc sections (DOCS, parallel-safe)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp2-docs-vocabulary
+    title: "WP2 — Five-Tier taxonomy, Scope-Isolated Parallelism, Mission glossary, Self-Healing reframing"
+    task_type: docs
+    description: |
+      Add (additive only — no edits to existing sections):
+      - Five-Tier Multi-Agent Taxonomy section to docs/parallel-agentic-development.md
+      - Scope-Isolated Parallelism named pattern that engages the Factory Missions talk's diagnosis
+      - Mission glossary entry to docs/skills-workflow.md
+      - Self-Healing at Milestone Boundaries heading to docs/lessons-learned.md (cross-references existing escalation_handler.py docs)
+    role: docs-writer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "docs/parallel-agentic-development.md"
+        - "docs/lessons-learned.md"
+        - "docs/skills-workflow.md"
+      keys:
+        - "feature:factory-missions-parallel-dev:docs"
+        - "feature:factory-missions-lessons:docs"
+        - "feature:factory-missions-skills-workflow:docs"
+      ttl_minutes: 60
+      reason: "Additive doc sections for vocabulary alignment"
+    scope:
+      write_allow:
+        - "docs/parallel-agentic-development.md"
+        - "docs/lessons-learned.md"
+        - "docs/skills-workflow.md"
+      read_allow:
+        - "**"
+      deny:
+        - "README.md"
+    worktree:
+      name: factory-missions-wp2
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Doc-content assertions"
+          kind: command
+          command: "grep -qE 'Five-Tier' docs/parallel-agentic-development.md && grep -q 'Scope-Isolated Parallelism' docs/parallel-agentic-development.md && grep -q 'Self-Healing at Milestone Boundaries' docs/lessons-learned.md && grep -qE '^.*Mission' docs/skills-workflow.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "docs_assertions_pass"
+    metadata:
+      loc_estimate: 200
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "docs_assertions_pass"
+      artifacts:
+        - "docs/parallel-agentic-development.md"
+        - "docs/lessons-learned.md"
+        - "docs/skills-workflow.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp3-gen-eval-openspec-seeds — gen-eval --openspec-change flag
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp3-gen-eval-openspec-seeds
+    title: "WP3 — gen-eval ingests OpenSpec scenarios as cli-augmented constraints"
+    task_type: feature
+    description: |
+      Add --openspec-change <id> flag to gen-eval. Walks openspec/changes/<id>/specs/**/*.md, parses Requirement+Scenario blocks, passes as constraints to cli-augmented prompt.
+      Generated Scenario Pydantic objects gain source.openspec_scenario field referencing originating spec file:line.
+      Update skills/gen-eval/SKILL.md.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/evaluation/gen_eval/__main__.py"
+      keys:
+        - "feature:factory-missions-gen-eval-openspec:code"
+      ttl_minutes: 90
+      reason: "gen-eval generator extension for OpenSpec seeding"
+    scope:
+      write_allow:
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "skills/gen-eval/SKILL.md"
+        - "agent-coordinator/tests/test_evaluation/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/validate-feature/**"
+        - "skills/parallel-infrastructure/**"
+    worktree:
+      name: factory-missions-wp3
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "gen-eval unit + integration tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_evaluation/test_gen_eval/ -v -k openspec"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "gen_eval_openspec_tests_passed"
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "gen_eval_openspec_tests_passed"
+      artifacts:
+        - "agent-coordinator/evaluation/gen_eval/openspec_seed.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp4-validate-gen-eval-extend — extend existing template-only handler
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp4-validate-gen-eval-extend
+    title: "WP4 — Extend validate-feature gen-eval phase with cli-augmented mode selection"
+    task_type: feature
+    description: |
+      Modify skills/validate-feature/SKILL.md lines 260-307 to wrap the existing template-only invocation in a mode-selection conditional.
+      When descriptor + OpenSpec change directory both exist → cli-augmented + --openspec-change.
+      Otherwise → existing template-only fallback (unchanged code path).
+      Preserves non-blocking semantics.
+    role: skill-author
+    priority: 4
+    depends_on: [wp3-gen-eval-openspec-seeds]
+    locks:
+      files:
+        - "skills/validate-feature/SKILL.md"
+      keys:
+        - "feature:factory-missions-validate-gen-eval:code"
+      ttl_minutes: 60
+      reason: "validate-feature gen-eval phase extension"
+    scope:
+      write_allow:
+        - "skills/validate-feature/SKILL.md"
+        - "skills/validate-feature/tests/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/evaluation/**"
+    worktree:
+      name: factory-missions-wp4
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "validate-feature gen-eval mode-selection integration test"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-feature/ -v -k gen_eval"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "validate_feature_gen_eval_tests_passed"
+    metadata:
+      loc_estimate: 100
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "validate_feature_gen_eval_tests_passed"
+      artifacts:
+        - "skills/validate-feature/SKILL.md"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp5-consensus-gen-eval — gen-eval as vendor source in consensus synthesis
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp5-consensus-gen-eval
+    title: "WP5 — gen-eval emits findings-gen-eval.json; consensus synthesizer merges as vendor source"
+    task_type: feature
+    description: |
+      Implement findings-gen-eval.json emitter in gen-eval (using behavioral_failure type from updated schema).
+      Extend consensus_synthesizer.py (lines 200-258, additive only — no edits to existing reviewer-finding merge logic) to discover and merge findings-gen-eval.json as a vendor source.
+      Findings sourced from OpenSpec scenarios reference originating spec file:line.
+    role: backend-implementer
+    priority: 4
+    depends_on: [wp4-validate-gen-eval-extend]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+      keys:
+        - "feature:factory-missions-consensus:code"
+      ttl_minutes: 90
+      reason: "consensus synthesizer extension and gen-eval findings emitter"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/tests/test_consensus_synthesizer*.py"
+        - "agent-coordinator/evaluation/gen_eval/findings_emitter.py"
+        - "agent-coordinator/evaluation/gen_eval/__main__.py"
+        - "agent-coordinator/tests/test_evaluation/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/validate-feature/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+    worktree:
+      name: factory-missions-wp5
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "consensus synthesizer + gen-eval findings tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/ -v -k consensus && agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_evaluation/ -v -k findings"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "consensus_gen_eval_tests_passed"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "consensus_gen_eval_tests_passed"
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "agent-coordinator/evaluation/gen_eval/findings_emitter.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp6-worker-vendor-rotation — vendor diversity policy (CONFIG, parallel-safe)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp6-worker-vendor-rotation
+    title: "WP6 — Worker-validator vendor-diversity policy"
+    task_type: feature
+    description: |
+      Add policies.vendor_diversity block to agents.yaml (default enforce_for: [worker_vs_validator], fallback: warn_and_continue).
+      Implement vendor-exclusion logic in review_dispatcher.py extending the existing exclude_vendor pattern.
+      Track worker vendor in change-session state so validator selection excludes it.
+      Fallback gracefully (warn-and-continue) when only one vendor is available.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:factory-missions-vendor-diversity:code"
+      ttl_minutes: 90
+      reason: "Vendor-diversity policy and dispatcher logic"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/tests/test_review_dispatcher*.py"
+        - "skills/parallel-infrastructure/tests/test_vendor_diversity*.py"
+        - "skills/implement-feature/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "agent-coordinator/evaluation/**"
+        - "docs/skills-workflow.md"
+    worktree:
+      name: factory-missions-wp6
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Vendor diversity dispatcher tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/ -v -k vendor_diversity"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "vendor_diversity_tests_passed"
+        - name: "agents.yaml validates against policy schema"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; schema = json.load(open(\"openspec/changes/factory-missions-architecture-alignment/contracts/agents-policy-schema.json\")); doc = yaml.safe_load(open(\"agent-coordinator/agents.yaml\")); jsonschema.validate(instance={\"policies\": doc.get(\"policies\", {})}, schema=schema)'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "agents_yaml_policy_valid"
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "vendor_diversity_tests_passed"
+        - "agents_yaml_policy_valid"
+      artifacts:
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp7-playwright-validator — frontend behavioral validator
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp7-playwright-validator
+    title: "WP7 — Playwright-CLI behavioral validator with sample frontend"
+    task_type: feature
+    description: |
+      Create skills/playwright-validator/ peer skill. Generates Playwright test scripts from OpenSpec scenarios + frontend descriptor (base_url, auth_flow, selectors, browsers).
+      Executes via npx playwright test --reporter=json. Emits findings-gen-eval.json (or findings-playwright.json) conforming to schema.
+      Includes sample frontend (static HTML at evaluation/gen_eval/fixtures/sample-frontend/) + sample descriptor + sample OpenSpec scenarios as end-to-end design validation.
+      Hooks into validate-feature --phase gen-eval to dispatch when frontend descriptor detected.
+    role: backend-implementer
+    priority: 5
+    depends_on: [wp5-consensus-gen-eval]
+    locks:
+      files:
+        - "skills/playwright-validator/SKILL.md"
+      keys:
+        - "feature:factory-missions-playwright:code"
+      ttl_minutes: 180
+      reason: "New peer skill + sample frontend infrastructure"
+    scope:
+      write_allow:
+        - "skills/playwright-validator/**"
+        - "evaluation/gen_eval/fixtures/sample-frontend/**"
+        - "evaluation/gen_eval/descriptors/sample-frontend.yaml"
+        - "agent-coordinator/evaluation/gen_eval/playwright/**"
+        - "skills/tests/playwright-validator/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/validate-feature/SKILL.md"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "agent-coordinator/agents.yaml"
+    worktree:
+      name: factory-missions-wp7
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Playwright validator unit + integration tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/playwright-validator/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "playwright_validator_tests_passed"
+        - name: "Sample frontend descriptor validates against schema"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; schema = json.load(open(\"openspec/changes/factory-missions-architecture-alignment/contracts/frontend-descriptor.schema.json\")); doc = yaml.safe_load(open(\"evaluation/gen_eval/descriptors/sample-frontend.yaml\")); jsonschema.validate(instance=doc, schema=schema)'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "sample_frontend_descriptor_valid"
+        - name: "Sample frontend Playwright run produces schema-valid findings"
+          kind: command
+          command: "bash skills/playwright-validator/scripts/run_sample.sh"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "skills/playwright-validator/test-results/findings-playwright.json"
+            result_keys:
+              - "sample_frontend_playwright_pass"
+    metadata:
+      loc_estimate: 800
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "playwright_validator_tests_passed"
+        - "sample_frontend_descriptor_valid"
+        - "sample_frontend_playwright_pass"
+      artifacts:
+        - "skills/playwright-validator/SKILL.md"
+        - "evaluation/gen_eval/fixtures/sample-frontend/index.html"
+        - "evaluation/gen_eval/descriptors/sample-frontend.yaml"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge worktrees and full end-to-end validation
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge worktrees and run validate-feature end-to-end"
+    task_type: integration
+    description: |
+      Merge per-package worktrees into the feature branch.
+      Run openspec validate --strict; full validate-feature pipeline against the sample frontend; consensus-synthesizer end-to-end on synthetic findings; rebase-test of harness-engineering-features open commits.
+    role: integrator
+    priority: 6
+    depends_on:
+      - wp1-readme-attention
+      - wp2-docs-vocabulary
+      - wp3-gen-eval-openspec-seeds
+      - wp4-validate-gen-eval-extend
+      - wp5-consensus-gen-eval
+      - wp6-worker-vendor-rotation
+      - wp7-playwright-validator
+    locks:
+      files: []
+      keys:
+        - "feature:factory-missions:integration"
+      ttl_minutes: 120
+      reason: "Integration merge and validation"
+    scope:
+      write_allow:
+        - "openspec/changes/factory-missions-architecture-alignment/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: factory-missions-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "openspec strict validation"
+          kind: command
+          command: "openspec validate factory-missions-architecture-alignment --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_pass"
+        - name: "validate-feature end-to-end on sample frontend"
+          kind: command
+          command: "bash skills/validate-feature/scripts/run.sh factory-missions-architecture-alignment --phase gen-eval"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "validate_feature_e2e_pass"
+        - name: "harness-engineering-features rebase test"
+          kind: command
+          command: "bash skills/.venv/bin/python -c 'print(\"manual: cherry-pick harness-engineering-features open commits onto current HEAD; verify no conflicts in docs/lessons-learned.md, docs/parallel-agentic-development.md, consensus_synthesizer.py, validate-feature/SKILL.md\")'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "rebase_test_pass"
+    metadata:
+      loc_estimate: 50
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "openspec_strict_pass"
+        - "validate_feature_e2e_pass"
+        - "rebase_test_pass"
+      artifacts: []

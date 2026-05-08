@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openspec.local/contracts/agents-policy-schema.json",
+  "title": "agents.yaml policies block schema",
+  "description": "Schema fragment for the new top-level `policies` block in agent-coordinator/agents.yaml. Validates the worker-validator vendor-diversity policy. Other policy types may be added under this block in future changes.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vendor_diversity": {
+          "type": "object",
+          "description": "Constrains which vendors may be selected for which roles within a single OpenSpec change session.",
+          "additionalProperties": false,
+          "required": ["enforce_for", "fallback"],
+          "properties": {
+            "enforce_for": {
+              "type": "array",
+              "description": "Role pairs subject to the constraint. Empty array disables the policy.",
+              "items": {
+                "type": "string",
+                "enum": ["worker_vs_validator"]
+              },
+              "uniqueItems": true,
+              "default": ["worker_vs_validator"]
+            },
+            "fallback": {
+              "type": "string",
+              "description": "How the dispatcher behaves when the policy cannot be satisfied (e.g., only one vendor available). 'warn_and_continue' is the default; 'block' is reserved for future strict-policy modes.",
+              "enum": ["warn_and_continue", "block"],
+              "default": "warn_and_continue"
+            },
+            "scope": {
+              "type": "string",
+              "description": "Granularity at which the policy is enforced. 'per_change' (default) means the constraint applies across all packages within one OpenSpec change. 'per_package' would enforce within each work package only.",
+              "enum": ["per_change", "per_package"],
+              "default": "per_change"
+            }
+          }
+        }
+      }
+    }
+  }
+}
