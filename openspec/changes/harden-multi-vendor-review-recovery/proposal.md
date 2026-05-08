@@ -7,111 +7,103 @@ The multi-vendor review/converge loop has two divergent execution paths:
 1. **In-process API** — `converge()` in `skills/autopilot/scripts/convergence_loop.py:177` orchestrates dispatch, synthesis, and iterative fix application all within a single Python process. Per-vendor findings live only in memory across the dispatch → synthesize boundary.
 2. **CLI dispatcher** — `skills/parallel-infrastructure/scripts/review_dispatcher.py` writes each vendor's findings to disk (`<output_dir>/findings-{vendor}-{review_type}.json`) **before** `consensus_synthesizer.py` reads them. The two stages are decoupled by a serialization boundary.
 
-This asymmetry causes a real failure mode: when synthesis crashes on a malformed input from one vendor (e.g., the latent `consensus_synthesizer.py:59` `line_range` type bug — string instead of dict), the **CLI loses nothing** because every vendor's output is already on disk. The synthesis failure becomes a recoverable state — operators can manually re-run synthesis, swap synthesizers, or hand-edit one vendor's file. The **in-process API loses everything** — minutes of multi-vendor review work vanish with the exception, because the in-memory findings are never materialized.
+This asymmetry causes a real failure mode: when synthesis crashes on a malformed input from one vendor (e.g., the latent `consensus_synthesizer.py:59` `line_range` shape bug — string instead of dict), the **CLI loses nothing** because every vendor's output is already on disk. The synthesis failure becomes a recoverable state — operators can manually re-run synthesis after fixing the underlying bug, swap synthesizers, or hand-edit one vendor's file. The **in-process API loses everything** — minutes of multi-vendor review work vanish with the exception, because the in-memory findings are never materialized.
 
-The pattern observed during the original incident: when `converge()` failed, the recovery was to re-run the same logic via the CLI of the dispatcher. That worked because the CLI's own per-vendor checkpointing happened to land the data on disk before the same crash recurred.
+The pattern observed during the original incident: when `converge()` failed, the recovery was to re-run the same logic via the CLI of the dispatcher. That worked because the CLI's per-vendor checkpointing happened to land the data on disk before the same crash recurred — and a human operator stepped in to drive the re-run.
 
-We should make this recovery first-class instead of accidental:
+We should make the **durable checkpoint** first-class instead of accidental. We will NOT attempt automatic recovery in this proposal because the bugs that cause synthesis failure (like the `line_range` shape mismatch) live in `Finding.from_dict()` — a parser that runs in BOTH the in-process synthesizer AND any CLI subprocess invoking the same module. An auto-fallback to the CLI would re-execute the same buggy code from a subprocess and fail identically. Multi-vendor review of an earlier draft of this proposal converged on this point unanimously.
 
-- The in-process API should checkpoint vendor findings to the same on-disk layout the CLI uses, so a synthesis failure leaves a forensically useful state.
-- On synthesis failure, `converge()` should automatically fall back to invoking the synthesizer CLI as a subprocess against those checkpointed files. The CLI is the more conservative, file-based path; using it as recovery converts a hard crash into a degraded-but-successful path.
-- The recovery SHALL be observable — callers must be able to tell whether the fallback fired so chronic primary-path failures don't go undetected.
+What this proposal DOES deliver:
 
-This is structurally identical to the `coordination-bridge` pattern already used in this codebase: primary path (MCP transport) → fallback path (HTTP) → uniform result envelope. We mirror that convention here.
+- The in-process API checkpoints vendor findings to disk **before** synthesis runs, using the same on-disk layout the CLI dispatcher already uses.
+- When synthesis crashes, the checkpoint survives. An operator can manually re-run `consensus_synthesizer.py` against the checkpoint after diagnosing or fixing the underlying issue.
+- `ConvergenceResult` gains observability fields so callers can detect that synthesis failed and a manual recovery is needed.
+- Audit events fire when synthesis crashes with checkpoints in place, so chronic synthesis failures surface in `query_audit` even if no human notices the immediate exception.
+- Path-safety guards on caller-supplied `artifacts_dir` and vendor names prevent symlink injection and path traversal.
 
-The latent `line_range` type bug at `consensus_synthesizer.py:59` triggered our investigation but is **out of scope for this proposal**. It will be filed as a separate narrow bug fix once this systemic recovery proposal lands. The recovery mechanism here protects against that bug *and* future bugs of the same shape.
+What this proposal explicitly does NOT deliver (Non-goals, deferred to follow-up proposals):
+
+- **Automatic recovery from synthesis failures.** A separate, narrower proposal will fix `consensus_synthesizer.py:59` `line_range` parsing. Once the deterministic bugs are gone, a third proposal MAY layer automatic recovery on top of the durable checkpoint this proposal provides.
+- **Subprocess fallback to the synthesizer CLI.** Same reason — it doesn't escape the shared parser.
+- **Schema tightening on `finding.schema.json`.** We document the wire format as it is today (permissive on `line_range`); the bug-fix proposal will tighten it.
 
 ## What Changes
 
-- **MODIFIED**: `skills/autopilot/scripts/convergence_loop.py` — `converge()` gains:
-  - **Checkpointing step**: After `orchestrator.dispatch_and_wait()` returns and before `synthesizer.synthesize()` runs, materialize per-vendor findings to `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` and write a `review-manifest.json`. Reuses the exact filename pattern and manifest format produced by `review_dispatcher.py` so the CLI can read the cache without translation.
-  - **CLI fallback**: Wrap `synthesizer.synthesize()` in a try/except. On any synthesis exception, invoke `consensus_synthesizer.py` as a subprocess pointed at the checkpoint directory, parse its consensus report, and return that. If the CLI also fails, raise the original synthesis exception (preserving the primary diagnosis).
-  - **Observable result**: `ConvergenceResult` gains two fields — `recovered_via_fallback: bool` (default `False`) and `fallback_diagnostics: dict | None` (containing the original exception class/message and the CLI subprocess stderr tail when fallback fired). Audit log entries are emitted when fallback succeeds AND when it fails.
-- **MODIFIED**: `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — (a) extract a `load_findings_from_dir(path: Path) -> dict[str, list[ReviewFinding]]` helper (vendor-keyed dict, not flat list — consensus needs to know each finding's source vendor), reused by tests and by future native callers; (b) add a new `--findings-dir <path>` argument to `main()` as an alternative to the existing `--findings <file1>...` mode. The directory mode reads the new `review-manifest.json` to enumerate per-vendor files. The existing `--findings <file1>...` mode is preserved for backward compatibility.
-- **MODIFIED**: `skills/autopilot/scripts/convergence_loop.py` and the `ConvergenceResult` dataclass — add result-shape changes described above.
-- **NEW**: `skills/autopilot/scripts/checkpoint_findings.py` — small module with `write_vendor_findings(artifacts_dir, vendor_findings, review_type) -> Path` and `read_vendor_findings(cache_dir) -> dict[str, list[ReviewFinding]]` helpers. Single-source-of-truth for the on-disk layout, importable by both `convergence_loop.py` and the CLI dispatcher (which currently has the layout inlined).
-- **MODIFIED**: `skills/parallel-infrastructure/scripts/review_dispatcher.py` — replace the inlined `findings-{vendor}-{review_type}.json` writes (lines ~1360-1362) and the `write_manifest()` method (lines ~1180-1208) with calls to the shared `checkpoint_findings` helper. **Behavior change**: the manifest format becomes a superset of the current shape. Existing fields (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`) are preserved; new fields (`schema_version`, `change_id`, `created_at`, `vendors[]`) are added. CLI consumers reading the existing fields continue to work; the new fields are ignored by anyone who doesn't read them. Per-vendor finding files remain byte-identical.
-- **NEW SPEC**: `skill-workflow` capability gains ADDED requirements for the recovery contract, the on-disk checkpoint format, and the result-shape changes.
-- **NEW TESTS**: Unit tests for checkpointing (round-trip), the CLI-fallback path (mocked subprocess), and observability fields. Integration test that injects a synthesis-time exception and asserts recovery succeeds with `recovered_via_fallback=True`.
+- **NEW**: `skills/parallel-infrastructure/scripts/checkpoint_findings.py` — small module with `write_vendor_findings()`, `read_vendor_findings()`, `write_manifest()`, `read_manifest()`, `_validate_path_safety()`. Single source of truth for the on-disk checkpoint format. Located under `parallel-infrastructure/` so the dependency direction is one-way (`autopilot` imports from `parallel-infrastructure`, not the reverse).
+- **MODIFIED**: `skills/autopilot/scripts/convergence_loop.py` — `converge()` checkpoints per-vendor findings to `<artifacts_dir>/.review-cache/` BEFORE invoking `synthesizer.synthesize()`. The checkpoint write happens unconditionally on successful dispatch. If synthesis raises, the exception propagates to the caller (no fallback) but the checkpoint files survive on disk for manual recovery.
+- **MODIFIED**: `ConvergenceResult` dataclass — gains `checkpoint_dir: Path | None` (set when checkpoint was written successfully) and `synthesis_failed: bool` (set when synthesis raised but checkpoint exists). Defaults preserve backward compatibility for existing consumers.
+- **MODIFIED**: `skills/parallel-infrastructure/scripts/review_dispatcher.py` — `write_manifest()` calls the shared helper. Per-vendor finding-file writes also route through the helper. **Behavior change**: the manifest gains new fields (`schema_version`, `change_id`, `created_at`, `vendors[]`) while preserving all existing fields (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`). Per-vendor files preserve their existing wrapper shape (`{review_type, target, reviewer_vendor, findings: [...]}`). **No artifact relocation** — files stay where the dispatcher already writes them; the manifest format becomes a strict superset.
+- **NEW SPEC**: `skill-workflow` capability gains 4 ADDED requirements: checkpoint layout, in-process checkpointing, observability fields, and path safety. Plus 1 requirement for audit emission of synthesis-failure-with-checkpoint events.
+- **NEW TESTS**: Round-trip tests for `checkpoint_findings.py`, integration test that injects a synthesis-time exception and asserts the checkpoint files survive on disk and `ConvergenceResult.synthesis_failed=True`.
 
 ### Selected Approach
 
-**Approach 1: Auto-fallback to CLI subprocess** (user-selected at Gate 1).
+**Approach 1 (revised): Durable checkpoint, manual recovery** — selected at Gate 1 originally as "auto-fallback to CLI subprocess"; revised after multi-vendor PLAN_REVIEW caught that auto-fallback can't escape shared parser bugs.
 
-Combined with:
-- **Output location**: Reuse the CLI's existing `<change-id>/.review-cache/` layout — same directory, same filename pattern, same manifest. Maximum reuse; the synthesis CLI reads checkpoint files without translation.
-- **Failure visibility**: Log + structured warning, but report success. `ConvergenceResult.recovered_via_fallback: bool` plus `fallback_diagnostics: dict | None` capture the recovery for postmortem without breaking existing callers' success paths.
-- **Coordination with dormant `harness-engineering-features` proposal**: declare planning-time lock keys with `ttl_minutes=0` on `convergence_loop.py` and `consensus_synthesizer.py` so anyone resuming that proposal sees the contention.
+The durability part of the original approach is preserved. The "automatic recovery" part is dropped because both the in-process synthesizer and any subprocess invocation share `Finding.from_dict()` — bugs in that parser cause both paths to fail identically. The honest recovery story is "checkpoint survives → human or follow-up tooling drives the recovery." That's a meaningful improvement over the current state (where findings vanish entirely on synthesis failure) without overstating what this proposal achieves.
 
-Rationale: this is the smallest change that closes the durability gap. The CLI is already the more-robust path because it serializes vendor findings to disk before synthesis runs; making the in-process flow checkpoint to the same location and fall back to the same CLI on failure converts the existing accidental recovery pattern into a designed one. No two-path divergence risk because the fallback **literally invokes the same CLI binary**, not a parallel re-implementation.
+This proposal pairs naturally with two follow-up proposals tracked as Post-Merge Actions: one to fix `consensus_synthesizer.py:59`, and one to optionally layer automatic recovery on top once the parser is reliable. Sequencing those as separate small proposals (rather than bundled here) is cleaner and lower-risk.
 
-### Approaches Considered
+### Approaches Considered (revised)
 
-**Approach 1: Auto-fallback to CLI subprocess** — **SELECTED**
-- **Description**: `converge()` checkpoints vendor findings to the CLI's on-disk layout before synthesis. On synthesis exception, subprocess-invokes `consensus_synthesizer.py` against the checkpoint and returns its result. Recovery is transparent except for an observability flag.
-- **Pros**:
-  - Smallest delta: the CLI already exists and works; we add a checkpoint step + a try/except.
-  - No duplicate logic: the fallback path is the existing CLI binary, not a parallel re-implementation.
-  - Forensic-friendly: failed synthesis leaves a usable on-disk state for manual recovery even if the fallback also fails.
-  - Mirrors the `coordination-bridge` pattern already used in this codebase.
-- **Cons**:
-  - Subprocess overhead on the recovery path (not the hot path; only fires on synthesis failure).
-  - Two code paths exist (in-process synthesizer + subprocess), but only on the failure branch. Same source-of-truth synthesizer logic in both.
+**Approach 1 (revised): Durable checkpoint + manual recovery** — **SELECTED**
+- **Description**: `converge()` checkpoints vendor findings to disk before synthesis. On synthesis exception, the checkpoint survives; the exception propagates. Human operators run the synthesizer manually after diagnosing the issue.
+- **Pros**: Honest framing of what's actually achievable. Eliminates subprocess fallback complexity. Eliminates `--findings-dir` CLI extension. Eliminates secret-sanitization requirements (no diagnostics to sanitize). Significantly reduced LOC. No false promises about automatic recovery.
+- **Cons**: Doesn't actually recover automatically — humans need to step in. Less impressive on paper than "automatic recovery" would have been.
 - **Effort**: S
 
-**Approach 2: Rebuild converge() to checkpoint-then-synthesize natively**
-- **Description**: Refactor the in-process API so the dispatch → checkpoint → synthesize sequence is the only path, mirroring the CLI architecturally. No subprocess; no fallback. If synthesis fails, the on-disk state is still preserved and a manual rerun is possible.
-- **Pros**:
-  - Single architectural pattern; eliminates the subprocess-in-recovery flavor.
-  - In-process and CLI paths fully converge in shape.
-- **Cons**:
-  - Larger refactor for the same end-state durability (checkpoint pre-synthesis is the load-bearing step).
-  - Doesn't itself produce automatic recovery — synthesis failure still surfaces as an exception unless we also add fallback logic.
-  - Higher chance of regressing existing callers during the refactor.
+**Approach 2: Bundle the `line_range` parser fix into this proposal**
+- **Description**: Fix `consensus_synthesizer.py:59` parser as part of this proposal so synthesis stops crashing on malformed input. With the parser reliable, eventually layer automatic recovery on top.
+- **Pros**: One change covers the durability AND the underlying bug, so the recovery story actually works.
+- **Cons**: Violates the "narrow proposals" principle. Mixes a systemic-durability change with a specific bug fix; if either part stalls in review, the other is also blocked. The user explicitly requested separate filing.
 - **Effort**: M
 
-**Approach 3: Both — CLI fallback now, native checkpointing later**
-- **Description**: Ship Approach 1 as the immediate safety net, then file a follow-up proposal that converts the subprocess fallback into native checkpoint-then-synthesize.
-- **Pros**:
-  - Two-step risk reduction: durability first, architectural cleanup second.
-- **Cons**:
-  - Two proposals where one would do. Approach 1 already gives us the durability and observability we need.
-  - Speculative future work — the subprocess-fallback shape may turn out fine in practice and never need refactoring. Pre-committing to a follow-up creates phantom roadmap.
-- **Effort**: S + M (across two proposals)
+**Approach 3: Reject this proposal entirely**
+- **Description**: The durable checkpoint + observability + audit fields aren't worth the engineering cost; the right move is to fix the parser bug and stop there.
+- **Pros**: Smallest possible change.
+- **Cons**: Leaves the in-process flow vulnerable to *future* synthesizer bugs (not just the current `line_range` one). The durability primitive has independent value beyond the specific motivating bug — every future synthesis-time exception loses findings without it.
+- **Effort**: trivial (file the bug fix only)
 
-**Recommended (and selected): Approach 1.** It closes the observed failure mode at minimum cost, reuses an existing CLI rather than a parallel implementation, and aligns with the `coordination-bridge` precedent for fallback-path patterns. Approach 2 can be revisited if the subprocess flavor proves operationally noisy, but we defer it on the principle of fixing only what's broken.
+**Recommended (and selected): Approach 1 (revised).** Closes the *systemic* durability gap. The recovery automation is layerable later, on a known-reliable parser, in a separate small proposal. The user's preference for narrow proposals is preserved.
+
+### Earlier approach (NOW REJECTED)
+
+The original Approach 1 was "auto-fallback to CLI subprocess." Multi-vendor PLAN_REVIEW (claude + codex + gemini) converged on rejecting this: the CLI subprocess loads findings via the same `Finding.from_dict()` parser, so deterministic synthesizer bugs fail both paths identically. The fallback would log audit events about a recovery that didn't actually happen. The current Approach 1 is the corrected version after that review.
 
 ## Impact
 
-- **Affected specs**: `skill-workflow` (new ADDED requirements for review-recovery contract, checkpoint format, and observability fields)
+- **Affected specs**: `skill-workflow` (5 ADDED requirements covering checkpoint layout, in-process checkpointing, observability fields, audit logging, path safety).
 - **Affected code**:
-  - **NEW**: `skills/autopilot/scripts/checkpoint_findings.py` — shared write/read helpers for the on-disk checkpoint layout.
-  - **MODIFIED**: `skills/autopilot/scripts/convergence_loop.py` — checkpoint step, CLI fallback, ConvergenceResult shape.
-  - **MODIFIED**: `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` — extract `load_findings_from_dir()` helper; no CLI behavior change.
-  - **MODIFIED**: `skills/parallel-infrastructure/scripts/review_dispatcher.py` — call `checkpoint_findings.write_vendor_findings()` instead of inlined writes.
-  - **NEW TESTS**: under `skills/tests/autopilot/` and `skills/tests/parallel-infrastructure/` for round-trip, fallback, and observability.
-- **Coordination claims**: planning-time lock keys (TTL=0) on `convergence_loop.py` and `consensus_synthesizer.py` so the dormant `harness-engineering-features` proposal sees contention if revived.
+  - **NEW**: `skills/parallel-infrastructure/scripts/checkpoint_findings.py` — shared write/read helpers + path-safety validation.
+  - **MODIFIED**: `skills/autopilot/scripts/convergence_loop.py` — pre-synthesis checkpoint, `ConvergenceResult` shape changes.
+  - **MODIFIED**: `skills/parallel-infrastructure/scripts/review_dispatcher.py` — call `checkpoint_findings.write_*()` for both per-vendor files and manifest.
+  - **NEW TESTS**: under `skills/tests/parallel-infrastructure/` (helper) and `skills/tests/autopilot/` (integration).
+- **Coordination claims**: planning-time lock keys (TTL=0) on `convergence_loop.py` and `consensus_synthesizer.py` — though `consensus_synthesizer.py` is now untouched by this proposal (the `--findings-dir` CLI extension is dropped).
 - **Operational defaults**:
-  - Checkpoint location: `<artifacts_dir>/.review-cache/` — co-located with other review artifacts; deleted on `/cleanup-feature`.
-  - Subprocess timeout for fallback CLI: 300s (matches vendor adapter default).
-  - On fallback CLI failure: re-raise the **original** synthesis exception, attach CLI subprocess stderr tail to `fallback_diagnostics` for forensic pairing.
-  - Audit log: emit on every fallback firing — both successful recovery and double-failure — so chronic primary-path issues surface in `query_audit`.
-- **Backwards compatibility**: existing `ConvergenceResult` consumers continue to work — the two new fields default to `False` / `None`. Callers that want recovery semantics opt in by reading `recovered_via_fallback`.
+  - Checkpoint location: `<artifacts_dir>/.review-cache/` for in-process callers; CLI dispatcher continues writing directly under `--output-dir` (no relocation, just routing through the shared helper for the manifest format).
+  - Manifest format: superset of existing; old fields preserved.
+  - Per-vendor finding files: existing wrapper-object shape (`{review_type, target, reviewer_vendor, findings: [...]}`) preserved.
+  - On synthesis failure with checkpoint present: original exception propagates to caller; `ConvergenceResult.synthesis_failed=True` if any partial result is constructed; audit event records the failure with checkpoint path.
+- **Backwards compatibility**: existing `ConvergenceResult` consumers continue to work (new fields default to `None`/`False`). Existing CLI consumers reading the manifest continue to work (every existing field is preserved). No artifact paths move.
 - **Non-goals** (out of scope for this change):
-  - Fix for `consensus_synthesizer.py:59` `line_range` type bug. Filed as separate narrow proposal once this lands. The recovery mechanism here protects against that bug *and* its analogues, so we don't need to bundle them.
-  - Automatic re-dispatch of vendors when synthesis fails. The recovery is "make synthesis work with what we have," not "ask the vendors again."
-  - Cross-process locking on `.review-cache/`. Single converge() call owns its checkpoint directory; concurrent calls use distinct artifacts_dir paths by construction. (The atomic-rename requirement on the manifest write is intra-process safety, not multi-process locking.)
-  - Adaptive subprocess timeout based on finding count or hardware speed. 300s is a fixed default matching existing vendor-adapter convention. Out of scope; revisit if observed insufficient.
-  - Fallback latency metric and other Langfuse/StatsD-style observability beyond the audit events specified in R5. Implementation MAY add metrics; the spec does not require them.
+  - Fix for `consensus_synthesizer.py:59` `line_range` type bug — separate Post-Merge Action proposal.
+  - Automatic recovery from synthesis failure — DEFERRED. Layerable in a future proposal once the parser is reliable.
+  - CLI subprocess fallback — DROPPED after multi-vendor review caught the architectural flaw.
+  - Adding `--findings-dir` mode to `consensus_synthesizer.py` — DROPPED with the subprocess fallback. Not needed if no one is invoking the CLI from converge().
+  - Secret sanitization on diagnostics — DROPPED with the subprocess fallback (no stderr to capture, no subprocess exception messages to sanitize).
+  - Cross-process locking on `.review-cache/`. Single converge() call owns its checkpoint directory; concurrent calls use distinct artifacts_dir paths by construction.
+  - Adaptive timeouts. No subprocess; no timeout to tune.
+  - Fallback latency metrics (Langfuse / StatsD).
 
 ## Post-Merge Actions
 
-These are not tasks of this proposal; they are operational steps the operator performs *after* this change merges:
+These are not tasks of this proposal:
 
-- File a follow-up OpenSpec proposal fixing the `consensus_synthesizer.py:59` `line_range` type-handling bug. The new proposal SHALL reference this proposal as motivation and SHALL tighten `contracts/finding.schema.json` to reject the malformed string shape (this proposal accepts both shapes for backward compatibility).
-- Verify in production audit logs that `convergence.fallback_recovered` events appear when expected. A sustained absence over multiple weeks of activity SHOULD prompt investigation — either the in-process synthesizer is consistently succeeding (good) or the audit emission is silently broken (bad).
+- **Bug fix proposal**: file a narrow proposal fixing `consensus_synthesizer.py:59` `Finding.from_dict()` to handle `line_range: "10-20"` (string form) by parsing it into `{start, end}`. The new proposal SHALL reference this proposal as motivation and SHALL tighten `contracts/finding.schema.json` to reject only the malformed string shape (this proposal accepts both shapes for backward compatibility).
+- **Optional automatic-recovery proposal**: after the parser bug is fixed, file a follow-up that layers automatic recovery on top of this proposal's durable checkpoint. With the parser reliable, "auto-fallback to CLI subprocess" becomes a meaningful improvement instead of a paper-thin one. Whether this is worth doing depends on observed audit-event frequency (R5 events) — if synthesis failures with checkpoints are rare in practice, manual recovery is sufficient and we skip the third proposal.
+- **Audit observation**: monitor production audit logs for `convergence.synthesis_failed_with_checkpoint` events. A sustained stream over multiple weeks SHOULD prompt prioritizing the parser fix.
 
 ## Open Questions
 
-- **Q1**: Should the checkpoint directory survive `/cleanup-feature` for forensic value, or be deleted along with other artifacts? Default plan: delete (matches existing review artifact lifecycle), but flag for review at Gate 2.
-- **Q2**: When the dormant `harness-engineering-features` proposal touches `convergence_loop.py` for the autonomous-author-response work, will its planned `ConvergenceResult` shape changes conflict with our `recovered_via_fallback` / `fallback_diagnostics` additions? Mitigation: the planning-time lock keys make the contention visible; merge order will determine which proposal does the rebase.
+- **Q1**: Should the checkpoint directory survive `/cleanup-feature` for forensic value, or be deleted along with other artifacts? Default plan: delete (matches existing review artifact lifecycle). This proposal does NOT add a SHALL requirement for cleanup deletion (such a requirement would have no implementation owner here — `/cleanup-feature` would need its own task). If retention is desired, file a follow-up.
+- **Q2**: Will the dormant `harness-engineering-features` proposal's planned `ConvergenceResult` shape changes conflict with our `checkpoint_dir` / `synthesis_failed` additions when it resumes? Mitigation: planning-time lock keys make contention visible. Merge order resolves.

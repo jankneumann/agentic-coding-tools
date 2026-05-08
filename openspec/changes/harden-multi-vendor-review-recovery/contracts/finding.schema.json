@@ -2,61 +2,83 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.local/contracts/finding.schema.json",
   "title": "PerVendorFindingsFile",
-  "description": "Schema for findings-{vendor}-{review_type}.json files in .review-cache/. Each file is an array of findings produced by a single vendor in a single review round.",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "required": ["id", "type", "criticality", "description", "disposition", "vendor"],
-    "additionalProperties": true,
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Vendor-scoped unique identifier for this finding."
-      },
-      "type": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Finding category (e.g., 'logic-error', 'security', 'style')."
-      },
-      "criticality": {
-        "type": "string",
-        "enum": ["low", "medium", "high", "blocking"]
-      },
-      "description": {
-        "type": "string",
-        "minLength": 1
-      },
-      "disposition": {
-        "type": "string",
-        "enum": ["fix", "regenerate", "accept", "escalate"]
-      },
-      "resolution": {
-        "type": "string",
-        "description": "Optional human-readable resolution note."
-      },
-      "file_path": {
-        "type": ["string", "null"]
-      },
-      "line_range": {
-        "description": "Line range. Currently typed permissively to tolerate vendors that emit either {start,end} or 'N-M' string. The latter shape causes the consensus_synthesizer.py:59 bug — out of scope here, addressed by separate proposal.",
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "start": {"type": ["integer", "null"]},
-              "end": {"type": ["integer", "null"]}
-            },
-            "additionalProperties": false
+  "description": "Schema for findings-{vendor}-{review_type}.json files. The file is a wrapper object containing review metadata and a findings array. This shape is what the existing review_dispatcher.py writes and what consensus_synthesizer.py reads (data.get('findings', [])). This proposal does NOT change the per-vendor file shape; the schema documents it.",
+  "type": "object",
+  "required": ["review_type", "target", "reviewer_vendor", "findings"],
+  "additionalProperties": true,
+  "properties": {
+    "review_type": {
+      "type": "string",
+      "enum": ["plan", "implementation"]
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Feature or package identifier."
+    },
+    "reviewer_vendor": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "Vendor identifier producing this file. Pattern enforced for path safety (no separators, no spaces)."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "criticality", "description", "disposition", "vendor"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}],
+            "description": "Vendor-scoped unique identifier. Integer or string."
           },
-          {"type": "string"},
-          {"type": "null"}
-        ]
-      },
-      "vendor": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Vendor identifier matching the file's filename component."
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Finding category (e.g., 'logic-error', 'security', 'architecture', 'spec_gap')."
+          },
+          "criticality": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "blocking"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "type": "string",
+            "enum": ["fix", "regenerate", "accept", "escalate"]
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Optional human-readable resolution note."
+          },
+          "file_path": {
+            "type": ["string", "null"]
+          },
+          "line_range": {
+            "description": "Line range. Currently typed permissively to tolerate vendors that emit either {start,end} or 'N-M' string. The latter shape causes the consensus_synthesizer.py:59 bug — out of scope here, addressed by separate proposal.",
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "start": {"type": ["integer", "null"]},
+                  "end": {"type": ["integer", "null"]}
+                },
+                "additionalProperties": false
+              },
+              {"type": "string"},
+              {"type": "null"}
+            ]
+          },
+          "vendor": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Vendor identifier matching the file's filename component. Pattern enforced for path safety."
+          }
+        }
       }
     }
   }

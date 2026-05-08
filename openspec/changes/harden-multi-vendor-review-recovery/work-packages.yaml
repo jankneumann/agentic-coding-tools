@@ -3,16 +3,13 @@ schema_version: 1
 feature:
   id: harden-multi-vendor-review-recovery
   title: "Harden Multi-Vendor Review Recovery"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-opus-4-7
-  created_at: "2026-05-07T00:00:00Z"
+  created_at: "2026-05-08T00:00:00Z"
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
-    # No HTTP API. README stub documents which sub-types were evaluated.
-    # The actual contracted artifacts are JSON Schemas for the on-disk
-    # checkpoint layout (review-cache-layout.schema.json, finding.schema.json).
     primary: "contracts/README.md"
     files:
       - "contracts/README.md"
@@ -22,13 +19,12 @@ contracts:
 packages:
   # ──────────────────────────────────────────────────────
   # wp-contracts
-  #   Phase 0 of tasks.md. Root package — every other package depends on
-  #   the JSON Schemas defining the on-disk checkpoint layout.
+  #   Phase 0 of tasks.md. Root package.
   # ──────────────────────────────────────────────────────
 
   - package_id: wp-contracts
     task_type: implement
-    description: "JSON Schemas for review-cache manifest and per-vendor findings file, plus contracts README."
+    description: "JSON Schemas for review-cache manifest (superset of existing dispatcher format) and per-vendor finding files (wrapper-object shape preserving the existing wire format), plus contracts README."
     role: contracts
     priority: 1
     timeout_minutes: 30
@@ -76,15 +72,13 @@ packages:
 
   # ──────────────────────────────────────────────────────
   # wp-checkpoint-helper
-  #   Phase 0 of tasks.md (the helper module itself, paired with contracts).
-  #   Lives under skills/autopilot/scripts/. Independent write scope from
-  #   the parallel-infrastructure refactor and the converge() changes,
-  #   so it can run in parallel with wp-cli-refactor once contracts land.
+  #   Phase 0.2 of tasks.md. Located under parallel-infrastructure/
+  #   to keep the dependency direction one-way.
   # ──────────────────────────────────────────────────────
 
   - package_id: wp-checkpoint-helper
     task_type: implement
-    description: "Implement skills/autopilot/scripts/checkpoint_findings.py — write_vendor_findings, read_vendor_findings, write_manifest, read_manifest. Includes round-trip and edge-case tests."
+    description: "Implement skills/parallel-infrastructure/scripts/checkpoint_findings.py — write_vendor_findings, read_vendor_findings, write_manifest (with optional dispatches/quorum kwargs for CLI callers), read_manifest, _validate_path_safety. Atomic-rename for both per-vendor files and manifest. Includes path-safety, round-trip, and edge-case tests."
     role: infrastructure
     priority: 2
     timeout_minutes: 60
@@ -93,193 +87,183 @@ packages:
     depends_on: ["wp-contracts"]
     scope:
       write_allow:
-        - "skills/autopilot/scripts/checkpoint_findings.py"
-        - "skills/tests/autopilot/test_checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/tests/parallel-infrastructure/test_checkpoint_findings.py"
       read_allow:
+        - "skills/parallel-infrastructure/**"
         - "skills/autopilot/**"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
-        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "openspec/changes/harden-multi-vendor-review-recovery/**"
       deny:
         - "skills/autopilot/scripts/convergence_loop.py"
-        - "skills/parallel-infrastructure/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     worktree:
       name: wp-checkpoint-helper
       mode: isolated
     locks:
       files:
-        - "skills/autopilot/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
       keys:
-        - "feature:autopilot:checkpoint"
+        - "feature:parallel-infrastructure:checkpoint"
     verification:
       tier_required: B
       steps:
-        - name: "Round-trip + edge-case tests"
+        - name: "Round-trip + path-safety + edge-case tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_checkpoint_findings.py -v"
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_checkpoint_findings.py -v"
           evidence:
             artifacts:
-              - "skills/autopilot/scripts/checkpoint_findings.py"
+              - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
             result_keys: ["checkpoint_tests_passed"]
     outputs:
       result_keys: ["checkpoint_tests_passed"]
       artifacts:
-        - "skills/autopilot/scripts/checkpoint_findings.py"
-        - "skills/tests/autopilot/test_checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/tests/parallel-infrastructure/test_checkpoint_findings.py"
     metadata:
-      loc_estimate: 280
+      loc_estimate: 240
       package_kind: algorithm
 
   # ──────────────────────────────────────────────────────
-  # wp-cli-refactor
-  #   Phase 1 + Phase 2 of tasks.md. Refactors review_dispatcher.py to use
-  #   the shared helper and extracts load_findings_from_dir() in
-  #   consensus_synthesizer.py. CLI behavior unchanged. Runs in parallel
-  #   with wp-checkpoint-helper consumers but depends on the helper itself.
+  # wp-cli-migrate
+  #   Phase 1 of tasks.md. Routes review_dispatcher.py through the
+  #   shared helper. Per-vendor file paths/contents UNCHANGED;
+  #   manifest gains new fields (superset).
   # ──────────────────────────────────────────────────────
 
-  - package_id: wp-cli-refactor
+  - package_id: wp-cli-migrate
     task_type: implement
-    description: "Migrate review_dispatcher.py manifest writes to the shared helper (manifest gains new fields while preserving all existing fields — superset, not replacement). Extract load_findings_from_dir() helper from consensus_synthesizer.py and add --findings-dir CLI argument. Per-vendor finding files remain byte-identical; manifest is a superset of the prior shape."
+    description: "Replace inlined finding/manifest writes in review_dispatcher.py with checkpoint_findings calls. Per-vendor file paths and contents remain UNCHANGED. Manifest gains schema_version/change_id/created_at/vendors[] fields while preserving all existing fields. CLI consumers reading the existing fields continue to work."
     role: infrastructure
     priority: 3
-    timeout_minutes: 75
+    timeout_minutes: 60
     retry_budget: 1
     min_trust_level: 2
     depends_on: ["wp-checkpoint-helper"]
     scope:
       write_allow:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
         - "skills/tests/parallel-infrastructure/**"
       read_allow:
         - "skills/parallel-infrastructure/**"
-        - "skills/autopilot/scripts/checkpoint_findings.py"
         - "openspec/changes/harden-multi-vendor-review-recovery/**"
       deny:
         - "skills/autopilot/scripts/convergence_loop.py"
-        - "skills/autopilot/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     worktree:
-      name: wp-cli-refactor
+      name: wp-cli-migrate
       mode: isolated
     locks:
       files:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
       keys:
-        - "feature:parallel-infrastructure:refactor"
+        - "feature:parallel-infrastructure:migration"
         - "feature:harness-engineering-features:cli"
     verification:
       tier_required: B
       steps:
-        - name: "CLI byte-equivalence + extraction tests"
+        - name: "Manifest superset + per-vendor byte-equivalence tests"
           kind: command
           command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/ -v"
           evidence:
             artifacts:
               - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-              - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
             result_keys: ["cli_tests_passed"]
     outputs:
       result_keys: ["cli_tests_passed"]
       artifacts:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     metadata:
-      loc_estimate: 220
+      loc_estimate: 120
       package_kind: config
 
   # ──────────────────────────────────────────────────────
-  # wp-converge-recovery
-  #   Phases 3 + 4 + 5 + 6 of tasks.md. Heart of the proposal.
-  #   - Adds ConvergenceResult observability fields
-  #   - Adds in-process checkpointing in converge()
-  #   - Adds CLI subprocess fallback
-  #   - Adds audit log emission
-  #   These four changes are tightly coupled (all touch convergence_loop.py
-  #   and ConvergenceResult) and ship in one package to avoid mid-feature
-  #   states where checkpointing exists but recovery doesn't yet read it.
+  # wp-converge-checkpoint
+  #   Phases 2 + 3 + 4 of tasks.md (ConvergenceResult fields,
+  #   in-process checkpoint, audit emission).
+  #   Significantly smaller than the prior wp-converge-recovery
+  #   because there is NO subprocess fallback to implement.
   # ──────────────────────────────────────────────────────
 
-  - package_id: wp-converge-recovery
+  - package_id: wp-converge-checkpoint
     task_type: implement
-    description: "Add ConvergenceResult.recovered_via_fallback + .fallback_diagnostics fields, in-process checkpoint write, CLI subprocess fallback, and audit event emission to converge()."
+    description: "Add ConvergenceResult.checkpoint_dir + .synthesis_failed fields, in-process checkpoint write before synthesis, and audit event emission on synthesis failure. NO subprocess fallback — synthesis failures propagate to caller; the checkpoint enables manual recovery only."
     role: infrastructure
     priority: 4
-    timeout_minutes: 180
+    timeout_minutes: 100
     retry_budget: 1
     min_trust_level: 2
-    depends_on: ["wp-checkpoint-helper", "wp-cli-refactor"]
+    depends_on: ["wp-checkpoint-helper", "wp-cli-migrate"]
     scope:
       write_allow:
         - "skills/autopilot/scripts/convergence_loop.py"
-        - "skills/tests/autopilot/test_convergence_recovery.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
         - "skills/tests/autopilot/test_convergence_result_shape.py"
       read_allow:
         - "skills/autopilot/**"
-        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
+        - "skills/parallel-infrastructure/**"
         - "skills/coordination-bridge/**"
         - "openspec/changes/harden-multi-vendor-review-recovery/**"
       deny:
-        - "skills/autopilot/scripts/checkpoint_findings.py"
-        - "skills/parallel-infrastructure/**"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     worktree:
-      name: wp-converge-recovery
+      name: wp-converge-checkpoint
       mode: isolated
     locks:
       files:
         - "skills/autopilot/scripts/convergence_loop.py"
       keys:
-        - "feature:autopilot:recovery"
+        - "feature:autopilot:checkpoint"
         - "feature:harness-engineering-features:converge"
     verification:
       tier_required: A
       steps:
-        - name: "Convergence recovery test suite"
+        - name: "Convergence checkpoint test suite"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_recovery.py skills/tests/autopilot/test_convergence_result_shape.py -v"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_checkpoint.py skills/tests/autopilot/test_convergence_result_shape.py -v"
           evidence:
             artifacts:
               - "skills/autopilot/scripts/convergence_loop.py"
-            result_keys: ["recovery_tests_passed"]
+            result_keys: ["checkpoint_tests_passed"]
         - name: "Existing autopilot test suite (regression check)"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/ -v --ignore=skills/tests/autopilot/test_convergence_recovery.py --ignore=skills/tests/autopilot/test_convergence_result_shape.py --ignore=skills/tests/autopilot/test_checkpoint_findings.py"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/ -v --ignore=skills/tests/autopilot/test_convergence_checkpoint.py --ignore=skills/tests/autopilot/test_convergence_result_shape.py"
           evidence:
             artifacts:
               - "skills/autopilot/scripts/convergence_loop.py"
             result_keys: ["regression_tests_passed"]
     outputs:
-      result_keys: ["recovery_tests_passed", "regression_tests_passed"]
+      result_keys: ["checkpoint_tests_passed", "regression_tests_passed"]
       artifacts:
         - "skills/autopilot/scripts/convergence_loop.py"
-        - "skills/tests/autopilot/test_convergence_recovery.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
         - "skills/tests/autopilot/test_convergence_result_shape.py"
     metadata:
-      loc_estimate: 420
+      loc_estimate: 200
       package_kind: algorithm
 
   # ──────────────────────────────────────────────────────
   # wp-integration
-  #   Phase 7 + Phase 8.1 + 8.2 of tasks.md. End-to-end integration test
-  #   reproducing the original failure shape, plus documentation updates.
-  #   Final package — depends on all upstream packages.
-  #   Phase 8.3 (file follow-up bug fix proposal) is performed during
-  #   /cleanup-feature, not here.
+  #   Phase 5 + Phase 6 of tasks.md. Integration test reproducing
+  #   the original failure mode (verifies durability, NOT recovery)
+  #   plus documentation updates.
   # ──────────────────────────────────────────────────────
 
   - package_id: wp-integration
     task_type: implement
-    description: "End-to-end integration test of fallback recovery using a real (non-mocked) line_range shape mismatch. Update docs/parallel-agentic-development.md and skills/autopilot/SKILL.md with the recovery contract."
+    description: "End-to-end integration test of durable checkpoint via a real (non-mocked) line_range shape mismatch. Asserts: original exception propagates, checkpoint files persist, manual subprocess invocation of consensus_synthesizer.py against the checkpoint STILL fails (parser bug unfixed — separate proposal), audit event emitted with correct fields. Update docs/parallel-agentic-development.md and skills/autopilot/SKILL.md with the durability contract."
     role: integration
     priority: 5
-    timeout_minutes: 90
+    timeout_minutes: 60
     retry_budget: 1
     min_trust_level: 2
-    depends_on: ["wp-converge-recovery"]
+    depends_on: ["wp-converge-checkpoint"]
     scope:
       write_allow:
-        - "skills/tests/autopilot/test_convergence_recovery_integration.py"
+        - "skills/tests/autopilot/test_convergence_durability_integration.py"
         - "docs/parallel-agentic-development.md"
         - "skills/autopilot/SKILL.md"
       read_allow:
@@ -288,13 +272,13 @@ packages:
         - "docs/**"
       deny:
         - "skills/autopilot/scripts/**"
-        - "skills/parallel-infrastructure/**"
+        - "skills/parallel-infrastructure/scripts/**"
     worktree:
       name: wp-integration
       mode: isolated
     locks:
       files:
-        - "skills/tests/autopilot/test_convergence_recovery_integration.py"
+        - "skills/tests/autopilot/test_convergence_durability_integration.py"
         - "docs/parallel-agentic-development.md"
       keys:
         - "feature:autopilot:integration"
@@ -303,14 +287,14 @@ packages:
       steps:
         - name: "Integration test"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_recovery_integration.py -v"
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_durability_integration.py -v"
           evidence:
             artifacts:
-              - "skills/tests/autopilot/test_convergence_recovery_integration.py"
+              - "skills/tests/autopilot/test_convergence_durability_integration.py"
             result_keys: ["integration_test_passed"]
         - name: "Doc lint"
           kind: command
-          command: "skills/.venv/bin/python -c 'from pathlib import Path; assert \"recovered_via_fallback\" in Path(\"docs/parallel-agentic-development.md\").read_text()'"
+          command: "skills/.venv/bin/python -c 'from pathlib import Path; doc = Path(\"docs/parallel-agentic-development.md\").read_text(); assert \"checkpoint_dir\" in doc and \"synthesis_failed\" in doc'"
           evidence:
             artifacts:
               - "docs/parallel-agentic-development.md"
@@ -318,9 +302,9 @@ packages:
     outputs:
       result_keys: ["integration_test_passed", "docs_updated"]
       artifacts:
-        - "skills/tests/autopilot/test_convergence_recovery_integration.py"
+        - "skills/tests/autopilot/test_convergence_durability_integration.py"
         - "docs/parallel-agentic-development.md"
         - "skills/autopilot/SKILL.md"
     metadata:
-      loc_estimate: 200
+      loc_estimate: 140
       package_kind: integration
