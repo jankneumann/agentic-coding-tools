@@ -427,6 +427,18 @@ def test_main_missing_change_warns_and_continues(tmp_path: Path) -> None:
     assert "Traceback" not in combined, (
         f"unexpected exception: stdout={proc.stdout!r} stderr={proc.stderr!r}"
     )
+    # The warning MUST surface a recognizable log line so operators can debug.
+    # The flag is "ignored with warning" outside cli-augmented mode (logged as
+    # "--openspec-change is effective only in --mode cli-augmented; ignoring"),
+    # OR (in cli-augmented) "openspec change directory not found: ...".
+    combined_lower = combined.lower()
+    assert (
+        "openspec change directory not found" in combined_lower
+        or "ignoring" in combined_lower
+    ), (
+        f"expected missing-change warning in output; "
+        f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+    )
 
 
 def test_main_no_flag_unchanged_behavior(tmp_path: Path) -> None:

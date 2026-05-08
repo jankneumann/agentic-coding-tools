@@ -196,3 +196,56 @@ Foundation tier of the implementation completed: wp-contracts (schema delta), WP
 ### Context
 All 7 feature work packages landed across 6 commits: wp-contracts, WP1, WP2, WP3, WP4, WP5, WP6, WP7. wp-integration scriptable checks complete (8.2, 8.4, 8.5, 8.6). Live-environment checks (8.1, 8.3) deferred to real CI with documented rationale. 51 of 53 tasks complete. ~3500 LOC + 701 test cases passing. openspec validate --strict green.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Skip F5 (HTTP server lifecycle leak in runner.py)** — Runner docstring confirms lifecycle is intentionally caller-managed, not runner-managed; the bug review's claim was incorrect. No fix needed.
+2. **Atomic write via tempfile + fsync + rename for both findings emitters** — Prevents partially-written JSON from being read by consensus_synthesizer if process dies mid-write
+3. **Producer-side schema validation as defense in depth** — Consumer (consensus_synthesizer) already validates; adding producer-side validation catches schema drift at write time before downstream consumers see broken data
+4. **change-id regex re-validated at _dispatch_state_path() entry** — Public API boundary defense — even if upstream validation is bypassed, the path builder rejects invalid input rather than constructing arbitrary paths
+5. **Malformed ${VAR (no closing brace) raises MissingEnvVar at validation time** — Prevents literal `${VAR_NAME` from being passed to Playwright actions; surfaces typo at descriptor-load time, not as cryptic Playwright failure
+
+### Alternatives Considered
+- Apply all 24 findings in iteration 1: rejected because Higher iteration cost without proportional risk reduction; threshold=medium is the boundary
+- Symlink protection via os.walk(followlinks=False): rejected because Less explicit than .resolve() + .relative_to(); harder to reason about edge cases
+- Schema validation via subprocess to jsonschema CLI: rejected because Adds runtime dep + process-spawn cost; in-process jsonschema is already a transitive dep
+
+### Trade-offs
+- Accepted Defer 5 polish items (lower-ROI) to iteration 2 over Fixing all in iteration 1 because Threshold=medium was set deliberately; below-threshold items are tracked but not blocking
+- Accepted Schema validation gracefully degrades when jsonschema not installed over Hard requirement on jsonschema because Maintains backward compat with environments where jsonschema is optional
+- Accepted Symlink check uses .resolve()+relative_to() per file (not directory-level) over Single directory check at scan start because Per-file check is more defensive and only adds 2 syscalls per file
+
+### Open Questions
+- [ ] Should the orphan-scenario case (Scenario without preceding Requirement) raise an exception, or just warn? Current behavior warns; bug review suggested raising. Defer to iteration 2 with deliberate semantic decision.
+- [ ] Should producer-side schema validation be strict (raise) or lax (log + continue)? Currently strict (raises). If a future schema migration breaks producer-side without breaking consumer-side, strict mode could break the build.
+- [ ] Is .resolve() the right defense for symlink attacks, or should we also check inode equality across resolved targets to detect TOCTOU?
+
+### Completed Work
+- F1 fixed: openspec_seed.parse_openspec_change rejects spec files whose resolved path escapes the specs/ subtree (symlink-escape defense)
+- F2 fixed: findings_emitter.emit_findings uses atomic tempfile+fsync+rename + producer-side schema validation
+- F3 fixed: playwright/findings.emit_playwright_findings uses atomic write + producer-side schema validation (same pattern as F2)
+- F4 fixed: auth_flow.validate_required_env_vars raises MissingEnvVar('malformed') on `${VAR` (unbalanced braces)
+- F6 fixed: review_dispatcher._dispatch_state_path validates change_id against ^[a-zA-Z0-9_-]+$ at function entry
+- F7 added: 2 new tests for vendor-exhaustion-per-role + 4 new tests for dispatch-state-path validation in test_vendor_diversity.py (19 total, was 13)
+- F8 strengthened: test_main_missing_change_warns_and_continues now asserts the warning log substring (either 'openspec change directory not found' or 'ignoring')
+- Added 4 new tests for malformed-${VAR} in test_auth_flow.py (18 total, was 14)
+
+### Next Steps
+- Run a second iterate-on-implementation pass if any new findings emerge from review of these fixes
+- Address deferred polish items in iteration 2: orphan scenario semantics, header regex broadening, bind heuristic, duplicate regex constant
+- Then proceed to validate-feature for live-environment checks (deferred from iteration 0)
+
+### Relevant Files
+- `agent-coordinator/evaluation/gen_eval/openspec_seed.py` — symlink-escape protection in parse_openspec_change
+- `agent-coordinator/evaluation/gen_eval/findings_emitter.py` — atomic write + schema validation
+- `skills/playwright-validator/scripts/findings.py` — atomic write + schema validation (mirror)
+- `skills/playwright-validator/scripts/auth_flow.py` — malformed ${VAR fail-fast
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — change-id validation at _dispatch_state_path entry
+
+### Context
+Iteration 1: 5-agent parallel review surfaced 24 findings (security, bugs, test-quality dimensions). Fixed 7 above-threshold items: symlink-escape protection in openspec_seed, atomic write + producer-side schema validation in both findings emitters, malformed-${VAR} fail-fast in auth_flow, change-id validation at _dispatch_state_path entry. Added 11 new tests (vendor-exhaustion-per-role × 2, dispatch-state-path-validation × 4, malformed-env-var × 4, missing-change degradation log assertion strengthened). Deferred 5 lower-ROI polish items to iteration 2 (header regex broadening, bind heuristic refinement, duplicate regex constant, orphan-scenario semantics, findings-source error consistency). All 666 tests pass; openspec validate --strict green.
+

@@ -16,10 +16,62 @@ scenario YAML.
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
+
+logger = logging.getLogger(__name__)
+
+
+def _load_review_findings_schema() -> dict[str, Any] | None:
+    """Best-effort load of openspec/schemas/review-findings.schema.json.
+
+    Walks parent directories from this module looking for an `openspec/schemas/`
+    directory. Returns None if the schema can't be located — producer-side
+    validation is defense-in-depth; the consumer (consensus_synthesizer) also
+    validates, so a missing schema here degrades gracefully.
+    """
+    here = Path(__file__).resolve()
+    for ancestor in (here, *here.parents):
+        candidate = ancestor / "openspec" / "schemas" / "review-findings.schema.json"
+        if candidate.is_file():
+            try:
+                return json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("failed to load schema for producer-side validation: %s", exc)
+                return None
+    return None
+
+
+def _atomic_write_json(output_path: Path, document: dict[str, Any]) -> None:
+    """Write JSON atomically: tempfile in the same dir, fsync, then rename.
+
+    Prevents partially-written files from being read by downstream consumers
+    if the process crashes or runs out of disk mid-write.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=output_path.name + ".",
+        suffix=".tmp",
+        dir=str(output_path.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(document, fh, indent=2)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp_path, output_path)
+    except Exception:
+        # Cleanup tempfile on any failure to avoid orphans.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 # ---------------------------------------------------------------------------
 # Source-location parsing
@@ -232,9 +284,23 @@ def emit_findings(
         "findings": [f.to_dict() for f in findings],
     }
 
+    # Producer-side schema validation (defense in depth — consumer also validates).
+    schema = _load_review_findings_schema()
+    if schema is not None:
+        try:
+            import jsonschema  # type: ignore[import-untyped]
+
+            jsonschema.validate(instance=document, schema=schema)
+        except ImportError:
+            logger.debug("jsonschema not installed; skipping producer-side validation")
+        except jsonschema.ValidationError as exc:
+            raise ValueError(
+                f"refusing to emit findings: schema validation failed at "
+                f"{'/'.join(str(p) for p in exc.absolute_path)}: {exc.message}"
+            ) from exc
+
     output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(document, indent=2))
+    _atomic_write_json(output_path, document)
     return output_path
 
 

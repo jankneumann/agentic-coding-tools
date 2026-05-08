@@ -127,6 +127,17 @@ def validate_required_env_vars(
         value = step.get("value")
         if not isinstance(value, str):
             continue
+        # Detect malformed env-var refs: `${...` without a closing `}` would
+        # otherwise pass through silently and end up as a literal string
+        # passed to Playwright (cryptic later failure). Fail fast here by
+        # counting `${` opens vs well-formed `${...}` pairs.
+        open_count = value.count("${")
+        close_count = sum(1 for _ in re.finditer(r"\$\{[^}]*\}", value))
+        if open_count > close_count:
+            raise MissingEnvVar(
+                f"malformed env var reference in auth_flow value "
+                f"(unclosed `${{`): {value!r}"
+            )
         # resolve_value raises if any ref missing.
         resolve_value(value, env)
 
