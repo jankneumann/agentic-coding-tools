@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -87,6 +88,47 @@ def _transcript_messages(transcript_path: Path) -> list[dict[str, Any]]:
     return messages
 
 
+def _extract_block_chars(block: dict[str, Any]) -> int:
+    """Type-aware char extraction for one content block.
+
+    Real transcripts contain four block types (text, thinking, tool_use,
+    tool_result) with different content-bearing keys:
+      * text       → block["text"]                 (str)
+      * thinking   → block["thinking"]             (str)
+      * tool_use   → block["input"]                (dict — JSON-serialize)
+      * tool_result→ block["content"]              (str OR list of blocks)
+    """
+    btype = block.get("type", "")
+    if btype == "text":
+        text = block.get("text")
+        return len(text) if isinstance(text, str) else 0
+    if btype == "thinking":
+        text = block.get("thinking")
+        return len(text) if isinstance(text, str) else 0
+    if btype == "tool_use":
+        try:
+            return len(json.dumps(block.get("input", {}), default=str))
+        except (TypeError, ValueError):
+            return 0
+    if btype == "tool_result":
+        content = block.get("content")
+        if isinstance(content, str):
+            return len(content)
+        if isinstance(content, list):
+            return sum(
+                _extract_block_chars(sub)
+                for sub in content
+                if isinstance(sub, dict)
+            )
+        return 0
+    # Unknown block type — best-effort fallback to any string-typed value.
+    total = 0
+    for value in block.values():
+        if isinstance(value, str):
+            total += len(value)
+    return total
+
+
 def _proxy_estimate(messages: list[dict[str, Any]]) -> int:
     total = 0
     for msg in messages:
@@ -96,10 +138,7 @@ def _proxy_estimate(messages: list[dict[str, Any]]) -> int:
         elif isinstance(content, list):
             for block in content:
                 if isinstance(block, dict):
-                    for key in ("text", "content", "input"):
-                        val = block.get(key)
-                        if isinstance(val, str):
-                            total += len(val)
+                    total += _extract_block_chars(block)
     return total // CHAR_PER_TOKEN
 
 
@@ -190,22 +229,56 @@ def _measure_tokens(transcript_path: Path) -> int:
     return _proxy_estimate(messages)
 
 
+def _all_worktree_roots() -> list[Path]:
+    """Return every checkout known to the current git repository (main +
+    linked worktrees). Falls back to [cwd] when not in a git repo or git
+    is missing.
+
+    Why: a single Claude/Codex session may operate across multiple worktrees
+    (e.g. parallel work-package agents in .git-worktrees/<change-id>/<pkg>/).
+    Phase-boundary detection should be session-scoped, not cwd-scoped, so
+    we glob handoffs from every checkout the repo knows about.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, timeout=2, check=True,
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return [Path.cwd()]
+    roots: list[Path] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            roots.append(Path(line.split(" ", 1)[1]))
+    return roots or [Path.cwd()]
+
+
 def _recent_phase_boundary() -> str | None:
     """Return the phase name (e.g. 'implementation') if a handoff JSON was
-    written in the last PHASE_BOUNDARY_WINDOW_SEC seconds. PhaseRecord
-    write_both() persists to openspec/changes/<id>/handoffs/<phase>-<N>.json
-    in the local-fallback path."""
+    written in the last PHASE_BOUNDARY_WINDOW_SEC seconds in ANY worktree
+    of the current repo. PhaseRecord write_both() persists to
+    openspec/changes/<id>/handoffs/<phase>-<N>.json in the local-fallback
+    path."""
     cutoff = time.time() - PHASE_BOUNDARY_WINDOW_SEC
     newest_phase: str | None = None
     newest_mtime = 0.0
-    for p in Path.cwd().glob("openspec/changes/*/handoffs/*.json"):
-        try:
-            mtime = p.stat().st_mtime
-        except OSError:
-            continue
-        if mtime >= cutoff and mtime > newest_mtime:
-            newest_mtime = mtime
-            newest_phase = p.stem.rsplit("-", 1)[0]
+    seen: set[Path] = set()
+    for root in _all_worktree_roots():
+        for p in root.glob("openspec/changes/*/handoffs/*.json"):
+            try:
+                resolved = p.resolve()
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            try:
+                mtime = p.stat().st_mtime
+            except OSError:
+                continue
+            if mtime >= cutoff and mtime > newest_mtime:
+                newest_mtime = mtime
+                newest_phase = p.stem.rsplit("-", 1)[0]
     return newest_phase
 
 

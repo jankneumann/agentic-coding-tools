@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,25 @@ from urllib.request import Request, urlopen
 
 PREFIX = "[precompact_handoff]"
 MAX_NEXT_STEPS_IN_SUMMARY = 3
+
+
+def _all_worktree_roots(cwd: Path | None = None) -> list[Path]:
+    """Return every checkout known to the current git repository. See
+    check_compact.py:_all_worktree_roots for the full rationale."""
+    cwd = cwd or Path.cwd()
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, timeout=2, check=True,
+            cwd=str(cwd),
+        )
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return [cwd]
+    roots: list[Path] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            roots.append(Path(line.split(" ", 1)[1]))
+    return roots or [cwd]
 
 
 def _agent_id() -> str:
@@ -79,12 +99,23 @@ def _clear_flag() -> None:
 
 
 def _latest_phase_record(cwd: Path | None = None) -> dict[str, Any] | None:
-    """Find the newest openspec/changes/<id>/handoffs/<phase>-<N>.json and
-    return its inner ``payload`` dict. Returns None if no handoff exists or
-    parsing fails. The on-disk format is the local-fallback envelope:
+    """Find the newest openspec/changes/<id>/handoffs/<phase>-<N>.json across
+    every worktree of the current repo, return its inner ``payload`` dict.
+    Returns None if no handoff exists or parsing fails. The on-disk format
+    is the local-fallback envelope:
     {schema_version, written_at, coordinator_error, payload: {...}}."""
-    cwd = cwd or Path.cwd()
-    candidates = list(cwd.glob("openspec/changes/*/handoffs/*.json"))
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    for root in _all_worktree_roots(cwd):
+        for p in root.glob("openspec/changes/*/handoffs/*.json"):
+            try:
+                resolved = p.resolve()
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            candidates.append(p)
     if not candidates:
         return None
     try:
