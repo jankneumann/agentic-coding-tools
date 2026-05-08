@@ -1,15 +1,17 @@
 {
   "schema_version": 3,
   "change_id": "wire-autopilot-phase-subagents",
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "VALIDATE",
   "iteration": 0,
-  "total_iterations": 1,
+  "total_iterations": 2,
   "max_phase_iterations": 3,
   "findings_trend": [
     30,
     7,
     0,
-    3
+    3,
+    14,
+    5
   ],
   "blocking_findings": [],
   "vendor_availability": {},
@@ -26,7 +28,7 @@
   "last_handoff_id": null,
   "started_at": "2026-05-06T02:13:52.795817+00:00",
   "phase_started_at": "2026-05-07T18:43:12.875075+00:00",
-  "previous_phase": "IMPL_ITERATE",
+  "previous_phase": "IMPL_REVIEW",
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
