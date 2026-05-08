@@ -610,3 +610,7 @@ related:
 The skills workflow is formally specified with requirements covering iterative refinement, structured analysis, commit conventions, documentation updates, parallel execution patterns, worktree isolation, feature validation (with inline security scanning), bug-scrub signal collection, and fix-scrub remediation tiers.
 
 See [`openspec/specs/skill-workflow/spec.md`](../openspec/specs/skill-workflow/spec.md) for the complete specification.
+
+## Glossary
+
+**Mission**: a long-horizon unit of work (hours to days) bounded by a human approval gate at start and end. In this repo, a Mission corresponds to one OpenSpec change-id flowing through `/plan-feature` → `/implement-feature` → `/validate-feature` → `/cleanup-feature`.

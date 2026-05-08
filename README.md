@@ -1,6 +1,26 @@
 # Agentic Coding Tools
 
-Tools and workflows for AI-assisted software development. Enables structured feature development with human approval gates and safe multi-agent collaboration on shared codebases.
+The bottleneck in software engineering is no longer model intelligence — it's **human attention**. This repo gives you the primitives to decide *what* to build, then run the *how* asynchronously for hours or days, with safety rails that survive long-horizon execution.
+
+Three roles do the work: **Orchestrators** plan and define correctness, **Workers** implement against clean context, **Validators** verify adversarially. Features run with **scope-isolated parallelism** to avoid stepping on each other; reads, research, and reviews always run in parallel. State survives long pauses through **structured handoffs** at milestone boundaries.
+
+## Three Roles
+
+### Orchestrator
+Plans work, defines correctness up-front via OpenSpec scenarios, decomposes into work packages.
+- `/plan-feature` — create an OpenSpec proposal with approaches considered + work packages
+- `/iterate-on-plan` — refine the proposal via structured self-review
+- `/implement-feature` — orchestrate work-package dispatch (also a Worker for sequential tier)
+
+### Workers
+Implement work packages against clean context, scoped to non-overlapping write_allow globs.
+- `/implement-feature` — write code, tests, and docs per work package
+- `/iterate-on-implementation` — refine the implementation via structured self-review
+
+### Validators
+Verify correctness adversarially. Two surfaces:
+- **Scrutiny validators** — `/parallel-review-plan` and `/parallel-review-implementation` produce structured findings against `review-findings.schema.json`
+- **Behavioral validators** — `/gen-eval` runs scenarios against the live deployment (HTTP/MCP/CLI surfaces); the Playwright validator covers frontend surfaces. Both produce findings in the same schema, merged through `consensus_synthesizer.py` into a single ranked list.
 
 ## Projects
 

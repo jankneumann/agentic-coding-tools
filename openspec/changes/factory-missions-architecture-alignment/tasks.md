@@ -2,69 +2,69 @@
 
 ## Phase 0: Contracts (wp-contracts)
 
-- [ ] 0.1 Add `behavioral_failure` to the `type` enum in `openspec/schemas/review-findings.schema.json`
+- [x] 0.1 Add `behavioral_failure` to the `type` enum in `openspec/schemas/review-findings.schema.json`
   **Spec scenarios**: evaluation-framework: "behavioral_failure type validates against schema"
   **Contracts**: `openspec/schemas/review-findings.schema.json` (modify enum)
   **Design decisions**: D3
   **Dependencies**: None
 
-- [ ] 0.2 Create `contracts/frontend-descriptor.schema.json` with required fields `base_url`, `auth_flow`, `selectors`, `browsers`
+- [x] 0.2 Create `contracts/frontend-descriptor.schema.json` with required fields `base_url`, `auth_flow`, `selectors`, `browsers`
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path", "Browser matrix executes all configured browsers"
   **Contracts**: `contracts/frontend-descriptor.schema.json` (new)
   **Design decisions**: D2, D6
   **Dependencies**: None
 
-- [ ] 0.3 Create `contracts/agents-policy-schema.json` for `policies.vendor_diversity` block
+- [x] 0.3 Create `contracts/agents-policy-schema.json` for `policies.vendor_diversity` block
   **Spec scenarios**: agent-archetypes: "Worker and validator dispatch to different vendors", "Policy disabled allows same-vendor dispatch"
   **Contracts**: `contracts/agents-policy-schema.json` (new)
   **Design decisions**: D4
   **Dependencies**: None
 
-- [ ] 0.4 Create `contracts/gen-eval-cli.md` documenting `--openspec-change` flag and the `source.openspec_scenario` metadata field
+- [x] 0.4 Create `contracts/gen-eval-cli.md` documenting `--openspec-change` flag and the `source.openspec_scenario` metadata field
   **Spec scenarios**: gen-eval-framework: "OpenSpec scenarios augment cli-augmented prompt"
   **Contracts**: `contracts/gen-eval-cli.md` (new)
   **Dependencies**: None
 
-- [ ] 0.5 Create `contracts/findings-vendor-source.md` documenting the `findings-<vendor>.json` naming convention and the consensus synthesizer's vendor-source input format
+- [x] 0.5 Create `contracts/findings-vendor-source.md` documenting the `findings-<vendor>.json` naming convention and the consensus synthesizer's vendor-source input format
   **Spec scenarios**: evaluation-framework: "Synthesizer merges gen-eval and reviewer findings"
   **Contracts**: `contracts/findings-vendor-source.md` (new)
   **Dependencies**: None
 
 ## Phase 1: WP1 — README Attention Bottleneck (wp1-readme)
 
-- [ ] 1.1 Write a markdown lint test or doc-content assertion for `README.md` that fails if (a) "human attention" appears later than line 10 OR (b) no "Three Roles" section exists OR (c) any of `/plan-feature`, `/implement-feature`, `/parallel-review-plan`, `/parallel-review-implementation`, `/gen-eval` is missing from the role mapping
+- [x] 1.1 Write a markdown lint test or doc-content assertion for `README.md` that fails if (a) "human attention" appears later than line 10 OR (b) no "Three Roles" section exists OR (c) any of `/plan-feature`, `/implement-feature`, `/parallel-review-plan`, `/parallel-review-implementation`, `/gen-eval` is missing from the role mapping
   **Spec scenarios**: skill-workflow: "README opener leads with attention bottleneck", "Each skill mapped to exactly one role"
   **Dependencies**: None
 
-- [ ] 1.2 Rewrite `README.md` opener with attention-bottleneck framing; add Three-Roles section mapping each skill onto Orchestrator/Workers/Validators
+- [x] 1.2 Rewrite `README.md` opener with attention-bottleneck framing; add Three-Roles section mapping each skill onto Orchestrator/Workers/Validators
   **Spec scenarios**: skill-workflow: "README opener leads with attention bottleneck", "Each skill mapped to exactly one role"
   **Design decisions**: D1
   **Dependencies**: 1.1
 
 ## Phase 2: WP2 — Docs Vocabulary (wp2-docs-vocabulary)
 
-- [ ] 2.1 Write a doc-content assertion test for `docs/parallel-agentic-development.md` that fails if (a) no "Five-Tier" section exists OR (b) the section omits any of the 5 patterns OR (c) no "Scope-Isolated Parallelism" section exists OR (d) the Scope-Isolated section does not name the Factory Missions talk
+- [x] 2.1 Write a doc-content assertion test for `docs/parallel-agentic-development.md` that fails if (a) no "Five-Tier" section exists OR (b) the section omits any of the 5 patterns OR (c) no "Scope-Isolated Parallelism" section exists OR (d) the Scope-Isolated section does not name the Factory Missions talk
   **Spec scenarios**: skill-workflow: "Taxonomy table present and complete", "Section names the talk and the divergence"
   **Dependencies**: None
 
-- [ ] 2.2 Write a doc-content assertion for `docs/lessons-learned.md` and `docs/skills-workflow.md` that fails if (a) no "Self-Healing at Milestone Boundaries" heading exists OR (b) no "Mission" glossary entry exists
+- [x] 2.2 Write a doc-content assertion for `docs/lessons-learned.md` and `docs/skills-workflow.md` that fails if (a) no "Self-Healing at Milestone Boundaries" heading exists OR (b) no "Mission" glossary entry exists
   **Spec scenarios**: skill-workflow: "New heading anchors existing content", "Glossary entry exists and is searchable"
   **Dependencies**: None
 
-- [ ] 2.3 Add "Five-Tier Multi-Agent Taxonomy" section to `docs/parallel-agentic-development.md` (additive append; no edits to existing sections)
+- [x] 2.3 Add "Five-Tier Multi-Agent Taxonomy" section to `docs/parallel-agentic-development.md` (additive append; no edits to existing sections)
   **Spec scenarios**: skill-workflow: "Taxonomy table present and complete"
   **Design decisions**: D1
   **Dependencies**: 2.1
 
-- [ ] 2.4 Add "Scope-Isolated Parallelism" section engaging the talk's diagnosis directly
+- [x] 2.4 Add "Scope-Isolated Parallelism" section engaging the talk's diagnosis directly
   **Spec scenarios**: skill-workflow: "Section names the talk and the divergence"
   **Dependencies**: 2.1
 
-- [ ] 2.5 Add "Self-Healing at Milestone Boundaries" heading to `docs/lessons-learned.md` (cross-reference existing escalation_handler.py docs without duplicating)
+- [x] 2.5 Add "Self-Healing at Milestone Boundaries" heading to `docs/lessons-learned.md` (cross-reference existing escalation_handler.py docs without duplicating)
   **Spec scenarios**: skill-workflow: "New heading anchors existing content"
   **Dependencies**: 2.2
 
-- [ ] 2.6 Add "Mission" glossary entry to `docs/skills-workflow.md`
+- [x] 2.6 Add "Mission" glossary entry to `docs/skills-workflow.md`
   **Spec scenarios**: skill-workflow: "Glossary entry exists and is searchable"
   **Dependencies**: 2.2
 
