@@ -2,7 +2,7 @@
   "blocking_findings": [],
   "change_id": "wire-autopilot-phase-subagents",
   "cli_review_enabled": true,
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "error": null,
   "escalation_reason": null,
   "findings_trend": [
@@ -32,7 +32,7 @@
   "packages_status": {},
   "phase_archetype": "runner",
   "phase_started_at": "2026-05-07T18:43:12.875075+00:00",
-  "previous_phase": "VAL_REVIEW",
+  "previous_phase": "SUBMIT_PR",
   "schema_version": 3,
   "started_at": "2026-05-06T02:13:52.795817+00:00",
   "total_iterations": 2,
