@@ -1,10 +1,10 @@
 {
-  "schema_version": 3,
+  "blocking_findings": [],
   "change_id": "wire-autopilot-phase-subagents",
+  "cli_review_enabled": true,
   "current_phase": "VALIDATE",
-  "iteration": 0,
-  "total_iterations": 2,
-  "max_phase_iterations": 3,
+  "error": null,
+  "escalation_reason": null,
   "findings_trend": [
     30,
     7,
@@ -13,25 +13,27 @@
     14,
     5
   ],
-  "blocking_findings": [],
-  "vendor_availability": {},
-  "packages_status": {},
+  "handoff_ids": [
+    "val-self-demo-1778256669"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "val-self-demo-1778256669",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
   "package_authors": {
     "wp-contracts": "claude (planning-time)",
-    "wp-skills-autopilot": "claude (Agent isolation worktree)",
     "wp-coordinator-status-discovery": "claude (Agent isolation worktree)",
-    "wp-integration": "claude (mixed: agent + inline rescue)"
+    "wp-integration": "claude (mixed: agent + inline rescue)",
+    "wp-skills-autopilot": "claude (Agent isolation worktree)"
   },
-  "implementation_strategy": {},
-  "memory_ids": [],
-  "handoff_ids": [],
-  "last_handoff_id": null,
-  "started_at": "2026-05-06T02:13:52.795817+00:00",
+  "packages_status": {},
+  "phase_archetype": "analyst",
   "phase_started_at": "2026-05-07T18:43:12.875075+00:00",
   "previous_phase": "IMPL_REVIEW",
-  "escalation_reason": null,
+  "schema_version": 3,
+  "started_at": "2026-05-06T02:13:52.795817+00:00",
+  "total_iterations": 2,
   "val_review_enabled": true,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": null
+  "vendor_availability": {}
 }

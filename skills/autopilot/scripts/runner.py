@@ -146,8 +146,8 @@ def _build_parser() -> argparse.ArgumentParser:
     rs.add_argument(
         "--phase",
         required=True,
-        choices=["INIT", "SUBMIT_PR"],
-        help="State-only phase id (INIT or SUBMIT_PR).",
+        choices=["INIT", "PLAN", "SUBMIT_PR"],
+        help="State-only phase id (INIT, PLAN, or SUBMIT_PR).",
     )
     rs.set_defaults(func=_cmd_record_state_only_archetype)
 

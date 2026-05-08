@@ -113,6 +113,19 @@ Failure here is non-fatal — the helper logs a warning and writes
 
 ### 2. PLAN Phase
 
+**Record PLAN phase archetype** (state-only resolver — D9 / VAL_REVIEW G-V-001).
+PLAN dispatches via the `/plan-feature` slash command rather than the harness
+`Agent(...)` tool, so it doesn't go through `runner.py build-dispatch`. To
+keep observability uniform across all 13 non-terminal phases, shell out:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase PLAN
+```
+
+Failure here is non-fatal — the helper logs a warning and writes
+`phase_archetype = null` if the coordinator is unreachable.
+
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
 - Wait for proposal approval before continuing
