@@ -9,7 +9,7 @@
       "models_attempted": [
         "gpt-5.5"
       ],
-      "elapsed_seconds": 145.24682758300332,
+      "elapsed_seconds": 151.02305541594978,
       "error": null,
       "error_class": null
     },
@@ -20,7 +20,7 @@
       "models_attempted": [
         "auto"
       ],
-      "elapsed_seconds": 229.6055645829765,
+      "elapsed_seconds": 233.28793220798252,
       "error": null,
       "error_class": null
     }

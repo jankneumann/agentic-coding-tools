@@ -40,7 +40,8 @@
           },
           "criticality": {
             "type": "string",
-            "enum": ["low", "medium", "high", "blocking"]
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Matches the existing review-findings.schema.json enum and consensus_synthesizer.py rankings. The synthesizer's _higher_criticality() expects this set; using 'blocking' instead would break ranking."
           },
           "description": {
             "type": "string",
