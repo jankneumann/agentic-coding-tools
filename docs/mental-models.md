@@ -125,7 +125,7 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 | Branch naming with `--` separator (`openspec/<change-id>--<agent-id>`) | Avoids git ref storage collisions; small but real isolation |
 | Sync-point skills (the named three: `/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) | Names the *only* places that touch main; everything else is forbidden from doing so |
 | Phase isolation (sub-agents for IMPLEMENT, IMPL_REVIEW, VALIDATE per [`docs/decisions/software-factory-tooling.md`](decisions/software-factory-tooling.md)) | Heavy phases run in their own conversation; driver receives only `(outcome, handoff_id)` |
-| Public vs holdout scenario visibility (per [`software-factory-tooling.md`](software-factory-tooling.md)) | Manifest fields (`visibility: public\|holdout`) are documented; for *this* repo, scenarios live flat under `agent-coordinator/evaluation/gen_eval/scenarios/` and the directory split is aspirational guidance for adopters (see also gap G11) |
+| Public vs holdout scenario visibility | Manifest entries in `agent-coordinator/evaluation/gen_eval/manifests/*.manifest.yaml` mark each scenario `visibility: public\|holdout`. `manifest.py:ScenarioPackManifest` filters at runtime via `public_ids()` / `holdout_ids()`. The manifest is the source of truth (per `manifest.py:28` docstring); filesystem layout is intentionally not used as a classifier. See also G11 |
 | `EnvironmentProfile.isolation_provided` (`skills/shared/environment_profile.py`) | Cloud harness vs local — the substrate provides isolation in cloud; the skill semantics stay identical |
 
 > **The strongest simplification artifact in this repo is the explicit naming of sync-point skills.** Most agentic systems pretend all skills are equal; this one calls out the three places where convergence happens (`/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) and constrains everything else to worktrees. That is how Toyota runs thousands of parallel stations without explosion — the andon and the takt time are *named* convergence rules.
@@ -304,17 +304,19 @@ Searching the repo for that function (or any close variant — `active_agent`, `
 
 The contract is now both implemented and enforced. A sync-point skill that does not call the guard is now visibly broken (the SKILL.md prose tells it to), rather than invisibly broken (no symbol exists). The remaining residual risk is the runtime-mirror sync: `.claude/skills/` and `.agents/skills/` need `skills/install.sh` to pick up the new guard text — this is a separate operator-driven step.
 
-### G11. Public/holdout scenario visibility is documented as the design but not implemented in this repo
+### G11. Public/holdout visibility — design intent clarified, not a gap
 
-`docs/software-factory-tooling.md` describes a three-layer enforcement of public/holdout visibility:
+**Original framing.** This document originally flagged that `agent-coordinator/evaluation/gen_eval/scenarios/` is flat — no `public/` or `holdout/` subdirectories — and concluded the layered enforcement described in `docs/software-factory-tooling.md` (directory structure + manifest metadata + runtime filtering) was incomplete here. The recommended fix was to implement the directory split.
 
-1. directory structure (`public/` and `holdout/` subdirs),
-2. manifest metadata (`visibility: public|holdout`),
-3. runtime filtering.
+**Correction.** Reading `agent-coordinator/evaluation/gen_eval/manifest.py:28` (`ManifestEntry` docstring) reverses that conclusion:
 
-In *this* repo, the gen-eval scenarios at `agent-coordinator/evaluation/gen_eval/scenarios/` are flat — no `public/` or `holdout/` subdirectories exist. Either the visibility is enforced purely through manifest metadata + runtime filtering (layers 2 and 3 only) or it is not enforced at all. The amplification table in Part 2.3 originally claimed the directory split provides isolation; that claim is incorrect for this repo. The layered enforcement described in `software-factory-tooling.md` is **prescriptive guidance for adopters**, not a description of this repo's state.
+> "The manifest is the source of truth for scenario classification — **not file paths or naming conventions**."
 
-**The gap to close:** either implement the directory split here (cheap; mostly a `git mv` + manifest update) or change the amplification claim to "scenarios are flagged via manifest metadata; filesystem-level isolation is recommended for adopting projects."
+So the flat layout is intentional. Visibility is enforced through manifest metadata (`visibility: public|holdout` per scenario entry) plus runtime filtering (`ScenarioPackManifest.public_ids()` / `holdout_ids()`); the directory split is layer-1 belt-and-suspenders, valuable for adopters who do not yet have the runtime filter, redundant for projects that do. This repo chose the manifest layer alone because the runtime filter makes it sufficient.
+
+**The actual (smaller) drift.** `docs/software-factory-tooling.md` reads as if the layered enforcement were a single composite design, when it is actually defense-in-depth guidance for adopters. A short clarification in that doc would resolve the apparent inconsistency. The earlier framing of G11 as "implement the missing split" was wrong because it conflated adopter guidance with repo state.
+
+**Lesson for the doc itself.** Adversarial gap-finding has to read implementation, not just documentation. The original gap was generated by comparing two prose sources (this doc + factory-tooling doc) without consulting `manifest.py`. A gap that survives an implementation read is real; a gap that disappears under implementation read was a documentation alignment issue, not a system gap.
 
 ---
 
