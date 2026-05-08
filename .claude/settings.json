@@ -68,7 +68,8 @@
           },
           {
             "type": "command",
-            "command": "test -x \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/.venv/bin/python && \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/agent-coordinator/scripts/langfuse_hook.py || true"
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/skills/langfuse/scripts/run_stop_hook.sh",
+            "timeout": 30
           }
         ]
       }

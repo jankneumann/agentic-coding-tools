@@ -53,6 +53,14 @@ echo "${LANGFUSE_HOST:?missing}"         # https://cloud.langfuse.com (EU), http
 
 If unset, ask the user for their project keys (Langfuse UI → Settings → API Keys) and the host they're using. Never hardcode keys in committed files — use `${VAR}` interpolation.
 
+In repos that use OpenBao (this one does — see `docs/openbao-secret-management.md`), one line populates all four `LANGFUSE_*` env vars (including the computed `LANGFUSE_BASIC_AUTH`):
+
+```bash
+eval "$(skills/bao-vault/scripts/langfuse_env.sh)"
+```
+
+Safe to run unconditionally — falls back silently when OpenBao is unavailable.
+
 ### CLI reachable
 
 ```bash
@@ -69,7 +77,7 @@ Verify by attempting a read-only call:
 mcp__langfuse__listPrompts({})
 ```
 
-If it errors with "tool not found" or "MCP server not configured", the server isn't registered. See [references/mcp-setup.md](references/mcp-setup.md) to add it (or run `bash skills/langfuse/scripts/install-mcp.sh` for an idempotent setup).
+If it errors with "tool not found" or "MCP server not configured", the server isn't registered. See [references/mcp-setup.md](references/mcp-setup.md) for full coverage, or run `bash skills/langfuse/scripts/install-mcp.sh` for an idempotent setup that targets Claude Code (`.mcp.json`), Codex (`~/.codex/config.toml`), and Gemini (`~/.gemini/settings.json`) in one shot.
 
 ## Resource model
 
@@ -147,7 +155,7 @@ Multi-step Langfuse workflows chain naturally:
 - **Ship a new prompt** → MCP `createTextPrompt` → reference it in code → CLI `traces list` to verify it ran → CLI `scores create` to grade it.
 - **Migrate a hardcoded prompt** → CLI to inventory traces using the literal string → MCP `createTextPrompt` for the externalized version → refactor code to call `get_prompt()` → CLI `traces list` to confirm the new prompt name appears.
 - **Debug a regression** → CLI `traces list --limit 50 --json` filtered by name → CLI `traces get` for the suspect trace → CLI `observations-v2s list` for the failing span → MCP `getPrompt` to inspect the prompt version that ran.
-- **Onboard a new repo to Langfuse** → set credentials → `bash scripts/install-mcp.sh` (registers MCP) → optionally enable Stop hook (see references/stop-hook.md) → instrument app code (see references/instrumentation.md).
+- **Onboard a new repo to Langfuse** → `eval "$(skills/bao-vault/scripts/langfuse_env.sh)"` (or export `LANGFUSE_*` directly) → `bash skills/langfuse/scripts/install-mcp.sh` (registers MCP with all three agents) → `python3 skills/langfuse/scripts/install_stop_hook.py` (Claude Code session traces) → instrument app code (see references/instrumentation.md).
 
 When composing, return one unified response covering all steps. Don't ask the user to invoke each step separately.
 
