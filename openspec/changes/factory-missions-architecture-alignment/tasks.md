@@ -96,21 +96,21 @@
 
 ## Phase 4: WP4 — Validate-Feature Gen-Eval Cli-Augmented (wp4-validate-gen-eval-extend)
 
-- [ ] 4.1 Write integration test for `validate-feature --phase gen-eval` mode-selection branching: descriptor-only → template-only; descriptor + change → cli-augmented; no descriptor → skip
+- [x] 4.1 Write integration test for `validate-feature --phase gen-eval` mode-selection branching: descriptor-only → template-only; descriptor + change → cli-augmented; no descriptor → skip
   **Spec scenarios**: evaluation-framework: "Both artifacts present → cli-augmented", "Descriptor only → template-only fallback", "No descriptor → phase skipped"
   **Contracts**: `contracts/gen-eval-cli.md`
   **Dependencies**: 0.4, 3.5
 
-- [ ] 4.2 Write test for cli-augmented failure non-blocking semantics
+- [x] 4.2 Write test for cli-augmented failure non-blocking semantics
   **Spec scenarios**: evaluation-framework: "cli-augmented failure does not halt pipeline"
   **Dependencies**: 4.1
 
-- [ ] 4.3 Modify `skills/validate-feature/SKILL.md` lines 260-307 to wrap the existing template-only invocation in a mode-selection conditional. Concretely: replace the `if [ -z "$GENEVAL_DESCRIPTORS" ]` / `else` block at lines 271-307 with an outer conditional that branches on whether `openspec/changes/<change-id>/specs/` exists, calling cli-augmented mode in the new branch and the existing template-only block in the fallback branch (preserving lines 274-306 as the fallback path per D5).
+- [x] 4.3 Modify `skills/validate-feature/SKILL.md` lines 260-307 to wrap the existing template-only invocation in a mode-selection conditional. Concretely: replace the `if [ -z "$GENEVAL_DESCRIPTORS" ]` / `else` block at lines 271-307 with an outer conditional that branches on whether `openspec/changes/<change-id>/specs/` exists, calling cli-augmented mode in the new branch and the existing template-only block in the fallback branch (preserving lines 274-306 as the fallback path per D5).
   **Spec scenarios**: evaluation-framework: "Both artifacts present → cli-augmented", "Descriptor only → template-only fallback"
   **Design decisions**: D5
   **Dependencies**: 4.1, 4.2
 
-- [ ] 4.4 Add mode-selection logging per spec ("gen-eval: cli-augmented mode (descriptor + OpenSpec change present)" etc.)
+- [x] 4.4 Add mode-selection logging per spec ("gen-eval: cli-augmented mode (descriptor + OpenSpec change present)" etc.)
   **Spec scenarios**: evaluation-framework: "Both artifacts present → cli-augmented"
   **Dependencies**: 4.3
 
