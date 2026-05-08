@@ -99,6 +99,18 @@ result = assess_complexity(work_packages_path, proposal_path, force=<--force fla
 - If `result.warnings`: report them but continue
 - If `result.checkpoints`: log injected checkpoints
 
+**Record INIT phase archetype** (state-only resolver — D9). After loop-state.json
+is written, shell out to record `phase_archetype` for INIT so observability
+covers all 13 non-terminal phases, not just the 7 dispatching phases:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase INIT
+```
+
+Failure here is non-fatal — the helper logs a warning and writes
+`phase_archetype = null` if the coordinator is unreachable.
+
 ### 2. PLAN Phase
 
 If argument was a description (no existing change-id):
@@ -406,6 +418,18 @@ and `fix_mode="targeted"`, scoped to the validation evidence. Then run
 `apply-outcome` to record `phase_archetype = null`.
 
 ### 8. SUBMIT_PR Phase
+
+**Record SUBMIT_PR phase archetype** (state-only resolver — D9). Before
+running `gh pr create`, populate `phase_archetype` for SUBMIT_PR so the
+PR-creation phase is visible in observability dashboards alongside the
+dispatching phases:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase SUBMIT_PR
+```
+
+Failure here is non-fatal (writes `phase_archetype = null` and continues).
 
 Create a pull request with full evidence trail:
 

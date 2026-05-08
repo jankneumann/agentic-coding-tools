@@ -394,8 +394,8 @@ _PHASE_TASKS: dict[str, str | None] = {
     ),
     "IMPLEMENT": (
         "Implement the next slice of work per tasks.md. Commit per task.\n"
-        "Push commits to the feature branch. Return outcome 'continue' on\n"
-        "success, 'escalate' on unrecoverable error."
+        "Push commits to the feature branch. Return outcome 'complete' on\n"
+        "success, 'failed' on unrecoverable error."
     ),
     "IMPL_ITERATE": (
         "Run /iterate-on-implementation for state.change_id. Refine the\n"
@@ -405,7 +405,8 @@ _PHASE_TASKS: dict[str, str | None] = {
     "IMPL_REVIEW": (
         "Run multi-vendor review against the implementation. Aggregate\n"
         "findings into a structured PhaseRecord. Return outcome 'converged'\n"
-        "if no blocking findings, 'iterate' otherwise."
+        "if no blocking findings, 'not_converged' if blocking findings need\n"
+        "another round, or 'max_iter' if the iteration cap is exhausted."
     ),
     "IMPL_FIX": (
         "Apply review findings from the previous IMPL_REVIEW handoff via\n"
@@ -415,7 +416,7 @@ _PHASE_TASKS: dict[str, str | None] = {
     "VALIDATE": (
         "Run validation phases (spec, evidence, deploy, smoke, security,\n"
         "e2e) per validate-feature. Aggregate results into a PhaseRecord.\n"
-        "Return outcome 'continue' on PASS, 'escalate' on FAIL."
+        "Return outcome 'passed' on PASS, 'failed' on FAIL."
     ),
     "VAL_REVIEW": (
         "Review validation findings from the previous VALIDATE handoff.\n"
@@ -961,6 +962,9 @@ def apply_phase_outcome(
         # Note: spec says replay should NOT cause an error or warning even
         # when the cache file is absent. We deliberately don't peek at it.
         _save_state(state_path, state)
+        # Sweep any orphaned cache from a prior crashed run that left the
+        # state.last_handoff_id correct but the cache on disk. Idempotent.
+        _atomic_unlink(_cache_path(change_id))
         return
 
     # Non-replay path: cache validation governs the archetype write.
@@ -1023,10 +1027,80 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
     _atomic_write_json(path, state)
 
 
+_STATE_ONLY_PHASES_FILE_LEVEL: frozenset[str] = frozenset({"INIT", "SUBMIT_PR"})
+
+
+def record_state_only_archetype(change_id: str, phase: str) -> None:
+    """Resolve and persist phase_archetype for a state-only phase.
+
+    State-only phases (INIT, SUBMIT_PR) don't dispatch a sub-agent — they
+    run inline from SKILL.md prose. The spec still requires
+    `loop-state.json:phase_archetype` to be populated for these phases so
+    observability covers all 13 non-terminal phases.
+
+    SKILL.md shells out to `runner.py record-state-only-archetype` at INIT
+    and SUBMIT_PR entry, which calls this helper. Idempotent: safe to
+    re-invoke; replays leave state unchanged on failure.
+
+    Failure modes:
+      * Missing `loop-state.json` → log warning, no-op.
+      * Bridge unavailable / coordinator returns None → write `phase_archetype = None`
+        (matches the bridge-failure fallback semantics from D9).
+    """
+    _validate_change_id(change_id)
+    if phase not in _STATE_ONLY_PHASES_FILE_LEVEL:
+        raise ValueError(
+            f"phase must be one of {sorted(_STATE_ONLY_PHASES_FILE_LEVEL)}; got {phase!r}"
+        )
+    state_path = _state_path(change_id)
+    if not state_path.exists():
+        logger.warning(
+            "record_state_only_archetype: %s missing for change=%s; nothing to record",
+            state_path, change_id,
+        )
+        return
+    try:
+        with state_path.open("r", encoding="utf-8") as fh:
+            state = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "record_state_only_archetype: failed to read %s (%s); aborting update",
+            state_path, exc,
+        )
+        return
+    if not isinstance(state, dict):
+        logger.warning(
+            "record_state_only_archetype: unexpected state shape in %s; aborting",
+            state_path,
+        )
+        return
+
+    archetype: str | None = None
+    try:
+        import coordination_bridge  # type: ignore[import-not-found]
+        resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, {})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "record_state_only_archetype(%s) bridge raised: %s; "
+            "writing phase_archetype=None",
+            phase, exc,
+        )
+        resolved = None
+
+    if isinstance(resolved, dict):
+        candidate = resolved.get("archetype")
+        if isinstance(candidate, str) and candidate:
+            archetype = candidate
+
+    state["phase_archetype"] = archetype
+    _save_state(state_path, state)
+
+
 __all__ = [
     "PhaseEscalationError",
     "apply_phase_outcome",
     "build_phase_dispatch_kwargs",
     "make_phase_callback",
+    "record_state_only_archetype",
     "run_phase_subagent",
 ]
