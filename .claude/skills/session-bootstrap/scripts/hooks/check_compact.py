@@ -32,6 +32,7 @@ Hook input (stdin JSON, per Claude Code spec):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -44,6 +45,7 @@ DEFAULT_THRESHOLD_PCT = 70
 DEFAULT_CONTEXT_LIMIT = 200_000
 PHASE_BOUNDARY_WINDOW_SEC = 60
 CHAR_PER_TOKEN = 4
+SDK_CACHE_TTL_SEC = 30
 
 
 def _agent_id() -> str:
@@ -119,16 +121,71 @@ def _sdk_estimate(messages: list[dict[str, Any]], model: str) -> int | None:
     return None
 
 
+def _sdk_cache_path(transcript_path: Path) -> Path:
+    """Per-transcript SDK cache path. Hashing isolates sessions cleanly
+    without coupling to AGENT_ID, which may be unset."""
+    key = hashlib.sha1(str(transcript_path).encode()).hexdigest()[:16]
+    return Path.home() / ".claude" / f"compact-token-cache-{key}.json"
+
+
+def _sdk_cache_lookup(transcript_path: Path) -> int | None:
+    """Return cached token count when:
+      - the transcript hasn't changed since last measurement (exact hit), OR
+      - the cache is fresh within SDK_CACHE_TTL_SEC (rate-limit hit).
+    Otherwise return None and force a fresh SDK call."""
+    cache_path = _sdk_cache_path(transcript_path)
+    try:
+        cache = json.loads(cache_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    cached_tokens = cache.get("tokens")
+    if not isinstance(cached_tokens, int):
+        return None
+    try:
+        current_mtime = transcript_path.stat().st_mtime
+    except OSError:
+        current_mtime = 0.0
+    if cache.get("transcript_mtime") == current_mtime:
+        return cached_tokens
+    if (time.time() - cache.get("computed_at", 0.0)) < SDK_CACHE_TTL_SEC:
+        return cached_tokens
+    return None
+
+
+def _sdk_cache_store(transcript_path: Path, tokens: int) -> None:
+    cache_path = _sdk_cache_path(transcript_path)
+    try:
+        mtime = transcript_path.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({
+            "tokens": tokens,
+            "computed_at": time.time(),
+            "transcript_mtime": mtime,
+        }))
+    except OSError as exc:
+        print(f"{PREFIX} cache write failed: {exc}", file=sys.stderr)
+
+
 def _measure_tokens(transcript_path: Path) -> int:
     """SDK path when ANTHROPIC_API_KEY is set and `anthropic` imports;
-    otherwise proxy. Mirrors phase_token_meter.py priority order."""
+    otherwise proxy. Mirrors phase_token_meter.py priority order.
+
+    SDK calls are rate-limited via a per-transcript file cache (TTL
+    SDK_CACHE_TTL_SEC) to avoid ~200ms latency on every Stop event."""
     messages = _transcript_messages(transcript_path)
     if not messages:
         return 0
     if os.environ.get("ANTHROPIC_API_KEY"):
+        cached = _sdk_cache_lookup(transcript_path)
+        if cached is not None:
+            return cached
         model = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-7")
         sdk_tokens = _sdk_estimate(messages, model)
         if sdk_tokens is not None:
+            _sdk_cache_store(transcript_path, sdk_tokens)
             return sdk_tokens
     return _proxy_estimate(messages)
 
