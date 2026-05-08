@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sample Frontend</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    .form-row { margin-bottom: 0.5rem; }
+    #welcome { display: none; padding: 1rem; background: #e8ffe8; border: 1px solid #2a2; }
+  </style>
+</head>
+<body>
+  <h1>Sample Frontend</h1>
+  <p>Static HTML + inline JS. No framework (per design D6).</p>
+
+  <form id="login-form" autocomplete="off">
+    <div class="form-row">
+      <label for="username">Username:</label>
+      <input id="username" name="username" type="text">
+    </div>
+    <div class="form-row">
+      <label for="password">Password:</label>
+      <input id="password" name="password" type="password">
+    </div>
+    <button id="login-button" type="button">Log in</button>
+  </form>
+
+  <div id="welcome"></div>
+
+  <script>
+    (function () {
+      var form = document.getElementById('login-form');
+      var usernameInput = document.getElementById('username');
+      var passwordInput = document.getElementById('password');
+      var loginButton = document.getElementById('login-button');
+      var welcome = document.getElementById('welcome');
+
+      loginButton.addEventListener('click', function () {
+        var username = usernameInput.value.trim();
+        var password = passwordInput.value;
+        if (!username || !password) {
+          welcome.style.display = 'none';
+          welcome.textContent = '';
+          return;
+        }
+        welcome.textContent = 'Welcome, ' + username;
+        welcome.style.display = 'block';
+      });
+    })();
+  </script>
+</body>
+</html>

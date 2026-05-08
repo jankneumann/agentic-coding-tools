@@ -170,54 +170,54 @@
 
 ## Phase 7: WP7 — Playwright Validator (wp7-playwright-validator)
 
-- [ ] 7.1 Write contract test for `frontend-descriptor.schema.json`: valid descriptors validate, invalid ones fail (missing base_url, invalid browser names, malformed selectors)
+- [x] 7.1 Write contract test for `frontend-descriptor.schema.json`: valid descriptors validate, invalid ones fail (missing base_url, invalid browser names, malformed selectors)
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path", "Browser matrix executes all configured browsers"
   **Contracts**: `contracts/frontend-descriptor.schema.json`
   **Dependencies**: 0.2
 
-- [ ] 7.2 Write integration test for sample-frontend Playwright run (start http.server, run validator, assert findings-playwright.json shape)
+- [x] 7.2 Write integration test for sample-frontend Playwright run (start http.server, run validator, assert findings-playwright.json shape)
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path"
   **Design decisions**: D2, D6
   **Dependencies**: 0.1, 0.2, 5.4
 
-- [ ] 7.3 Write test for browser-matrix execution (chromium + firefox both run, both produce findings)
+- [x] 7.3 Write test for browser-matrix execution (chromium + firefox both run, both produce findings)
   **Spec scenarios**: gen-eval-framework: "Browser matrix executes all configured browsers"
   **Dependencies**: 7.2
 
-- [ ] 7.4 Write test for missing-Playwright-CLI degradation (exit 127, no findings file)
+- [x] 7.4 Write test for missing-Playwright-CLI degradation (exit 127, no findings file)
   **Spec scenarios**: gen-eval-framework: "Missing Playwright CLI degrades cleanly"
   **Dependencies**: 7.2
 
-- [ ] 7.5 Create sample frontend at `evaluation/gen_eval/fixtures/sample-frontend/index.html` (static HTML + inline JS, no framework per D6)
+- [x] 7.5 Create sample frontend at `evaluation/gen_eval/fixtures/sample-frontend/index.html` (static HTML + inline JS, no framework per D6)
   **Design decisions**: D6
   **Dependencies**: None
 
-- [ ] 7.6 Create sample frontend descriptor at `evaluation/gen_eval/descriptors/sample-frontend.yaml` conforming to frontend-descriptor schema
+- [x] 7.6 Create sample frontend descriptor at `evaluation/gen_eval/descriptors/sample-frontend.yaml` conforming to frontend-descriptor schema
   **Contracts**: `contracts/frontend-descriptor.schema.json`
   **Dependencies**: 0.2, 7.5
 
-- [ ] 7.7 Create sample OpenSpec scenarios for the sample frontend (in fixtures/sample-frontend/specs/)
+- [x] 7.7 Create sample OpenSpec scenarios for the sample frontend (in fixtures/sample-frontend/specs/)
   **Dependencies**: 7.5
 
-- [ ] 7.8 Create `skills/playwright-validator/SKILL.md` with command spec, dependency check (npx playwright install), and pipeline orchestration. Authored AFTER the runner is implemented (7.10) so the SKILL.md documents real behavior, not an interface skeleton.
+- [x] 7.8 Create `skills/playwright-validator/SKILL.md` with command spec, dependency check (npx playwright install), and pipeline orchestration. Authored AFTER the runner is implemented (7.10) so the SKILL.md documents real behavior, not an interface skeleton.
   **Spec scenarios**: gen-eval-framework: "Missing Playwright CLI degrades cleanly"
   **Design decisions**: D2
   **Dependencies**: 7.1, 7.10
 
-- [ ] 7.9 Implement Playwright-test-script generator that consumes OpenSpec scenarios + frontend descriptor → produces `.spec.ts` test files
+- [x] 7.9 Implement Playwright-test-script generator that consumes OpenSpec scenarios + frontend descriptor → produces `.spec.ts` test files
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path"
   **Dependencies**: 7.8
 
-- [ ] 7.10 Implement Playwright runner: starts local http.server for static descriptors, executes `npx playwright test --reporter=json`, parses results
+- [x] 7.10 Implement Playwright runner: starts local http.server for static descriptors, executes `npx playwright test --reporter=json`, parses results
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path", "Browser matrix executes all configured browsers"
   **Dependencies**: 7.9
 
-- [ ] 7.11 Implement findings-emission shim that converts Playwright JSON output to `findings-gen-eval.json` (or `findings-playwright.json`) shape per schema
+- [x] 7.11 Implement findings-emission shim that converts Playwright JSON output to `findings-gen-eval.json` (or `findings-playwright.json`) shape per schema
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path"
   **Contracts**: `openspec/schemas/review-findings.schema.json`
   **Dependencies**: 7.10, 0.1
 
-- [ ] 7.12 Hook playwright-validator into `validate-feature --phase gen-eval` so the phase auto-detects frontend descriptors and dispatches to the playwright skill
+- [x] 7.12 Hook playwright-validator into `validate-feature --phase gen-eval` so the phase auto-detects frontend descriptors and dispatches to the playwright skill
   **Dependencies**: 4.3, 7.11
 
 ## Phase 8: Integration (wp-integration)
