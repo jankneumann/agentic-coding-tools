@@ -132,6 +132,7 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **ALL-sentinel over signaling failure via exit codes**: `affected_tests.py` prints the single line `ALL` and exits 0 to signal "fall back to full suite". This is semantically distinct from a nonzero exit (actual failure) — exit 0 is "the answer is 'run everything'", exit ≠0 is "I couldn't compute an answer". The client collapses both to `None` for simplicity, but logging distinguishes them so only real failures get warning-level visibility.
 
+<<<<<<< HEAD
 ## Engineering Methodology Skills (add-engineering-methodology-skills, 2026-05)
 
 - **Skill suite is now horizontal AND vertical**: Adopted 10 methodology skills from `addyosmani/agent-skills` (TDD, debugging, context-engineering, source-driven, performance, frontend-UI, API design, browser-testing, deprecation, ADRs). The repo now has both *vertical* lifecycle skills (plan→implement→validate→cleanup) and *horizontal* topic methodology skills. Orchestrators auto-load methodology when relevant; operators invoke ad-hoc via slash commands when they want a discipline applied directly.
@@ -149,3 +150,9 @@ Accumulated patterns and conventions from building and operating this project.
 - **Combined ADAPT + tail-block edit avoids double-touching files**: When extracting patterns from external skills into existing local skills, fold the tail-block addition into the same edit pass. Two separate edits would mean two reviews, two commits, and a merge-conflict risk. The implementing sub-agent owns both edits per package.
 
 - **Spec-vs-reality drift surfaces in implementation**: Two minor deviations between plan and implementation: `simplify` skill didn't exist on disk despite being labeled a "tail-block pilot" (sub-agent created it from scratch); `review-findings.schema.json` lives at `openspec/schemas/`, not `skills/parallel-infrastructure/schemas/` as the work-packages.yaml assumed. Both deviations were in-scope corrections that sub-agents handled cleanly — but they're a reminder that work-packages.yaml file paths are forecasts, not contracts. Sub-agents should be empowered to find the actual location and proceed.
+
+## Self-Healing at Milestone Boundaries
+
+What `escalation_handler.py` (`agent-coordinator/src/escalation_handler.py`) actually implements, in Factory Missions vocabulary: orchestrator-driven re-scoping at milestone boundaries based on structured handoffs. When a worker emits CONTRACT_REVISION_REQUIRED, PLAN_REVISION_REQUIRED, SCOPE_VIOLATION, or one of the other escalation types, the orchestrator deterministically re-scopes the DAG (e.g., bumping `contracts.revision`, re-submitting impacted packages) — no agent memory required.
+
+See the existing escalation-handler references above for the full type list and dispatcher logic; this section just names the pattern.

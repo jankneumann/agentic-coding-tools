@@ -723,3 +723,27 @@ Immutable, append-only logging of all coordination operations. Best-effort (non-
 - **Lessons Learned**: [`docs/lessons-learned.md`](lessons-learned.md)
 - **Architecture Artifacts**: [`docs/architecture-artifacts.md`](architecture-artifacts.md)
 - **Presentation Slides**: [`docs/presentations/index.html`](presentations/index.html)
+
+## Five-Tier Multi-Agent Taxonomy
+
+This repo implements all five communication patterns identified in the Factory Missions architecture under repo-specific names. Use this table to map a problem onto the right primitive:
+
+| Pattern | What it is | This repo's primitive |
+|---|---|---|
+| **Delegation** | Parent spawns sub-agents for specific tasks | `submit_work` / `get_work` queue (`agent-coordinator/src/work_queue.py`) |
+| **Creator-Verifier** | Fresh agent reviews another's work blind to implementation | Orchestrator + `skills/parallel-review-plan/` + `skills/parallel-review-implementation/` |
+| **Direct Communication** | Agents DM each other (warned against — fragments state) | MCP tools when used outside coordinator paths; prefer the queue (`agent-coordinator/src/mcp_server.py`) |
+| **Negotiation** | Agents communicate over shared resources for positive-sum trade | Merge queue with lock-key prefix serialization (`agent-coordinator/src/merge_train_service.py`) |
+| **Broadcast** | One agent sends status updates to all others for coherence | Coordinator discovery + heartbeat (`skills/worktree/scripts/worktree.py heartbeat`) |
+
+## Scope-Isolated Parallelism
+
+The Factory Missions talk argues parallel execution typically fails in software tasks because agents duplicate work and clobber each other's writes, and concludes features should run **serially**. We agree with the diagnosis but not the prescription.
+
+Rather than abandon intra-feature parallelism, this repo makes write-scope isolation a load-bearing invariant:
+
+- Each work package declares non-overlapping `write_allow` globs in `work-packages.yaml`
+- `skills/parallel-infrastructure/scripts/scope_checker.py` enforces the invariant deterministically via `git diff` after each agent completes
+- The merge queue serializes only at lock-key prefix collisions (e.g., all `api:*` claims serialize, all `db:schema:*` claims serialize, different prefixes merge independently)
+
+Read-only operations (search, research, reviews) are unconditionally parallel. The talk's `serial` prescription is a strict subset of what we actually allow.
