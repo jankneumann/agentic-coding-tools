@@ -1,0 +1,39 @@
+# Sample frontend descriptor for the Playwright validator smoke test.
+# Conforms to:
+#   openspec/changes/factory-missions-architecture-alignment/contracts/frontend-descriptor.schema.json
+#
+# Per design D7, the lifecycle.startup_command MUST bind to 127.0.0.1.
+# Per design D6, the served frontend is a single static index.html.
+
+schema_version: "1"
+name: sample-frontend
+base_url: "http://127.0.0.1:8765"
+
+lifecycle:
+  startup_command: "python -m http.server 8765 --bind 127.0.0.1"
+  startup_cwd: "evaluation/gen_eval/fixtures/sample-frontend"
+  bind_address: "127.0.0.1"
+  health_check:
+    url: "http://127.0.0.1:8765/"
+    expected_status: 200
+    timeout_seconds: 10
+    retries: 5
+
+auth_flow: []
+
+env_vars_required: []
+
+selectors:
+  username_field: "#username"
+  password_field: "#password"
+  login_button: "#login-button"
+  welcome_message: "#welcome"
+
+browsers:
+  - chromium
+
+viewport:
+  width: 1280
+  height: 720
+
+test_isolation: per_scenario
