@@ -127,7 +127,7 @@ packages:
         - "skills/autopilot/scripts/checkpoint_findings.py"
         - "skills/tests/autopilot/test_checkpoint_findings.py"
     metadata:
-      loc_estimate: 200
+      loc_estimate: 280
       package_kind: algorithm
 
   # ──────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ packages:
 
   - package_id: wp-cli-refactor
     task_type: implement
-    description: "Replace inlined finding/manifest writes in review_dispatcher.py with checkpoint_findings calls. Extract load_findings_from_dir() helper from consensus_synthesizer.py. CLI behavior unchanged; tests assert byte-identical artifacts."
+    description: "Migrate review_dispatcher.py manifest writes to the shared helper (manifest gains new fields while preserving all existing fields — superset, not replacement). Extract load_findings_from_dir() helper from consensus_synthesizer.py and add --findings-dir CLI argument. Per-vendor finding files remain byte-identical; manifest is a superset of the prior shape."
     role: infrastructure
     priority: 3
     timeout_minutes: 75
@@ -186,7 +186,7 @@ packages:
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/parallel-infrastructure/scripts/consensus_synthesizer.py"
     metadata:
-      loc_estimate: 180
+      loc_estimate: 220
       package_kind: config
 
   # ──────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ packages:
         - "skills/tests/autopilot/test_convergence_recovery.py"
         - "skills/tests/autopilot/test_convergence_result_shape.py"
     metadata:
-      loc_estimate: 350
+      loc_estimate: 420
       package_kind: algorithm
 
   # ──────────────────────────────────────────────────────
