@@ -95,3 +95,43 @@ Planned a CLI-fallback recovery mechanism for the in-process multi-vendor review
 ### Context
 Self-review surfaced two CRITICAL issues that would have broken implementation: (1) the proposal assumed a `--findings-dir` flag that consensus_synthesizer.py CLI doesn't accept, and (2) the proposed manifest schema was a REPLACEMENT not a SUPERSET of the existing review_dispatcher.py manifest, which would have lost forensically valuable dispatch metadata. Both fixes landed plus 5 high-priority security/consistency fixes. Spec grew from 5 requirements to 6 (added Path Safety) and from 14 to 24 scenarios.
 
+---
+
+## Phase: Plan Iteration 2 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Drop automatic recovery; deliver durable checkpoint only (D1)** `architectural: multi-vendor-review` — Multi-vendor review caught that both paths share Finding.from_dict(). The CLI subprocess can't escape parser bugs; it just experiences them from a subprocess. Honest framing of what's achievable: durable on-disk state for manual recovery, with automatic recovery deferred to a follow-up proposal that depends on the parser fix landing first.
+2. **Same on-disk path as the CLI dispatcher; no relocation (D2)** `architectural: multi-vendor-review` — Codex finding caught that routing CLI per-vendor writes into .review-cache/ would silently move artifacts that other code globs at <output_dir>/findings-*-{review_type}.json. Compatibility cost outweighed the cosmetic benefit of unified paths.
+3. **Move checkpoint_findings.py under parallel-infrastructure/ (dependency direction)** `architectural: multi-vendor-review` — Both claude-003 (low) and gemini #2 (medium) flagged the bidirectional dependency cycle in the original placement. autopilot already imports from parallel-infrastructure (ReviewOrchestrator). Putting the helper under autopilot/ would create a back-edge.
+4. **Per-vendor finding-file schema = wrapper object, NOT raw array (D4)** `architectural: multi-vendor-review` — The synthesizer literally crashed on my findings file (raw array shape) during PLAN_REVIEW consensus run. The existing wire format is a wrapper object with findings: [...] inside. Schema must mirror reality.
+5. **Manifest is a superset preserving existing dispatcher fields (D3)** `architectural: multi-vendor-review` — Codex finding #3 + my own claude-006 (the only matcher-confirmed cross-vendor finding). Replacing the existing manifest format would lose model_used / elapsed_seconds / error_class — operationally valuable. Superset is additive and backward-compatible.
+
+### Alternatives Considered
+- Bundle the consensus_synthesizer.py:59 line_range parser fix into THIS proposal: rejected because Would make the original 'automatic recovery' design actually work. User explicitly requested separate filing of the bug fix; bundling violates the narrow-proposals principle. Mixing systemic durability with a specific bug fix couples their review/merge fates.
+- Reject the proposal entirely: rejected because The durability primitive has independent value beyond the specific motivating bug. Every future synthesis-time exception preserves findings instead of losing them. That's a real systemic improvement worth landing.
+- Keep R3 (auto subprocess fallback) for cases where the failure ISN'T from Finding.from_dict(): rejected because Speculative complexity. The proposal motivated by ONE class of failure (parser bugs) doesn't gain much from supporting recovery for hypothetical OTHER classes of failure. Better to deliver the durable primitive cleanly and add fallback later if a real use case appears.
+
+### Trade-offs
+- Accepted No automatic recovery in this proposal over Original Approach 1's full auto-fallback story because Auto-fallback didn't actually recover from the motivating bug because both paths share the buggy parser. Honest scope > impressive-sounding scope.
+- Accepted In-process and CLI write to different on-disk paths over Unified .review-cache/ for both because Existing globs and documentation reference the dispatcher's current output paths. Relocation would silently break them. Two paths is fine; format is unified via the shared helper.
+- Accepted checkpoint_findings.py lives under parallel-infrastructure (not autopilot) over Co-locating with the new caller (converge) because Dependency direction matters more than file co-location. autopilot already imports from parallel-infrastructure; adding a back-edge would create a cycle.
+
+### Open Questions
+- [ ] Should the audit event also fire when the checkpoint write itself fails (OSError/PermissionError)? Current design says no (audit is layered on synthesis failure with checkpoint present). Could surface chronic disk-full issues but adds complexity. Defer.
+- [ ] Should ConvergenceResult.synthesis_failed be set in a partial-result path if some callers do catch the exception and reconstruct a result? Current design says yes (the field defaults to False; callers that catch may set it manually). Verify this matches the patterns in actual call sites.
+
+### Completed Work
+- Re-wrote proposal.md with new framing (durable checkpoint, not automatic recovery); previous approach 1 marked NOW REJECTED with explanation
+- Re-wrote spec.md: dropped R3 (CLI subprocess fallback) entirely; kept R1 (layout), R2 (in-process checkpointing), R3-renumbered (observability fields, was R4), R4-renumbered (audit, was R5), R5-renumbered (path safety, was R6). 5 requirements / 17 scenarios.
+- Re-wrote tasks.md: dropped Phase 5 (CLI fallback) entirely; renumbered phases; integration test (Phase 5 new) verifies durability NOT recovery
+- Re-wrote design.md with corrected architectural diagram (helper under parallel-infrastructure/); Decision Log now D1-D6 with all decisions reflecting the new framing
+- Fixed contracts/finding.schema.json: per-vendor file is wrapper object {review_type, target, reviewer_vendor, findings: [...]}, NOT raw array. Synthesizer crash during consensus run was direct evidence of the original schema's incorrectness.
+- Re-wrote work-packages.yaml: 5 packages (wp-contracts, wp-checkpoint-helper, wp-cli-migrate, wp-converge-checkpoint, wp-integration). LOC estimates: 80+240+120+200+140 = 780 (down from 1190).
+- Updated contracts/README.md to reflect superset framing and wrapper-object correction
+- Re-validated: openspec --strict passes, work-packages validates, JSON schemas parse
+
+### Context
+Major re-scope after multi-vendor PLAN_REVIEW (claude+codex+gemini) converged on a fundamental architectural flaw: the proposed CLI subprocess fallback uses the same Finding.from_dict() parser as the in-process path, so both paths fail identically on the motivating bug. Dropped automatic recovery (R3); reframed proposal as durable-checkpoint-plus-manual-recovery. Spec compressed from 6 requirements / 24 scenarios to 5 requirements / 17 scenarios. LOC estimate dropped from 1190 to 780. Contract schemas corrected (per-vendor file is wrapper object, not raw array). Helper relocated under parallel-infrastructure/ to fix dependency cycle.
+

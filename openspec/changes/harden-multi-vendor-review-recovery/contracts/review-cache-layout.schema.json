@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.local/contracts/review-cache-layout.schema.json",
   "title": "ReviewCacheManifest",
-  "description": "Manifest for an on-disk vendor-findings checkpoint. Superset of the manifest currently written by review_dispatcher.py:write_manifest() — preserves all existing fields (review_type, target, dispatches[], quorum_requested, quorum_received) AND adds new fields needed for the in-process converge() flow and the CLI subprocess fallback (schema_version, change_id, created_at, vendors[]).",
+  "description": "Manifest for an on-disk vendor-findings checkpoint. Superset of the manifest currently written by review_dispatcher.py:write_manifest() — preserves all existing fields (review_type, target, dispatches[], quorum_requested, quorum_received) AND adds new fields needed for the in-process converge() flow (schema_version, change_id, created_at, vendors[]). After this proposal lands, both the CLI dispatcher and in-process converge() write the same superset shape via the shared checkpoint_findings helper. Legacy manifests written by older versions of review_dispatcher.py (lacking schema_version etc.) are NOT covered by this schema; they predate the proposal and will be regenerated next time the dispatcher runs.",
   "type": "object",
   "required": [
     "schema_version",

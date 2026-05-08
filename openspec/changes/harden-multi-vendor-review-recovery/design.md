@@ -1,197 +1,177 @@
-# Design: Harden Multi-Vendor Review Recovery
+# Design: Harden Multi-Vendor Review Recovery (revised)
 
 ## Architectural Position
 
-The change sits at the seam between two existing components:
-
 ```
+┌──────────────────────────────────────────────────────────────────────────┐
+│              skills/parallel-infrastructure/scripts/                     │
+│                                                                          │
+│   checkpoint_findings.py         ← NEW: shared write/read helpers        │
+│   ├── write_vendor_findings(out_dir, vendor, review_type, target,        │
+│   │                          findings)                                   │
+│   │       — atomic-rename: temp → fsync → rename                         │
+│   │       — validates `vendor` against [A-Za-z0-9_-]+ before any disk op │
+│   ├── read_vendor_findings(out_dir) -> dict[str, list[ReviewFinding]]    │
+│   ├── write_manifest(out_dir, change_id, review_type, target, vendors,   │
+│   │                  dispatches=None, quorum_requested=None,             │
+│   │                  quorum_received=None)                               │
+│   │       — atomic-rename + parent-dir fsync                             │
+│   │       — defaults: dispatches=[], quorum_*=0 (in-process callers)     │
+│   ├── read_manifest(out_dir) -> ManifestData                             │
+│   └── _validate_path_safety(artifacts_dir, vendor, review_type)          │
+│                                                                          │
+│   review_dispatcher.py                                                   │
+│   └── (lines ~1180-1208 + ~1360-1362)  ← MODIFIED: route via helper      │
+│                                                                          │
+│   consensus_synthesizer.py                                               │
+│   └── (UNCHANGED — no --findings-dir extension; no behavior change)      │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │ imports (one-way)
+                                     ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                           skills/autopilot/                              │
 │                                                                          │
 │   convergence_loop.py                                                    │
-│   ├── converge(...)              ← MODIFIED: checkpoint + fallback       │
-│   ├── ConvergenceResult          ← MODIFIED: + 2 observability fields    │
-│   └── _invoke_synthesizer_cli()  ← NEW: subprocess wrapper               │
-│                                                                          │
-│   checkpoint_findings.py         ← NEW: shared write/read helpers        │
-│   ├── write_vendor_findings(artifacts_dir, vendor_findings, review_type) │
-│   │       — validates against finding.schema.json BEFORE write           │
-│   ├── read_vendor_findings(cache_dir) -> dict[str, list[ReviewFinding]]  │
-│   ├── write_manifest(cache_dir, change_id, review_type, vendors,         │
-│   │                  dispatches=None, quorum_requested=None,             │
-│   │                  quorum_received=None, target=None)                  │
-│   │       — writes superset shape; in-process callers omit dispatches    │
-│   │       — atomic-rename: write to .tmp, fsync, rename                  │
-│   └── _validate_path_safety(artifacts_dir, vendor, review_type)          │
-│           — Path.resolve(); rejects ../, vendor with non-[A-Za-z0-9_-]   │
-└────────────────────────────────────┬─────────────────────────────────────┘
-                                     │ imports
-                                     ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│              skills/parallel-infrastructure/scripts/                     │
-│                                                                          │
-│   review_dispatcher.py                                                   │
-│   └── (lines ~1360-1362)         ← MODIFIED: call shared helper instead  │
-│                                                                          │
-│   consensus_synthesizer.py                                               │
-│   ├── load_findings_from_dir()   ← NEW: extracted helper, no behavior Δ  │
-│   └── main()                     ← UNCHANGED                             │
+│   ├── converge(...)              ← MODIFIED: pre-synthesis checkpoint    │
+│   │       + audit on synthesis failure                                   │
+│   └── ConvergenceResult          ← MODIFIED: + 2 observability fields    │
+│           (checkpoint_dir, synthesis_failed)                             │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-The shared `checkpoint_findings` module lives under `skills/autopilot/scripts/` because that is the closer caller (the new code path), and `parallel-infrastructure/scripts/review_dispatcher.py` is happy to import upstream from there. The alternative — putting it under `parallel-infrastructure/` and importing into `autopilot/` — was considered and rejected because `autopilot` already imports from `parallel-infrastructure` (via `ReviewOrchestrator`), and adding a reverse edge complicates the dependency graph. Keeping the shared module on the caller side (autopilot) makes both directions one-way.
+The shared `checkpoint_findings` module lives under `skills/parallel-infrastructure/scripts/` (not `autopilot/`) so the dependency direction is one-way: `autopilot` imports from `parallel-infrastructure`, never the reverse. Multi-vendor review of an earlier draft caught that placing the helper under `autopilot/` while having `review_dispatcher.py` import it would create a bidirectional cycle.
 
 ## Decision Log
 
-### D1: Subprocess fallback over native checkpoint-then-synthesize
+### D1: Durable checkpoint, manual recovery (NOT automatic)
 
-**Context.** Two paths give us the same end-state durability: (a) checkpoint-then-fallback-CLI-on-failure (Approach 1), (b) checkpoint-then-synthesize-natively (Approach 2). The user selected (a) at Gate 1.
+**Context.** The original Approach 1 was "auto-fallback to CLI subprocess on synthesis failure." Multi-vendor PLAN_REVIEW (claude + codex + gemini) converged on a fundamental flaw: the in-process synthesizer and the CLI subprocess BOTH call `Finding.from_dict()` to deserialize per-vendor findings. Bugs in that parser (like the `consensus_synthesizer.py:59` `line_range` shape mismatch that motivated this proposal) cause both paths to fail identically. The fallback would log audit events about a recovery that didn't actually happen.
 
-**Decision.** Approach 1. The fallback path uses the existing `consensus_synthesizer.py` CLI binary verbatim — no parallel synthesizer implementation.
+**Decision.** Drop automatic recovery from this proposal. Deliver only durability — the checkpoint exists on disk, the synthesis exception propagates to the caller. Recovery is manual: an operator diagnoses the issue (or fixes the underlying bug in a separate proposal) and re-runs the synthesizer against the checkpoint.
 
-**Why.** Reuses a working code path instead of forking it. If a future bug in the synthesizer is fixed in the CLI, the fallback path inherits the fix automatically. If we re-implemented synthesis natively in `converge()`, both paths would need the fix.
+**Why.** Honest framing of what's actually achievable. The durability primitive has independent value beyond automatic recovery — every future synthesis-time exception preserves findings instead of losing them. Layering automatic recovery on top is a follow-up proposal that depends on the parser fix landing first.
 
-**How to apply.** When extending recovery in the future, prefer "checkpoint more upstream + invoke the same CLI" over "add a second native code path."
+**How to apply.** Resist the temptation to add subprocess fallback "just in case." Future automatic-recovery proposals SHALL depend explicitly on a known-reliable synthesizer parser, not just on this proposal's checkpoint primitive.
 
-### D2: Reuse `<artifacts_dir>/.review-cache/` (CLI's existing layout)
+### D2: Same on-disk path as the CLI dispatcher (no relocation)
 
-**Context.** Three options for the checkpoint location were considered: shared with the CLI's existing layout, dedicated `converge-checkpoints/` subdir, or tmpfile-only.
+**Context.** An earlier draft proposed routing the CLI dispatcher's per-vendor finding writes into `<output_dir>/.review-cache/`. Multi-vendor review caught that this would silently move artifacts that other code globs for at `<output_dir>/findings-*-{review_type}.json`.
 
-**Decision.** Shared. Same directory, same filename pattern, same manifest format.
+**Decision.** Per-vendor finding files stay where the dispatcher writes them today (`<output_dir>/findings-{vendor}-{review_type}.json`). The in-process flow uses `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` because in-process callers don't have an `output_dir` analogous to the CLI's. The two paths are NOT unified — each call site continues writing where it already writes.
 
-**Why.** The CLI is the fallback path. Any layout other than the CLI's layout requires either a path-translation step at fallback time or a second loader. Both add complexity for zero functional benefit. The `.review-cache/` name is also semantically right — these are *cached* per-vendor findings, durable across the dispatch → synthesize boundary.
+**Why.** Compatibility with existing globs in other code. The relocation was a non-essential change for cosmetic uniformity; the cost (broken globs) outweighed the benefit (one less code path).
 
-**How to apply.** All future writers of vendor findings (in-process, CLI, third party) MUST go through `checkpoint_findings.write_vendor_findings()`. Do not introduce a parallel layout.
+**How to apply.** Future writers SHALL go through `checkpoint_findings.write_vendor_findings()` for the format, but pass their preferred `out_dir`. The helper does not impose a single canonical directory.
 
-### D3: Observable recovery via two fields, not a side-channel
+### D3: Manifest is a superset, not a replacement
 
-**Context.** The user selected "Log + structured warning, but report success." We need callers to be able to tell recovery happened without breaking the success path of existing callers.
+**Context.** The existing `review_dispatcher.py:write_manifest()` writes `{review_type, target, dispatches[], quorum_requested, quorum_received}`. Replacing this would lose forensically valuable dispatch metadata that operators read today.
 
-**Decision.** Add two fields directly to `ConvergenceResult` — `recovered_via_fallback: bool` (default `False`) and `fallback_diagnostics: dict | None` (default `None`).
+**Decision.** New schema is a superset. All existing fields preserved. New fields added: `schema_version`, `change_id`, `created_at`, `vendors[]`. In-process callers that lack dispatch metadata write `dispatches: []` and `quorum_*: 0`.
 
-**Why.** A side-channel (env var, thread-local, audit log only) hides the recovery from callers that legitimately need to know. The dataclass is the natural carrier — existing consumers ignore the new fields, recovery-aware consumers read them. Keeping the diagnostics as a structured dict (not a free-form string) gives us forwards compatibility for new diagnostic keys.
+**Why.** Adding is additive and backward-compatible. Replacing breaks downstream consumers.
 
-**How to apply.** Recovery-aware callers should treat `recovered_via_fallback=True` as a SUCCESS but emit their own monitoring signal (e.g., a Langfuse score, a Slack ping) — chronic recovery means primary-path issues, not failures.
+**How to apply.** Future writers MUST go through `checkpoint_findings.write_manifest()`. Direct `json.dump(...)` of manifest data is prohibited. New fields must be additive within `schema_version=1` or trigger a version bump.
 
-### D4: Re-raise the **original** synthesis exception when fallback also fails
+### D4: Per-vendor finding-file shape is preserved (wrapper object, not raw array)
 
-**Context.** When both primary synthesis and fallback CLI fail, we have two errors. Which one bubbles?
+**Context.** An earlier draft of `contracts/finding.schema.json` defined the per-vendor file as a top-level array `[{...}, {...}]`. Multi-vendor review caught (and the synthesizer's literal crash demonstrated) that the actual wire format is a wrapper object: `{review_type, target, reviewer_vendor, findings: [...]}`.
 
-**Decision.** Re-raise the **original** synthesis exception (E1). The subprocess stderr tail attaches to E1 as forensic data. The subprocess error itself does not become the surface exception.
+**Decision.** The contracted schema mirrors the actual wire format — wrapper object with `findings: [...]` inside. This proposal does NOT change the per-vendor file shape; it documents what's already there.
 
-**Why.** E1 is the diagnostically interesting one — it's the failure we wanted to recover from. The subprocess failure is secondary (likely the same underlying cause manifesting again). If we surfaced the subprocess error, callers would see a confusing trace pointing at a Python subprocess wrapper instead of at the actual synthesizer bug.
+**Why.** The synthesizer literally crashes (`AttributeError: 'list' object has no attribute 'get'`) when fed a raw array, because it does `data.get("findings", [])`. Conforming to the existing wire format avoids breaking the synthesizer.
 
-**How to apply.** Test fixture for the double-failure case must assert `assert isinstance(exc, OriginalSynthesizerError)`, not the subprocess wrapper.
+**How to apply.** Future writers SHALL use the wrapper object shape. Tightening or restructuring the per-vendor file is a separate proposal.
 
-### D5: Audit emission failures do not mask the recovery result
+### D5: Audit emission failures do not mask the synthesis exception
 
-**Context.** What if the coordinator audit endpoint is unreachable when we try to emit `convergence.fallback_recovered`?
+**Context.** What if the coordinator audit endpoint is unreachable when we try to emit `convergence.synthesis_failed_with_checkpoint`?
 
-**Decision.** Audit emission is best-effort. A failed audit emission emits a warning to the local log but does not change the `converge()` return value or raise an exception.
+**Decision.** Audit emission is best-effort. A failed audit emission emits a warning to the local log but does NOT prevent the original synthesis exception from propagating.
 
-**Why.** Recovery has succeeded by the time we try to audit. Punishing the caller for an unrelated infra failure (audit endpoint down) would un-recover the recovery. This matches the convention of `coordination-bridge` where the bridge logs warnings on coordinator unavailability but never blocks the primary work.
+**Why.** The synthesis exception is the diagnostically interesting one. Layering an audit failure on top would mask the actual cause. Matches `coordination-bridge` convention.
 
-**How to apply.** Wrap the audit call in a `try/except Exception:` with a `logger.warning()` in the except block. Never let audit failures propagate.
+**How to apply.** Wrap the audit call in a `try/except Exception:` with `logger.warning()`. Emit BEFORE re-raising the synthesis exception.
 
-### D6: Manifest is a superset, not a replacement
+### D6: Path safety is enforced at write-time, not just read-time
 
-**Context.** The original proposal assumed we'd replace the existing `review_dispatcher.py:write_manifest()` shape with our new one. PLAN_ITERATE caught that the existing manifest carries dispatch metadata (`model_used`, `elapsed_seconds`, `error_class`) that consumers (and operators reading audit logs) currently rely on.
+**Context.** `artifacts_dir` is caller-supplied; vendor names interpolate into filenames. Without explicit guards, a malicious or malformed vendor name with `/`, `..`, or NUL characters could escape the checkpoint directory or corrupt unrelated files.
 
-**Decision.** The new schema is a **superset**. All existing fields (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`) are preserved. New fields (`schema_version`, `change_id`, `created_at`, `vendors[]`) are added. In-process callers that lack dispatch metadata write `dispatches: []`.
+**Decision.** Validate path inputs (artifacts_dir, vendor, review_type) BEFORE any disk operation. `Path.resolve()` for artifacts_dir; regex `[A-Za-z0-9_-]+` for vendor; enum constraint for review_type.
 
-**Why.** Replacing breaks downstream consumers and loses operationally valuable data. Adding is additive and backward-compatible. The schema is a single document with `additionalProperties: false`, so any future drift requires an explicit schema bump (D7 — version 1 → 2 with reader rejection of unknown versions).
+**Why.** Vendor names come from external sources (vendor adapters, config files). Trusting them without validation is exactly the kind of input-validation gap that gets flagged in security review. Cheap to add now; expensive to retrofit.
 
-**How to apply.** Future writers MUST go through `checkpoint_findings.write_manifest()`. Direct `json.dump(...)` of manifest data is prohibited. Future fields must be additive within `schema_version=1` or trigger a version bump.
-
-### D7: New `--findings-dir` argument on `consensus_synthesizer.py`
-
-**Context.** The existing CLI requires `--findings <file1> <file2>...` (`nargs="+"`). The fallback path needs the CLI to accept a directory and discover files itself, otherwise `converge()` has to glob and pass file lists across a process boundary.
-
-**Decision.** Add `--findings-dir <path>` as an alternative input mode to `consensus_synthesizer.py main()`. The directory mode reads `<dir>/review-manifest.json` and follows `vendors[].findings_path`. The existing `--findings <file1>...` mode is preserved unchanged for backward compatibility.
-
-**Why.** Symmetric with `checkpoint_findings.read_vendor_findings()`: both accept a directory and use the manifest for enumeration. Consistent input shape for the in-process loader and the CLI loader. Avoids ad-hoc glob logic in `converge()`.
-
-**How to apply.** The two modes SHALL be mutually exclusive at the argparse level. `--findings` and `--findings-dir` SHALL be in a mutually exclusive group; the parser rejects passing both. Tests cover both modes.
+**How to apply.** Both `write_vendor_findings()` and `read_vendor_findings()` (via the manifest's `vendors[]` index) call `_validate_path_safety()` before disk access. The contract schema also enforces the vendor pattern so manifests with bad vendor names fail validation.
 
 ## Component Interactions
 
-### Happy path (no fallback fires)
+### Happy path (synthesis succeeds)
 
 ```
 caller → converge()
-        ├─→ orchestrator.dispatch_and_wait()      → list[VendorResult]
+        ├─→ orchestrator.dispatch_and_wait()      → list[ReviewResult]
         ├─→ checkpoint_findings.write_vendor_findings(...)
-        │   └─→ writes findings-{vendor}-{type}.json + review-manifest.json
+        │   └─→ writes findings-{vendor}-{type}.json (atomic rename)
+        ├─→ checkpoint_findings.write_manifest(...)
+        │   └─→ writes review-manifest.json (atomic rename + parent fsync)
         ├─→ synthesizer.synthesize(vendor_results) → ConsensusReport
         └─→ return ConvergenceResult(
               ...,
-              recovered_via_fallback=False,
-              fallback_diagnostics=None,
+              checkpoint_dir=<artifacts_dir>/.review-cache/,
+              synthesis_failed=False,
             )
 ```
 
-### Recovery path (synthesis fails, CLI succeeds)
+### Failure path (synthesis raises with checkpoint present)
 
 ```
 caller → converge()
-        ├─→ orchestrator.dispatch_and_wait()      → list[VendorResult]
-        ├─→ checkpoint_findings.write_vendor_findings(...)  ← already on disk
+        ├─→ orchestrator.dispatch_and_wait()      → list[ReviewResult]
+        ├─→ checkpoint_findings.write_vendor_findings(...)
+        ├─→ checkpoint_findings.write_manifest(...)
         ├─→ synthesizer.synthesize(...)           → raises SynthesisError(E1)
-        ├─→ _invoke_synthesizer_cli(cache_dir, review_type, change_id, output_path)
-        │   └─→ subprocess: consensus_synthesizer.py
-        │         --findings-dir <cache_dir>
-        │         --review-type <type>
-        │         --target <change_id>
-        │         --output <output_path>
-        │       → exit 0, writes consensus-report.json to <output_path>
-        ├─→ parse consensus-report.json (with schema validation)
-        ├─→ sanitize stderr tail and exception message (R3)
-        ├─→ emit_audit_event("convergence.fallback_recovered", {
-        │      change_id, review_type, original_exception_class,
-        │      original_exception_message_sanitized, checkpoint_dir, timestamp
-        │    })
-        └─→ return ConvergenceResult(
-              ...,
-              recovered_via_fallback=True,
-              fallback_diagnostics={
-                "original_exception_class": "SynthesisError",
-                "original_exception_message": "<sanitized>",
-                "subprocess_stderr_tail": "<sanitized, last 4KB>",
-              },
-            )
+        ├─→ try_emit_audit_event("convergence.synthesis_failed_with_checkpoint", {
+        │     change_id, review_type, original_exception_class,
+        │     original_exception_message, checkpoint_dir, timestamp
+        │   })
+        │   └─→ on audit failure: logger.warning(); does not raise
+        └─→ raise SynthesisError(E1)  ← ORIGINAL exception propagates
 ```
 
-NOTE: `--findings-dir` is a NEW argument added to `consensus_synthesizer.py main()` as part of this proposal. The existing `--findings <file1> <file2>...` mode remains for backward compatibility. The directory mode reads `.review-cache/review-manifest.json` to enumerate per-vendor finding files via `vendors[].findings_path` entries (no glob).
+The caller sees the original exception. The checkpoint files are on disk. An operator who notices the failure can manually run:
 
-### Double-failure path
+```bash
+consensus_synthesizer.py \
+  --findings <artifacts_dir>/.review-cache/findings-*-<review_type>.json \
+  --target <change_id> \
+  --review-type <review_type> \
+  --output <output_path>
+```
+
+If the synthesizer still fails (because the underlying parser bug is unfixed), the operator knows it's a parser bug and either fixes it (separate proposal) or hand-edits the malformed vendor file.
+
+### Checkpoint write failure path
 
 ```
 caller → converge()
-        ├─→ orchestrator.dispatch_and_wait()      → list[VendorResult]
-        ├─→ checkpoint_findings.write_vendor_findings(...)  ← already on disk
-        ├─→ synthesizer.synthesize(...)           → raises SynthesisError(E1)
-        ├─→ _invoke_synthesizer_cli(...)          → exit 1
-        ├─→ emit_audit_event("convergence.fallback_failed", {...})
-        ├─→ E1.__notes__.append(stderr_tail)
-        └─→ raise E1
+        ├─→ orchestrator.dispatch_and_wait()      → list[ReviewResult]
+        ├─→ checkpoint_findings.write_vendor_findings(...)
+        │   └─→ raises OSError (filesystem full) / PermissionError
+        └─→ raise OSError  ← propagates; synthesis is never attempted
 ```
 
-### Subprocess timeout path
-
-Identical to double-failure path but with `subprocess.TimeoutExpired` triggering the fallback-failed branch instead of non-zero exit code.
+No audit event in this case — the audit primitive is layered on synthesis failure, not on checkpoint failure. Caller sees the OSError directly.
 
 ## Data Shapes
 
 ### `review-manifest.json` (canonical — SUPERSET of existing CLI manifest)
-
-The shared manifest preserves all fields the existing `review_dispatcher.py:write_manifest()` writes (so existing CLI consumers continue working unchanged) AND adds new fields that the in-process flow and the fallback CLI both need.
 
 ```json
 {
   "schema_version": 1,
   "change_id": "harden-multi-vendor-review-recovery",
   "review_type": "implementation",
-  "created_at": "2026-05-07T14:30:00Z",
+  "created_at": "2026-05-08T14:30:00Z",
 
   "target": "harden-multi-vendor-review-recovery",
   "dispatches": [
@@ -201,15 +181,6 @@ The shared manifest preserves all fields the existing `review_dispatcher.py:writ
       "model_used": "claude-opus-4.7",
       "models_attempted": ["claude-opus-4.7"],
       "elapsed_seconds": 14.2,
-      "error": null,
-      "error_class": null
-    },
-    {
-      "vendor": "codex",
-      "success": true,
-      "model_used": "gpt-5.4",
-      "models_attempted": ["gpt-5.4"],
-      "elapsed_seconds": 11.8,
       "error": null,
       "error_class": null
     }
@@ -222,38 +193,40 @@ The shared manifest preserves all fields the existing `review_dispatcher.py:writ
       "name": "claude",
       "findings_path": "findings-claude-implementation.json",
       "finding_count": 12
-    },
-    {
-      "name": "codex",
-      "findings_path": "findings-codex-implementation.json",
-      "finding_count": 8
     }
   ]
 }
 ```
 
 **Field origin**:
-- `schema_version`, `change_id`, `created_at`, `vendors[]` — NEW in this proposal.
-- `target`, `dispatches[]`, `quorum_requested`, `quorum_received` — preserved from the existing `review_dispatcher.py:write_manifest()` shape so downstream readers don't break.
+- `schema_version`, `change_id`, `created_at`, `vendors[]` — NEW.
+- `target`, `dispatches[]`, `quorum_requested`, `quorum_received` — preserved from existing dispatcher.
 
-**In-process callers** (the `converge()` flow) do not have `model_used`/`elapsed_seconds`/etc, so they write `dispatches: []` and populate `quorum_requested`/`quorum_received` from vendor counts. The schema permits `dispatches: []` so both call sites validate.
+In-process callers without dispatch metadata write `dispatches: []`, `quorum_requested: <N vendors>`, `quorum_received: <N vendors>` (they don't track per-vendor success/failure since synthesis runs over `ReviewResult` objects passed in directly).
 
-### `findings-{vendor}-{review_type}.json` (canonical, unchanged from CLI)
+### `findings-{vendor}-{review_type}.json` (canonical — wrapper object, UNCHANGED)
 
 ```json
-[
-  {
-    "id": "claude-001",
-    "type": "logic-error",
-    "criticality": "high",
-    "description": "...",
-    "disposition": "fix",
-    "file_path": "skills/foo/bar.py",
-    "line_range": {"start": 10, "end": 20},
-    "vendor": "claude"
-  }
-]
+{
+  "review_type": "implementation",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "claude",
+  "findings": [
+    {
+      "id": "claude-001",
+      "type": "logic-error",
+      "criticality": "high",
+      "description": "...",
+      "disposition": "fix",
+      "file_path": "skills/foo/bar.py",
+      "line_range": {"start": 10, "end": 20},
+      "vendor": "claude"
+    }
+  ]
+}
 ```
+
+This is the EXISTING wire format the dispatcher writes today and the synthesizer reads via `data.get("findings", [])`. Documenting it as a contract; not changing it.
 
 ### `ConvergenceResult` (delta)
 
@@ -262,26 +235,29 @@ The shared manifest preserves all fields the existing `review_dispatcher.py:writ
 class ConvergenceResult:
     # ... all existing fields unchanged ...
 
-    # NEW — observability of recovery
-    recovered_via_fallback: bool = False
-    fallback_diagnostics: dict[str, Any] | None = None
+    # NEW — observability of durability
+    checkpoint_dir: Path | None = None
+    synthesis_failed: bool = False
 ```
+
+`checkpoint_dir` is set on successful checkpoint write, regardless of whether synthesis subsequently succeeds. `synthesis_failed` is `True` when checkpoint succeeded but synthesis raised — but note that in the current design the synthesis exception propagates and a `ConvergenceResult` is NOT returned in the typical path. The field is for partial-result reconstruction in callers that catch the exception.
 
 ## Edge Cases
 
-- **Empty review round** (zero vendors returned findings): write an empty manifest with `vendors: []`. Synthesis is a no-op — the consensus report is empty. Fallback never fires. Tested explicitly.
-- **One vendor returned, one timed out**: write checkpoint for the vendor that returned. Manifest lists only that vendor. If synthesis fails, fallback CLI sees the same one-vendor input and either succeeds or fails consistently.
-- **Synthesis succeeds but raises a warning**: not a failure. Warnings do not trigger fallback. Only `Exception` (not `Warning`) subclasses do.
-- **`artifacts_dir` does not yet exist**: `checkpoint_findings.write_vendor_findings()` SHALL create it (`Path.mkdir(parents=True, exist_ok=True)`). Symmetric with how the CLI creates output dirs today.
-- **Permissions error writing checkpoint**: surface as a hard failure of `converge()` — we cannot recover from a write failure to a path we own. The audit log captures it.
-- **Subprocess CLI version mismatch** (e.g., `.review-cache/` schema_version=1 but installed CLI expects schema_version=2): the CLI SHALL detect and refuse with a clear error. Audit log records `convergence.fallback_failed` with the version mismatch in the stderr tail. Caller sees the original synthesis exception.
+- **Empty review round**: write empty manifest with `vendors: []`. Synthesis is a no-op. Success path; checkpoint exists.
+- **One vendor returned, one timed out**: write checkpoint for the vendor that returned. Manifest's `dispatches[]` records both vendors with success/failure metadata; `vendors[]` only includes the successful vendor.
+- **`artifacts_dir` does not yet exist**: `checkpoint_findings.write_vendor_findings()` SHALL create it (`Path.mkdir(parents=True, exist_ok=True)`).
+- **Checkpoint write permission denied**: surface as hard failure of `converge()`. Caller sees the OSError. Synthesis never attempted.
+- **Synthesis raises a Warning (not Exception)**: NOT a failure. Warnings do not flag `synthesis_failed`.
+- **Audit emission fails**: warning logged; original synthesis exception propagates unchanged.
+- **Multiple converge() calls with the same artifacts_dir**: undefined behavior; the proposal does not cross-process lock. Distinct artifacts_dir per call is the intended invariant.
 
 ## Test Strategy
 
-- **Round-trip unit tests** (`test_checkpoint_findings.py`) — write/read pairs for full vendor finding shapes; assert byte-equivalence of JSON after a write/read/write cycle.
-- **Manifest correctness** — empty vendor list, single vendor, multiple vendors, missing finding file.
-- **Fallback success** (`test_convergence_fallback.py`) — mock `synthesizer.synthesize` to raise `SynthesisError`, mock `subprocess.run` to return exit 0 with a fixture `consensus-report.json`. Assert `recovered_via_fallback=True` and audit event emitted.
-- **Fallback failure** — mock `synthesizer.synthesize` to raise; mock `subprocess.run` to return exit 1. Assert original exception bubbles, stderr tail attached, audit event emitted.
-- **Subprocess timeout** — mock `subprocess.run` to raise `TimeoutExpired`. Assert original exception bubbles.
-- **Audit emission failure** — mock the audit emitter to raise. Assert `converge()` still returns the recovered result.
-- **Integration test** — end-to-end with a controlled synthesis-time exception (e.g., feed a `line_range: "10-20"` string into the in-process synthesizer to reproduce the latent bug); assert recovery via real subprocess CLI invocation succeeds.
+- **Round-trip unit tests** (`test_checkpoint_findings.py`) — write/read pairs; manifest superset preserves existing fields; in-process callers may write empty `dispatches`; atomic-rename behavior verified by interrupting via signal in test harness.
+- **Path safety** — vendor names with separators/NUL/`..` are rejected; artifacts_dir with symlinks is normalized; review_type outside `{plan, implementation}` is rejected.
+- **Manifest correctness** — schema validation passes for both CLI-style writes (with dispatches) and in-process-style writes (empty dispatches).
+- **Convergence failure path** (`test_convergence_checkpoint.py`) — mock `synthesizer.synthesize` to raise; assert original exception propagates AND checkpoint files exist on disk AND audit event is emitted with correct fields.
+- **Convergence success path** — assert checkpoint files exist AND `result.checkpoint_dir` is set AND `synthesis_failed=False` AND no audit event emitted.
+- **Audit emission failure** — mock the audit emitter to raise; assert `converge()` still re-raises the synthesis exception (audit failure is secondary).
+- **Integration test** (`test_convergence_durability_integration.py`) — feed real `line_range: "10-20"` malformed input; assert exception propagates, checkpoint exists, manual subprocess invocation of `consensus_synthesizer.py` against the checkpoint STILL fails (parser bug unfixed). Verifies the proposal's actual claim — durability — without falsely claiming recovery.

@@ -13,8 +13,8 @@ This change introduces no HTTP API, no database schema changes, and no events. T
 
 ## Files in this directory
 
-- [`review-cache-layout.schema.json`](review-cache-layout.schema.json) — JSON Schema for `.review-cache/review-manifest.json`. Validates manifest structure, vendor entries, schema_version.
-- [`finding.schema.json`](finding.schema.json) — JSON Schema for individual `findings-{vendor}-{review_type}.json` entries. Validates finding shape (id, type, criticality, description, disposition, file_path, line_range, vendor).
+- [`review-cache-layout.schema.json`](review-cache-layout.schema.json) — JSON Schema for `review-manifest.json`. Superset of the existing `review_dispatcher.py:write_manifest()` shape — preserves `review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received` AND adds `schema_version`, `change_id`, `created_at`, `vendors[]`. Existing CLI consumers continue working unchanged.
+- [`finding.schema.json`](finding.schema.json) — JSON Schema for `findings-{vendor}-{review_type}.json` files. Documents the EXISTING wire format (wrapper object `{review_type, target, reviewer_vendor, findings: [...]}`), NOT a new shape. Multi-vendor review of an earlier draft caught that the original schema (raw array) didn't match the actual wire format the synthesizer reads.
 
 ## Why these are contracts, not just internal types
 
