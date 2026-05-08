@@ -139,33 +139,33 @@
 
 ## Phase 6: WP6 — Worker Vendor Rotation (wp6-worker-vendor-rotation)
 
-- [ ] 6.1 Write unit test for vendor-diversity dispatcher logic: worker-validator pair on same change excludes worker's vendor when selecting validator
+- [x] 6.1 Write unit test for vendor-diversity dispatcher logic: worker-validator pair on same change excludes worker's vendor when selecting validator
   **Spec scenarios**: agent-archetypes: "Worker and validator dispatch to different vendors", "Vendor exhaustion within a session is tracked"
   **Contracts**: `contracts/agents-policy-schema.json`
   **Dependencies**: 0.3
 
-- [ ] 6.2 Write test for single-vendor fallback (warn-and-continue, no block)
+- [x] 6.2 Write test for single-vendor fallback (warn-and-continue, no block)
   **Spec scenarios**: agent-archetypes: "Single-vendor environment falls back gracefully"
   **Dependencies**: 6.1
 
-- [ ] 6.3 Write test for policy-disabled mode (config opt-out)
+- [x] 6.3 Write test for policy-disabled mode (config opt-out)
   **Spec scenarios**: agent-archetypes: "Policy disabled allows same-vendor dispatch"
   **Dependencies**: 6.1
 
-- [ ] 6.4 Add `policies.vendor_diversity` block to `agent-coordinator/agents.yaml` (default: enforce_for: [worker_vs_validator], fallback: warn_and_continue)
+- [x] 6.4 Add `policies.vendor_diversity` block to `agent-coordinator/agents.yaml` (default: enforce_for: [worker_vs_validator], fallback: warn_and_continue)
   **Spec scenarios**: agent-archetypes: "Worker and validator dispatch to different vendors"
   **Design decisions**: D4
   **Dependencies**: 6.1
 
-- [ ] 6.5 Implement vendor-exclusion logic in `skills/parallel-infrastructure/scripts/review_dispatcher.py` (insertion point: discover_reviewers, lines 998-1063, extending existing exclude_vendor pattern)
+- [x] 6.5 Implement vendor-exclusion logic in `skills/parallel-infrastructure/scripts/review_dispatcher.py` (insertion point: discover_reviewers, lines 998-1063, extending existing exclude_vendor pattern)
   **Spec scenarios**: agent-archetypes: "Worker and validator dispatch to different vendors", "Single-vendor environment falls back gracefully"
   **Dependencies**: 6.1, 6.2, 6.4
 
-- [ ] 6.6 Implement worker-side vendor selection in `skills/implement-feature/` so workers track their vendor in change session state
+- [x] 6.6 Implement worker-side vendor selection in `skills/implement-feature/` so workers track their vendor in change session state
   **Spec scenarios**: agent-archetypes: "Vendor exhaustion within a session is tracked"
   **Dependencies**: 6.5
 
-- [ ] 6.7 Add a leading comment block to `agent-coordinator/agents.yaml` (above the new `policies` block) explaining the vendor-diversity rationale (avoid shared training-data biases). Documenting inline in agents.yaml rather than docs/skills-workflow.md keeps WP6 scope-isolated from WP2 and gives operators reading the policy config immediate context.
+- [x] 6.7 Add a leading comment block to `agent-coordinator/agents.yaml` (above the new `policies` block) explaining the vendor-diversity rationale (avoid shared training-data biases). Documenting inline in agents.yaml rather than docs/skills-workflow.md keeps WP6 scope-isolated from WP2 and gives operators reading the policy config immediate context.
   **Dependencies**: 6.5
 
 ## Phase 7: WP7 — Playwright Validator (wp7-playwright-validator)

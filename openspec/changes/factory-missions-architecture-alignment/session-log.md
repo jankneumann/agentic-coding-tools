@@ -95,3 +95,53 @@ Planned alignment of repo vocabulary, validator surfaces, vendor-diversity polic
 ### Context
 Iteration 1: addressed structural findings from 5 parallel analysis agents (completeness, clarity, feasibility/parallelizability, testability, security/performance). Fixed 5 critical, 10 high, 6 medium findings; deferred 16 testability polish items to impl review and 4 performance caps to a follow-up production-hardening change. Key changes: removed proposal/D2 contradiction (evaluation/gen_eval/playwright/), added 3 D-records (D7 localhost, D8 filename routing, D9 session-state), added 9 new scenarios (concurrent validators, partial failures, dispatcher hook, traceability, change-id validation, prompt-injection escaping, env-var validation, sample-frontend full-path with measurable assertions), refined 6 testability scenarios to be argv- or regex-checkable rather than relying on subjective language.
 
+---
+
+## Phase: Implementation (foundation packages only) (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Foundation-only scope this session** `architectural: skill-workflow` — 2330 LOC spread across 7 WPs exceeds single-session capacity; 4 scope-isolated foundation packages provide clean checkpoint with no incomplete state
+2. **WP1+WP2+WP6 dispatched in parallel via Task() sub-agents** `architectural: skill-workflow` — Disjoint write_allow scopes (README.md, docs/*, agents.yaml+review_dispatcher.py); ~2x speedup over sequential
+3. **WP6 tests use exact log-format assertions to lock in spec contract** `architectural: agent-archetypes` — Spec scenarios specify exact log strings; tests catch silent format drift
+4. **Worker-vendor recording implemented as a new section 3z in implement-feature/SKILL.md** `architectural: skill-workflow` — Worker side of vendor-diversity needed wiring; SKILL.md was the natural integration point
+
+### Alternatives Considered
+- Attempt full DAG (all 7 WPs) in this session: rejected because Highest probability of context exhaustion mid-WP7; deferred per user choice
+- Sequential implementation of foundation WPs: rejected because Parallel dispatch via Task() sub-agents is safe given non-overlapping write scopes; 3x faster
+- WP6 documentation paragraph in docs/skills-workflow.md: rejected because Per iteration-1 fix: rationale comment in agents.yaml avoids scope overlap with WP2
+
+### Trade-offs
+- Accepted Partial implementation checkpoint over Continuous full-DAG attempt because Clean stable state for resume; no half-implemented WP7 to clean up if session ends
+- Accepted Test verification is one-shot for docs WPs (no permanent .py test file) over Permanent doc-content-test file per WP because Spec scenarios document the assertions; impl-review phase will catch any drift
+
+### Open Questions
+- [ ] When /implement-feature resumes for WP3-WP7, will it correctly read tasks.md state to skip 0.x/1.x/2.x/6.x?
+- [ ] Does WP6's worker-side recording need to be invoked at a specific phase boundary, or is the SKILL.md section 3z addition sufficient guidance for future implementers?
+- [ ] Is the harness-engineering-features rebase test (task 8.3) ready to run, or does it need the gen-eval chain to land first?
+
+### Completed Work
+- wp-contracts: behavioral_failure added to review-findings.schema.json type enum
+- WP1: README.md rewritten with attention-bottleneck framing + Three Roles section
+- WP2: Five-Tier Taxonomy + Scope-Isolated Parallelism + Self-Healing + Mission glossary appended (additive, no edits to existing content)
+- WP6: agents.yaml policies.vendor_diversity block + rationale comment + dispatcher logic + 13 tests + worker-side recording in implement-feature/SKILL.md section 3z
+- Tasks 0.1-0.5, 1.1-1.2, 2.1-2.6, 6.1-6.7 (20 of 35 total tasks) marked complete in tasks.md
+
+### Next Steps
+- Invoke /implement-feature factory-missions-architecture-alignment in a fresh session to resume from WP3 onwards
+- WP3 first (gen-eval --openspec-change flag) — blocks WP4, WP5, WP7
+- Then WP4 → WP5 → WP7 → wp-integration in serial DAG order
+- Final: /validate-feature, /cleanup-feature, PR merge
+
+### Relevant Files
+- `README.md` — Three-Roles section (WP1)
+- `docs/parallel-agentic-development.md` — Five-Tier + Scope-Isolated sections (WP2)
+- `agent-coordinator/agents.yaml` — vendor_diversity policy (WP6)
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — vendor selection logic (WP6)
+- `skills/parallel-infrastructure/tests/test_vendor_diversity.py` — 13 vendor-diversity tests (WP6)
+- `skills/implement-feature/SKILL.md` — section 3z worker-vendor recording (WP6)
+
+### Context
+Foundation tier of the implementation completed: wp-contracts (schema delta), WP1 (README rewrite), WP2 (docs vocabulary additions), WP6 (vendor-diversity policy + 13 tests). WP3-WP7 (the gen-eval/Playwright chain, ~1700 LOC) deferred to a follow-up /implement-feature invocation per session-scope agreement. All foundation tests pass; openspec validate --strict green.
+

@@ -132,7 +132,6 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **ALL-sentinel over signaling failure via exit codes**: `affected_tests.py` prints the single line `ALL` and exits 0 to signal "fall back to full suite". This is semantically distinct from a nonzero exit (actual failure) — exit 0 is "the answer is 'run everything'", exit ≠0 is "I couldn't compute an answer". The client collapses both to `None` for simplicity, but logging distinguishes them so only real failures get warning-level visibility.
 
-<<<<<<< HEAD
 ## Engineering Methodology Skills (add-engineering-methodology-skills, 2026-05)
 
 - **Skill suite is now horizontal AND vertical**: Adopted 10 methodology skills from `addyosmani/agent-skills` (TDD, debugging, context-engineering, source-driven, performance, frontend-UI, API design, browser-testing, deprecation, ADRs). The repo now has both *vertical* lifecycle skills (plan→implement→validate→cleanup) and *horizontal* topic methodology skills. Orchestrators auto-load methodology when relevant; operators invoke ad-hoc via slash commands when they want a discipline applied directly.

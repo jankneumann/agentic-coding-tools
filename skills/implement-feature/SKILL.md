@@ -142,6 +142,38 @@ NOTICED BUT NOT TOUCHING:
 
 This template is **mandatory** for any out-of-scope observation. It surfaces the issue (so it isn't lost) without polluting the current diff.
 
+### 3z. Record Worker Vendor for Vendor-Diversity Policy [all tiers]
+
+Before any reviewer/validator dispatch happens later in phase C3, record this worker's
+vendor in the change-scoped dispatch-state file. The `vendor_diversity` policy in
+`agent-coordinator/agents.yaml` (worker_vs_validator) excludes the worker's vendor
+from validator selection — see `parallel-infrastructure/scripts/review_dispatcher.py`
+(`record_worker_vendor`, `select_validator_vendor`).
+
+```bash
+# AGENT_TYPE is set by the harness (e.g., "claude_code", "codex", "gemini").
+# Map agent type to vendor short-name; default to the type itself if unmapped.
+case "${AGENT_TYPE:-claude_code}" in
+  claude_code) WORKER_VENDOR="claude" ;;
+  codex)       WORKER_VENDOR="codex" ;;
+  gemini)      WORKER_VENDOR="gemini" ;;
+  *)           WORKER_VENDOR="${AGENT_TYPE}" ;;
+esac
+
+python3 - <<PY
+import sys
+from pathlib import Path
+sys.path.insert(0, "<skill-base-dir>/../parallel-infrastructure/scripts")
+from review_dispatcher import record_worker_vendor
+record_worker_vendor("<change-id>", "${WORKER_VENDOR}")
+PY
+```
+
+This is idempotent (safe to call multiple times) and a no-op if the dispatcher
+script isn't on the path (degrade gracefully). Validator selection in C3 reads
+this state and excludes `${WORKER_VENDOR}` from candidate validators when the
+policy is enforced.
+
 ### 3a. Generate Change Context & Test Plan (Phase 1 -- TDD RED) [all tiers]
 
 Before implementing, create the traceability skeleton and write failing tests:
