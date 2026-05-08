@@ -1,8 +1,8 @@
 {
   "schema_version": 3,
   "change_id": "factory-missions-architecture-alignment",
-  "current_phase": "IMPLEMENT_PARTIAL",
-  "previous_phase": "IMPLEMENT",
+  "current_phase": "VALIDATE_DEFERRED",
+  "previous_phase": "IMPLEMENT_PARTIAL",
   "started_at": "2026-05-08T00:00:00Z",
   "cli_review_enabled": false,
   "val_review_enabled": true,
@@ -66,7 +66,39 @@
       "tests_passing": "13/13 vendor_diversity tests",
       "termination": "scope_agreement_with_user",
       "resume_command": "/implement-feature factory-missions-architecture-alignment"
+    },
+    {
+      "phase": "IMPLEMENT",
+      "scope": "all_7_feature_packages",
+      "completed_packages": [
+        "wp-contracts",
+        "wp1-readme-attention",
+        "wp2-docs-vocabulary",
+        "wp3-gen-eval-openspec-seeds",
+        "wp4-validate-gen-eval-extend",
+        "wp5-consensus-gen-eval",
+        "wp6-worker-vendor-rotation",
+        "wp7-playwright-validator"
+      ],
+      "tasks_completed": "0.1-0.5, 1.1-1.2, 2.1-2.6, 3.1-3.6, 4.1-4.4, 5.1-5.5, 6.1-6.7, 7.1-7.12, 8.2, 8.4, 8.5, 8.6",
+      "tasks_deferred": [
+        "8.1 (full validate-feature E2E \u2014 needs Docker + npx playwright)",
+        "8.3 (harness-engineering-features rebase test \u2014 feature branch not present)"
+      ],
+      "tests_passing": "13 vendor-diversity + 25 openspec-seed + 5 mode-selection + 17 consensus+emitter + 65 playwright-validator + 538 gen-eval regression + 38 parallel-infra regression",
+      "termination": "wp-integration scriptable checks complete; live-environment checks deferred to real CI",
+      "commits": [
+        "89af653",
+        "227f92b",
+        "1fa5138",
+        "5a09e24",
+        "68e46b5",
+        "605253b"
+      ]
     }
   ],
-  "foundation_complete": true
+  "foundation_complete": true,
+  "implement_complete": true,
+  "validation_status": "scriptable_checks_pass_live_checks_deferred",
+  "pending_human_approval": "PR submission requires explicit user authorization per project guidelines"
 }
