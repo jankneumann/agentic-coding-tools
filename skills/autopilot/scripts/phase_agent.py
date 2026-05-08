@@ -1027,20 +1027,22 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
     _atomic_write_json(path, state)
 
 
-_STATE_ONLY_PHASES_FILE_LEVEL: frozenset[str] = frozenset({"INIT", "SUBMIT_PR"})
+_STATE_ONLY_PHASES_FILE_LEVEL: frozenset[str] = frozenset({"INIT", "PLAN", "SUBMIT_PR"})
 
 
 def record_state_only_archetype(change_id: str, phase: str) -> None:
     """Resolve and persist phase_archetype for a state-only phase.
 
-    State-only phases (INIT, SUBMIT_PR) don't dispatch a sub-agent — they
-    run inline from SKILL.md prose. The spec still requires
-    `loop-state.json:phase_archetype` to be populated for these phases so
-    observability covers all 13 non-terminal phases.
+    State-only phases (INIT, PLAN, SUBMIT_PR) don't dispatch a sub-agent
+    via the harness `Agent(...)` tool — they run inline from SKILL.md
+    prose (assess_complexity, slash-command invocation, gh pr create
+    respectively). The spec still requires `loop-state.json:phase_archetype`
+    to be populated for these phases so observability covers all 13
+    non-terminal phases (closes VAL_REVIEW finding G-V-001).
 
-    SKILL.md shells out to `runner.py record-state-only-archetype` at INIT
-    and SUBMIT_PR entry, which calls this helper. Idempotent: safe to
-    re-invoke; replays leave state unchanged on failure.
+    SKILL.md shells out to `runner.py record-state-only-archetype` at the
+    entry point of each state-only phase. Idempotent: safe to re-invoke;
+    replays leave state unchanged on failure.
 
     Failure modes:
       * Missing `loop-state.json` → log warning, no-op.
