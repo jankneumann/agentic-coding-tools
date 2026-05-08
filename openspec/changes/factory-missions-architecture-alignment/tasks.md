@@ -70,28 +70,28 @@
 
 ## Phase 3: WP3 — Gen-Eval OpenSpec Seeds (wp3-gen-eval-openspec-seeds)
 
-- [ ] 3.1 Write unit tests for OpenSpec scenario parser (parsing Requirement + Scenario blocks from spec.md, preserving file:line)
+- [x] 3.1 Write unit tests for OpenSpec scenario parser (parsing Requirement + Scenario blocks from spec.md, preserving file:line)
   **Spec scenarios**: gen-eval-framework: "OpenSpec scenarios augment cli-augmented prompt"
   **Contracts**: `contracts/gen-eval-cli.md`
   **Dependencies**: 0.4
 
-- [ ] 3.2 Write integration test for `--openspec-change <id>` flag end-to-end against a fixture change
+- [x] 3.2 Write integration test for `--openspec-change <id>` flag end-to-end against a fixture change
   **Spec scenarios**: gen-eval-framework: "OpenSpec scenarios augment cli-augmented prompt", "Missing OpenSpec change degrades to descriptor-only", "Backward compatibility without flag"
   **Dependencies**: 3.1
 
-- [ ] 3.3 Implement OpenSpec scenario parser in `agent-coordinator/evaluation/gen_eval/openspec_seed.py` (new module)
+- [x] 3.3 Implement OpenSpec scenario parser in `agent-coordinator/evaluation/gen_eval/openspec_seed.py` (new module)
   **Spec scenarios**: gen-eval-framework: "OpenSpec scenarios augment cli-augmented prompt"
   **Dependencies**: 3.1
 
-- [ ] 3.4 Wire `--openspec-change` flag into `agent-coordinator/evaluation/gen_eval/__main__.py` argparser (insertion point: lines 14-96)
+- [x] 3.4 Wire `--openspec-change` flag into `agent-coordinator/evaluation/gen_eval/__main__.py` argparser (insertion point: lines 14-96)
   **Spec scenarios**: gen-eval-framework: "Backward compatibility without flag"
   **Dependencies**: 3.3
 
-- [ ] 3.5 Extend cli-augmented prompt builder to include OpenSpec scenarios as constraints; preserve `source.openspec_scenario` field on emitted Scenario objects
+- [x] 3.5 Extend cli-augmented prompt builder to include OpenSpec scenarios as constraints; preserve `source.openspec_scenario` field on emitted Scenario objects
   **Spec scenarios**: gen-eval-framework: "OpenSpec scenarios augment cli-augmented prompt"
   **Dependencies**: 3.3, 3.4
 
-- [ ] 3.6 Update `skills/gen-eval/SKILL.md` to document the new flag
+- [x] 3.6 Update `skills/gen-eval/SKILL.md` to document the new flag
   **Dependencies**: 3.5
 
 ## Phase 4: WP4 — Validate-Feature Gen-Eval Cli-Augmented (wp4-validate-gen-eval-extend)

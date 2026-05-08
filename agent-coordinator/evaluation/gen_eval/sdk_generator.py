@@ -14,6 +14,7 @@ from .config import GenEvalConfig
 from .descriptor import InterfaceDescriptor
 from .llm_generator_base import LLMGeneratorMixin
 from .models import EvalFeedback, Scenario
+from .openspec_seed import ParsedScenario
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,7 @@ class SDKGenerator(LLMGeneratorMixin):
         config: GenEvalConfig,
         backend: SDKBackend | None = None,
         feedback: EvalFeedback | None = None,
+        openspec_scenarios: list[ParsedScenario] | None = None,
     ) -> None:
         self.descriptor = descriptor
         self.config = config
@@ -147,6 +149,7 @@ class SDKGenerator(LLMGeneratorMixin):
             api_key_env=config.sdk_api_key_env,
         )
         self.feedback = feedback
+        self.openspec_scenarios = openspec_scenarios
 
     async def generate(
         self,

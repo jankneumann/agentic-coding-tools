@@ -162,6 +162,22 @@ class ActionStep(BaseModel):
     semantic: SemanticBlock | None = None
 
 
+class ScenarioSource(BaseModel):
+    """Provenance information for a generated Scenario.
+
+    All fields are optional; populated only when the originating
+    generator has the relevant context. Introduced by WP3 of the
+    factory-missions-architecture-alignment change.
+    """
+
+    template_path: str | None = None
+    cli_seed: str | None = None
+    # Set by cli-augmented mode when --openspec-change is passed and a
+    # scenario is generated under a parsed OpenSpec scenario constraint.
+    # Format: "openspec/changes/<id>/specs/<rel>.md:<start>-<end>".
+    openspec_scenario: str | None = None
+
+
 class Scenario(BaseModel):
     """A complete test scenario.
 
@@ -182,6 +198,8 @@ class Scenario(BaseModel):
     generated_by: Literal["template", "llm"] = "template"
     # Template parameterization
     parameters: dict[str, list[Any]] | None = None
+    # Provenance — populated by the various generator paths when context exists.
+    source: ScenarioSource | None = None
 
 
 class StepVerdict(BaseModel):
