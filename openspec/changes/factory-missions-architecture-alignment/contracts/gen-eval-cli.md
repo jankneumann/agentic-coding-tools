@@ -8,7 +8,9 @@
 
 **Type.** Optional string. Default: unset.
 
-**Valid values.** Any directory name under `openspec/changes/` that contains a `specs/` subdirectory. The flag's value MUST NOT contain path separators or shell metacharacters.
+**Valid values.** Any directory name under `openspec/changes/` that contains a `specs/` subdirectory. The flag's value MUST match the exact regex `^[a-zA-Z0-9_-]+$` (alphanumeric, underscore, hyphen only — no path separators, no `.`, no shell metacharacters). Values that fail this regex MUST cause the framework to exit with status 64 (usage error) before any filesystem traversal.
+
+**Implementation note.** Validation MUST be performed in `argparse` via a custom `type=` validator function or equivalent — never via post-parse string sanitation, which is error-prone. Reject invalid input at parse time.
 
 **Effective only in.** `--mode cli-augmented`. When passed in `--mode template-only` or `--mode sdk-only`, gen-eval MUST log a warning naming the mode mismatch and ignore the flag.
 
@@ -20,7 +22,17 @@ When set in `cli-augmented` mode, gen-eval:
 2. Walks the directory recursively, reading every `*.md` file.
 3. Parses each file for `### Requirement: <name>` blocks and the `#### Scenario: <name>` blocks nested under them.
 4. Captures each scenario's source location as `<path>:<line-start>-<line-end>` where `<line-start>` is the line of the `#### Scenario:` heading and `<line-end>` is the line of the last AND/THEN bullet for that scenario.
-5. Passes the parsed scenarios into the cli-augmented prompt under a `# OpenSpec Scenarios (constraints)` section, with each scenario tagged by source location.
+5. Passes the parsed scenarios into the cli-augmented prompt under a `# OpenSpec Scenarios (constraints)` section terminated by a `# End OpenSpec Scenarios` marker. Each scenario is preceded by a `## Scenario: <name> [source: <file>:<line-start>-<line-end>]` header.
+
+## Prompt-Injection Hardening
+
+Scenario WHEN/THEN/AND body text MUST be escaped before injection into the cli-augmented prompt to prevent user-supplied content from altering prompt structure:
+
+- Lines beginning with `#` (1-6 hash characters followed by space) MUST be prefixed with a backslash so the parser does not interpret them as headers.
+- Triple-backtick code fences within scenario body text MUST be replaced with quadruple-backtick fences when wrapping the body.
+- The `# End OpenSpec Scenarios` terminator MUST appear exactly once in the prompt; if scenario body text contains that exact string, the framework MUST escape it (e.g., prefix with backslash) before emission.
+
+These rules ensure that a maliciously crafted spec.md cannot inject prompt directives that affect the CLI tool's behavior outside the OpenSpec Scenarios section.
 
 ## Emitted Scenario Object Augmentation
 

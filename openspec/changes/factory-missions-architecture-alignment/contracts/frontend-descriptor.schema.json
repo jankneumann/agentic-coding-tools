@@ -28,8 +28,14 @@
       "description": "How to start and stop the frontend if not externally managed.",
       "additionalProperties": false,
       "properties": {
-        "startup_command": {"type": "string", "description": "Shell command to start the frontend (e.g., 'python -m http.server 8000')."},
+        "startup_command": {"type": "string", "description": "Shell command to start the frontend. Local-development commands MUST bind to localhost only (e.g., 'python -m http.server 8000 --bind 127.0.0.1'). The Playwright pipeline rejects descriptors whose startup_command lacks an explicit localhost bind unless `bind_address` is set explicitly to a non-localhost value."},
         "startup_cwd": {"type": "string", "description": "Working directory for startup_command, relative to repo root."},
+        "bind_address": {
+          "type": "string",
+          "description": "Address the startup_command's HTTP server is expected to bind to. Default '127.0.0.1' enforces localhost-only; setting to a different value requires operator acknowledgement that the server will be reachable from other hosts.",
+          "default": "127.0.0.1",
+          "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}$|^localhost$"
+        },
         "health_check": {
           "type": "object",
           "additionalProperties": false,
@@ -45,7 +51,7 @@
     },
     "auth_flow": {
       "type": "array",
-      "description": "Ordered list of Playwright actions to authenticate before scenarios run. Empty array means no auth needed.",
+      "description": "Ordered list of Playwright actions to authenticate before scenarios run. Empty array means no auth needed. Env var references (${VAR_NAME}) are resolved via string-template substitution (NOT shell expansion); a missing env var fails the run fast rather than expanding to empty string.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -53,11 +59,18 @@
         "properties": {
           "action": {"type": "string", "enum": ["goto", "fill", "click", "wait_for_selector", "wait_for_navigation"]},
           "selector": {"type": "string", "description": "Selector alias from the selectors map, OR a literal Playwright selector."},
-          "value": {"type": "string", "description": "For 'fill' actions: the value to type. May reference env vars as ${VAR_NAME}."},
+          "value": {"type": "string", "description": "For 'fill' actions: the value to type. May reference env vars as ${VAR_NAME}; references MUST match the regex ^[A-Z_][A-Z0-9_]*$. Missing env vars cause the run to abort before any browser is started."},
           "url": {"type": "string", "description": "For 'goto' actions: the destination path or full URL."},
           "timeout_ms": {"type": "integer", "default": 30000}
         }
       },
+      "default": []
+    },
+    "env_vars_required": {
+      "type": "array",
+      "description": "Optional list of env var names referenced by auth_flow.value. The Playwright validator MUST verify all listed env vars are present before launching browsers. Empty or omitted means no env vars are referenced.",
+      "items": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"},
+      "uniqueItems": true,
       "default": []
     },
     "selectors": {

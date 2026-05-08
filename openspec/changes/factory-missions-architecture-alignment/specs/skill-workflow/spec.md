@@ -10,10 +10,11 @@ The `docs/skills-workflow.md` validator section MUST reference both validator su
 
 #### Scenario: README opener leads with attention bottleneck
 
-- **GIVEN** a new contributor reading `README.md` for the first time
-- **WHEN** they read the first paragraph
-- **THEN** the paragraph MUST name "human attention" (not "model intelligence" or "tool capability") as the primary bottleneck this repo addresses
-- **AND** a section titled "Three Roles" or equivalent MUST appear before the project list
+- **GIVEN** the rewritten `README.md`
+- **WHEN** examined as a text file
+- **THEN** the substring `human attention` (case-insensitive) MUST appear within the first 500 characters of the file body (after the H1 title)
+- **AND** the substring `Three Roles` (or `Three-Role`) MUST appear in a heading line (matching `^##? .*Three[- ]Roles?`) that precedes the first occurrence of `## Projects`
+- **AND** all of `/plan-feature`, `/implement-feature`, `/parallel-review-plan`, `/parallel-review-implementation`, and `/gen-eval` MUST appear as substrings within the body of the Three-Roles section (between its heading and the next `^##? ` heading)
 
 #### Scenario: Each skill mapped to exactly one role
 
@@ -39,10 +40,10 @@ The section MUST be additive — no existing content in `docs/parallel-agentic-d
 #### Scenario: Taxonomy table present and complete
 
 - **GIVEN** the updated `docs/parallel-agentic-development.md`
-- **WHEN** a reader searches for "Five-Tier" or "Multi-Agent Taxonomy"
-- **THEN** a section MUST exist
-- **AND** the section MUST contain a table or list with all 5 patterns named above
-- **AND** each pattern MUST link to the specific primitive (file path or function name) that implements it
+- **WHEN** examined as a text file
+- **THEN** a heading line matching `^##? .*(Five-Tier|Multi-Agent Taxonomy)` MUST exist
+- **AND** the section under that heading (until the next `^##? ` heading) MUST contain all 5 pattern names as substrings: `Delegation`, `Creator-Verifier`, `Direct Communication`, `Negotiation`, `Broadcast`
+- **AND** for each pattern, the section MUST contain at least one repo-relative file path (matching the regex `\b(skills|agent-coordinator|docs)/[A-Za-z0-9_./-]+`) within the lines describing that pattern
 
 ---
 
@@ -57,10 +58,11 @@ The `docs/parallel-agentic-development.md` document SHALL include a named "Scope
 #### Scenario: Section names the talk and the divergence
 
 - **GIVEN** the updated `docs/parallel-agentic-development.md`
-- **WHEN** a reader searches for "Scope-Isolated Parallelism"
-- **THEN** the section MUST reference the Factory Missions talk
-- **AND** the section MUST state explicitly that the repo parallelizes intra-feature work packages where the talk runs them serially
-- **AND** the section MUST cite at least one enforcement file path
+- **WHEN** examined as a text file
+- **THEN** a heading line containing `Scope-Isolated Parallelism` MUST exist
+- **AND** the section under that heading (until the next `^##? ` heading) MUST contain the substring `Factory Missions` (citing the talk by name)
+- **AND** the section MUST contain at least one of the substrings `serial`, `serially`, or `serialize` (acknowledging the talk's prescription)
+- **AND** the section MUST contain the path `skills/parallel-infrastructure/scripts/scope_checker.py` OR a reference to the merge queue in `agent-coordinator/`
 
 ---
 
@@ -70,10 +72,11 @@ The `docs/lessons-learned.md` or `docs/skills-workflow.md` document SHALL includ
 
 #### Scenario: Glossary entry exists and is searchable
 
-- **GIVEN** the updated docs
-- **WHEN** a reader searches for "Mission" in the docs
-- **THEN** they MUST find a definition that maps Mission to an OpenSpec change-id
-- **AND** the definition MUST name all four lifecycle skills
+- **GIVEN** the updated `docs/skills-workflow.md` (or `docs/lessons-learned.md`)
+- **WHEN** examined as a text file
+- **THEN** a section heading or definition list entry containing `Mission` MUST exist
+- **AND** the entry's body MUST contain the substring `OpenSpec change-id`
+- **AND** the entry's body MUST contain all four exact substrings: `/plan-feature`, `/implement-feature`, `/validate-feature`, `/cleanup-feature`
 
 ---
 

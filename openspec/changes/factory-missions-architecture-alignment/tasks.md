@@ -105,7 +105,7 @@
   **Spec scenarios**: evaluation-framework: "cli-augmented failure does not halt pipeline"
   **Dependencies**: 4.1
 
-- [ ] 4.3 Modify `skills/validate-feature/SKILL.md` lines 260-307 to wrap existing template-only invocation in mode-selection conditional (preserve template-only as fallback per D5)
+- [ ] 4.3 Modify `skills/validate-feature/SKILL.md` lines 260-307 to wrap the existing template-only invocation in a mode-selection conditional. Concretely: replace the `if [ -z "$GENEVAL_DESCRIPTORS" ]` / `else` block at lines 271-307 with an outer conditional that branches on whether `openspec/changes/<change-id>/specs/` exists, calling cli-augmented mode in the new branch and the existing template-only block in the fallback branch (preserving lines 274-306 as the fallback path per D5).
   **Spec scenarios**: evaluation-framework: "Both artifacts present → cli-augmented", "Descriptor only → template-only fallback"
   **Design decisions**: D5
   **Dependencies**: 4.1, 4.2
@@ -175,7 +175,7 @@
   **Contracts**: `contracts/frontend-descriptor.schema.json`
   **Dependencies**: 0.2
 
-- [ ] 7.2 Write integration test for sample-frontend Playwright run (start http.server, run validator, assert findings-gen-eval.json shape)
+- [ ] 7.2 Write integration test for sample-frontend Playwright run (start http.server, run validator, assert findings-playwright.json shape)
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path"
   **Design decisions**: D2, D6
   **Dependencies**: 0.1, 0.2, 5.4
@@ -199,10 +199,10 @@
 - [ ] 7.7 Create sample OpenSpec scenarios for the sample frontend (in fixtures/sample-frontend/specs/)
   **Dependencies**: 7.5
 
-- [ ] 7.8 Create `skills/playwright-validator/SKILL.md` with command spec, dependency check (npx playwright install), and pipeline orchestration
+- [ ] 7.8 Create `skills/playwright-validator/SKILL.md` with command spec, dependency check (npx playwright install), and pipeline orchestration. Authored AFTER the runner is implemented (7.10) so the SKILL.md documents real behavior, not an interface skeleton.
   **Spec scenarios**: gen-eval-framework: "Missing Playwright CLI degrades cleanly"
   **Design decisions**: D2
-  **Dependencies**: 7.1
+  **Dependencies**: 7.1, 7.10
 
 - [ ] 7.9 Implement Playwright-test-script generator that consumes OpenSpec scenarios + frontend descriptor → produces `.spec.ts` test files
   **Spec scenarios**: gen-eval-framework: "Sample frontend exercise validates the full path"

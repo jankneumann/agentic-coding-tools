@@ -45,3 +45,22 @@ The policy MUST be configurable in `agents.yaml` under a top-level `policies.ven
 - **WHEN** a second validator is requested for the same change
 - **THEN** the dispatcher MAY select either `claude` or `codex` (the worker-validator constraint applies once per role pair, not transitively)
 - **AND** the dispatcher MUST log the role constraint that was checked
+
+#### Scenario: Vendor-tracking session state is change-scoped and tamper-resistant
+
+- **GIVEN** the dispatcher tracks worker/validator vendor history
+- **WHEN** session state is persisted between dispatcher invocations within one OpenSpec change
+- **THEN** session state MUST be stored at `openspec/changes/<change-id>/.dispatch-state.json` (change-scoped, not global)
+- **AND** the file MUST be written with mode `0644` (owner-writable, world-readable for transparency, but not world-writable)
+- **AND** the dispatcher MUST refuse to read state if the file's permissions include world-write (`0002` bit set), logging an error and falling back to no-history mode
+- **AND** the file MUST be removed by `/cleanup-feature` when the change is archived (no orphan state files persist)
+- **AND** state MUST be JSON conforming to `{worker_vendors: [string], validator_vendors: [string], change_id: string}` (other fields ignored)
+
+#### Scenario: Session-state storage is tamper-resistant and change-scoped
+
+- **GIVEN** the dispatcher has tracked vendor selections for change `example-feature` (worker=claude, validator=codex)
+- **WHEN** a second invocation of the dispatcher runs for the same change-id within the same session
+- **THEN** the dispatcher MUST persist its selection state under `openspec/changes/<change-id>/.dispatch-state/vendor-history.json` (or an equivalent change-scoped path resolved from `agents.yaml.policies.vendor_diversity.state_dir`)
+- **AND** the state file MUST be created with mode `0600` (owner read/write only)
+- **AND** when `/cleanup-feature <change-id>` runs, the `.dispatch-state/` directory MUST be removed alongside other change artifacts
+- **AND** state from a different change-id MUST NOT influence vendor selection for the active change (no cross-change contamination)

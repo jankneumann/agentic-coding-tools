@@ -18,16 +18,17 @@ The handler MUST log the selected mode and the rationale (which artifact was mis
 - **GIVEN** a project with `evaluation/gen_eval/descriptors/api.yaml`
 - **AND** an OpenSpec change at `openspec/changes/example/specs/api/spec.md`
 - **WHEN** `/validate-feature example --phase gen-eval` runs
-- **THEN** the handler MUST invoke gen-eval with `--mode cli-augmented --openspec-change example`
-- **AND** the handler MUST log "gen-eval: cli-augmented mode (descriptor + OpenSpec change present)"
+- **THEN** the gen-eval invocation captured by the handler MUST include the literal arguments `--mode cli-augmented` and `--openspec-change example` (verifiable by inspecting the launched process's argv or by mocking subprocess.run and asserting on the call arguments)
+- **AND** the handler MUST emit a log line containing the substring `mode=cli-augmented` to its stdout/stderr (exact log format is non-binding; only the substring presence is normative)
 
 #### Scenario: Descriptor only → template-only fallback
 
 - **GIVEN** a project with `evaluation/gen_eval/descriptors/api.yaml`
 - **AND** no OpenSpec change directory for the active change-id (e.g., the change has no spec deltas)
 - **WHEN** `/validate-feature <change-id> --phase gen-eval` runs
-- **THEN** the handler MUST invoke gen-eval with `--mode template-only --no-services`
-- **AND** the handler MUST log "gen-eval: template-only mode (no OpenSpec change at openspec/changes/<change-id>/specs/)"
+- **THEN** the gen-eval invocation captured by the handler MUST include the literal arguments `--mode template-only` and `--no-services` (verifiable by argv inspection)
+- **AND** the captured argv MUST NOT include `--openspec-change` or `--mode cli-augmented`
+- **AND** the handler MUST emit a log line containing the substring `mode=template-only` to its stdout/stderr
 
 #### Scenario: No descriptor → phase skipped
 
@@ -61,9 +62,10 @@ The synthesizer MUST treat the absence of `findings-gen-eval.json` as not-an-err
 - **GIVEN** a change with `findings-claude.json` (3 scrutiny findings) and `findings-codex.json` (2 scrutiny findings)
 - **AND** `findings-gen-eval.json` (4 behavioral findings, all `severity: high`)
 - **WHEN** `consensus_synthesizer.py` runs against all three files
-- **THEN** the emitted `consensus.json` MUST contain 9 ranked findings
-- **AND** the 4 behavioral findings MUST appear in the ranking with `type: behavioral_failure`
-- **AND** the synthesizer MUST log the vendor breakdown: "merged: claude=3, codex=2, gen-eval=4"
+- **THEN** the emitted `consensus.json` MUST contain exactly 9 finding entries
+- **AND** within the emitted ranking array, all entries MUST be ordered by `severity` (with `critical` < `high` < `medium` < `low` mapped to ascending sort order, where lower values rank first); ties broken by source-file order
+- **AND** the 4 entries with `type: behavioral_failure` MUST be present in the ranking (no behavioral findings dropped)
+- **AND** the synthesizer's stdout MUST contain a vendor-count line matching the regex `merged: .*claude=3.*codex=2.*gen-eval=4`
 
 #### Scenario: behavioral_failure type validates against schema
 
