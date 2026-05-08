@@ -816,8 +816,21 @@ _DEFAULT_VENDOR_DIVERSITY_POLICY: dict[str, Any] = {
 }
 
 
+_CHANGE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
 def _dispatch_state_path(change_id: str, repo_root: Path | None = None) -> Path:
-    """Return the path to the change-scoped dispatch-state file."""
+    """Return the path to the change-scoped dispatch-state file.
+
+    Validates ``change_id`` against ``^[a-zA-Z0-9_-]+$`` to prevent path
+    traversal from callers that don't pre-validate. The same regex is used
+    by gen-eval's ``--openspec-change`` flag at argparse time; here we
+    re-validate at this API boundary for defense in depth.
+    """
+    if not isinstance(change_id, str) or not _CHANGE_ID_RE.match(change_id):
+        raise ValueError(
+            f"change_id MUST match {_CHANGE_ID_RE.pattern}: got {change_id!r}"
+        )
     base = repo_root if repo_root is not None else Path.cwd()
     return base / "openspec" / "changes" / change_id / ".dispatch-state.json"
 

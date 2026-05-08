@@ -89,3 +89,66 @@ class TestValidateRequiredEnvVars:
 
     def test_empty_descriptor_passes(self):
         validate_required_env_vars({}, env={})
+
+
+# ---------------------------------------------------------------------------
+# Iteration-1 fix F4: malformed `${VAR` (missing closing brace) fails fast
+# ---------------------------------------------------------------------------
+
+
+class TestMalformedEnvVarReference:
+    """The auth_flow regex matches well-formed ``${VAR}``. A malformed input
+    like ``${MISSING_VAR`` (no closing brace) would otherwise pass through
+    unchanged, ending up as a literal string passed to Playwright. We fail
+    fast with a clear error instead.
+    """
+
+    def test_unclosed_brace_raises(self):
+        from auth_flow import validate_required_env_vars, MissingEnvVar
+
+        descriptor = {
+            "auth_flow": [
+                {
+                    "action": "fill",
+                    "selector": "#password",
+                    "value": "${UNCLOSED_VAR",
+                }
+            ],
+        }
+        with pytest.raises(MissingEnvVar, match="malformed"):
+            validate_required_env_vars(descriptor, env={})
+
+    def test_balanced_braces_pass_through(self):
+        """Well-formed ``${VAR}`` references resolve normally (no false positive)."""
+        from auth_flow import validate_required_env_vars
+
+        descriptor = {
+            "auth_flow": [
+                {"action": "fill", "selector": "#u", "value": "${KNOWN}"},
+            ],
+        }
+        # Should NOT raise — KNOWN is in env.
+        validate_required_env_vars(descriptor, env={"KNOWN": "alice"})
+
+    def test_no_env_refs_passes(self):
+        """Auth values without ``${...}`` are unchanged."""
+        from auth_flow import validate_required_env_vars
+
+        descriptor = {
+            "auth_flow": [
+                {"action": "fill", "selector": "#u", "value": "literal"},
+            ],
+        }
+        validate_required_env_vars(descriptor, env={})
+
+    def test_dollar_brace_followed_by_text_no_close_raises(self):
+        """``${VAR_NAME and more text`` (no closing brace) raises."""
+        from auth_flow import validate_required_env_vars, MissingEnvVar
+
+        descriptor = {
+            "auth_flow": [
+                {"action": "fill", "selector": "#u", "value": "x ${A and more"},
+            ],
+        }
+        with pytest.raises(MissingEnvVar, match="malformed"):
+            validate_required_env_vars(descriptor, env={"A": "1"})

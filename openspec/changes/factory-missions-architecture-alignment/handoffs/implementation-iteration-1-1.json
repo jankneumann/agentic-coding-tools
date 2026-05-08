@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-08T10:33:17.819764+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Iteration 1: 5-agent parallel review surfaced 24 findings (security, bugs, test-quality dimensions). Fixed 7 above-threshold items: symlink-escape protection in openspec_seed, atomic write + producer-side schema validation in both findings emitters, malformed-${VAR} fail-fast in auth_flow, change-id validation at _dispatch_state_path entry. Added 11 new tests (vendor-exhaustion-per-role \u00d7 2, dispatch-state-path-validation \u00d7 4, malformed-env-var \u00d7 4, missing-change degradation log assertion strengthened). Deferred 5 lower-ROI polish items to iteration 2 (header regex broadening, bind heuristic refinement, duplicate regex constant, orphan-scenario semantics, findings-source error consistency). All 666 tests pass; openspec validate --strict green.",
+    "completed_work": [
+      "F1 fixed: openspec_seed.parse_openspec_change rejects spec files whose resolved path escapes the specs/ subtree (symlink-escape defense)",
+      "F2 fixed: findings_emitter.emit_findings uses atomic tempfile+fsync+rename + producer-side schema validation",
+      "F3 fixed: playwright/findings.emit_playwright_findings uses atomic write + producer-side schema validation (same pattern as F2)",
+      "F4 fixed: auth_flow.validate_required_env_vars raises MissingEnvVar('malformed') on `${VAR` (unbalanced braces)",
+      "F6 fixed: review_dispatcher._dispatch_state_path validates change_id against ^[a-zA-Z0-9_-]+$ at function entry",
+      "F7 added: 2 new tests for vendor-exhaustion-per-role + 4 new tests for dispatch-state-path validation in test_vendor_diversity.py (19 total, was 13)",
+      "F8 strengthened: test_main_missing_change_warns_and_continues now asserts the warning log substring (either 'openspec change directory not found' or 'ignoring')",
+      "Added 4 new tests for malformed-${VAR} in test_auth_flow.py (18 total, was 14)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Skip F5 (HTTP server lifecycle leak in runner.py)",
+        "rationale": "Runner docstring confirms lifecycle is intentionally caller-managed, not runner-managed; the bug review's claim was incorrect. No fix needed.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Atomic write via tempfile + fsync + rename for both findings emitters",
+        "rationale": "Prevents partially-written JSON from being read by consensus_synthesizer if process dies mid-write",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Producer-side schema validation as defense in depth",
+        "rationale": "Consumer (consensus_synthesizer) already validates; adding producer-side validation catches schema drift at write time before downstream consumers see broken data",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "change-id regex re-validated at _dispatch_state_path() entry",
+        "rationale": "Public API boundary defense \u2014 even if upstream validation is bypassed, the path builder rejects invalid input rather than constructing arbitrary paths",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Malformed ${VAR (no closing brace) raises MissingEnvVar at validation time",
+        "rationale": "Prevents literal `${VAR_NAME` from being passed to Playwright actions; surfaces typo at descriptor-load time, not as cryptic Playwright failure",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run a second iterate-on-implementation pass if any new findings emerge from review of these fixes",
+      "Address deferred polish items in iteration 2: orphan scenario semantics, header regex broadening, bind heuristic, duplicate regex constant",
+      "Then proceed to validate-feature for live-environment checks (deferred from iteration 0)"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/evaluation/gen_eval/openspec_seed.py",
+        "description": "symlink-escape protection in parse_openspec_change"
+      },
+      {
+        "path": "agent-coordinator/evaluation/gen_eval/findings_emitter.py",
+        "description": "atomic write + schema validation"
+      },
+      {
+        "path": "skills/playwright-validator/scripts/findings.py",
+        "description": "atomic write + schema validation (mirror)"
+      },
+      {
+        "path": "skills/playwright-validator/scripts/auth_flow.py",
+        "description": "malformed ${VAR fail-fast"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "change-id validation at _dispatch_state_path entry"
+      }
+    ]
+  }
+}

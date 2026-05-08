@@ -212,10 +212,34 @@ def parse_openspec_change(
     if not specs_dir.exists() or not specs_dir.is_dir():
         return []
 
+    # Resolve specs_dir once so we can reject any spec file whose resolved
+    # path escapes the specs subtree (defense against symlink attacks where
+    # a malicious checkout contains specs/foo.md → /etc/passwd).
+    specs_dir_resolved = specs_dir.resolve()
+
     spec_files = sorted(specs_dir.rglob("*.md"))
     parsed: list[ParsedScenario] = []
     for spec_file in spec_files:
         if not spec_file.is_file():
+            continue
+        try:
+            spec_resolved = spec_file.resolve()
+        except OSError as exc:
+            logger.warning(
+                "skipping spec file with broken resolution: %s (%s)",
+                spec_file,
+                exc,
+            )
+            continue
+        try:
+            spec_resolved.relative_to(specs_dir_resolved)
+        except ValueError:
+            logger.warning(
+                "skipping spec file that resolves outside specs/ subtree: %s "
+                "(resolves to %s; possible symlink escape)",
+                spec_file,
+                spec_resolved,
+            )
             continue
         parsed.extend(_parse_spec_file(spec_file, repo_root))
     return parsed

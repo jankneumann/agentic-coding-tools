@@ -259,3 +259,112 @@ class TestLoadPolicy:
         policy = load_vendor_diversity_policy(agents_yaml)
         assert policy["enforce_for"] == ["worker_vs_validator"]
         assert policy["scope"] == "per_change"
+
+
+# ---------------------------------------------------------------------------
+# Iteration-1 fix: vendor exhaustion per-role tracking (spec scenario coverage)
+# ---------------------------------------------------------------------------
+
+
+class TestVendorExhaustionPerRole:
+    """Per agent-archetypes spec: 'Vendor exhaustion within a session is tracked'.
+
+    The worker_vs_validator constraint applies once per role pair, NOT
+    transitively. After a worker (claude) and validator (codex) are both
+    dispatched on a change, a SECOND validator request MAY pick either vendor
+    again — the constraint doesn't cascade.
+    """
+
+    def test_second_validator_after_pair_dispatch_excludes_worker_again(self, tmp_path: Path):
+        """A second validator on the same change still excludes the worker's vendor.
+
+        The implementation tracks worker_vendors and validator_vendors in
+        dispatch state. The worker_vs_validator constraint excludes vendors in
+        ``worker_vendors`` from validator selection — so once worker=claude is
+        recorded, EVERY subsequent validator selection on that change excludes
+        claude. This test locks in that behavior so a refactor doesn't drop
+        the persistent worker exclusion.
+        """
+        from review_dispatcher import (
+            record_worker_vendor,
+            select_validator_vendor,
+        )
+
+        change_id = "feat-x"
+        repo_root = tmp_path
+
+        record_worker_vendor(change_id, "claude", repo_root=repo_root)
+
+        # First validator request: must exclude claude.
+        first, _ = select_validator_vendor(
+            ["claude", "codex", "gemini"],
+            change_id=change_id,
+            repo_root=repo_root,
+        )
+        assert first in {"codex", "gemini"}, first
+
+        # Second validator request: still excludes claude.
+        second, log_msg = select_validator_vendor(
+            ["claude", "codex", "gemini"],
+            change_id=change_id,
+            repo_root=repo_root,
+        )
+        assert second in {"codex", "gemini"}, second
+        assert "claude" in log_msg, log_msg
+
+    def test_pair_constraint_logs_role_check(self, tmp_path: Path):
+        """The dispatcher's log MUST reference vendor_diversity and name what was excluded."""
+        from review_dispatcher import (
+            record_worker_vendor,
+            select_validator_vendor,
+        )
+
+        change_id = "feat-y"
+        record_worker_vendor(change_id, "claude", repo_root=tmp_path)
+        chosen, log_msg = select_validator_vendor(
+            ["claude", "codex"],
+            change_id=change_id,
+            repo_root=tmp_path,
+        )
+        assert "vendor_diversity" in log_msg.lower(), log_msg
+        assert "claude" in log_msg, log_msg
+
+
+# ---------------------------------------------------------------------------
+# Iteration-1 fix F6: dispatch_state_path rejects invalid change-ids
+# ---------------------------------------------------------------------------
+
+
+class TestDispatchStatePathValidation:
+    """Defense-in-depth: ``_dispatch_state_path`` rejects path-traversal change-ids.
+
+    Public callers (record_worker_vendor, record_validator_vendor,
+    select_validator_vendor) accept change_id strings and pass them to the path
+    builder. Rather than trust upstream validation, the path builder itself
+    validates against ``^[a-zA-Z0-9_-]+$``.
+    """
+
+    def test_rejects_path_traversal(self, tmp_path: Path):
+        from review_dispatcher import _dispatch_state_path
+
+        with pytest.raises(ValueError, match=r"change_id MUST match"):
+            _dispatch_state_path("../etc/passwd", repo_root=tmp_path)
+
+    def test_rejects_slash_in_change_id(self, tmp_path: Path):
+        from review_dispatcher import _dispatch_state_path
+
+        with pytest.raises(ValueError):
+            _dispatch_state_path("foo/bar", repo_root=tmp_path)
+
+    def test_rejects_shell_metacharacters(self, tmp_path: Path):
+        from review_dispatcher import _dispatch_state_path
+
+        with pytest.raises(ValueError):
+            _dispatch_state_path("foo;rm -rf /", repo_root=tmp_path)
+
+    def test_accepts_valid_change_id(self, tmp_path: Path):
+        from review_dispatcher import _dispatch_state_path
+
+        path = _dispatch_state_path("feat-123_abc", repo_root=tmp_path)
+        assert path.name == ".dispatch-state.json"
+        assert "feat-123_abc" in str(path)
