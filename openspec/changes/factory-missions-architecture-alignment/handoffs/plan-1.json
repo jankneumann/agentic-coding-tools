@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-08T02:47:04.657006+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned alignment of repo vocabulary, validator surfaces, vendor-diversity policy, and frontend-validation coverage with the Factory Missions architecture. Decomposed into 7 scope-isolated work packages plus wp-contracts and wp-integration. WP4 reduced from 'add gen-eval phase' to 'extend existing template-only handler' after discovering the phase already exists at validate-feature/SKILL.md:30,260-307. Coordinated tier: WP1, WP2, WP6 parallel-safe; WP3\u2192WP4\u2192WP5\u2192WP7 form a serial chain on the gen-eval extension path.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Single umbrella change vs roadmap of 4 small changes",
+        "rationale": "One plan-approval gate + one PR keeps human-attention cost bounded; cross-WP dependencies become intra-change contracts in contracts/",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Playwright validator packaged as a peer skill, not a new gen-eval mode",
+        "rationale": "Different system deps (npx, browsers); peer-skill packaging matches repo convention and keeps gen-eval Python-only",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "behavioral_failure as a peer enum value, not a metadata discriminator on correctness",
+        "rationale": "JSON Schema validation can route on type-enum values; metadata discriminators are harder to filter on",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Vendor-diversity policy is per-change, not per-package",
+        "rationale": "Implementable from existing change-id session state; per-package would force vendor-pool exhaustion on changes with many packages",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Existing template-only gen-eval phase preserved as fallback path",
+        "rationale": "Backward compat; reduces conflict surface with harness-engineering-features which also touches validate-feature/SKILL.md",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Sample frontend uses static HTML, not a JS framework",
+        "rationale": "Smallest possible surface; proves validator-agnosticism; no app-side npm deps in CI",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "This proposal merges before harness-engineering-features",
+        "rationale": "Operator-selected; harness-engineering-features rebases onto our additive sections (no edits to existing content reduces conflict risk)",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Land wp-contracts first (smallest, gates everything else)",
+      "Run WP1, WP2, WP6 in parallel after wp-contracts (independent write scopes)",
+      "Run WP3\u2192WP4\u2192WP5\u2192WP7 serially (each depends on prior schema/output)",
+      "Run wp-integration last; verify harness-engineering-features rebases cleanly"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/factory-missions-architecture-alignment/proposal.md",
+        "description": "approved proposal with 7-WP decomposition"
+      },
+      {
+        "path": "openspec/changes/factory-missions-architecture-alignment/design.md",
+        "description": "dependency DAG, 6 decisions, risk register"
+      },
+      {
+        "path": "openspec/changes/factory-missions-architecture-alignment/tasks.md",
+        "description": "TDD-ordered task list with spec/contract/decision references per task"
+      },
+      {
+        "path": "openspec/changes/factory-missions-architecture-alignment/work-packages.yaml",
+        "description": "9 packages (incl. wp-contracts, wp-integration); all validations green"
+      },
+      {
+        "path": "openspec/changes/factory-missions-architecture-alignment/contracts/",
+        "description": "frontend-descriptor.schema.json, agents-policy-schema.json, gen-eval-cli.md, findings-vendor-source.md"
+      }
+    ]
+  }
+}

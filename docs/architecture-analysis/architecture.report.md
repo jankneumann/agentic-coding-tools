@@ -1,7 +1,9 @@
 # Architecture Report
 
-Generated: 2026-05-04T01:52:13.494735+00:00  
-Git SHA: `c9749ccc6c9243d3b6873770388beedb67554a7b`
+**agent-coordinator** — Multi-agent coordination MCP server
+
+Generated: 2026-05-08T02:30:07.714822+00:00  
+Git SHA: `a2e8e2c74ff5e3fb72f0d916020df513ff578c72`
 
 ## System Overview
 
@@ -115,16 +117,16 @@ This is a **Python MCP server** with 54 modules exposing **82 MCP endpoints** (6
 - `feature_registry` — imported by 5 modules
 - `guardrails` — imported by 4 modules
 - `profiles` — imported by 4 modules
-- `refresh_rpc_client` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
-- `agents_config` — imported by 3 modules
-- `locks` — imported by 3 modules
-- `memory` — imported by 3 modules
 - `event_bus` — imported by 3 modules
-- `merge_train` — imported by 3 modules
-- `handoffs` — imported by 3 modules
+- `agents_config` — imported by 3 modules
+- `refresh_rpc_client` — imported by 3 modules
 - `work_queue` — imported by 3 modules
+- `locks` — imported by 3 modules
+- `merge_train` — imported by 3 modules
 - `help_service` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
+- `memory` — imported by 3 modules
+- `handoffs` — imported by 3 modules
 
 ## Entry Points
 
@@ -277,13 +279,13 @@ Breakdown: 76 info, 6 warning.
 
 ### Disconnected Flow (expected) — 82
 
-82 MCP routes have no frontend callers — expected for an MCP server (clients are AI agents, not browsers).
+82 MCP routes have no frontend callers — expected (clients are AI agents).
 
-- Backend route 'notifications_status' has no frontend callers
-- Backend route 'discovery_heartbeat' has no frontend callers
-- Backend route 'list_pending_approvals' has no frontend callers
-- Backend route 'get_merge_queue_endpoint' has no frontend callers
-- Backend route 'check_approval_endpoint' has no frontend callers
+- Backend route 'submit_work' has no frontend callers
+- Backend route 'get_agent_dispatch_configs' has no frontend callers
+- Backend route 'get_current_profile' has no frontend callers
+- Backend route 'rollback_policy_endpoint' has no frontend callers
+- Backend route 'request_permission_endpoint' has no frontend callers
 - ... and 77 more
 
 ## High-Impact Nodes

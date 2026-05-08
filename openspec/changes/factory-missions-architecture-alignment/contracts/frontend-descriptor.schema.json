@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openspec.local/contracts/frontend-descriptor.schema.json",
+  "title": "Frontend Descriptor for Playwright Validator",
+  "description": "Declarative descriptor for a frontend surface to be validated by the Playwright behavioral validator (skills/playwright-validator/). Consumed by the Playwright runner to discover the surface, drive auth flows, resolve selector aliases, and select the browser matrix.",
+  "type": "object",
+  "required": ["base_url", "browsers", "selectors"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Descriptor schema version. Reserved for future-proofing.",
+      "default": "1"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name of the frontend surface.",
+      "examples": ["sample-frontend", "admin-console"]
+    },
+    "base_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Base URL where the frontend is reachable during validation. May be a localhost URL when validate-feature has deployed the service locally.",
+      "examples": ["http://localhost:8000", "https://staging.example.com"]
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "How to start and stop the frontend if not externally managed.",
+      "additionalProperties": false,
+      "properties": {
+        "startup_command": {"type": "string", "description": "Shell command to start the frontend (e.g., 'python -m http.server 8000')."},
+        "startup_cwd": {"type": "string", "description": "Working directory for startup_command, relative to repo root."},
+        "health_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "url": {"type": "string", "format": "uri"},
+            "expected_status": {"type": "integer", "default": 200},
+            "timeout_seconds": {"type": "integer", "default": 30},
+            "retries": {"type": "integer", "default": 5}
+          }
+        },
+        "teardown_command": {"type": "string", "description": "Optional cleanup command after validation completes."}
+      }
+    },
+    "auth_flow": {
+      "type": "array",
+      "description": "Ordered list of Playwright actions to authenticate before scenarios run. Empty array means no auth needed.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action"],
+        "properties": {
+          "action": {"type": "string", "enum": ["goto", "fill", "click", "wait_for_selector", "wait_for_navigation"]},
+          "selector": {"type": "string", "description": "Selector alias from the selectors map, OR a literal Playwright selector."},
+          "value": {"type": "string", "description": "For 'fill' actions: the value to type. May reference env vars as ${VAR_NAME}."},
+          "url": {"type": "string", "description": "For 'goto' actions: the destination path or full URL."},
+          "timeout_ms": {"type": "integer", "default": 30000}
+        }
+      },
+      "default": []
+    },
+    "selectors": {
+      "type": "object",
+      "description": "Map of friendly selector aliases to literal Playwright selectors. Scenarios reference these aliases instead of brittle CSS paths so descriptor edits don't require rewriting scenarios.",
+      "additionalProperties": {"type": "string"},
+      "examples": [{"login_button": "button[data-test='login']", "username_field": "input[name='username']"}]
+    },
+    "browsers": {
+      "type": "array",
+      "description": "Browser engines to execute scenarios against. Findings include a metadata.browser field identifying which engine produced them.",
+      "items": {"type": "string", "enum": ["chromium", "firefox", "webkit"]},
+      "minItems": 1,
+      "uniqueItems": true,
+      "default": ["chromium"]
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {"type": "integer", "default": 1280},
+        "height": {"type": "integer", "default": 720}
+      }
+    },
+    "test_isolation": {
+      "type": "string",
+      "enum": ["per_scenario", "per_file", "shared"],
+      "description": "Whether each generated test gets a fresh browser context.",
+      "default": "per_scenario"
+    },
+    "openspec_change_default": {
+      "type": "string",
+      "description": "Default OpenSpec change-id to seed scenarios from. May be overridden at invocation time."
+    }
+  }
+}
