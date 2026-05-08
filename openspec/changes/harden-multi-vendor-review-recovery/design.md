@@ -7,18 +7,29 @@
 │              skills/parallel-infrastructure/scripts/                     │
 │                                                                          │
 │   checkpoint_findings.py         ← NEW: shared write/read helpers        │
-│   ├── write_vendor_findings(out_dir, vendor, review_type, target,        │
-│   │                          findings)                                   │
-│   │       — atomic-rename: temp → fsync → rename                         │
+│   ├── _atomic_write_json(path, payload)                                  │
+│   │       — write to temp → fsync(file) → os.replace → fsync(parent_dir) │
+│   │       — Used by both write_vendor_findings and write_manifest        │
+│   ├── write_vendor_findings(out_dir, *, vendor, review_type, target,     │
+│   │                          findings, reviewer_vendor=None)             │
+│   │       — keyword-only after out_dir to prevent positional confusion   │
+│   │       — wraps raw findings list into the per-vendor envelope         │
 │   │       — validates `vendor` against [A-Za-z0-9_-]+ before any disk op │
-│   ├── read_vendor_findings(out_dir) -> dict[str, list[ReviewFinding]]    │
-│   ├── write_manifest(out_dir, change_id, review_type, target, vendors,   │
-│   │                  dispatches=None, quorum_requested=None,             │
-│   │                  quorum_received=None)                               │
-│   │       — atomic-rename + parent-dir fsync                             │
-│   │       — defaults: dispatches=[], quorum_*=0 (in-process callers)     │
-│   ├── read_manifest(out_dir) -> ManifestData                             │
-│   └── _validate_path_safety(artifacts_dir, vendor, review_type)          │
+│   │       — uses _atomic_write_json (file fsync + parent-dir fsync)      │
+│   ├── read_vendor_findings(out_dir) -> dict[str, list[dict[str, Any]]]   │
+│   │       — values are raw finding dicts (NOT a Finding class type)      │
+│   ├── write_manifest(out_dir, *, review_type, target, vendors,           │
+│   │                  change_id=None, dispatches=None,                    │
+│   │                  quorum_requested=None, quorum_received=None)        │
+│   │       — keyword-only after out_dir; change_id optional (None for CLI)│
+│   │       — uses _atomic_write_json (file fsync + parent-dir fsync)      │
+│   │       — defaults: dispatches=[], quorum_*=computed from vendors[]    │
+│   ├── read_manifest(out_dir) -> dict[str, Any]                           │
+│   │       — returns parsed manifest as raw dict                          │
+│   ├── _validate_path_safety(artifacts_dir, vendor, review_type)          │
+│   └── _safe_log_error(event, **payload)                                  │
+│           — wraps logger.error in try/except; never raises                │
+│           — used by converge() for the two log events                    │
 │                                                                          │
 │   review_dispatcher.py                                                   │
 │   └── (lines ~1180-1208 + ~1360-1362)  ← MODIFIED: route via helper      │
@@ -34,8 +45,8 @@
 │   convergence_loop.py                                                    │
 │   ├── converge(...)              ← MODIFIED: pre-synthesis checkpoint    │
 │   │       + audit on synthesis failure                                   │
-│   └── ConvergenceResult          ← MODIFIED: + 2 observability fields    │
-│           (checkpoint_dir, synthesis_failed)                             │
+│   └── ConvergenceResult          ← MODIFIED: + 1 observability field     │
+│           (checkpoint_dir)                                               │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,7 +129,6 @@ caller → converge()
         └─→ return ConvergenceResult(
               ...,
               checkpoint_dir=<artifacts_dir>/.review-cache/,
-              synthesis_failed=False,
             )
 ```
 

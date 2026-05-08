@@ -74,7 +74,7 @@ The `converge()` API in `skills/autopilot/scripts/convergence_loop.py` SHALL per
 - **WHEN** `converge()` completes a review round successfully
 - **THEN** `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` SHALL exist for every vendor that returned findings
 - **AND** `<artifacts_dir>/.review-cache/review-manifest.json` SHALL exist
-- **AND** the returned `ConvergenceResult` SHALL have `synthesis_failed=False` and `checkpoint_dir` set to the checkpoint directory path
+- **AND** the returned `ConvergenceResult` SHALL have `checkpoint_dir` set to the checkpoint directory path
 
 #### Scenario: Synthesis failure leaves checkpoint intact and exception propagates
 - **WHEN** `synthesizer.synthesize()` raises an exception
@@ -116,32 +116,35 @@ The `ConvergenceResult` dataclass returned by `converge()` SHALL include one new
 
 The system SHALL emit a structured log entry when synthesis fails with a checkpoint present. This makes chronic synthesis failures observable to operators monitoring logs (or downstream log-aggregation systems like the journal) even if no human notices the immediate exception.
 
-The log emission SHALL use Python's standard `logging` module with a structured payload (e.g., `extra={...}` dict) at level `ERROR`. The event "name" is conveyed via a stable string in the message text — `convergence.synthesis_failed_with_checkpoint` — so log consumers can filter by it. This proposal does NOT introduce a new HTTP audit endpoint or a new `coordination_bridge` helper; it uses the logging primitive that already exists.
+The log emission SHALL use Python's standard `logging` module at level `ERROR` with a structured payload via `extra={...}`. The event identity SHALL be carried in BOTH `LogRecord.msg` (so the rendered text is human-readable and greppable) AND in `extra["event"]` (so automated test assertions and log-aggregation filters can match against a stable structured field rather than formatter-dependent rendered text). This proposal does NOT introduce a new HTTP audit endpoint or a new `coordination_bridge` helper; it uses the logging primitive that already exists.
 
-The structured payload SHALL include `change_id` (or `null` if not applicable), `review_type`, `original_exception_class`, `original_exception_message`, `checkpoint_dir` (absolute path, post-`Path.resolve()`), and `timestamp` (ISO-8601 UTC).
+The structured payload SHALL include `event` (stable identifier — `"convergence.synthesis_failed_with_checkpoint"` or `"convergence.checkpoint_write_failed"`), `change_id` (or `null` if not applicable), `review_type`, `original_exception_class`, `original_exception_message`, `checkpoint_dir` (absolute path, post-`Path.resolve()`; or `artifacts_dir` for the checkpoint-write-failed case), and `timestamp` (ISO-8601 UTC).
+
+The log emission SHALL be wrapped in a small helper (`_safe_log_error`) that catches and suppresses any exception from the underlying `logger.error()` call. This is necessary because Python's logging module does NOT absorb exceptions from arbitrary custom handlers — a misconfigured `Handler.emit()` that raises would otherwise mask the original synthesis or checkpoint-write exception that prompted the log call.
 
 A separate log entry — `convergence.checkpoint_write_failed` — SHALL be emitted when the checkpoint write itself fails (OSError/PermissionError before synthesis). Same structured-payload pattern. Uses `artifacts_dir` instead of `checkpoint_dir` (since no checkpoint dir exists in this case).
 
 #### Scenario: Synthesis failure with checkpoint emits structured log entry
 - **WHEN** the checkpoint write succeeded AND synthesis raised
-- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose message contains the literal `convergence.synthesis_failed_with_checkpoint`
+- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose `LogRecord.extra["event"]` equals `"convergence.synthesis_failed_with_checkpoint"`
 - **AND** the log entry's structured payload SHALL contain all required fields
 - **AND** the original synthesis exception SHALL still propagate to the caller
 
 #### Scenario: Synthesis success emits no log entry
 - **WHEN** synthesis completes without raising
-- **THEN** NO `convergence.synthesis_failed_with_checkpoint` log entry SHALL be emitted
+- **THEN** NO log entry with `extra["event"] == "convergence.synthesis_failed_with_checkpoint"` SHALL be emitted
 
 #### Scenario: Checkpoint write failure emits a different log entry
 - **WHEN** the checkpoint write itself raises (filesystem full, permission denied, etc.) before synthesis is attempted
-- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose message contains the literal `convergence.checkpoint_write_failed`
+- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose `LogRecord.extra["event"]` equals `"convergence.checkpoint_write_failed"`
 - **AND** the log entry's structured payload SHALL contain `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`
 - **AND** the OSError/PermissionError SHALL still propagate to the caller
 
 #### Scenario: Logging failure does not mask result
-- **WHEN** the logging emission itself fails (e.g., a misconfigured handler raises in `logger.error()`)
-- **THEN** `converge()` SHALL still re-raise the original synthesis exception (the logging failure is secondary)
-- **AND** the logging implementation SHALL absorb its own failure (Python's `logging` module already does this by default; no special handling needed)
+- **WHEN** a custom log handler raises from its `emit()` method during `_safe_log_error()`
+- **THEN** the helper SHALL catch and discard the handler's exception
+- **AND** `converge()` SHALL still re-raise the original synthesis exception (or original OSError, as appropriate)
+- **AND** the helper SHALL NOT log the swallowed handler exception (avoids infinite recursion if THAT handler also fails)
 
 ### Requirement: Checkpoint Path Safety
 

@@ -1,0 +1,77 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": "gemini-r2-001",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "tasks.md:58 (Task 4.2) and spec.md:113 (R4) depend on coordination_bridge.try_emit_audit_event(), which does not exist in the codebase, nor does the agent-coordinator HTTP API expose a POST /audit/log endpoint for custom events.",
+      "disposition": "fix",
+      "resolution": "Add a task to Phase 0 to implement try_emit_audit_event() in coordination_bridge.py and a corresponding POST /audit/log endpoint in agent-coordinator/src/coordination_api.py.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 58,
+        "end": 58
+      },
+      "vendor": "gemini"
+    },
+    {
+      "id": "gemini-r2-002",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "tasks.md:25 (Phase 1.2) migrates review_dispatcher.py to the new manifest format, but the dispatcher lacks a change_id parameter required by contracts/review-cache-layout.schema.json.",
+      "disposition": "fix",
+      "resolution": "Add a task to Phase 1 to add a --change-id argument to review_dispatcher.py CLI and pass it to checkpoint_findings.write_manifest().",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 25,
+        "end": 31
+      },
+      "vendor": "gemini"
+    },
+    {
+      "id": "gemini-r2-003",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "spec.md:90 (R3) and design.md:243 define ConvergenceResult.synthesis_failed=True, but this field is unreachable in converge() because the synthesis exception is re-raised before the result can be returned.",
+      "disposition": "fix",
+      "resolution": "Modify converge() to attach the partial ConvergenceResult to the raised exception, or return a (result, exception) tuple, or document that callers must reconstruct the result themselves from the exception context.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 88,
+        "end": 90
+      },
+      "vendor": "gemini"
+    },
+    {
+      "id": "gemini-r2-004",
+      "type": "style",
+      "criticality": "low",
+      "description": "contracts/review-cache-layout.schema.json:81 and contracts/README.md:11 contain stale references to 'fallback CLI' and 'fallback_recovered/failed' events which were dropped in this revision.",
+      "disposition": "fix",
+      "resolution": "Update the manifest description and README table to reflect the new 'durable checkpoint for manual recovery' framing and the updated event name.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
+      "line_range": {
+        "start": 81,
+        "end": 81
+      },
+      "vendor": "gemini"
+    },
+    {
+      "id": "gemini-r2-005",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "finding.schema.json requires review_type, target, and reviewer_vendor in per-vendor files, but existing ReviewOrchestrator does not inject these into ReviewResult.findings, risking contract violations if the helper doesn't handle wrapping.",
+      "disposition": "fix",
+      "resolution": "Explicitly specify in the checkpoint_findings.write_vendor_findings() task (Phase 0.2) that the helper is responsible for injecting these required fields into the wrapper object before writing.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 20,
+        "end": 20
+      },
+      "vendor": "gemini"
+    }
+  ]
+}

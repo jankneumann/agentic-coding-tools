@@ -26,8 +26,9 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "type", "criticality", "description", "disposition", "vendor"],
+        "required": ["id", "type", "criticality", "description", "disposition"],
         "additionalProperties": true,
+        "$comment": "Matches openspec/schemas/review-findings.schema.json — vendor identity comes from the wrapper's reviewer_vendor field, not from each individual finding. Per-finding 'vendor' is OPTIONAL (some emitters include it for cross-vendor consensus matching; others rely on the wrapper). Listing it as required would reject existing valid vendor outputs.",
         "properties": {
           "id": {
             "oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}],

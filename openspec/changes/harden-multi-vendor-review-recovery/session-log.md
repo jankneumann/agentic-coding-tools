@@ -182,3 +182,45 @@ Major re-scope after multi-vendor PLAN_REVIEW (claude+codex+gemini) converged on
 ### Context
 Round 2 of multi-vendor review (post-iteration-2) caught implementation-impossibility issues my self-review missed: a function that doesn't exist (try_emit_audit_event), an enum mismatch with existing data (criticality: blocking vs critical), an unreachable field (synthesis_failed), an unowned manifest field (change_id with no CLI source), stale README content, and missing helper-injection clarification. Fixed all of them. Notable simplification: replaced the nonexistent coordinator audit primitive with Python's standard logging module.
 
+---
+
+## Phase: Plan Iteration 4 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Keyword-only parameters after out_dir for write_manifest and write_vendor_findings** `architectural: multi-vendor-review` — Round 3 caught signature drift between design.md and tasks.md (different positional orderings for change_id). Forcing keyword-only after the first parameter prevents future call sites from passing optional args in the wrong position.
+2. **Structured event-key contract for log assertions, not message-text matching** `architectural: multi-vendor-review` — Codex r3 #3 + my own r3 #1 caught: tests asserting on rendered message text are fragile to formatter changes. Use extra={'event': ...} as the structured field and assert on LogRecord.extra['event'] in tests.
+3. **Single _atomic_write_json primitive for all checkpoint writes** `architectural: multi-vendor-review` — Codex r3 #5 + gemini r3 #3 (cross-vendor consensus) caught that per-vendor file fsync was specified but parent-dir fsync was not. Without parent-dir fsync the directory entry can be lost on crash. A single primitive used for both manifest and per-vendor files ensures uniform durability.
+4. **_safe_log_error helper wraps logger.error in try/except** `architectural: multi-vendor-review` — Codex r3 #3: Python's logging does NOT absorb arbitrary handler failures by default — a misconfigured custom handler raising in emit() would mask the original synthesis exception. Wrapper catches and discards handler exceptions; deliberately does NOT log the swallowed exception (avoids infinite recursion if THAT handler also fails).
+5. **Per-finding `vendor` field is OPTIONAL in finding.schema.json** `architectural: multi-vendor-review` — Codex r3 #2: existing openspec/schemas/review-findings.schema.json doesn't require it; vendor identity comes from the wrapper's reviewer_vendor. Marking it required in our contract would reject existing valid vendor outputs.
+6. **Return raw dicts from read_vendor_findings, not Finding class instances** `architectural: multi-vendor-review` — Gemini r3 #6 caught the ReviewFinding type ambiguity. Returning raw dicts keeps checkpoint_findings.py's dependencies lean (no import of consensus_synthesizer's class hierarchy). Callers that need Finding objects construct them themselves.
+
+### Alternatives Considered
+- Keep positional signature and rely on test coverage: rejected because Two artifacts already disagreed; tests would catch the bug AFTER it was implemented. Keyword-only at the API level prevents the bug class entirely.
+- Test log emission via caplog message-text scanning: rejected because Standard pytest pattern but fragile. Structured-key assertion is no more complex and survives message-format changes.
+- Make finding.schema.json the strict contract; require existing vendors to update: rejected because Tightening schemas should be a separate proposal with migration plan, not bundled with infrastructure changes. The relaxed schema documents reality.
+
+### Trade-offs
+- Accepted Slightly more verbose helper signatures (keyword-only) over More terse positional signatures because Prevents an entire class of position-confusion bugs across artifacts and call sites.
+- Accepted One additional helper (_safe_log_error) instead of inline logging over Direct logger.error calls because Logging-handler failures masking the original exception is the worst-case failure mode for an observability primitive — silent loss. The helper costs 5 lines and prevents that.
+
+### Open Questions
+- [ ] Should `_atomic_write_json` retry on transient fsync failures (e.g., NFS), or always propagate? Current decision: always propagate — caller (converge) handles via the checkpoint_write_failed log path.
+
+### Completed Work
+- Fixed work-packages.yaml: wp-converge-checkpoint description (synthesis_failed → checkpoint_dir + log events), wp-integration verification (Doc lint asserts new event name not synthesis_failed)
+- Loosened finding.schema.json: vendor field per-finding is OPTIONAL (matches openspec/schemas/review-findings.schema.json)
+- Unified write_manifest signature across design.md and tasks.md: keyword-only after out_dir; change_id optional kwarg
+- Updated design.md component diagram: keyword-only signatures, _atomic_write_json primitive, _safe_log_error helper, reviewer_vendor parameter, raw dict return type
+- Updated tasks.md task 0.2: explicit signatures with keyword-only marking; _atomic_write_json primitive used by both writes; _safe_log_error helper
+- Updated tasks.md task 0.3: clearer test contract (forward compat + existing-consumer compat + optional change_id); explicit non-requirement that legacy manifests validate
+- Updated tasks.md task 4.2: use _safe_log_error; assert on extra['event'] not message text; test fixture installs failing handler
+- Updated tasks.md task 5.1: assert on log entry's structured event field, not rendered text
+- Updated spec R4 contract: event identity in BOTH LogRecord.msg AND extra['event']; _safe_log_error wraps logger.error
+- Updated spec R4.S1, R4.S2, R4.S3, R4.S4 scenarios to assert on extra['event'] structured field
+- Re-validated: all three validators pass
+
+### Context
+Round 3 of multi-vendor review caught (a) stale references to dropped concepts in work-packages.yaml that I missed in iteration 3's grep cleanup, (b) a fragile logging contract using rendered-message-text matching, (c) signature inconsistency for write_manifest between design.md and tasks.md, (d) incomplete atomic-write contract (missing parent-dir fsync for per-vendor files), (e) overly-strict finding.schema.json requiring per-finding `vendor` field. All addressed: keyword-only signatures, structured event-key contract for logging, _safe_log_error helper, _atomic_write_json primitive, schema relaxed for vendor field.
+
