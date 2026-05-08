@@ -18,10 +18,12 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 PREFIX = "[precompact_handoff]"
+MAX_NEXT_STEPS_IN_SUMMARY = 3
 
 
 def _agent_id() -> str:
@@ -76,29 +78,85 @@ def _clear_flag() -> None:
         print(f"{PREFIX} failed to clear flag: {exc}", file=sys.stderr)
 
 
+def _latest_phase_record(cwd: Path | None = None) -> dict[str, Any] | None:
+    """Find the newest openspec/changes/<id>/handoffs/<phase>-<N>.json and
+    return its inner ``payload`` dict. Returns None if no handoff exists or
+    parsing fails. The on-disk format is the local-fallback envelope:
+    {schema_version, written_at, coordinator_error, payload: {...}}."""
+    cwd = cwd or Path.cwd()
+    candidates = list(cwd.glob("openspec/changes/*/handoffs/*.json"))
+    if not candidates:
+        return None
+    try:
+        newest = max(candidates, key=lambda p: p.stat().st_mtime)
+    except OSError:
+        return None
+    try:
+        data = json.loads(newest.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    payload = data.get("payload")
+    if isinstance(payload, dict):
+        return payload
+    if "summary" in data:  # tolerate flat-shaped handoffs
+        return data
+    return None
+
+
+def _build_summary(record: dict[str, Any] | None) -> str:
+    """Compose a snapshot summary from the latest PhaseRecord, with a
+    fallback message when none exists. Includes the first few next_steps
+    inline so post-compact rehydration carries actionable context."""
+    base = f"Pre-compact snapshot (agent={_agent_id()})."
+    if not record:
+        return (
+            f"{base} No phase handoffs available; rehydrate by inspecting "
+            f"recent commits and openspec/changes/."
+        )
+    parts = [base]
+    record_summary = record.get("summary")
+    if isinstance(record_summary, str) and record_summary.strip():
+        parts.append(f"Last phase: {record_summary.strip()}")
+    next_steps = record.get("next_steps") or []
+    if isinstance(next_steps, list) and next_steps:
+        head = [str(s) for s in next_steps[:MAX_NEXT_STEPS_IN_SUMMARY]]
+        parts.append("Next steps: " + " | ".join(head))
+        if len(next_steps) > MAX_NEXT_STEPS_IN_SUMMARY:
+            parts.append(f"(+{len(next_steps) - MAX_NEXT_STEPS_IN_SUMMARY} more)")
+    combined = " ".join(parts)
+    return combined[:1900]  # schema caps summary at 2000 chars; leave headroom
+
+
 def _write_handoff(payload: dict) -> None:
     """Write a pre-compact snapshot via /handoffs/write. Empty agent_id/type
     let the coordinator resolve identity from the API key (same pattern as
-    deregister_agent.py:85-90)."""
+    deregister_agent.py:85-90). Structured fields (completed_work, in_progress,
+    next_steps, decisions, relevant_files) come from the latest PhaseRecord
+    payload so SessionStart can rehydrate full context after compaction."""
     base_url = _coordinator_url()
     if not base_url:
         print(f"{PREFIX} no coordinator URL; skipping handoff write",
               file=sys.stderr)
         return
 
+    record = _latest_phase_record()
     session_id = os.environ.get("SESSION_ID", "") or payload.get("session_id", "")
-    summary = (
-        f"Pre-compact snapshot (agent={_agent_id()}). Context window threshold "
-        f"or phase boundary triggered /compact; rehydrate next steps from "
-        f"latest PhaseRecord on resume."
-    )
+    summary = _build_summary(record)
 
-    result = _post(base_url, "/handoffs/write", {
+    body: dict[str, Any] = {
         "agent_id": "",
         "agent_type": "",
         "session_id": session_id or None,
         "summary": summary,
-    })
+    }
+    if record:
+        for key in ("completed_work", "in_progress", "next_steps",
+                    "decisions", "relevant_files"):
+            value = record.get(key)
+            if isinstance(value, list) and value:
+                body[key] = value
+
+    result = _post(base_url, "/handoffs/write", body)
 
     if result and result.get("success"):
         handoff_id = result.get("handoff_id", "?")
