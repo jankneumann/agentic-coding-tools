@@ -114,6 +114,33 @@ Frontend behavioral validation is also absent; Playwright closes that gap.
 - Reduces risk of regression — the existing template-only handler is well-tested via the in-repo gen-eval descriptors.
 - Aligns with the proposal's "additive only" stance toward `validate-feature/SKILL.md` to minimize conflict with `harness-engineering-features`.
 
+### D7 — Sample-frontend HTTP server binds to localhost only
+
+**Decision.** The sample frontend's `lifecycle.startup_command` (in the sample descriptor) and the runtime check in the Playwright validator both bind/expect `127.0.0.1`, never `0.0.0.0`. The frontend descriptor schema enforces this default via the `bind_address` field with default `127.0.0.1`. The validator asserts the listening socket binds to the configured address before launching browsers.
+
+**Why.** Running validator infrastructure on a developer machine (or in CI) should not expose a server to the network. Default-secure binding prevents accidental exposure when the validator is invoked from contexts where firewall rules differ.
+
+**Alternative considered.** Default to `0.0.0.0` for "convenience in containerized CI." Rejected — operators who genuinely need non-localhost binding can opt in via the descriptor's `bind_address` field; the default should fail closed.
+
+### D8 — Findings filename is bound to the validator's packaging, not its surface
+
+**Decision.** Per D2 (Playwright as peer skill), the Playwright validator emits `findings-playwright.json`. Gen-eval emits `findings-gen-eval.json`. A change with both an HTTP descriptor and a frontend descriptor produces both files; consensus_synthesizer treats them as separate vendor sources.
+
+**Why.** The original spec said `findings-gen-eval.json (or findings-playwright.json)` with OR-ambiguity, leaving consumers unable to predict which file to expect. Binding the filename to the packaging removes the ambiguity: skill-name → filename. The two filenames coexist when both validators run; neither overwrites the other.
+
+**Alternative considered.** Single `findings-behavioral.json` with a `metadata.source` discriminator. Rejected because consensus_synthesizer's vendor-source logic keys on filenames, and merging into one file removes the per-vendor traceability that D3 relies on.
+
+### D9 — Vendor-diversity session state is change-scoped, file-backed, and cleanup-managed
+
+**Decision.** The dispatcher's worker/validator vendor-tracking state is persisted at `openspec/changes/<change-id>/.dispatch-state.json`. Permissions: `0644`. Cleanup: removed by `/cleanup-feature` on archive.
+
+**Why.**
+- Change-scoped paths align with the existing per-change artifact convention (`session-log.md`, `handoffs/`).
+- File-backed (rather than in-memory) supports cross-skill-invocation continuity — `/implement-feature` and a later `/parallel-review-implementation` see the same state.
+- World-readable is acceptable (the state isn't sensitive — it's just vendor names) but world-writable is rejected to prevent forging records that bypass the diversity policy.
+
+**Alternative considered.** Coordinator-side state (HTTP API to register/query vendor selections). Rejected for now — adds a coordinator dependency for a feature that should work in standalone mode. Can be promoted to coordinator-side state in a follow-up if cross-machine sessions emerge.
+
 ### D6 — Sample frontend uses static HTML, not a framework
 
 **Decision.** The sample frontend at `evaluation/gen_eval/fixtures/sample-frontend/` is a single static `index.html` with inline JavaScript, served by `python -m http.server`. No npm dependencies, no React/Vue/Svelte.

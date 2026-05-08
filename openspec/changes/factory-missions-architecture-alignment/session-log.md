@@ -48,3 +48,50 @@
 ### Context
 Planned alignment of repo vocabulary, validator surfaces, vendor-diversity policy, and frontend-validation coverage with the Factory Missions architecture. Decomposed into 7 scope-isolated work packages plus wp-contracts and wp-integration. WP4 reduced from 'add gen-eval phase' to 'extend existing template-only handler' after discovering the phase already exists at validate-feature/SKILL.md:30,260-307. Coordinated tier: WP1, WP2, WP6 parallel-safe; WP3→WP4→WP5→WP7 form a serial chain on the gen-eval extension path.
 
+---
+
+## Phase: Plan Iteration 1 (2026-05-08)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Sample-frontend HTTP server binds to 127.0.0.1 by default (D7)** `architectural: gen-eval-framework` — Default-secure binding prevents accidental network exposure; operators opt out via descriptor.bind_address
+2. **Findings filename bound to validator packaging, not surface (D8)** `architectural: evaluation-framework` — findings-gen-eval.json + findings-playwright.json — distinct files when both run; eliminates OR-ambiguity
+3. **Vendor-diversity session state at openspec/changes/<id>/.dispatch-state.json with 0644 permissions (D9)** `architectural: agent-archetypes` — Change-scoped, cleanup-managed, world-readable but world-write-rejected; defers coordinator-side state to follow-up
+4. **Change-id input validated as ^[a-zA-Z0-9_-]+$ at argparse time** `architectural: gen-eval-framework` — Prevents path traversal at the boundary; fail-fast at parse not after walk
+5. **Prompt injection hardened via # escaping and code-fence promotion** `architectural: gen-eval-framework` — User-supplied scenario WHEN/THEN cannot alter prompt structure
+
+### Alternatives Considered
+- Default bind_address to 0.0.0.0 for CI convenience: rejected because Operators who genuinely need non-localhost can opt in; default should fail closed
+- Single findings-behavioral.json with metadata.source discriminator: rejected because consensus_synthesizer keys on filenames; merging breaks per-vendor traceability (D3)
+- Coordinator-side vendor-tracking state via HTTP API: rejected because Adds coordinator dependency for a feature that should work standalone; deferable promotion path
+
+### Trade-offs
+- Accepted Spec count grew from 26 to 35 scenarios over Keeping the spec terse because Each new scenario closes a real gap (concurrent validators, partial failure, traceability, security boundaries) that would otherwise surface during implementation review
+- Accepted World-readable .dispatch-state.json over 0600 owner-only permissions because Vendor names aren't sensitive; transparency aids debugging; world-write IS rejected
+- Accepted Performance caps deferred to follow-up change over Inline limits now because No real frontend user yet means thresholds are speculative; production-hardening change waits for first concrete need
+
+### Open Questions
+- [ ] Should the dispatch-state file be Git-ignored, or committed with the change as audit trail? Default behavior depends on .gitignore which is operator-controlled.
+- [ ] Does Playwright pipeline auto-detection (per the new spec scenario) require a discriminator field in the descriptor, or is schema-validation-by-trial sufficient?
+- [ ] Should `harness-engineering-features` rebase test (task 8.3) use a real cherry-pick or a synthetic merge-base test? Real cherry-pick risks polluting the branch.
+
+### Completed Work
+- C1 fixed: removed evaluation/gen_eval/playwright/ from proposal.md (contradicted D2)
+- C2 fixed: added 5.4 to task 7.2 dependencies
+- C3 fixed: OpenSpec scenarios augment cli-augmented prompt scenario rewritten with structured assertions (header markers, capturable prompt path)
+- C4 fixed: Both artifacts present scenario rewritten to assert on argv, not exact log strings
+- C5 fixed: README opener scenario rewritten as regex-checkable position assertion
+- H1-H3 fixed: 3 new scenarios (Playwright dispatcher auto-detection, concurrent validators, partial failure recovery)
+- H4-H5 fixed: filename routing made unambiguous via D8 + spec language
+- H6 fixed: task 4.3 clarified as wrap-existing-260-307-in-conditional
+- H7-H8 fixed: schema-valid scenario refined with concrete validation command; sample frontend exercise scenario refined with TS-validity and selector-resolution assertions
+- H9-H10 fixed: bind_address (default 127.0.0.1) + env_vars_required + auth_flow value validation in frontend-descriptor.schema.json
+- M1-M3 fixed: traceability scenario, peer-skill SHALL clarification, task 7.8 dep on 7.10
+- M4-M5 fixed: change-id regex enforcement + prompt-injection escaping in gen-eval-cli.md
+- M6 fixed: session-state-storage scenario added to agent-archetypes spec + D9 design record
+- Out-of-scope additions: 4 performance caps deferred to follow-up production-hardening change
+
+### Context
+Iteration 1: addressed structural findings from 5 parallel analysis agents (completeness, clarity, feasibility/parallelizability, testability, security/performance). Fixed 5 critical, 10 high, 6 medium findings; deferred 16 testability polish items to impl review and 4 performance caps to a follow-up production-hardening change. Key changes: removed proposal/D2 contradiction (evaluation/gen_eval/playwright/), added 3 D-records (D7 localhost, D8 filename routing, D9 session-state), added 9 new scenarios (concurrent validators, partial failures, dispatcher hook, traceability, change-id validation, prompt-injection escaping, env-var validation, sample-frontend full-path with measurable assertions), refined 6 testability scenarios to be argv- or regex-checkable rather than relying on subjective language.
+
