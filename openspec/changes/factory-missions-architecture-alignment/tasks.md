@@ -116,24 +116,24 @@
 
 ## Phase 5: WP5 — Consensus Gen-Eval Vendor (wp5-consensus-gen-eval)
 
-- [ ] 5.1 Write unit test for `consensus_synthesizer.py` accepting `findings-gen-eval.json` as a vendor-source input, merging with reviewer findings, ranking uniformly
+- [x] 5.1 Write unit test for `consensus_synthesizer.py` accepting `findings-gen-eval.json` as a vendor-source input, merging with reviewer findings, ranking uniformly
   **Spec scenarios**: evaluation-framework: "Synthesizer merges gen-eval and reviewer findings"
   **Contracts**: `contracts/findings-vendor-source.md`, `openspec/schemas/review-findings.schema.json`
   **Dependencies**: 0.1, 0.5
 
-- [ ] 5.2 Write test for missing-findings-file graceful handling
+- [x] 5.2 Write test for missing-findings-file graceful handling
   **Spec scenarios**: evaluation-framework: "Missing gen-eval findings file is not an error"
   **Dependencies**: 5.1
 
-- [ ] 5.3 Write test that gen-eval emits `findings-gen-eval.json` conforming to schema (with `behavioral_failure` type and OpenSpec source-location pointer when applicable)
+- [x] 5.3 Write test that gen-eval emits `findings-gen-eval.json` conforming to schema (with `behavioral_failure` type and OpenSpec source-location pointer when applicable)
   **Spec scenarios**: gen-eval-framework: "Findings file produced and schema-valid", "OpenSpec-sourced finding points back to spec"
   **Dependencies**: 0.1, 3.5
 
-- [ ] 5.4 Implement `findings-gen-eval.json` emitter in gen-eval's report-format=json path
+- [x] 5.4 Implement `findings-gen-eval.json` emitter in gen-eval's report-format=json path
   **Spec scenarios**: gen-eval-framework: "Findings file produced and schema-valid", "OpenSpec-sourced finding points back to spec"
   **Dependencies**: 5.3
 
-- [ ] 5.5 Extend `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` lines 200-258 to add gen-eval as a vendor source (additive — do not modify existing reviewer-finding merge logic per proposal's conflict-avoidance stance)
+- [x] 5.5 Extend `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` lines 200-258 to add gen-eval as a vendor source (additive — do not modify existing reviewer-finding merge logic per proposal's conflict-avoidance stance)
   **Spec scenarios**: evaluation-framework: "Synthesizer merges gen-eval and reviewer findings", "Missing gen-eval findings file is not an error"
   **Dependencies**: 5.1, 5.2, 5.4
 

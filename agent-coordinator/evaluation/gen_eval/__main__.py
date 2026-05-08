@@ -308,6 +308,23 @@ async def main(args: argparse.Namespace) -> int:
         json_path.write_text(generate_json_report(report))
         output_paths.append(json_path)
 
+        # Emit review-findings-conformant findings-gen-eval.json alongside
+        # the existing JSON report. Required by the "Behavioral Findings
+        # Schema Conformance" requirement so consensus_synthesizer.py can
+        # merge gen-eval findings with scrutiny-review findings.
+        from .findings_emitter import emit_findings
+
+        failed_verdicts = [
+            v for v in report.verdicts if v.status in ("fail", "error")
+        ]
+        findings_path = output_dir / "findings-gen-eval.json"
+        emit_findings(
+            failed_scenarios=failed_verdicts,
+            output_path=findings_path,
+            target=args.openspec_change or "gen-eval-run",
+        )
+        output_paths.append(findings_path)
+
     # Write metrics for integration with evaluation/metrics.py pipeline
     metrics = report.to_metrics()
     if metrics:
