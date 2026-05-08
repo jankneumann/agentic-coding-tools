@@ -288,23 +288,21 @@ A real kitchen has a service end. Stations break down, the pass closes, dishwash
 
 **The gap to close:** the metaphor is a *guide*, not a contract. Where it implies behavior the system does not implement, the doc should note it. This section is that note.
 
-### G10. The sync-point active-agent guard — half-closed
+### G10. The sync-point active-agent guard — closed
 
-**Original gap.** `CLAUDE.md` asserts a contract for sync-point skills:
+**Original gap.** `CLAUDE.md` asserted a contract for sync-point skills:
 
 > **Exclusive access**: Must not run while other agents hold active worktrees. Use `shared.check_no_active_agents()` to verify before proceeding.
 
 Searching the repo for that function (or any close variant — `active_agent`, `no_active`, `registry stale`) found it nowhere in `skills/`. The function the contract named did not exist; sync-point skills honored the contract by convention only.
 
-**Partial close.** `skills/shared/active_agents.py` now implements the function, returning `(clear, list[ActiveAgent])` against the actual `.git-worktrees/.registry.json` schema (an entry is "active" when `pinned=true` or `last_heartbeat` is within a 1-hour stale threshold). It exposes a CLI for skills that shell out from markdown instructions:
+**Close.** Three pieces landed together:
 
-    python skills/shared/active_agents.py            # exit 0 if clear, 1 if blocked
-    python skills/shared/active_agents.py --force    # operator override; exits 0
-    python skills/shared/active_agents.py --json     # machine-readable
+1. **Implementation.** `skills/shared/active_agents.py` exports `check_no_active_agents()` returning `(clear, list[ActiveAgent])` against the actual `.git-worktrees/.registry.json` schema. An entry is "active" when `pinned=true` OR `last_heartbeat` is within a 1-hour stale threshold. It exposes a CLI for skills that shell out from markdown instructions (exit `0` clear, `1` blocked, `--force` override, `--json` machine-readable).
+2. **Tests.** `skills/shared/tests/test_active_agents.py` (19 cases) covers the active/stale/pinned matrix, threshold edge cases, corrupt-registry fail-open, and CLI exit-code behavior.
+3. **Wiring.** The three sync-point skills — `/cleanup-feature`, `/merge-pull-requests`, `/update-specs` — each now have an `## Active-Agent Guard (Sync-Point Skill)` subsection placed immediately before `## Steps`, instructing the agent to invoke `python skills/shared/active_agents.py` as the first action and to stop on exit `1` unless the operator passes `--force`.
 
-Tests at `skills/shared/tests/test_active_agents.py` cover the active/stale/pinned matrix, threshold edge cases, corrupt-registry fail-open, and CLI exit-code behavior.
-
-**What remains.** The sync-point skills themselves — `/cleanup-feature`, `/merge-pull-requests`, `/update-specs` — do not yet invoke the guard. Their `SKILL.md` instructions need to add the check as the first action and abort on a non-zero exit unless the operator passed `--force`. Until that wiring is in place, the safety property the contract names is available but not enforced. The danger-zone leak is narrower than before but not closed.
+The contract is now both implemented and enforced. A sync-point skill that does not call the guard is now visibly broken (the SKILL.md prose tells it to), rather than invisibly broken (no symbol exists). The remaining residual risk is the runtime-mirror sync: `.claude/skills/` and `.agents/skills/` need `skills/install.sh` to pick up the new guard text — this is a separate operator-driven step.
 
 ### G11. Public/holdout scenario visibility is documented as the design but not implemented in this repo
 
