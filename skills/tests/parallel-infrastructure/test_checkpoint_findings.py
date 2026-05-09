@@ -792,31 +792,76 @@ def test_write_manifest_accepts_omitted_findings_path(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_atomic_write_cleans_tmp_on_serialize_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_atomic_write_cleans_tmp_on_typeerror_from_non_serializable(
+    tmp_path: Path,
 ) -> None:
-    """When json.dump raises mid-write (e.g. non-serializable payload), the
-    partial .tmp file MUST be removed — otherwise chronic failures leak
-    residue into the artifacts directory."""
+    """When json.dump raises TypeError on a non-serializable payload (the
+    realistic encoder failure mode — sets, datetime, custom classes), the
+    partial .tmp file MUST be removed. Round-2 review caught that the
+    original C7 fix only caught (OSError, ValueError); a real TypeError
+    would slip past and leak residue."""
     target = tmp_path / "review-manifest.json"
     tmp = target.with_suffix(target.suffix + ".tmp")
 
-    # Force json.dump to raise after open()
-    original_dump = json.dump
-
-    def exploding_dump(*args: Any, **kwargs: Any) -> None:
-        # Write something to the tmp file first to simulate partial output,
-        # then raise.
-        original_dump({"partial": True}, args[1])
-        raise ValueError("simulated mid-write failure")
-
-    monkeypatch.setattr(json, "dump", exploding_dump)
-    with pytest.raises(ValueError, match="mid-write"):
-        checkpoint_findings._atomic_write_json(target, {"k": "v"})
+    # Real non-serializable payload — json.dump raises TypeError on a set
+    payload = {"vendors": {"claude_code", "codex"}}  # set is not JSON-serializable
+    with pytest.raises(TypeError):
+        checkpoint_findings._atomic_write_json(target, payload)
 
     # Target was never created (atomic invariant preserved)
     assert not target.exists()
     # And the .tmp residue was cleaned up (hygiene fix)
+    assert not tmp.exists()
+
+
+def test_atomic_write_cleans_tmp_on_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """OSError during the inner write block (disk-full, permission, signal)
+    also triggers tmp cleanup. Verified via patched os.fsync."""
+    target = tmp_path / "review-manifest.json"
+    tmp = target.with_suffix(target.suffix + ".tmp")
+
+    real_fsync = os.fsync
+    failing_fd: list[int] = []
+
+    def fsync_failing_on_first_file_fd(fd: int) -> None:
+        # Fail the FIRST fsync (which is the file fsync inside the with
+        # block). Subsequent ones (parent dir) shouldn't run because the
+        # exception aborts before then.
+        if not failing_fd:
+            failing_fd.append(fd)
+            raise OSError(28, "No space left on device (simulated)")
+        real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", fsync_failing_on_first_file_fd)
+    with pytest.raises(OSError, match="No space left"):
+        checkpoint_findings._atomic_write_json(target, {"k": "v"})
+
+    assert not target.exists()
+    assert not tmp.exists()
+
+
+def test_atomic_write_cleans_tmp_on_replace_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If os.replace itself raises (e.g. read-only network filesystem),
+    the .tmp residue MUST be cleaned. Round-2 review caught that
+    os.replace was outside the original try/except and could leak in
+    that narrow case."""
+    target = tmp_path / "review-manifest.json"
+    tmp = target.with_suffix(target.suffix + ".tmp")
+
+    def failing_replace(*_args: Any, **_kwargs: Any) -> None:
+        raise OSError(30, "Read-only file system (simulated)")
+
+    monkeypatch.setattr(os, "replace", failing_replace)
+    with pytest.raises(OSError, match="Read-only"):
+        checkpoint_findings._atomic_write_json(target, {"k": "v"})
+
+    assert not target.exists()
+    # The tmp file was created during the inner write but cleaned by the
+    # new outer try/except on the os.replace branch.
     assert not tmp.exists()
 
 

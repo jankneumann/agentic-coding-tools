@@ -60,18 +60,31 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
     Sequence: write to ``<path>.tmp``, ``f.flush()`` then ``os.fsync(file)``,
     ``os.replace(tmp, path)``, then open the parent directory and
     ``os.fsync(dirfd)`` to persist the directory entry. The per-file fsync
-    is what guarantees the data hits stable storage; the parent-dir fsync
-    is best-effort durability for the rename itself.
+    is the load-bearing durability call — it guarantees the data hits
+    stable storage. The parent-dir fsync is best-effort durability for
+    the rename itself.
 
-    Best-effort hygiene: if json.dump / flush / fsync raises before
-    os.replace, the partial ``.tmp`` file is removed so chronic failures
-    don't leak temp files into the artifacts directory. Propagates
-    OSError / PermissionError to the caller after cleanup.
+    Best-effort hygiene: any failure between tmp creation and successful
+    rename removes the partial ``.tmp`` so chronic failures don't leak
+    temp files into the artifacts directory. Three failure surfaces are
+    handled:
+
+    - ``json.dump`` / ``f.flush`` / ``os.fsync(file)`` raising
+      ``(OSError, TypeError, ValueError)`` — TypeError is what
+      ``json.dump`` raises for non-serializable payloads (sets, custom
+      classes, datetime); ValueError is reachable for NaN/Infinity
+      floats with ``allow_nan=False``; OSError covers disk-full /
+      permission / signal interrupts.
+    - ``os.replace`` raising ``OSError`` — narrow window (replace is
+      atomic on POSIX), but possible on read-only network filesystems
+      or with concurrent renames.
+
+    All three branches unlink ``tmp`` before re-raising the original
+    exception to the caller.
 
     Cross-platform note: parent-dir fsync via ``os.O_RDONLY`` is POSIX-only
     and may raise ``OSError`` on Windows or older filesystems. The wrapping
-    try/except OSError downgrades that to a no-op; the load-bearing
-    durability is the file-level fsync at line 73.
+    try/except OSError downgrades that to a no-op.
     """
     tmp = path.with_suffix(path.suffix + ".tmp")
     try:
@@ -79,15 +92,25 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
             json.dump(payload, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
-    except (OSError, ValueError):
-        # ValueError covers json-encoding failures (non-serializable types).
-        # OSError covers disk-full, permission-denied, signal interrupts.
+    except (OSError, TypeError, ValueError):
+        # TypeError covers json.dump on non-serializable payloads
+        # (sets, datetime, custom classes — the realistic encoder
+        # failure mode). ValueError covers NaN/Infinity with
+        # allow_nan=False. OSError covers disk-full, permission-denied,
+        # signal interrupts.
         try:
             tmp.unlink(missing_ok=True)
         except OSError:
             pass
         raise
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     parent = path.parent
     try:
         fd = os.open(parent, os.O_RDONLY)
