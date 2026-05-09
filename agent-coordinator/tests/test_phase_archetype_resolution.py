@@ -48,16 +48,8 @@ _TEST_KEY = "test-key-001"
 @pytest.fixture()
 def _api_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch config so the API accepts our test key."""
-    from src.config import reset_config
-
-    reset_config()
-    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
-    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
-    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
-    monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
-    reset_config()
-    yield  # type: ignore[misc]
-    reset_config()
+    from tests.conftest import setup_api_config_env
+    yield from setup_api_config_env(monkeypatch, _TEST_KEY)  # type: ignore[misc]
 
 
 @pytest.fixture(autouse=True)
