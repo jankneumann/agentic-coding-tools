@@ -1193,11 +1193,22 @@ class ReviewOrchestrator:
         callers reading the legacy fields continue to work; the new fields
         are additive.
 
-        ``output_path``'s filename is ignored — the helper always writes
-        ``review-manifest.json`` under ``output_path.parent``. ``vendors``
-        defaults to an empty index for callers that pre-date the per-vendor
-        file write loop in main().
+        The helper always writes ``review-manifest.json`` under
+        ``output_path.parent`` (this is the canonical filename baked into
+        the schema). To prevent silent caller confusion, ``output_path.name``
+        MUST equal ``"review-manifest.json"`` — passing any other filename
+        raises ``ValueError`` instead of silently losing the requested name.
+        ``vendors`` defaults to an empty index for callers that pre-date
+        the per-vendor file write loop in main().
         """
+        if output_path.name != "review-manifest.json":
+            raise ValueError(
+                f"output_path.name must be 'review-manifest.json', "
+                f"got {output_path.name!r}. The helper writes a fixed "
+                f"filename; pass the desired parent directory with "
+                f"trailing 'review-manifest.json' if you need to be explicit."
+            )
+
         from checkpoint_findings import write_manifest as _cf_write_manifest
 
         dispatches = [

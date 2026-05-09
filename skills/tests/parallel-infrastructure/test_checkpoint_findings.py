@@ -716,3 +716,71 @@ def test_read_vendor_findings_propagates_schema_version_error(
     )
     with pytest.raises(ValueError, match="schema_version"):
         checkpoint_findings.read_vendor_findings(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# write_manifest write-side path-safety
+# (IMPL_REVIEW round-1 finding C4 — codex)
+# ---------------------------------------------------------------------------
+
+
+def test_write_manifest_rejects_findings_path_with_separator(tmp_path: Path) -> None:
+    """A vendors[].findings_path containing '/' is refused at write time
+    (mirrors the read-side check so a malformed manifest never lands)."""
+    with pytest.raises(ValueError, match="findings_path"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "subdir/findings-claude_code-plan.json",
+                "finding_count": 0,
+            }],
+        )
+
+
+def test_write_manifest_rejects_findings_path_with_traversal(tmp_path: Path) -> None:
+    """findings_path containing '..' is refused at write time."""
+    with pytest.raises(ValueError, match="findings_path"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "../findings-claude_code-plan.json",
+                "finding_count": 0,
+            }],
+        )
+
+
+def test_write_manifest_rejects_findings_path_non_string(tmp_path: Path) -> None:
+    """findings_path must be a string (not None, not a Path object)."""
+    with pytest.raises(ValueError, match="findings_path"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": 42,
+                "finding_count": 0,
+            }],
+        )
+
+
+def test_write_manifest_rejects_finding_count_non_int(tmp_path: Path) -> None:
+    """finding_count must be an integer when present."""
+    with pytest.raises(ValueError, match="finding_count"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "findings-claude_code-plan.json",
+                "finding_count": "five",
+            }],
+        )
+
+
+def test_write_manifest_accepts_omitted_findings_path(tmp_path: Path) -> None:
+    """Backward compat: callers that pass only {name} still work."""
+    write_manifest(
+        tmp_path, review_type="plan", target="x",
+        vendors=[{"name": "claude_code"}],
+    )
+    assert (tmp_path / "review-manifest.json").exists()
