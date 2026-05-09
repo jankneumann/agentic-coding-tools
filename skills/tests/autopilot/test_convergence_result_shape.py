@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from convergence_loop import ConvergenceResult  # type: ignore[import-untyped]
 
 

@@ -15,17 +15,13 @@ Spec scenarios: skill-workflow.R2.S1..S4, skill-workflow.R4.S1..S4.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from convergence_loop import (  # type: ignore[import-untyped]
-    ConvergenceResult,
-    converge,
-)
+from convergence_loop import converge  # type: ignore[import-untyped]
 # Importing convergence_loop above puts parallel-infrastructure on sys.path,
 # so checkpoint_findings + review_dispatcher are now importable.
 from checkpoint_findings import read_manifest, read_vendor_findings  # type: ignore[import-untyped]
