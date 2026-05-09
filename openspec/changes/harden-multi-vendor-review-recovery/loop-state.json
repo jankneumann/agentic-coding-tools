@@ -1,13 +1,13 @@
 {
   "schema_version": 3,
   "change_id": "harden-multi-vendor-review-recovery",
-  "current_phase": "IMPL_ITERATE",
-  "previous_phase": "IMPLEMENT",
+  "current_phase": "IMPL_REVIEW",
+  "previous_phase": "IMPL_ITERATE",
   "implement_summary": {
     "packages_completed": 5,
     "loc_added": 1170,
-    "tests_added": 63,
-    "test_pass_rate": "63/63",
+    "tests_added": 66,
+    "test_pass_rate": "66/66",
     "regressions": 0,
     "commits": [
       "b67bf7b feat(parallel-infrastructure): add checkpoint_findings durability helper",
@@ -15,6 +15,24 @@
       "69cd5f1 feat(autopilot): durable checkpoint in converge() before synthesis",
       "8e79668 feat(autopilot): integration test + docs for convergence durability"
     ]
+  },
+  "impl_iterate_summary": {
+    "iterations": 2,
+    "findings_resolved": {
+      "ruff_F401_unused_imports": 3,
+      "mypy_strict_no_any_return": 1,
+      "defensive_type_narrowing": 2
+    },
+    "convergence_pattern": "trivial-cleanup -> defensive-type-narrowing",
+    "quality_gates": {
+      "proposal_tests": "66/66 passing",
+      "legacy_parallel_infrastructure": "240/240 passing (no regressions)",
+      "legacy_autopilot": "74/74 passing (no regressions)",
+      "mypy_strict": "clean (checkpoint_findings.py)",
+      "ruff": "clean (all proposal files)",
+      "openspec_validate_strict": "valid"
+    },
+    "commits": ["c46b421 refine(autopilot): impl_iterate polish — type narrowing + ruff cleanup"]
   },
   "plan_review_summary": {
     "rounds": 3,
