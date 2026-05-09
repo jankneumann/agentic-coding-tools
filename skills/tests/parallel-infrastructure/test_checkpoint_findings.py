@@ -784,3 +784,92 @@ def test_write_manifest_accepts_omitted_findings_path(tmp_path: Path) -> None:
         vendors=[{"name": "claude_code"}],
     )
     assert (tmp_path / "review-manifest.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# _atomic_write_json hygiene
+# (IMPL_REVIEW round-1 findings C6 — gemini, C7 — claude_code)
+# ---------------------------------------------------------------------------
+
+
+def test_atomic_write_cleans_tmp_on_serialize_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When json.dump raises mid-write (e.g. non-serializable payload), the
+    partial .tmp file MUST be removed — otherwise chronic failures leak
+    residue into the artifacts directory."""
+    target = tmp_path / "review-manifest.json"
+    tmp = target.with_suffix(target.suffix + ".tmp")
+
+    # Force json.dump to raise after open()
+    original_dump = json.dump
+
+    def exploding_dump(*args: Any, **kwargs: Any) -> None:
+        # Write something to the tmp file first to simulate partial output,
+        # then raise.
+        original_dump({"partial": True}, args[1])
+        raise ValueError("simulated mid-write failure")
+
+    monkeypatch.setattr(json, "dump", exploding_dump)
+    with pytest.raises(ValueError, match="mid-write"):
+        checkpoint_findings._atomic_write_json(target, {"k": "v"})
+
+    # Target was never created (atomic invariant preserved)
+    assert not target.exists()
+    # And the .tmp residue was cleaned up (hygiene fix)
+    assert not tmp.exists()
+
+
+def test_atomic_write_tolerates_parent_dir_fsync_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failing os.fsync on the parent directory file descriptor (Windows,
+    older macOS filesystems) MUST NOT crash the write. The file-level fsync
+    at the inner block is the load-bearing durability call; the dir-level
+    fsync is best-effort metadata flushing."""
+    target = tmp_path / "review-manifest.json"
+    real_fsync = os.fsync
+    fsync_calls: list[int] = []
+
+    def fsync_failing_on_dir(fd: int) -> None:
+        fsync_calls.append(fd)
+        # Simulate macOS/Windows behavior: dir fsync fails, file fsync ok.
+        # We detect the dir vs file fd by stat type.
+        try:
+            stat = os.fstat(fd)
+            from stat import S_ISDIR
+            if S_ISDIR(stat.st_mode):
+                raise OSError(22, "Invalid argument (simulated)")
+        except OSError:
+            raise
+        real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", fsync_failing_on_dir)
+
+    # Write should succeed despite the dir-fsync raising
+    checkpoint_findings._atomic_write_json(target, {"k": "v"})
+    assert target.exists()
+    assert json.loads(target.read_text()) == {"k": "v"}
+    # And the dir fsync was attempted (i.e. we exercised the new try/except)
+    assert len(fsync_calls) >= 2  # one for file fd, one for dir fd
+
+
+def test_atomic_write_tolerates_parent_dir_open_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If even opening the parent directory fails (Windows lacks dir fds),
+    the write still succeeds — file-level fsync already ran."""
+    target = tmp_path / "review-manifest.json"
+    real_open = os.open
+
+    def open_failing_on_dir(*args: Any, **kwargs: Any) -> int:
+        # First arg is the path
+        path = args[0]
+        if str(path) == str(tmp_path):
+            raise OSError(22, "no directory file descriptors (simulated)")
+        return real_open(*args, **kwargs)
+
+    monkeypatch.setattr(os, "open", open_failing_on_dir)
+
+    checkpoint_findings._atomic_write_json(target, {"k": "v"})
+    assert target.exists()
