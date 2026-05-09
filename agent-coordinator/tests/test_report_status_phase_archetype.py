@@ -22,7 +22,6 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -73,7 +72,7 @@ def _captured_post_payload(
         class _StubResp:
             status = 200
 
-            def __enter__(self) -> "_StubResp":
+            def __enter__(self) -> _StubResp:
                 return self
 
             def __exit__(self, *a: object) -> None:
