@@ -3,6 +3,7 @@
   "change_id": "harden-multi-vendor-review-recovery",
   "current_phase": "IMPL_REVIEW",
   "previous_phase": "IMPL_ITERATE",
+  "impl_review_status": "round-1-fixes-applied; awaiting decision on round-2 confirmation vs proceed-to-VALIDATE",
   "implement_summary": {
     "packages_completed": 5,
     "loc_added": 1170,
@@ -33,6 +34,36 @@
       "openspec_validate_strict": "valid"
     },
     "commits": ["c46b421 refine(autopilot): impl_iterate polish — type narrowing + ruff cleanup"]
+  },
+  "impl_review_summary": {
+    "round_1": {
+      "vendors_dispatched": ["claude_code", "codex", "gemini"],
+      "vendors_succeeded": 3,
+      "raw_findings_total": 9,
+      "consensus_findings": 7,
+      "blocking_findings": 1,
+      "high": 1,
+      "medium": 5,
+      "low": 1,
+      "outcome": "iterate-and-fix",
+      "elapsed_seconds_per_vendor": {"claude_code": 207.9, "codex": 177.3, "gemini": 93.6},
+      "models_used": {"claude_code": "(default)", "codex": "gpt-5.5", "gemini": "auto"}
+    },
+    "fixes_applied": {
+      "C1_schema_version_validation": "1f97a60 fix(parallel-infrastructure): validate manifest schema_version on read",
+      "C2_checkpoint_path_alignment": "84cbdbb fix(autopilot): align in-process checkpoint path with spec (.review-cache/)",
+      "C3_C4_write_side_path_safety": "0b2f666 fix(parallel-infrastructure): add write-side path-safety guards",
+      "C5_quorum_requested_accounting": "e637007 fix(autopilot): record total dispatched as quorum_requested in manifest",
+      "C6_C7_atomic_write_hygiene": "1468358 fix(parallel-infrastructure): harden _atomic_write_json hygiene"
+    },
+    "tests_added": 14,
+    "quality_gates": {
+      "proposal_tests": "80/80 passing (was 66 before fixes; added 14)",
+      "ruff": "clean",
+      "mypy_strict": "clean (checkpoint_findings.py)",
+      "openspec_validate_strict": "valid"
+    },
+    "vendor_diversity_dividend": "Each vendor caught issues the others missed: codex flagged spec/code path drift + write-shim filename loss; gemini caught quorum accounting + cross-platform fsync; claude_code spotted .tmp file leak. Single-vendor review would have missed at least 5 of the 7 findings."
   },
   "plan_review_summary": {
     "rounds": 3,

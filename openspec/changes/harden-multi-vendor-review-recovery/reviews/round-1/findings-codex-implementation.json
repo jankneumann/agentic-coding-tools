@@ -1,0 +1,43 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The in-process checkpoint path is implemented as `artifacts_dir / \"reviews\" / f\"round-{round_num}\"`, but the OpenSpec delta and design still require `<artifacts_dir>/.review-cache/review-manifest.json` and `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` for in-process callers. This means operators following the documented recovery path will look in the wrong location, and the tests now encode behavior that conflicts with the proposal/spec. See skills/autopilot/scripts/convergence_loop.py:264 and openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md:15-17,73-77.",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/scripts/convergence_loop.py",
+      "line_range": "264-300"
+    },
+    {
+      "id": "F2",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`read_manifest()` only checks that the parsed JSON is an object and never validates `schema_version`. The contract explicitly says readers MUST refuse unknown versions, so an old reader will silently accept a future v2 manifest and `read_vendor_findings()` may interpret incompatible fields as v1 data. Add a required-version check for `MANIFEST_SCHEMA_VERSION` with a clear error for missing or unknown versions. See skills/parallel-infrastructure/scripts/checkpoint_findings.py:294-308.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "294-308"
+    },
+    {
+      "id": "F3",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The backward-compat `ReviewOrchestrator.write_manifest()` signature still accepts an `output_path`, but the implementation ignores `output_path.name` and always writes `review-manifest.json` under `output_path.parent`. Existing callers that pass a bare/custom filename such as `Path(\"manifest.json\")` will get no file at the requested path and no error. Either honor the requested path or reject non-`review-manifest.json` filenames explicitly. See skills/parallel-infrastructure/scripts/review_dispatcher.py:1196-1216.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "line_range": "1196-1216"
+    },
+    {
+      "id": "F4",
+      "type": "robustness",
+      "criticality": "medium",
+      "description": "`write_manifest()` validates only `vendors[].name`; it does not validate `vendors[].findings_path`, `finding_count`, or that the filename matches the vendor and `review_type`. Because this helper is the canonical writer, callers can emit a manifest that violates the path-safety schema, e.g. a `findings_path` with traversal that the reader later refuses. Normal current call sites synthesize safe paths, but the public helper and shim accept arbitrary `vendors` lists, so write-side path safety is incomplete. See skills/parallel-infrastructure/scripts/checkpoint_findings.py:257-290.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "257-290"
+    }
+  ]
+}
