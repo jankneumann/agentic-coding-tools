@@ -120,7 +120,7 @@ def test_line_range_bug_propagates_with_durable_checkpoint(
             )
 
     # (b) Checkpoint files exist on disk and contain the original findings.
-    checkpoint_dir = tmp_path / "reviews" / "round-1"
+    checkpoint_dir = tmp_path / ".review-cache" / "round-1"
     assert checkpoint_dir.exists()
 
     manifest = read_manifest(checkpoint_dir)
@@ -203,7 +203,7 @@ def test_checkpoint_findings_round_trip_against_real_synthesizer_input_format(
     # Verify the per-vendor file shape matches what consensus_synthesizer.py
     # main() reads at line ~467: ``data = json.loads(p.read_text())`` then
     # ``data.get("reviewer_vendor", ...)`` and ``data.get("findings", [])``.
-    checkpoint_dir = tmp_path / "reviews" / "round-1"
+    checkpoint_dir = tmp_path / ".review-cache" / "round-1"
     for vendor in ("claude_code", "codex"):
         fpath = checkpoint_dir / f"findings-{vendor}-plan.json"
         assert fpath.exists()

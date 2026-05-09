@@ -74,9 +74,11 @@ class ConvergenceResult:
     """Outcome of a convergence loop run.
 
     ``checkpoint_dir`` points at the most-recent round's checkpoint directory
-    (e.g. ``<artifacts_dir>/reviews/round-2``). Recovery-aware callers read
-    it to locate persisted vendor findings; existing callers ignore it
-    (defaults to None for backward compatibility).
+    (e.g. ``<artifacts_dir>/.review-cache/round-2``). Recovery-aware callers
+    read it to locate persisted vendor findings; existing callers ignore it
+    (defaults to None for backward compatibility). Round subdivision under
+    ``.review-cache/`` preserves cross-round audit history while staying
+    inside the namespace specified by the spec.
     """
 
     converged: bool
@@ -261,7 +263,7 @@ def converge(
         # below raises (e.g. the line_range parser bug), the data is already
         # on disk and recoverable. The narrow try/except around the writes
         # only logs and re-raises; it does not swallow.
-        checkpoint_dir = artifacts_dir / "reviews" / f"round-{round_num}"
+        checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
         try:
             vendors_index: list[dict[str, Any]] = []
             dispatches: list[dict[str, Any]] = []
