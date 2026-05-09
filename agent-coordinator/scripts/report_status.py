@@ -198,6 +198,12 @@ def main() -> None:
 
     # Send report via stdlib urllib
     url = f"{base_url}/status/report"
+    # Explicit scheme allow-list closes the SonarCloud B310 hotspot:
+    # the URL is operator-controlled (env var COORDINATION_API_URL), but
+    # accidental misconfiguration to file:// or custom schemes would
+    # otherwise be permitted by urlopen. http+https only.
+    if not url.startswith(("http://", "https://")):
+        return  # silently skip; this is a best-effort observability hook
     data = json.dumps(payload).encode()
     headers = {
         "Content-Type": "application/json",
@@ -208,7 +214,8 @@ def main() -> None:
 
     req = Request(url, data=data, headers=headers, method="POST")
     try:
-        with urlopen(req, timeout=5.0) as resp:
+        # nosec B310: scheme allow-list above prevents file:// / custom schemes.
+        with urlopen(req, timeout=5.0) as resp:  # noqa: S310
             if resp.status < 300:
                 _write_status_cache(
                     {

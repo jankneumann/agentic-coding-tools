@@ -49,6 +49,45 @@ _TEST_KEY = "test-key-roundtrip"
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+class _FakeResponse:
+    """Minimal urlopen-shaped response used by tests below.
+
+    Module-level so the three patched-urlopen call sites share one definition
+    (closes SonarCloud duplication finding from PR #146 review).
+    """
+
+    def __init__(self, status: int) -> None:
+        self.status = status
+
+    def __enter__(self) -> _FakeResponse:
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        return None
+
+
+def _make_fake_urlopen(client: TestClient) -> Any:
+    """Build a urlopen replacement that proxies to a FastAPI TestClient.
+
+    The closure exists because each test brings its own ``client`` instance;
+    extracting the helper itself is enough to dedupe the body without
+    forcing the test to thread the client through a global.
+    """
+
+    def _fake_urlopen(req: Any, timeout: float = 5.0) -> _FakeResponse:
+        path = req.full_url.replace("http://testclient", "")
+        body = req.data
+        headers = dict(req.headers) if hasattr(req, "headers") else {}
+        api_key = headers.get("X-api-key") or headers.get("X-API-Key")
+        kwargs: dict[str, Any] = {"json": json.loads(body) if body else None}
+        if api_key:
+            kwargs["headers"] = {"X-API-Key": api_key}
+        resp = client.post(path, **kwargs)
+        return _FakeResponse(status=resp.status_code)
+
+    return _fake_urlopen
+
+
 @pytest.fixture()
 def _api_config(monkeypatch: pytest.MonkeyPatch) -> Any:
     from src.config import reset_config
@@ -171,28 +210,7 @@ def test_phase_archetype_round_trips_from_loop_state_to_discovery_agents(
     import contextlib
     from unittest.mock import MagicMock, patch
 
-    class _FakeResponse:
-        def __init__(self, status: int) -> None:
-            self.status = status
-
-        def __enter__(self) -> _FakeResponse:
-            return self
-
-        def __exit__(self, *exc: Any) -> None:
-            return None
-
-    def _fake_urlopen(req: Any, timeout: float = 5.0) -> _FakeResponse:
-        # urllib.Request.full_url + .data + .headers
-        path = req.full_url.replace("http://testclient", "")
-        body = req.data
-        headers = dict(req.headers) if hasattr(req, "headers") else {}
-        # urllib normalizes header keys to capitalized form.
-        api_key = headers.get("X-api-key") or headers.get("X-API-Key")
-        kwargs: dict[str, Any] = {"json": json.loads(body) if body else None}
-        if api_key:
-            kwargs["headers"] = {"X-API-Key": api_key}
-        resp = client.post(path, **kwargs)
-        return _FakeResponse(status=resp.status_code)
+    _fake_urlopen = _make_fake_urlopen(client)
 
     with (
         patch.object(report_status, "urlopen", _fake_urlopen),
@@ -295,22 +313,7 @@ def test_round_trip_with_null_phase_archetype_is_accepted(
     import contextlib
     from unittest.mock import MagicMock, patch
 
-    class _FakeResponse:
-        def __init__(self, status: int) -> None:
-            self.status = status
-
-        def __enter__(self) -> _FakeResponse:
-            return self
-
-        def __exit__(self, *exc: Any) -> None:
-            return None
-
-    def _fake_urlopen(req: Any, timeout: float = 5.0) -> _FakeResponse:
-        path = req.full_url.replace("http://testclient", "")
-        body = req.data
-        kwargs: dict[str, Any] = {"json": json.loads(body) if body else None}
-        resp = client.post(path, **kwargs)
-        return _FakeResponse(status=resp.status_code)
+    _fake_urlopen = _make_fake_urlopen(client)
 
     with (
         patch.object(report_status, "urlopen", _fake_urlopen),
@@ -380,22 +383,7 @@ def test_round_trip_drops_invalid_phase_archetype_at_client_layer(
     import contextlib
     from unittest.mock import MagicMock, patch
 
-    class _FakeResponse:
-        def __init__(self, status: int) -> None:
-            self.status = status
-
-        def __enter__(self) -> _FakeResponse:
-            return self
-
-        def __exit__(self, *exc: Any) -> None:
-            return None
-
-    def _fake_urlopen(req: Any, timeout: float = 5.0) -> _FakeResponse:
-        path = req.full_url.replace("http://testclient", "")
-        body = req.data
-        kwargs: dict[str, Any] = {"json": json.loads(body) if body else None}
-        resp = client.post(path, **kwargs)
-        return _FakeResponse(status=resp.status_code)
+    _fake_urlopen = _make_fake_urlopen(client)
 
     with (
         patch.object(report_status, "urlopen", _fake_urlopen),

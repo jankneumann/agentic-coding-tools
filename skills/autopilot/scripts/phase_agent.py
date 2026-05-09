@@ -711,7 +711,9 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     never owns the fd and we'd leak it without an explicit close.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(
+    # nosec B108: dir= confines the tempfile to the target directory (not
+    # /tmp), which is the canonical pattern for atomic same-fs replace.
+    fd, tmp = tempfile.mkstemp(  # noqa: S108
         prefix=path.name + ".",
         suffix=".tmp",
         dir=str(path.parent),
@@ -733,11 +735,15 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
             try:
                 os.close(fd)
             except OSError:
-                pass
+                # Best-effort fd cleanup; the original exception is re-raised
+                # below, so silencing here only suppresses cleanup noise.
+                pass  # nosec B110
         try:
             os.unlink(tmp)
         except OSError:
-            pass
+            # Best-effort tmp-file cleanup; the original exception is re-raised
+            # below, so silencing here only suppresses cleanup noise.
+            pass  # nosec B110
         raise
 
 
@@ -753,16 +759,19 @@ def _atomic_unlink(path: Path) -> None:
     try:
         os.replace(path, tmp)
     except OSError:
-        # Best-effort fallback to direct unlink.
+        # Best-effort fallback to direct unlink — the cache file may be
+        # gone already (concurrent worker, manual cleanup), and that's fine.
         try:
             path.unlink()
         except OSError:
-            pass
+            pass  # nosec B110
         return
     try:
         tmp.unlink()
     except OSError:
-        pass
+        # The rename succeeded but the orphan unlink failed. Filesystem
+        # GC or the next _atomic_unlink call will sweep the leftover.
+        pass  # nosec B110
 
 
 def _hydrate_incoming_handoff(
