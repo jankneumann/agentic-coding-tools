@@ -296,7 +296,10 @@ def read_manifest(out_dir: Path) -> dict[str, Any]:
 
     Raises ``TypeError`` if the file does not parse to a JSON object — guards
     against a corrupt or hand-edited manifest making it past write-time
-    validation.
+    validation. Raises ``ValueError`` if the manifest has a missing or unknown
+    ``schema_version`` — the contract (``review-cache-layout.schema.json``)
+    explicitly requires readers to refuse unknown versions so a future v2
+    manifest is never silently misinterpreted as v1.
     """
     mpath = Path(out_dir) / "review-manifest.json"
     with open(mpath, "r", encoding="utf-8") as f:
@@ -304,6 +307,13 @@ def read_manifest(out_dir: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise TypeError(
             f"Manifest at {mpath} is not a JSON object (got {type(data).__name__})"
+        )
+    version = data.get("schema_version")
+    if version != MANIFEST_SCHEMA_VERSION:
+        raise ValueError(
+            f"Manifest at {mpath} has schema_version={version!r}; "
+            f"this reader only accepts schema_version={MANIFEST_SCHEMA_VERSION}. "
+            f"Upgrade the reader or regenerate the manifest."
         )
     return data
 

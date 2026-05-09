@@ -633,3 +633,86 @@ def test_safe_log_error_swallows_handler_exception() -> None:
 
 def test_schema_version_is_one() -> None:
     assert MANIFEST_SCHEMA_VERSION == 1
+
+
+# ---------------------------------------------------------------------------
+# read_manifest schema_version validation
+# (IMPL_REVIEW round-1 finding C1 — 3-vendor consensus)
+# ---------------------------------------------------------------------------
+
+
+def _write_raw_manifest(out_dir: Path, payload: dict[str, Any]) -> None:
+    """Write a raw manifest dict to disk, bypassing write_manifest's schema."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "review-manifest.json").write_text(
+        json.dumps(payload, indent=2), encoding="utf-8"
+    )
+
+
+def test_read_manifest_rejects_unknown_schema_version_v2(tmp_path: Path) -> None:
+    """Future v2 manifests MUST be refused; the contract docstring at the
+    top of checkpoint_findings.py declares this and the JSON Schema
+    'description' field on schema_version says 'Readers MUST refuse unknown
+    versions.'"""
+    _write_raw_manifest(
+        tmp_path,
+        {
+            "schema_version": 2,
+            "review_type": "implementation",
+            "target": "x",
+            "vendors": [],
+        },
+    )
+    with pytest.raises(ValueError, match="schema_version"):
+        checkpoint_findings.read_manifest(tmp_path)
+
+
+def test_read_manifest_rejects_unknown_schema_version_v0(tmp_path: Path) -> None:
+    """Pre-v1 manifests MUST be refused (e.g. legacy manifests written by
+    review_dispatcher.py before this proposal landed have no
+    schema_version field at all)."""
+    _write_raw_manifest(
+        tmp_path,
+        {
+            "schema_version": 0,
+            "review_type": "implementation",
+            "target": "x",
+            "vendors": [],
+        },
+    )
+    with pytest.raises(ValueError, match="schema_version"):
+        checkpoint_findings.read_manifest(tmp_path)
+
+
+def test_read_manifest_rejects_missing_schema_version(tmp_path: Path) -> None:
+    """A manifest with no schema_version field at all (pre-proposal legacy)
+    MUST be refused — the contract requires the field and treats absence as
+    a different version."""
+    _write_raw_manifest(
+        tmp_path,
+        {
+            "review_type": "implementation",
+            "target": "x",
+            "vendors": [],
+        },
+    )
+    with pytest.raises(ValueError, match="schema_version"):
+        checkpoint_findings.read_manifest(tmp_path)
+
+
+def test_read_vendor_findings_propagates_schema_version_error(
+    tmp_path: Path,
+) -> None:
+    """read_vendor_findings calls read_manifest, so a schema_version
+    rejection MUST bubble up rather than be swallowed."""
+    _write_raw_manifest(
+        tmp_path,
+        {
+            "schema_version": 999,
+            "review_type": "implementation",
+            "target": "x",
+            "vendors": [],
+        },
+    )
+    with pytest.raises(ValueError, match="schema_version"):
+        checkpoint_findings.read_vendor_findings(tmp_path)
