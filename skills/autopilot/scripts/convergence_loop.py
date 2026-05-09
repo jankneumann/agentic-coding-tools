@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -49,6 +50,15 @@ from review_dispatcher import (  # noqa: E402
     ReviewResult,
 )
 
+# Module-level aliases so tests can monkeypatch the checkpoint helpers via
+# ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
+# the dependency direction explicit (autopilot → parallel-infrastructure).
+from checkpoint_findings import (  # noqa: E402
+    _safe_log_error as cf_safe_log_error,
+    write_manifest as cf_write_manifest,
+    write_vendor_findings as cf_write_vendor_findings,
+)
+
 logger = logging.getLogger(__name__)
 
 # Criticality levels that count as blocking
@@ -61,7 +71,13 @@ _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
 
 @dataclass
 class ConvergenceResult:
-    """Outcome of a convergence loop run."""
+    """Outcome of a convergence loop run.
+
+    ``checkpoint_dir`` points at the most-recent round's checkpoint directory
+    (e.g. ``<artifacts_dir>/reviews/round-2``). Recovery-aware callers read
+    it to locate persisted vendor findings; existing callers ignore it
+    (defaults to None for backward compatibility).
+    """
 
     converged: bool
     rounds: int
@@ -69,6 +85,7 @@ class ConvergenceResult:
     consensus: dict[str, Any] | None = None
     escalate_findings: list[dict[str, Any]] | None = None
     validation_errors: list[str] | None = None
+    checkpoint_dir: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +239,7 @@ def converge(
     consensus_dict: dict[str, Any] | None = None
     blocking: list[dict[str, Any]] = []
     all_validation_errors: list[str] = []
+    latest_checkpoint_dir: Path | None = None
 
     # 2. Loop through rounds
     for round_num in range(1, max_rounds + 1):
@@ -238,6 +256,61 @@ def converge(
             cwd=worktree_path,
         )
 
+        # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
+        # the load-bearing write of the proposal: if synthesizer.synthesize()
+        # below raises (e.g. the line_range parser bug), the data is already
+        # on disk and recoverable. The narrow try/except around the writes
+        # only logs and re-raises; it does not swallow.
+        checkpoint_dir = artifacts_dir / "reviews" / f"round-{round_num}"
+        try:
+            vendors_index: list[dict[str, Any]] = []
+            dispatches: list[dict[str, Any]] = []
+            for r in results:
+                dispatches.append({
+                    "vendor": r.vendor,
+                    "success": r.success,
+                    "model_used": r.model_used,
+                    "models_attempted": r.models_attempted,
+                    "elapsed_seconds": r.elapsed_seconds,
+                    "error": r.error,
+                    "error_class": r.error_class.value if r.error_class else None,
+                })
+                if r.success and r.findings:
+                    findings_array = r.findings.get("findings", [])
+                    cf_write_vendor_findings(
+                        checkpoint_dir,
+                        vendor=r.vendor,
+                        review_type=review_type,
+                        target=change_id,
+                        findings=findings_array,
+                        reviewer_vendor=r.vendor,
+                    )
+                    vendors_index.append({
+                        "name": r.vendor,
+                        "findings_path": f"findings-{r.vendor}-{review_type}.json",
+                        "finding_count": len(findings_array),
+                    })
+            cf_write_manifest(
+                checkpoint_dir,
+                review_type=review_type,
+                target=change_id,
+                vendors=vendors_index,
+                change_id=change_id,
+                dispatches=dispatches,
+            )
+        except (OSError, PermissionError) as exc:
+            cf_safe_log_error(
+                "convergence.checkpoint_write_failed",
+                change_id=change_id,
+                review_type=review_type,
+                original_exception_class=type(exc).__name__,
+                original_exception_message=str(exc),
+                artifacts_dir=str(checkpoint_dir),
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            raise
+        latest_checkpoint_dir = checkpoint_dir.resolve()
+
         # 2b. Check quorum
         successful = [r for r in results if r.success]
         if len(successful) < min_quorum:
@@ -250,17 +323,33 @@ def converge(
                 rounds=round_num,
                 reason="quorum_lost",
                 validation_errors=all_validation_errors or None,
+                checkpoint_dir=latest_checkpoint_dir,
             )
 
         # 2c. Convert to VendorResult for synthesizer
         vendor_results = _review_results_to_vendor_results(results)
 
-        # 2d. Synthesize consensus
-        report = synthesizer.synthesize(
-            review_type=review_type,
-            target=change_id,
-            vendor_results=vendor_results,
-        )
+        # 2d. Synthesize consensus. Narrow try/except: on synthesis exception,
+        # log a structured event including checkpoint_dir so operators can
+        # locate the persisted findings, then re-raise the ORIGINAL exception
+        # unmodified. NOT a fallback — the caller still sees the failure.
+        try:
+            report = synthesizer.synthesize(
+                review_type=review_type,
+                target=change_id,
+                vendor_results=vendor_results,
+            )
+        except Exception as exc:
+            cf_safe_log_error(
+                "convergence.synthesis_failed_with_checkpoint",
+                change_id=change_id,
+                review_type=review_type,
+                original_exception_class=type(exc).__name__,
+                original_exception_message=str(exc),
+                checkpoint_dir=str(latest_checkpoint_dir),
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+            raise
 
         # 2e. Convert to dict
         consensus_dict = synthesizer.to_dict(report)
@@ -287,6 +376,7 @@ def converge(
                 consensus=consensus_dict,
                 escalate_findings=disagreement_findings,
                 validation_errors=all_validation_errors or None,
+                checkpoint_dir=latest_checkpoint_dir,
             )
 
         # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
@@ -319,6 +409,7 @@ def converge(
                 reason=None,
                 consensus=consensus_dict,
                 validation_errors=all_validation_errors or None,
+                checkpoint_dir=latest_checkpoint_dir,
             )
 
         # 2j. 3-point stall detection
@@ -333,6 +424,7 @@ def converge(
                 consensus=consensus_dict,
                 escalate_findings=blocking,
                 validation_errors=all_validation_errors or None,
+                checkpoint_dir=latest_checkpoint_dir,
             )
 
         # 2k. Dispatch fixes
@@ -364,4 +456,5 @@ def converge(
         consensus=consensus_dict,
         escalate_findings=blocking or None,
         validation_errors=all_validation_errors or None,
+        checkpoint_dir=latest_checkpoint_dir,
     )
