@@ -208,7 +208,19 @@ def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:
             )
         with open(fpath, "r", encoding="utf-8") as f:
             data = json.load(f)
-        out[name] = list(data.get("findings", []))
+        if not isinstance(data, dict):
+            raise TypeError(
+                f"Per-vendor file {fpath} is not a JSON object "
+                f"(got {type(data).__name__}); expected the wrapper-object "
+                f"shape {{review_type, target, reviewer_vendor, findings: [...]}}"
+            )
+        findings_field = data.get("findings", [])
+        if not isinstance(findings_field, list):
+            raise TypeError(
+                f"Per-vendor file {fpath} has 'findings' field of type "
+                f"{type(findings_field).__name__}; expected list"
+            )
+        out[name] = list(findings_field)
     return out
 
 
@@ -280,10 +292,20 @@ def write_manifest(
 
 
 def read_manifest(out_dir: Path) -> dict[str, Any]:
-    """Read and parse ``review-manifest.json`` from ``out_dir``."""
+    """Read and parse ``review-manifest.json`` from ``out_dir``.
+
+    Raises ``TypeError`` if the file does not parse to a JSON object — guards
+    against a corrupt or hand-edited manifest making it past write-time
+    validation.
+    """
     mpath = Path(out_dir) / "review-manifest.json"
     with open(mpath, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise TypeError(
+            f"Manifest at {mpath} is not a JSON object (got {type(data).__name__})"
+        )
+    return data
 
 
 # ---------------------------------------------------------------------------

@@ -426,6 +426,41 @@ def test_write_manifest_review_type_rejected(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_read_vendor_findings_rejects_non_object_file(tmp_path: Path) -> None:
+    """A hand-edited per-vendor file that is a list (not wrapper object) is
+    rejected with TypeError — guards against silently mis-reading the shape."""
+    write_manifest(tmp_path, review_type="plan", target="x", vendors=[
+        {"name": "claude_code", "findings_path": "findings-claude_code-plan.json", "finding_count": 0},
+    ])
+    # Hand-craft a malformed file: raw list instead of wrapper object
+    (tmp_path / "findings-claude_code-plan.json").write_text(json.dumps([{"id": 1}]))
+    with pytest.raises(TypeError, match="not a JSON object"):
+        read_vendor_findings(tmp_path)
+
+
+def test_read_manifest_rejects_non_object_file(tmp_path: Path) -> None:
+    """A hand-edited manifest that is not a JSON object is rejected."""
+    (tmp_path / "review-manifest.json").write_text(json.dumps([1, 2, 3]))
+    with pytest.raises(TypeError, match="not a JSON object"):
+        read_manifest(tmp_path)
+
+
+def test_read_vendor_findings_rejects_findings_field_not_list(tmp_path: Path) -> None:
+    """A per-vendor file with findings as something other than a list is rejected."""
+    write_manifest(tmp_path, review_type="plan", target="x", vendors=[
+        {"name": "claude_code", "findings_path": "findings-claude_code-plan.json", "finding_count": 0},
+    ])
+    bad_payload = {
+        "review_type": "plan",
+        "target": "x",
+        "reviewer_vendor": "claude_code",
+        "findings": "not-a-list",
+    }
+    (tmp_path / "findings-claude_code-plan.json").write_text(json.dumps(bad_payload))
+    with pytest.raises(TypeError, match="findings.*list"):
+        read_vendor_findings(tmp_path)
+
+
 def test_read_vendor_findings_rejects_path_traversal(tmp_path: Path) -> None:
     """Manifest references a findings_path with '..' — read_vendor_findings refuses."""
     # Hand-craft a manifest with a malicious path; bypass our writer's validation
