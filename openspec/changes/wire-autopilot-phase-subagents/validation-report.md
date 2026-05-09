@@ -131,6 +131,68 @@ positive (gemini misread on replay) and 1 internal inconsistency (claude
 caught the report↔state contradiction). Single-vendor review would have
 missed at least the second.
 
+## Docker-dependent phases (run during /cleanup-feature, 2026-05-09)
+
+### Deploy
+
+**Status**: pass
+
+```bash
+COMPOSE_PROFILES=api LOG_LEVEL=DEBUG docker compose up -d --build postgres coordinator-api
+```
+
+Result: postgres healthy in 1s, coordinator-api `/health` returns `{"status":"ok","db":"connected","version":"0.2.0"}` in 1s. All 23 migrations applied cleanly on a fresh volume (the first deploy attempt hit a `000_bootstrap.sql` checksum mismatch on a stale DB volume; resolved by `docker compose down -v` + redeploy).
+
+DB schema verified:
+* `agent_sessions.phase_archetype TEXT` column exists
+* `phase_archetype_valid` CHECK constraint enforces `{architect, reviewer, implementer, analyst, runner}` enum
+* `agent_heartbeat()` RPC has `p_phase_archetype text DEFAULT NULL` parameter
+* `discover_agents()` RPC returns `phase_archetype` in the JSONB result
+
+### Smoke Tests
+
+**Status**: pass
+
+End-to-end exercise of phase_archetype write/read paths against the live stack (port 8081):
+
+1. **DB-level RPC**: `SELECT agent_heartbeat(p_session_id := 'sess-validate-1', p_phase_archetype := 'analyst')` → `{"success": true}`. Row `validate-test-agent` now has `phase_archetype='analyst'`.
+2. **HTTP read**: `GET /discovery/agents` returns `[{"agent_id":"validate-test-agent", "phase_archetype":"analyst", ...}]`. ✅
+3. **HTTP write via /status/report**: `POST /status/report` with `phase_archetype:"reviewer"` → 200. Subsequent `GET /discovery/agents` shows `phase_archetype:"reviewer"` (state mutated end-to-end). ✅
+4. **Pydantic Literal validation**: `POST /status/report` with `phase_archetype:"wizard"` → **422** `{"type":"literal_error", "msg":"Input should be 'architect', 'reviewer', 'implementer', 'analyst' or 'runner'"}`. ✅
+5. **DB CHECK constraint defense-in-depth**: Direct `INSERT … phase_archetype='wizard'` → **constraint violation** `phase_archetype_valid`. ✅
+
+Pre-existing issue surfaced (NOT from this PR): `/discovery/register` returns 500 because `register_agent_session()` SQL function lacks `p_delegated_from` parameter that the API call passes. Introduced in PR #35 (March 2026, dynamic-authorization). Filed as follow-up; doesn't affect this PR's scope (only the heartbeat / status-report / discovery paths matter for phase_archetype).
+
+### Security
+
+**Status**: pass
+
+```bash
+uvx bandit <8 changed files in this PR> --severity-level medium
+```
+
+Result: 0 High, 1 Medium, 9 Low (across 4571 lines of code in the changed files).
+
+* The 1 Medium is `B310: urlopen for permitted schemes` at `agent-coordinator/scripts/report_status.py:211` — the URL is operator-controlled via `COORDINATION_API_URL` env var, not user input. Risk is low; defense-in-depth fix (whitelist `http(s)://`) filed as follow-up.
+* The 9 Low are subprocess-without-shell-injection-checks in scripts that build commands from internal config (no user-input paths).
+* `secret-scan` job already passed in CI (no hardcoded credentials).
+* `dependency-audit-coordinator` job: green after the python-multipart 0.0.27 bump in this branch.
+
+### E2E Tests
+
+**Status**: pass
+
+```bash
+cd agent-coordinator && AGENT_COORDINATOR_REST_PORT=8081 .venv/bin/python -m pytest tests/e2e/ -v --tb=short -m e2e
+agent-coordinator/.venv/bin/python -m pytest skills/tests/autopilot/test_phase_archetype_e2e.py -v
+```
+
+Results:
+* `agent-coordinator/tests/e2e/`: **19/19 passed** in 3.13s — covers audit, handoffs, memory, work_queue, health, auth, locks, guardrails endpoints against the live API.
+* `skills/tests/autopilot/test_phase_archetype_e2e.py`: **5/5 passed** in 0.41s — covers the integration paths between the runner CLI, autopilot orchestrator, and the live coordinator (PLAN→architect, IMPLEMENT escalation, unknown-phase fallback, env override, /status/report round-trip).
+
+**Total live-stack tests: 24/24 pass.**
+
 ## Next phase
 
 SUBMIT_PR — create PR with full evidence trail (PR body drafted at `pr-body.md`).
