@@ -59,22 +59,45 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
 
     Sequence: write to ``<path>.tmp``, ``f.flush()`` then ``os.fsync(file)``,
     ``os.replace(tmp, path)``, then open the parent directory and
-    ``os.fsync(dirfd)`` to persist the directory entry. The parent-dir fsync
-    is what guarantees the rename survives a crash; a per-file fsync alone
-    leaves the directory entry potentially un-flushed.
+    ``os.fsync(dirfd)`` to persist the directory entry. The per-file fsync
+    is what guarantees the data hits stable storage; the parent-dir fsync
+    is best-effort durability for the rename itself.
 
-    Propagates OSError / PermissionError on failure.
+    Best-effort hygiene: if json.dump / flush / fsync raises before
+    os.replace, the partial ``.tmp`` file is removed so chronic failures
+    don't leak temp files into the artifacts directory. Propagates
+    OSError / PermissionError to the caller after cleanup.
+
+    Cross-platform note: parent-dir fsync via ``os.O_RDONLY`` is POSIX-only
+    and may raise ``OSError`` on Windows or older filesystems. The wrapping
+    try/except OSError downgrades that to a no-op; the load-bearing
+    durability is the file-level fsync at line 73.
     """
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
-        f.flush()
-        os.fsync(f.fileno())
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+    except (OSError, ValueError):
+        # ValueError covers json-encoding failures (non-serializable types).
+        # OSError covers disk-full, permission-denied, signal interrupts.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     os.replace(tmp, path)
     parent = path.parent
-    fd = os.open(parent, os.O_RDONLY)
     try:
-        os.fsync(fd)
+        fd = os.open(parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        try:
+            os.fsync(fd)
+        except OSError:
+            pass
     finally:
         os.close(fd)
 
