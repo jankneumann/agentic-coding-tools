@@ -551,6 +551,34 @@ Conflict-free port blocks for parallel docker-compose stacks:
 | C5 | Merge worktrees, run full test suite, cross-package verification | `wp-integration` package claims union of all locks |
 | C6 | Generate execution summary | DAG timeline, review findings, contract compliance |
 
+### Multi-Vendor Review Convergence Durability
+
+**Implementation**: [`convergence_loop.py`](../skills/autopilot/scripts/convergence_loop.py), [`checkpoint_findings.py`](../skills/parallel-infrastructure/scripts/checkpoint_findings.py)
+
+The autopilot's `converge()` API drives multi-vendor review rounds with a durability contract: each round writes per-vendor findings AND a manifest to `<artifacts_dir>/reviews/round-N/` BEFORE invoking `synthesizer.synthesize()`. If synthesis raises (e.g., the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
+
+`ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory (e.g., `openspec/changes/<change-id>/reviews/round-2`). Recovery-aware callers read this field; existing callers ignore it (defaults to `None`).
+
+**Manual recovery**: after a synthesis failure, operators can locate the persisted findings via the structured log entry's `checkpoint_dir` payload, then invoke `consensus_synthesizer.py` directly:
+
+```bash
+python skills/parallel-infrastructure/scripts/consensus_synthesizer.py \
+    --review-type plan --target <change-id> \
+    --findings <checkpoint_dir>/findings-*-plan.json \
+    --output consensus.json --quorum 2
+```
+
+(Note: this currently still fails with the same parser bug; the workflow becomes useful once the bug fix lands.)
+
+**Operator-monitored log entries** (Python `logging`, level ERROR, structured via `extra={"event": ..., ...}`):
+
+| Event | When | Payload |
+|------|------|---------|
+| `convergence.synthesis_failed_with_checkpoint` | `synthesizer.synthesize()` (or upstream `Finding.from_dict()`) raises | `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `checkpoint_dir`, `timestamp` |
+| `convergence.checkpoint_write_failed` | OSError/PermissionError during checkpoint write | `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp` |
+
+A log handler raising in `emit()` does NOT mask the original exception — the helper wraps `logger.error()` in a bare try/except so observability cannot break correctness.
+
 ### Escalation Protocol
 
 **Implementation**: [`escalation_handler.py`](../skills/parallel-implement-feature/scripts/escalation_handler.py) (212 lines, 8 types)
