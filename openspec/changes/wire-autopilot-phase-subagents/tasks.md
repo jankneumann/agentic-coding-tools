@@ -5,27 +5,27 @@
 Lay down the schemas and migration before implementation packages
 diverge. Tier B (CI). All implementation packages depend on this phase.
 
-- [ ] 1.1 Write tests asserting the SQL migration is well-formed and applies
+- [x] 1.1 Write tests asserting the SQL migration is well-formed and applies
   cleanly against a fresh schema
   **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill"
   **Contracts**: `contracts/db/0NN_add_phase_archetype.sql`
   **Design decisions**: D8 (dedicated column over JSONB key)
   **Dependencies**: None
 
-- [ ] 1.2 Author the SQL migration `contracts/db/0NN_add_phase_archetype.sql`
+- [x] 1.2 Author the SQL migration `contracts/db/0NN_add_phase_archetype.sql`
   with `ALTER TABLE agent_sessions ADD COLUMN phase_archetype TEXT`
   **Spec scenarios**: agent-coordinator-spec → "Migration applies without backfill"
   **Design decisions**: D8
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write a JSON schema for the extended `POST /status/report` payload at
+- [x] 1.3 Write a JSON schema for the extended `POST /status/report` payload at
   `contracts/events/status-report.schema.json` covering the `phase_archetype`
   field as optional `string | null`
   **Spec scenarios**: agent-coordinator-spec → "Status report with phase_archetype is persisted", "Status report without phase_archetype is accepted"
   **Design decisions**: D6
   **Dependencies**: None
 
-- [ ] 1.4 Add an OpenAPI fragment to `contracts/openapi/discovery-agents.yaml`
+- [x] 1.4 Add an OpenAPI fragment to `contracts/openapi/discovery-agents.yaml`
   describing the `phase_archetype` field on the `GET /discovery/agents`
   response, with example values from `archetypes.yaml`
   **Spec scenarios**: agent-coordinator-spec → "AgentInfo round-trip via heartbeat and discovery"
