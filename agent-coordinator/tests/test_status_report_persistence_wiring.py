@@ -33,16 +33,8 @@ _TEST_KEY = "test-key-status-wire"
 
 @pytest.fixture()
 def _api_config(monkeypatch: pytest.MonkeyPatch) -> Any:
-    from src.config import reset_config
-
-    reset_config()
-    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
-    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
-    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
-    monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
-    reset_config()
-    yield
-    reset_config()
+    from tests.conftest import setup_api_config_env
+    yield from setup_api_config_env(monkeypatch, _TEST_KEY)
 
 
 @pytest.fixture()
