@@ -12,9 +12,9 @@ The helper SHALL be responsible for constructing the per-vendor file's wrapper-o
 
 The canonical layout SHALL use:
 
-- Per-vendor finding files at the existing dispatcher path (`<output_dir>/findings-{vendor}-{review_type}.json`) for CLI invocations, and at `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` for in-process callers. The two locations SHALL NOT be unified by this proposal; each call site continues writing where it already writes (or, for in-process, where this proposal newly writes).
+- Per-vendor finding files at the existing dispatcher path (`<output_dir>/findings-{vendor}-{review_type}.json`) for CLI invocations, and at `<artifacts_dir>/.review-cache/round-N/findings-{vendor}-{review_type}.json` for in-process callers (where `N` is the convergence-loop round number, starting at 1; per-round subdivision preserves cross-round audit history). The two locations SHALL NOT be unified by this proposal; each call site continues writing where it already writes (or, for in-process, where this proposal newly writes).
 - Per-vendor finding file contents SHALL preserve the existing wrapper-object shape: `{review_type, target, reviewer_vendor, findings: [...]}`. This proposal does NOT change the per-vendor file format.
-- Manifest at `<output_dir>/review-manifest.json` (CLI) or `<artifacts_dir>/.review-cache/review-manifest.json` (in-process). The manifest format SHALL be a strict superset of the format currently written by `review_dispatcher.py:write_manifest()`.
+- Manifest at `<output_dir>/review-manifest.json` (CLI) or `<artifacts_dir>/.review-cache/round-N/review-manifest.json` (in-process; one manifest per round). The manifest format SHALL be a strict superset of the format currently written by `review_dispatcher.py:write_manifest()`.
 
 The manifest SHALL preserve all fields the existing dispatcher writes (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`) AND SHALL add: `schema_version` (integer, currently `1`), `change_id` (string), `created_at` (ISO-8601 UTC string), and `vendors[]` (per-vendor index with `name`, `findings_path`, `finding_count`).
 
@@ -71,10 +71,11 @@ The shared helper SHALL write the manifest atomically (write-to-temp, fsync, ren
 The `converge()` API in `skills/autopilot/scripts/convergence_loop.py` SHALL persist per-vendor findings to disk BEFORE invoking `synthesizer.synthesize()`. The checkpoint SHALL be written for every successful dispatch, regardless of whether synthesis subsequently succeeds. If synthesis raises, the exception SHALL propagate to the caller; this proposal does NOT introduce automatic recovery.
 
 #### Scenario: Successful synthesis path also writes checkpoints
-- **WHEN** `converge()` completes a review round successfully
-- **THEN** `<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json` SHALL exist for every vendor that returned findings
-- **AND** `<artifacts_dir>/.review-cache/review-manifest.json` SHALL exist
-- **AND** the returned `ConvergenceResult` SHALL have `checkpoint_dir` set to the checkpoint directory path
+- **WHEN** `converge()` completes a review round (round number `N`) successfully
+- **THEN** `<artifacts_dir>/.review-cache/round-N/findings-{vendor}-{review_type}.json` SHALL exist for every vendor that returned findings
+- **AND** `<artifacts_dir>/.review-cache/round-N/review-manifest.json` SHALL exist
+- **AND** the returned `ConvergenceResult` SHALL have `checkpoint_dir` set to `<artifacts_dir>/.review-cache/round-N/`
+- **AND** earlier rounds' checkpoints (`round-1/`, `round-2/`, …) SHALL remain on disk for audit history
 
 #### Scenario: Synthesis failure leaves checkpoint intact and exception propagates
 - **WHEN** `synthesizer.synthesize()` raises an exception
