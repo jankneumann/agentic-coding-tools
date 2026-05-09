@@ -326,19 +326,21 @@ def converge(
                 checkpoint_dir=latest_checkpoint_dir,
             )
 
-        # 2c. Convert to VendorResult for synthesizer
-        vendor_results = _review_results_to_vendor_results(results)
-
-        # 2d. Synthesize consensus. Narrow try/except: on synthesis exception,
-        # log a structured event including checkpoint_dir so operators can
+        # 2c-e. Compute consensus. Narrow try/except covers the three steps
+        # between checkpoint persistence and consensus availability: parsing
+        # vendor outputs into Finding objects (where the line_range parser
+        # bug fires), synthesize(), and to_dict(). On any exception, log a
+        # structured event with the checkpoint location so operators can
         # locate the persisted findings, then re-raise the ORIGINAL exception
         # unmodified. NOT a fallback — the caller still sees the failure.
         try:
+            vendor_results = _review_results_to_vendor_results(results)
             report = synthesizer.synthesize(
                 review_type=review_type,
                 target=change_id,
                 vendor_results=vendor_results,
             )
+            consensus_dict = synthesizer.to_dict(report)
         except Exception as exc:
             cf_safe_log_error(
                 "convergence.synthesis_failed_with_checkpoint",
@@ -350,9 +352,6 @@ def converge(
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
             raise
-
-        # 2e. Convert to dict
-        consensus_dict = synthesizer.to_dict(report)
 
         # 2f. Check for disagreement findings → escalate
         disagreement_findings = [
