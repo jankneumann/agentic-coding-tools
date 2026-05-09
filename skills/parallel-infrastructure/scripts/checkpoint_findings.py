@@ -255,9 +255,32 @@ def write_manifest(
             f"{sorted(_REVIEW_TYPES)}"
         )
     for v in vendors:
-        if not _VENDOR_NAME_RE.match(v.get("name", "")):
+        name = v.get("name", "")
+        if not _VENDOR_NAME_RE.match(name):
             raise ValueError(
-                f"vendors[].name {v.get('name')!r} fails path-safety regex"
+                f"vendors[].name {name!r} fails path-safety regex"
+            )
+        # Defense in depth: validate findings_path mirrors the read-side
+        # checks in read_vendor_findings(). A malformed manifest produced
+        # here would write fine but be unreadable later — fail at write
+        # time instead, when the caller can still react.
+        findings_path = v.get("findings_path")
+        if findings_path is not None:
+            if not isinstance(findings_path, str):
+                raise ValueError(
+                    f"vendors[].findings_path for {name!r} must be a string, "
+                    f"got {type(findings_path).__name__}"
+                )
+            if "/" in findings_path or "\\" in findings_path or ".." in findings_path:
+                raise ValueError(
+                    f"vendors[].findings_path {findings_path!r} for {name!r} "
+                    f"contains path separator or '..'"
+                )
+        finding_count = v.get("finding_count")
+        if finding_count is not None and not isinstance(finding_count, int):
+            raise ValueError(
+                f"vendors[].finding_count for {name!r} must be an integer, "
+                f"got {type(finding_count).__name__}"
             )
 
     safe_dir = Path(out_dir).resolve(strict=False)

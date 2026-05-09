@@ -277,3 +277,25 @@ def test_cli_round_trip_via_helper(
     assert set(loaded) == {"claude_code", "codex"}
     assert len(loaded["claude_code"]) == 2
     assert loaded["codex"][0]["id"] == 10
+
+
+# ---------------------------------------------------------------------------
+# Backward-compat shim filename validation
+# (IMPL_REVIEW round-1 finding C3 — codex)
+# ---------------------------------------------------------------------------
+
+
+def test_write_manifest_rejects_non_canonical_filename(
+    tmp_path: Path, vendor_results: list[ReviewResult]
+) -> None:
+    """Passing a custom filename to the shim raises rather than silently
+    losing it. Old behavior was to ignore output_path.name entirely."""
+    import pytest
+
+    orch = ReviewOrchestrator({})
+    output_path = tmp_path / "my-custom-manifest.json"
+    with pytest.raises(ValueError, match="review-manifest.json"):
+        orch.write_manifest(vendor_results, output_path, "plan", "cli-dispatch")
+    # And the file with the requested name is NOT created — fail-fast,
+    # not write-then-mismatch.
+    assert not output_path.exists()
