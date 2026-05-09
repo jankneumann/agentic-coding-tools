@@ -164,7 +164,7 @@ def test_synthesis_failure_preserves_checkpoint(
             max_rounds=1,
         )
     # Original exception propagated. Now verify checkpoint files persist:
-    checkpoint_dir = tmp_path / "reviews" / "round-1"
+    checkpoint_dir = tmp_path / ".review-cache" / "round-1"
     assert checkpoint_dir.exists()
     manifest = read_manifest(checkpoint_dir)
     assert manifest["change_id"] == "test-feature"
@@ -421,7 +421,7 @@ def test_multi_round_writes_separate_checkpoints(
     )
     assert result.converged
     assert result.rounds == 2  # cleared in round 2
-    assert (tmp_path / "reviews" / "round-1").exists()
-    assert (tmp_path / "reviews" / "round-2").exists()
+    assert (tmp_path / ".review-cache" / "round-1").exists()
+    assert (tmp_path / ".review-cache" / "round-2").exists()
     # checkpoint_dir points at most-recent round
-    assert result.checkpoint_dir == (tmp_path / "reviews" / "round-2").resolve()
+    assert result.checkpoint_dir == (tmp_path / ".review-cache" / "round-2").resolve()

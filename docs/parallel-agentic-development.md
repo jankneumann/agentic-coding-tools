@@ -555,9 +555,9 @@ Conflict-free port blocks for parallel docker-compose stacks:
 
 **Implementation**: [`convergence_loop.py`](../skills/autopilot/scripts/convergence_loop.py), [`checkpoint_findings.py`](../skills/parallel-infrastructure/scripts/checkpoint_findings.py)
 
-The autopilot's `converge()` API drives multi-vendor review rounds with a durability contract: each round writes per-vendor findings AND a manifest to `<artifacts_dir>/reviews/round-N/` BEFORE invoking `synthesizer.synthesize()`. If synthesis raises (e.g., the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
+The autopilot's `converge()` API drives multi-vendor review rounds with a durability contract: each round writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking `synthesizer.synthesize()`. If synthesis raises (e.g., the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
 
-`ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory (e.g., `openspec/changes/<change-id>/reviews/round-2`). Recovery-aware callers read this field; existing callers ignore it (defaults to `None`).
+`ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory (e.g., `openspec/changes/<change-id>/.review-cache/round-2`). Recovery-aware callers read this field; existing callers ignore it (defaults to `None`).
 
 **Manual recovery**: after a synthesis failure, operators can locate the persisted findings via the structured log entry's `checkpoint_dir` payload, then invoke `consensus_synthesizer.py` directly:
 
