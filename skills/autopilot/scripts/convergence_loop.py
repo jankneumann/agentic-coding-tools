@@ -299,6 +299,11 @@ def converge(
                 vendors=vendors_index,
                 change_id=change_id,
                 dispatches=dispatches,
+                # quorum_requested = total vendors dispatched (incl. failures);
+                # vendors_index only lists successful reviews, so passing it
+                # implicitly via the default would understate intent.
+                quorum_requested=len(results),
+                quorum_received=sum(1 for r in results if r.success),
             )
         except (OSError, PermissionError) as exc:
             cf_safe_log_error(

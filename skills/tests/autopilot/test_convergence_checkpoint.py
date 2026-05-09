@@ -58,6 +58,17 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
     )
 
 
+def _failed_review_result(vendor: str, error: str = "vendor unreachable") -> ReviewResult:
+    return ReviewResult(
+        vendor=vendor,
+        success=False,
+        model_used=None,
+        models_attempted=["test-model"],
+        elapsed_seconds=0.5,
+        error=error,
+    )
+
+
 class _FakeOrchestrator:
     """Minimal stand-in for ReviewOrchestrator that returns canned results."""
 
@@ -425,3 +436,44 @@ def test_multi_round_writes_separate_checkpoints(
     assert (tmp_path / ".review-cache" / "round-2").exists()
     # checkpoint_dir points at most-recent round
     assert result.checkpoint_dir == (tmp_path / ".review-cache" / "round-2").resolve()
+
+
+# ---------------------------------------------------------------------------
+# Quorum accounting on partial dispatch
+# (IMPL_REVIEW round-1 finding C5 — gemini)
+# ---------------------------------------------------------------------------
+
+
+def test_manifest_records_total_dispatched_as_quorum_requested(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When 3 vendors dispatch but only 2 succeed, quorum_requested MUST
+    record 3 (total attempted), not 2 (successful only). vendors_index in
+    the manifest only contains successful vendors, so passing it implicitly
+    via the default would understate the round's intent."""
+    monkeypatch.setattr(
+        "convergence_loop.ConsensusSynthesizer", _FakeSynthesizer
+    )
+    orch = _FakeOrchestrator([
+        _review_result("claude_code", [_vendor_finding(1)]),
+        _review_result("codex", [_vendor_finding(2)]),
+        _failed_review_result("gemini", "transport error"),
+    ])
+    result = converge(
+        change_id="test-feature",
+        review_type="plan",
+        artifacts_dir=tmp_path,
+        worktree_path=tmp_path,
+        orchestrator=orch,  # type: ignore[arg-type]
+        max_rounds=1,
+    )
+    assert result.checkpoint_dir is not None
+    manifest = read_manifest(result.checkpoint_dir)
+    # 3 attempted, 2 succeeded
+    assert manifest["quorum_requested"] == 3
+    assert manifest["quorum_received"] == 2
+    # vendors_index only carries successful reviews (gemini's failure has no
+    # findings to index)
+    assert {v["name"] for v in manifest["vendors"]} == {"claude_code", "codex"}
+    # All 3 dispatches recorded for audit
+    assert len(manifest["dispatches"]) == 3
