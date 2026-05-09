@@ -3,7 +3,7 @@
   "change_id": "harden-multi-vendor-review-recovery",
   "current_phase": "IMPL_REVIEW",
   "previous_phase": "IMPL_ITERATE",
-  "impl_review_status": "round-1-fixes-applied; awaiting decision on round-2 confirmation vs proceed-to-VALIDATE",
+  "impl_review_status": "round-2-converged; ready for VALIDATE",
   "implement_summary": {
     "packages_completed": 5,
     "loc_added": 1170,
@@ -64,6 +64,41 @@
       "openspec_validate_strict": "valid"
     },
     "vendor_diversity_dividend": "Each vendor caught issues the others missed: codex flagged spec/code path drift + write-shim filename loss; gemini caught quorum accounting + cross-platform fsync; claude_code spotted .tmp file leak. Single-vendor review would have missed at least 5 of the 7 findings."
+  },
+  "impl_review_round_2_summary": {
+    "vendors_dispatched": ["claude_code", "codex", "gemini"],
+    "vendors_succeeded": 3,
+    "raw_findings_total": 9,
+    "consensus_findings": 6,
+    "blocking_findings": 3,
+    "high": 0,
+    "medium": 3,
+    "low": 3,
+    "outcome": "iterate-and-fix; all 6 findings addressed",
+    "elapsed_seconds_per_vendor": {"claude_code": 325.9, "codex": 107.5, "gemini": 224.7},
+    "round_2_findings": {
+      "R2_C1_typeerror_not_caught": "3-vendor consensus on _atomic_write_json missing TypeError in except tuple",
+      "R2_C2_skill_md_path_drift": "2-vendor consensus on SKILL.md still pointing at reviews/round-N/",
+      "R2_C3_required_fields_relaxed": "codex caught round-1 fix made findings_path/finding_count optional (schema requires)",
+      "R2_C4_os_replace_outside_try": "claude_code caught os.replace not wrapped (narrow leak window)",
+      "R2_C5_spec_literal_round_n": "claude_code disposition=accept; spec amended to authorize round-N/",
+      "R2_C6_stale_line_ref": "gemini caught docstring line 73 reference outdated"
+    },
+    "fixes_applied": {
+      "R2_C1_C4_C6_atomic_write_polish": "886970f fix(parallel-infrastructure): _atomic_write_json catches TypeError + os.replace",
+      "R2_C2_skill_md_alignment": "9698aaa fix(autopilot): align SKILL.md checkpoint path with .review-cache/round-N/",
+      "R2_C3_required_fields": "b10ebcd fix(parallel-infrastructure): require findings_path and finding_count per schema",
+      "R2_C5_spec_round_n_authorization": "ca5f543 docs(spec): authorize .review-cache/round-N/ subdivision"
+    },
+    "tests_added": 7,
+    "tests_removed": 2,
+    "quality_gates": {
+      "proposal_tests": "85/85 passing (was 80; net +5)",
+      "ruff": "clean",
+      "mypy_strict": "clean (checkpoint_findings.py)",
+      "openspec_validate_strict": "valid"
+    },
+    "convergence_pattern": "round 1 found 7 findings (1 blocking via 3-vendor consensus); round 2 found 6 findings (3 blocking — all incomplete-fix verifications). Round 2 caught real bugs in round-1 fixes, not new code issues. Net: 13 findings surfaced + addressed; multi-vendor convergence required 2 rounds."
   },
   "plan_review_summary": {
     "rounds": 3,
