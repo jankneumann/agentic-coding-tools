@@ -777,13 +777,56 @@ def test_write_manifest_rejects_finding_count_non_int(tmp_path: Path) -> None:
         )
 
 
-def test_write_manifest_accepts_omitted_findings_path(tmp_path: Path) -> None:
-    """Backward compat: callers that pass only {name} still work."""
-    write_manifest(
-        tmp_path, review_type="plan", target="x",
-        vendors=[{"name": "claude_code"}],
-    )
-    assert (tmp_path / "review-manifest.json").exists()
+def test_write_manifest_rejects_missing_findings_path(tmp_path: Path) -> None:
+    """The schema (review-cache-layout.schema.json line 81) requires
+    every vendors[] entry to have findings_path. Round-2 review caught
+    that the round-1 fix made it optional, producing schema-invalid
+    manifests."""
+    with pytest.raises(ValueError, match="findings_path"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{"name": "claude_code", "finding_count": 0}],
+        )
+
+
+def test_write_manifest_rejects_missing_finding_count(tmp_path: Path) -> None:
+    """finding_count is also required by the schema."""
+    with pytest.raises(ValueError, match="finding_count"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "findings-claude_code-plan.json",
+            }],
+        )
+
+
+def test_write_manifest_rejects_findings_path_pattern_mismatch(tmp_path: Path) -> None:
+    """findings_path MUST match the schema pattern
+    findings-{vendor}-{plan|implementation}.json. A name that's
+    technically separator-free but breaks the pattern is also rejected."""
+    with pytest.raises(ValueError, match="pattern"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "manifest-claude_code.json",
+                "finding_count": 0,
+            }],
+        )
+
+
+def test_write_manifest_rejects_negative_finding_count(tmp_path: Path) -> None:
+    """The schema requires finding_count >= 0."""
+    with pytest.raises(ValueError, match="finding_count"):
+        write_manifest(
+            tmp_path, review_type="plan", target="x",
+            vendors=[{
+                "name": "claude_code",
+                "findings_path": "findings-claude_code-plan.json",
+                "finding_count": -1,
+            }],
+        )
 
 
 # ---------------------------------------------------------------------------
