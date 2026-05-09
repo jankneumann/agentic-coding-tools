@@ -265,7 +265,7 @@ PLAN_REVIEW — convergence_loop never overwrites the field.
 
 #### Convergence Durability Contract
 
-`converge()` writes per-vendor findings AND a manifest to `<artifacts_dir>/reviews/round-N/` BEFORE invoking the consensus synthesizer. If synthesis raises (e.g. the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
+`converge()` writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking the consensus synthesizer. If synthesis raises (e.g. the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
 
 `ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory. Recovery-aware callers read this field to locate persisted findings; existing callers ignore it (defaults to `None` for backward compatibility).
 
@@ -549,7 +549,8 @@ See `docs/autopilot-phase-archetype-resolution.md` for the full operator guide.
 ## Output
 
 - `openspec/changes/<change-id>/loop-state.json` — Full loop state (resumable)
-- `openspec/changes/<change-id>/reviews/round-N/` — Per-round review artifacts
+- `openspec/changes/<change-id>/reviews/round-N/` — Per-round CLI-dispatched review artifacts (PLAN_REVIEW, IMPL_REVIEW, VAL_REVIEW)
+- `openspec/changes/<change-id>/.review-cache/round-N/` — Per-round in-process `converge()` checkpoints (durability path)
 - Pull request with evidence trail
 - Coordinator memory entries (episodic)
 - Coordinator handoff documents
