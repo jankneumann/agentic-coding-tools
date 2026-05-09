@@ -33,8 +33,6 @@ from disk to the wire.
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -177,7 +175,7 @@ def test_phase_archetype_round_trips_from_loop_state_to_discovery_agents(
         def __init__(self, status: int) -> None:
             self.status = status
 
-        def __enter__(self) -> "_FakeResponse":
+        def __enter__(self) -> _FakeResponse:
             return self
 
         def __exit__(self, *exc: Any) -> None:
@@ -301,7 +299,7 @@ def test_round_trip_with_null_phase_archetype_is_accepted(
         def __init__(self, status: int) -> None:
             self.status = status
 
-        def __enter__(self) -> "_FakeResponse":
+        def __enter__(self) -> _FakeResponse:
             return self
 
         def __exit__(self, *exc: Any) -> None:
@@ -386,7 +384,7 @@ def test_round_trip_drops_invalid_phase_archetype_at_client_layer(
         def __init__(self, status: int) -> None:
             self.status = status
 
-        def __enter__(self) -> "_FakeResponse":
+        def __enter__(self) -> _FakeResponse:
             return self
 
         def __exit__(self, *exc: Any) -> None:

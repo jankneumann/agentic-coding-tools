@@ -91,7 +91,8 @@ def test_migration_uses_next_available_sequence_number() -> None:
 
 def test_migration_adds_phase_archetype_column() -> None:
     sql = _find_phase_archetype_migration().read_text()
-    # Use a tolerant pattern: ALTER TABLE agent_sessions ADD COLUMN [IF NOT EXISTS] phase_archetype TEXT
+    # Tolerant pattern: ALTER TABLE agent_sessions
+    #   ADD COLUMN [IF NOT EXISTS] phase_archetype TEXT
     pattern = re.compile(
         r"ALTER\s+TABLE\s+agent_sessions\s+"
         r"ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?\s+"
