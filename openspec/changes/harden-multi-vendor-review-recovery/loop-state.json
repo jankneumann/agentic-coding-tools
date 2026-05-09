@@ -1,8 +1,21 @@
 {
   "schema_version": 3,
   "change_id": "harden-multi-vendor-review-recovery",
-  "current_phase": "IMPLEMENT",
-  "previous_phase": "PLAN_REVIEW",
+  "current_phase": "IMPL_ITERATE",
+  "previous_phase": "IMPLEMENT",
+  "implement_summary": {
+    "packages_completed": 5,
+    "loc_added": 1170,
+    "tests_added": 63,
+    "test_pass_rate": "63/63",
+    "regressions": 0,
+    "commits": [
+      "b67bf7b feat(parallel-infrastructure): add checkpoint_findings durability helper",
+      "51f4c6e feat(parallel-infrastructure): migrate review_dispatcher to checkpoint helper",
+      "69cd5f1 feat(autopilot): durable checkpoint in converge() before synthesis",
+      "8e79668 feat(autopilot): integration test + docs for convergence durability"
+    ]
+  },
   "plan_review_summary": {
     "rounds": 3,
     "iterations": 4,
