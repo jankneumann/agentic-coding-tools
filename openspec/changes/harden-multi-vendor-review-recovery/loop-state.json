@@ -1,8 +1,12 @@
 {
   "schema_version": 3,
   "change_id": "harden-multi-vendor-review-recovery",
-  "current_phase": "VALIDATE",
-  "previous_phase": "IMPL_REVIEW",
+  "current_phase": "DONE",
+  "previous_phase": "SUBMIT_PR",
+  "submit_pr_status": "PR #147 created; awaiting human approval",
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/147",
+  "pr_number": 147,
+  "merge_strategy": "rebase-merge (agent-authored OpenSpec PR)",
   "impl_review_status": "round-2-converged; VALIDATE complete",
   "validate_status": "pass; ready for SUBMIT_PR",
   "validate_summary": {
