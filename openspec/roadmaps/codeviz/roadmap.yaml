@@ -207,6 +207,11 @@ items:
   - Output JSON MUST conform to a checked-in schema.
   - Blast-radius summary MUST report transitive callers up to depth 3.
   - A no-op commit (no graph change) MUST emit an empty-but-valid diff.
+  - Every changed node and edge MUST carry a change_kind tag from {refactoring, micro-change,
+    contract-change, test-impact, runtime-risk, ordinary}; entries that match no specific
+    class fall back to ordinary.
+  - A fixture commit that renames a private function MUST be classified as refactoring,
+    not contract-change.
 - item_id: diff-overlay-render
   title: Diff overlay rendering in SPA
   status: candidate
@@ -600,17 +605,23 @@ items:
   effort: S
   depends_on:
   - http-api-server
-  description: 'Expose the same read operations as the HTTP API through an MCP server,
-    so MCP-aware agents (Claude Desktop, Cursor, coordinator-orchestrated agents) can
-    query the codeviz graph using the same state the SPA reads. The MCP server is a
-    thin adapter over the FastAPI handlers; it MUST NOT duplicate query logic. Aligns
-    with the repo convention MCP for local agents, HTTP for cloud agents documented
-    in openspec/project.md. Tools exposed: loc, subgraph, dependents, at_commit_subgraph,
-    cypher (gated).'
+  description: 'Expose the read operations as an MCP server so MCP-aware agents (Claude
+    Desktop, Cursor, coordinator-orchestrated agents) can query the codeviz graph using
+    the same state the SPA reads. Tools MUST be exposed as user-task-oriented operations
+    rather than raw graph primitives: symbol_lookup, neighbors, blast_radius, compare_snapshots,
+    tests_for_symbol, commits_touching_symbol, worktree_variants, review_findings_for_entity,
+    explain_lineage. Each tool is a named convenience wrapper over one or more primitive
+    subgraph/dependents/at-commit queries. A cypher(query) tool is exposed only when
+    an explicit env flag is set. The MCP server is a thin adapter over the FastAPI handlers;
+    it MUST NOT duplicate query logic. Aligns with the repo convention MCP for local
+    agents, HTTP for cloud agents documented in openspec/project.md.'
   acceptance_outcomes:
   - An MCP server MUST be runnable via make codeviz-mcp and reachable over stdio.
   - Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the
     MCP surface MUST NOT introduce new query logic.
+  - The nine user-task tools (symbol_lookup, neighbors, blast_radius, compare_snapshots,
+    tests_for_symbol, commits_touching_symbol, worktree_variants, review_findings_for_entity,
+    explain_lineage) MUST all be implemented and documented with example invocations.
   - The MCP server MUST be discoverable from agent-coordinator's capability registry.
   - Documentation MUST cover Claude Desktop and Cursor configuration snippets at docs/codeviz/mcp.md.
 - item_id: agent-memory-visualization
@@ -640,5 +651,64 @@ items:
     branches.
   - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known
     state at any past point.
+- item_id: mcp-app-interactive-viz
+  title: MCP App for in-conversation visualization
+  status: candidate
+  priority: 6
+  effort: M
+  depends_on:
+  - spa-scaffold-render
+  - mcp-server-interface
+  description: 'In addition to the tools-only MCP server, package the SPA (or a focused
+    subset) as an MCP App — an interactive visualization rendered inside the agent
+    conversation (sandboxed iframe with bidirectional MCP tool calls). MCP Apps let
+    an agent reason with the visualization in-context rather than asking the human
+    to switch to a separate tab; the agent can call MCP tools from within the App and
+    the App can request additional tools from the host. First App MVP surfaces the
+    Atlas view + Change lens + a search/inspect panel; deeper views added incrementally.
+    The App MUST be a thin wrapper around the existing SPA components — no parallel
+    rendering codebase.'
+  acceptance_outcomes:
+  - An MCP App MUST be installable into a Claude Desktop / Cursor / compatible host
+    via a single manifest.
+  - The App MUST reuse the SPA's render components — no duplicate rendering implementation.
+  - The App MUST be able to call MCP tools (e.g. blast_radius, compare_snapshots) and
+    receive results via the MCP App bidirectional channel.
+  - Sandboxing MUST follow the MCP App specification — no direct DOM access outside
+    the iframe, no arbitrary network calls.
+  - Documentation MUST include host-configuration snippets and a screenshot fixture
+    at docs/codeviz/mcp-app.md.
+- item_id: version-variant-view
+  title: Version & Variant view (side-by-side candidate comparison)
+  status: candidate
+  priority: 9
+  effort: M
+  depends_on:
+  - agent-memory-visualization
+  - temporal-snapshot-scrubber
+  - multi-repo-federation
+  - spa-scaffold-render
+  description: 'A dedicated UX surface answering how did this area evolve across commits,
+    branches, worktrees, and prototype variants. Pulls together git commit history
+    per file/symbol, active worktree branches from .git-worktrees/.registry.json, prototype
+    variant branches from /prototype-feature runs, and temporal snapshots from FalkorDB
+    into a side-by-side comparison surface. Users select 2-N candidates (commits, branches,
+    worktree heads, prototype variants) and the view renders a multi-lane comparison:
+    matching symbols align across lanes, additions/removals/modifications are color-coded
+    per lane, and validation-outcome badges attach to each lane head. EvoScat-style
+    scatterplot mini-map for long histories. Reuses the Atlas-view render layer; the
+    lane mechanism is the new piece.'
+  acceptance_outcomes:
+  - A user MUST be able to select 2-N candidates (commits, branches, worktree heads,
+    prototype variants) and see them rendered as parallel lanes against the same architectural
+    region.
+  - Matching symbols MUST align across lanes; non-matching symbols MUST be visually
+    distinguished without breaking the alignment of matched ones.
+  - Each lane head MUST surface validation-outcome badges (test pass/fail count, fitness
+    violations, security findings).
+  - A scatterplot mini-map MUST provide a global overview for histories longer than
+    50 commits.
+  - The view MUST be addressable via URL parameters encoding the candidate list and
+    the focused architectural region.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-12T10:18:00+00:00'
+updated_at: '2026-05-12T11:15:00+00:00'
