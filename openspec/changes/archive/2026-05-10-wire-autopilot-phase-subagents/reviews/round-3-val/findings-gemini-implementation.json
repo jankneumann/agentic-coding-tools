@@ -1,0 +1,43 @@
+{
+  "review_round": 3,
+  "review_type": "validation",
+  "vendor": "gemini",
+  "findings": [
+    {
+      "id": "V-001",
+      "type": "completeness",
+      "criticality": "high",
+      "description": "The PLAN phase is missing the required archetype recording call. The spec requires 10 of 13 phases to set `phase_archetype`, including PLAN, but neither `SKILL.md` nor `autopilot.py` contains the `record-state-only-archetype` call (or dispatch protocol) for the PLAN phase, unlike INIT and SUBMIT_PR.",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 655,
+        "end": 668
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-002",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The end-to-end test `test_phase_dispatch_e2e.py` skips the PLAN phase in its main execution loop. While it defines expected archetypes for 10 phases, it only drives INIT, SUBMIT_PR, and the 7 dispatching phases, leaving the PLAN phase's archetype resolution and recording unverified.",
+      "file_path": "skills/tests/autopilot/test_phase_dispatch_e2e.py",
+      "line_range": {
+        "start": 355,
+        "end": 405
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-003",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The validation report claims a PASS for the `audit-log validator smoke` check, but acknowledges in finding C-R-004 that the validator hardcodes the 7-phase path and produces false counts for FIX iterations. This mismatch between the summary and the acknowledged finding suggests the validation evidence for convergence-loop inheritance is incomplete.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {
+        "start": 16,
+        "end": 16
+      },
+      "disposition": "acknowledge"
+    }
+  ]
+}

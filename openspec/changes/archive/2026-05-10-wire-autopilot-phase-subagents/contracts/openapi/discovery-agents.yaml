@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Agent Discovery API — phase_archetype delta
+  version: "1.1.0"
+  description: >
+    Delta against the existing GET /discovery/agents response, adding the
+    phase_archetype field per change wire-autopilot-phase-subagents.
+    This file is a fragment merged into the canonical discovery API spec
+    by wp-coordinator-status-discovery; it does NOT replace the full
+    discovery contract.
+
+paths:
+  /discovery/agents:
+    get:
+      summary: List discovered agents (with phase_archetype)
+      operationId: listAgentsWithArchetype
+      responses:
+        "200":
+          description: List of agents currently registered with the discovery service.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AgentInfoWithArchetype"
+              examples:
+                two-agents:
+                  value:
+                    agents:
+                      - agent_id: "autopilot-feat-x"
+                        agent_type: "claude_code"
+                        session_id: "sess-1"
+                        capabilities: ["plan", "implement"]
+                        status: "active"
+                        current_task: "IMPLEMENT wp-backend"
+                        last_heartbeat: "2026-05-05T19:30:00Z"
+                        started_at: "2026-05-05T19:00:00Z"
+                        phase_archetype: "implementer"
+                      - agent_id: "autopilot-feat-y"
+                        agent_type: "claude_code"
+                        session_id: "sess-2"
+                        capabilities: ["review"]
+                        status: "active"
+                        current_task: "PLAN_REVIEW round 2"
+                        last_heartbeat: "2026-05-05T19:30:01Z"
+                        started_at: "2026-05-05T19:10:00Z"
+                        phase_archetype: "reviewer"
+
+components:
+  schemas:
+    AgentInfoWithArchetype:
+      type: object
+      required: [agent_id, agent_type, session_id, status, last_heartbeat, started_at]
+      properties:
+        agent_id:
+          type: string
+        agent_type:
+          type: string
+          enum: [claude_code, codex, gemini, jules]
+        session_id:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, idle, blocked, completed, failed]
+        current_task:
+          type: string
+        last_heartbeat:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        delegated_from:
+          type: string
+          nullable: true
+        phase_archetype:
+          type: string
+          enum: [architect, reviewer, implementer, analyst, runner]
+          nullable: true
+          description: >
+            Resolved archetype for the agent's current autopilot phase.
+            Null when the agent has not reported an archetype (older
+            client, fallback path, or non-autopilot agent).
+          example: "implementer"

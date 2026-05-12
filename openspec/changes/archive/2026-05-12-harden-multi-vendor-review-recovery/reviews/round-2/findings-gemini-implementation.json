@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "skills/autopilot/SKILL.md:155 and L306 still refer to 'reviews/round-N/' for the convergence durability checkpoint path. This contradicts the code (convergence_loop.py:264) and docs/parallel-agentic-development.md, which correctly use '.review-cache/round-N/' per the C2 fix in 84cbdbb.",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": "155, 306",
+      "verifies_round_1": "C2"
+    },
+    {
+      "id": "F2",
+      "type": "robustness",
+      "criticality": "low",
+      "description": "checkpoint_findings.py:82 catches (OSError, ValueError) but misses TypeError. json.dump raises TypeError for non-serializable objects (e.g. set, custom classes). A TypeError during the write sequence would still leak a .tmp file, partially defeating the C7 hygiene fix in 1468358.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "82",
+      "verifies_round_1": "C7"
+    },
+    {
+      "id": "F3",
+      "type": "style",
+      "criticality": "low",
+      "description": "checkpoint_findings.py:73 docstring contains a stale line-number reference: 'the load-bearing durability is the file-level fsync at line 73'. Following the try/except addition for C7, the fsync call shifted to line 81.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "73",
+      "verifies_round_1": "new"
+    }
+  ]
+}

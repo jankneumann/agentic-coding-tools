@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coord.rotkohl.ai/schemas/status-report.json",
+  "title": "POST /status/report request body",
+  "description": "Status report payload sent by the autopilot status reporter (agent-coordinator/scripts/report_status.py). This schema documents the fields the endpoint accepts; it intentionally matches the existing Pydantic StatusReportRequest model (see agent-coordinator/src/coordination_api.py::StatusReportRequest). The phase_archetype field was added by archived change add-per-phase-archetype-resolution (already in StatusReportRequest at line 221); this proposal wires the producer (report_status.py) to actually populate it from loop-state.json.",
+  "type": "object",
+  "required": ["agent_id"],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Stable agent identifier (e.g. 'autopilot-<change-id>-<agent>')",
+      "examples": ["autopilot-wire-autopilot-phase-subagents-claude"]
+    },
+    "change_id": {
+      "type": "string",
+      "default": "",
+      "maxLength": 128,
+      "description": "OpenSpec change-id this status report relates to (defaults to empty string when no change is active)",
+      "examples": ["wire-autopilot-phase-subagents", ""]
+    },
+    "phase": {
+      "type": "string",
+      "default": "UNKNOWN",
+      "maxLength": 64,
+      "description": "Current autopilot phase id. Free-form string (autopilot phases listed below are conventional but the API accepts any value with maxLength <= 64).",
+      "examples": [
+        "INIT", "PLAN", "PLAN_ITERATE", "PLAN_REVIEW", "PLAN_FIX",
+        "IMPLEMENT", "IMPL_ITERATE", "IMPL_REVIEW", "IMPL_FIX",
+        "VALIDATE", "VAL_REVIEW", "VAL_FIX",
+        "SUBMIT_PR", "ESCALATE", "DONE", "UNKNOWN"
+      ]
+    },
+    "phase_archetype": {
+      "type": ["string", "null"],
+      "maxLength": 64,
+      "enum": ["architect", "reviewer", "implementer", "analyst", "runner", null],
+      "description": "Resolved archetype for the current phase. Null when no archetype was resolved (coordinator unreachable, harness Agent unavailable, or override path with no archetype semantics).",
+      "examples": ["implementer", null]
+    },
+    "message": {
+      "type": "string",
+      "default": "",
+      "maxLength": 500,
+      "description": "Free-text status message"
+    },
+    "needs_human": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set when the agent requires human intervention to continue"
+    },
+    "event_type": {
+      "type": "string",
+      "default": "status.phase_transition",
+      "maxLength": 64,
+      "description": "Free-form event-type string. Conventional values used by the existing status reporter: 'status.phase_transition' (default heartbeat-style report), 'status.escalated' (set when needs_human=true), and historical 'status.gate_check' / 'status.phase_skip' from archived changes. The API does not enforce an enum.",
+      "examples": [
+        "status.phase_transition",
+        "status.escalated",
+        "status.gate_check",
+        "status.phase_skip"
+      ]
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "description": "Free-form metadata bag",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "agent_id": "autopilot-feat-x",
+      "change_id": "feat-x",
+      "phase": "IMPLEMENT",
+      "phase_archetype": "implementer",
+      "message": "implementing wp-backend",
+      "needs_human": false,
+      "event_type": "status.phase_transition"
+    },
+    {
+      "agent_id": "autopilot-feat-x",
+      "change_id": "feat-x",
+      "phase": "PLAN",
+      "phase_archetype": null,
+      "message": "running with harness defaults — coordinator was unreachable",
+      "needs_human": false,
+      "event_type": "status.phase_transition"
+    }
+  ]
+}

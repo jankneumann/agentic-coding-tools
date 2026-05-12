@@ -1,0 +1,67 @@
+{
+  "review_round": 2,
+  "review_type": "implementation",
+  "vendor": "gemini-cli-jules",
+  "findings": [
+    {
+      "id": "R-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Replay detection logic in apply_phase_outcome is incomplete. It only compares handoff_id (line 947), omitting the phase check required by Design D4 and the function's own docstring (lines 908-912). This allows a stale handoff_id from a different phase to be incorrectly accepted as a replay, potentially skipping state updates for the current phase.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 947,
+        "end": 949
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-002",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The discover_agents MCP tool (lines 1040-1066) does not surface the new phase_archetype field in its response dictionary. While the field was added to AgentInfo and the HTTP API surface, the MCP implementation manually builds a dictionary that omits it, breaking observability parity for MCP clients.",
+      "file_path": "agent-coordinator/src/coordination_mcp.py",
+      "line_range": {
+        "start": 1052,
+        "end": 1065
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-003",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The heartbeat MCP tool (line 1070) has not been updated to accept or forward the phase_archetype argument. This prevents agents using the MCP transport from reporting their active archetype via heartbeats, even though the underlying DiscoveryService and HTTP API now support it.",
+      "file_path": "agent-coordinator/src/coordination_mcp.py",
+      "line_range": {
+        "start": 1070,
+        "end": 1090
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-004",
+      "type": "observability",
+      "criticality": "low",
+      "description": "Orphaned resolution cache files may persist indefinitely. In apply_phase_outcome, the function returns early on replay (line 970) without attempting to unlink the cache file. If a previous run crashed after LoopState was persisted but before the cache was unlinked, the file remains on disk even after a successful resume.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 970,
+        "end": 971
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-005",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "In apply_phase_outcome, if the resolution cache file is unparseable or has a checksum mismatch, the function records phase_archetype as None (lines 961, 989). This correctly falls back to legacy behavior but may hide integration bugs where the cache is being malformed by build_phase_dispatch_kwargs.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 952,
+        "end": 990
+      },
+      "disposition": "acknowledge"
+    }
+  ]
+}

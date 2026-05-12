@@ -77,7 +77,12 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup)"
+# --sibling places the cleanup worktree at .git-worktrees/<change-id>--cleanup/
+# (peer of the implementation worktree at .git-worktrees/<change-id>/) rather
+# than nested inside it. The nested layout used to leave `cleanup/` as an
+# untracked directory in the impl worktree's git status and forced a
+# `git worktree remove --force` for the cleanup-of-cleanup case.
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup --sibling)"
 cd "$WORKTREE_PATH"
 
 # The cleanup worktree is on its OWN scratch branch (with the --cleanup suffix),
@@ -407,6 +412,22 @@ openspec validate --strict
 # Uses the resolved FEATURE_BRANCH to honor OPENSPEC_BRANCH_OVERRIDE
 git branch -d "$FEATURE_BRANCH" 2>/dev/null || true
 
+# Delete prototype variant branches (per add-prototyping-stage / D4).
+# These are prototype/<change-id>/v<n> branches created by /prototype-feature
+# and retained through the feature lifecycle for synthesis traceability.
+# The helper enumerates and force-deletes — variant branches were
+# exploratory and aren't expected to be merged into main (the chosen
+# design landed on the feature branch via /iterate-on-plan synthesis,
+# not via a merge of any single variant).
+python3 "<skill-base-dir>/scripts/cleanup_prototype.py" "${CHANGE_ID}" || true
+
+# Then push deletions for the prototype branches that had remote tracking
+# (best-effort — silently skip remotes that never had them).
+for variant_branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/prototype/${CHANGE_ID}/); do
+  remote_branch="${variant_branch#origin/}"
+  git push origin --delete "${remote_branch}" 2>/dev/null || true
+done
+
 # Prune remote tracking branches
 git fetch --prune
 ```
@@ -431,8 +452,10 @@ Remove all worktrees for this feature (including the cleanup worktree).
 # Return to shared checkout first (cleanup worktree is about to be removed)
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
-# Remove cleanup worktree
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
+# Remove cleanup worktree (sibling layout — see Step 1).
+# The teardown autodetects the alternate layout if a legacy nested cleanup
+# worktree exists, so this flag stays correct across the migration window.
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup --sibling
 
 # Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
@@ -440,6 +463,16 @@ if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" ${AGENT_FLAG}
+
+# Remove prototype variant worktrees (per add-prototyping-stage / D4).
+# These are .git-worktrees/<change-id>/v<n>/ created by /prototype-feature
+# and auto-pinned to survive the 24h GC. /cleanup-feature is what unpins +
+# removes them. Tear down v1..v6 best-effort — most invocations won't have
+# all six, but the loop covers the spec's max.
+for vid in v1 v2 v3 v4 v5 v6; do
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" unpin "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+done
 
 # Garbage-collect stale worktrees
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc

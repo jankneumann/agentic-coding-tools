@@ -1,0 +1,115 @@
+{
+  "review_round": 2,
+  "review_type": "implementation",
+  "vendor": "claude-opus-4-7",
+  "findings": [
+    {
+      "id": "R-001",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "INIT/SUBMIT_PR archetype recording is NOT wired into the production SKILL.md prose path. `_resolve_phase_archetype_for_state_only` is only called from `_phase_init`/`_phase_submit_pr` inside `autopilot.run_loop`, but SKILL.md never invokes `run_loop` \u2014 it drives phases inline (Section 1 INIT runs `assess_complexity` directly; Section 8 SUBMIT_PR runs `gh pr create` directly). Spec scenario 'INIT phase records archetype despite being state-only' (specs/skill-workflow/spec.md:57-62) and '10 of 13 non-terminal phases set phase_archetype' (specs/skill-workflow/spec.md:42-46) are therefore not satisfied on the production prose path. The e2e test passes only because it bypasses SKILL.md and calls `_resolve_phase_archetype_for_state_only` directly (test_phase_dispatch_e2e.py:349, 394). Fix: add a SKILL.md step (or a `runner.py record-state-only-archetype` subcommand) for INIT/SUBMIT_PR to invoke the resolver, then assert via an integration test that drives the actual SKILL.md flow.",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": {
+        "start": 71,
+        "end": 100
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Phase prompt outcomes in `_PHASE_TASKS` do not match either SKILL.md prose or `TRANSITIONS`. (a) `_PHASE_TASKS['IMPLEMENT']` instructs sub-agents to return outcome 'continue'/'escalate', but `TRANSITIONS['IMPLEMENT']` only accepts 'complete'/'failed' (autopilot.py:138) AND SKILL.md IMPLEMENT prose says 'Outcome is \"complete\" on success' (SKILL.md:259). (b) `_PHASE_TASKS['VALIDATE']` says return 'continue'/'escalate', but `TRANSITIONS['VALIDATE']` accepts 'passed'/'failed' (autopilot.py:142). (c) `_PHASE_TASKS['IMPL_REVIEW']` says 'iterate' as a non-converged outcome, but `TRANSITIONS['IMPL_REVIEW']` accepts 'not_converged'/'max_iter'. A real sub-agent following the prompt will return outcomes the orchestrator can't route. The e2e test bypasses this by feeding canned outcomes directly to a mock runner. Fix: align prompt outcome strings with TRANSITIONS keys, or add a translation layer.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 395,
+        "end": 420
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-003",
+      "type": "performance",
+      "criticality": "high",
+      "description": "The token-budget CI gate uses synthetic data so small that it cannot fail under realistic prompt growth. `_synthetic_system_prompt()` emits ~1400 chars \u00d7 5 paragraphs and `_build_phase_prompt` produces ~1500 chars of scaffold + JSON, for a joined ~3000 chars (~750 tokens). Against the default 200k window this is ~0.4% \u2014 orders of magnitude below the 60%/75% thresholds. To trigger warn the system_prompt would need to grow ~160\u00d7; to fail, ~200\u00d7. Spec scenario 'Joined prompt token budget is enforced' (specs/skill-workflow/spec.md:172-178) is satisfied only nominally. The gate cannot detect realistic regressions (e.g., archetype prompts ballooning to 5\u201310k tokens, state_dict bloating). Fix: either model worst-case prompts (full archetypes.yaml prompt + realistic state_dict + max-size handoff), or have the gate query the actual coordinator/yaml at CI time.",
+      "file_path": "skills/autopilot/scripts/token_budget_check.py",
+      "line_range": {
+        "start": 95,
+        "end": 130
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-004",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`audit_log_validator.expected_phase_models_from_loop_state` hardcodes the canonical 7-phase happy path (`PLAN_ITERATE \u2192 ... \u2192 VAL_REVIEW`) and truncates by `len(handoff_ids)`. Any run that includes PLAN_FIX, IMPL_FIX, or VAL_FIX iterations (which is the common case when reviews don't converge on round 1) produces wrong expected counts because (a) FIX phases don't appear in the canonical sequence, yet (b) handoff_ids count includes all dispatched phases. The aggregate sanity check then fires false positives or false negatives depending on which model the FIX phase used. The validator should derive the actual phase sequence from a phase trace (e.g., parse audit entries' `phase` field) rather than truncating a static list.",
+      "file_path": "skills/autopilot/scripts/audit_log_validator.py",
+      "line_range": {
+        "start": 115,
+        "end": 147
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-005",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Test coverage gap: no test exercises the actual integration between `_phase_init`/`_phase_submit_pr` and `_resolve_phase_archetype_for_state_only`. `test_phase_dispatch_e2e.py:349,394` calls the resolver directly, never going through `_phase_init`. As a result, regressions to `_phase_init` (e.g., removing the resolver call, swapping argument order, returning early before the call) won't be caught. Combined with R-001 (no prose-path wiring), the test suite cannot detect the production-path bug. Add a test that constructs a `LoopState`, calls `_phase_init(state, change_dir, assess_complexity_fn=None)`, and asserts `state.phase_archetype == 'runner'`.",
+      "file_path": "skills/tests/autopilot/test_phase_dispatch_e2e.py",
+      "line_range": {
+        "start": 321,
+        "end": 405
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-006",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Operator-override path silently drops `system_prompt`. When `AUTOPILOT_PHASE_MODEL_OVERRIDE` is set, `_build_options` returns early with `model` set but no `system_prompt` (phase_agent.py:288-291). `build_phase_dispatch_kwargs` then folds nothing into the prompt \u2014 sub-agent runs with the harness default system prompt, NOT the archetype's. The doc in `_build_options` says this is intentional ('operator's choice carries no archetype semantics'), but the consequence is hidden: an operator setting `IMPL_REVIEW=opus` to force a stronger model also silently strips the reviewer system prompt \u2014 they likely expected reviewer-archetype behavior on opus. Either set both `model` and a default `system_prompt` (still resolve archetype, but use override model), or warn the operator at the start that override bypasses archetype prompts.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 261,
+        "end": 303
+      },
+      "disposition": "acknowledge"
+    },
+    {
+      "id": "R-007",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Spec scenario 'Network timeout falls back gracefully' (specs/skill-workflow/spec.md:86-91) is asserted only by stubbing `try_resolve_archetype_for_phase` to return `None`. The spec requires that the bridge function itself catches `TimeoutError` (and other failures) and returns None \u2014 but no test exercises that absorption. If a future bridge refactor lets `TimeoutError` propagate, `_build_options` will crash and the production phase will fail rather than fall back. Add a test that monkeypatches `coordination_bridge._http_request` to raise `TimeoutError` and asserts `try_resolve_archetype_for_phase(...)` returns None without raising.",
+      "file_path": "skills/tests/autopilot/test_inline_fallback.py",
+      "line_range": {
+        "start": 93,
+        "end": 110
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "R-008",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Default phase\u2192model maps disagree between `audit_log_validator._DEFAULT_PHASE_MODEL` (`IMPLEMENT: 'sonnet'`) and `token_budget_check._FALLBACK_MODEL_BY_PHASE` (`IMPLEMENT: 'opus'`). Both purport to mirror the production phase_mapping default. Token-budget assumes worst-case escalation; audit-validator assumes default-no-signals. If future phase_mapping changes happen, drift between these two static maps will silently invalidate the audit cross-check. Either share a single source-of-truth (parsed from `archetypes.yaml` once), or document the rationale for divergence at each call site.",
+      "file_path": "skills/autopilot/scripts/audit_log_validator.py",
+      "line_range": {
+        "start": 40,
+        "end": 54
+      },
+      "disposition": "acknowledge"
+    },
+    {
+      "id": "R-009",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "`apply_phase_outcome` silently aborts (logs warning + returns) on a missing/malformed `loop-state.json` (phase_agent.py:921-945). Spec ADDED requirement Sub-Agent Dispatch Protocol Helpers#2 says the helper 'updates loop-state.json' \u2014 there's no spec scenario covering the missing-file case. In practice this means a corrupted state file silently drops the handoff_id update; the orchestrator believes the phase succeeded but `loop-state.json` retains stale `last_handoff_id`. Either propagate a non-zero exit (which `runner.py` would report) or document the silent-skip behavior in the spec.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {
+        "start": 919,
+        "end": 945
+      },
+      "disposition": "acknowledge"
+    }
+  ]
+}

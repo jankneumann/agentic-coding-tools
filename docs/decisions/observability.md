@@ -5,11 +5,11 @@
 
 ---
 
-## 2026-04-25 — phase-record-compaction
+## 2026-04-25 — 2026-04-25-phase-record-compaction
 
 ### Phase: Plan
 
 **Token instrumentation via `anthropic.messages.count_tokens` with proxy fallback** — SDK call when available, char-count/4 proxy when offline, `AUTOPILOT_TOKEN_PROBE=disabled` to skip. Emits `phase_token_pre`/`post` audit-trail entries at each `_HANDOFF_BOUNDARIES` transition. Provides verifiable measurement for the ≥30% reduction success criterion.
 
 - Status: `active`
-- Source: [openspec/changes/phase-record-compaction/session-log.md](/openspec/changes/phase-record-compaction/session-log.md) (D6)
+- Source: [openspec/changes/archive/2026-04-25-phase-record-compaction/session-log.md](/openspec/changes/archive/2026-04-25-phase-record-compaction/session-log.md) (D6)

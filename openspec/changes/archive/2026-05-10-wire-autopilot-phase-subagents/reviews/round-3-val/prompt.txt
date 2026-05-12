@@ -1,0 +1,41 @@
+You are reviewing the VALIDATE phase output for OpenSpec change `wire-autopilot-phase-subagents`.
+
+## TIME BUDGET
+You have ~10 minutes. The artifact is a single markdown file (~3KB). Skim, identify gaps, emit JSON. Cap findings at 5.
+
+## What to read
+1. `openspec/changes/wire-autopilot-phase-subagents/validation-report.md` — VALIDATE phase output (PRIMARY)
+2. `openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md` — spec scenarios
+3. `openspec/changes/wire-autopilot-phase-subagents/loop-state.json` — final state snapshot
+4. (optional) git log --oneline ce17159..HEAD — list of commits in scope
+
+## What to find (focus narrowly — this is VAL_REVIEW, not IMPL_REVIEW)
+1. **Validation completeness** — did the report skip any check that the spec scenarios require? Are there spec scenarios with no covering test or evidence?
+2. **Evidence accuracy** — does the report's claim match reality? (E.g., if it claims 312 tests pass, is that count consistent with what `pytest --collect-only` would show?)
+3. **Acknowledged-finding triage** — is the disposition of deferred findings (C-R-003, C-R-004, C-R-006-009, G-R-003, G-R-005) reasonable, or should any be promoted back to blocking?
+4. **Pre-merge readiness** — anything that should block merge that the report dismisses or omits?
+
+DO NOT re-review the implementation itself — that was IMPL_REVIEW round 2. Focus on the VALIDATION evidence.
+
+## Output
+Emit ONE JSON object to stdout matching review-findings.schema.json:
+```json
+{
+  "review_round": 3,
+  "review_type": "validation",
+  "vendor": "<your-vendor-name>",
+  "findings": [
+    {
+      "id": "V-001",
+      "type": "spec_gap|correctness|completeness|observability|other",
+      "criticality": "critical|high|medium|low",
+      "description": "What's missing or wrong + why it matters.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {"start": 1, "end": 10},
+      "disposition": "fix|acknowledge|wontfix"
+    }
+  ]
+}
+```
+
+If everything looks good for merge, emit `findings: []` — that's a valid result and means the validation evidence is complete.

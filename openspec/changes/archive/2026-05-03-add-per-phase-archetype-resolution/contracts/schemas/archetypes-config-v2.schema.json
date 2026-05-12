@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coord.rotkohl.ai/schemas/archetypes-config-v2.schema.json",
+  "title": "Archetypes Configuration (schema_version 2)",
+  "description": "Extended archetypes.yaml schema. Adds optional phase_mapping section keyed by autopilot phase name. schema_version=1 documents (without phase_mapping) remain valid; loaders return phase_mapping={}.",
+  "type": "object",
+  "required": ["schema_version", "archetypes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "1 = pre-phase-mapping; 2 = with phase_mapping section"
+    },
+    "archetypes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/Archetype"
+      }
+    },
+    "phase_mapping": {
+      "type": "object",
+      "description": "Optional. Maps autopilot phase names to archetype names + per-phase signal lists.",
+      "additionalProperties": {
+        "$ref": "#/$defs/PhaseMappingEntry"
+      },
+      "propertyNames": {
+        "enum": [
+          "INIT",
+          "PLAN",
+          "PLAN_ITERATE",
+          "PLAN_REVIEW",
+          "PLAN_FIX",
+          "IMPLEMENT",
+          "IMPL_ITERATE",
+          "IMPL_REVIEW",
+          "IMPL_FIX",
+          "VALIDATE",
+          "VAL_REVIEW",
+          "VAL_FIX",
+          "SUBMIT_PR"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "Archetype": {
+      "type": "object",
+      "required": ["model", "system_prompt"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Default model name (e.g., 'opus', 'sonnet', 'haiku')"
+        },
+        "system_prompt": {
+          "type": "string",
+          "description": "Archetype's system prompt"
+        },
+        "escalation": {
+          "$ref": "#/$defs/Escalation"
+        }
+      }
+    },
+    "Escalation": {
+      "type": "object",
+      "required": ["escalate_to"],
+      "additionalProperties": false,
+      "properties": {
+        "escalate_to": {
+          "type": "string",
+          "description": "Model to escalate to when triggers fire"
+        },
+        "max_write_dirs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Escalate if work-package write_allow exceeds this many unique dir prefixes"
+        },
+        "max_dependencies": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Escalate if dependency count exceeds this"
+        },
+        "loc_threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Escalate if loc_estimate exceeds this"
+        }
+      }
+    },
+    "PhaseMappingEntry": {
+      "type": "object",
+      "required": ["archetype"],
+      "additionalProperties": false,
+      "properties": {
+        "archetype": {
+          "type": "string",
+          "description": "Name of an archetype defined in the archetypes section"
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Signal keys to extract from state_dict for this phase. Unknown keys are silently ignored."
+        }
+      }
+    }
+  }
+}
