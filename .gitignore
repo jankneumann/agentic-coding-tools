@@ -247,5 +247,8 @@ artifacts/
 # Per-run autopilot phase-resolution cache (wire-autopilot-phase-subagents D4)
 openspec/changes/*/.phase-resolution-cache.json
 
+# Transient curator scratch from /plan-roadmap structural pass (consumed by finalize)
+openspec/.plan-roadmap-tmp/
+
 # Legacy openspec init output (replaced by .agents/skills/ via skills/install.sh)
 .agent/
