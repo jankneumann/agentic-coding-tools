@@ -195,3 +195,23 @@ class TestCli:
         assert aa.main(["--repo-root", str(repo)]) == 1
         # Tighten to 10m -> clear
         assert aa.main(["--repo-root", str(repo), "--stale-hours", "0.166"]) == 0
+
+    def test_naive_timestamp_in_registry_does_not_raise(self, repo: Path) -> None:
+        """Registry entries with naive (no-tz) timestamps must not raise TypeError.
+
+        Regression: external tooling or hand-edits can produce timestamps without
+        offset info; _parse_iso must normalize them to UTC so the subsequent
+        aware/naive subtraction doesn't crash check_no_active_agents.
+        """
+        recent = datetime.now(timezone.utc) - timedelta(minutes=5)
+        write_registry(repo, [{
+            "change_id": "naive-ts",
+            "agent_id": None,
+            "branch": "openspec/naive-ts",
+            "worktree_path": "/x/naive-ts",
+            "created_at": recent.replace(tzinfo=None).isoformat(),
+            "last_heartbeat": recent.replace(tzinfo=None).isoformat(),
+            "pinned": False,
+        }])
+        # Recent (5min ago) under default 1h threshold => still active => blocked, no crash
+        assert aa.main(["--repo-root", str(repo)]) == 1
