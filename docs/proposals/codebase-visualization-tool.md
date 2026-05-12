@@ -16,6 +16,8 @@ VS Code and other editors are file-tree + symbol-driven and stop at the function
 
 We already have most of the substrate. The cost-to-value of building the UX layer is favorable because (i) we are not greenfielding extraction, (ii) FalkorDB and Graphiti patterns are already validated in our content-analyzer codebase, and (iii) our agents will be heavy users — a graph surface with a documented action API benefits humans and agents simultaneously.
 
+Industry signal underlines the urgency. As coding agents are integrated into mainstream development workflows, longitudinal studies of large corporate codebases report (a) a sustained decline in the share of changed lines that are refactoring, (b) a measurable increase in cloned/duplicated code, (c) elevated short-term churn as agents overwrite recent work under narrow context windows, and (d) growing reliance on verbose lower-level implementations because agents readily manage boilerplate that humans would have factored into abstractions. The net effect is more code, more redundancy, and less architectural cohesion — exactly the conditions under which a multi-scale, blast-radius-aware, AI-anchored navigation surface stops being a nice-to-have and starts being a precondition for safe review velocity.
+
 ## Guiding Principles
 
 - **JSON files remain canonical** and committed to git. FalkorDB is a derived index, rebuilt from JSON on demand. Diffability of architecture state in PRs is preserved.
@@ -79,6 +81,16 @@ Acceptance outcomes:
 - A migration script MUST move existing event artifacts into dated paths idempotently.
 - `codeviz-artifact-inventory` MUST output JSON conforming to a checked-in schema.
 
+### Capability: AST-compressed bundles
+
+Generate per-file (and per-module) JSON artifacts that capture the *architectural skeleton* of source code while aggressively stripping implementation bodies. Reuses the existing tree-sitter pipeline (`skills/refresh-architecture/scripts/enrich_with_treesitter.py`). Bundle modes: `signatures` (function/method signatures, type interfaces, imports/exports, class/struct definitions; bodies replaced with `{...}`) and `skeleton` (signatures plus public docstrings and decorators). Output is committed under `docs/architecture-analysis/ast-bundles/<lang>/<module>.json` with the mandatory artifact header. Bundles are deterministic and feed both (a) the AI subgraph-retrieval context assembly — cheaper than raw source slicing for "give me the API surface of this module" queries — and (b) the SPA source viewer's overview mode for large files.
+
+Acceptance outcomes:
+- A bundle generator MUST emit `signatures` and `skeleton` modes from `python_analysis.json`, `ts_analysis.json`, and `postgres_analysis.json` inputs.
+- The `signatures` mode MUST reduce per-module token count by at least 50% versus raw source, measured on a representative sample of ten modules.
+- Bundles MUST be deterministic — the same input produces byte-identical output.
+- The subgraph-retrieval service MUST be able to substitute a bundle for raw source slices behind a `prefer_bundle=true` query parameter.
+
 ### Capability: Architecture fitness CI checks
 
 Extend the existing `make architecture-validate` target with a fitness-rule engine that enforces structural invariants on every PR: no new cross-layer flows beyond an allowlist, no new disconnected endpoints, no removal of `IMPLEMENTS_PROPOSAL` edges for active OpenSpec changes, no new TODO/FIXME markers in nodes flagged as `critical_path`. Rules expressed as YAML in `architecture-fitness.yaml`. Fitness violations are emitted as event artifacts (carrying the mandatory header) so they participate in the temporal layer.
@@ -119,21 +131,44 @@ Acceptance outcomes:
 - A second ingestion with a different `--commit-sha` MUST preserve prior temporal validity and only update edges that changed.
 - Ingestion logs MUST report node/edge counts created, updated, deprecated per type.
 
+### Capability: Code metrics enrichment
+
+Augment the ingestion pipeline with per-node metric properties: `loc` (lines of code; for functions, the body line count; for files, total), `cyclomatic_complexity` (where computable from tree-sitter CST traversal, currently practical for Python and TypeScript), `mutation_flags` (does the symbol mutate module-level or external state — derived from assignment-to-non-local CST patterns), `test_coverage_pct` (where coverage reports are present), and `last_modified_commit`. Metrics are substrate for the CodeCity 3D height/area encoding, the risk lens, and AI quality queries ("show me the highest-complexity untested functions"). Depends on the ingestion pipeline.
+
+Acceptance outcomes:
+- Every File and Symbol node ingested MUST carry `loc` and `last_modified_commit` properties.
+- `cyclomatic_complexity` MUST be computed and stamped for at least 80% of Python and TypeScript Symbol nodes.
+- `mutation_flags` MUST be a boolean derived from CST analysis and documented in `docs/codeviz/metrics.md`.
+- `test_coverage_pct` MUST be optional — present when a coverage report is found, absent otherwise — and never block ingestion.
+
 ### Capability: HTTP API server (FastAPI) over FalkorDB
 
-A FastAPI service exposing read endpoints — `/repos`, `/repos/{id}/graph?filter=...`, `/repos/{id}/symbols/{symbol_id}`, `/repos/{id}/subgraph?seed=...&hops=N`, `/repos/{id}/at/{commit_sha}/subgraph?...`, `/cypher` (admin-only) — plus a streaming `/ai/query` endpoint used by the AI panel. CORS configured for the local SPA dev origin. Read-only by default. Reuses FastAPI patterns from `agent-coordinator/`. Depends on the ingestion pipeline.
+A FastAPI service exposing read endpoints — `/repos`, `/repos/{id}/graph?filter=...`, `/repos/{id}/symbols/{symbol_id}`, `/repos/{id}/symbols/{symbol_id}/dependents?transitive=true&depth=N`, `/repos/{id}/subgraph?seed=...&hops=N`, `/repos/{id}/at/{commit_sha}/subgraph?...`, `/cypher` (admin-only) — plus a streaming `/ai/query` endpoint used by the AI panel. The `/dependents` endpoint is first-class because reverse-dependency queries are the single most common AI- and reviewer-driven operation ("what would break if I change this?"). CORS configured for the local SPA dev origin. Read-only by default. Reuses FastAPI patterns from `agent-coordinator/`. Depends on the ingestion pipeline.
 
 Acceptance outcomes:
 - Subgraph queries with `hops <= 3` MUST return in under 100 ms at p95 on a 2k-node graph.
+- The `/dependents` endpoint MUST support `transitive=true|false` and a `depth` parameter, and MUST return a flat list with hop-distance per entry.
 - OpenAPI schema MUST be auto-generated and committed.
 - `/cypher` MUST be disabled by default and require an explicit env flag.
 - Server MUST refuse cross-repo queries unless `repo_id` is explicitly specified.
+
+### Capability: MCP server interface over the graph
+
+Expose the same read operations as the HTTP API through an MCP server, so MCP-aware agents (Claude Desktop, Cursor, our own coordinator-orchestrated agents) can query the codeviz graph using the same state the SPA reads. The MCP server is a thin adapter over the FastAPI handlers; it MUST NOT duplicate the query logic. Aligns with the repo convention `MCP for local agents, HTTP for cloud agents` documented in `openspec/project.md`. Tools exposed: `loc`, `subgraph`, `dependents`, `at_commit_subgraph`, `cypher` (gated). Depends on the HTTP API server.
+
+Acceptance outcomes:
+- An MCP server MUST be runnable via `make codeviz-mcp` and reachable over stdio.
+- Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the MCP surface MUST NOT introduce new query logic.
+- The MCP server MUST be discoverable from `agent-coordinator/`'s capability registry.
+- Documentation MUST cover Claude Desktop and Cursor configuration snippets at `docs/codeviz/mcp.md`.
 
 ## Phase 1 — Single-Page Web App Shell
 
 ### Capability: SPA render scaffold (rendering choice via prototype phase)
 
 A TypeScript + Vite SPA. The primary canvas implementation is selected via the `/prototype-feature` skill, which produces competing working skeletons across four candidate render layers — Cytoscape.js 2D (fcose layout), Sigma.js + graphology (WebGL), three.js CodeCity 3D, and Observable Framework + d3 — each fed the same subgraph payload from a stubbed HTTP API. Variants are scored on initial-render performance, layout stability, interaction richness (selection, lasso, semantic zoom), and developer ergonomics; the winning variant is promoted to production and the others retained as feature-flagged experimental views. Semantic coloring by layer (Python / TS / SQL / config / docs), hover tooltips, click selection, lasso multi-select, and pan/zoom with semantic zoom levels (repo → service → module → file → symbol) are required of the production variant. Depends on the HTTP API server.
+
+**Semantic-zoom implementation note.** Semantic zoom across scale levels MUST be implemented by *rescaling the coordinate domain*, not by applying a single geometric transform. Variants using D3 MUST use `rescaleX/rescaleY` on the active scale objects so node spacing widens as the user zooms, while geometric properties of individual nodes (stroke width, font size, label visibility threshold) are derived from `transform.k` separately to remain readable across scales. Variants using Cytoscape MUST achieve the same effect through `zoom`-event listeners that update style functions. This invariant ensures that text and connections stay legible whether the user is viewing the full repo or a single module — and prevents the prototype variants from diverging in how zoom behaves.
 
 Acceptance outcomes:
 - Four prototype skeletons MUST exist, each rendering the same 1,471-node fixture from a stub API.
@@ -142,6 +177,7 @@ Acceptance outcomes:
 - Production layout MUST be deterministic across page reloads given the same data (seeded RNG or persisted positions).
 - Selection state MUST be reflected in the URL.
 - Zoom level changes MUST progressively reveal/hide node detail (label, type badges).
+- Stroke width and label font size MUST remain visually constant across at least three zoom decades; node spacing MUST scale via domain rescaling rather than geometric transform.
 
 ### Capability: Source viewer panel with deep links
 
@@ -187,12 +223,14 @@ Acceptance outcomes:
 
 ### Capability: Diff overlay rendering in SPA
 
-The SPA accepts a `?diff=<commit-sha>` URL parameter and renders the diff over the current graph — color-codes nodes by change kind (added / removed / modified / touched-by-callers), highlights affected edges, and exposes a "blast radius" Sankey panel showing transitive impact across parallel zones. Depends on diff-graph artifact generator.
+The SPA accepts a `?diff=<commit-sha>` URL parameter and renders the diff over the current graph — color-codes nodes by change kind (added / removed / modified / touched-by-callers), highlights affected edges, and exposes a "blast radius" Sankey panel showing transitive impact across parallel zones. Additionally supports a **ghost-overlay mode** (`?pending=<patch-id>` or `?ghost=true` with a posted patch payload) that renders agent-proposed-but-not-yet-committed changes as semi-transparent "ghost" nodes and edges layered over the current graph, with visible *visual anchors* (icons indicating the proposing agent, commit-message-to-be, and confidence). This lets a reviewer see what an agent intends to do *before* it commits and audit blast radius pre-emptively. Depends on diff-graph artifact generator.
 
 Acceptance outcomes:
 - Loading a diff over a 1.5k-node graph MUST add no more than 500 ms to initial render.
 - The Sankey panel MUST be interactive (click a band to filter the canvas).
 - Removed nodes MUST remain visible at low opacity until explicitly dismissed.
+- Ghost-overlay mode MUST visually distinguish *proposed* changes from *committed* changes via opacity and an explicit "pending" badge.
+- Ghost-overlay payloads MUST carry an agent identifier and a `proposed_at` timestamp so the reviewer can attribute and date proposed changes.
 
 ### Capability: Temporal snapshot store and scrubber
 
@@ -221,6 +259,8 @@ A chat UI in the SPA that consumes the streaming `/ai/query` endpoint. Selected 
 
 Every citation MUST be tagged with an `evidence_kind` in `{static, runtime, historical}` so the UI can surface confidence: **static** evidence comes from the structural graph (CALLS/IMPORTS/etc.), **runtime** evidence comes from `INVOKES_AT_RUNTIME` edges produced by the runtime-correlation ingester, and **historical** evidence comes from commit-history or incident records. The model MUST NOT mix evidence kinds in a single claim without explicitly labeling each.
 
+When the AI traverses multiple files to arrive at an answer (the dominant pattern for non-trivial code-reasoning tasks), the chat panel MUST render the **trajectory** — the ordered list of files/symbols the model inspected — alongside the answer, with each step linked to its source slice and the Cypher query (if any) that surfaced it. Trajectories make multi-file reasoning auditable and let reviewers verify the model did not stop at a local optimum.
+
 Acceptance outcomes:
 - First token MUST stream within 1 second of submission for a typical query.
 - Citations in responses MUST be clickable and select/navigate the canvas.
@@ -228,6 +268,7 @@ Acceptance outcomes:
 - The model MUST refuse to make a claim of kind X if no edges of kind X exist in the retrieved subgraph.
 - The model MUST refuse to answer questions whose context exceeds the budget without confirmation.
 - A "show me the Cypher" toggle MUST reveal any tool-call queries the model executed.
+- Multi-file responses MUST be accompanied by a trajectory list (ordered file/symbol nodes the model inspected) with click-to-navigate per step.
 
 ### Capability: Action API for agents
 
@@ -257,6 +298,16 @@ Acceptance outcomes:
 - Every active OpenSpec change MUST appear as a `Proposal` node.
 - Each proposal node MUST have at least one outgoing edge if its tasks reference any committed file.
 - The SPA MUST surface "related proposals" in the source viewer panel.
+
+### Capability: Agent-memory visualization layer
+
+Rather than introducing a parallel `.GCC/`-style agent-memory format, model the existing OpenSpec + session-log + worktree corpus *as* the agent memory layer and visualize it as a first-class lens. Treat each `openspec/changes/<id>/` directory as a memory episode with internal structure (`proposal.md` = intent, `tasks.md` = plan, `session-log.md` = execution trace, worktree branch = isolated workspace), each session-log entry as a temporal node, each worktree branch as a divergent reasoning track, and each merge back to the parent branch as a convergence point. Surface these as a dedicated **agent-memory** lens with timeline scrubber, branch tracks, and per-episode detail panel. Reuses `openspec-proposal-linkage` for the underlying graph data; adds session-log and worktree-branch ingestion plus the rendering. Depends on `openspec-proposal-linkage`, `spa-scaffold-render`, and `lens-framework`.
+
+Acceptance outcomes:
+- Every session-log entry under `openspec/changes/<id>/session-log.md` MUST become a temporal node connected to its parent Proposal.
+- Active worktree branches (per `.git-worktrees/.registry.json`) MUST render as parallel tracks under their associated Proposal node.
+- The agent-memory lens MUST visualize multi-agent activity — multiple worktrees + their session-log streams simultaneously — without requiring page reload between branches.
+- A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known state at any past point.
 
 ### Capability: Test ↔ symbol linkage
 
@@ -316,12 +367,14 @@ Acceptance outcomes:
 
 ### Capability: Optional CodeCity 3D view (experimental)
 
-A toggle that switches the canvas to a three.js CodeCity-style 3D treemap — buildings as classes/files, districts as packages, height as LOC, color as complexity or recent-change heat. Flagged as experimental; not the default surface.
+A toggle that switches the canvas to a three.js CodeCity-style 3D treemap — buildings as classes/files, districts as packages, height as LOC (from `code-metrics-enrichment`), color as complexity or recent-change heat. Flagged as experimental; not the default surface. Supports **WASDFQ spatial navigation**: WASD for planar movement across the city, F/Q for ascending/descending hierarchical layers (zoom-out to repo / zoom-in to module). This binding is chosen over arrow keys to avoid conflicting with screen-reader shortcuts and to remain accessible.
 
 Acceptance outcomes:
 - 3D view MUST render the current graph in under 3 seconds.
 - Switching between 2D and 3D MUST preserve selection state.
 - 3D view MUST be feature-flagged and disabled by default.
+- WASD MUST move the camera planar across the city; F/Q MUST step up/down in the abstraction hierarchy.
+- Camera controls MUST NOT use arrow keys (reserved for accessibility); WASDFQ bindings MUST be documented and remappable.
 
 ### Capability: Documentation and onboarding
 
