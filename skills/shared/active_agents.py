@@ -62,9 +62,12 @@ class ActiveAgent:
 
 def _parse_iso(ts: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(ts)
+        parsed = datetime.fromisoformat(ts)
     except (TypeError, ValueError):
         return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _registry_path(repo_root: Path) -> Path:
