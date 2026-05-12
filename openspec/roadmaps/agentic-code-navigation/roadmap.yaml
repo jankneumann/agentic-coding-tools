@@ -1,0 +1,141 @@
+schema_version: 1
+roadmap_id: roadmap-agentic-code-nav-roadmap
+source_proposal: docs/proposals/agentic-code-nav-roadmap.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: unified-code-knowledge-graph
+  title: Build unified code knowledge graph foundations
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on: []
+  description: >-
+    Implement the core multi-language ingestion pipeline and shared graph schema,
+    reusing FalkorDB + Graphiti learnings from agentic-content-analyzer. Include
+    entities for repos/services/modules/files/symbols/tests/endpoints/db-objects,
+    docs, OpenSpec artifacts, CI runs, and commits.
+  acceptance_outcomes:
+  - Graph ingestion runs end-to-end on at least one representative repository.
+  - Canonical entity and edge schema is documented and versioned.
+  - Provenance from graph nodes back to source files/commits is preserved.
+
+- item_id: temporal-versioned-architecture
+  title: Add temporal snapshots and architecture delta engine
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - unified-code-knowledge-graph
+  description: >-
+    Add commit/PR-scoped graph snapshots and delta computation to capture
+    structural changes over time, including edge additions/removals and hotspot
+    shifts.
+  acceptance_outcomes:
+  - Snapshot artifacts can be generated and queried by commit and PR.
+  - Delta output highlights added/removed nodes/edges and high-churn regions.
+  - Sliding-window trend queries are supported for churn and risk analysis.
+
+- item_id: interactive-ux-layers
+  title: Deliver multi-scale interactive UX layers
+  status: candidate
+  priority: 3
+  effort: L
+  depends_on:
+  - unified-code-knowledge-graph
+  - temporal-versioned-architecture
+  description: >-
+    Build topology-first navigation surfaces spanning service/module, dependency,
+    symbol, and line-level views with lens switching across structure, ownership,
+    risk, incident, and change-set context.
+  acceptance_outcomes:
+  - Users can navigate from high-level clusters to file/symbol/line provenance.
+  - Lens switches update the same underlying subgraph without full reload.
+  - Graph interactions are responsive on representative medium-scale repos.
+
+- item_id: review-centric-workflows
+  title: Add PR architecture impact and breakage analysis workflows
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - interactive-ux-layers
+  - temporal-versioned-architecture
+  description: >-
+    Provide review-mode UX and APIs for “what changed structurally” and “what
+    could this break,” including overlays for failing tests and CI checks.
+  acceptance_outcomes:
+  - PR view includes architectural impact summary alongside file diff.
+  - Impact radius query is available for selected nodes/symbols.
+  - Failing test/CI signals render as overlays on impacted graph regions.
+
+- item_id: ai-grounded-navigation
+  title: Implement AI-grounded graph interrogation
+  status: candidate
+  priority: 5
+  effort: L
+  depends_on:
+  - interactive-ux-layers
+  - review-centric-workflows
+  description: >-
+    Add natural-language query support that compiles to deterministic graph
+    queries and returns evidence-backed answer cards with confidence annotations.
+  acceptance_outcomes:
+  - Natural-language prompts map to auditable graph query plans.
+  - Answers include explicit evidence links to nodes/edges/files/commits.
+  - Confidence labels differentiate static inference vs runtime corroboration.
+
+- item_id: runtime-incident-correlation
+  title: Add runtime and incident correlation overlays
+  status: candidate
+  priority: 6
+  effort: M
+  depends_on:
+  - interactive-ux-layers
+  - temporal-versioned-architecture
+  description: >-
+    Ingest traces/log-derived interactions and incident/postmortem metadata,
+    linking runtime behavior to static architecture regions and discrepancy
+    hotspots.
+  acceptance_outcomes:
+  - Runtime interaction data is connected to corresponding graph entities.
+  - Incident annotations can be explored in architecture views.
+  - Runtime-vs-static discrepancy hotspots are detectable and queryable.
+
+- item_id: platform-extensibility
+  title: Deliver IDE/web delivery model and extension interfaces
+  status: candidate
+  priority: 7
+  effort: M
+  depends_on:
+  - interactive-ux-layers
+  - ai-grounded-navigation
+  description: >-
+    Ship an IDE extension surface and optional web canvas with stable APIs for
+    external tools/skills and graph pack export/import for branch/offline
+    analysis.
+  acceptance_outcomes:
+  - IDE integration supports deep links into code and graph context.
+  - Web canvas supports cross-team sharing and exploration sessions.
+  - Extension API contracts are documented for third-party analyzers.
+
+- item_id: prototype-alternatives-evaluation
+  title: Run prototype track to select implementation architecture
+  status: candidate
+  priority: 8
+  effort: M
+  depends_on:
+  - unified-code-knowledge-graph
+  description: >-
+    Execute and compare three alternatives: (A) FalkorDB-native + lightweight
+    IDE panel, (B) hybrid graph store + web-first visualization, (C)
+    local-cache-first incremental symbol indexer.
+  acceptance_outcomes:
+  - Prototypes are benchmarked on ingestion speed and query latency.
+  - UX comprehension and integration effort are comparatively documented.
+  - Decision memo identifies recommended architecture and rationale.
+
+created_at: '2026-05-12T08:49:31.579711+00:00'
+updated_at: '2026-05-12T09:10:00.000000+00:00'
