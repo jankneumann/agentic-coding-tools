@@ -46,6 +46,17 @@ Three classes of machine artifact exist in this repo and the tool MUST treat the
 
 The tool MUST NOT switch snapshot artifacts to on-disk append-only storage — that duplicates git's job and bloats the repo. The tool MUST add a diff artifact alongside each snapshot refresh so FalkorDB can apply incremental updates cheaply.
 
+## Rejected Alternatives
+
+A parallel Codex-authored proposal (PR #155, `docs/proposals/agentic-code-nav-roadmap.md`) framed prototype selection at the *architecture* level rather than the *rendering* level. Those alternatives were considered and explicitly rejected before this proposal was finalized:
+
+- **A. FalkorDB-native pipeline (no JSON canonical layer).** FalkorDB owns the architecture state directly; JSON files are not generated. *Rejected because* it loses git-native diffability — reviewers can no longer read PR diffs of `architecture.graph.json` and parallel-zone changes — and it forces a hard dependency on a running FalkorDB instance for every refresh, breaking the offline-by-default invariant.
+- **C. Local-cache-first incremental symbol indexer (no graph store).** A file/symbol-level index with aggressive local caching, no graph database, no Cypher. *Rejected because* it cannot express the bi-temporal and cross-artifact queries that drive the AI-anchored navigation, blast-radius, and lens-switching capabilities. Reimplementing temporal episodes on top of a flat index is exactly the work Graphiti already does.
+
+The chosen architecture (Codex's option B, refined) is **JSON canonical on disk + FalkorDB as a derived cache/index + web SPA front end + multi-repo namespacing from day one**. The Phase 0 capabilities encode this decision: snapshot artifacts remain committed, ingestion is idempotent, and FalkorDB is rebuildable from JSON at any time.
+
+IDE-extension-as-primary-delivery (Codex's preferred surface) was also rejected for v1. A web SPA was chosen because (i) it works uniformly across editors and review tools, (ii) it supports headless agent use through the Action API, and (iii) it can be deep-linked from GitHub PR comments. An IDE extension remains a viable follow-up phase but is out of v1 scope.
+
 ## Phase 0 — Foundations and Substrate
 
 ### Capability: Mandatory artifact header schema
@@ -67,6 +78,16 @@ Acceptance outcomes:
 - All event artifacts MUST be written under `<dir>/<YYYY-MM-DD>/<run-id>.json`.
 - A migration script MUST move existing event artifacts into dated paths idempotently.
 - `codeviz-artifact-inventory` MUST output JSON conforming to a checked-in schema.
+
+### Capability: Architecture fitness CI checks
+
+Extend the existing `make architecture-validate` target with a fitness-rule engine that enforces structural invariants on every PR: no new cross-layer flows beyond an allowlist, no new disconnected endpoints, no removal of `IMPLEMENTS_PROPOSAL` edges for active OpenSpec changes, no new TODO/FIXME markers in nodes flagged as `critical_path`. Rules expressed as YAML in `architecture-fitness.yaml`. Fitness violations are emitted as event artifacts (carrying the mandatory header) so they participate in the temporal layer.
+
+Acceptance outcomes:
+- A fitness-rule engine MUST be implemented and invokable via `make architecture-validate --fitness`.
+- At least four rules MUST ship in `architecture-fitness.yaml` with documented rationale.
+- A CI step MUST fail the build on fitness violations and post a structured comment to the PR.
+- Fitness reports MUST be written as event artifacts under `docs/architecture-analysis/fitness/<YYYY-MM-DD>/<run-id>.json`.
 
 ### Capability: FalkorDB local container + bootstrap script
 
@@ -140,6 +161,18 @@ Acceptance outcomes:
 - Cypher queries MUST be syntax-validated client-side before submission.
 - A saved filter MUST be restorable from its URL alone.
 
+### Capability: Lens-switching framework
+
+A single switching control on the SPA that exposes named lenses, each a saved combination of coloring, edge weighting, node filtering, and overlay activation. Built-in lenses: **structure** (default layer-colored), **diff** (commit-range delta), **ownership** (CODEOWNERS-derived), **risk** (churn × fan-in × findings), **incident** (recent runtime/incident markers), **change-set** (touched-by current PR or OpenSpec change). Lenses MUST compose with filters: a lens defines defaults, the filter pane can override. Lens choice MUST be encoded in the URL so saved views round-trip.
+
+This capability supersedes ad-hoc overlays. Existing capabilities — diff overlay, security finding overlay, test-coverage edges, parallel-zone clustering — register *as* lenses against the same framework rather than as bespoke renderers. Depends on the SPA render scaffold.
+
+Acceptance outcomes:
+- A lens registry MUST expose at least six built-in lenses on first load.
+- Switching lenses MUST update the canvas in under 200 ms without re-fetching from the API for state already cached.
+- A lens MUST be expressible declaratively (YAML schema) so new lenses can be added without code changes for the common cases.
+- Lens choice MUST be URL-encoded and survive page reload.
+
 ## Phase 2 — Diff and Temporal Navigation
 
 ### Capability: Diff-graph artifact generator
@@ -186,9 +219,13 @@ Acceptance outcomes:
 
 A chat UI in the SPA that consumes the streaming `/ai/query` endpoint. Selected node(s) auto-attach as context. The model can emit Cypher queries against FalkorDB (tool-use), receive subgraph results, and cite specific nodes and source lines in responses. Citations are clickable and select the cited node on the canvas. Supports follow-up questions over the same anchored context.
 
+Every citation MUST be tagged with an `evidence_kind` in `{static, runtime, historical}` so the UI can surface confidence: **static** evidence comes from the structural graph (CALLS/IMPORTS/etc.), **runtime** evidence comes from `INVOKES_AT_RUNTIME` edges produced by the runtime-correlation ingester, and **historical** evidence comes from commit-history or incident records. The model MUST NOT mix evidence kinds in a single claim without explicitly labeling each.
+
 Acceptance outcomes:
 - First token MUST stream within 1 second of submission for a typical query.
 - Citations in responses MUST be clickable and select/navigate the canvas.
+- Every citation MUST carry a visible `evidence_kind` badge (`static` / `runtime` / `historical`).
+- The model MUST refuse to make a claim of kind X if no edges of kind X exist in the retrieved subgraph.
 - The model MUST refuse to answer questions whose context exceeds the budget without confirmation.
 - A "show me the Cypher" toggle MUST reveal any tool-call queries the model executed.
 
@@ -236,6 +273,36 @@ Surface findings from `pattern_insights.json` and the security-review skill outp
 Acceptance outcomes:
 - Every security finding currently in `pattern_insights.json` MUST appear as a `Finding` node.
 - A click on a Finding node MUST display the original finding text and severity.
+
+### Capability: Runtime and incident correlation
+
+Ingest runtime evidence and link it to the static architecture graph: (a) OpenTelemetry traces (or compatible JSON dumps) producing `INVOKES_AT_RUNTIME` edges between Service/Endpoint nodes, (b) an `incidents.yaml` file (or a connector to an external incident store) producing `Incident` nodes with `AFFECTS` edges to the implicated symbols/services. Surface "runtime-vs-static discrepancy" warnings: edges observed at runtime with no static counterpart, and vice versa. Powers the **incident** lens and feeds the AI panel with runtime evidence for confidence-tagged answers.
+
+Acceptance outcomes:
+- An ingester MUST consume at least one OpenTelemetry trace format and produce `INVOKES_AT_RUNTIME` edges.
+- An ingester MUST consume an `incidents.yaml` schema (checked in) and produce `Incident` nodes with `AFFECTS` edges.
+- Discrepancy detection (runtime edge with no static counterpart) MUST be queryable via the HTTP API.
+- Runtime evidence MUST be tagged with `evidence_kind=runtime` for use by the AI chat panel.
+
+### Capability: Ownership, churn, and risk scoring
+
+Derive ownership from `CODEOWNERS` and `git blame`, churn from commit frequency over a sliding window, and a composite risk score per node (function of churn, fan-in, recent findings, and absence of tests). Stamps every File/Symbol node with `owner_team`, `churn_30d`, `risk_score` properties. Powers the **ownership** and **risk** lenses.
+
+Acceptance outcomes:
+- An ingester MUST parse `CODEOWNERS` and stamp `owner_team` on every File node it claims to own.
+- `git blame` aggregation MUST stamp `last_modified_by` and `last_modified_at` on every Symbol node.
+- A risk-score function MUST be documented in `docs/codeviz/risk-score.md` with its inputs and weights.
+- The ownership and risk lenses MUST visibly color nodes by their derived properties.
+
+### Capability: Graph pack export and import
+
+Define a portable graph-pack format: a tarball containing the snapshot JSON files for a given commit + a manifest listing repo IDs, schema version, and signatures. Export endpoint produces a graph pack for the current state or a named commit; import endpoint ingests a pack into a fresh FalkorDB instance. Enables offline review, per-branch sharing, and reproducible bug reports.
+
+Acceptance outcomes:
+- A graph pack MUST be a single tarball with a checked-in manifest schema at `contracts/graph-pack.schema.json`.
+- `/repos/{id}/export?at={commit_sha}` MUST stream a pack in under 30 seconds for a 1.5k-node repo.
+- `codeviz-pack import <file>` MUST repopulate a fresh FalkorDB instance idempotently.
+- The pack MUST include the mandatory artifact header on every embedded JSON.
 
 ## Phase 5 — Polish and Extensibility
 
