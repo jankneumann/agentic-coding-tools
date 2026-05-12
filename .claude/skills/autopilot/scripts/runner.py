@@ -59,6 +59,32 @@ def _cmd_build_dispatch(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_record_state_only_archetype(args: argparse.Namespace) -> int:
+    """Record phase_archetype for a state-only phase (INIT or SUBMIT_PR).
+
+    SKILL.md INIT/SUBMIT_PR sections shell to this so phase_archetype is
+    populated for state-only phases the same way build-dispatch populates
+    it for the 7 dispatching phases (closes IMPL_REVIEW finding R-001).
+    """
+    for name in ("change_id", "phase"):
+        val = getattr(args, name, "")
+        if not isinstance(val, str) or not val.strip():
+            sys.stderr.write(f"runner: --{name.replace('_', '-')} must be a non-empty string\n")
+            return 2
+    try:
+        phase_agent.record_state_only_archetype(
+            change_id=args.change_id,
+            phase=args.phase,
+        )
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"runner: record-state-only-archetype failed: {exc}\n")
+        return 1
+    return 0
+
+
 def _cmd_apply_outcome(args: argparse.Namespace) -> int:
     # Reject empty/whitespace-only IDs early. argparse only checks the
     # arg is present, not non-empty; phase_agent rejects deeper but the
@@ -111,6 +137,19 @@ def _build_parser() -> argparse.ArgumentParser:
     ao.add_argument("--outcome", required=True, help="Outcome string from the sub-agent.")
     ao.add_argument("--handoff-id", required=True)
     ao.set_defaults(func=_cmd_apply_outcome)
+
+    rs = sub.add_parser(
+        "record-state-only-archetype",
+        help="Resolve archetype for INIT/SUBMIT_PR and write to loop-state.json.",
+    )
+    rs.add_argument("--change-id", required=True)
+    rs.add_argument(
+        "--phase",
+        required=True,
+        choices=["INIT", "PLAN", "SUBMIT_PR"],
+        help="State-only phase id (INIT, PLAN, or SUBMIT_PR).",
+    )
+    rs.set_defaults(func=_cmd_record_state_only_archetype)
 
     return parser
 

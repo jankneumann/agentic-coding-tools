@@ -40,6 +40,10 @@ MANIFEST_SCHEMA_VERSION = 1
 # Path-safety constants.
 _VENDOR_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 _REVIEW_TYPES = frozenset({"plan", "implementation"})
+# Schema pattern for vendors[].findings_path (matches contract spec).
+_FINDINGS_PATH_RE = re.compile(
+    r"^findings-[A-Za-z0-9_-]+-(plan|implementation)\.json$"
+)
 
 # Per-finding required fields and enum values. The full JSON Schema lives in
 # contracts/finding.schema.json (documentation); this module enforces the
@@ -306,27 +310,50 @@ def write_manifest(
             raise ValueError(
                 f"vendors[].name {name!r} fails path-safety regex"
             )
-        # Defense in depth: validate findings_path mirrors the read-side
-        # checks in read_vendor_findings(). A malformed manifest produced
-        # here would write fine but be unreadable later — fail at write
-        # time instead, when the caller can still react.
-        findings_path = v.get("findings_path")
-        if findings_path is not None:
-            if not isinstance(findings_path, str):
-                raise ValueError(
-                    f"vendors[].findings_path for {name!r} must be a string, "
-                    f"got {type(findings_path).__name__}"
-                )
-            if "/" in findings_path or "\\" in findings_path or ".." in findings_path:
-                raise ValueError(
-                    f"vendors[].findings_path {findings_path!r} for {name!r} "
-                    f"contains path separator or '..'"
-                )
-        finding_count = v.get("finding_count")
-        if finding_count is not None and not isinstance(finding_count, int):
+        # The contract schema (review-cache-layout.schema.json line 81)
+        # requires every vendors[] entry to include name, findings_path,
+        # AND finding_count. Enforcing those at write time ensures the
+        # writer can never produce a manifest its own reader cannot
+        # process. Round-2 review caught that earlier "validate when
+        # present" semantics let through schema-invalid manifests.
+        if "findings_path" not in v:
+            raise ValueError(
+                f"vendors[] entry for {name!r} missing required "
+                f"'findings_path' field"
+            )
+        findings_path = v["findings_path"]
+        if not isinstance(findings_path, str):
+            raise ValueError(
+                f"vendors[].findings_path for {name!r} must be a string, "
+                f"got {type(findings_path).__name__}"
+            )
+        if "/" in findings_path or "\\" in findings_path or ".." in findings_path:
+            raise ValueError(
+                f"vendors[].findings_path {findings_path!r} for {name!r} "
+                f"contains path separator or '..'"
+            )
+        # Mirror the schema's pattern: findings-{vendor}-{plan|implementation}.json
+        if not _FINDINGS_PATH_RE.match(findings_path):
+            raise ValueError(
+                f"vendors[].findings_path {findings_path!r} for {name!r} "
+                f"does not match required pattern "
+                f"{_FINDINGS_PATH_RE.pattern}"
+            )
+        if "finding_count" not in v:
+            raise ValueError(
+                f"vendors[] entry for {name!r} missing required "
+                f"'finding_count' field"
+            )
+        finding_count = v["finding_count"]
+        if not isinstance(finding_count, int):
             raise ValueError(
                 f"vendors[].finding_count for {name!r} must be an integer, "
                 f"got {type(finding_count).__name__}"
+            )
+        if finding_count < 0:
+            raise ValueError(
+                f"vendors[].finding_count for {name!r} must be >= 0, "
+                f"got {finding_count}"
             )
 
     safe_dir = Path(out_dir).resolve(strict=False)
