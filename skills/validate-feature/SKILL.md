@@ -167,11 +167,19 @@ else
   echo "  Compose file: $COMPOSE_FILE"
   echo "  Log file: $LOG_FILE"
 
-  # Start services with DEBUG logging, redirect output to log file
+  # Start services with DEBUG logging, redirect output to log file.
+  #
+  # When the compose file gates the API server behind a profile (e.g. the
+  # agent-coordinator's `coordinator-api` service uses `profiles: [api]` so it
+  # doesn't auto-start during simple `docker compose up`), pass
+  # `COMPOSE_PROFILES` so the API process IS started here — without it the
+  # smoke + e2e phases get connection-refused on the API port. Multiple
+  # profiles can be comma-separated (`api,langfuse`).
   AGENT_COORDINATOR_DB_PORT=${AGENT_COORDINATOR_DB_PORT:-54322} \
-  AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-3000} \
+  AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-8081} \
   AGENT_COORDINATOR_REALTIME_PORT=${AGENT_COORDINATOR_REALTIME_PORT:-4000} \
-  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d 2>&1 | tee "$LOG_FILE"
+  COMPOSE_PROFILES=${COMPOSE_PROFILES:-api} \
+  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
 
   # Wait for health checks
   echo "Waiting for services to be healthy..."
@@ -186,9 +194,10 @@ else
     sleep 1
   done
 
-  # Wait for REST API (up to 15 seconds)
-  for i in $(seq 1 15); do
-    if curl -s http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}/ > /dev/null 2>&1; then
+  # Wait for REST API health endpoint (up to 30 seconds — the API container
+  # may need build time on first run + warmup before /health flips to 200)
+  for i in $(seq 1 30); do
+    if curl -sf http://localhost:${AGENT_COORDINATOR_REST_PORT:-8081}/health > /dev/null 2>&1; then
       echo "REST API is ready"
       break
     fi

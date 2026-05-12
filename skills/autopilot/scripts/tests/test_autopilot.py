@@ -59,7 +59,7 @@ def test_state_save_load_roundtrip(tmp_path: Path) -> None:
 def test_initial_state_defaults() -> None:
     """A fresh LoopState has the expected default values."""
     state = LoopState()
-    assert state.schema_version == 2
+    assert state.schema_version == 3  # bumped 2->3 by add-per-phase-archetype-resolution
     assert state.change_id == ""
     assert state.current_phase == "INIT"
     assert state.iteration == 0

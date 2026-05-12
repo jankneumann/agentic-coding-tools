@@ -1,0 +1,177 @@
+## Review Round 1
+
+Review the following artifacts for correctness, completeness, and adherence to project standards.
+
+### Proposal
+# Wire Autopilot Per-Phase Sub-Agent Dispatch into Production
+
+## Why
+
+Per-phase archetype resolution shipped under
+`2026-05-03-add-per-phase-archetype-resolution`, but the wiring is incomplete:
+
+- `skills/autopilot/scripts/phase_agent.py::make_phase_callback` is built and
+  unit-tested, yet **no production code path imports it**. The only callers
+  are tests under `skills/tests/phase-record-compaction/`.
+- `skills/autopilot/scripts/autopilot.py::run_loop` accepts callbacks
+  (`implement_fn`, `iterate_impl_fn`, `validate_fn`, …) but is never invoked
+  from production code — there is no CLI entry point and no skill imports it.
+- `skills/autopilot/SKILL.md` is prose-driven: it tells the orchestrator
+  agent to *"invoke `/implement-feature`"*, *"invoke `/iterate-on-implementation`"*
+  inline. Those invocations run in the orchestrator's own context, so the
+  archetype-mapped `model` (e.g. opus for review phases, sonnet for
+  implementation) is never actually applied.
+- `LoopState.phase_archetype` exists in the v3 schema but stays `null` in
+  every real run because nothing on the production path writes it.
+- `agent-coordinator/scripts/report_status.py` does not read
+  `state.phase_archetype` from `loop-state.json` and does not include it in
+  the POST body (deferred D-2 from the archived change).
+- `agent-coordinator/src/discovery.py::AgentInfo` has no `phase_archetype`
+  field, so `GET /discovery/agents` cannot expose what archetype each agent
+  is currently running under (deferred D-1).
+
+The net effect: every claim in `archetypes.yaml::phase_mapping` (architect
+on PLAN, reviewer on REVIEW, implementer on IMPLEMENT, …) is currently a
+**design intent that never executes**. Autopilot runs use a single model for
+the entire pipeline — whatever the operator started the session with.
+
+This proposal closes the wiring gap end-to-end so per-phase archetypes
+become real on every autopilot run.
+
+## What Changes
+
+1. **SKILL.md dispatch contract** — Replace the prose
+   "invoke `/implement-feature`" instructions in `skills/autopilot/SKILL.md`
+   with explicit per-phase `Agent(...)` dispatch blocks. Each block:
+   - Calls `phase_agent.build_phase_dispatch_kwargs(phase, state)` to obtain
+     `{prompt, model, system_prompt, isolation}` from the resolved archetype.
+   - Invokes the harness `Agent(prompt=..., model=..., isolation=...)` tool
+     directly, with `system_prompt` either pre-pended into `prompt` or passed
+     through if the harness exposes it.
+   - Captures `(outcome, handoff_id)` and feeds it back through
+     `make_phase_callback`'s state-update protocol so
+     `LoopState.phase_archetype` and `LoopState.last_handoff_id` are written
+     on the production path.
+
+2. **New helper `phase_agent.build_phase_dispatch_kwargs`** — A pure-Python
+   helper that returns the dispatch payload as a dict. SKILL.md prose copies
+   the values into the actual `Agent(...)` call. Exposed because shelling
+   out to Python from SKILL.md prose is the established pattern for
+   structured option assembly in this repo.
+
+3. **Inline fallback** — When `try_resolve_archetype_for_phase` returns
+   `None` (coordinator unreachable) OR when `AGENT_EXECUTION_ENV` indicates
+   the harness `Agent(...)` tool is not available, SKILL.md falls through
+   to the existing prose path: invoke `/implement-feature`,
+   `/iterate-on-implementation`, etc. inline. `LoopState.phase_archetype`
+   is recorded as `null` for those phases (already supported today).
+
+4. **D-2: status reporter wiring** — Extend
+   `agent-coordinator/scripts/report_status.py` to read
+   `state.phase_archetype` from `loop-state.json` and include it in the
+   `POST /status/report` body. Add a parallel INIT-phase archetype
+   recorder (`_resolve_phase_archetype_for_state_only`) so even state-only
+   phases populate the field.
+
+5. **D-1: AgentInfo persistence** — Add `phase_archetype: str | None` to
+   `agent-coordinator/src/discovery.py::AgentInfo`. Add SQL migration
+   adding `phase_archetype TEXT` to the a
+
+### Design
+# Design — Wire Autopilot Per-Phase Sub-Agent Dispatch
+
+This design covers the production wiring of `make_phase_callback` /
+`run_phase_subagent` into autopilot's actual run path, plus the two
+deferred coordinator surfaces (D-1, D-2) needed to make the wiring
+observable.
+
+## Context
+
+The archived change `2026-05-03-add-per-phase-archetype-resolution`
+shipped the resolution machinery but explicitly deferred end-to-end
+wiring (`deferred-tasks.md` D-1, D-2). Today:
+
+- `phase_agent.run_phase_subagent` returns `(outcome, handoff_id)` only,
+  consuming the sub-agent transcript internally — but **no caller invokes
+  it** in production.
+- `make_phase_callback` produces a `(state) -> outcome` callback for
+  autopilot's `run_loop`, but `run_loop` is itself never invoked from
+  production code paths.
+- SKILL.md prose tells the orchestrator agent to invoke slash commands
+  inline; the orchestrator's session model and system prompt apply for
+  the entire run.
+
+This proposal provides the bridge from "designed" to "running."
+
+## Goals
+
+- **G1**: Every non-terminal autopilot phase actually dispatches with the
+  archetype-resolved `model` and `system_prompt`.
+- **G2**: `LoopState.phase_archetype` is non-null on the production path
+  for every phase that successfully resolved an archetype.
+- **G3**: `report_status.py` includes `phase_archetype` in `POST /status/report`
+  so dashboards can correlate phase behavior with archetype.
+- **G4**: `AgentInfo.phase_archetype` persists across heartbeats so
+  `GET /discovery/agents` exposes which archetype each agent is running.
+- **G5**: When the harness `Agent(...)` tool or coordinator is unavailable,
+  fall back to today's prose path without crashing.
+
+## Non-Goals
+
+- **Migrating `/iterate-on-plan` and `/iterate-on-implementation` through
+  `make_phase_callback`** — these slash-command skills already dispatch
+  their own sub-agents internally, so wrapping them adds an indirection
+  layer with no archetype benefit. Tracked as a possible future change.
+- **Replacing `convergence_loop.py`'s vendor-CLI dispatch** — review
+  phases (`PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW`) already have a CLI
+  path that invokes opus on multiple vendors. The new wiring complements
+  it, doesn't replace it.
+- **Building a Python CLI adapter for `Agent()`** — rejected at
+  Gate 1 (Approach C). Not in scope.
+
+## Decisions
+
+### D1: SKILL.md prose dispatches the harness `Agent(...)` tool
+
+**What**: Each non-terminal phase section in `skills/autopilot/SKILL.md`
+gets an explicit dispatch block of the form:
+
+```
+1. Run `python3 ... build_phase_dispatch_kwargs.py --phase IMPLEMENT --change-id <id>`
+2. Parse the JSON output. Capture `prompt`, `model`, `system_prompt`, `isolation`.
+3. Call `Agent(prompt=<system_prompt>\n\n<prompt>, model=<model>, isolation=<isolation>)`.
+4. Parse the agent's last message for `(outcome, handoff_id)` per the protocol in
+   `phase_agent._validate_result`.
+5. Update LoopState via `python3 ... apply_phase_outcome.py --change-id <id>
+   --phase IMPLEMENT --outcome <outcome> --handoff-id <handoff_id>`.
+```
+
+**Why**: Matches the established repo convention. Every parallel-execution
+skill in this codebase has SKILL.md instruct the orchestrator to call
+`Agent(...)` directly; there is no Python harness adapter library. User
+explicitly chose this in discovery.
+
+**Why not D1-alt (Python `subprocess.run('claude --print …')`)**: Would
+introduce a second pattern. Vendor CLIs are not always installed, and
+worktree isolation primitives don't compose with subprocess calls.
+Rejected at Gate 1 as Approach C.
+
+### D2: `system_prompt` is folded into `prompt` text with a fixed `\n\n---\n\n` separator
+
+**What**: The harness `Agent(...)` tool surface in this codebase does not
+expose a `system_prompt` parameter. The dispatch block prepends the
+resolved archetype's `system_prompt` to the per-phase task prompt with
+a fixed separator:
+
+```
+SEPARATOR = "\n\n---\n\n"
+prompt = f"{system_prompt}{SEPARATOR}{phase_prompt}"
+```
+
+The sepa
+
+### Instructions
+Return findings as JSON with a top-level `findings` array.
+Each finding must have: id, type, criticality, description, disposition (fix/accept/escalate/regenerate), and optionally file_path and line_range.
+
+This is round 1. Focus on remaining issues.

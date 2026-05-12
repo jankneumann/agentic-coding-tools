@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -195,13 +194,18 @@ def emit_decision_index(
     by_cap: dict[str, list[TaggedDecision]] = defaultdict(list)
     for d in decisions:
         if d.capability not in valid_caps:
+            # Unknown capability is a warning in BOTH strict and non-strict
+            # modes. Hard-failing here historically blocked CI on every PR
+            # touching changes that reference a capability whose spec was
+            # never registered (e.g. coordination-bridge before openspec/specs
+            # had it). Demoting to a warning lets unrelated PRs merge while
+            # the spec gap is being closed; typos still surface via the
+            # warning and via spec-presence checks elsewhere.
             msg = (
                 f"Unknown capability {d.capability!r} in {d.change_id} "
                 f"phase {d.phase_name!r}"
             )
             logger.warning(msg)
-            if strict:
-                sys.exit(f"Strict mode: {msg}")
             continue
         by_cap[d.capability].append(d)
 

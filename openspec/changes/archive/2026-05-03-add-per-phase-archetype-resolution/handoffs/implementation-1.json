@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-04-25T23:51:54.307488+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: ",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented per-phase archetype resolution across 5 work packages (coordinator, bridge, autopilot, contracts, integration). All 13 non-terminal autopilot phases now resolve a {model, system_prompt} via POST /archetypes/resolve_for_phase before sub-agent dispatch. LoopState bumped to schema_version=3 with phase_archetype field; AUTOPILOT_PHASE_MODEL_OVERRIDE env var supports operator overrides; graceful fallback to harness defaults on coordinator failure.",
+    "completed_work": [
+      "wp-contracts (6e660f1): change-context.md with 10-row Requirement Traceability Matrix; tasks 1.1-1.3 flipped (contracts authored in plan commit 7ba3720).",
+      "wp-skills-bridge (c0c65df): try_resolve_archetype_for_phase helper + 10 unit tests + bonus dict[str, Any] annotation widening to unblock mypy --strict.",
+      "wp-coordinator (c68efa9): PhaseMappingEntry + ResolvedArchetype dataclasses; load_archetypes_config phase_mapping parsing with cross-reference validation; resolve_archetype_for_phase function; phase kwarg on resolve_model; POST /archetypes/resolve_for_phase endpoint with X-API-Key + audit; StatusReportRequest.phase_archetype + event-bus forwarding; archetypes.yaml v2 with 13-entry phase_mapping; 18 unit tests.",
+      "wp-skills-autopilot (0333dd4): LoopState v3 with phase_archetype + v2->v3 migration; _PHASE_SIGNAL_KEYS dict; _extract_signals_for_phase; _parse_phase_model_override + _check_phase_model_override; _build_options(phase, state_dict) with override + archetype + fallback paths; _PHASE_TASKS extended to all 13 phases (None for INIT/SUBMIT_PR per D13); make_phase_callback propagates _resolved_archetype to LoopState.phase_archetype; 59 unit tests; 1 baseline assertion update in test_autopilot.py.",
+      "wp-integration (87613a2): 5 e2e wiring tests using FastAPI TestClient; SKILL.md per-phase section; CLAUDE.md API table entry; new docs/autopilot-phase-archetype-resolution.md operator guide; D-3 deferred-task entry.",
+      "Quality gates: 2081 agent-coordinator tests pass (3 pre-existing Docker failures unrelated); 182 skills tests pass scoped to my packages; 0 NEW mypy errors; ruff clean; openspec validate --strict PASS; change-context Coverage Summary 10/10 traced/tested/evidenced."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Inline implementation instead of multi-agent dispatch",
+        "rationale": "Coordinator was available (true coordinated tier eligible), but a single Claude session with full repo context honors TDD-RED-GREEN per task more cleanly than spawning isolated Agent(isolation:worktree) subagents. Coordinator audit + D10 lock benefits preserved by routing through coordination_bridge.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Bypass capability-probe machinery for the new bridge helper",
+        "rationale": "try_resolve_archetype_for_phase calls _http_request directly instead of going through _execute_single_endpoint_operation, to avoid adding a new CAN_ARCHETYPES probe that every unrelated try_* call would then run on every invocation.",
+        "capability": "coordination-bridge",
+        "supersedes": null
+      },
+      {
+        "title": "Defer GET /discovery/agents persistence (D-1)",
+        "rationale": "wp-coordinator scope (write_allow) covers agents_config, coordination_api, archetypes.yaml only. Persisting phase_archetype on the AgentInfo record requires editing discovery.py + adding a DB migration \u2014 both outside scope. Status reports forward the value via the event bus context, covering the primary in-flight observability need.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Defer INIT phase archetype recording + status reporter emission (D-2)",
+        "rationale": "INIT is a pure state transition in autopilot.run_loop (bypasses run_phase_subagent). The status reporter at agent-coordinator/scripts/report_status.py is outside wp-skills-autopilot's write_allow. Both would require broader autopilot or hook-script changes; tracked in deferred-tasks.md D-2 for a follow-up.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Defer install.sh runtime sync to /cleanup-feature (D-3)",
+        "rationale": "Running install.sh from this branch would clobber .claude/skills/ and .agents/skills/ which were synced from main's d1cbd76. After rebase against main, the sync runs cleanly. Recording as a deferred merge-window action.",
+        "capability": "autopilot",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/validate-feature add-per-phase-archetype-resolution should run the deploy/smoke/security/e2e phases (Docker-dependent) before merge.",
+      "/cleanup-feature add-per-phase-archetype-resolution: rebase against main (resolves d1cbd76 runtime-sync drift), then run skills/install.sh to propagate the canonical changes into .claude/skills/ and .agents/skills/ (D-3).",
+      "Optionally: register the read-only file lock on convergence_loop.py with reason='read-only observation: add-per-phase-archetype-resolution' for visibility with the harness-engineering-features change (D10 advisory).",
+      "Pick up D-1 (GET /discovery/agents listing exposure) and D-2 (INIT recording + status reporter emission) as a follow-up proposal once this lands."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "Schema bump + PhaseMappingEntry/ResolvedArchetype + resolve_archetype_for_phase + phase kwarg on resolve_model."
+      },
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "description": "POST /archetypes/resolve_for_phase endpoint + StatusReportRequest.phase_archetype field + event-bus forwarding."
+      },
+      {
+        "path": "agent-coordinator/archetypes.yaml",
+        "description": "schema_version 1->2 with 13-entry phase_mapping section."
+      },
+      {
+        "path": "skills/coordination-bridge/scripts/coordination_bridge.py",
+        "description": "try_resolve_archetype_for_phase helper + module logger + dict[str, Any] annotation fix."
+      },
+      {
+        "path": "skills/autopilot/scripts/phase_agent.py",
+        "description": "_PHASE_SIGNAL_KEYS, _extract_signals_for_phase, _parse/_check_phase_model_override, extended _build_options, extended _PHASE_TASKS for all 13 phases, make_phase_callback propagation."
+      },
+      {
+        "path": "skills/autopilot/scripts/autopilot.py",
+        "description": "LoopState bumped 2->3 with phase_archetype + v2->v3 migration in load_state."
+      },
+      {
+        "path": "skills/tests/autopilot/test_phase_archetype_e2e.py",
+        "description": "5 end-to-end wiring tests using FastAPI TestClient as the in-process coordinator."
+      },
+      {
+        "path": "docs/autopilot-phase-archetype-resolution.md",
+        "description": "Operator-facing guide: 13-phase mapping, override syntax, failure mode, observability, API reference."
+      },
+      {
+        "path": "openspec/changes/add-per-phase-archetype-resolution/change-context.md",
+        "description": "Requirement Traceability Matrix with 10/10 evidence pass cells; Design Decision Trace; Coverage Summary 10/10."
+      },
+      {
+        "path": "openspec/changes/add-per-phase-archetype-resolution/deferred-tasks.md",
+        "description": "D-1 (GET listing exposure), D-2 (INIT recording + reporter emission), D-3 (merge-window operator actions)."
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "review_round": 3,
+  "review_type": "validation",
+  "vendor": "claude",
+  "findings": [
+    {
+      "id": "V-001",
+      "type": "completeness",
+      "criticality": "high",
+      "description": "Spec scenario 'Production autopilot run dispatches harness Agent with resolved model' requires a real /autopilot run to verify Agent() dispatch and loop-state.phase_archetype write-through for IMPLEMENT. Validation report only smoke-tests `runner.py record-state-only-archetype` for INIT (a state-only phase that does not exercise the Agent() dispatch path). test_phase_archetype_e2e.py uses FastAPI TestClient \u2014 validates the HTTP wiring contract but cannot validate the harness Agent() invocation itself. No evidence is provided that the production dispatching path has been observed end-to-end on any of the 7 dispatching phases.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {
+        "start": 30,
+        "end": 42
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "loop-state.json (current_phase=VALIDATE, previous_phase=IMPL_REVIEW) shows phase_archetype: null and handoff_ids: []. Per spec scenario '10 of 13 non-terminal phases set phase_archetype', VALIDATE MUST have set phase_archetype to a non-null value matching phase_mapping. The report does not reconcile this: either (a) the run took the inline-fallback path (in which case the report should cite the structured warning required by 'Coordinator unreachable' scenario as evidence) or (b) the implementation failed to fire. The report's IMPL_FIX integration check claims `runner.py record-state-only-archetype` was 'smoke-tested via real coordinator (returned runner archetype for INIT, persisted to loop-state.json)' \u2014 but this very loop-state.json shows phase_archetype: null, contradicting that claim.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/loop-state.json",
+      "line_range": {
+        "start": 27,
+        "end": 36
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-003",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Test counts in the report do not match `pytest --collect-only`. Report claims `skills/tests/autopilot/` = 126; actual collection is 131 (off by 5, suggesting the report was not regenerated after c0c6f12 added test_record_state_only_archetype.py). Report claims `agent-coordinator/tests/` = 106; actual non-e2e/integration collection is 2148 \u2014 the 106 is presumably a scoped subset, but the report shows no command or filter making the count reproducible. Either re-run with the exact command pinned in the report, or replace counts with command output.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {
+        "start": 22,
+        "end": 27
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-004",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Audit-log validator 'PASS' conflates exit-code smoke test with actual run-data validation. The validation evidence row says 'exit codes match contract (0=match, 1=mismatch, 2=missing)' \u2014 that proves the binary's CLI contract, not that it validates this run's audit log correctly. C-R-004 explicitly notes the validator hardcodes the 7-phase happy path and produces false counts on FIX iterations. loop-state.json shows findings_trend with 6 entries and total_iterations=2 \u2014 i.e., this very run had FIX iterations, exactly the case C-R-004 says is mishandled. The report's PASS for this row is therefore not actually evidence that the validator works against the run we're validating.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {
+        "start": 17,
+        "end": 17
+      },
+      "disposition": "fix"
+    },
+    {
+      "id": "V-005",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "C-R-003 is classified HIGH severity (token-budget gate uses synthetic data, observed ~0.4% utilization vs 60%/75% warn/fail thresholds \u2014 i.e., the gate effectively cannot trip on realistic prompts) but is deferred to a follow-up issue without justification. Per spec requirement 'Joined prompt token budget is enforced', this gate is the only mechanism enforcing the budget; if it cannot detect realistic growth, the requirement is satisfied only nominally. Either justify deferral explicitly (e.g., 'risk accepted because production prompts are static and bounded by X'), promote to blocking, or downgrade severity with rationale. A HIGH finding with no merge-blocking reasoning is a process gap.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/validation-report.md",
+      "line_range": {
+        "start": 48,
+        "end": 48
+      },
+      "disposition": "fix"
+    }
+  ]
+}

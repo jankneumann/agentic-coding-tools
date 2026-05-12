@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gemini-2-0-flash",
+      "agent_id": "gemini-2-0-flash",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-r3-001",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "testability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Spec R4.S1 says 'log entry whose message contains the literal `convergence.synthesis_failed_with_checkpoint`'. This is fragile to log-message-formatter changes (e.g., a logging.Formatter that mangles the message). A more durable test contract is to assert on the structured payload's `event` key (e.g., extra={'event': 'convergence.synthesis_failed_with_checkpoint', ...}) rather than scanning message text."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-r3-002",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 5.1 references 'skill-workflow.R4.S1 (audit emitted)' but R4.S1 was renamed to 'synthesis failure emits log entry' in iteration 3 (no longer audit). The reference is correct (R4.S1 still exists with new wording), but the task's parenthetical description is stale."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-r3-003",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Path safety regex `[A-Za-z0-9_-]+` for vendor names was verified compliant with current vendor names (claude_code, gpt-5-codex, gemini). But it would reject names with periods (e.g., 'claude.opus-4.7'), version qualifiers ('claude-3.7-sonnet@v2'), or namespaces ('anthropic/claude-3'). Such names are common in vendor configs and may appear in future. The regex is defensive but possibly TOO defensive."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-r3-004",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "R1.S5 (atomic manifest write) covers the manifest with parent-dir fsync, but R1.S1 (round-trip preserves vendor findings) doesn't explicitly require per-vendor finding files to be written atomically too. Tasks.md task 0.2 says both use atomic-rename, but the spec only mandates it for the manifest."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-001",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Iteration 3 did not fully remove the dropped `synthesis_failed`/audit-event contract from implementation-driving artifacts. The `wp-converge-checkpoint` package still instructs implementers to add `ConvergenceResult.checkpoint_dir + .synthesis_failed fields` and emit an `audit event`, while later integration/doc verification still refers to audit emission and even asserts docs contain `synthesis_failed`. That directly conflicts with the revised spec/tasks that say `synthesis_failed` must not be added and observability is via structured logs."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-002",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "`contracts/finding.schema.json` claims to document the existing per-vendor wire format, but it newly requires `vendor` inside every finding item. The existing `openspec/schemas/review-findings.schema.json` does not require that field, and `consensus_synthesizer.Finding.from_dict()` derives vendor identity from the wrapper `reviewer_vendor` argument, not from each finding. Since the helper accepts raw vendor findings, this schema can reject valid existing dispatcher/vendor outputs."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-003",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The logging failure scenario relies on the claim that Python logging absorbs handler failures by default. That is not a safe contract for arbitrary misconfigured/custom handlers: a handler can raise out of `logger.error()`, masking the original synthesis/checkpoint exception unless the convergence code guards the logging call itself."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-004",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The helper signature for `write_manifest()` is inconsistent across artifacts. `design.md` shows `write_manifest(out_dir, change_id, review_type, target, vendors, ...)`, while `tasks.md` defines `write_manifest(out_dir, review_type, target, vendors, change_id=None, ...)`. If implemented with positional arguments, one of the call sites will silently swap `change_id` and `review_type`."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-005",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The atomic-write contract is explicit about parent-directory fsync for the manifest, but the design/tasks describe per-vendor files only as `atomic-rename` / `temp -> fsync -> rename`. Without parent-directory fsync after the rename, a crash can lose the per-vendor file's directory entry even though the file bytes were fsync'd, weakening the core durability guarantee."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": "codex-r3-006",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "testability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Task 0.3 asks implementers to verify the new schema accepts the existing `review_dispatcher.py:write_manifest()` output shape, but the new schema requires `schema_version`, `created_at`, and `vendors[]`, and `contracts/README.md` correctly says legacy manifests do not validate. As written, this test instruction is impossible if interpreted literally."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-001",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Internal contradiction regarding the 'synthesis_failed' field in ConvergenceResult. While 'proposal.md' and 'tasks.md' (Task 2.2) state the field was dropped after Round 2 review, it still appears in 'work-packages.yaml' (wp-converge-checkpoint, wp-integration) and documentation tasks (Task 6.1)."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-002",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Signature inconsistency for 'write_manifest' between design and tasks. 'design.md' places 'change_id' as the second positional argument, while 'tasks.md' (Task 0.2) defines it as an optional keyword argument 'change_id=None' after 'vendors'."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-003",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Ambiguity in atomic write requirements. 'design.md' correctly specifies 'fsync' for manifest and temp files, but 'tasks.md' (Task 0.2) omits 'fsync' for 'write_vendor_findings'. Without parent-directory fsync, the directory entry for new checkpoint files may not survive a power loss even if the file content was fsynced."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-004",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The architectural diagram in 'design.md' for 'write_vendor_findings' is missing the 'reviewer_vendor' parameter which is explicitly required in 'tasks.md' (Task 0.2) to support the wrapper-object shape."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-005",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "testability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The verification step for 'wp-integration' (Doc lint) asserts that 'synthesis_failed' must be present in the documentation. Since the field has been dropped from the implementation plan, this test will fail."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini-2-0-flash",
+      "primary_finding_id": "gemini-006",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The type 'ReviewFinding' used in 'design.md' and 'tasks.md' (return type of read_vendor_findings) is undefined. It is unclear if this refers to the 'Finding' class from 'consensus_synthesizer.py' or a raw 'dict[str, Any]'."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 16,
+    "confirmed_count": 0,
+    "unconfirmed_count": 16,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "reviewer": "claude-opus-4-7",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "completeness",
+      "criticality": "high",
+      "disposition": "fix",
+      "description": "*_FIX phase archetype recording promised by spec but no implementation: convergence_loop.py has zero phase_archetype references and no task adds it. Spec scenario 'All 13 non-terminal phases' will fail for PLAN_FIX/IMPL_FIX/VAL_FIX.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 411,
+        "end": 425
+      }
+    },
+    {
+      "id": "F2",
+      "type": "consistency",
+      "criticality": "medium",
+      "disposition": "fix",
+      "description": "DB CHECK length <=32 vs API max_length=64 mismatch \u2014 33-64 char value passes API and fails DB.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {
+        "start": 20,
+        "end": 22
+      }
+    },
+    {
+      "id": "F3",
+      "type": "consistency",
+      "criticality": "medium",
+      "disposition": "fix",
+      "description": "Token-budget thresholds inconsistent: proposal=75/60, design=80, tasks=75/60-75. Pick one.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 375,
+        "end": 375
+      }
+    },
+    {
+      "id": "F4",
+      "type": "clarity",
+      "criticality": "medium",
+      "disposition": "fix",
+      "description": "_resolve_phase_archetype_for_state_only resolution path unspecified \u2014 bridge call (network-fragile) vs static lookup (deterministic). Spec demands deterministic 'runner' for INIT.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 286,
+        "end": 298
+      }
+    },
+    {
+      "id": "F5",
+      "type": "consistency",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Goal G1 overclaims 'every non-terminal phase actually dispatches' \u2014 only 7 of 13 do.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 29
+      }
+    },
+    {
+      "id": "F6",
+      "type": "completeness",
+      "criticality": "medium",
+      "disposition": "fix",
+      "description": "Token-budget CI gate (task 2.9b) needs a fixture recipe \u2014 _build_prompt requires PhaseRecord and artifacts_manifest, no synthetic state spec'd.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 113,
+        "end": 122
+      }
+    },
+    {
+      "id": "F7",
+      "type": "efficiency",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "New token_budget_check.py duplicates existing phase_token_meter.measure_context. Reuse rather than fork.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 113,
+        "end": 122
+      }
+    },
+    {
+      "id": "F8",
+      "type": "consistency",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "'No user-facing API breakage' claim conflicts with task 3.9 tightening str\u2192Literal enum (any non-enum legacy value now 422s).",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {
+        "start": 219,
+        "end": 221
+      }
+    },
+    {
+      "id": "F9",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Proposal item 4 mentions only INIT for state-only resolver; design also covers SUBMIT_PR.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {
+        "start": 64,
+        "end": 69
+      }
+    },
+    {
+      "id": "F10",
+      "type": "clarity",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Task 3.8 claims StatusReportRequest needs phase_archetype added \u2014 already at coordination_api.py:221. Real gap: heartbeat() call at line 1983 omits the field, so it never persists to agent_sessions row.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 196,
+        "end": 207
+      }
+    },
+    {
+      "id": "F11",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "E2E test 4.1 asserts cache file deletion for every phase, but state-only INIT/SUBMIT_PR never create one. Carve out per-phase.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 244,
+        "end": 247
+      }
+    },
+    {
+      "id": "F12",
+      "type": "clarity",
+      "criticality": "medium",
+      "disposition": "fix",
+      "description": "Test 2.9 separator regex says 'exactly one occurrence of literal SEPARATOR' but allows phase_prompt to contain '\\n\\n---\\n\\n' \u2014 assertion will be wrong. Use start-anchored match instead.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 94,
+        "end": 103
+      }
+    },
+    {
+      "id": "F13",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Cache schema_version field has no validation rule on mismatch.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 215,
+        "end": 244
+      }
+    },
+    {
+      "id": "F14",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "VAL_REVIEW dispatch block needs explicit val_review_enabled=false guard or --no-review runs break.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 124,
+        "end": 134
+      }
+    },
+    {
+      "id": "F15",
+      "type": "clarity",
+      "criticality": "low",
+      "disposition": "accept",
+      "description": "Migration 0NN sequence-number coordination is manual \u2014 add CI gate for duplicate prefixes.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {
+        "start": 4,
+        "end": 7
+      }
+    },
+    {
+      "id": "F16",
+      "type": "consistency",
+      "criticality": "low",
+      "disposition": "accept",
+      "description": "Spec line 16 lists 13 phases; modified requirement says only 7 dispatch \u2014 cross-link to design's dispatch matrix to discoverability.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 16,
+        "end": 22
+      }
+    },
+    {
+      "id": "F17",
+      "type": "clarity",
+      "criticality": "low",
+      "disposition": "accept",
+      "description": "Hardcoded enum list in CHECK constraint will silently diverge from archetypes.yaml \u2014 add CI test to assert sets equal.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+      "line_range": {
+        "start": 13,
+        "end": 22
+      }
+    },
+    {
+      "id": "F18",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Cache 'multi-agent safety' dismisses concurrent runs as 'highly unusual', but parallel-review-plan dispatches multiple vendors per phase. Make cache key (change_id, phase) or document why concurrent build-dispatch can't happen.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 250,
+        "end": 253
+      }
+    },
+    {
+      "id": "F19",
+      "type": "completeness",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Inline-fallback test 4.3 omits 'cache file missing entirely' case \u2014 only covers parse error per design.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 260,
+        "end": 272
+      }
+    },
+    {
+      "id": "F20",
+      "type": "consistency",
+      "criticality": "low",
+      "disposition": "fix",
+      "description": "Proposal/design call it 'agent-status table'; actual table is agent_sessions. Migration SQL uses agent_sessions correctly \u2014 only prose drifted.",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {
+        "start": 24,
+        "end": 26
+      }
+    }
+  ]
+}
