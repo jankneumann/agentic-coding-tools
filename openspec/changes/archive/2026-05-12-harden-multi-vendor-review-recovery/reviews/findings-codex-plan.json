@@ -1,0 +1,91 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "codex-r3-001",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Iteration 3 did not fully remove the dropped `synthesis_failed`/audit-event contract from implementation-driving artifacts. The `wp-converge-checkpoint` package still instructs implementers to add `ConvergenceResult.checkpoint_dir + .synthesis_failed fields` and emit an `audit event`, while later integration/doc verification still refers to audit emission and even asserts docs contain `synthesis_failed`. That directly conflicts with the revised spec/tasks that say `synthesis_failed` must not be added and observability is via structured logs.",
+      "disposition": "fix",
+      "resolution": "Sweep proposal.md, design.md, tasks.md, and work-packages.yaml for stale `synthesis_failed` and audit-event references. Keep only historical explanatory text that explicitly says the field/event was removed. Update package descriptions, integration assertions, and doc lint to require `checkpoint_dir` plus the two structured log markers instead.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/work-packages.yaml",
+      "line_range": {
+        "start": 181,
+        "end": 191
+      },
+      "vendor": "codex"
+    },
+    {
+      "id": "codex-r3-002",
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "`contracts/finding.schema.json` claims to document the existing per-vendor wire format, but it newly requires `vendor` inside every finding item. The existing `openspec/schemas/review-findings.schema.json` does not require that field, and `consensus_synthesizer.Finding.from_dict()` derives vendor identity from the wrapper `reviewer_vendor` argument, not from each finding. Since the helper accepts raw vendor findings, this schema can reject valid existing dispatcher/vendor outputs.",
+      "disposition": "fix",
+      "resolution": "Remove `vendor` from each finding item's `required` list. Keep it as an optional property if desired, and validate the wrapper `reviewer_vendor`/filename vendor for path safety instead.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/finding.schema.json",
+      "line_range": {
+        "start": 25,
+        "end": 30
+      },
+      "vendor": "codex"
+    },
+    {
+      "id": "codex-r3-003",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The logging failure scenario relies on the claim that Python logging absorbs handler failures by default. That is not a safe contract for arbitrary misconfigured/custom handlers: a handler can raise out of `logger.error()`, masking the original synthesis/checkpoint exception unless the convergence code guards the logging call itself.",
+      "disposition": "fix",
+      "resolution": "Wrap the structured `logger.error(...)` calls in a small best-effort logging helper that catches and suppresses logging exceptions, then always re-raises the original synthesis/checkpoint exception. Test this with a handler whose `emit()` raises. For event identity, assert `LogRecord.msg` or an explicit extra field, not formatter-dependent rendered text.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 141,
+        "end": 144
+      },
+      "vendor": "codex"
+    },
+    {
+      "id": "codex-r3-004",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The helper signature for `write_manifest()` is inconsistent across artifacts. `design.md` shows `write_manifest(out_dir, change_id, review_type, target, vendors, ...)`, while `tasks.md` defines `write_manifest(out_dir, review_type, target, vendors, change_id=None, ...)`. If implemented with positional arguments, one of the call sites will silently swap `change_id` and `review_type`.",
+      "disposition": "fix",
+      "resolution": "Pick one signature everywhere, preferably keyword-only after `out_dir` (for example `write_manifest(out_dir, *, review_type, target, vendors, change_id=None, ...)`) so future call sites cannot pass the optional `change_id` in the wrong position.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+      "line_range": {
+        "start": 15,
+        "end": 17
+      },
+      "vendor": "codex"
+    },
+    {
+      "id": "codex-r3-005",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "The atomic-write contract is explicit about parent-directory fsync for the manifest, but the design/tasks describe per-vendor files only as `atomic-rename` / `temp -> fsync -> rename`. Without parent-directory fsync after the rename, a crash can lose the per-vendor file's directory entry even though the file bytes were fsync'd, weakening the core durability guarantee.",
+      "disposition": "fix",
+      "resolution": "Specify a single `_atomic_write_json(path, payload)` primitive used for both manifests and per-vendor finding files: write temp file, fsync file, `os.replace`, then fsync the parent directory. Make task 0.2 and the design diagram say that exact pattern applies to both file types.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+      "line_range": {
+        "start": 10,
+        "end": 18
+      },
+      "vendor": "codex"
+    },
+    {
+      "id": "codex-r3-006",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "Task 0.3 asks implementers to verify the new schema accepts the existing `review_dispatcher.py:write_manifest()` output shape, but the new schema requires `schema_version`, `created_at`, and `vendors[]`, and `contracts/README.md` correctly says legacy manifests do not validate. As written, this test instruction is impossible if interpreted literally.",
+      "disposition": "fix",
+      "resolution": "Revise task 0.3 to test that manifests written through the new helper are a strict superset preserving the old fields, and separately test that existing consumers reading `review_type`, `target`, `dispatches[]`, `quorum_requested`, and `quorum_received` still work. Do not require pre-change legacy manifest JSON to validate against the new schema.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 21,
+        "end": 22
+      },
+      "vendor": "codex"
+    }
+  ]
+}

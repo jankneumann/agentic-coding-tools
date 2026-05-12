@@ -244,5 +244,8 @@ docs/security-review/*.json
 artifacts/
 .status-cache.json
 
+# Per-run autopilot phase-resolution cache (wire-autopilot-phase-subagents D4)
+openspec/changes/*/.phase-resolution-cache.json
+
 # Legacy openspec init output (replaced by .agents/skills/ via skills/install.sh)
 .agent/
