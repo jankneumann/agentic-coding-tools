@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 from decomposer import (
+    _CAPABILITY_MARKERS,
     build_dependency_dag,
     decompose,
+    diagnose_thin_output,
     validate_item_sizes,
     validate_proposal,
 )
@@ -108,6 +110,97 @@ class TestValidateProposal:
     def test_minimal_proposal_passes(self):
         errors = validate_proposal(MINIMAL_PROPOSAL)
         assert errors == []
+
+
+# ---------------------------------------------------------------------------
+# Expanded capability vocabulary
+# ---------------------------------------------------------------------------
+class TestExpandedCapabilityVocabulary:
+    """Verify keywords added to address the port/adapter/workspace failure case."""
+
+    @pytest.mark.parametrize("term", [
+        "port", "adapter", "workspace", "subsystem",
+        "handler", "worker", "pipeline", "queue",
+        "registry", "store", "cache", "broker", "gateway",
+        "dashboard", "panel",
+        "integration", "bridge", "connector", "driver",
+        "orchestrator", "scheduler", "dispatcher",
+    ])
+    def test_recognizes_term(self, term):
+        assert _CAPABILITY_MARKERS.search(term) is not None, (
+            f"Vocabulary regression: {term!r} no longer matches "
+            "_CAPABILITY_MARKERS — proposals using this term will be missed."
+        )
+
+    def test_proposal_with_hexagonal_vocabulary_validates(self):
+        """The original failure case: ports/adapters/workspace/retry queue vocabulary."""
+        proposal = """\
+# Hexagonal Refactor
+
+## Phase 1: Adapters
+
+### Port: Outbound Email Adapter
+
+This adapter wraps the SMTP integration.
+
+- Must handle TLS connections
+- Retry on transient failures
+
+### Workspace Registry Service
+
+A workspace registry tracking active sessions.
+
+- Must persist across restarts
+
+### Retry Queue Handler
+
+The retry queue handler reschedules failed jobs.
+
+- Backoff must be exponential
+"""
+        errors = validate_proposal(proposal)
+        assert errors == [], f"Validator should accept hexagonal vocabulary: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# Thin-output detection
+# ---------------------------------------------------------------------------
+class TestDiagnoseThinOutput:
+    def test_healthy_output_returns_none(self):
+        proposal = "## A\ntext\n## B\ntext\n## C\ntext\n"
+        # 3 H2s, 3 items extracted → 100% ratio
+        assert diagnose_thin_output(proposal, extracted_count=3) is None
+
+    def test_above_threshold_returns_none(self):
+        proposal = "## A\n## B\n## C\n## D\n"
+        # 4 H2s, 2 items → 50% ratio at default 0.5 threshold
+        assert diagnose_thin_output(proposal, extracted_count=2) is None
+
+    def test_thin_output_returns_diagnostic(self):
+        proposal = "## A\n## B\n## C\n## D\n## E\n## F\n"
+        # 6 H2s, 1 item → way under 0.5
+        msg = diagnose_thin_output(proposal, extracted_count=1)
+        assert msg is not None
+        assert "Thin extraction" in msg
+        assert "vocabulary" in msg
+        assert "template" in msg
+
+    def test_diagnostic_warns_against_hand_authoring(self):
+        """Critical: the message must steer the agent away from the
+        bypass pattern (writing roadmap.yaml directly)."""
+        proposal = "## A\n## B\n## C\n## D\n## E\n## F\n"
+        msg = diagnose_thin_output(proposal, extracted_count=0)
+        assert msg is not None
+        assert "hand-author" in msg.lower() or "hides the regression" in msg.lower()
+
+    def test_no_h2_returns_none(self):
+        # No H2 means we cannot ratio-check; skip the diagnostic
+        proposal = "# Title only\nbody\n"
+        assert diagnose_thin_output(proposal, extracted_count=0) is None
+
+    def test_empty_proposal_returns_none(self):
+        assert diagnose_thin_output("", extracted_count=0) is None
+
 
 # ---------------------------------------------------------------------------
 # decompose tests
