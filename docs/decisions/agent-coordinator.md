@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-05-06 — 2026-05-10-wire-autopilot-phase-subagents
+
+### Phase: Plan
+
+**Dedicated phase_archetype TEXT column on agent_sessions, not JSONB key** — Field is queryable for filtering ('show all agents in reviewer archetype'); JSONB key access is awkward in SQL. Migrations are first-class in this repo, so adding one column is cheap.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-10-wire-autopilot-phase-subagents/session-log.md](/openspec/changes/archive/2026-05-10-wire-autopilot-phase-subagents/session-log.md) (D5)
+
+---
+
 ## 2026-04-25 — 2026-05-03-add-per-phase-archetype-resolution
 
 ### Phase: Implementation

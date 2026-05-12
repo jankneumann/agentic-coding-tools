@@ -1,0 +1,61 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "The automatic CLI fallback (R3) provides zero resilience against synthesizer bugs like the line_range string-type crash (R3.S1), as both paths execute the same buggy logic. The proposal incorrectly frames this as an automatic recovery mechanism for such crashes.",
+      "resolution": "Clarify in R3 that automatic recovery is for environment/orchestration failures, while for shared-logic bugs the primary benefit is the durable checkpoint for manual remediation.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Placing checkpoint_findings.py in skills/autopilot/ while having parallel-infrastructure/review_dispatcher.py import it creates a bidirectional dependency cycle, as autopilot already depends on parallel-infrastructure.",
+      "resolution": "Relocate checkpoint_findings.py to skills/parallel-infrastructure/scripts/ or a shared/ directory to maintain a clean one-way dependency graph.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Design D6 suggests in-process callers write 'dispatches: []', but converge() has access to ReviewResult metadata. Omitting this information in the manifest reduces parity with the CLI dispatcher path and limits forensic usefulness.",
+      "resolution": "Update Task 4.2 to pass model_used, elapsed_seconds, and error_class from ReviewResult objects to the write_manifest helper.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "load_findings_from_dir (Task 2.2) lacks a fallback for manifests produced by legacy dispatchers that lack the 'vendors' key. This will cause the new synthesizer to fail when reading existing cache directories.",
+      "resolution": "Add a backward-compatibility fallback in load_findings_from_dir to support globbing findings-*.json if the 'vendors' key is missing in the manifest.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The manifest atomic rename in D6 specifies fsync on the file but not the parent directory. Without directory-level fsync, the new directory entry may be lost during a crash, compromising the durability goals of the proposal.",
+      "resolution": "Add a requirement to fsync the parent directory after manifest rename and per-vendor file writes in checkpoint_findings.py.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 7.1 integration test stubs the CLI to succeed for a shared-logic bug (line_range), creating a false proof of recovery. If the CLI shares the same buggy code, it will fail identically to the in-process synthesizer.",
+      "resolution": "Update Task 7.1 to verify findings durability on disk and the audit trail for double-failure, rather than stubbing an impossible successful recovery for shared bugs.",
+      "disposition": "fix",
+      "vendor": "gemini"
+    }
+  ]
+}

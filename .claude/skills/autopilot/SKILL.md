@@ -99,7 +99,32 @@ result = assess_complexity(work_packages_path, proposal_path, force=<--force fla
 - If `result.warnings`: report them but continue
 - If `result.checkpoints`: log injected checkpoints
 
+**Record INIT phase archetype** (state-only resolver — D9). After loop-state.json
+is written, shell out to record `phase_archetype` for INIT so observability
+covers all 13 non-terminal phases, not just the 7 dispatching phases:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase INIT
+```
+
+Failure here is non-fatal — the helper logs a warning and writes
+`phase_archetype = null` if the coordinator is unreachable.
+
 ### 2. PLAN Phase
+
+**Record PLAN phase archetype** (state-only resolver — D9 / VAL_REVIEW G-V-001).
+PLAN dispatches via the `/plan-feature` slash command rather than the harness
+`Agent(...)` tool, so it doesn't go through `runner.py build-dispatch`. To
+keep observability uniform across all 13 non-terminal phases, shell out:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase PLAN
+```
+
+Failure here is non-fatal — the helper logs a warning and writes
+`phase_archetype = null` if the coordinator is unreachable.
 
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
@@ -109,16 +134,74 @@ If argument was an existing change-id:
 - Verify proposal artifacts exist (proposal.md, design.md, specs/, tasks.md)
 - Skip to PLAN_REVIEW
 
+### Per-Phase Sub-Agent Dispatch Protocol
+
+The following 7 phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE,
+IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch to a sub-agent via the harness
+`Agent(...)` tool. Each block follows the same 3-step protocol:
+
+1. **Build dispatch kwargs** by shelling out to `runner.py build-dispatch`.
+   The runner queries the coordinator for the resolved archetype, builds
+   the per-phase prompt scaffold, folds `system_prompt` into `prompt`
+   with the literal separator `\n\n---\n\n`, and writes a per-run
+   resolution cache. JSON output: `{prompt, model, system_prompt,
+   isolation, archetype}`.
+2. **Invoke the harness `Agent(...)` tool** with the JSON values.
+   **Treat `prompt` as opaque — do not concatenate, do not prepend, do
+   not split on the separator.** SKILL.md never folds; folding lives
+   inside `build_phase_dispatch_kwargs` (single source of truth).
+3. **Apply the outcome** by shelling out to `runner.py apply-outcome`,
+   passing the `(outcome, handoff_id)` returned by the sub-agent. This
+   updates `loop-state.json` (`last_handoff_id`, `handoff_ids`,
+   `phase_archetype`) and consumes the cache file.
+
+**Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
+(coordinator unreachable or fallback), OR if the harness `Agent(...)`
+tool is not exposed in the current orchestrator session, the dispatch
+block falls through to the inline-prose path (the slash-command
+invocation), and `apply-outcome` records `phase_archetype = null`.
+
+The dispatch invocation uses paths relative to the autopilot skill dir.
+Substitute `<skill-base-dir>` with the autopilot skill's actual location
+(typically `.claude/skills/autopilot/` or `.agents/skills/autopilot/`).
+
 ### 2.5. PLAN_ITERATE Phase (Always Runs)
 
 Self-review and refinement of plan artifacts. This phase always runs regardless of CLI mode.
 
-Invoke `/iterate-on-plan <change-id>` — this runs the single-agent self-review loop that:
-- Reads all proposal documents and spec deltas
-- Identifies findings across quality dimensions (completeness, clarity, feasibility, security, etc.)
-- Fixes findings above threshold
-- Runs `openspec validate --strict` after each fix
-- Loops until convergence or max iterations
+Goal: refine the proposal across completeness, clarity, feasibility, scope,
+consistency, testability, parallelizability, and assumptions axes.
+
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase PLAN_ITERATE --change-id <change-id>
+   ```
+   Parse the JSON output. Capture `prompt`, `model`, `isolation`.
+
+2. Call the harness `Agent(...)` tool with those values, treating `prompt`
+   as opaque (no concatenation):
+   ```
+   result = Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+                  isolation=<dispatch.isolation>)
+   ```
+   Parse the agent's last message for `(outcome, handoff_id)` per the
+   protocol in `phase_agent._validate_result`. Outcome is `"complete"`
+   on settled refinement, `"failed"` otherwise.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase PLAN_ITERATE \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If step 1 returned `archetype: null` OR `Agent(...)` is
+unavailable, run the inline path: invoke `/iterate-on-plan <change-id>`
+directly. After the slash command returns, run `apply-outcome` so
+`phase_archetype = null` is recorded for this phase.
 
 **If complete**: Transition to PLAN_REVIEW (CLI mode) or IMPLEMENT (non-CLI mode).
 **If failed**: Transition to ESCALATE.
@@ -127,7 +210,31 @@ Invoke `/iterate-on-plan <change-id>` — this runs the single-agent self-review
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to IMPLEMENT.
 
-Invoke the convergence loop with `fix_mode="inline"`:
+Multi-vendor plan review with convergence — outcome is `"converged"` if
+no blocking findings, `"not_converged"` otherwise, `"max_iter"` once
+`max_phase_iterations` is exhausted.
+
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase PLAN_REVIEW --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
+   the agent's last message for `(outcome, handoff_id)`.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase PLAN_REVIEW \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke the convergence loop directly:
 
 ```python
 from convergence_loop import converge
@@ -145,28 +252,94 @@ result = converge(
 )
 ```
 
+Then run `apply-outcome` to record `phase_archetype = null`.
+
 **If converged**: Report findings summary, transition to IMPLEMENT.
 **If not converged**: Report reason (max_rounds, stalled, quorum_lost, disagreement), transition to ESCALATE.
 
-For **inline plan fixes** (PLAN_FIX): Read the blocking findings, edit the relevant plan files directly (proposal.md, design.md, specs, work-packages.yaml), re-validate with `openspec validate`.
+For **inline plan fixes** (PLAN_FIX, NOT a sub-agent dispatch): Read the
+blocking findings, edit the relevant plan files directly (proposal.md,
+design.md, specs, work-packages.yaml), re-validate with `openspec
+validate`. PLAN_FIX inherits `phase_archetype` from the preceding
+PLAN_REVIEW — convergence_loop never overwrites the field.
+
+#### Convergence Durability Contract
+
+`converge()` writes per-vendor findings AND a manifest to `<artifacts_dir>/.review-cache/round-N/` BEFORE invoking the consensus synthesizer. If synthesis raises (e.g. the `consensus_synthesizer.py:59` `line_range` parser bug), the original exception propagates to the caller and the persisted findings remain on disk for postmortem analysis. **This is durability, not automatic recovery** — the proposal does not introduce subprocess fallback; recovery awaits a separate parser-fix proposal.
+
+`ConvergenceResult.checkpoint_dir: Path | None` points at the most-recent round's checkpoint directory. Recovery-aware callers read this field to locate persisted findings; existing callers ignore it (defaults to `None` for backward compatibility).
+
+**Operator-monitored log entries** (Python `logging`, level ERROR, structured via `extra={"event": ..., ...}`):
+
+- `convergence.synthesis_failed_with_checkpoint` — synthesis (or upstream `Finding.from_dict()`) raised. Payload includes `checkpoint_dir` for manual recovery.
+- `convergence.checkpoint_write_failed` — OSError/PermissionError during checkpoint write. Original exception still propagates.
+
+Synthesis failures will continue to surface to the autopilot caller. The value of this contract is durability for postmortem and manual recovery, not automatic recovery — see [docs/parallel-agentic-development.md](../../docs/parallel-agentic-development.md) Section 8 for the manual-invocation procedure.
 
 ### 4. IMPLEMENT Phase
 
-Invoke implementation using existing skills:
-- Invoke `/implement-feature <change-id>` (tier auto-detected based on coordinator + work-packages.yaml)
+Implement the next slice of work per `tasks.md`. The IMPLEMENT phase is
+the only phase that runs with `isolation="worktree"` — sub-agent commits
+land on a sibling worktree branch and merge back at completion.
 
-Record `package_authors` from the implementation results (which vendor implemented each package).
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase IMPLEMENT --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. The `isolation` value will be
+   `"worktree"` for IMPLEMENT. Treat `prompt` as opaque. Parse the
+   agent's last message for `(outcome, handoff_id)`. Outcome is
+   `"complete"` on success, `"failed"` (or `"escalate"`) on
+   unrecoverable error.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase IMPLEMENT \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke `/implement-feature <change-id>` (tier
+auto-detected based on coordinator + work-packages.yaml). Record
+`package_authors` from the implementation results. After completion,
+run `apply-outcome` to record `phase_archetype = null`.
 
 ### 4.5. IMPL_ITERATE Phase (Always Runs)
 
-Self-review and refinement of implementation. This phase always runs regardless of CLI mode.
+Self-review and refinement of implementation. This phase always runs
+regardless of CLI mode. Reads proposal, design, and all changed source
+files. Identifies bugs, security issues, edge cases, performance
+problems. Outcome is `"complete"` when refinements settle, `"failed"`
+otherwise.
 
-Invoke `/iterate-on-implementation <change-id>` — this runs the single-agent self-review loop that:
-- Reads proposal, design, and all changed source files
-- Identifies bugs, security issues, edge cases, performance problems
-- Fixes findings above threshold with parallel agents for independent files
-- Runs quality checks (pytest, mypy, ruff, openspec validate) after each fix
-- Loops until convergence or max iterations
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase IMPL_ITERATE --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
+   the agent's last message for `(outcome, handoff_id)`.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase IMPL_ITERATE \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke `/iterate-on-implementation <change-id>`. Then run
+`apply-outcome` so `phase_archetype = null` is recorded.
 
 **If complete**: Transition to IMPL_REVIEW (CLI mode) or VALIDATE (non-CLI mode).
 **If failed**: Transition to ESCALATE.
@@ -175,28 +348,114 @@ Invoke `/iterate-on-implementation <change-id>` — this runs the single-agent s
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to VALIDATE.
 
-Invoke the convergence loop with `fix_mode="targeted"`.
+Multi-vendor implementation review with `fix_mode="targeted"`. Outcome
+is `"converged"` if no blocking findings, `"not_converged"` otherwise.
 
-**Post-fix validation**: Pass a `post_fix_validator` callback that runs scoped quality checks after each fix round:
-- `pytest` on changed files only (not full suite)
-- `mypy` on changed files
-- Validation errors are attached to the convergence result for visibility but don't alter convergence logic — the next review round surfaces them to vendors.
+Dispatch protocol (3 steps):
 
-For **targeted implementation fixes** (IMPL_FIX): Look up the lead vendor from `package_authors`, use `CliVendorAdapter.dispatch()` directly to send the fix to that specific vendor, scoped to the package's `write_allow` paths.
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase IMPL_REVIEW --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
+   the agent's last message for `(outcome, handoff_id)`.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase IMPL_REVIEW \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke the convergence loop with `fix_mode="targeted"`
+and a `post_fix_validator` callback for scoped pytest/mypy/openspec
+checks. Then run `apply-outcome` to record `phase_archetype = null`.
+
+For **targeted implementation fixes** (IMPL_FIX, NOT a sub-agent
+dispatch): Look up the lead vendor from `package_authors`, use
+`CliVendorAdapter.dispatch()` to send the fix to that specific vendor,
+scoped to the package's `write_allow` paths. IMPL_FIX inherits
+`phase_archetype` from the preceding IMPL_REVIEW.
 
 ### 6. VALIDATE Phase
 
-Invoke validation:
-- Invoke `/validate-feature <change-id>` (tier auto-detected)
+Run validation phases (spec, evidence, deploy, smoke, security, e2e)
+per validate-feature. Aggregate results into a PhaseRecord. Outcome is
+`"continue"` on PASS, `"escalate"` on FAIL.
+
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase VALIDATE --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
+   the agent's last message for `(outcome, handoff_id)`.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase VALIDATE \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke `/validate-feature <change-id>` (tier
+auto-detected). Then run `apply-outcome` to record `phase_archetype = null`.
 
 **If passed**: Check `val_review_enabled` — if true, go to VAL_REVIEW; otherwise skip to SUBMIT_PR.
 **If failed**: Transition to VAL_FIX.
 
 ### 7. VAL_REVIEW Phase (Optional)
 
-Only runs if enabled by complexity gate or `--val-review` flag. Same convergence loop pattern as PLAN_REVIEW but reviewing validation evidence.
+Only runs if enabled by complexity gate or `--val-review` flag. Reviews
+validation evidence — outcome is `"converged"` if validation passes
+critique, `"not_converged"` otherwise.
+
+Dispatch protocol (3 steps):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase VAL_REVIEW --change-id <change-id>
+   ```
+
+2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
+   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
+   the agent's last message for `(outcome, handoff_id)`.
+
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase VAL_REVIEW \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+inline path — invoke the convergence loop with `review_type="implementation"`
+and `fix_mode="targeted"`, scoped to the validation evidence. Then run
+`apply-outcome` to record `phase_archetype = null`.
 
 ### 8. SUBMIT_PR Phase
+
+**Record SUBMIT_PR phase archetype** (state-only resolver — D9). Before
+running `gh pr create`, populate `phase_archetype` for SUBMIT_PR so the
+PR-creation phase is visible in observability dashboards alongside the
+dispatching phases:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
+  --change-id <change-id> --phase SUBMIT_PR
+```
+
+Failure here is non-fatal (writes `phase_archetype = null` and continues).
 
 Create a pull request with full evidence trail:
 
@@ -290,7 +549,8 @@ See `docs/autopilot-phase-archetype-resolution.md` for the full operator guide.
 ## Output
 
 - `openspec/changes/<change-id>/loop-state.json` — Full loop state (resumable)
-- `openspec/changes/<change-id>/reviews/round-N/` — Per-round review artifacts
+- `openspec/changes/<change-id>/reviews/round-N/` — Per-round CLI-dispatched review artifacts (PLAN_REVIEW, IMPL_REVIEW, VAL_REVIEW)
+- `openspec/changes/<change-id>/.review-cache/round-N/` — Per-round in-process `converge()` checkpoints (durability path)
 - Pull request with evidence trail
 - Coordinator memory entries (episodic)
 - Coordinator handoff documents

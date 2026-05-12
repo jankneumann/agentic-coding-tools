@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-07T13:22:13.100980+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a CLI-fallback recovery mechanism for the in-process multi-vendor review converge() API. The in-process flow loses vendor findings on synthesis failure; the CLI's existing per-vendor on-disk checkpoint pattern survives such failures. Selected Approach 1 (auto-fallback to CLI subprocess + reuse .review-cache/ layout + observable recovery via two new ConvergenceResult fields).",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Subprocess fallback over native checkpoint-then-synthesize",
+        "rationale": "Reuses the existing consensus_synthesizer.py CLI binary verbatim instead of forking synthesis logic. Future synthesizer fixes inherit automatically; no two-path divergence risk.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Reuse .review-cache/ layout used by review_dispatcher.py CLI",
+        "rationale": "Same directory, filenames, and manifest format as the CLI dispatcher. Eliminates path translation and a second loader; the fallback subprocess reads checkpoint files without any conversion.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Observable recovery via two ConvergenceResult fields",
+        "rationale": "recovered_via_fallback: bool + fallback_diagnostics: dict | None directly on the dataclass. Side-channels (env var, thread-local, audit-only) hide recovery from callers that legitimately need to know.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Re-raise original synthesis exception when fallback also fails",
+        "rationale": "Subprocess stderr tail attaches as forensic data (Python 3.11+ __notes__) but the surface exception is the original synthesis error, since that is the diagnostically interesting one.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Audit emission failures do not mask recovery",
+        "rationale": "Coordinator unavailability when emitting convergence.fallback_recovered must not un-recover a successful recovery. Wrap in try/except + logger.warning. Mirrors coordination-bridge convention.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run /implement-feature harden-multi-vendor-review-recovery",
+      "wp-contracts is the root package \u2014 JSON Schemas validating .review-cache/ layout. Then wp-checkpoint-helper. wp-cli-refactor and wp-converge-recovery follow the DAG; wp-integration is final.",
+      "After this proposal lands, file the follow-up bug fix proposal for consensus_synthesizer.py:59 line_range type handling (referenced in proposal.md and tasks.md Phase 8.3)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/proposal.md",
+        "description": "Approved proposal \u2014 selected Approach 1 (auto-fallback to CLI subprocess)"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+        "description": "Architecture, decision log, component-interaction diagrams, edge cases"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+        "description": "TDD-ordered tasks across Phases 0-8, mapped to spec scenarios"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+        "description": "5 ADDED requirements: checkpoint layout, in-process checkpointing, CLI fallback, observability fields, audit logging"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
+        "description": "JSON Schema for .review-cache/review-manifest.json (schema_version=1)"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/finding.schema.json",
+        "description": "JSON Schema for findings-{vendor}-{review_type}.json (permissive line_range)"
+      },
+      {
+        "path": "openspec/changes/harden-multi-vendor-review-recovery/work-packages.yaml",
+        "description": "5 packages: wp-contracts -> wp-checkpoint-helper -> wp-cli-refactor -> wp-converge-recovery -> wp-integration"
+      }
+    ]
+  }
+}
