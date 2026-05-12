@@ -12,6 +12,7 @@ dependencies = [
     "hvac>=2.4.0",
     "jsonschema>=4.26.0",
     "pyyaml>=6.0",
+    "urllib3>=2.7.0",
 ]
 
 [project.optional-dependencies]
