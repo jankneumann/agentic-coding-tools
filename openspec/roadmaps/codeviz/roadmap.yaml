@@ -550,5 +550,95 @@ items:
   - /repos/{id}/export?at={commit_sha} MUST stream a pack in under 30 seconds for a 1.5k-node repo.
   - codeviz-pack import <file> MUST repopulate a fresh FalkorDB instance idempotently.
   - The pack MUST include the mandatory artifact header on every embedded JSON.
+- item_id: ast-compressed-bundles
+  title: AST-compressed bundles (signatures / skeleton)
+  status: candidate
+  priority: 2
+  effort: S
+  depends_on:
+  - artifact-header-schema
+  description: 'Generate per-file/per-module JSON artifacts capturing the architectural
+    skeleton of source code while stripping implementation bodies. Reuses the existing
+    tree-sitter pipeline. Two modes: signatures (function/method signatures, types,
+    imports/exports, classes; bodies replaced with {...}) and skeleton (signatures
+    plus public docstrings and decorators). Output is committed under docs/architecture-analysis/ast-bundles/<lang>/<module>.json
+    with the mandatory artifact header. Feeds both the AI subgraph-retrieval context
+    assembly (cheaper than raw source slicing for API-surface queries) and the SPA
+    source viewer overview mode for large files.'
+  acceptance_outcomes:
+  - A bundle generator MUST emit signatures and skeleton modes from python_analysis.json,
+    ts_analysis.json, and postgres_analysis.json inputs.
+  - The signatures mode MUST reduce per-module token count by at least 50% versus raw
+    source, measured on a representative sample of ten modules.
+  - Bundles MUST be deterministic — the same input produces byte-identical output.
+  - The subgraph-retrieval service MUST be able to substitute a bundle for raw source
+    slices behind a prefer_bundle=true query parameter.
+- item_id: code-metrics-enrichment
+  title: Code metrics enrichment on graph nodes
+  status: candidate
+  priority: 4
+  effort: S
+  depends_on:
+  - ingestion-pipeline
+  description: 'Augment the ingestion pipeline with per-node metric properties: loc
+    (lines of code), cyclomatic_complexity (from tree-sitter CST traversal where practical),
+    mutation_flags (does the symbol mutate module-level or external state), test_coverage_pct
+    (where coverage reports exist), and last_modified_commit. Metrics are substrate
+    for CodeCity 3D height/area encoding, the risk lens, and AI quality queries (show
+    me the highest-complexity untested functions).'
+  acceptance_outcomes:
+  - Every File and Symbol node ingested MUST carry loc and last_modified_commit properties.
+  - cyclomatic_complexity MUST be computed and stamped for at least 80% of Python and
+    TypeScript Symbol nodes.
+  - mutation_flags MUST be a boolean derived from CST analysis and documented in docs/codeviz/metrics.md.
+  - test_coverage_pct MUST be optional (present when a coverage report is found, absent
+    otherwise) and never block ingestion.
+- item_id: mcp-server-interface
+  title: MCP server interface over the graph
+  status: candidate
+  priority: 5
+  effort: S
+  depends_on:
+  - http-api-server
+  description: 'Expose the same read operations as the HTTP API through an MCP server,
+    so MCP-aware agents (Claude Desktop, Cursor, coordinator-orchestrated agents) can
+    query the codeviz graph using the same state the SPA reads. The MCP server is a
+    thin adapter over the FastAPI handlers; it MUST NOT duplicate query logic. Aligns
+    with the repo convention MCP for local agents, HTTP for cloud agents documented
+    in openspec/project.md. Tools exposed: loc, subgraph, dependents, at_commit_subgraph,
+    cypher (gated).'
+  acceptance_outcomes:
+  - An MCP server MUST be runnable via make codeviz-mcp and reachable over stdio.
+  - Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the
+    MCP surface MUST NOT introduce new query logic.
+  - The MCP server MUST be discoverable from agent-coordinator's capability registry.
+  - Documentation MUST cover Claude Desktop and Cursor configuration snippets at docs/codeviz/mcp.md.
+- item_id: agent-memory-visualization
+  title: Agent-memory visualization layer (OpenSpec-as-memory lens)
+  status: candidate
+  priority: 8
+  effort: M
+  depends_on:
+  - openspec-proposal-linkage
+  - spa-scaffold-render
+  - lens-framework
+  description: 'Model the existing OpenSpec + session-log + worktree corpus as the agent
+    memory layer and visualize it as a first-class lens, rather than introducing a parallel
+    .GCC/-style memory format. Each openspec/changes/<id>/ directory is a memory episode
+    (proposal.md = intent, tasks.md = plan, session-log.md = execution trace, worktree
+    branch = isolated workspace). Each session-log entry is a temporal node. Each worktree
+    branch is a divergent reasoning track. Each merge back is a convergence point. Surface
+    these as a dedicated agent-memory lens with timeline scrubber, branch tracks, and
+    per-episode detail panel.'
+  acceptance_outcomes:
+  - Every session-log entry under openspec/changes/<id>/session-log.md MUST become a
+    temporal node connected to its parent Proposal.
+  - Active worktree branches (per .git-worktrees/.registry.json) MUST render as parallel
+    tracks under their associated Proposal node.
+  - The agent-memory lens MUST visualize multi-agent activity (multiple worktrees +
+    their session-log streams simultaneously) without requiring page reload between
+    branches.
+  - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known
+    state at any past point.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-12T09:34:00+00:00'
+updated_at: '2026-05-12T10:18:00+00:00'
