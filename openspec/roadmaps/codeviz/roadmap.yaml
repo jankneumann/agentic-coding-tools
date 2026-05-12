@@ -116,9 +116,20 @@ items:
     \ Depends on the ingestion pipeline.\n\nAcceptance outcomes:\n- Subgraph queries with `hops <= 3"
   acceptance_outcomes:
   - Subgraph queries with `hops <= 3` MUST return in under 100 ms at p95 on a 2k-node graph.
+  - The `/dependents` endpoint MUST support `transitive=true|false` and a `depth` parameter,
+    and MUST return a flat list with hop-distance per entry.
   - OpenAPI schema MUST be auto-generated and committed.
   - '`/cypher` MUST be disabled by default and require an explicit env flag.'
   - Server MUST refuse cross-repo queries unless `repo_id` is explicitly specified.
+  - Every endpoint MUST declare an operation_kind in {read, reversible-write, destructive-write}
+    via the shared op_reversibility classifier; the OpenAPI schema MUST expose this tag.
+  - The /cypher endpoint MUST run an AST-level classifier on every submitted query
+    before execution; queries that contain DELETE, DETACH DELETE, REMOVE, or property-overwriting
+    SET MUST be classified destructive and refused unless an explicit consent token
+    is presented.
+  - Reversible-write endpoints MUST emit an audit-event artifact; destructive-write
+    endpoints MUST emit an audit event AND require a consent token, regardless of whether
+    the caller is human or agent.
 - item_id: spa-scaffold-render
   title: SPA render scaffold (rendering choice via prototype phase)
   status: candidate
@@ -321,6 +332,11 @@ items:
   - Action API MUST be documented in `docs/codeviz/agent-api.md` with example invocations.
   - Headless screenshots MUST be reproducible from a URL alone.
   - A sample skill (`codeviz-snapshot`) MUST demonstrate end-to-end agent use.
+  - Every action MUST declare an operation_kind via the shared op_reversibility classifier;
+    pure navigation actions (select / filter / zoom / scrub) are read.
+  - Destructive-write actions MUST accept a consent_token header (or a pre-authorized
+    scope claim) and MUST refuse the operation without one; reversible-write actions
+    MUST emit an audit event with the calling agent's identifier.
 - item_id: multi-repo-federation
   title: Multi-repo ingestion and federated views
   status: candidate
@@ -624,6 +640,11 @@ items:
     explain_lineage) MUST all be implemented and documented with example invocations.
   - The MCP server MUST be discoverable from agent-coordinator's capability registry.
   - Documentation MUST cover Claude Desktop and Cursor configuration snippets at docs/codeviz/mcp.md.
+  - Every MCP tool's schema MUST declare an operation_kind annotation inherited from
+    the wrapped HTTP handler; clients MUST be able to filter tool listings by operation_kind.
+  - Destructive-write tools MUST surface as MCP tools that require host-mediated consent
+    (the standard MCP user-consent flow); reversible-write tools MUST emit audit events
+    without prompting.
 - item_id: agent-memory-visualization
   title: Agent-memory visualization layer (OpenSpec-as-memory lens)
   status: candidate
@@ -678,6 +699,10 @@ items:
     the iframe, no arbitrary network calls.
   - Documentation MUST include host-configuration snippets and a screenshot fixture
     at docs/codeviz/mcp-app.md.
+  - Tool calls initiated from inside the App MUST respect the same operation_kind taxonomy
+    as direct MCP server calls — destructive-write tools MUST trigger the host's standard
+    consent UI; reversible-write tools MUST surface a visible audit-event indicator (small
+    badge) so the operator sees what the App is doing in-context.
 - item_id: version-variant-view
   title: Version & Variant view (side-by-side candidate comparison)
   status: candidate
@@ -711,4 +736,4 @@ items:
   - The view MUST be addressable via URL parameters encoding the candidate list and
     the focused architectural region.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-12T11:15:00+00:00'
+updated_at: '2026-05-12T12:30:00+00:00'
