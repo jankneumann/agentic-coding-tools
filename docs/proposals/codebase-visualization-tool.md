@@ -12,33 +12,48 @@ This proposal specifies a local-first interactive visualization and AI-augmented
 
 ## Why
 
-VS Code and other editors are file-tree + symbol-driven and stop at the function level inside a single repo and a single point in time. They have no concept of (a) architectural zones / layers, (b) cross-PR blast radius over a dependency graph, (c) temporal navigation of subsystems across commits, (d) cross-artifact linkage (proposal ↔ symbol ↔ test ↔ finding), or (e) AI grounded in an architectural slice rather than open editor tabs. Copilot Chat sees open files; an agent-friendly visualization must see *architectural neighborhoods*.
+Existing tools solve slices of this problem well. Sourcegraph and SCIP-based indexers cover go-to-definition, cross-repo symbol search, and structural code navigation. VS Code, IntelliJ, and Visual Studio cover file/symbol-level work with breadcrumbs, peek views, references, hierarchies, and dependency diagrams. CodeQL covers structural security analysis. Joern covers code property graphs with dataflow. Semgrep covers fast custom rules. ExplorViz and KubeDiagrams cover runtime/deployment overlays. Helveg, ChangePrism, and ReviewVis cover interactive 2D code-architecture documentation, semantic diffs, and review-time graph navigation respectively. Each is excellent at the slice it addresses.
 
-We already have most of the substrate. The cost-to-value of building the UX layer is favorable because (i) we are not greenfielding extraction, (ii) FalkorDB and Graphiti patterns are already validated in our content-analyzer codebase, and (iii) our agents will be heavy users — a graph surface with a documented action API benefits humans and agents simultaneously.
+What no existing tool unifies — and what an agentic workflow now urgently needs — is a single navigable substrate that ties **code structure + semantic changes + tests + runtime evidence + deployment/service topology + worktrees + commits + OpenSpec proposals + review findings + agent provenance** together for *architectural review of multi-file autonomous changes*. The differentiated product is not "better go-to-definition." It is **agentic architectural review** across all of those layers, with AI grounded in the same graph the human sees.
+
+We already have most of the structural substrate (1,471 nodes / 901 edges in `architecture.graph.json`, plus parallel-zone, comment, pattern, and tree-sitter analyses). The cost-to-value of building the integration layer is favorable because (i) we are not greenfielding extraction, (ii) FalkorDB and Graphiti patterns are validated in our content-analyzer codebase for *temporal agent memory*, and (iii) our agents will be heavy users — a graph surface with a documented action API benefits humans and agents simultaneously.
 
 Industry signal underlines the urgency. As coding agents are integrated into mainstream development workflows, longitudinal studies of large corporate codebases report (a) a sustained decline in the share of changed lines that are refactoring, (b) a measurable increase in cloned/duplicated code, (c) elevated short-term churn as agents overwrite recent work under narrow context windows, and (d) growing reliance on verbose lower-level implementations because agents readily manage boilerplate that humans would have factored into abstractions. The net effect is more code, more redundancy, and less architectural cohesion — exactly the conditions under which a multi-scale, blast-radius-aware, AI-anchored navigation surface stops being a nice-to-have and starts being a precondition for safe review velocity.
 
 ## Guiding Principles
 
 - **JSON files remain canonical** and committed to git. FalkorDB is a derived index, rebuilt from JSON on demand. Diffability of architecture state in PRs is preserved.
-- **Local-first, multi-repo from day one.** Single-operator local SPA + local FalkorDB container; per-repo namespacing baked into the schema so federation is not a later refactor.
+- **Local-first, network-allowed, multi-repo from day one.** Single-operator local SPA + local FalkorDB container; per-repo namespacing baked into the schema so federation is not a later refactor. Network access is *allowed* — LLMs, embeddings, telemetry, and remote analyzers MAY be used where appropriate — but core read paths MUST remain functional offline with a local fallback.
+- **Separate deterministic code facts from probabilistic agent memory.** Code facts (calls, references, imports, dataflow, definitions, types) come from compiler-grade tools where available: SCIP/Sourcegraph indexers, CodeQL, Joern Code Property Graphs, language LSPs. Tree-sitter is the fallback for languages without indexer support, and the source for AST signature bundles. Graphiti + FalkorDB are reserved for *temporal agent memory* — sessions, decisions, findings, episodes, provenance. Do not conflate the two substrates.
+- **Adopt before build.** Before committing to any extraction substrate, benchmark it against existing alternatives on this repo. The substrate-evaluation milestone in Phase 0 is non-negotiable; the FalkorDB-as-cache decision is contingent on its result.
+- **Every edge carries provenance and confidence.** No node or edge enters the graph anonymous. Every entry declares `extractor`, `extractor_version`, `evidence_kind`, `confidence`, `last_verified_at`, and `source_span`. The AI panel MUST refuse to cite weak evidence above its confidence threshold.
 - **Stability beats beauty.** Graph layout must be deterministic and stable across refreshes; nodes do not migrate when the graph changes unless their structural position changes. Cluster anchors come from `parallel_zones.json`.
 - **AI is anchored to graph selection.** The chat panel auto-attaches the selected subgraph (nodes, edges, source slices, related artifacts) as context rather than dumping the whole repo into a vector store.
-- **Reuse the content-analyzer stack.** FalkorDB + Graphiti-style temporal episodes; do not invent a new graph database, query language, or temporal model.
 - **2D first.** Cytoscape.js is the primary render target. 3D (three.js / CodeCity metaphor) is an optional later view, never the default.
 - **No vendor lock-in for the UI.** All data is fetched via a documented HTTP API the SPA consumes; agents and CLI tools can hit the same endpoints.
-- **Read-mostly by default; reversibility determines consent.** All API surfaces (HTTP, MCP server, MCP App, Action API) MUST tag every operation as `read`, `reversible-write`, or `destructive-write`. Read and reversible-write operations are auto-allowed and emit audit events; destructive-write operations require explicit consent (prompt, signature, or pre-authorized scope) and emit audit events. The model mirrors Claude Code's `allow / ask / deny` permission tiers. Reversibility is defined in the Constraints section.
+- **Agents default to read-only; reversible writes require scoped sessions.** All API surfaces (HTTP, MCP server, MCP App, Action API) MUST tag every operation as `read`, `reversible-write`, or `destructive-write`. Read operations are auto-allowed for any caller. Reversible-write operations for *human* operators are auto-allowed and audited; for *agents*, reversible writes require an active scoped session (e.g. "this agent may save views for the next N operations") with a visible UI indicator and a rate limit. Destructive-write operations require explicit per-operation consent regardless of caller. Mirrors Claude Code's `allow / ask / deny` permission tiers. Reversibility is defined in the Constraints section.
 
 ## Constraints
 
-- The tool MUST run fully offline (no required cloud calls) for the primary single-operator workflow.
-- The graph store MUST be FalkorDB (Cypher-over-Redis), reusing operational learnings and embedding patterns from `agentic-content-analyzer`.
-- JSON snapshot artifacts under `docs/architecture-analysis/` MUST remain the canonical, committed source of truth. FalkorDB MUST be rebuildable from them deterministically.
+- The tool MUST run **local-first**: every core read path (subgraph queries, source-slice retrieval, lens rendering, diff overlays, AI panel structural retrieval) MUST work without any network call. Network access is allowed for opt-in features (LLM-backed chat answers, cloud embeddings, remote SCIP indexers, telemetry).
+- The graph store MAY be FalkorDB (Cypher-over-Redis), but the choice is contingent on the substrate-evaluation milestone in Phase 0. The proposal commits to *a* Cypher-capable graph database with bi-temporal validity and a Python client, not specifically to FalkorDB. Graphiti patterns are reused for *temporal agent memory*, not for code-fact extraction.
+- JSON snapshot artifacts under `docs/architecture-analysis/` MUST remain the canonical, committed source of truth for *small structural artifacts*. Other artifact classes follow the storage-tier policy below. The graph store MUST be rebuildable from canonical sources deterministically.
 - Multi-repo support MUST be designed in from the first ingestion implementation (per-repo namespace label on every node + every edge), even if only one repo is initially indexed.
 - The AI panel MUST operate on a retrieved subgraph + source slices, never on the full repository corpus.
 - Graph layout MUST be stable: a node's screen position MUST NOT change unless its graph-theoretic position changes.
 - Every visualization MUST be reachable via a shareable URL encoding the lens (filter set + zoom + time + selection).
-- **Symbol identity MUST be stable across renames, file moves, and small refactors.** Symbol IDs MUST be derived from a content-hash plus structural-position signature (parent module path + symbol name normalized + neighborhood signature) so that a git mv or a function rename does NOT break the bi-temporal validity chain, the blast-radius traversal, or the cross-version comparisons. Without this, every refactor produces phantom "removed + added" pairs that destroy temporal continuity.
+- **Every node and edge MUST carry provenance metadata.** Each entry MUST declare `extractor` (e.g. `scip-python@0.4.2`, `codeql@2.16`, `tree-sitter@0.21`, `openspec-linker@1.0`, `human-curated`, `llm-inferred`), `extractor_version`, `evidence_kind` (one of `static-deterministic`, `static-heuristic`, `runtime-observed`, `commit-history`, `human-authored`, `llm-inferred`), `confidence` (0.0-1.0), `last_verified_at` (ISO-8601), and `source_span` (file + line range or commit SHA + path). Edges without provenance MUST be rejected at ingestion. The AI panel MUST NOT cite edges below a configurable confidence threshold without explicit uncertainty language.
+- **Symbol identity is probabilistic, not deterministic.** Continuity across renames, file moves, and refactors MUST be derived from multiple evidence sources combined: SCIP/LSIF stable IDs where indexer support exists, `git log --follow` rename detection, AST structural similarity, signature similarity, caller/callee neighborhood overlap, and an operator override file (`codeviz.rename-map.yaml`). A `RENAMED_FROM` edge MUST carry a `confidence` score and the evidence sources that produced it. The schema MUST NOT pretend symbol identity survives every refactor; it MUST instead expose the uncertainty and let the UI degrade gracefully.
+
+### Storage tier policy
+
+Artifacts are placed in storage based on size, diffability, and retention needs. Mixing tiers is explicit, not accidental.
+
+- **Git (committed)** — small, diffable, canonical: `architecture.graph.json`, `parallel_zones.json`, `*_analysis.json`, `comment_insights.json`, `pattern_insights.json`, `diff-graph/<sha>.json`, AST signature manifests, OpenSpec proposals, `codeviz.links.yaml`, `codeviz.rename-map.yaml`, `architecture-fitness.yaml`. Per-PR additions MUST be kept under 1 MB; larger payloads go to other tiers.
+- **Graph store (derived)** — the FalkorDB instance (or chosen Cypher store from substrate-evaluation). Rebuildable from git-canonical sources. Holds the queryable bi-temporal index and Graphiti episodic memory.
+- **Object storage / local file cache (operational)** — large or operator-private artifacts that don't belong in git: full source-slice caches, embedding vector stores, large AST bundles, graph-pack tarballs, OpenTelemetry trace dumps. Operator chooses local filesystem (default), S3-compatible bucket, or a coordinator-provided blob store. NEVER committed.
+- **Event-artifact directories (committed-but-bounded)** — event-class artifacts (`docs/codeviz/audit/<YYYY-MM-DD>/<run-id>.json`, `docs/codeviz/findings/<YYYY-MM-DD>/<run-id>.json`, fitness reports). Carry the mandatory header. Retention policy: 90 days in-tree; older entries are summarized into a monthly digest and the raw entries archived to object storage.
+- **`.gitignore` enforcement** — all local cache directories (`.codeviz-cache/`, `*.codeviz-pack`, `.codeviz-embeddings/`) MUST be gitignored. A CI lint MUST refuse PRs that accidentally commit full source slices, raw embedding stores, or secret-bearing graph packs.
 
 ### Artifact families
 
@@ -129,6 +144,36 @@ Acceptance outcomes:
 - A CI step MUST fail the build on fitness violations and post a structured comment to the PR.
 - Fitness reports MUST be written as event artifacts under `docs/architecture-analysis/fitness/<YYYY-MM-DD>/<run-id>.json`.
 
+### Capability: Substrate evaluation (adopt-before-build)
+
+Before committing to FalkorDB + Graphiti as the graph substrate, run the same target repo through several existing code-intelligence systems and produce a comparative benchmark report. Candidates: SCIP / Sourcegraph indexers, Codebase-Memory (Tree-sitter MCP knowledge graph), CodeQL databases, Joern Code Property Graphs, Semgrep findings ingestion, the current `architecture.graph.json` pipeline, and FalkorDB + Graphiti from `agentic-content-analyzer`. The benchmark MUST evaluate each candidate on edge coverage (per edge type), precision/recall against a gold fixture, build complexity and dependencies, offline-mode support, query latency for typical reviewer queries, artifact size, multi-language support, and integration cost into this repo. Output is a decision memo + benchmark report committed at `openspec/roadmaps/codeviz/substrate-evaluation.md` that either ratifies FalkorDB + Graphiti for the temporal-memory layer plus an externally-supplied code-fact substrate (SCIP / CodeQL / Joern), or proposes a different combination. Foundational; runs in parallel with `artifact-header-schema` and `artifact-classification`.
+
+Acceptance outcomes:
+- A benchmark harness MUST run each candidate against this repo and a second representative repo (chosen during the evaluation), producing per-candidate metrics in a comparable schema.
+- The decision memo MUST be committed at `openspec/roadmaps/codeviz/substrate-evaluation.md` before any downstream Phase 0 ingestion or schema work begins.
+- The memo MUST recommend (a) a code-fact substrate (SCIP/CodeQL/Joern/tree-sitter or a combination, with provenance per edge type), (b) a graph store (FalkorDB or alternative), and (c) the temporal-memory role for Graphiti, with explicit rationale for each.
+- If the benchmark contradicts the current proposal (e.g. FalkorDB + Graphiti is the wrong combination), the proposal and roadmap MUST be revised before Phase 0 implementation work proceeds.
+
+### Capability: Graph-quality CI
+
+Fixture-based precision/recall measurement of the extraction pipeline. For each edge type the system produces (`IMPORTS`, `CALLS`, `TESTS`, `WRITES_TO`, `READS_FROM`, `IMPLEMENTS_PROPOSAL`, `INVOKES_AT_RUNTIME`, `FLAGS`, etc.), maintain a gold fixture with hand-validated expected edges plus a known-bad set. A CI job runs the pipeline against the fixtures on every PR and fails when precision/recall regresses below the per-edge-type threshold. Catches extractor drift, version mismatches, and silent regressions in heuristic confidence calibration. Output is an event-class report (`docs/codeviz/graph-quality/<YYYY-MM-DD>/<run-id>.json`) carrying the mandatory artifact header.
+
+Acceptance outcomes:
+- A gold fixture set MUST exist for at least six edge types with hand-validated edges; the fixture MUST be small enough to recompute on every PR.
+- The CI job MUST report precision and recall per edge type and fail the build if any falls below its configured threshold.
+- Adding a new extractor or upgrading an existing extractor version MUST require a schema migration that updates the gold fixture and threshold; the lint MUST refuse silent extractor-version bumps.
+- The graph-quality report MUST link to the failing edge IDs so a reviewer can navigate to the specific source-span where the extractor went wrong.
+
+### Capability: Formal threat model artifact
+
+Consolidate scattered security constraints into a single formal threat-model artifact committed at `docs/codeviz/threat-model.md`. Covers, at minimum: (1) **malicious repo contents** poisoning the graph or AST bundles, (2) **path traversal** in source-slice endpoints or graph-pack imports, (3) **deep-link leakage** via `vscode://file/...` payloads exposing private paths, (4) **graph-pack secret exposure** — exporting a pack that contains proprietary source snippets, embedding vectors, or audit events, (5) **hostile MCP tools or App iframes** with crafted manifests or oversized payloads, (6) **local HTTP server exposure** beyond `127.0.0.1` and the CORS/CSRF posture of the FastAPI server, (7) **audit-event flooding** by misbehaving agents, (8) **namespace-overwrite imports** where a graph pack overwrites trusted state, (9) **FalkorDB-specific behavioral risks** (`LIMIT` does not constrain eager `CREATE/SET/DELETE/MERGE`; read paths MUST use `GRAPH.RO_QUERY` or equivalent; relationship matching can behave unexpectedly without explicit relation references). Each threat carries a mitigation pointing to a specific capability acceptance outcome.
+
+Acceptance outcomes:
+- `docs/codeviz/threat-model.md` MUST exist before `http-api-server` ships in production.
+- Each threat MUST have a checked-in mitigation that points to specific acceptance criteria on at least one capability (e.g. "deep-link leakage → source-viewer-panel acceptance #N").
+- An `unmitigated` field MUST be honest — threats that are accepted-as-known-risk MUST be listed explicitly with rationale.
+- The document MUST be reviewable as a single PR artifact, not split across capability sections.
+
 ### Capability: FalkorDB local container + bootstrap script
 
 Package a docker-compose service (or `docker run` wrapper) for FalkorDB pinned to a known version, with a host-mounted volume for persistence. Provide `make codeviz-up`, `make codeviz-down`, `make codeviz-reset` targets. Document required ports, memory budget, and reset semantics. Reuses the same compose pattern established for the coordinator Postgres container.
@@ -148,8 +193,10 @@ Acceptance outcomes:
 - A migration runner MUST apply migrations idempotently and record applied versions.
 - All node and edge types MUST be documented in `docs/codeviz/schema.md` with examples.
 - Bi-temporal validity columns MUST be present on every edge.
-- Every Symbol/File node MUST carry a `stable_id` property derived from content-hash + structural-position signature; the schema MUST enforce a uniqueness constraint on `(repo_id, stable_id)`.
-- A `RENAMED_FROM` edge type MUST exist to record stable-ID continuity across renames detected at ingestion time.
+- Every node and edge MUST carry the provenance metadata block (`extractor`, `extractor_version`, `evidence_kind`, `confidence`, `last_verified_at`, `source_span`); the schema MUST reject inserts that lack these fields.
+- Symbol/File nodes MUST carry a `stable_id` property whose **continuity is probabilistic**: it is preserved across snapshots only when the rename detector emits a `RENAMED_FROM` edge with confidence above a configurable threshold. The schema MUST NOT enforce hard uniqueness across snapshots, only within a single snapshot.
+- A `RENAMED_FROM` edge type MUST carry both `confidence` and `evidence_sources` (e.g. `["scip-rename", "git-follow", "ast-similarity:0.92"]`) so the UI can show *why* the rename was inferred.
+- A read-only query path (e.g. `GRAPH.RO_QUERY` on FalkorDB or the equivalent on the chosen substrate) MUST be exposed for use by all read endpoints; mutations MUST NOT be reachable through the read path even with crafted queries.
 
 ### Capability: Ingestion pipeline — JSON snapshots to FalkorDB
 
@@ -160,7 +207,9 @@ Acceptance outcomes:
 - Re-ingesting the same snapshot MUST be a no-op (idempotent).
 - A second ingestion with a different `--commit-sha` MUST preserve prior temporal validity and only update edges that changed.
 - Ingestion logs MUST report node/edge counts created, updated, deprecated per type.
-- Ingestion MUST compute a stable `stable_id` per Symbol/File node (content-hash + structural-position signature) and MUST detect renames across snapshots, emitting `RENAMED_FROM` edges rather than `removed + added` pairs. A fixture test MUST verify that renaming `foo()` to `bar()` in the same module preserves the symbol's stable_id and emits exactly one `RENAMED_FROM` edge.
+- Every node and edge written by the pipeline MUST carry the full provenance metadata block. Missing provenance MUST cause the pipeline to fail with a descriptive error pointing to the source artifact.
+- Rename detection MUST combine **at least three** independent evidence sources (`git log --follow`, AST structural similarity, signature similarity, caller/callee neighborhood overlap, SCIP/LSIF identity where available, plus the operator's `codeviz.rename-map.yaml` override) and MUST emit a `RENAMED_FROM` edge with `confidence` and `evidence_sources` populated. A fixture test MUST verify rename detection on at least three scenarios: (a) simple rename in same file, (b) function moved across files, (c) extracted helper from larger function.
+- Renames below the confidence threshold MUST emit a `removed + added` pair *with explanatory provenance* (`evidence_kind: static-heuristic`, `confidence: <below-threshold>`) rather than a phantom `RENAMED_FROM` edge.
 
 ### Capability: Code metrics enrichment
 
@@ -199,7 +248,8 @@ Acceptance outcomes:
 - The MCP server MUST be discoverable from `agent-coordinator/`'s capability registry.
 - Documentation MUST cover Claude Desktop and Cursor configuration snippets at `docs/codeviz/mcp.md`.
 - Every MCP tool's schema MUST declare an `operation_kind` annotation inherited from the wrapped HTTP handler; clients MUST be able to filter tool listings by `operation_kind`.
-- Destructive-write tools MUST surface as MCP tools that require host-mediated consent (the standard MCP user-consent flow); reversible-write tools MUST emit audit events without prompting.
+- Agents connecting via MCP MUST be granted `read` access by default. To call any `reversible-write` tool an agent MUST hold an active scoped session token (issued by the operator with a configured operation count or time window); the MCP server MUST refuse reversible-write calls without an active session and surface a visible session-status indicator on the host UI when one is active.
+- `destructive-write` tools MUST always trigger the host's per-operation consent flow regardless of session state. Reversible-write tools called under a valid session MUST emit audit events and respect a rate limit (default 60 operations per hour, configurable per agent).
 
 ### Capability: MCP App for in-conversation visualization
 
@@ -211,7 +261,7 @@ Acceptance outcomes:
 - The App MUST be able to call MCP tools (e.g. `blast_radius`, `compare_snapshots`) and receive results via the MCP App bidirectional channel.
 - Sandboxing MUST follow the MCP App specification: no direct DOM access outside the iframe, no arbitrary network calls.
 - Documentation MUST include host-configuration snippets and a screenshot fixture at `docs/codeviz/mcp-app.md`.
-- Tool calls initiated from inside the App MUST respect the same `operation_kind` taxonomy as direct MCP server calls — destructive-write tools MUST trigger the host's standard consent UI; reversible-write tools MUST surface a visible audit-event indicator (small badge) so the operator sees what the App is doing in-context.
+- Tool calls initiated from inside the App MUST respect the same `operation_kind` and scoped-session rules as direct MCP server calls. Destructive-write tools MUST trigger the host's standard consent UI. Reversible-write tools MUST require an active scoped session for agent-initiated calls and MUST surface a visible audit-event indicator (small badge with remaining session quota) so the operator sees what the App is doing in-context.
 
 ## Phase 1 — Single-Page Web App Shell
 
@@ -219,16 +269,16 @@ Acceptance outcomes:
 
 A TypeScript + Vite SPA. The primary canvas implementation is selected via the `/prototype-feature` skill, which produces competing working skeletons across four candidate render layers — Cytoscape.js 2D (fcose layout), Sigma.js + graphology (WebGL), three.js CodeCity 3D, and Observable Framework + d3 — each fed the same subgraph payload from a stubbed HTTP API. Variants are scored on initial-render performance, layout stability, interaction richness (selection, lasso, semantic zoom), and developer ergonomics; the winning variant is promoted to production and the others retained as feature-flagged experimental views. Semantic coloring by layer (Python / TS / SQL / config / docs), hover tooltips, click selection, lasso multi-select, and pan/zoom with semantic zoom levels (repo → service → module → file → symbol) are required of the production variant. Depends on the HTTP API server.
 
-**Semantic-zoom implementation note.** Semantic zoom across scale levels MUST be implemented by *rescaling the coordinate domain*, not by applying a single geometric transform. Variants using D3 MUST use `rescaleX/rescaleY` on the active scale objects so node spacing widens as the user zooms, while geometric properties of individual nodes (stroke width, font size, label visibility threshold) are derived from `transform.k` separately to remain readable across scales. Variants using Cytoscape MUST achieve the same effect through `zoom`-event listeners that update style functions. This invariant ensures that text and connections stay legible whether the user is viewing the full repo or a single module — and prevents the prototype variants from diverging in how zoom behaves.
+**Semantic-zoom outcomes (renderer-agnostic).** Each prototype variant chooses its own implementation strategy for semantic zoom (D3 domain rescaling, Cytoscape zoom-event hooks, three.js camera + LOD swap, Observable layered render — whatever fits the variant's idiom). The variants are judged on outcomes, not implementation: readable labels and edge connections at every zoom level, stable node positions across zoom transitions, predictable thresholds for detail reveal, visually constant stroke width and label font size across zoom decades, and a preserved mental map (a node that was upper-left at scale N is still upper-left at scale N+1). Variants that achieve these outcomes via different mechanisms are equally acceptable.
 
 Acceptance outcomes:
 - Four prototype skeletons MUST exist, each rendering the same 1,471-node fixture from a stub API.
-- A scoring matrix MUST be checked in at `openspec/roadmaps/codeviz/render-comparison.md` covering performance, stability, interactions, and ergonomics.
+- A scoring matrix MUST be checked in at `openspec/roadmaps/codeviz/render-comparison.md` covering performance, stability, interactions, ergonomics, and **task success on three reviewer scenarios** (see below).
+- Each variant MUST demonstrate semantic zoom by these outcomes: labels remain readable at every zoom level, node positions are stable across transitions, detail reveal thresholds are predictable, stroke width and label font size are visually constant across at least three zoom decades, mental map is preserved between zoom levels.
 - The selected production variant MUST render the full 1,471-node graph in under 2 seconds on a developer laptop.
 - Production layout MUST be deterministic across page reloads given the same data (seeded RNG or persisted positions).
 - Selection state MUST be reflected in the URL.
-- Zoom level changes MUST progressively reveal/hide node detail (label, type badges).
-- Stroke width and label font size MUST remain visually constant across at least three zoom decades; node spacing MUST scale via domain rescaling rather than geometric transform.
+- The variant comparison MUST score prototypes on three reviewer tasks (defined in `task-based-ux-study.md`): (a) "find every function that depends on Symbol X", (b) "summarize what changed in this PR's blast radius", (c) "navigate from a security finding to the responsible commit". Task success rate and time-to-completion MUST be reported alongside performance metrics.
 
 ### Capability: Source viewer panel with deep links
 
@@ -343,7 +393,8 @@ Acceptance outcomes:
 - Headless screenshots MUST be reproducible from a URL alone.
 - A sample skill (`codeviz-snapshot`) MUST demonstrate end-to-end agent use.
 - Every action MUST declare an `operation_kind` via the shared `op_reversibility` classifier; pure navigation actions (select / filter / zoom / scrub) are `read`.
-- Destructive-write actions MUST accept a `consent_token` header (or a pre-authorized scope claim) and MUST refuse the operation without one; reversible-write actions MUST emit an audit event with the calling agent's identifier.
+- Agents calling the Action API MUST be granted `read` access by default. `reversible-write` actions MUST require an `X-Scoped-Session` header tied to an operator-issued session with a configured operation budget; calls without a valid active session MUST be refused with `403`.
+- `destructive-write` actions MUST require a fresh `X-Consent-Token` per operation (single-use, signed, short TTL) and MUST refuse without one. Reversible-write actions executed under a valid session MUST emit an audit event tagged with the calling agent's identifier and current session ID. Rate limiting (default 60 ops/hour per agent, configurable) applies to reversible writes.
 
 ## Phase 4 — Multi-Repo and Cross-Artifact Linkage
 
@@ -401,6 +452,16 @@ Surface findings from `pattern_insights.json` and the security-review skill outp
 Acceptance outcomes:
 - Every security finding currently in `pattern_insights.json` MUST appear as a `Finding` node.
 - A click on a Finding node MUST display the original finding text and severity.
+
+### Capability: SARIF + external findings ingestion
+
+Use SARIF (the standardized OASIS interchange format) as the canonical input for external findings rather than writing one parser per tool. An ingester consumes SARIF files from CodeQL, Semgrep, SonarQube, Trivy, Bandit, ESLint (where SARIF output is enabled), and other compatible tools, mapping each finding to a `Finding` node with a `FLAGS` edge to the affected symbol or file. Each finding inherits provenance from its tool, version, and SARIF run metadata. Optional Joern-derived `WRITES_TO` / `READS_FROM` edges may be ingested via SARIF taint-tracking output when available. Reuses the event-artifact family — SARIF reports are stored under `docs/codeviz/findings/<YYYY-MM-DD>/<tool>-<run-id>.sarif`. Replaces duplicative per-tool parser work in `security-finding-overlay` and Phase 0 fitness checks.
+
+Acceptance outcomes:
+- An ingester MUST consume valid SARIF 2.1.0 reports from at least three tools (CodeQL, Semgrep, and one other) and produce `Finding` nodes with full provenance.
+- Each Finding node MUST carry the source tool, tool version, SARIF run ID, rule ID, severity, and source span.
+- The pipeline MUST round-trip SARIF: a Finding node MUST be exportable back to a minimal SARIF fragment for downstream tooling.
+- A fixture suite MUST verify ingestion across all supported tools and catch SARIF schema regressions.
 
 ### Capability: Runtime and incident correlation
 

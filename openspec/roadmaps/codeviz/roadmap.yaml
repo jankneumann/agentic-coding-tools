@@ -12,11 +12,10 @@ items:
   priority: 1
   effort: S
   depends_on: []
-  description: 'Define and enforce a common header on every generated machine artifact under `docs/architecture-analysis/`,
-    `docs/security-review/`, `docs/merge-logs/`, gen-eval reports, validate-feature outputs, and review
-    findings. Header fields: `schema_version`, `generated_at` (ISO-8601 UTC), `git_sha`, `generator` (skill
-    or script name + version), and (for event artifacts) `run_id` and `event_kind`. Provide a Python helper
-    `skills/shared/artifact_header.py` that writes and validates the header. Add a CI li'
+  description: Define and enforce a mandatory header schema (schema_version, generated_at, git_sha, generator,
+    plus run_id/event_kind for event artifacts) on every generated machine artifact. Provide a Python
+    helper at skills/shared/artifact_header.py and a CI lint that fails on missing or malformed headers
+    in artifacts touched by a PR.
   acceptance_outcomes:
   - All current snapshot artifacts MUST be backfilled with the header on first refresh.
   - A CI lint MUST flag any newly-introduced artifact lacking the header.
@@ -30,11 +29,9 @@ items:
   effort: M
   depends_on:
   - artifact-header-schema
-  description: Document and enforce three artifact classes (snapshot, event, linkage). Snapshots remain
-    disposable on disk and committed in place; event artifacts MUST be written to `<dir>/<YYYY-MM-DD>/<run-id>.json`
-    and never overwritten; linkage artifacts follow normal source-versioning. Update `docs/architecture-artifacts.md`
-    with the classification table and migrate any currently-clobbered event artifacts (notably security-review
-    outputs and validate-feature phase results) to dated paths. Provide a small i
+  description: Document and enforce three artifact classes (snapshot, event, linkage), migrate currently-clobbered
+    event artifacts to dated paths (<dir>/<YYYY-MM-DD>/<run-id>.json), and ship a codeviz-artifact-inventory
+    CLI that scans the repo and reports each artifact directory's class.
   acceptance_outcomes:
   - A classification table MUST be present in `docs/architecture-artifacts.md` listing every generated
     artifact and its class.
@@ -46,19 +43,11 @@ items:
   status: candidate
   priority: 1
   effort: S
-  depends_on: []
-  description: 'Package a docker-compose service (or `docker run` wrapper) for FalkorDB pinned to a known
-    version, with a host-mounted volume for persistence. Provide `make codeviz-up`, `make codeviz-down`,
-    `make codeviz-reset` targets. Document required ports, memory budget, and reset semantics. Reuses
-    the same compose pattern established for the coordinator Postgres container.
-
-
-    Acceptance outcomes:
-
-    - `make codeviz-up` MUST start a healthy FalkorDB instance reachable on a configurable port within
-    10 seconds.
-
-    -'
+  depends_on:
+  - substrate-evaluation
+  description: Package FalkorDB as a docker-compose service pinned to a known version with host-mounted
+    persistence, exposed via make codeviz-up / codeviz-down / codeviz-reset targets. Reuses the same compose
+    pattern as the coordinator Postgres container.
   acceptance_outcomes:
   - '`make codeviz-up` MUST start a healthy FalkorDB instance reachable on a configurable port within
     10 seconds.'
@@ -82,6 +71,16 @@ items:
   - A migration runner MUST apply migrations idempotently and record applied versions.
   - All node and edge types MUST be documented in `docs/codeviz/schema.md` with examples.
   - Bi-temporal validity columns MUST be present on every edge.
+  - Every node and edge MUST carry the provenance metadata block (extractor, extractor_version, evidence_kind,
+    confidence, last_verified_at, source_span); the schema MUST reject inserts lacking these fields.
+  - 'Symbol/File nodes MUST carry a stable_id property whose continuity is probabilistic: preserved across
+    snapshots only when the rename detector emits a RENAMED_FROM edge with confidence above a configurable
+    threshold. Hard uniqueness MUST be enforced only within a single snapshot, not across snapshots.'
+  - A RENAMED_FROM edge MUST carry both confidence and evidence_sources (e.g. [scip-rename, git-follow,
+    ast-similarity:0.92]) so the UI can show why the rename was inferred.
+  - A read-only query path (GRAPH.RO_QUERY on FalkorDB or equivalent on the chosen substrate) MUST be
+    exposed for all read endpoints; mutations MUST NOT be reachable through the read path even with crafted
+    queries.
 - item_id: ingestion-pipeline
   title: 'Ingestion pipeline: JSON snapshots to FalkorDB'
   status: candidate
@@ -90,11 +89,10 @@ items:
   depends_on:
   - graph-schema-migrations
   - artifact-header-schema
-  description: A Python ingestion script that reads `architecture.graph.json`, `parallel_zones.json`,
-    `comment_insights.json`, `pattern_insights.json`, `architecture.diagnostics.json`, `python_analysis.json`,
-    `ts_analysis.json`, and `postgres_analysis.json` and writes them into FalkorDB under a given `repo_id`.
-    Uses MERGE semantics so re-ingestion is idempotent. Stamps nodes with `valid_from_commit` from the
-    snapshot's `git_sha`. Supports `--repo-id`, `--snapshot-dir`, `--commit-sha`, `--full-rebuild`. Depends
+  description: Idempotent Python ingestion script that reads docs/architecture-analysis/*.json snapshots
+    into FalkorDB under a given --repo-id, stamps nodes with valid_from_commit from the snapshot's git_sha,
+    and detects renames across snapshots via multi-source probabilistic continuity. Supports --snapshot-dir,
+    --commit-sha, --full-rebuild. Depends on the schema migration capability.
   acceptance_outcomes:
   - Full ingestion of the current `docs/architecture-analysis/` snapshot MUST complete in under 60 seconds
     on a developer laptop.
@@ -102,6 +100,15 @@ items:
   - A second ingestion with a different `--commit-sha` MUST preserve prior temporal validity and only
     update edges that changed.
   - Ingestion logs MUST report node/edge counts created, updated, deprecated per type.
+  - Every node and edge written by the pipeline MUST carry the full provenance metadata block. Missing
+    provenance MUST cause the pipeline to fail with a descriptive error pointing to the source artifact.
+  - 'Rename detection MUST combine at least three independent evidence sources (git log --follow, AST
+    structural similarity, signature similarity, caller/callee neighborhood overlap, SCIP/LSIF identity
+    where available, codeviz.rename-map.yaml override) and MUST emit RENAMED_FROM with confidence and
+    evidence_sources. A fixture test MUST verify rename detection on at least three scenarios: simple
+    rename in same file, function moved across files, extracted helper from larger function.'
+  - Renames below the confidence threshold MUST emit a removed+added pair with explanatory provenance
+    (evidence_kind=static-heuristic, confidence below threshold) rather than a phantom RENAMED_FROM edge.
 - item_id: http-api-server
   title: HTTP API server (FastAPI) over FalkorDB
   status: candidate
@@ -109,27 +116,24 @@ items:
   effort: M
   depends_on:
   - ingestion-pipeline
-  description: "A FastAPI service exposing read endpoints \u2014 `/repos`, `/repos/{id}/graph?filter=...`,\
-    \ `/repos/{id}/symbols/{symbol_id}`, `/repos/{id}/subgraph?seed=...&hops=N`, `/repos/{id}/at/{commit_sha}/subgraph?...`,\
-    \ `/cypher` (admin-only) \u2014 plus a streaming `/ai/query` endpoint used by the AI panel. CORS configured\
-    \ for the local SPA dev origin. Read-only by default. Reuses FastAPI patterns from `agent-coordinator/`.\
-    \ Depends on the ingestion pipeline.\n\nAcceptance outcomes:\n- Subgraph queries with `hops <= 3"
+  description: FastAPI service exposing read endpoints (/repos, /repos/{id}/graph, /repos/{id}/symbols/{id},
+    /repos/{id}/symbols/{id}/dependents, /repos/{id}/subgraph, /repos/{id}/at/{commit_sha}/subgraph) plus
+    a streaming /ai/query endpoint. /cypher gated by env flag. Every endpoint declares operation_kind
+    via the shared op_reversibility classifier. Reuses FastAPI patterns from agent-coordinator/.
   acceptance_outcomes:
   - Subgraph queries with `hops <= 3` MUST return in under 100 ms at p95 on a 2k-node graph.
-  - The `/dependents` endpoint MUST support `transitive=true|false` and a `depth` parameter,
-    and MUST return a flat list with hop-distance per entry.
+  - The `/dependents` endpoint MUST support `transitive=true|false` and a `depth` parameter, and MUST
+    return a flat list with hop-distance per entry.
   - OpenAPI schema MUST be auto-generated and committed.
   - '`/cypher` MUST be disabled by default and require an explicit env flag.'
   - Server MUST refuse cross-repo queries unless `repo_id` is explicitly specified.
-  - Every endpoint MUST declare an operation_kind in {read, reversible-write, destructive-write}
-    via the shared op_reversibility classifier; the OpenAPI schema MUST expose this tag.
-  - The /cypher endpoint MUST run an AST-level classifier on every submitted query
-    before execution; queries that contain DELETE, DETACH DELETE, REMOVE, or property-overwriting
-    SET MUST be classified destructive and refused unless an explicit consent token
-    is presented.
-  - Reversible-write endpoints MUST emit an audit-event artifact; destructive-write
-    endpoints MUST emit an audit event AND require a consent token, regardless of whether
-    the caller is human or agent.
+  - Every endpoint MUST declare an operation_kind in {read, reversible-write, destructive-write} via the
+    shared op_reversibility classifier; the OpenAPI schema MUST expose this tag.
+  - The /cypher endpoint MUST run an AST-level classifier on every submitted query before execution; queries
+    that contain DELETE, DETACH DELETE, REMOVE, or property-overwriting SET MUST be classified destructive
+    and refused unless an explicit consent token is presented.
+  - Reversible-write endpoints MUST emit an audit-event artifact; destructive-write endpoints MUST emit
+    an audit event AND require a consent token, regardless of whether the caller is human or agent.
 - item_id: spa-scaffold-render
   title: SPA render scaffold (rendering choice via prototype phase)
   status: candidate
@@ -137,25 +141,32 @@ items:
   effort: M
   depends_on:
   - http-api-server
-  description: "A TypeScript + Vite SPA. The primary canvas implementation is selected via the /prototype-feature\
-    \ skill, which produces competing working skeletons across four candidate render layers \u2014 Cytoscape.js\
-    \ 2D (fcose), Sigma.js + graphology (WebGL), three.js CodeCity 3D, and Observable Framework + d3 \u2014\
-    \ each fed the same subgraph payload from a stubbed HTTP API. Variants are scored on initial-render\
-    \ performance, layout stability, interaction richness (selection, lasso, semantic zoom), and developer\
-    \ ergonomics. The winning variant is promoted to production; others retained as feature-flagged experimental\
-    \ views. Semantic coloring by layer (Python / TS / SQL / config / docs), hover tooltips, click selection,\
-    \ lasso multi-select, and pan/zoom with semantic zoom levels are required of the production variant.\
-    \ Depends on the HTTP API server."
+  description: A TypeScript + Vite SPA. The primary canvas implementation is selected via the /prototype-feature
+    skill, which produces competing working skeletons across four candidate render layers — Cytoscape.js
+    2D (fcose), Sigma.js + graphology (WebGL), three.js CodeCity 3D, and Observable Framework + d3 — each
+    fed the same subgraph payload from a stubbed HTTP API. Variants are scored on initial-render performance,
+    layout stability, interaction richness (selection, lasso, semantic zoom), and developer ergonomics.
+    The winning variant is promoted to production; others retained as feature-flagged experimental views.
+    Semantic coloring by layer (Python / TS / SQL / config / docs), hover tooltips, click selection, lasso
+    multi-select, and pan/zoom with semantic zoom levels are required of the production variant. Depends
+    on the HTTP API server.
   acceptance_outcomes:
   - Four prototype skeletons MUST exist, each rendering the same 1,471-node fixture from a stub API.
   - A scoring matrix MUST be checked in at openspec/roadmaps/codeviz/render-comparison.md covering performance,
-    stability, interactions, and ergonomics.
+    stability, interactions, ergonomics, and task success on three reviewer scenarios.
+  - 'Each variant MUST demonstrate semantic zoom by outcomes: labels remain readable at every zoom level,
+    node positions are stable across transitions, detail reveal thresholds are predictable, stroke width
+    and label font size are visually constant across at least three zoom decades, mental map is preserved
+    between zoom levels.'
   - The selected production variant MUST render the full 1,471-node graph in under 2 seconds on a developer
     laptop.
   - Production layout MUST be deterministic across page reloads given the same data (seeded RNG or persisted
     positions).
   - Selection state MUST be reflected in the URL.
-  - Zoom level changes MUST progressively reveal/hide node detail (label, type badges).
+  - 'The variant comparison MUST score prototypes on three reviewer tasks (defined in task-based-ux-study.md):
+    (a) find every function that depends on Symbol X, (b) summarize what changed in this PR''s blast radius,
+    (c) navigate from a security finding to the responsible commit. Task success rate and time-to-completion
+    MUST be reported alongside performance metrics.'
 - item_id: source-viewer-panel
   title: Source viewer panel with deep links
   status: candidate
@@ -163,18 +174,9 @@ items:
   effort: S
   depends_on:
   - spa-scaffold-render
-  description: 'A right-side panel that opens when a node is selected, showing the source file with the
-    relevant symbol highlighted. Includes "Open in VS Code" deep link (`vscode://file/...`) and "View
-    on GitHub" link. Syntax highlighting via Shiki. Read-only.
-
-
-    Acceptance outcomes:
-
-    - Selecting a Symbol node MUST display its source within 300 ms.
-
-    - "Open in VS Code" MUST launch the user''s editor at the correct file:line.
-
-    - Files larger than 1 MB MUST stream incrementally.'
+  description: Right-side panel that opens on node selection, showing the source file with the relevant
+    symbol highlighted via Shiki syntax highlighting, plus Open-in-VS-Code (vscode://file/...) and View-on-GitHub
+    deep links.
   acceptance_outcomes:
   - Selecting a Symbol node MUST display its source within 300 ms.
   - '"Open in VS Code" MUST launch the user''s editor at the correct file:line.'
@@ -187,12 +189,9 @@ items:
   depends_on:
   - spa-scaffold-render
   - http-api-server
-  description: "Left-side pane with structured filters \u2014 repo, layer, node type, has-TODOs, has-security-findings,\
-    \ in-parallel-zone, modified-since-commit. A free-text Cypher query box (advanced mode) that executes\
-    \ against the API. Saved filter presets persisted in localStorage and encoded in URLs.\n\nAcceptance\
-    \ outcomes:\n- Each filter change MUST update the canvas in under 200 ms for the local graph.\n- Cypher\
-    \ queries MUST be syntax-validated client-side before submission.\n- A saved filter MUST be restorable\
-    \ from"
+  description: Left-side pane with structured filters (repo, layer, node type, has-TODOs, has-security-findings,
+    in-parallel-zone, modified-since-commit) plus a free-text Cypher query box. Saved filter presets persist
+    in localStorage and are URL-encoded.
   acceptance_outcomes:
   - Each filter change MUST update the canvas in under 200 ms for the local graph.
   - Cypher queries MUST be syntax-validated client-side before submission.
@@ -204,25 +203,18 @@ items:
   effort: S
   depends_on:
   - artifact-header-schema
-  description: 'A script that diffs two `architecture.graph.json` snapshots (by commit SHA) and emits
-    `diff-graph.json` containing `nodes_added`, `nodes_removed`, `nodes_modified`, `edges_added`, `edges_removed`,
-    `parallel_zones_touched`, `blast_radius_summary`. Invoked by `make architecture-diff` (already partially
-    exists) and by a Git hook on push. Output is committed under `docs/architecture-analysis/diffs/<commit-sha>.json`.
-
-
-    Acceptance outcomes:
-
-    - Diff between two snapshots of the current repo MUST complet'
+  description: Script that diffs two architecture.graph.json snapshots by commit SHA and emits diff-graph.json
+    containing added/removed/modified nodes and edges, parallel_zones_touched, blast_radius_summary, and
+    a change_kind classification on every entry (refactoring / micro-change / contract-change / test-impact
+    / runtime-risk / ordinary). Invoked by make architecture-diff and by a Git hook on push.
   acceptance_outcomes:
   - Diff between two snapshots of the current repo MUST complete in under 5 seconds.
   - Output JSON MUST conform to a checked-in schema.
   - Blast-radius summary MUST report transitive callers up to depth 3.
   - A no-op commit (no graph change) MUST emit an empty-but-valid diff.
-  - Every changed node and edge MUST carry a change_kind tag from {refactoring, micro-change,
-    contract-change, test-impact, runtime-risk, ordinary}; entries that match no specific
-    class fall back to ordinary.
-  - A fixture commit that renames a private function MUST be classified as refactoring,
-    not contract-change.
+  - Every changed node and edge MUST carry a change_kind tag from {refactoring, micro-change, contract-change,
+    test-impact, runtime-risk, ordinary}; entries that match no specific class fall back to ordinary.
+  - A fixture commit that renames a private function MUST be classified as refactoring, not contract-change.
 - item_id: diff-overlay-render
   title: Diff overlay rendering in SPA
   status: candidate
@@ -231,12 +223,10 @@ items:
   depends_on:
   - spa-scaffold-render
   - diff-graph-artifact
-  description: "The SPA accepts a `?diff=<commit-sha>` URL parameter and renders the diff over the current\
-    \ graph \u2014 color-codes nodes by change kind (added / removed / modified / touched-by-callers),\
-    \ highlights affected edges, and exposes a \"blast radius\" Sankey panel showing transitive impact\
-    \ across parallel zones. Depends on diff-graph artifact generator.\n\nAcceptance outcomes:\n- Loading\
-    \ a diff over a 1.5k-node graph MUST add no more than 500 ms to initial render.\n- The Sankey panel\
-    \ MUST be interactive (click a"
+  description: SPA mode (?diff=<commit-sha>) that renders the diff over the current graph color-coded
+    by change_kind with an interactive Sankey blast-radius panel. Includes a ghost-overlay mode (?pending=<patch-id>)
+    showing agent-proposed pre-commit changes as semi-transparent overlays with attribution badges. Depends
+    on diff-graph-artifact.
   acceptance_outcomes:
   - Loading a diff over a 1.5k-node graph MUST add no more than 500 ms to initial render.
   - The Sankey panel MUST be interactive (click a band to filter the canvas).
@@ -249,18 +239,9 @@ items:
   depends_on:
   - spa-scaffold-render
   - ingestion-pipeline
-  description: 'Persist multiple snapshots in FalkorDB keyed by `valid_from_commit` / `valid_to_commit`.
-    The SPA exposes a horizontal slider scrubber across known commits; scrubbing updates the rendered
-    graph to the state at that commit. A "play" button animates through recent history at a configurable
-    speed.
-
-
-    Acceptance outcomes:
-
-    - Scrubbing between adjacent commits MUST transition in under 300 ms.
-
-    - Layout positions MUST stay stable across temporal transitions (nodes persisted across commits keep
-    their positi'
+  description: Persist multiple snapshots in FalkorDB keyed by valid_from_commit/valid_to_commit. The
+    SPA exposes a horizontal slider scrubber across known commits with a play button; node positions remain
+    stable across temporal transitions for symbols that persist across commits.
   acceptance_outcomes:
   - Scrubbing between adjacent commits MUST transition in under 300 ms.
   - Layout positions MUST stay stable across temporal transitions (nodes persisted across commits keep
@@ -273,11 +254,10 @@ items:
   effort: M
   depends_on:
   - http-api-server
-  description: A retrieval service that, given a selection (one or more node IDs), expands to a configurable
-    N-hop neighborhood, fetches source slices for each Symbol in the neighborhood, attaches related artifacts
-    (OpenSpec proposals, comment insights, security findings), and returns a structured context bundle
-    bounded by a token budget. Reuses the Graphiti-style embedding patterns from `agentic-content-analyzer`
-    for similarity-based expansion when structural hops are insufficient. Depends on the HTTP API ser
+  description: Retrieval service that expands a node selection to a configurable N-hop neighborhood, fetches
+    source slices for each Symbol, attaches related artifacts (Proposals, comment insights, security findings),
+    and returns a token-budgeted context bundle with full provenance per item. Reuses Graphiti-style embedding
+    patterns for similarity expansion when structural hops are insufficient. Depends on the HTTP API server.
   acceptance_outcomes:
   - Context assembly for a 1-hop neighborhood of a single symbol MUST complete in under 200 ms.
   - Bundles MUST not exceed a configurable token budget (default 32k).
@@ -291,17 +271,10 @@ items:
   depends_on:
   - spa-scaffold-render
   - subgraph-retrieval
-  description: 'A chat UI in the SPA that consumes the streaming `/ai/query` endpoint. Selected node(s)
-    auto-attach as context. The model can emit Cypher queries against FalkorDB (tool-use), receive subgraph
-    results, and cite specific nodes and source lines in responses. Citations are clickable and select
-    the cited node on the canvas. Supports follow-up questions over the same anchored context.
-
-
-    Acceptance outcomes:
-
-    - First token MUST stream within 1 second of submission for a typical query.
-
-    - Citations in resp'
+  description: SPA chat UI consuming the streaming /ai/query endpoint. Selected nodes auto-attach as context;
+    the model emits Cypher tool-calls and cites specific nodes and source lines. Every citation carries
+    a visible evidence_kind badge (static / runtime / historical). Multi-file trajectories render as ordered
+    file/symbol lists alongside the answer.
   acceptance_outcomes:
   - First token MUST stream within 1 second of submission for a typical query.
   - Citations in responses MUST be clickable and select/navigate the canvas.
@@ -316,27 +289,23 @@ items:
   effort: S
   depends_on:
   - http-api-server
-  description: 'Document and expose a stable subset of SPA actions (select, filter, zoom, query, scrub)
-    as REST endpoints so external agents (Claude Code, Codex) can drive the visualization headlessly and
-    capture screenshots or subgraph snapshots for reports. Reuses the FastAPI service from Phase 0.
-
-
-    Acceptance outcomes:
-
-    - Action API MUST be documented in `docs/codeviz/agent-api.md` with example invocations.
-
-    - Headless screenshots MUST be reproducible from a URL alone.
-
-    - A sample skill (`codeviz-snapshot`) MUST'
+  description: Stable REST endpoints exposing SPA actions (select, filter, zoom, query, scrub) so external
+    agents can drive the visualization headlessly and capture screenshots or subgraph snapshots for reports.
+    Every action declares operation_kind via the shared classifier; destructive actions require a consent_token
+    header.
   acceptance_outcomes:
   - Action API MUST be documented in `docs/codeviz/agent-api.md` with example invocations.
   - Headless screenshots MUST be reproducible from a URL alone.
   - A sample skill (`codeviz-snapshot`) MUST demonstrate end-to-end agent use.
-  - Every action MUST declare an operation_kind via the shared op_reversibility classifier;
-    pure navigation actions (select / filter / zoom / scrub) are read.
-  - Destructive-write actions MUST accept a consent_token header (or a pre-authorized
-    scope claim) and MUST refuse the operation without one; reversible-write actions
-    MUST emit an audit event with the calling agent's identifier.
+  - Every action MUST declare an operation_kind via the shared op_reversibility classifier; pure navigation
+    actions (select / filter / zoom / scrub) are read.
+  - Agents calling the Action API MUST be granted read access by default. Reversible-write actions MUST
+    require an X-Scoped-Session header tied to an operator-issued session with a configured operation
+    budget; calls without a valid active session MUST be refused with 403.
+  - Destructive-write actions MUST require a fresh X-Consent-Token per operation (single-use, signed,
+    short TTL) and MUST refuse without one. Reversible-write actions executed under a valid session MUST
+    emit an audit event tagged with the calling agent's identifier and current session ID. Rate limiting
+    (default 60 ops/hour per agent) applies to reversible writes.
 - item_id: multi-repo-federation
   title: Multi-repo ingestion and federated views
   status: candidate
@@ -345,17 +314,9 @@ items:
   depends_on:
   - ingestion-pipeline
   - spa-scaffold-render
-  description: 'Extend ingestion to consume snapshots from multiple repos, each with a distinct `repo_id`.
-    Add cross-repo edges discovered via shared API contracts, shared schemas, or explicit repo-link manifests
-    (`codeviz.links.yaml`). The SPA gains a repo-picker and a "federated" view rendering multiple repos
-    as compound clusters.
-
-
-    Acceptance outcomes:
-
-    - Ingesting two repos MUST namespace cleanly with no node-ID collisions.
-
-    - A federated view of two repos with a shared API edge MUST render the connecting edge'
+  description: Extend ingestion to consume snapshots from multiple repos under distinct repo_ids. The
+    SPA gains a repo-picker and a federated view rendering multiple repos as compound clusters; cross-repo
+    edges are discovered via shared API contracts, shared schemas, or explicit codeviz.links.yaml manifests.
   acceptance_outcomes:
   - Ingesting two repos MUST namespace cleanly with no node-ID collisions.
   - A federated view of two repos with a shared API edge MUST render the connecting edge.
@@ -366,18 +327,9 @@ items:
   effort: S
   depends_on:
   - ingestion-pipeline
-  description: 'Index every OpenSpec change directory (`openspec/changes/<id>/`) as a `Proposal` node,
-    with `IMPLEMENTS_PROPOSAL` edges to the symbols/files touched by its tasks. Source: the existing `comment_insights.json`
-    node-marker map, plus task-list parsing.
-
-
-    Acceptance outcomes:
-
-    - Every active OpenSpec change MUST appear as a `Proposal` node.
-
-    - Each proposal node MUST have at least one outgoing edge if its tasks reference any committed file.
-
-    - The SPA MUST surface "related proposals" in the source viewer'
+  description: 'Index every openspec/changes/<id>/ directory as a Proposal node with IMPLEMENTS_PROPOSAL
+    edges to the symbols and files touched by its tasks. Source: the existing comment_insights.json node-marker
+    map plus task-list parsing. SPA surfaces related proposals in the source viewer.'
   acceptance_outcomes:
   - Every active OpenSpec change MUST appear as a `Proposal` node.
   - Each proposal node MUST have at least one outgoing edge if its tasks reference any committed file.
@@ -389,16 +341,9 @@ items:
   effort: S
   depends_on:
   - ingestion-pipeline
-  description: 'Add edges connecting `Test` nodes to the `Symbol` nodes they exercise, inferred from import
-    graphs and naming conventions in `python_analysis.json` and `ts_analysis.json`. Surface "tested by"
-    in the source viewer.
-
-
-    Acceptance outcomes:
-
-    - Coverage rate of `TESTS` edges across all Symbol nodes MUST be reported in `architecture.diagnostics.json`.
-
-    - A symbol with no `TESTS` edge MUST be visually flagged on the canvas.'
+  description: Add edges connecting Test nodes to the Symbol nodes they exercise, inferred from import
+    graphs and naming conventions in python_analysis.json and ts_analysis.json. Surface 'tested by' in
+    the source viewer; flag symbols with no TESTS edge on the canvas.
   acceptance_outcomes:
   - Coverage rate of `TESTS` edges across all Symbol nodes MUST be reported in `architecture.diagnostics.json`.
   - A symbol with no `TESTS` edge MUST be visually flagged on the canvas.
@@ -410,16 +355,9 @@ items:
   depends_on:
   - ingestion-pipeline
   - artifact-classification
-  description: 'Surface findings from `pattern_insights.json` and the security-review skill output as
-    `Finding` nodes with `FLAGS` edges to the affected symbol. Color-code on the canvas; expose a "show
-    findings only" filter.
-
-
-    Acceptance outcomes:
-
-    - Every security finding currently in `pattern_insights.json` MUST appear as a `Finding` node.
-
-    - A click on a Finding node MUST display the original finding text and severity.'
+  description: Surface findings from pattern_insights.json and security-review skill output as Finding
+    nodes with FLAGS edges to affected symbols. Color-code findings on the canvas; expose a 'show findings
+    only' filter.
   acceptance_outcomes:
   - Every security finding currently in `pattern_insights.json` MUST appear as a `Finding` node.
   - A click on a Finding node MUST display the original finding text and severity.
@@ -432,16 +370,9 @@ items:
   - spa-scaffold-render
   - filter-query-pane
   - diff-overlay-render
-  description: 'Every UI lens (filter set + zoom + time + selection + diff overlay) MUST be encodable
-    as a URL. A "save view" action persists named views to localStorage and optionally to a per-repo `codeviz.views.yaml`
-    for sharing. Depends on Phase 1 and 2 capabilities.
-
-
-    Acceptance outcomes:
-
-    - Every interactive state MUST be restorable from URL alone.
-
-    - Saved views MUST round-trip through the YAML file with no loss.'
+  description: Every UI lens combination (filter set + zoom + time + selection + diff overlay) MUST be
+    encodable as a URL. A save-view action persists named views to localStorage and optionally to a per-repo
+    codeviz.views.yaml for sharing.
   acceptance_outcomes:
   - Every interactive state MUST be restorable from URL alone.
   - Saved views MUST round-trip through the YAML file with no loss.
@@ -452,11 +383,10 @@ items:
   effort: M
   depends_on:
   - spa-scaffold-render
-  description: "A toggle that switches the canvas to a three.js CodeCity-style 3D treemap \u2014 buildings\
-    \ as classes/files, districts as packages, height as LOC, color as complexity or recent-change heat.\
-    \ Flagged as experimental; not the default surface.\n\nAcceptance outcomes:\n- 3D view MUST render\
-    \ the current graph in under 3 seconds.\n- Switching between 2D and 3D MUST preserve selection state.\n\
-    - 3D view MUST be feature-flagged and disabled by default."
+  description: Feature-flagged three.js CodeCity 3D treemap (buildings as classes/files, districts as
+    packages, height as LOC from code-metrics-enrichment, color as complexity or recent-change heat).
+    Supports WASDFQ spatial navigation chosen for accessibility (avoids arrow-key conflicts with screen
+    readers). Disabled by default.
   acceptance_outcomes:
   - 3D view MUST render the current graph in under 3 seconds.
   - Switching between 2D and 3D MUST preserve selection state.
@@ -470,18 +400,9 @@ items:
   - spa-scaffold-render
   - http-api-server
   - ingestion-pipeline
-  description: 'Author `docs/codeviz/` covering: architecture, schema, API reference, agent API, ingestion
-    runbook, troubleshooting. Add a `make codeviz-demo` target that loads a fixture snapshot and opens
-    the SPA at a curated starting view.
-
-
-    Acceptance outcomes:
-
-    - `docs/codeviz/README.md` MUST link from the repo root README.
-
-    - `make codeviz-demo` MUST work on a fresh clone after `make codeviz-up`.
-
-    - Schema doc MUST include at least one example Cypher query per node and edge type.'
+  description: Author docs/codeviz/ covering architecture, schema, API reference, agent API, ingestion
+    runbook, troubleshooting. Add a make codeviz-demo target that loads a fixture snapshot and opens the
+    SPA at a curated starting view.
   acceptance_outcomes:
   - '`docs/codeviz/README.md` MUST link from the repo root README.'
   - '`make codeviz-demo` MUST work on a fresh clone after `make codeviz-up`.'
@@ -578,22 +499,21 @@ items:
   effort: S
   depends_on:
   - artifact-header-schema
-  description: 'Generate per-file/per-module JSON artifacts capturing the architectural
-    skeleton of source code while stripping implementation bodies. Reuses the existing
-    tree-sitter pipeline. Two modes: signatures (function/method signatures, types,
-    imports/exports, classes; bodies replaced with {...}) and skeleton (signatures
-    plus public docstrings and decorators). Output is committed under docs/architecture-analysis/ast-bundles/<lang>/<module>.json
-    with the mandatory artifact header. Feeds both the AI subgraph-retrieval context
-    assembly (cheaper than raw source slicing for API-surface queries) and the SPA
-    source viewer overview mode for large files.'
+  description: 'Generate per-file/per-module JSON artifacts capturing the architectural skeleton of source
+    code while stripping implementation bodies. Reuses the existing tree-sitter pipeline. Two modes: signatures
+    (function/method signatures, types, imports/exports, classes; bodies replaced with {...}) and skeleton
+    (signatures plus public docstrings and decorators). Output is committed under docs/architecture-analysis/ast-bundles/<lang>/<module>.json
+    with the mandatory artifact header. Feeds both the AI subgraph-retrieval context assembly (cheaper
+    than raw source slicing for API-surface queries) and the SPA source viewer overview mode for large
+    files.'
   acceptance_outcomes:
-  - A bundle generator MUST emit signatures and skeleton modes from python_analysis.json,
-    ts_analysis.json, and postgres_analysis.json inputs.
-  - The signatures mode MUST reduce per-module token count by at least 50% versus raw
-    source, measured on a representative sample of ten modules.
+  - A bundle generator MUST emit signatures and skeleton modes from python_analysis.json, ts_analysis.json,
+    and postgres_analysis.json inputs.
+  - The signatures mode MUST reduce per-module token count by at least 50% versus raw source, measured
+    on a representative sample of ten modules.
   - Bundles MUST be deterministic — the same input produces byte-identical output.
-  - The subgraph-retrieval service MUST be able to substitute a bundle for raw source
-    slices behind a prefer_bundle=true query parameter.
+  - The subgraph-retrieval service MUST be able to substitute a bundle for raw source slices behind a
+    prefer_bundle=true query parameter.
 - item_id: code-metrics-enrichment
   title: Code metrics enrichment on graph nodes
   status: candidate
@@ -601,19 +521,18 @@ items:
   effort: S
   depends_on:
   - ingestion-pipeline
-  description: 'Augment the ingestion pipeline with per-node metric properties: loc
-    (lines of code), cyclomatic_complexity (from tree-sitter CST traversal where practical),
-    mutation_flags (does the symbol mutate module-level or external state), test_coverage_pct
-    (where coverage reports exist), and last_modified_commit. Metrics are substrate
-    for CodeCity 3D height/area encoding, the risk lens, and AI quality queries (show
-    me the highest-complexity untested functions).'
+  description: 'Augment the ingestion pipeline with per-node metric properties: loc (lines of code), cyclomatic_complexity
+    (from tree-sitter CST traversal where practical), mutation_flags (does the symbol mutate module-level
+    or external state), test_coverage_pct (where coverage reports exist), and last_modified_commit. Metrics
+    are substrate for CodeCity 3D height/area encoding, the risk lens, and AI quality queries (show me
+    the highest-complexity untested functions).'
   acceptance_outcomes:
   - Every File and Symbol node ingested MUST carry loc and last_modified_commit properties.
-  - cyclomatic_complexity MUST be computed and stamped for at least 80% of Python and
-    TypeScript Symbol nodes.
+  - cyclomatic_complexity MUST be computed and stamped for at least 80% of Python and TypeScript Symbol
+    nodes.
   - mutation_flags MUST be a boolean derived from CST analysis and documented in docs/codeviz/metrics.md.
-  - test_coverage_pct MUST be optional (present when a coverage report is found, absent
-    otherwise) and never block ingestion.
+  - test_coverage_pct MUST be optional (present when a coverage report is found, absent otherwise) and
+    never block ingestion.
 - item_id: mcp-server-interface
   title: MCP server interface over the graph
   status: candidate
@@ -621,30 +540,33 @@ items:
   effort: S
   depends_on:
   - http-api-server
-  description: 'Expose the read operations as an MCP server so MCP-aware agents (Claude
-    Desktop, Cursor, coordinator-orchestrated agents) can query the codeviz graph using
-    the same state the SPA reads. Tools MUST be exposed as user-task-oriented operations
-    rather than raw graph primitives: symbol_lookup, neighbors, blast_radius, compare_snapshots,
-    tests_for_symbol, commits_touching_symbol, worktree_variants, review_findings_for_entity,
-    explain_lineage. Each tool is a named convenience wrapper over one or more primitive
-    subgraph/dependents/at-commit queries. A cypher(query) tool is exposed only when
-    an explicit env flag is set. The MCP server is a thin adapter over the FastAPI handlers;
-    it MUST NOT duplicate query logic. Aligns with the repo convention MCP for local
-    agents, HTTP for cloud agents documented in openspec/project.md.'
+  description: 'Expose the read operations as an MCP server so MCP-aware agents (Claude Desktop, Cursor,
+    coordinator-orchestrated agents) can query the codeviz graph using the same state the SPA reads. Tools
+    MUST be exposed as user-task-oriented operations rather than raw graph primitives: symbol_lookup,
+    neighbors, blast_radius, compare_snapshots, tests_for_symbol, commits_touching_symbol, worktree_variants,
+    review_findings_for_entity, explain_lineage. Each tool is a named convenience wrapper over one or
+    more primitive subgraph/dependents/at-commit queries. A cypher(query) tool is exposed only when an
+    explicit env flag is set. The MCP server is a thin adapter over the FastAPI handlers; it MUST NOT
+    duplicate query logic. Aligns with the repo convention MCP for local agents, HTTP for cloud agents
+    documented in openspec/project.md.'
   acceptance_outcomes:
   - An MCP server MUST be runnable via make codeviz-mcp and reachable over stdio.
-  - Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the
-    MCP surface MUST NOT introduce new query logic.
-  - The nine user-task tools (symbol_lookup, neighbors, blast_radius, compare_snapshots,
-    tests_for_symbol, commits_touching_symbol, worktree_variants, review_findings_for_entity,
-    explain_lineage) MUST all be implemented and documented with example invocations.
+  - Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the MCP surface MUST
+    NOT introduce new query logic.
+  - The nine user-task tools (symbol_lookup, neighbors, blast_radius, compare_snapshots, tests_for_symbol,
+    commits_touching_symbol, worktree_variants, review_findings_for_entity, explain_lineage) MUST all
+    be implemented and documented with example invocations.
   - The MCP server MUST be discoverable from agent-coordinator's capability registry.
   - Documentation MUST cover Claude Desktop and Cursor configuration snippets at docs/codeviz/mcp.md.
-  - Every MCP tool's schema MUST declare an operation_kind annotation inherited from
-    the wrapped HTTP handler; clients MUST be able to filter tool listings by operation_kind.
-  - Destructive-write tools MUST surface as MCP tools that require host-mediated consent
-    (the standard MCP user-consent flow); reversible-write tools MUST emit audit events
-    without prompting.
+  - Every MCP tool's schema MUST declare an operation_kind annotation inherited from the wrapped HTTP
+    handler; clients MUST be able to filter tool listings by operation_kind.
+  - Agents connecting via MCP MUST be granted read access by default. To call any reversible-write tool
+    an agent MUST hold an active scoped session token (issued by the operator with a configured operation
+    count or time window); the MCP server MUST refuse reversible-write calls without an active session
+    and surface a visible session-status indicator on the host UI when one is active.
+  - Destructive-write tools MUST always trigger the host's per-operation consent flow regardless of session
+    state. Reversible-write tools called under a valid session MUST emit audit events and respect a rate
+    limit (default 60 operations per hour, configurable).
 - item_id: agent-memory-visualization
   title: Agent-memory visualization layer (OpenSpec-as-memory lens)
   status: candidate
@@ -654,24 +576,22 @@ items:
   - openspec-proposal-linkage
   - spa-scaffold-render
   - lens-framework
-  description: 'Model the existing OpenSpec + session-log + worktree corpus as the agent
-    memory layer and visualize it as a first-class lens, rather than introducing a parallel
-    .GCC/-style memory format. Each openspec/changes/<id>/ directory is a memory episode
-    (proposal.md = intent, tasks.md = plan, session-log.md = execution trace, worktree
-    branch = isolated workspace). Each session-log entry is a temporal node. Each worktree
-    branch is a divergent reasoning track. Each merge back is a convergence point. Surface
-    these as a dedicated agent-memory lens with timeline scrubber, branch tracks, and
-    per-episode detail panel.'
+  description: Model the existing OpenSpec + session-log + worktree corpus as the agent memory layer and
+    visualize it as a first-class lens, rather than introducing a parallel .GCC/-style memory format.
+    Each openspec/changes/<id>/ directory is a memory episode (proposal.md = intent, tasks.md = plan,
+    session-log.md = execution trace, worktree branch = isolated workspace). Each session-log entry is
+    a temporal node. Each worktree branch is a divergent reasoning track. Each merge back is a convergence
+    point. Surface these as a dedicated agent-memory lens with timeline scrubber, branch tracks, and per-episode
+    detail panel.
   acceptance_outcomes:
-  - Every session-log entry under openspec/changes/<id>/session-log.md MUST become a
-    temporal node connected to its parent Proposal.
-  - Active worktree branches (per .git-worktrees/.registry.json) MUST render as parallel
-    tracks under their associated Proposal node.
-  - The agent-memory lens MUST visualize multi-agent activity (multiple worktrees +
-    their session-log streams simultaneously) without requiring page reload between
-    branches.
-  - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known
-    state at any past point.
+  - Every session-log entry under openspec/changes/<id>/session-log.md MUST become a temporal node connected
+    to its parent Proposal.
+  - Active worktree branches (per .git-worktrees/.registry.json) MUST render as parallel tracks under
+    their associated Proposal node.
+  - The agent-memory lens MUST visualize multi-agent activity (multiple worktrees + their session-log
+    streams simultaneously) without requiring page reload between branches.
+  - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known state at any past
+    point.
 - item_id: mcp-app-interactive-viz
   title: MCP App for in-conversation visualization
   status: candidate
@@ -680,29 +600,25 @@ items:
   depends_on:
   - spa-scaffold-render
   - mcp-server-interface
-  description: 'In addition to the tools-only MCP server, package the SPA (or a focused
-    subset) as an MCP App — an interactive visualization rendered inside the agent
-    conversation (sandboxed iframe with bidirectional MCP tool calls). MCP Apps let
-    an agent reason with the visualization in-context rather than asking the human
-    to switch to a separate tab; the agent can call MCP tools from within the App and
-    the App can request additional tools from the host. First App MVP surfaces the
-    Atlas view + Change lens + a search/inspect panel; deeper views added incrementally.
-    The App MUST be a thin wrapper around the existing SPA components — no parallel
-    rendering codebase.'
+  description: In addition to the tools-only MCP server, package the SPA (or a focused subset) as an MCP
+    App — an interactive visualization rendered inside the agent conversation (sandboxed iframe with bidirectional
+    MCP tool calls). MCP Apps let an agent reason with the visualization in-context rather than asking
+    the human to switch to a separate tab; the agent can call MCP tools from within the App and the App
+    can request additional tools from the host. First App MVP surfaces the Atlas view + Change lens +
+    a search/inspect panel; deeper views added incrementally. The App MUST be a thin wrapper around the
+    existing SPA components — no parallel rendering codebase.
   acceptance_outcomes:
-  - An MCP App MUST be installable into a Claude Desktop / Cursor / compatible host
-    via a single manifest.
+  - An MCP App MUST be installable into a Claude Desktop / Cursor / compatible host via a single manifest.
   - The App MUST reuse the SPA's render components — no duplicate rendering implementation.
-  - The App MUST be able to call MCP tools (e.g. blast_radius, compare_snapshots) and
-    receive results via the MCP App bidirectional channel.
-  - Sandboxing MUST follow the MCP App specification — no direct DOM access outside
-    the iframe, no arbitrary network calls.
-  - Documentation MUST include host-configuration snippets and a screenshot fixture
-    at docs/codeviz/mcp-app.md.
-  - Tool calls initiated from inside the App MUST respect the same operation_kind taxonomy
-    as direct MCP server calls — destructive-write tools MUST trigger the host's standard
-    consent UI; reversible-write tools MUST surface a visible audit-event indicator (small
-    badge) so the operator sees what the App is doing in-context.
+  - The App MUST be able to call MCP tools (e.g. blast_radius, compare_snapshots) and receive results
+    via the MCP App bidirectional channel.
+  - Sandboxing MUST follow the MCP App specification — no direct DOM access outside the iframe, no arbitrary
+    network calls.
+  - Documentation MUST include host-configuration snippets and a screenshot fixture at docs/codeviz/mcp-app.md.
+  - Tool calls initiated from inside the App MUST respect the same operation_kind and scoped-session rules
+    as direct MCP server calls. Destructive-write tools MUST trigger the host's standard consent UI. Reversible-write
+    tools MUST require an active scoped session for agent-initiated calls and MUST surface a visible audit-event
+    indicator (small badge with remaining session quota) so the operator sees what the App is doing in-context.
 - item_id: version-variant-view
   title: Version & Variant view (side-by-side candidate comparison)
   status: candidate
@@ -713,27 +629,108 @@ items:
   - temporal-snapshot-scrubber
   - multi-repo-federation
   - spa-scaffold-render
-  description: 'A dedicated UX surface answering how did this area evolve across commits,
-    branches, worktrees, and prototype variants. Pulls together git commit history
-    per file/symbol, active worktree branches from .git-worktrees/.registry.json, prototype
-    variant branches from /prototype-feature runs, and temporal snapshots from FalkorDB
-    into a side-by-side comparison surface. Users select 2-N candidates (commits, branches,
-    worktree heads, prototype variants) and the view renders a multi-lane comparison:
-    matching symbols align across lanes, additions/removals/modifications are color-coded
-    per lane, and validation-outcome badges attach to each lane head. EvoScat-style
-    scatterplot mini-map for long histories. Reuses the Atlas-view render layer; the
-    lane mechanism is the new piece.'
+  description: 'A dedicated UX surface answering how did this area evolve across commits, branches, worktrees,
+    and prototype variants. Pulls together git commit history per file/symbol, active worktree branches
+    from .git-worktrees/.registry.json, prototype variant branches from /prototype-feature runs, and temporal
+    snapshots from FalkorDB into a side-by-side comparison surface. Users select 2-N candidates (commits,
+    branches, worktree heads, prototype variants) and the view renders a multi-lane comparison: matching
+    symbols align across lanes, additions/removals/modifications are color-coded per lane, and validation-outcome
+    badges attach to each lane head. EvoScat-style scatterplot mini-map for long histories. Reuses the
+    Atlas-view render layer; the lane mechanism is the new piece.'
   acceptance_outcomes:
-  - A user MUST be able to select 2-N candidates (commits, branches, worktree heads,
-    prototype variants) and see them rendered as parallel lanes against the same architectural
+  - A user MUST be able to select 2-N candidates (commits, branches, worktree heads, prototype variants)
+    and see them rendered as parallel lanes against the same architectural region.
+  - Matching symbols MUST align across lanes; non-matching symbols MUST be visually distinguished without
+    breaking the alignment of matched ones.
+  - Each lane head MUST surface validation-outcome badges (test pass/fail count, fitness violations, security
+    findings).
+  - A scatterplot mini-map MUST provide a global overview for histories longer than 50 commits.
+  - The view MUST be addressable via URL parameters encoding the candidate list and the focused architectural
     region.
-  - Matching symbols MUST align across lanes; non-matching symbols MUST be visually
-    distinguished without breaking the alignment of matched ones.
-  - Each lane head MUST surface validation-outcome badges (test pass/fail count, fitness
-    violations, security findings).
-  - A scatterplot mini-map MUST provide a global overview for histories longer than
-    50 commits.
-  - The view MUST be addressable via URL parameters encoding the candidate list and
-    the focused architectural region.
+- item_id: substrate-evaluation
+  title: Substrate evaluation (adopt-before-build benchmark)
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: 'Before committing to FalkorDB + Graphiti as the graph substrate, run the target repo through
+    several existing code-intelligence systems (SCIP, Codebase-Memory, CodeQL, Joern, Semgrep, current
+    architecture.graph.json pipeline, FalkorDB+Graphiti) and produce a comparative benchmark on edge coverage,
+    precision/recall against gold fixtures, build complexity, offline support, query latency, artifact
+    size, and integration cost. Output: decision memo at openspec/roadmaps/codeviz/substrate-evaluation.md
+    that either ratifies the proposed combination or recommends a different one. The FalkorDB commitment
+    in this proposal is contingent on this evaluation''s outcome.'
+  acceptance_outcomes:
+  - A benchmark harness MUST run each candidate against this repo and a second representative repo, producing
+    per-candidate metrics in a comparable schema.
+  - The decision memo MUST be committed at openspec/roadmaps/codeviz/substrate-evaluation.md before any
+    downstream Phase 0 ingestion or schema work begins.
+  - The memo MUST recommend (a) a code-fact substrate, (b) a graph store, and (c) the temporal-memory
+    role for Graphiti, with explicit rationale per choice.
+  - If the benchmark contradicts the current proposal, the proposal and roadmap MUST be revised before
+    Phase 0 implementation work proceeds.
+- item_id: threat-model-artifact
+  title: Formal threat-model artifact
+  status: candidate
+  priority: 3
+  effort: S
+  depends_on: []
+  description: Consolidate scattered security constraints into a single formal threat-model document at
+    docs/codeviz/threat-model.md. Covers malicious repo poisoning, path traversal, deep-link leakage,
+    graph-pack secret exposure, hostile MCP tools, local HTTP exposure, CORS/CSRF, audit-event flooding,
+    namespace-overwrite imports, and FalkorDB-specific behavioral risks (GRAPH.RO_QUERY for read paths;
+    LIMIT does not constrain eager mutations). Each threat maps to a mitigation that points to specific
+    capability acceptance outcomes. MUST be completed before http-api-server ships in production.
+  acceptance_outcomes:
+  - docs/codeviz/threat-model.md MUST exist before http-api-server ships in production.
+  - Each threat MUST have a checked-in mitigation that points to specific acceptance criteria on at least
+    one capability.
+  - An 'unmitigated' field MUST be honest — threats accepted as known risk MUST be listed explicitly with
+    rationale.
+  - The document MUST be reviewable as a single PR artifact, not split across capability sections.
+- item_id: graph-quality-ci
+  title: Graph-quality CI (precision/recall regression gating)
+  status: candidate
+  priority: 4
+  effort: S
+  depends_on:
+  - ingestion-pipeline
+  description: Fixture-based precision/recall measurement of the extraction pipeline. For each edge type
+    (IMPORTS, CALLS, TESTS, WRITES_TO, READS_FROM, IMPLEMENTS_PROPOSAL, INVOKES_AT_RUNTIME, FLAGS), maintain
+    a gold fixture with hand-validated expected edges. CI runs the pipeline against fixtures on every
+    PR and fails when precision/recall regresses below per-edge-type thresholds. Catches extractor drift,
+    version mismatches, silent confidence-calibration regressions. Output is an event-class report under
+    docs/codeviz/graph-quality/.
+  acceptance_outcomes:
+  - A gold fixture set MUST exist for at least six edge types with hand-validated edges; small enough
+    to recompute on every PR.
+  - The CI job MUST report precision and recall per edge type and fail the build if any falls below its
+    configured threshold.
+  - Adding a new extractor or upgrading an existing extractor version MUST require a schema migration
+    that updates the gold fixture and threshold; the lint MUST refuse silent extractor-version bumps.
+  - The graph-quality report MUST link to the failing edge IDs so a reviewer can navigate to the specific
+    source-span where the extractor went wrong.
+- item_id: sarif-findings-ingestion
+  title: SARIF + external findings ingestion
+  status: candidate
+  priority: 4
+  effort: S
+  depends_on:
+  - graph-schema-migrations
+  - ingestion-pipeline
+  description: Use SARIF (OASIS standard) as the canonical input for external findings rather than writing
+    one parser per tool. Ingester consumes SARIF from CodeQL, Semgrep, SonarQube, Trivy, Bandit, ESLint,
+    mapping each finding to a Finding node with FLAGS edge to the affected symbol or file. Each finding
+    inherits provenance (tool, version, SARIF run ID, rule ID, severity, source span). Optional Joern-derived
+    WRITES_TO/READS_FROM via SARIF taint-tracking. Reports stored under docs/codeviz/findings/<YYYY-MM-DD>/<tool>-<run-id>.sarif.
+    Replaces duplicative per-tool parser work.
+  acceptance_outcomes:
+  - An ingester MUST consume valid SARIF 2.1.0 reports from at least three tools (CodeQL, Semgrep, plus
+    one other) and produce Finding nodes with full provenance.
+  - Each Finding node MUST carry the source tool, tool version, SARIF run ID, rule ID, severity, and source
+    span.
+  - 'The pipeline MUST round-trip SARIF: a Finding node MUST be exportable back to a minimal SARIF fragment
+    for downstream tooling.'
+  - A fixture suite MUST verify ingestion across all supported tools and catch SARIF schema regressions.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-12T12:30:00+00:00'
+updated_at: '2026-05-12T15:53:20+00:00'
