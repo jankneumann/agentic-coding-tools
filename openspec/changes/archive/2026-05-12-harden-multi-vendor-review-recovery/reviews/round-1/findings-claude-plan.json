@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "claude-001",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Spec R1 requires the manifest to be a superset (preserves dispatches[], etc.) but provides no scenario covering the case where the existing review_dispatcher.py is invoked WHILE the new in-process converge() is also writing a manifest at the same artifacts_dir. The 'distinct artifacts_dir' invariant (R1.S3) prevents cross-call contention but doesn't address mixed call-site contention.",
+      "disposition": "fix",
+      "resolution": "Add scenario clarifying that two writers (CLI and in-process) writing to the same directory IS undefined behavior, and document in design.md as a known constraint.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 25,
+        "end": 50
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-002",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "R3.S7 (sanitization) names specific vendor key prefixes (sk-, AIza...) but doesn't specify the FULL test corpus implementers should use. Different teams will choose different prefix lists, and tests written by one team may not catch regressions in another. The contract for 'best-effort' is too loose for objective verification.",
+      "disposition": "fix",
+      "resolution": "Add a referenceable corpus to design.md or contracts/: e.g., sanitization-test-corpus.json containing input/expected-output pairs that all tests SHALL include. Treat the corpus as the contract; sanitizers may go further but MUST handle every entry.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 95,
+        "end": 110
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-003",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "checkpoint_findings.py lives under skills/autopilot/scripts/ but is imported by parallel-infrastructure/scripts/review_dispatcher.py per the design. This creates a downstream dependency from parallel-infrastructure on autopilot, where previously the dependency direction was the other way (autopilot imports ReviewOrchestrator from parallel-infrastructure). The proposal acknowledges and rejects the alternative; flagging because a future contributor may not realize the directional inversion when refactoring.",
+      "disposition": "accept",
+      "resolution": "Add a one-line comment at the top of checkpoint_findings.py noting that this module is shared and imported from parallel-infrastructure \u2014 and that moving it requires updating both call sites.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+      "line_range": {
+        "start": 1,
+        "end": 35
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-004",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "R5 requires `convergence.fallback_recovered` and `convergence.fallback_failed` audit events but does not specify event ordering. If a single converge() call has both a synthesis failure AND a subsequent successful CLI fallback, only one event fires (recovered). But what if the audit emission for `recovered` partially fails (e.g., write succeeds but ack fails)? Could a stale agent retry and emit a duplicate? Idempotency is not specified.",
+      "disposition": "fix",
+      "resolution": "Add scenario to R5 stating: each converge() invocation SHALL emit at most one fallback event (recovered or failed, never both). Idempotency on retries is the audit transport's responsibility, not converge()'s.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 145,
+        "end": 175
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-005",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Task 5.4 says: 'Skip fallback if the in-process exception is OSError/PermissionError from the checkpoint write itself.' But the task ordering puts the checkpoint write at task 4.2 (Phase 4) BEFORE the fallback wrapper at task 5.4 (Phase 5). If checkpoint writing fails, control never reaches synthesis (because the checkpoint write happens before synthesis). So the 'skip fallback on checkpoint write failure' guard is never reached \u2014 the flow already crashed at the checkpoint write. The guard is redundant.",
+      "disposition": "fix",
+      "resolution": "Remove the redundant 'skip fallback' guard from task 5.4, OR add a scenario clarifying the order: if the checkpoint write fails, converge() raises the OSError/PermissionError directly, BEFORE any synthesis attempt. Update R2.S4 (manifest write permission error) to explicitly say synthesis is never attempted.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 95,
+        "end": 110
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-006",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "review-cache-layout.schema.json marks ALL of {schema_version, change_id, review_type, created_at, vendors, target, dispatches, quorum_requested, quorum_received} as required. But R1.S5 (in-process callers) says in-process callers don't have dispatch metadata. The schema requires `dispatches` to be present (an empty array is valid), but if a future in-process caller writes nothing for `dispatches`, the schema will reject the manifest. The contract and the spec are aligned, but the test in task 0.3 should verify both 'dispatches: []' AND 'absent dispatches key' cases.",
+      "disposition": "fix",
+      "resolution": "Either (a) make `dispatches` optional in the schema with default [], or (b) explicitly require in-process callers to write `dispatches: []` (already implied by R1.S5 but make it crisp). Update task 0.3 to test both shapes.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
+      "line_range": {
+        "start": 8,
+        "end": 25
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-007",
+      "type": "testability",
+      "criticality": "low",
+      "description": "Phase 7 integration test (task 7.1) uses a 'controlled synthesis-time exception (e.g., feed line_range: \"10-20\" string)'. But the new finding.schema.json explicitly accepts both shapes. The integration test will pass schema validation (because the schema is permissive) but trigger the in-process synthesizer crash. This is intentional \u2014 but the test description should make it explicit so future maintainers don't tighten the schema and accidentally make the test fixture unreachable.",
+      "disposition": "fix",
+      "resolution": "Update task 7.1 description to note: 'finding.schema.json deliberately accepts the malformed string shape; if the schema is later tightened (separate proposal), this fixture must be regenerated.'",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {
+        "start": 130,
+        "end": 145
+      },
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-008",
+      "type": "observability",
+      "criticality": "low",
+      "description": "R5 requires `checkpoint_dir` in audit payload but does not require the path to be the SAME format (relative vs absolute) across `recovered` and `failed` events. If the implementation uses `Path.resolve()` for path-safety in R6 but writes the resolved path in one event and the unresolved path in another, querying audit by checkpoint_dir becomes inconsistent.",
+      "disposition": "fix",
+      "resolution": "Add to R5 requirement paragraph: `checkpoint_dir` SHALL be the resolved absolute path (post-Path.resolve()) consistent across events for the same converge() invocation.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 145,
+        "end": 160
+      },
+      "vendor": "claude_code"
+    }
+  ]
+}

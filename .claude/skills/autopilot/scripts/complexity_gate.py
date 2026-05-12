@@ -12,6 +12,7 @@ from typing import Any
 
 import yaml
 
+
 # Built-in default thresholds
 DEFAULT_MAX_LOC = 500
 DEFAULT_MAX_PACKAGES = 4

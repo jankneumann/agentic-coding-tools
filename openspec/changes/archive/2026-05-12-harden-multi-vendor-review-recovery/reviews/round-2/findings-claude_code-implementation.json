@@ -1,0 +1,47 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "robustness",
+      "criticality": "medium",
+      "description": "C7 fix at skills/parallel-infrastructure/scripts/checkpoint_findings.py:82 catches `(OSError, ValueError)` and the docstring at line 67-68 claims 'ValueError covers json-encoding failures (non-serializable types)'. This is incorrect: json.dump raises TypeError (not ValueError) for non-serializable types like datetime, sets, custom classes \u2014 verified empirically. ValueError is only reachable for NaN/Infinity floats with allow_nan=False (not the default). The realistic non-serializable case will therefore propagate uncaught and leak the .tmp file, exactly the leak C7 was meant to plug. The new test test_atomic_write_cleans_tmp_on_serialize_failure masks this by monkeypatching json.dump to manually raise ValueError; passing a real non-serializable payload would raise TypeError and the test would not pass through pytest.raises(ValueError). Fix: add TypeError to the except tuple; update the docstring; replace the fake exploding_dump in the test with an actual non-serializable payload (e.g., {'k': datetime.now()}).",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "66-89",
+      "verifies_round_1": "C7"
+    },
+    {
+      "id": "F2",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "C2 path-alignment fix is incomplete. skills/autopilot/SKILL.md:155 still says 'converge() writes per-vendor findings AND a manifest to <artifacts_dir>/reviews/round-N/ BEFORE invoking the consensus synthesizer.' and skills/autopilot/SKILL.md:306 lists the output as 'openspec/changes/<change-id>/reviews/round-N/ \u2014 Per-round review artifacts'. SKILL.md is the canonical operator-facing doc for /autopilot \u2014 the runtime copies at .agents/skills/autopilot/SKILL.md:293 and .claude/skills/autopilot/SKILL.md:293 inherit the stale path. The original C2 finding's stated rationale was 'Operators following the documented manual-recovery procedure look in the wrong place'; updating only docs/parallel-agentic-development.md leaves the most prominent operator-facing doc still misleading. Fix: update both lines in skills/autopilot/SKILL.md to .review-cache/round-N/, then run skills/install.sh to refresh runtime copies.",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": "155, 306",
+      "verifies_round_1": "C2"
+    },
+    {
+      "id": "F3",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "C2 fix introduces a subtle spec-literal deviation. openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md:75-76 specifies '<artifacts_dir>/.review-cache/findings-{vendor}-{review_type}.json SHALL exist' and '<artifacts_dir>/.review-cache/review-manifest.json SHALL exist' (flat layout under .review-cache/). The fix at convergence_loop.py:266 writes to <artifacts_dir>/.review-cache/round-{round_num}/, which is inside the .review-cache namespace but adds a round subdirectory the spec is silent on. The docstring at convergence_loop.py:80 justifies this as 'Round subdivision under .review-cache/ preserves cross-round audit history while staying inside the namespace specified by the spec' \u2014 defensible interpretation, but the literal scenario at spec.md:75 is not satisfied. Either tighten the spec to authorize the round-N subdivision (preferred \u2014 preserves the audit trail) or flatten the code to overwrite per round. Disposition: accept if the spec is amended; otherwise fix.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": "73-77",
+      "verifies_round_1": "C2"
+    },
+    {
+      "id": "F4",
+      "type": "robustness",
+      "criticality": "low",
+      "description": "C7 fix wraps json.dump/flush/fsync in try/except with tmp.unlink cleanup, but os.replace(tmp, path) at checkpoint_findings.py:90 sits OUTSIDE the try/except. If os.replace itself raises OSError (e.g. target file is read-only on a network filesystem, or rare filesystem corruption), the tmp file leaks. Narrow window \u2014 os.replace is generally atomic on POSIX \u2014 but the C7 fix's stated goal was 'leak-free hygiene', which this gap defeats. Fix: extend the try/except to cover os.replace, or add a separate try/except around the rename with the same unlink-then-reraise pattern.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "76-102",
+      "verifies_round_1": "C7"
+    }
+  ]
+}

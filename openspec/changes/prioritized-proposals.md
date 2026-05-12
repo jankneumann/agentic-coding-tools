@@ -1,132 +1,116 @@
 # Proposal Prioritization Report
 
-**Date**: 2026-04-22
-**Analyzed Range**: `HEAD~50..HEAD` (50 commits)
-**Proposals Analyzed**: 11 active entries (6 in-flight + 5 marked ✓ Complete pending archive)
+**Date**: 2026-05-04 10:20:27 EDT
+**Analyzed Range**: `HEAD~50..HEAD`
+**OpenSpec Proposals Analyzed**: 1 active change
+**Coordinator Issues Analyzed**: 8 open issues; 8 ready; 0 blocked
 
 ## Executive Summary
 
-- **7 of 11 proposals can be archived now** — 5 are already marked ✓ Complete; 2 (`replace-beads-with-builtin-tracker`, `tech-debt-analysis`) are effectively implemented but not archived.
-- **1 proposal has code-reality drift** (`specialized-workflow-agents`) — `archetypes.yaml` + migration `021_agent_requirements.sql` are committed and 5 skills reference `archetype=` parameters, yet `tasks.md` shows 0/29 complete. Needs status reconciliation before any other action.
-- **3 proposals are fresh and relevant** (`add-decision-index`, `add-prototyping-stage`, `harness-engineering-features`). Only one (`add-decision-index`) is safely parallelizable with current in-flight state.
+Only one unfinished OpenSpec proposal is active: `harness-engineering-features`, still draft with 0/21 tasks complete. It is valuable, but broad: seven separate harness capabilities spanning coordinator services, validation, review loops, docs, memory conventions, and two new skills.
+
+The coordinator issue tracker has the stronger next-build signal. Two open CI/tooling issues are currently taxing every PR and cleanup flow:
+
+1. `Pip CVE-2026-3219 blocks every PR via dependency-audit jobs` (priority 3 bug)
+2. `Sync deferred OpenSpec deltas from cloud-db-source-of-truth archive` (priority 3 task)
+
+Top recommendation: fix the pip-audit CI blocker first. It is ready, small, high-leverage, and directly improves every subsequent feature merge.
 
 ## Priority Order
 
-### 1. `replace-beads-with-builtin-tracker` — Replace Beads with Built-in Coordinator Issue Tracker
-- **Relevance**: Likely Addressed — `issue_service.py` exists, migration `017_issue_tracking.sql` landed, commits `196101d chore: remove beads and update docs post-merge` and `b6cd6f5 fix(coordinator): bundle migrations in Docker image, fix issue_create 500` indicate completed + hot-fixed. `.beads/` is empty.
-- **Readiness**: N/A — work is done; tasks.md shows 13/17, with the remaining 4 explicitly labeled "deferred to post-merge" and appearing complete in history.
-- **Conflicts**: None
-- **Recommendation**: Verify migration + issue MCP tools, mark final tasks complete, archive.
-- **Next Step**: `/openspec-archive-change replace-beads-with-builtin-tracker` (after checking tasks 4.2–4.5 one by one — especially docs cleanup)
+### 1. Coordinator Issue: Pip CVE-2026-3219 blocks dependency-audit jobs
 
-### 2. `tech-debt-analysis` — Tech Debt Analysis Skill
-- **Relevance**: Likely Addressed — `proposal.md` itself declares `Status: Implemented`, `skills/tech-debt-analysis/` exists with SKILL.md, scripts, and tests (88 unit tests per proposal).
-- **Readiness**: N/A — no `tasks.md`, no `design.md`, no `work-packages.yaml`. Proposal pre-dates the current 5-skill workflow. Specs + proposal only.
-- **Conflicts**: None
-- **Recommendation**: Verify spec delta matches shipped skill, then archive. May need to backfill `tasks.md` for archival hygiene if the archive tooling requires it.
-- **Next Step**: `openspec validate tech-debt-analysis --strict` followed by `/openspec-archive-change tech-debt-analysis`
+- **Issue ID**: `a6a2f524-6cda-4343-ae39-58ad8ec4d04a`
+- **Type / Priority**: bug / P3
+- **Status**: ready; no dependencies
+- **Relevance**: High. `.github/workflows/security.yml` still installs unpinned `pip-audit` and runs `uv run pip-audit --desc on`; no `CVE-2026-3219` ignore or pip pin is present.
+- **Recommendation**: Build next.
+- **Next Step**: create a focused OpenSpec change or quick fix for the security workflow. Prefer an explicit, documented `pip-audit` mitigation so dependency audit becomes useful again.
 
-### 3. Batch Archive — 5 Proposals Marked ✓ Complete
-These are flagged complete by `openspec list` but still sit in `openspec/changes/` rather than `openspec/changes/archive/`:
-- `speculative-merge-trains` (11d ago)
-- `cli-help-discovery` (11d ago)
-- `cloudflare-domain-setup` (12d ago)
-- `vendor-ux-enhancements` (19d ago)
-- `interactive-plan-feature` (19d ago)
+### 2. Coordinator Issue: Sync deferred OpenSpec deltas from cloud-db-source-of-truth archive
 
-- **Relevance**: Likely Addressed
-- **Readiness**: N/A
-- **Conflicts**: None
-- **Recommendation**: Bulk archive.
-- **Next Step**: `/openspec-bulk-archive-change speculative-merge-trains,cli-help-discovery,cloudflare-domain-setup,vendor-ux-enhancements,interactive-plan-feature`
+- **Issue ID**: `17654fc5-6d42-4cd2-b046-f28f13e83aa9`
+- **Type / Priority**: task / P3
+- **Status**: ready; no dependencies
+- **Relevance**: High. This is spec/source-of-truth debt: archived deltas are not fully reflected under `openspec/specs/`, including net-new `knowledge-graph` and `mcp-http-client` specs.
+- **Recommendation**: Do immediately after the CI blocker, or in parallel if a second agent is available.
+- **Next Step**: `/openspec-sync-specs` against the archived change, then validate specs.
 
-### 4. `specialized-workflow-agents` — Specialized Workflow Agents (Archetypes)
-- **Relevance**: Needs Refinement — **tasks.md says 0/29 but implementation is landing**. Concrete evidence:
-  - `agent-coordinator/archetypes.yaml` exists
-  - `agent-coordinator/database/migrations/021_agent_requirements.sql` exists (comment explicitly tags it "Phase 3 of specialized-workflow-agents")
-  - `skills/plan-feature/SKILL.md`, `implement-feature/SKILL.md`, `iterate-on-plan/SKILL.md`, `iterate-on-implementation/SKILL.md`, `fix-scrub/SKILL.md` all reference `archetype=` or `model=` parameters
-  - Migration `022_add_missing_profile_operations.sql` also recent
-- **Readiness**: Partial — code reality is ahead of the plan document.
-- **Conflicts**:
-  - With `add-prototyping-stage` on `skills/iterate-on-plan/SKILL.md` (prototyping adds `--prototype-context`; archetypes change `Task()` model/archetype params)
-  - With `harness-engineering-features` on `agent-coordinator/src/work_queue.py`
-- **Recommendation**: **Do not replan — reconcile.** Run `/openspec-verify-change specialized-workflow-agents` to diff spec ↔ code, update `tasks.md` checkboxes to match committed work, then either ship the remainder or archive if already done.
-- **Next Step**: `/openspec-verify-change specialized-workflow-agents`
+### 3. Coordinator Issue: Verify pg_cron audit_log retention in Railway production
 
-### 5. `add-decision-index` — Per-Capability Decision Index (skill-workflow + software-factory-tooling)
-- **Relevance**: Still Relevant — target files (`docs/decisions/`, `decision_index.py`, `backfill_decision_tags.py`) do not exist. Clean greenfield.
-- **Readiness**: Ready — 0/25 tasks; well-structured proposal with design, tasks, specs, work-packages all present.
-- **Conflicts**: None. Touches `skills/session-log/SKILL.md`, `skills/explore-feature/scripts/`, `Makefile`, `.github/workflows/ci.yml`, `docs/decisions/**`. No overlap with any other active proposal's file set.
-- **Recommendation**: **Top pick for new implementation work.** Independent, moderate scope, well-scoped TDD task list.
-- **Next Step**: `/implement-feature add-decision-index`
+- **Issue ID**: `b73d6472-7ed0-4b4e-b836-3e25e92ec1d0`
+- **Type / Priority**: task / P3
+- **Status**: ready; no dependencies
+- **Relevance**: Medium-high, but operational. It needs Railway production access and evidence capture rather than much code.
+- **Recommendation**: Schedule as an ops verification task, not the next engineering build unless production audit retention is urgent.
 
-### 6. `add-prototyping-stage` — Prototyping Stage Between Plan and Implement
-- **Relevance**: Still Relevant — `skills/prototype-feature/` does not exist, `VariantDescriptor` schema not in `parallel-infrastructure/`.
-- **Readiness**: Ready — 0/41 tasks; comprehensive 8-phase TDD plan with contracts, design decisions referenced by task, and work-packages.yaml.
-- **Conflicts**:
-  - With `specialized-workflow-agents` on `skills/iterate-on-plan/SKILL.md` (both modify the skill; archetypes change `Task()` params while prototyping adds `--prototype-context`)
-  - With `harness-engineering-features` on `CLAUDE.md` (both edit the workflow diagram) and `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` (prototyping adds `VariantDescriptor`; harness extends convergence loop)
-- **Recommendation**: Start **after** `specialized-workflow-agents` is verified/archived, so iterate-on-plan edits don't collide.
-- **Next Step**: `/implement-feature add-prototyping-stage` (sequence after #4)
+### 4. Coordinator Issue: cloud-db-source-of-truth open findings F5/F6/F7/F8/F9
 
-### 7. `harness-engineering-features` — 7 Features from OpenAI's Harness Engineering
-- **Relevance**: Still Relevant — none of the 7 features have landed. `CLAUDE.md` is currently 139 lines (not yet the ~100-line TOC target). `skills/improve-harness/` and `skills/agent-metrics/` do not exist.
-- **Readiness**: Needs Planning — 21 tasks across 7 features is sparse for the scope (Feature 1 alone "agent-to-agent review loops" is substantial). Tasks lack work-packages.yaml-level granularity seen in #5 and #6. Specs exist but plan feels like a roadmap, not an implementation plan.
-- **Conflicts**:
-  - With `specialized-workflow-agents` on `agent-coordinator/src/work_queue.py` (session scope enforcement vs archetype routing)
-  - With `add-prototyping-stage` on `CLAUDE.md` and `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
-  - With `add-decision-index` indirectly (decision-index adds CI staleness check; harness adds architecture linters phase — both extend CI)
-- **Recommendation**: **Split before implementing.** Consider `/plan-roadmap` to decompose into 7 sequenceable sub-proposals. At minimum, separate Features 1 & 3 (review loops, architecture enforcement) from Feature 2 (CLAUDE.md restructure) from Features 5–7 (evaluator profile, scope enforcement, metrics) — they have different conflict surfaces.
-- **Next Step**: `/iterate-on-plan harness-engineering-features` OR `/plan-roadmap openspec/changes/harness-engineering-features/proposal.md`
+- **Issue ID**: `f46421dc-f7fe-4a1b-89a5-5aa76c898157`
+- **Type / Priority**: task / P4
+- **Status**: ready; no dependencies
+- **Relevance**: Mixed. It contains multiple independent findings, including API response correctness, enum export/import correctness, validation smoke-test portability, pg_cron verification, and docs cleanup.
+- **Recommendation**: Split before implementation. The enum export/import bug and graph episode ID API bug are the most build-like subitems.
 
-## Parallel Workstreams
+### 5. OpenSpec Proposal: harness-engineering-features
 
-### Stream A — Start Immediately (fully independent)
-- **A1**: `add-decision-index` — `/implement-feature add-decision-index`
-- **A2**: Batch archive — `/openspec-bulk-archive-change speculative-merge-trains,cli-help-discovery,cloudflare-domain-setup,vendor-ux-enhancements,interactive-plan-feature` (administrative, no code conflicts)
-- **A3**: Verify + archive `replace-beads-with-builtin-tracker` and `tech-debt-analysis` (sequential within A3; independent of A1)
+- **Change ID**: `harness-engineering-features`
+- **Status**: Draft; 0/21 tasks complete
+- **Relevance**: Still relevant. `CLAUDE.md` is 142 lines, `skills/improve-harness/` does not exist, and `skills/agent-metrics/` does not exist.
+- **Readiness**: Partially ready but too broad for one implementation pass.
+- **Conflicts / Drift**: Recent commits touched `skills/autopilot`, `skills/parallel-infrastructure`, `skills/merge-pull-requests`, `skills/validate-feature`, `agent-coordinator/src/coordination_api.py`, and `agent-coordinator/src/agents_config.py`. That overlaps several harness work packages and means the plan should be refreshed before implementation.
+- **Recommendation**: Do not implement as one feature yet. Decompose into smaller OpenSpec changes; start with `Mechanical Architecture Enforcement` or `Progressive Context Architecture` after CI/spec hygiene is fixed.
+- **Next Step**: `/plan-roadmap openspec/changes/harness-engineering-features/proposal.md`
 
-### Stream A4 — Reconciliation Gate (do before Stream B)
-- `specialized-workflow-agents`: `/openspec-verify-change` to reconcile tasks.md with code reality. Until this clears, iterate-on-plan has two pending editors (SWA and prototyping).
+### 6. Coordinator Issue: Register coordination-bridge capability spec
 
-### Stream B — After Stream A4 reconciliation (`specialized-workflow-agents` resolved)
-- **B1**: `add-prototyping-stage` — unblocked once iterate-on-plan edits from SWA are landed/confirmed
+- **Issue ID**: `8e8ff8dd-95c8-41a9-9463-3cd43240647f`
+- **Type / Priority**: bug / P5
+- **Status**: ready; no dependencies
+- **Relevance**: Needs verification, likely partly addressed. `openspec/specs/coordination-bridge/spec.md` now exists, so the remaining work is to run the decision-index check and close or update the issue.
+- **Recommendation**: Verify and close if CI is green.
 
-### Sequential — After B1
-- `harness-engineering-features` — conflicts with both SWA (work_queue.py) and APS (CLAUDE.md, parallel-infra). Best approach: decompose via `/plan-roadmap` into sub-proposals that can be parallelized with less overlap.
+### 7. Coordinator Issue: Add mypy/ruff excludes for OpenSpec archive paths
 
-## Conflict Matrix
+- **Issue ID**: `3ec0d23c-7df2-4366-82c2-19ba016e0468`
+- **Type / Priority**: task / P5
+- **Status**: ready; no dependencies
+- **Relevance**: Workflow hygiene. This repo currently has `agent-coordinator/pyproject.toml` and `skills/pyproject.toml`, but no root `.pre-commit-config.yaml`; the issue may need adjustment before implementation.
+- **Recommendation**: Triage after higher-priority CI/spec issues.
 
-| | decision-index | prototyping | SWA | harness | replace-beads | tech-debt |
-|---|---|---|---|---|---|---|
-| **decision-index** | — | none | none | CI workflow (minor) | none | none |
-| **prototyping** | none | — | `iterate-on-plan/SKILL.md` | `CLAUDE.md`, `parallel-infrastructure/` | none | none |
-| **SWA** | none | `iterate-on-plan/SKILL.md` | — | `work_queue.py` | none | none |
-| **harness** | `.github/workflows/ci.yml` | `CLAUDE.md`, `parallel-infra/consensus_synthesizer.py` | `work_queue.py`, `memory.py` | — | none | none |
-| **replace-beads** | none | none | none | none | — | none |
-| **tech-debt** | none | none | none | none | none | — |
+### 8. Coordinator Issue: SonarCloud Code Analysis fails on PR #128
 
-## Proposals Needing Attention
+- **Issue ID**: `790a9aad-ec6b-46dc-918c-a3b9dd9eb2a1`
+- **Type / Priority**: task / P5
+- **Status**: ready; no dependencies
+- **Relevance**: Unknown until SonarCloud details are inspected.
+- **Recommendation**: Investigate, but not before pip-audit and spec sync.
 
-### Likely Addressed (verify and archive)
-- `replace-beads-with-builtin-tracker` — all integration commits present; only post-merge cleanup tasks pending. Confirm `.beads/` removal, migration script run, and docs updated.
-- `tech-debt-analysis` — skill shipped; proposal declares `Status: Implemented`. Archive workflow may need a stub `tasks.md`.
-- 5 already-complete: `speculative-merge-trains`, `cli-help-discovery`, `cloudflare-domain-setup`, `vendor-ux-enhancements`, `interactive-plan-feature`.
+### 9. Coordinator Issue: merge_pr.py force approval for solo OpenSpec workflows
 
-### Needs Refinement (update plan to match code before proceeding)
-- `specialized-workflow-agents` — **critical**: Phase 2 (`archetypes.yaml`) and Phase 3 (migration 021, `agent_requirements` column, skill model hints) have landed via merge-PR automation but `tasks.md` still shows 0/29. Update checkboxes via `/openspec-verify-change` before planning new work that touches the same files. Documents needing update: `tasks.md` (task status); possibly `proposal.md` "Status" line.
+- **Issue ID**: `53939d4a-2b10-497b-9835-581fbe060b05`
+- **Type / Priority**: feature / P6
+- **Status**: ready; no dependencies
+- **Relevance**: Partly addressed. `skills/merge-pull-requests/scripts/merge_pr.py` now has `--force-approval` and tests, but `skills/cleanup-feature/SKILL.md` still documents only `--force` in the explicit override path.
+- **Recommendation**: Update/close after confirming whether `--force-approval` satisfies the issue acceptance criteria.
 
-### Needs Decomposition
-- `harness-engineering-features` — 7 features, 21 tasks, no work-packages.yaml parallelization plan. Scope + cross-cutting file list (work_queue, memory, CLAUDE.md, consensus_synthesizer, validate-feature) make it too large for one change. Run `/plan-roadmap` to decompose.
+## Suggested Workstreams
 
-## Top Recommendation
+### Start Now
 
-Run these in a single session in this order:
+- Fix `Pip CVE-2026-3219 blocks every PR via dependency-audit jobs`.
+- Sync deferred OpenSpec deltas from `cloud-db-source-of-truth`.
 
-1. `/openspec-bulk-archive-change speculative-merge-trains,cli-help-discovery,cloudflare-domain-setup,vendor-ux-enhancements,interactive-plan-feature` (5 min)
-2. `/openspec-verify-change specialized-workflow-agents` then archive or finish remainder (30–60 min)
-3. `/openspec-verify-change replace-beads-with-builtin-tracker` then archive (15 min)
-4. Archive `tech-debt-analysis` (5 min)
-5. `/implement-feature add-decision-index` — the only fresh, genuinely independent, fully-planned piece of new work
+### Verify / Close
 
-After steps 1–4, **4 proposals remain** (`add-decision-index`, `add-prototyping-stage`, `harness-engineering-features`, plus whatever's left of SWA), with a clean conflict story and `add-decision-index` ready to go.
+- `Register coordination-bridge capability spec` looks likely addressed by `openspec/specs/coordination-bridge/spec.md`.
+- `merge_pr.py: add --operator-approved flag` looks partly addressed by `--force-approval`; update docs or close with rationale.
+
+### Plan Next Feature Work
+
+- Decompose `harness-engineering-features` with `/plan-roadmap`.
+- First decomposed feature candidate: architecture validation linters, because it improves every future implementation and aligns with the coordinator issue pattern around CI gates and validation signal quality.
+
+## Final Recommendation
+
+Build the pip-audit CI unblocker next. After that, sync OpenSpec spec drift. Only then start new harness feature work, and start by decomposing `harness-engineering-features` rather than implementing it as a single large change.

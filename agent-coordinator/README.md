@@ -19,50 +19,48 @@ Multi-agent coordination system for AI coding assistants. Enables Claude Code, C
 
 ## Quick Start
 
-### 1. Set Up Supabase
+### 1. Set Up the Database
 
-#### Option A: Supabase Cloud (Recommended)
+The coordinator supports two PostgreSQL backends, selected via `DB_BACKEND`:
 
-1. Create a free project at [supabase.com](https://supabase.com)
-2. Go to Project Settings > Database > Connection string
-3. Copy your project URL and service role key
-4. Run the migrations via SQL Editor (paste each file in `database/migrations/` in order)
+#### Option A: Docker Compose with ParadeDB (Recommended for Local Development)
 
-#### Option B: Supabase CLI (Local Development)
+Spins up a self-hosted PostgreSQL (ParadeDB) container with all migrations applied automatically on first start.
 
 ```bash
-# Install Supabase CLI
-brew install supabase/tap/supabase
+# Defaults: DB=54322
+docker compose -f docker-compose.yml up -d
 
-# Initialize and start local Supabase
-supabase init
-supabase start
-
-# Apply migrations
-supabase db push
-
-# Get local credentials (printed after start)
-# SUPABASE_URL=http://localhost:54321
-# SUPABASE_SERVICE_KEY=<printed service_role key>
+# If port 54322 is already in use, remap:
+AGENT_COORDINATOR_DB_PORT=55432 docker compose -f docker-compose.yml up -d
 ```
 
-#### Option C: Docker Compose (Port-Configurable)
+After startup, set in `.env`:
 
 ```bash
-# Defaults: DB=54322, REST=3000, REALTIME=4000
-docker compose -f docker-compose.yml up -d
-
-# If those ports are already in use, remap host ports:
-AGENT_COORDINATOR_DB_PORT=55432 \
-AGENT_COORDINATOR_REST_PORT=13000 \
-AGENT_COORDINATOR_REALTIME_PORT=14000 \
-docker compose -f docker-compose.yml up -d
+DB_BACKEND=postgres
+POSTGRES_DSN=postgresql://postgres:postgres@localhost:54322/postgres
 ```
 
-For e2e tests on remapped REST port:
+For e2e tests on a remapped REST port:
 
 ```bash
 BASE_URL=http://localhost:13000 uv run pytest -q tests/e2e
+```
+
+#### Option B: Supabase (Cloud-Managed Alternative)
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to Project Settings > Database > Connection string
+3. Copy your project URL and service role key
+4. Run the migrations via the SQL Editor (paste each file in `database/migrations/` in order)
+
+Then set in `.env`:
+
+```bash
+DB_BACKEND=supabase
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_KEY=<your-service-role-key>
 ```
 
 ### 2. Install Dependencies
@@ -76,7 +74,8 @@ uv sync --all-extras
 
 ```bash
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit .env with your database credentials (POSTGRES_DSN for ParadeDB,
+# or SUPABASE_URL + SUPABASE_SERVICE_KEY for Supabase)
 ```
 
 ### 4. Register MCP Server with CLI Agents
@@ -268,7 +267,8 @@ agent-coordinator/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py              # Environment configuration
-│   ├── db.py                  # Database client (Supabase + Postgres)
+│   ├── db.py                  # Database abstraction (selects backend via DB_BACKEND)
+│   ├── db_postgres.py         # Direct PostgreSQL backend (asyncpg) — default
 │   ├── locks.py               # File locking service
 │   ├── work_queue.py          # Task queue service
 │   ├── handoffs.py            # Session handoff service
@@ -337,7 +337,7 @@ agent-coordinator/
                       │ DatabaseClient Protocol
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Supabase (PostgREST) / Direct PostgreSQL (asyncpg)         │
+│  PostgreSQL via asyncpg (ParadeDB by default; Supabase opt) │
 │  - file_locks, work_queue, agent_sessions                   │
 │  - episodic_memories, operation_guardrails, agent_profiles  │
 │  - audit_log, network_domains, cedar_policies               │
@@ -345,7 +345,11 @@ agent-coordinator/
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Syncing Local <-> Cloud Supabase
+## Syncing Local <-> Cloud Supabase (Supabase Backend Only)
+
+> Skip this section if you are using the default ParadeDB backend — migrations are applied automatically by the Docker entrypoint on container start.
+
+If you are using Supabase as your backend, you can sync schema between local and cloud:
 
 ```bash
 # Link to your cloud project

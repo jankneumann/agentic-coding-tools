@@ -631,10 +631,19 @@ class TestEmitDecisionIndex:
             for rec in caplog.records
         )
 
-    def test_unknown_capability_strict_raises(
-        self, tmp_path: Path, capabilities_root: Path
+    def test_unknown_capability_strict_warns_does_not_raise(
+        self, tmp_path: Path, capabilities_root: Path,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """software-factory-tooling.6: Strict mode exits non-zero on unknown capability."""
+        """Unknown capability is a warning in strict mode, not a hard fail.
+
+        Previously strict mode raised SystemExit for unknown capabilities,
+        which blocked CI on every PR whenever an archived change referenced
+        a capability whose spec hadn't been registered yet (e.g.
+        coordination-bridge). The behavior was relaxed to "warn and skip"
+        in both strict and non-strict so unrelated PRs are not held hostage
+        by the spec gap. Followup: 8e8ff8dd.
+        """
         decisions = [
             TaggedDecision(
                 capability="no-such-capability",
@@ -649,14 +658,22 @@ class TestEmitDecisionIndex:
         ]
         out = tmp_path / "docs" / "decisions"
 
-        with pytest.raises(SystemExit) as exc_info:
+        import logging
+        with caplog.at_level(logging.WARNING):
             emit_decision_index(
                 decisions,
                 output_dir=out,
                 capabilities_root=capabilities_root,
                 strict=True,
             )
-        assert exc_info.value.code != 0
+
+        # No file created for the unknown capability — it was skipped
+        assert not (out / "no-such-capability.md").exists()
+        # Warning still surfaces the unknown capability for operator attention
+        assert any(
+            "no-such-capability" in rec.getMessage() and "2026-04-01-x" in rec.getMessage()
+            for rec in caplog.records
+        )
 
     def test_byte_identical_on_rerun(
         self, tmp_path: Path, capabilities_root: Path
@@ -1221,10 +1238,18 @@ class TestEndToEndArchiveWalk:
         ):
             assert cap in readme
 
-    def test_strict_mode_fails_on_unknown_capability(
-        self, tmp_path: Path
+    def test_strict_mode_warns_skips_unknown_capability(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Strict mode (CI) rejects any tag pointing at an unknown capability."""
+        """Strict mode warns and skips unknown-capability tags rather than
+        hard-failing.
+
+        Pre-relaxation, strict mode raised SystemExit so CI failed whenever
+        an archived change referenced an unregistered capability. That gate
+        held unrelated PRs hostage to the spec gap (see followup 8e8ff8dd —
+        coordination-bridge). The current contract: warn, skip the
+        offending decision, continue producing the rest of the index.
+        """
         sys.path.insert(
             0, str(Path(__file__).parent.parent / "scripts")
         )
@@ -1247,10 +1272,20 @@ class TestEndToEndArchiveWalk:
             """,
         )
 
-        with pytest.raises(SystemExit):
+        import logging
+        out = tmp_path / "docs" / "decisions"
+        with caplog.at_level(logging.WARNING):
             emit_decisions_from_archive(
                 archive_root=archive,
-                output_dir=tmp_path / "docs" / "decisions",
+                output_dir=out,
                 capabilities_root=specs,
                 strict=True,
             )
+
+        # Unknown capability did not produce a file
+        assert not (out / "unknown-capability.md").exists()
+        # Warning surfaces the issue for operators
+        assert any(
+            "unknown-capability" in rec.getMessage()
+            for rec in caplog.records
+        )

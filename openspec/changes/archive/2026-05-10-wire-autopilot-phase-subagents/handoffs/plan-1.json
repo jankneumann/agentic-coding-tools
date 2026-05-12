@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-06T02:06:52.535131+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the production wiring for autopilot per-phase sub-agent dispatch. Approach A (all-phase wiring + D-1 + D-2 in one change) approved at Gate 1. Four work packages decomposed: wp-contracts (schemas + SQL migration), wp-skills-autopilot (helpers + runner + SKILL.md rewrite), wp-coordinator-status-discovery (status reporter + AgentInfo + DB migration apply), wp-integration (e2e + audit-log + runtime sync + docs).",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "SKILL.md prose dispatches harness Agent(...) tool",
+        "rationale": "Matches the established repo convention; user explicitly chose the SKILL.md prompt-layer path at discovery. Avoids introducing a second parallel-execution pattern.",
+        "capability": "autopilot",
+        "supersedes": null
+      },
+      {
+        "title": "system_prompt is folded into prompt text with \\n\\n---\\n\\n separator",
+        "rationale": "Harness Agent(...) tool surface in this codebase exposes prompt, model, isolation, run_in_background \u2014 no system_prompt parameter. Folding preserves archetype semantics without harness changes.",
+        "capability": "autopilot",
+        "supersedes": null
+      },
+      {
+        "title": "build_phase_dispatch_kwargs returns a dict; orchestrator unpacks into Agent()",
+        "rationale": "SKILL.md prose can't hold Python state across tool calls. Using runner.py CLI as the prose-Python boundary keeps each layer doing what it does best.",
+        "capability": "autopilot",
+        "supersedes": null
+      },
+      {
+        "title": "Inline fallback when archetype unresolvable or Agent() unavailable",
+        "rationale": "User chose 'inline fallback' at discovery. Backward-compatible: operators on minimal harnesses still get an autopilot run, just with phase_archetype=null for affected phases.",
+        "capability": "autopilot",
+        "supersedes": null
+      },
+      {
+        "title": "Dedicated phase_archetype TEXT column on agent_sessions, not JSONB key",
+        "rationale": "Field is queryable for filtering ('show all agents in reviewer archetype'); JSONB key access is awkward in SQL. Migrations are first-class in this repo, so adding one column is cheap.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "INIT and SUBMIT_PR record archetype via state-only resolver, not run_phase_subagent",
+        "rationale": "INIT is state-only by design D13 (archived). Routing it through run_phase_subagent would dispatch a sub-agent that does nothing. The state-only helper closes the spec scenario hole instead.",
+        "capability": "autopilot",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "wp-contracts: author the SQL migration, JSON schema, and OpenAPI delta first (no dependencies).",
+      "Then dispatch wp-skills-autopilot and wp-coordinator-status-discovery in parallel \u2014 they have non-overlapping write_allow scopes.",
+      "wp-integration runs last and depends on both implementation packages.",
+      "After PR merge, run the audit-log validator manually against a real /autopilot run for the rollout cross-check."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+        "description": "Approved proposal with selected approach (A)"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+        "description": "Design with 8 decisions, architecture diagram, risks"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+        "description": "TDD-ordered tasks across 4 phases"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md",
+        "description": "MODIFIED + ADDED requirements for production-path dispatch + helpers"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/specs/agent-coordinator/spec.md",
+        "description": "MODIFIED + ADDED requirements for status reporter + AgentInfo persistence"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/contracts/db/0NN_add_phase_archetype.sql",
+        "description": "SQL migration adding phase_archetype TEXT column"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/contracts/events/status-report.schema.json",
+        "description": "JSON Schema for the extended POST /status/report payload"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/contracts/openapi/discovery-agents.yaml",
+        "description": "OpenAPI delta for GET /discovery/agents response"
+      },
+      {
+        "path": "openspec/changes/wire-autopilot-phase-subagents/work-packages.yaml",
+        "description": "4-package decomposition; parallel pair: wp-skills-autopilot + wp-coordinator-status-discovery"
+      }
+    ]
+  }
+}
