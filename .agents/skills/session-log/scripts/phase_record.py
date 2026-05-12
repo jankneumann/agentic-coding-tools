@@ -437,9 +437,7 @@ class PhaseRecord:
         """Locate `coordination_bridge.try_handoff_write` for production use."""
         try:
             # Try import via sys.path first (typical install scenario)
-            from coordination_bridge import (
-                try_handoff_write,  # type: ignore[import-not-found]
-            )
+            from coordination_bridge import try_handoff_write  # type: ignore[import-not-found]
 
             return try_handoff_write
         except ImportError:

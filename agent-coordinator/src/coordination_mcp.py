@@ -1060,6 +1060,7 @@ async def discover_agents(
                 "current_task": a.current_task,
                 "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
                 "started_at": a.started_at.isoformat() if a.started_at else None,
+                "phase_archetype": a.phase_archetype,
             }
             for a in result.agents
         ],

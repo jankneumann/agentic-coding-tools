@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-08T15:39:19.389552+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Self-review surfaced two CRITICAL issues that would have broken implementation: (1) the proposal assumed a `--findings-dir` flag that consensus_synthesizer.py CLI doesn't accept, and (2) the proposed manifest schema was a REPLACEMENT not a SUPERSET of the existing review_dispatcher.py manifest, which would have lost forensically valuable dispatch metadata. Both fixes landed plus 5 high-priority security/consistency fixes. Spec grew from 5 requirements to 6 (added Path Safety) and from 14 to 24 scenarios.",
+    "completed_work": [
+      "C1 (CLI flag mismatch): Added D7, new task 2.3 to add --findings-dir argument to consensus_synthesizer.py main()",
+      "C2 (manifest superset): Added D6, rewrote contracts/review-cache-layout.schema.json as superset, updated R1 with two new scenarios for shape preservation",
+      "H1 (path traversal): Added R6 Checkpoint Path Safety with 4 scenarios; new test coverage in task 0.1",
+      "H2 (schema validation before write): Added scenario to R1 requiring validation; reflected in task 0.2",
+      "H3 (return type inconsistency): Fixed proposal.md to say dict[str, list[ReviewFinding]] matching design.md",
+      "H4 (caller test enumeration): Updated task 3.3 with explicit grep step",
+      "H5 (R3.S4 dedicated test): Added task 5.1.5 isolating subprocess argv assertions",
+      "M1 (manifest write error scenario): Added to R2",
+      "M2 (subprocess executable not found): Added scenarios to R3",
+      "M3 (audit checkpoint_dir): Added field to R5 payload",
+      "M4 (stderr/exception sanitization): Added to R3 + new task 5.2.5",
+      "M5 (R5 happy path no-emission): Added scenario",
+      "M6 (.review-cache lifecycle): Added to R1",
+      "M7 (atomic manifest write): Added scenario to R1",
+      "M8 (concrete CLI command in spec): Updated R2.S2 with explicit syntax",
+      "L4 (Phase 8.3 reframe): Removed from numbered tasks, moved to Post-Merge Actions in proposal.md",
+      "Bumped LOC estimates: wp-checkpoint-helper 200->280, wp-cli-refactor 180->220, wp-converge-recovery 350->420 (total now 1190 vs prior 1010)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Manifest is a superset, not a replacement (D6)",
+        "rationale": "Existing review_dispatcher.py:write_manifest writes {review_type, target, dispatches[], quorum_requested, quorum_received}. Replacing it would lose model_used/elapsed_seconds/error_class \u2014 operationally valuable forensic data. Superset preserves all existing fields AND adds schema_version/change_id/created_at/vendors[]. Existing CLI consumers continue working unchanged.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Add new --findings-dir argument to consensus_synthesizer.py CLI (D7)",
+        "rationale": "Verified by reading the actual CLI source: main() uses argparse nargs='+' requiring explicit file list. The original design assumed a flag that doesn't exist. Adding --findings-dir as a new mode (in mutually exclusive argparse group with --findings) makes the fallback path clean while preserving backward compatibility with existing CLI users.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Add R6 Checkpoint Path Safety as new requirement",
+        "rationale": "Vendor names interpolate into filenames; artifacts_dir is caller-controlled. Without explicit path-safety scenarios, implementers might trust inputs and create symlink-injection or path-traversal vulnerabilities. Spec scenarios force the rejecting code to be written, not just the accepting code.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Sanitize secrets from fallback diagnostics and audit payloads",
+        "rationale": "subprocess_stderr_tail and original_exception_message could carry API keys or PII from the synthesizer's environment. Best-effort regex replacement of known vendor key formats (sk-..., AIza..., bearer tokens) before persistence. Documented as best-effort \u2014 high-entropy strings pass through unchanged.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Reframe Phase 8.3 as Post-Merge Action in proposal.md",
+        "rationale": "User explicitly said the consensus_synthesizer.py:59 line_range bug is a separate proposal. Listing it as a numbered task created scope confusion. Moved to a 'Post-Merge Actions' section in proposal.md so it's documented without being conflated with this proposal's tasks.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

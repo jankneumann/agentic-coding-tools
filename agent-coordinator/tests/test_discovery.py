@@ -286,3 +286,140 @@ class TestDiscoveryDataClasses:
         assert result.success is True
         assert result.agents_cleaned == 5
         assert result.locks_released == 10
+
+
+# =============================================================================
+# Phase archetype round-trip — wire-autopilot-phase-subagents (D-1)
+# =============================================================================
+
+
+class TestPhaseArchetypeRoundTrip:
+    """phase_archetype round-trips through heartbeat → discover via the RPC.
+
+    These tests cover the Python side of the contract; the SQL side is
+    asserted in tests/test_phase_archetype_migration.py and the live
+    end-to-end wiring is in the integration test suite.
+    """
+
+    def test_agent_info_default_phase_archetype_is_none(self) -> None:
+        """The new field defaults to None so older serialised dicts still parse."""
+        info = AgentInfo(agent_id="a", agent_type="t", session_id="s")
+        assert info.phase_archetype is None
+
+    def test_agent_info_from_dict_parses_phase_archetype(self) -> None:
+        info = AgentInfo.from_dict({
+            "agent_id": "a-1",
+            "agent_type": "claude_code",
+            "session_id": "s-1",
+            "phase_archetype": "implementer",
+        })
+        assert info.phase_archetype == "implementer"
+
+    def test_agent_info_from_dict_without_phase_archetype_defaults_to_none(self) -> None:
+        info = AgentInfo.from_dict({
+            "agent_id": "a-1",
+            "agent_type": "claude_code",
+            "session_id": "s-1",
+        })
+        assert info.phase_archetype is None
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_forwards_phase_archetype_to_rpc(
+        self,
+        mock_supabase,
+        db_client,
+    ):
+        """``DiscoveryService.heartbeat(phase_archetype=...)`` MUST forward to
+        ``agent_heartbeat`` as ``p_phase_archetype``."""
+        route = mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/agent_heartbeat"
+        ).mock(return_value=Response(200, json={
+            "success": True,
+            "session_id": "test-session-1",
+        }))
+
+        service = DiscoveryService(db_client)
+        result = await service.heartbeat(
+            session_id="test-session-1",
+            phase_archetype="implementer",
+        )
+
+        assert result.success is True
+        assert route.called
+        # Inspect the request body — Supabase RPC posts JSON.
+        import json as _json
+        request = route.calls.last.request
+        body = _json.loads(request.content.decode())
+        assert body.get("p_phase_archetype") == "implementer"
+
+    @pytest.mark.asyncio
+    async def test_heartbeat_without_phase_archetype_omits_or_passes_none(
+        self,
+        mock_supabase,
+        db_client,
+    ):
+        """Older callers that don't pass phase_archetype MUST keep working.
+
+        The wire payload either omits ``p_phase_archetype`` or sends ``null`` —
+        the RPC's ``DEFAULT NULL`` and ``COALESCE`` semantics handle either.
+        """
+        route = mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/agent_heartbeat"
+        ).mock(return_value=Response(200, json={
+            "success": True,
+            "session_id": "test-session-1",
+        }))
+
+        service = DiscoveryService(db_client)
+        result = await service.heartbeat(session_id="test-session-1")
+
+        assert result.success is True
+        assert route.called
+        import json as _json
+        body = _json.loads(route.calls.last.request.content.decode())
+        # Either absent or explicit null are valid — they both resolve to
+        # the SQL default.
+        if "p_phase_archetype" in body:
+            assert body["p_phase_archetype"] is None
+
+    @pytest.mark.asyncio
+    async def test_discover_parses_phase_archetype_from_rpc_response(
+        self,
+        mock_supabase,
+        db_client,
+    ):
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/discover_agents"
+        ).mock(return_value=Response(200, json={
+            "agents": [
+                {
+                    "agent_id": "a-1",
+                    "agent_type": "claude_code",
+                    "session_id": "s-1",
+                    "capabilities": ["coding"],
+                    "status": "active",
+                    "current_task": None,
+                    "last_heartbeat": "2024-01-01T12:00:00+00:00",
+                    "started_at": "2024-01-01T10:00:00+00:00",
+                    "phase_archetype": "reviewer",
+                },
+                {
+                    "agent_id": "a-2",
+                    "agent_type": "codex",
+                    "session_id": "s-2",
+                    "capabilities": [],
+                    "status": "idle",
+                    "current_task": None,
+                    "last_heartbeat": "2024-01-01T11:50:00+00:00",
+                    "started_at": "2024-01-01T09:00:00+00:00",
+                    # phase_archetype absent — older row that pre-dates the migration
+                },
+            ],
+        }))
+
+        service = DiscoveryService(db_client)
+        result = await service.discover()
+
+        assert len(result.agents) == 2
+        assert result.agents[0].phase_archetype == "reviewer"
+        assert result.agents[1].phase_archetype is None

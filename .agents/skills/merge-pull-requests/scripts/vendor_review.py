@@ -263,12 +263,12 @@ def dispatch_vendor_reviews(
 
     sys.path.insert(0, str(dispatcher_dir))
     try:
+        from review_dispatcher import ReviewOrchestrator, ReviewResult
         from consensus_synthesizer import (
             ConsensusSynthesizer,
             Finding,
             VendorResult,
         )
-        from review_dispatcher import ReviewOrchestrator, ReviewResult
     except ImportError as e:
         return {
             "dispatched": False,

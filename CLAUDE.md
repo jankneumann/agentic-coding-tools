@@ -16,6 +16,8 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 /plan-feature <description>                            → Proposal approval gate
   /iterate-on-plan <change-id> (optional)              → Refines plan before approval
   /parallel-review-plan <change-id> (optional)         → Independent plan review (vendor-diverse)
+  /prototype-feature <change-id> (optional)            → N parallel variant skeletons + human pick-and-choose
+  /iterate-on-plan <change-id> --prototype-context <change-id>  → Convergence: synthesize variants into design.md/tasks.md
 /implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
   /iterate-on-implementation <change-id> (optional)    → Refinement complete
   /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)

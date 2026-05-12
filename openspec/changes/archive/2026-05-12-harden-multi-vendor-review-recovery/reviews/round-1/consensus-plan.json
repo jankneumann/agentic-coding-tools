@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gpt-5-codex",
+      "agent_id": "gpt-5-codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gemini",
+      "agent_id": "gemini",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-001",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Spec R1 requires the manifest to be a superset (preserves dispatches[], etc.) but provides no scenario covering the case where the existing review_dispatcher.py is invoked WHILE the new in-process converge() is also writing a manifest at the same artifacts_dir. The 'distinct artifacts_dir' invariant (R1.S3) prevents cross-call contention but doesn't address mixed call-site contention."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-002",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "testability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "R3.S7 (sanitization) names specific vendor key prefixes (sk-, AIza...) but doesn't specify the FULL test corpus implementers should use. Different teams will choose different prefix lists, and tests written by one team may not catch regressions in another. The contract for 'best-effort' is too loose for objective verification."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-003",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "checkpoint_findings.py lives under skills/autopilot/scripts/ but is imported by parallel-infrastructure/scripts/review_dispatcher.py per the design. This creates a downstream dependency from parallel-infrastructure on autopilot, where previously the dependency direction was the other way (autopilot imports ReviewOrchestrator from parallel-infrastructure). The proposal acknowledges and rejects the alternative; flagging because a future contributor may not realize the directional inversion when refactoring."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-004",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "R5 requires `convergence.fallback_recovered` and `convergence.fallback_failed` audit events but does not specify event ordering. If a single converge() call has both a synthesis failure AND a subsequent successful CLI fallback, only one event fires (recovered). But what if the audit emission for `recovered` partially fails (e.g., write succeeds but ack fails)? Could a stale agent retry and emit a duplicate? Idempotency is not specified."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-005",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Task 5.4 says: 'Skip fallback if the in-process exception is OSError/PermissionError from the checkpoint write itself.' But the task ordering puts the checkpoint write at task 4.2 (Phase 4) BEFORE the fallback wrapper at task 5.4 (Phase 5). If checkpoint writing fails, control never reaches synthesis (because the checkpoint write happens before synthesis). So the 'skip fallback on checkpoint write failure' guard is never reached \u2014 the flow already crashed at the checkpoint write. The guard is redundant."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-006",
+      "matched_findings": [
+        {
+          "vendor": "gpt-5-codex",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "review-cache-layout.schema.json marks ALL of {schema_version, change_id, review_type, created_at, vendors, target, dispatches, quorum_requested, quorum_received} as required. But R1.S5 (in-process callers) says in-process callers don't have dispatch metadata. The schema requires `dispatches` to be present (an empty array is valid), but if a future in-process caller writes nothing for `dispatches`, the schema will reject the manifest. The contract and the spec are aligned, but the test in task 0.3 should verify both 'dispatches: []' AND 'absent dispatches key' cases."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-007",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "testability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Phase 7 integration test (task 7.1) uses a 'controlled synthesis-time exception (e.g., feed line_range: \"10-20\" string)'. But the new finding.schema.json explicitly accepts both shapes. The integration test will pass schema validation (because the schema is permissive) but trigger the in-process synthesizer crash. This is intentional \u2014 but the test description should make it explicit so future maintainers don't tighten the schema and accidentally make the test fixture unreachable."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": "claude-008",
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "R5 requires `checkpoint_dir` in audit payload but does not require the path to be the SAME format (relative vs absolute) across `recovered` and `failed` events. If the implementation uses `Path.resolve()` for path-safety in R6 but writes the resolved path in one event and the unresolved path in another, querying audit by checkpoint_dir becomes inconsistent."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The planned fallback only wraps `synthesizer.synthesize()`, but the cited `line_range` crash occurs in `Finding.from_dict()` before synthesis in the current converge path (`convergence_loop.py:255-263`, `consensus_synthesizer.py:49-60`). As written, the original trigger can still abort before checkpoint/fallback recovery runs."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The fallback subprocess invokes the same `consensus_synthesizer.py` loader, which also calls `Finding.from_dict()` on each finding (`consensus_synthesizer.py:467-471`), so deterministic malformed input such as `line_range: \"10-20\"` will fail both primary and fallback paths. The proposed Phase 7 test stubs the CLI to succeed, so it verifies plumbing but not real recovery from the motivating bug."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "`finding.schema.json` defines each per-vendor findings file as a raw array, but the current dispatcher writes `result.findings` as a top-level review-findings object and the synthesizer CLI reads `data.get(\"findings\", [])`. This breaks the proposal's claim that per-vendor finding files remain byte-identical and risks breaking existing `--findings` consumers."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The proposal treats `.review-cache/` as the CLI's existing layout, but `review_dispatcher.py` currently writes directly under `--output-dir` and existing skills glob `reviews/findings-*-plan.json`. Routing the dispatcher through a helper that always writes `<artifacts_dir>/.review-cache/` would silently move artifacts and break documented CLI workflows."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "R6 requires unsafe vendor names to be rejected, but `finding.schema.json` only requires `vendor` to be a non-empty string and would validate values containing path separators or `..`. Because this schema is described as the contract validated before write, the contract itself does not enforce the stated path-safety invariant."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gpt-5-codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The spec makes cleanup deletion a SHALL (`spec.md:21`), but tasks.md labels cleanup behavior as an open question/out of scope and no work package can modify `/cleanup-feature`. This leaves a normative requirement with no implementation owner or verification task."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The automatic CLI fallback (R3) provides zero resilience against synthesizer bugs like the line_range string-type crash (R3.S1), as both paths execute the same buggy logic. The proposal incorrectly frames this as an automatic recovery mechanism for such crashes."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Placing checkpoint_findings.py in skills/autopilot/ while having parallel-infrastructure/review_dispatcher.py import it creates a bidirectional dependency cycle, as autopilot already depends on parallel-infrastructure."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Design D6 suggests in-process callers write 'dispatches: []', but converge() has access to ReviewResult metadata. Omitting this information in the manifest reduces parity with the CLI dispatcher path and limits forensic usefulness."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "load_findings_from_dir (Task 2.2) lacks a fallback for manifests produced by legacy dispatchers that lack the 'vendors' key. This will cause the new synthesizer to fail when reading existing cache directories."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The manifest atomic rename in D6 specifies fsync on the file but not the parent directory. Without directory-level fsync, the new directory entry may be lost during a crash, compromising the durability goals of the proposal."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 7.1 integration test stubs the CLI to succeed for a shared-logic bug (line_range), creating a false proof of recovery. If the CLI shares the same buggy code, it will fail identically to the in-process synthesizer."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 1,
+    "unconfirmed_count": 19,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

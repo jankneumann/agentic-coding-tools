@@ -1,0 +1,35 @@
+---
+# Default angle prompts for /prototype-feature.
+#
+# Each angle steers a single variant skeleton's design choices. Per D5,
+# angles are *design values* — short phrases describing what a variant
+# optimizes for — not personas. The model chooses structure freely
+# within the constraint.
+#
+# Operators override per-invocation with --angles "a,b,c". The count
+# of angles MUST equal --variants exactly (see PrototypeFeatureSkill
+# spec scenarios). Default angle set covers N=3; for N != 3, callers
+# must supply explicit angles to avoid silent guessing.
+#
+# Per-project tuning via openspec/project.md is deferred to post-adoption
+# observation (see design.md Open Questions).
+
+defaults:
+  - id: simplest
+    prompt: |
+      Aim for the minimum-abstraction implementation. Use the standard
+      library wherever possible, introduce as few new files as you can,
+      and avoid building plugin points or hooks for hypothetical future
+      variation. Keep the design legible at first glance.
+  - id: extensible
+    prompt: |
+      Anticipate future variation. Introduce plugin points, interfaces,
+      and seams where the design might reasonably evolve. Avoid hard-coded
+      branches; prefer composition over conditionals. Document each
+      extension point with a one-line "future use" comment.
+  - id: pragmatic
+    prompt: |
+      Reuse existing patterns from this codebase. Match the conventions
+      of nearby modules (naming, error handling, testing style). Minimize
+      new dependencies; prefer extending what's already there over
+      introducing new abstractions. When in doubt, mirror the local idiom.

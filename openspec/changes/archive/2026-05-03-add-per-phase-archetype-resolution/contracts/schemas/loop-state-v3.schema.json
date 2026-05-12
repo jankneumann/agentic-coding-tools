@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://coord.rotkohl.ai/schemas/loop-state-v3.schema.json",
+  "title": "Autopilot LoopState (schema_version 3)",
+  "description": "LoopState schema bumped from version 2 to 3 to include phase_archetype. Snapshots with schema_version=2 (without phase_archetype) remain loadable; phase_archetype defaults to null and the version is updated to 3 on next save.",
+  "type": "object",
+  "required": ["schema_version", "change_id", "current_phase"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [2, 3],
+      "description": "2 = legacy (loaded with phase_archetype=null); 3 = current (with phase_archetype field)"
+    },
+    "change_id": {
+      "type": "string",
+      "description": "OpenSpec change-id under autopilot orchestration"
+    },
+    "current_phase": {
+      "type": "string",
+      "enum": [
+        "INIT",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR",
+        "ESCALATE",
+        "DONE"
+      ]
+    },
+    "phase_archetype": {
+      "description": "Name of the archetype resolved for the current phase. Null when archetype resolution failed or for terminal/state-only phases.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "last_handoff_id": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "handoff_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

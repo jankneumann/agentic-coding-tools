@@ -89,10 +89,10 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 |  - acquire_lock / release_lock / check_locks    |
 |  - get_work / complete_work / submit_work       |
 +-------------------------+-----------------------+
-                          | HTTP (PostgREST)
+                          | asyncpg (direct)
                           v
 +-------------------------------------------------+
-|  Supabase (PostgREST) / Direct PostgreSQL        |
+|  PostgreSQL (ParadeDB by default; Supabase opt) |
 |  - file_locks, work_queue, agent_sessions       |
 |  - episodic_memories, operation_guardrails      |
 |  - agent_profiles, audit_log, network_domains   |
@@ -101,20 +101,20 @@ LOCAL AGENTS (Claude Code)     CLOUD AGENTS (Claude API)
 +-------------------------------------------------+
 ```
 
-Local agents connect via MCP (stdio transport). Cloud agents with restricted network access connect via HTTP API. Both share state through Supabase with PostgreSQL functions ensuring atomic operations for lock acquisition and task claiming.
+Local agents connect via MCP (stdio transport). Cloud agents with restricted network access connect via HTTP API. Both share state through PostgreSQL with PL/pgSQL functions ensuring atomic operations for lock acquisition and task claiming. The default local backend is ParadeDB via Docker Compose; Supabase is supported as an optional cloud-managed alternative selected via `DB_BACKEND=supabase`.
 
 ## Implementation Status
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **Phase 1 (MVP)** | File locking, work queue, MCP server, Supabase persistence | **Implemented** |
+| **Phase 1 (MVP)** | File locking, work queue, MCP server, PostgreSQL persistence | **Implemented** |
 | **Phase 2** | Episodic memory, session handoffs, agent discovery, GitHub coordination, DB factory | **Implemented** |
 | **Phase 3** | Guardrails engine, verification gateway, agent profiles, audit trail, network policies, Cedar policy engine | **Implemented** |
 | Phase 4 | Multi-agent orchestration via Strands SDK, AgentCore integration | Specified |
 
 ### Implementation Details
 
-- **Database**: 12 migrations, 12+ tables, 17+ PL/pgSQL functions, DatabaseClient protocol with Supabase and asyncpg backends
+- **Database**: 12 migrations, 12+ tables, 17+ PL/pgSQL functions, DatabaseClient protocol with asyncpg (Postgres/ParadeDB) as the default backend and Supabase as an optional cloud-managed alternative
 - **MCP Server**: 19 tools + 7 resources
 - **Services**: Locks (with logical lock key namespaces), Work Queue (with `get_task` and cancellation convention), Handoffs, Discovery, Memory, Guardrails, Profiles, Audit, Network Policies, Policy Engine (Cedar + Native), GitHub Coordination, Feature Registry, Merge Queue
 - **Tests**: 300+ unit tests (respx mocks + AsyncMock)
@@ -212,13 +212,14 @@ Uses feature registry metadata for queue state (no separate table).
 
 The agent coordinator is formally specified across three OpenSpec specs:
 
-- [`openspec/specs/agent-coordinator/spec.md`](../openspec/specs/agent-coordinator/spec.md) — 33 requirements covering file locking, memory, work queue, MCP/HTTP interfaces, verification, guardrails, orchestration, and audit
-- [`openspec/specs/agent-coordinator/design.md`](../openspec/specs/agent-coordinator/design.md) — Architecture decisions, component details, verification tiers, and key implementation patterns
+- [`openspec/specs/agent-coordinator/spec.md`](../openspec/specs/agent-coordinator/spec.md) — formal requirements covering file locking, memory, work queue, MCP/HTTP interfaces, verification, guardrails, orchestration, and audit
 - [`openspec/specs/evaluation-framework/spec.md`](../openspec/specs/evaluation-framework/spec.md) — Evaluation harness for benchmarking coordination effectiveness
+
+The original architectural design drafts are preserved as historical artifacts under [`docs/archive/`](archive/): see [`agent-coordinator-design-original.md`](archive/agent-coordinator-design-original.md) and [`agent-coordinator-design-v1.md`](archive/agent-coordinator-design-v1.md). They predate the ParadeDB migration and the retirement of the verification gateway, and should not be treated as current.
 
 ## Getting Started
 
-See [`agent-coordinator/README.md`](../agent-coordinator/README.md) for setup instructions, including Supabase configuration, dependency installation, Claude Code MCP integration, and development commands.
+See [`agent-coordinator/README.md`](../agent-coordinator/README.md) for setup instructions, including database configuration (ParadeDB via Docker Compose, or Supabase as an optional alternative), dependency installation, Claude Code MCP integration, and development commands.
 
 ## Local Validation Ports
 
