@@ -55,6 +55,46 @@ If `CAN_MEMORY=true`, recall relevant history before analysis:
 
 On recall failure/unavailability, continue normally and log informationally.
 
+### 0.5. Focus Area Interview (vague input only)
+
+If `$ARGUMENTS` is missing, single-word, or matches one of the known broad buckets (`performance`, `refactoring`, `cost`, `usability`, `security`, `quality`, `speed`, `reliability`, `tech-debt`), ask 2-4 short questions to localize the pain **before** running architectural analysis. A scored opportunity ranking is only useful if the scoring criteria match the user's actual itch.
+
+```
+RAW="$(echo "$ARGUMENTS" | xargs)"
+WORD_COUNT=$(echo "$RAW" | wc -w | tr -d ' ')
+BROAD_BUCKETS="performance refactoring cost usability security quality speed reliability tech-debt"
+
+NEEDS_INTERVIEW=false
+if [[ -z "$RAW" ]] || [[ "$WORD_COUNT" -le 1 ]]; then
+  NEEDS_INTERVIEW=true
+elif echo " $BROAD_BUCKETS " | grep -qw "$RAW"; then
+  NEEDS_INTERVIEW=true
+fi
+```
+
+If `NEEDS_INTERVIEW=true`, ask 2-4 questions in a **single batch** via AskUserQuestion. No confidence loop, no follow-ups -- this is a lightweight localization, not a full discovery interview (see `plan-feature` Step 3b.ii for that pattern).
+
+**Question template** (pick the 2-4 most relevant, parameterized by the bucket):
+
+| Bucket | Question 1 (localize "what") | Question 2 (localize "why now") |
+|--------|------------------------------|----------------------------------|
+| `performance` | "Whose performance? Build time / runtime latency / perceived UX / agent throughput / cost per run" | "What recent moment made you reach for this -- a slow build, a user complaint, a bill?" |
+| `refactoring` | "Which axis of debt? Coupling / duplication / unclear naming / dead code / outdated patterns" | "Is there a feature you're avoiding because the surrounding code scares you?" |
+| `cost` | "Which cost? LLM API spend / infra / engineering time / agent retries" | "What budget signal triggered this -- a bill, a forecast, a failed audit?" |
+| `usability` | "Whose usability? End user / operator / developer / agent" | "Where do people get stuck -- onboarding, daily flow, edge cases, recovery from errors?" |
+| `security` | "Which surface? Authn / authz / secrets handling / supply chain / data exfiltration" | "Is this driven by an audit, a recent incident, or proactive hardening?" |
+| `reliability` | "Which failure mode? Crashes / data loss / silent corruption / cascading failures / flaky tests" | "What broke recently, or what are you afraid will break?" |
+| `tech-debt` / `quality` | "Which symptom hurts most? Test gaps / fragile interfaces / spec drift / undocumented decisions" | "Which area of the codebase do you avoid editing, and why?" |
+| `speed` | "Whose speed? Build / test / deploy / agent execution / human iteration" | "What slowness most often blocks you mid-task?" |
+
+**Optional Question 3-4** (open-ended, pick if ambiguity remains):
+- "Is there a specific file, module, or workflow you had in mind when you typed `<bucket>`?"
+- "Are there approaches you've already tried or rejected for this?"
+
+Capture the answers as `LOCALIZED_FOCUS` -- a short string (e.g., `"runtime latency in agent dispatch loop, triggered by 8s p95 in last week's traces"`) used in Step 3 scoring and Step 5 artifact persistence.
+
+If `NEEDS_INTERVIEW=false`, skip this step entirely and set `LOCALIZED_FOCUS="$ARGUMENTS"`.
+
 ### 1. Gather Current State
 
 ```bash
@@ -137,8 +177,10 @@ Generate a ranked shortlist (3-7 items), each with:
 - Risk level (low/med/high)
 - Strategic fit (`low`/`med`/`high`)
 - Weighted score using a reproducible formula:
-  - `score = impact*0.4 + strategic_fit*0.25 + (4-effort)*0.2 + (4-risk)*0.15`
+  - `score = impact*0.4 + strategic_fit*0.25 + (4-effort)*0.2 + (4-risk)*0.15 + focus_match*0.1`
   - Use numeric mapping: `low=1`, `med=2`, `high=3`; `S=1`, `M=2`, `L=3`
+  - `focus_match` (0-3): how directly the opportunity addresses `LOCALIZED_FOCUS` (set either by Step 0.5's interview answers or by the direct `$ARGUMENTS` string when the interview was skipped). `3` = directly addresses the named pain (e.g., focus is "runtime latency in agent dispatch" and opportunity reduces dispatch latency); `2` = addresses the broader bucket but not the specific pain; `1` = tangentially related; `0` = unrelated. Only set `focus_match=0` for all items when `LOCALIZED_FOCUS` is empty/unset — a non-empty focus from $ARGUMENTS is just as valid a scoring anchor as one from the interview.
+- `localized_focus_alignment`: one-line note on why the opportunity received its `focus_match` score (e.g., "Reduces dispatch loop p95 by replacing polling with pg_notify -- direct hit on stated pain")
 - Category bucket:
   - `quick-win` (high score, low effort/risk)
   - `big-bet` (high potential impact with medium/high effort)
@@ -192,6 +234,7 @@ Rules:
 - If an opportunity from recent history is still deferred and unchanged, lower its default priority unless new evidence justifies reranking
 - Include stable IDs so `/prioritize-proposals` can reference opportunities without text matching
 - If gen-eval signals were available (step 2.5), include a `gen_eval_signals` field in `opportunities.json` with: `{ "report_path": "<path>", "failing_interfaces": [...], "coverage_pct": <float>, "categories_below_threshold": [...] }`
+- If Step 0.5 ran, include a top-level `localized_focus` field in `opportunities.json` capturing the interview output (raw input, bucket detected, questions asked, answers, derived focus string). This makes the ranking reproducible and gives `/prioritize-proposals` the same context the user provided
 
 ## Output
 

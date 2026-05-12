@@ -17,6 +17,10 @@ Decompose a long-form markdown proposal into a prioritized set of OpenSpec chang
 
 `$ARGUMENTS` - Path to a markdown proposal file, or inline proposal text.
 
+Optional flags:
+- `--workspace <path>` - Override the default output location. If `<path>` is a directory, the roadmap is written to `<path>/roadmap.yaml`; if `<path>` ends in `.yaml`, it is used as the explicit file path.
+- `--force` - Overwrite an existing `roadmap.yaml` at the target location. Without this flag, `/plan-roadmap` aborts on collision to protect operator edits (`status`, `priority`, etc.).
+
 ## Input
 
 A long markdown proposal containing:
@@ -32,63 +36,85 @@ The proposal may be provided as a file path or pasted inline.
 - Each item in the roadmap has: `item_id`, `title`, `description`, `effort`, `priority`, `depends_on`, `acceptance_outcomes`
 - Dependency DAG is acyclic (validated before output)
 
-## Steps
+### Output Location
 
-### 1. Read Proposal
+The default workspace is `openspec/roadmaps/<roadmap_id>/roadmap.yaml`, where `<roadmap_id>` is derived from the proposal during decomposition (Pass 2). The parent directory is created automatically.
 
-Load the markdown proposal from the provided path or accept inline text. Validate that it contains the minimum required sections (at least one identifiable capability or feature).
+This convention lets `/autopilot-roadmap <workspace>` consume the result without manual relocation, and supports multiple concurrent roadmaps (one per epic) in the same repo without filename collisions — the workspace directory itself is the namespace.
 
-### 2. Extract Capabilities and Phases
+**Collision behavior**: if `roadmap.yaml` already exists at the target, `/plan-roadmap` aborts with guidance to either pass `--force` (overwrite) or `--workspace <path>` (redirect). This protects operator edits to item `status` / `priority` from being silently clobbered when re-running the skill on the same proposal.
 
-Parse the markdown structure to identify:
-- Individual capabilities/features (from headings and structured lists)
-- Constraints that apply globally or to specific capabilities
-- Phase/milestone boundaries that suggest ordering
+**Caveat**: because `<roadmap_id>` is set during decomposition, the final destination path is only known after Pass 2 completes. The skill prints the resolved path before writing.
 
-This step is deterministic -- it uses structural markdown parsing (headings, lists, markers), not LLM inference.
+Scaffolded per-item change directories remain at `openspec/changes/<change-id>/` (consumed by `/implement-feature`); they are not nested under the roadmap workspace.
 
-### 3. Build Candidate Items with Size Validation
+## Execution modes
 
-Create `RoadmapItem` objects for each extracted capability. Then validate sizing:
-- **Merge undersized items**: items estimated below the minimum effort threshold (e.g., two XS items covering related functionality are merged into one S item)
-- **Split oversized items**: items spanning multiple independent systems or capabilities are split into separate items
+The skill has two modes. **Mode A (host-assisted) is the default when invoked from Claude Code** — it uses the orchestrating agent itself to perform semantic curation, so no external LLM API key is required. Mode B (headless) calls an external vendor via `llm_client.py` and is only used by batch/CI callers like `autopilot-roadmap`.
 
-### 4. Generate Dependency DAG
+| | Mode A — host-assisted | Mode B — headless |
+|---|---|---|
+| Who does semantic reasoning | The Claude Code agent running the skill | External LLM vendor (Anthropic / OpenAI / Google) |
+| API key required | No | Yes (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY`) |
+| Billing | Single session | Double-billed (session + external API) |
+| Entry point | `curator.py structural` + agent turn + `curator.py finalize` | `semantic_decomposer.decompose_semantic()` |
+| Typical caller | `/plan-roadmap` from an interactive session | `autopilot-roadmap`, CI batch jobs |
 
-Infer dependency edges between items based on:
-- Explicit ordering from phases/milestones
-- Keyword references between items (one item mentioning another's key terms)
-- Constraint propagation (infrastructure items before feature items)
+## Steps (Mode A — host-assisted, default)
 
-Validate the resulting DAG is acyclic.
+### 1. Run structural pass
 
-### 5. Present Candidates for User Approval
+```bash
+skills/.venv/bin/python skills/plan-roadmap/scripts/curator.py structural \
+  --proposal docs/proposals/<slug>.md \
+  --out-dir openspec/.plan-roadmap-tmp/<slug>/
+```
 
-Display the candidate roadmap items with their dependencies, effort estimates, and acceptance outcomes. Allow the user to approve, modify, or reject individual items.
+Writes two files into the out-dir:
+- `roadmap.draft.yaml` — structural-pass Roadmap (often noisy: narrative sections captured as items, generic acceptance outcomes, unsized effort, empty dependencies).
+- `curation-request.json` — per-item heuristic flags (`likely-narrative`, `generic-acceptance`, `phase-header`, …) plus the agent instructions and a suggested response path. Conforms to `skills/plan-roadmap/contracts/curation-request.schema.json`.
 
-### 6. Scaffold Approved Changes as OpenSpec Change Directories
+### 2. Curate (agent turn)
+
+Read `curation-request.json` and write `curation-response.json` conforming to `skills/plan-roadmap/contracts/curation-response.schema.json`. For each candidate, choose `keep` (with optional overrides for `new_id`, `title`, `effort`, `priority`, `depends_on`), `drop`, or `merge` (with `merge_into`). Include a one-line `rationale` per decision.
+
+`depends_on` entries may reference the original_id of another candidate or the new_id declared in another keep decision; IDs are normalized on apply.
+
+### 3. Run finalize
+
+```bash
+skills/.venv/bin/python skills/plan-roadmap/scripts/curator.py finalize \
+  --draft openspec/.plan-roadmap-tmp/<slug>/roadmap.draft.yaml \
+  --decisions openspec/.plan-roadmap-tmp/<slug>/curation-response.json \
+  --out openspec/roadmap.yaml
+```
+
+Applies decisions, re-validates the DAG (re-breaks cycles, drops dangling edges, renames IDs consistently), and writes the final schema-clean `roadmap.yaml`.
+
+### 4. Present candidates for user approval
+
+Display the curated roadmap items with dependencies, effort, and acceptance outcomes. The user can approve, modify, or reject individual items.
+
+### 5. Resolve workspace path and write `roadmap.yaml`
+
+Determine the output location:
+- If `--workspace <path>` was supplied, use it (directory → `<path>/roadmap.yaml`, or explicit `.yaml` file path).
+- Otherwise, default to `openspec/roadmaps/<roadmap_id>/roadmap.yaml` (relative to repo root).
+
+Pass the resolved path to `curator.py finalize --out <path>` in Step 3, or call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `skills/roadmap-runtime/scripts/models.py` directly. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the user to re-invoke with `--force` or `--workspace`.
+
+### 6. Scaffold approved changes as OpenSpec change directories
 
 For each approved item, create an OpenSpec change directory under `openspec/changes/` containing:
 - `proposal.md` with a `parent_roadmap` field linking back to the roadmap
 - `tasks.md` skeleton
 - `specs/` directory
 
-## Two-Pass Architecture
+These directories always live at `openspec/changes/<change-id>/` — they are not nested under the roadmap workspace, because `/implement-feature` expects that canonical path.
 
-The decomposer supports two execution modes, selected automatically based on LLM client availability:
+## Mode B — headless (batch / autopilot only)
 
-### Structural-only mode (no LLM)
-
-When no LLM vendor is configured (no `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY` in environment), the decomposer uses deterministic parsing only. This is the original behavior, enhanced with:
-- Fenced code block awareness (headings inside code blocks are ignored)
-- Priority table extraction (each table row becomes a candidate)
-- Sub-section propagation (H4/H5 children inherit parent capability classification)
-- Clean ID generation (kebab-case, no `ri-` prefix)
-- Archive cross-check (items matching archived change IDs get `status: completed`)
-
-### Semantic mode (LLM available)
-
-When an LLM vendor is available, the decomposer uses a four-pass architecture:
+When no interactive agent is orchestrating, fall back to calling an external LLM vendor via `llm_client.py`. The entry point is `semantic_decomposer.decompose_semantic()`, which runs a four-pass architecture:
 
 1. **Pass 1 — Structural scan**: Enhanced deterministic parsing builds a candidate pool of text blocks.
 2. **Pass 2 — Semantic classification**: Single batch LLM call classifies each candidate as yes/no/merge, extracts clean IDs, descriptions, and acceptance outcomes.
@@ -99,6 +125,15 @@ When an LLM vendor is available, the decomposer uses a four-pass architecture:
 4. **Pass 4 — Validation**: Archive cross-check, confidence-aware cycle breaking, path normalization.
 
 Every dependency edge carries `source` (deterministic/llm/split/explicit), `rationale`, and optional `confidence` for auditability via the `DepEdge` dataclass.
+
+## Structural parser capabilities (shared by both modes)
+
+The structural pass (`decomposer.decompose`) supports:
+- Fenced code block awareness (headings inside code blocks are ignored)
+- Priority table extraction (each table row becomes a candidate)
+- Sub-section propagation (H4/H5 children inherit parent capability classification)
+- Clean ID generation (kebab-case, no `ri-` prefix)
+- Archive cross-check (items matching archived change IDs get `status: completed`)
 
 ## Roadmap Renderer
 

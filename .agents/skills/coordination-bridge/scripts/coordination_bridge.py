@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 from typing import Any
 from urllib import error as url_error
 from urllib import parse as url_parse
 from urllib import request as url_request
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "1.5"))
 
@@ -36,6 +39,7 @@ _CAPABILITY_FLAGS = (
     "CAN_GUARDRAILS",
     "CAN_FEATURE_REGISTRY",
     "CAN_MERGE_QUEUE",
+    "CAN_ISSUES",
 )
 
 _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
@@ -48,6 +52,9 @@ _CAPABILITY_PROBES: dict[str, list[tuple[str, str, dict[str, Any] | None]]] = {
     "CAN_GUARDRAILS": [("POST", "/guardrails/check", {})],
     "CAN_FEATURE_REGISTRY": [("GET", "/features/active", None)],
     "CAN_MERGE_QUEUE": [("GET", "/merge-queue", None)],
+    # Read-only list with empty filter — returns 200 on healthy deployments,
+    # 404 when the issues feature isn't deployed.
+    "CAN_ISSUES": [("POST", "/issues/list", {})],
 }
 
 _HANDOFF_WRITE_ENDPOINTS: list[tuple[str, str]] = [
@@ -134,7 +141,7 @@ def _coordinator_state(
     if flags:
         capability_flags.update(flags)
 
-    response = {
+    response: dict[str, Any] = {
         "status": "ok" if available else "skipped",
         "COORDINATOR_AVAILABLE": available,
         "COORDINATION_TRANSPORT": transport,
@@ -864,6 +871,333 @@ def try_mark_merged(
         http_url=http_url,
         api_key=api_key,
     )
+
+
+def try_issue_create(
+    *,
+    title: str,
+    description: str | None = None,
+    issue_type: str = "task",
+    priority: int = 5,
+    labels: list[str] | None = None,
+    parent_id: str | None = None,
+    assignee: str | None = None,
+    depends_on: list[str] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Create a new issue via the coordinator HTTP API."""
+    payload: dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "issue_type": issue_type,
+        "priority": priority,
+    }
+    if labels is not None:
+        payload["labels"] = labels
+    if parent_id is not None:
+        payload["parent_id"] = parent_id
+    if assignee is not None:
+        payload["assignee"] = assignee
+    if depends_on is not None:
+        payload["depends_on"] = depends_on
+    return _execute_single_endpoint_operation(
+        operation="try_issue_create",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/create",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_list(
+    *,
+    status: str | None = None,
+    issue_type: str | None = None,
+    labels: list[str] | None = None,
+    parent_id: str | None = None,
+    assignee: str | None = None,
+    limit: int | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List issues with optional filters via the coordinator HTTP API."""
+    payload: dict[str, Any] = {}
+    if status is not None:
+        payload["status"] = status
+    if issue_type is not None:
+        payload["issue_type"] = issue_type
+    if labels is not None:
+        payload["labels"] = labels
+    if parent_id is not None:
+        payload["parent_id"] = parent_id
+    if assignee is not None:
+        payload["assignee"] = assignee
+    if limit is not None:
+        payload["limit"] = limit
+    return _execute_single_endpoint_operation(
+        operation="try_issue_list",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/list",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_show(
+    *,
+    issue_id: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Fetch a single issue's full details via the coordinator HTTP API."""
+    return _execute_single_endpoint_operation(
+        operation="try_issue_show",
+        capability_flag="CAN_ISSUES",
+        method="GET",
+        path=f"/issues/{issue_id}",
+        payload=None,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_update(
+    *,
+    issue_id: str,
+    title: str | None = None,
+    description: str | None = None,
+    status: str | None = None,
+    priority: int | None = None,
+    labels: list[str] | None = None,
+    assignee: str | None = None,
+    issue_type: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Update an issue via the coordinator HTTP API."""
+    payload: dict[str, Any] = {"issue_id": issue_id}
+    if title is not None:
+        payload["title"] = title
+    if description is not None:
+        payload["description"] = description
+    if status is not None:
+        payload["status"] = status
+    if priority is not None:
+        payload["priority"] = priority
+    if labels is not None:
+        payload["labels"] = labels
+    if assignee is not None:
+        payload["assignee"] = assignee
+    if issue_type is not None:
+        payload["issue_type"] = issue_type
+    return _execute_single_endpoint_operation(
+        operation="try_issue_update",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/update",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_close(
+    *,
+    issue_id: str | None = None,
+    issue_ids: list[str] | None = None,
+    reason: str | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Close one or more issues via the coordinator HTTP API.
+
+    Exactly one of ``issue_id`` (single) or ``issue_ids`` (batch) must be set.
+    """
+    payload: dict[str, Any] = {}
+    if issue_id is not None:
+        payload["issue_id"] = issue_id
+    if issue_ids is not None:
+        payload["issue_ids"] = issue_ids
+    if reason is not None:
+        payload["reason"] = reason
+    return _execute_single_endpoint_operation(
+        operation="try_issue_close",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/close",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_comment(
+    *,
+    issue_id: str,
+    body: str,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Append a comment to an issue via the coordinator HTTP API."""
+    return _execute_single_endpoint_operation(
+        operation="try_issue_comment",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/comment",
+        payload={"issue_id": issue_id, "body": body},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_ready(
+    *,
+    parent_id: str | None = None,
+    limit: int | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List issues with no unresolved dependencies via the coordinator HTTP API."""
+    payload: dict[str, Any] = {}
+    if parent_id is not None:
+        payload["parent_id"] = parent_id
+    if limit is not None:
+        payload["limit"] = limit
+    return _execute_single_endpoint_operation(
+        operation="try_issue_ready",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/ready",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_blocked(
+    *,
+    limit: int | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List issues blocked by unresolved dependencies via the coordinator HTTP API.
+
+    This endpoint is a GET that accepts ``limit`` as a query parameter.
+    """
+    path = "/issues/blocked"
+    if limit is not None:
+        path = f"{path}?limit={int(limit)}"
+    return _execute_single_endpoint_operation(
+        operation="try_issue_blocked",
+        capability_flag="CAN_ISSUES",
+        method="GET",
+        path=path,
+        payload=None,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_issue_search(
+    *,
+    query: str,
+    limit: int | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Search issues by text matching via the coordinator HTTP API."""
+    payload: dict[str, Any] = {"query": query}
+    if limit is not None:
+        payload["limit"] = limit
+    return _execute_single_endpoint_operation(
+        operation="try_issue_search",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/search",
+        payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+_ARCHETYPE_RESOLVE_REQUIRED_FIELDS = ("model", "system_prompt", "archetype", "reasons")
+
+
+def try_resolve_archetype_for_phase(
+    phase: str,
+    signals: dict[str, Any] | None = None,
+    *,
+    http_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> dict[str, Any] | None:
+    """Resolve archetype, model, and system_prompt for an autopilot phase.
+
+    Returns the response body dict ``{model, system_prompt, archetype, reasons}``
+    on HTTP 200, or ``None`` on any failure (missing URL, network error,
+    timeout, non-200 status, malformed response). Failures emit a structured
+    WARNING via the module logger and never raise.
+
+    Spec: openspec/changes/add-per-phase-archetype-resolution/specs/
+          agent-coordinator/spec.md -- Phase Archetype Resolution Bridge Helper.
+    Design decisions: D4 (bridge helper), D9 (failure mode).
+    """
+    resolved_url = _resolve_http_url(http_url)
+    if not resolved_url:
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: missing_http_url; "
+            "set COORDINATION_API_URL or AUTOPILOT_PHASE_MODEL_OVERRIDE to mitigate",
+            phase,
+        )
+        return None
+
+    resolved_key = _resolve_api_key(api_key)
+    payload: dict[str, Any] = {"phase": phase, "signals": signals or {}}
+    response = _http_request(
+        method="POST",
+        path="/archetypes/resolve_for_phase",
+        payload=payload,
+        http_url=resolved_url,
+        api_key=resolved_key,
+        timeout=timeout,
+    )
+    status = response.get("status_code")
+    if status != 200:
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: HTTP status=%s error=%s; "
+            "phase will dispatch with harness defaults; set AUTOPILOT_PHASE_MODEL_OVERRIDE "
+            "to force a specific model",
+            phase,
+            status,
+            response.get("error"),
+        )
+        return None
+
+    data = response.get("data")
+    if not isinstance(data, dict):
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "(expected dict, got %s)",
+            phase,
+            type(data).__name__,
+        )
+        return None
+
+    if not all(k in data for k in _ARCHETYPE_RESOLVE_REQUIRED_FIELDS):
+        logger.warning(
+            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "(missing required fields; got keys=%s)",
+            phase,
+            sorted(data.keys()),
+        )
+        return None
+
+    return data
 
 
 def _main(argv: list[str] | None = None) -> int:

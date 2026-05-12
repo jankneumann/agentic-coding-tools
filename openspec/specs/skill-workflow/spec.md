@@ -3055,3 +3055,823 @@ The plan-findings artifact instruction in `schema.yaml` SHALL include "assumptio
 - **THEN** the Types list SHALL include "assumptions"
 - **AND** assumption findings that could go either way MUST be surfaced to the user via AskUserQuestion
 
+### Requirement: Phase Entry Decision Tagging
+
+Session-log Phase Entries SHALL support an optional inline `architectural: <capability>` marker on individual Decision bullets to identify decisions that warrant inclusion in the per-capability decision index.
+
+The tag SHALL use the syntax `` `architectural: <kebab-case-capability>` `` — a backtick-delimited inline code span containing the literal key `architectural`, a colon, a single space, and a kebab-case identifier matching a capability directory under `openspec/specs/`.
+
+The tag SHALL appear immediately after the bullet's bold title and before the em-dash `—` rationale delimiter: `N. **<title>** \`architectural: <capability>\` — <rationale>`. This canonical placement keeps extraction deterministic and matches the convention documented in `skills/session-log/SKILL.md`. Only the first occurrence per bullet SHALL be counted by the index emitter; subsequent occurrences (pathological double-tagged bullets) SHALL be ignored.
+
+Decision references in `supersedes:` markers SHALL support two equivalent forms:
+- **Phased (preferred)**: `` `supersedes: <change-id>#<phase-slug>/D<n>` `` — disambiguates when the target change has multiple phases that both carry a D<n> at the same bullet position. The phase slug is the source phase name lowercased with spaces replaced by hyphens (e.g., `Plan` → `plan`, `Plan Iteration 2` → `plan-iteration-2`, `Implementation` → `implementation`).
+- **Bare (legacy)**: `` `supersedes: <change-id>#D<n>` `` — accepted when the target change has exactly one phase with a D<n> at that bullet position. If multiple phases match, the emitter SHALL emit a warning and skip the link rather than silently marking every matching phase as superseded.
+
+`<n>` SHALL resolve as the 1-indexed bullet position within the source phase entry, counting all Decision bullets — tagged and untagged — so the convention matches what a reader sees in the session-log.
+
+Decision bullets without an `architectural:` tag SHALL remain valid and SHALL NOT be required to include one. Untagged Decisions document decisions that do not warrant cross-change surfacing (routine, scoped, already-superseded-in-same-change, etc.).
+
+The tag MUST NOT alter the existing Phase Entry section structure (Decisions, Alternatives Considered, Trade-offs, Open Questions, Context). The `sanitize_session_log.py` rules SHALL continue to accept tagged entries without modification — verified by the existing allowlist for kebab-case identifiers up to 52 characters and the sanitizer's non-scanning of backtick inline code.
+
+#### Scenario: Single tagged decision in a phase entry
+- **WHEN** a workflow skill appends a Phase Entry containing `1. **Pin worktrees during overnight pauses** \`architectural: software-factory-tooling\` — prevents GC`
+- **THEN** the entry SHALL be written to `session-log.md` unchanged after sanitization
+- **AND** the decision-index emitter SHALL extract exactly one Decision tagged with capability `software-factory-tooling`
+
+#### Scenario: Multiple decisions in one phase targeting different capabilities
+- **WHEN** a phase entry contains two Decision bullets with different `architectural:` tags (e.g., `skill-workflow` and `agent-coordinator`)
+- **THEN** each Decision SHALL appear in its respective capability's index file
+- **AND** both references SHALL link back to the same originating phase entry
+
+#### Scenario: Untagged decision remains valid
+- **WHEN** a phase entry contains a Decision bullet without any `architectural:` tag
+- **THEN** the entry SHALL validate and commit without warnings
+- **AND** the Decision SHALL be excluded from `docs/decisions/<capability>.md` output
+
+#### Scenario: Tag with invalid capability is reported
+- **WHEN** a phase entry contains `\`architectural: no-such-capability\`` where no `openspec/specs/no-such-capability/` directory exists
+- **THEN** the emitter SHALL emit a warning identifying the change-id, phase name, and invalid capability
+- **AND** the emitter SHALL exit with a non-zero status if invoked in `--strict` mode (used by CI)
+- **AND** in non-strict mode the emitter SHALL skip the malformed Decision and continue processing other entries
+
+#### Scenario: Sanitizer preserves tagged decisions
+- **WHEN** `sanitize_session_log.py` runs in-place on a session-log containing `\`architectural: skill-workflow\`` inline tags
+- **THEN** the tag SHALL remain unredacted in the output
+- **AND** no `[REDACTED:*]` markers SHALL appear on the tag string
+
+### Requirement: Phase Record Data Model
+
+The system SHALL provide a unified `PhaseRecord` data model in `skills/session-log/scripts/phase_record.py` that captures all information about a workflow phase boundary in a single structured object renderable to both markdown (for `session-log.md`) and JSON (for coordinator `handoff_documents`).
+
+The `PhaseRecord` dataclass SHALL contain at minimum the following fields:
+- `change_id: str`
+- `phase_name: str` (e.g., `"Plan"`, `"Implementation Iteration 2"`)
+- `agent_type: str`
+- `session_id: str | None`
+- `summary: str` (2-3 sentence overview)
+- `decisions: list[Decision]`
+- `alternatives: list[Alternative]`
+- `trade_offs: list[TradeOff]`
+- `open_questions: list[str]`
+- `completed_work: list[str]`
+- `in_progress: list[str]`
+- `next_steps: list[str]`
+- `relevant_files: list[FileRef]`
+
+The `Decision` sub-dataclass SHALL contain `title: str`, `rationale: str`, `capability: str | None` (kebab-case capability identifier matching `openspec/specs/<capability>/`), and `supersedes: str | None` (`<change-id>#D<n>` reference).
+
+The `FileRef` sub-dataclass SHALL contain `path: str` and `description: str` (≤120 chars).
+
+#### Scenario: Round-trip equality through markdown
+- **WHEN** a `PhaseRecord` is rendered via `render_markdown()` to a string `S`
+- **AND** the string `S` is parsed back into a `PhaseRecord` via `parse_markdown(S)`
+- **THEN** the resulting `PhaseRecord` SHALL equal the original (field-by-field equality)
+- **AND** all `Decision.capability` and `Decision.supersedes` values SHALL be preserved without loss
+
+#### Scenario: Round-trip equality through handoff payload
+- **WHEN** a `PhaseRecord` is rendered via `to_handoff_payload()` to a `dict`
+- **AND** the dict is constructed back into a `PhaseRecord` via `from_handoff_payload(d)`
+- **THEN** the resulting `PhaseRecord` SHALL equal the original (field-by-field equality)
+
+#### Scenario: Empty optional sections render compactly
+- **WHEN** a `PhaseRecord` is rendered to markdown with empty `alternatives`, `trade_offs`, `open_questions`, `completed_work`, or `relevant_files`
+- **THEN** the rendered markdown SHALL omit those sections entirely (no empty headers)
+- **AND** the `summary`, `decisions` (if non-empty), and section header SHALL still be present
+
+### Requirement: Phase Record Persistence Pipeline
+
+The `PhaseRecord.write_both()` method SHALL persist the record through a three-step pipeline in this fixed order: (1) append the rendered markdown to `openspec/changes/<change-id>/session-log.md`, (2) run `sanitize_session_log.py` in-place on the file, (3) write the structured payload to the coordinator via `HandoffService.write(...)` or fall back to a local file.
+
+Each step SHALL be best-effort with independent failure handling. A failure in any step SHALL log a warning to stderr and SHALL NOT raise an exception. The method SHALL return a `PhaseWriteResult` dataclass containing `markdown_path: Path | None`, `sanitized: bool`, `handoff_id: str | None`, `handoff_local_path: Path | None`, and `warnings: list[str]`.
+
+When the coordinator write fails (returns `success=False`, raises, or times out), `write_both()` SHALL write the same payload as JSON to `openspec/changes/<change-id>/handoffs/<phase-slug>-<N>.json` where `<phase-slug>` is `phase_name.lower().replace(" ", "-")` and `<N>` auto-increments per phase using the same counting logic as `count_phase_iterations`.
+
+#### Scenario: All three steps succeed
+- **WHEN** `PhaseRecord(...).write_both()` is called with coordinator available
+- **THEN** the markdown SHALL be appended to `session-log.md`
+- **AND** the sanitizer SHALL run in-place and exit zero
+- **AND** the coordinator SHALL receive a `write_handoff` call returning `success=True`
+- **AND** the result SHALL contain `handoff_id` and `markdown_path`, with `warnings = []`
+
+#### Scenario: Coordinator unavailable triggers local-file fallback
+- **WHEN** `PhaseRecord(...).write_both()` is called and the coordinator returns `success=False` or raises
+- **THEN** the markdown append and sanitization SHALL still complete
+- **AND** the JSON payload SHALL be written to `openspec/changes/<change-id>/handoffs/<phase-slug>-<N>.json`
+- **AND** the result SHALL contain `handoff_local_path` set to the JSON file path
+- **AND** the result SHALL contain a warning describing the coordinator failure
+- **AND** no exception SHALL be raised
+
+#### Scenario: Sanitizer failure does not block coordinator write
+- **WHEN** `PhaseRecord(...).write_both()` is called and the sanitizer exits non-zero
+- **THEN** the markdown append SHALL still complete
+- **AND** the coordinator write SHALL still proceed using the unsanitized in-memory payload
+- **AND** the result SHALL contain `sanitized=False` and a warning describing the sanitizer failure
+
+#### Scenario: Markdown append failure does not block coordinator write
+- **WHEN** `PhaseRecord(...).write_both()` is called and the markdown append fails (e.g., disk full, permission denied)
+- **THEN** the coordinator write SHALL still proceed
+- **AND** the result SHALL contain `markdown_path=None` and a warning describing the append failure
+
+### Requirement: Phase-Boundary Skill PhaseRecord Adoption
+
+All six phase-boundary skills (`plan-feature`, `iterate-on-plan`, `implement-feature`, `iterate-on-implementation`, `validate-feature`, `cleanup-feature`) SHALL invoke `PhaseRecord(...).write_both()` at their phase-boundary write step in place of the previous `append_phase_entry(...)` call.
+
+Each skill's "Append Session Log" step (or equivalently named step) SHALL construct a `PhaseRecord` with at least the `change_id`, `phase_name`, `agent_type`, `summary`, and at least one of `decisions` or a `summary` containing "No significant decisions required" before calling `write_both()`.
+
+The legacy `append_phase_entry()` function in `skills/session-log/scripts/extract_session_log.py` SHALL remain available as a deprecation-warned compatibility shim that internally constructs a minimal `PhaseRecord` and calls `write_both()`. Calls to the shim SHALL emit a `DeprecationWarning`.
+
+#### Scenario: A skill produces matching session-log and coordinator content
+- **WHEN** any of the six phase-boundary skills runs to completion in coordinated tier
+- **THEN** the resulting `session-log.md` entry for the phase SHALL contain the same `summary`, `decisions`, and `relevant_files` content as the corresponding row in `handoff_documents` (read back via `read_handoff`)
+- **AND** the entry's structured fields SHALL be derivable from each other (round-trip)
+
+#### Scenario: Legacy append_phase_entry callers continue working
+- **WHEN** any caller (including out-of-tree scripts) invokes `append_phase_entry(change_id, phase_name, content)`
+- **THEN** the call SHALL succeed
+- **AND** a `DeprecationWarning` SHALL be emitted via the standard `warnings` module
+- **AND** the markdown content SHALL be appended to `session-log.md`
+- **AND** if the coordinator is available, a handoff row SHALL be written
+
+### Requirement: Coordinator Handoff Population at Autopilot Phase Boundaries
+
+The autopilot state machine in `skills/autopilot/scripts/autopilot.py` SHALL populate structured `PhaseRecord` payloads at each of the boundaries enumerated in `_HANDOFF_BOUNDARIES`. The `_maybe_handoff(prev_phase, next_phase, state, handoff_fn)` dispatch SHALL call `handoff_fn(state, build_phase_record(state, prev_phase, next_phase))` instead of passing a transition-description string.
+
+The autopilot driver SHALL append the returned `handoff_id` to `LoopState.handoff_ids: list[str]` and set `LoopState.last_handoff_id: str | None`. The `LoopState` schema version SHALL increment to reflect the addition of `last_handoff_id`. Existing snapshots (without `last_handoff_id`) SHALL load successfully with `last_handoff_id=None`.
+
+A new module `skills/autopilot/scripts/handoff_builder.py` SHALL expose `build_phase_record(state: LoopState, prev_phase: str, next_phase: str) -> PhaseRecord` and per-phase builder helpers that extract relevant `LoopState` fields into `PhaseRecord` content.
+
+#### Scenario: Handoff is populated on each defined boundary
+- **WHEN** autopilot transitions across any pair in `_HANDOFF_BOUNDARIES`
+- **THEN** `_maybe_handoff` SHALL call `handoff_fn` with a `PhaseRecord` instance
+- **AND** the `PhaseRecord` SHALL contain at minimum `change_id`, `phase_name=next_phase`, `agent_type="autopilot"`, and a non-empty `summary`
+- **AND** the returned `handoff_id` SHALL be appended to `state.handoff_ids`
+- **AND** `state.last_handoff_id` SHALL be updated to the returned id
+
+#### Scenario: Existing autopilot snapshots load without migration
+- **WHEN** an existing `LoopState` JSON snapshot lacking `last_handoff_id` is loaded
+- **THEN** the load SHALL succeed
+- **AND** `state.last_handoff_id` SHALL be `None`
+- **AND** `state.handoff_ids` SHALL be an empty list (or its prior value if previously populated)
+
+### Requirement: Autopilot Phase Sub-Agent Isolation
+
+The autopilot driver SHALL invoke the three heaviest phases (`IMPLEMENT`, `IMPL_REVIEW`, `VALIDATE`) as ephemeral sub-agents via the `Agent` tool. The sub-agent prompt SHALL include: (1) an artifacts manifest listing relevant file paths with short descriptions, (2) the incoming `PhaseRecord` from the previous phase rendered as JSON, and (3) phase-specific task instructions.
+
+The sub-agent SHALL return exactly two pieces of information to the driver: an `outcome: str` (matching the existing phase-callback outcome vocabulary) and a `handoff_id: str` referencing the structured `PhaseRecord` written at exit. The driver SHALL NOT consume any other content from the sub-agent's transcript.
+
+A new module `skills/autopilot/scripts/phase_agent.py` SHALL expose `run_phase_subagent(phase: str, state: LoopState, incoming_handoff: PhaseRecord | None) -> tuple[str, str]` and SHALL apply `isolation: "worktree"` only when `phase == "IMPLEMENT"`.
+
+The `IMPL_REVIEW` and `VALIDATE` sub-agents SHALL run in the shared checkout (no worktree isolation).
+
+#### Scenario: Sub-agent return surfaces only outcome and handoff_id
+- **WHEN** a Layer 2 phase sub-agent returns to the driver
+- **THEN** the driver's `LoopState` delta SHALL be exactly `{handoff_ids: append(handoff_id), last_handoff_id: handoff_id, current_phase: <next>}` plus phase-specific outcome counters
+- **AND** the driver's conversation context SHALL NOT contain the sub-agent's transcript content
+- **AND** the driver SHALL update `state.last_handoff_id` to the returned id
+
+#### Scenario: IMPLEMENT runs in worktree isolation
+- **WHEN** the driver invokes `run_phase_subagent("IMPLEMENT", ...)`
+- **THEN** the underlying `Agent(...)` call SHALL include `isolation="worktree"`
+- **AND** the sub-agent's file mutations SHALL occur in the worktree, not the shared checkout
+
+#### Scenario: IMPL_REVIEW and VALIDATE run in shared checkout
+- **WHEN** the driver invokes `run_phase_subagent("IMPL_REVIEW", ...)` or `run_phase_subagent("VALIDATE", ...)`
+- **THEN** the underlying `Agent(...)` call SHALL NOT include `isolation="worktree"`
+- **AND** any artifacts produced (review-findings JSON, validation-report.md) SHALL be written to the shared checkout
+
+### Requirement: Phase Sub-Agent Crash Recovery
+
+When a Layer 2 phase sub-agent crashes (non-zero exit), times out, or returns malformed output, the driver SHALL retry the invocation with the same `(artifacts manifest, incoming PhaseRecord)` prompt up to 3 attempts (initial + 2 retries). Each retry SHALL be a fresh sub-agent (no transcript inheritance).
+
+After the third failure, the driver SHALL write a `phase-failed` `PhaseRecord` containing the failing phase name and last-attempt error context, then raise `PhaseEscalationError(phase_name, attempts, last_error)` to the operator.
+
+The retry contract SHALL document that phase sub-agents must be idempotent for irreversible side effects (e.g., `git push`, `gh pr merge`).
+
+#### Scenario: First attempt succeeds, no retry
+- **WHEN** a Layer 2 phase sub-agent returns a valid `(outcome, handoff_id)` on the first attempt
+- **THEN** the driver SHALL accept the result without retrying
+- **AND** the retry counter for the phase SHALL be 0
+
+#### Scenario: Retry on malformed output
+- **WHEN** a Layer 2 phase sub-agent returns output that does not parse as `(outcome, handoff_id)`
+- **THEN** the driver SHALL retry up to 2 more times
+- **AND** each retry SHALL receive the same incoming `PhaseRecord` and artifacts manifest
+- **AND** if the third attempt also fails, the driver SHALL raise `PhaseEscalationError`
+
+#### Scenario: Escalation writes phase-failed handoff
+- **WHEN** all 3 retry attempts for a Layer 2 phase fail
+- **THEN** the driver SHALL write a `PhaseRecord` with `summary` describing the failure and the last attempt's error
+- **AND** the `phase_name` field SHALL be `<original-phase> (failed)`
+- **AND** `PhaseEscalationError` SHALL be raised with `(phase_name, attempts=3, last_error=...)`
+
+### Requirement: Context Window Token Instrumentation
+
+Autopilot SHALL record token-count measurements at each phase boundary to support the success criterion of ≥30% peak-context-window reduction. A new module `skills/autopilot/scripts/phase_token_meter.py` SHALL expose `measure_context(messages: list[dict]) -> int`.
+
+The meter SHALL use `anthropic.messages.count_tokens(...)` when the `anthropic` SDK is importable and the `ANTHROPIC_API_KEY` environment variable is set. Otherwise, it SHALL fall back to a transcript-length proxy: `sum(len(json.dumps(msg)) for msg in messages) // 4`.
+
+The meter SHALL be no-op when the environment variable `AUTOPILOT_TOKEN_PROBE=disabled` is set, returning `-1` to indicate measurement was skipped.
+
+At each `_HANDOFF_BOUNDARIES` transition, autopilot SHALL emit two coordinator audit-trail entries: `phase_token_pre` and `phase_token_post`, with `agent_id`, `change_id`, `phase_name`, `token_count`, and `meter_source` (one of `"anthropic_sdk"`, `"proxy"`, `"disabled"`).
+
+#### Scenario: Meter uses SDK when available
+- **WHEN** the `anthropic` SDK is importable and `ANTHROPIC_API_KEY` is set
+- **AND** `measure_context(messages)` is called with a non-empty list
+- **THEN** the meter SHALL call `anthropic.messages.count_tokens(...)` and return the result
+- **AND** the audit entry SHALL have `meter_source="anthropic_sdk"`
+
+#### Scenario: Meter falls back to proxy when SDK unavailable
+- **WHEN** the `anthropic` SDK is not importable or `ANTHROPIC_API_KEY` is not set
+- **AND** `measure_context(messages)` is called
+- **THEN** the meter SHALL compute `sum(len(json.dumps(msg)) for msg in messages) // 4`
+- **AND** the audit entry SHALL have `meter_source="proxy"`
+
+#### Scenario: Meter is disabled when env flag set
+- **WHEN** `AUTOPILOT_TOKEN_PROBE=disabled` is set in the environment
+- **AND** `measure_context(messages)` is called
+- **THEN** the meter SHALL return `-1` without invoking the SDK or computing the proxy
+- **AND** the audit entry SHALL have `meter_source="disabled"`
+
+### Requirement: PhaseRecord Markdown Round-Trip Preserves Decision Index Tags
+
+The `PhaseRecord.render_markdown()` method SHALL preserve the inline backtick-delimited spans `` `architectural: <capability>` `` and `` `supersedes: <change-id>#D<n>` `` in their original format and position (between the decision title and the `—` rationale delimiter), so that the existing `make decisions` regenerator continues to parse them without modification.
+
+The `parse_markdown()` (or equivalent) function SHALL extract these spans into `Decision.capability` and `Decision.supersedes` fields, with no other modifications to the surrounding content.
+
+#### Scenario: Decision index regenerator output is unchanged
+- **WHEN** `make decisions` is run before this change against a corpus of session-log entries
+- **AND** the same corpus is rendered via `PhaseRecord.render_markdown()` after this change
+- **AND** `make decisions` is run again
+- **THEN** the regenerated `docs/decisions/<capability>.md` files SHALL be byte-identical (modulo timestamps in headers, if any)
+
+#### Scenario: Capability tag survives round-trip
+- **WHEN** a `PhaseRecord` containing a `Decision(capability="software-factory-tooling", ...)` is rendered to markdown
+- **AND** the markdown is parsed back into a `PhaseRecord`
+- **THEN** the resulting `Decision.capability` SHALL equal `"software-factory-tooling"`
+- **AND** the inline span `` `architectural: software-factory-tooling` `` SHALL appear in the markdown text
+
+#### Scenario: Supersedes tag survives round-trip
+- **WHEN** a `PhaseRecord` containing a `Decision(supersedes="2026-01-15-old-change#D2", ...)` is rendered to markdown
+- **AND** the markdown is parsed back
+- **THEN** the resulting `Decision.supersedes` SHALL equal `"2026-01-15-old-change#D2"`
+- **AND** the inline span `` `supersedes: 2026-01-15-old-change#D2` `` SHALL appear in the markdown text
+
+### Requirement: Per-Phase Archetype Resolution in Autopilot
+
+The autopilot state machine SHALL resolve an archetype for every non-terminal phase before dispatching the phase's sub-agent, SHALL inject the resolved `model` and `system_prompt` into the sub-agent dispatch options, AND SHALL apply the resolved archetype on the **production execution path** (not only in unit tests of `phase_agent`).
+
+The resolution SHALL:
+1. Be performed inside `skills/autopilot/scripts/phase_agent.py:_build_options(phase, state_dict)`.
+2. Extract per-phase signals from `state_dict` based on the `signals` field of the phase mapping.
+3. Call the coordinator endpoint `POST /archetypes/resolve_for_phase` via `coordination_bridge.try_resolve_archetype_for_phase(phase, signals)`.
+4. Set `options["model"]` and `options["system_prompt"]` from the response.
+5. Record the resolved archetype name in `state_dict["_resolved_archetype"]` for downstream use by `LoopState.phase_archetype`.
+
+The 13 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`.
+
+The `skills/autopilot/SKILL.md` orchestration prose SHALL invoke the harness `Agent(...)` tool for the following 7 phases: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the resolved `model` and SHALL fold the resolved `system_prompt` into the agent's prompt text using the fixed separator `\n\n---\n\n` (the literal four-character newline-newline-three-dashes-newline-newline string, asserted verbatim).
+
+State-only phases (`INIT`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver in `autopilot.run_loop`, even though they do not dispatch a sub-agent.
+
+Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL record `LoopState.phase_archetype` for audit purposes via the convergence loop's existing audit path, but SHALL NOT receive a separate `Agent(...)` dispatch block in SKILL.md (the convergence loop in `convergence_loop.py` handles their dispatch internally).
+
+The skill-delegated `PLAN` phase (which invokes `/plan-feature`) SHALL NOT receive an explicit `Agent(...)` dispatch block; it SHALL continue to dispatch via the existing skill-invocation path because `/plan-feature` itself manages sub-agent dispatch internally.
+
+#### Scenario: PLAN phase resolves to architect archetype
+
+- **WHEN** autopilot enters the `PLAN` phase
+- **AND** `phase_mapping.PLAN.archetype` is `"architect"`
+- **THEN** `_build_options("PLAN", state_dict)` SHALL return options containing `"model": "opus"` and `"system_prompt"` matching the architect's system prompt
+- **AND** the sub-agent dispatch SHALL receive these options verbatim
+
+#### Scenario: IMPLEMENT phase resolves with escalation signals
+
+- **GIVEN** a work package with `loc_estimate=250` is being processed
+- **WHEN** autopilot enters the `IMPLEMENT` phase
+- **THEN** `_build_options("IMPLEMENT", state_dict)` SHALL extract `loc_estimate` from `state_dict` and pass it as a signal
+- **AND** the resolved `model` SHALL be `"opus"` (escalated from `sonnet`)
+- **AND** `state_dict["_resolved_archetype"]` SHALL be `"implementer"`
+
+#### Scenario: 10 of 13 non-terminal phases set phase_archetype
+
+- **WHEN** autopilot completes a full state machine run from INIT to DONE
+- **THEN** the following 10 phases SHALL have set `LoopState.phase_archetype` to a non-null value matching `phase_mapping`: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW`, `SUBMIT_PR`
+- **AND** the convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit `phase_archetype` from their preceding REVIEW phase via the shared `LoopState` (no separate write — convergence_loop never overwrites the field)
+- **AND** if a `_FIX` phase runs without a preceding successful REVIEW (e.g. quorum lost on round 1), `LoopState.phase_archetype` MAY be `null` for that phase — this is acceptable per the design and SHALL NOT cause autopilot to escalate
+
+#### Scenario: Production autopilot run dispatches harness Agent with resolved model
+
+- **GIVEN** a real autopilot run executing from `/autopilot <change-id>` against an available coordinator
+- **WHEN** the run reaches the `IMPLEMENT` phase
+- **THEN** the SKILL.md dispatch block SHALL invoke the harness `Agent(...)` tool with `model` set to the resolved `phase_mapping.IMPLEMENT.model`
+- **AND** the prompt passed to `Agent(...)` SHALL begin with the resolved `system_prompt` followed by `\n\n---\n\n` followed by the per-phase task prompt
+- **AND** after the `Agent(...)` call returns, `LoopState.phase_archetype` in `loop-state.json` SHALL equal `"implementer"`
+- **AND** `LoopState.last_handoff_id` SHALL be updated to the `handoff_id` returned from the dispatched sub-agent
+
+#### Scenario: INIT phase records archetype despite being state-only
+
+- **WHEN** autopilot enters the `INIT` phase
+- **THEN** `autopilot._resolve_phase_archetype_for_state_only(state, "INIT")` SHALL be called
+- **AND** `LoopState.phase_archetype` SHALL be set to `"runner"` (per phase_mapping)
+- **AND** no harness `Agent(...)` call SHALL be made for INIT
+
+---
+
+### Requirement: Per-Phase Archetype Resolution Override
+
+The system SHALL support an environment variable `AUTOPILOT_PHASE_MODEL_OVERRIDE` that forces specific models for specific phases, overriding the resolved archetype's model.
+
+Format: `<PHASE>=<model>[,<PHASE>=<model>]*` (e.g., `PLAN=opus,IMPL_REVIEW=sonnet`).
+
+Override behavior:
+- Override SHALL take precedence over archetype-resolved model.
+- Override SHALL set `options["model"]` only; `options["system_prompt"]` SHALL NOT be set when an override is in effect (harness default applies).
+- Unknown phase names in the override string SHALL be logged as warnings and ignored.
+- Unknown model names SHALL pass through (validated downstream by the harness).
+
+#### Scenario: Override forces a specific model for a phase
+
+- **GIVEN** `AUTOPILOT_PHASE_MODEL_OVERRIDE=PLAN=opus`
+- **WHEN** autopilot enters the `PLAN` phase
+- **THEN** `options["model"]` SHALL be `"opus"`
+- **AND** `options` SHALL NOT contain `"system_prompt"`
+
+#### Scenario: Override with unknown phase logs warning
+
+- **GIVEN** `AUTOPILOT_PHASE_MODEL_OVERRIDE=BOGUS=opus,PLAN=sonnet`
+- **WHEN** autopilot starts
+- **THEN** a warning SHALL be logged identifying `BOGUS` as an unknown phase
+- **AND** the `PLAN=sonnet` override SHALL be honored normally
+
+---
+
+### Requirement: Per-Phase Archetype Resolution Failure Mode
+
+If the coordinator endpoint is unreachable or returns an error, OR if the harness `Agent(...)` tool is not available in the executing orchestrator, autopilot SHALL fall back to the existing inline-prose execution path for that phase and continue.
+
+Fallback behavior:
+- `coordination_bridge.try_resolve_archetype_for_phase(phase, signals)` SHALL return `None` on any failure (network error, timeout, 4xx, 5xx, malformed response).
+- When `None` is returned, `_build_options` SHALL NOT set `options["model"]` or `options["system_prompt"]`.
+- `LoopState.phase_archetype` SHALL be set to `None` for that phase.
+- A structured warning SHALL be logged including the phase name, the error reason, and a hint that operators can use `AUTOPILOT_PHASE_MODEL_OVERRIDE` as a temporary mitigation.
+- The phase SHALL still complete normally — the SKILL.md dispatch block SHALL fall through to the existing inline slash-command path (`/iterate-on-implementation`, `/implement-feature`, etc.) instead of `Agent(...)` dispatch.
+
+#### Scenario: Coordinator unreachable, autopilot continues
+
+- **GIVEN** the coordinator returns HTTP 503 for `POST /archetypes/resolve_for_phase`
+- **WHEN** autopilot enters the `PLAN` phase
+- **THEN** `_build_options("PLAN", state_dict)` SHALL return options without `model` or `system_prompt` keys
+- **AND** the SKILL.md dispatch block SHALL fall through to the inline `/plan-feature` invocation
+- **AND** `LoopState.phase_archetype` SHALL be `None` for that phase
+- **AND** a structured warning SHALL be logged
+
+#### Scenario: Network timeout falls back gracefully
+
+- **GIVEN** `coordination_bridge.try_resolve_archetype_for_phase` raises `TimeoutError`
+- **WHEN** the bridge call is made
+- **THEN** the function SHALL return `None`
+- **AND** autopilot SHALL NOT crash or retry the resolution within the same phase dispatch
+
+#### Scenario: Harness Agent tool not exposed, fallback to inline path
+
+- **GIVEN** the orchestrator session does not expose the harness `Agent(...)` tool (e.g., minimal API-only execution)
+- **WHEN** autopilot enters the `IMPLEMENT` phase
+- **THEN** the SKILL.md dispatch block SHALL detect the missing tool and SHALL fall through to the inline `/implement-feature <change-id>` invocation
+- **AND** `LoopState.phase_archetype` SHALL be `None` for that phase
+- **AND** a structured warning SHALL be logged identifying that `Agent(...)` was unavailable
+
+### Requirement: Prototype Feature Skill
+
+The system SHALL provide a `prototype-feature` skill that dispatches N parallel agents to produce competing working skeletons from an approved proposal, scores them against cheap validation phases, and records outcomes for convergence-aware refinement.
+
+The skill SHALL accept the following arguments:
+- Change-id (required; or detected from current branch name matching `openspec/<change-id>` or `$OPENSPEC_BRANCH_OVERRIDE`)
+- `--variants N` (optional; default 3; bounded 2 ≤ N ≤ 6)
+- `--angles "a,b,c"` (optional; default `simplest,extensible,pragmatic`; count MUST equal N)
+
+#### Scenario: Default variant dispatch
+- **WHEN** the user invokes `/prototype-feature <change-id>` without flags
+- **THEN** the skill SHALL dispatch exactly 3 parallel variant agents
+- **AND** each variant SHALL run in an isolated worktree on branch `prototype/<change-id>/v<n>` for n ∈ {1, 2, 3}
+- **AND** each variant SHALL receive the approved `proposal.md` and spec deltas as context
+- **AND** each variant SHALL receive a distinct angle prompt from the default set (`simplest`, `extensible`, `pragmatic`)
+
+#### Scenario: Custom variant count and angles
+- **WHEN** the user invokes `/prototype-feature <change-id> --variants 4 --angles "simplest,extensible,pragmatic,perf-first"`
+- **THEN** the skill SHALL dispatch 4 variant agents
+- **AND** the count of angles SHALL match `--variants` exactly
+- **AND** if counts mismatch, the skill SHALL fail fast before dispatching
+
+#### Scenario: Variant count out of bounds
+- **WHEN** the user passes `--variants 1` or `--variants 7`
+- **THEN** the skill SHALL reject the invocation with an error message referencing the allowed range (2-6)
+- **AND** no worktrees SHALL be created
+
+#### Scenario: Isolated worktree per variant
+- **WHEN** variants are dispatched
+- **THEN** each variant agent SHALL operate in a dedicated worktree at `.git-worktrees/<change-id>/v<n>/`
+- **AND** each variant's commits SHALL land on its own `prototype/<change-id>/v<n>` branch
+- **AND** variant agents SHALL NOT write to the feature branch or to each other's branches
+
+### Requirement: Vendor Diversity Policy with Fallback
+
+The `prototype-feature` skill SHALL attempt vendor-diverse dispatch on a best-effort basis and SHALL fall back to single-vendor dispatch with prompt-steering when insufficient vendors are reachable. The skill SHALL NEVER hard-block on vendor availability.
+
+#### Scenario: Sufficient vendors available
+- **WHEN** the skill queries vendor availability and at least N distinct vendors are reachable (where N is the requested variant count)
+- **THEN** the skill SHALL assign one distinct vendor per variant
+- **AND** the vendor assignment SHALL be recorded in `prototype-findings.md` per variant
+
+#### Scenario: Insufficient vendors available
+- **WHEN** fewer than N distinct vendors are reachable
+- **THEN** the skill SHALL run all N variants on the most-available vendor
+- **AND** the skill SHALL inject temperature and seed variation to encourage stylistic divergence
+- **AND** the skill SHALL emit a warning noting the fallback
+- **AND** the dispatch SHALL proceed (no hard block)
+
+#### Scenario: Vendor policy recorded in findings
+- **WHEN** variants have been dispatched (with or without fallback)
+- **THEN** `prototype-findings.md` SHALL record the actual vendor for each variant
+- **AND** SHALL record whether fallback was triggered
+
+### Requirement: Variant Scoring via Validation Phases
+
+Each variant skeleton SHALL be scored using existing `/validate-feature` phases limited to `smoke` and `spec`. Heavier phases (`deploy`, `e2e`, `security`) SHALL NOT be applied to skeletons.
+
+#### Scenario: Smoke and spec-compliance scoring
+- **WHEN** all variant agents have committed their skeletons
+- **THEN** the skill SHALL invoke `/validate-feature --phase smoke,spec` on each variant branch
+- **AND** the skill SHALL collect per-variant pass/fail and spec-scenario-coverage metrics
+
+#### Scenario: Skeleton fails to deploy
+- **WHEN** a variant's smoke phase fails because the skeleton is incomplete
+- **THEN** the skill SHALL record the failure in `prototype-findings.md` for that variant
+- **AND** scoring for other variants SHALL continue
+- **AND** the human pick-and-choose step SHALL still occur with the remaining scored variants
+
+### Requirement: Prototype Findings Artifact
+
+The `prototype-feature` skill SHALL produce `openspec/changes/<change-id>/prototype-findings.md` capturing variant descriptors, automated scores, and human pick-and-choose selections in a format consumable by `/iterate-on-plan`.
+
+#### Scenario: Findings artifact produced
+- **WHEN** variant dispatch, scoring, and human feedback have all completed
+- **THEN** `prototype-findings.md` SHALL be written to the change directory
+- **AND** the file SHALL contain one section per variant with: variant_id, angle, vendor, branch, automated_scores, human_picks, synthesis_hint
+- **AND** the structured data SHALL conform to the `VariantDescriptor` schema in `contracts/schemas/variant-descriptor.schema.json`
+
+#### Scenario: Human pick-and-choose feedback
+- **WHEN** variants have been scored
+- **THEN** the skill SHALL present a structured choice via `AskUserQuestion` with `multiSelect=true`
+- **AND** options SHALL be grouped by aspect: data model / API surface / test approach / file layout
+- **AND** each aspect SHALL list per-variant options plus a "rewrite" option
+- **AND** user selections SHALL be recorded per variant in the `human_picks` field of the findings artifact
+
+### Requirement: Convergence via Iterate-on-Plan
+
+The `iterate-on-plan` skill SHALL accept a `--prototype-context <change-id>` flag. When present, the skill SHALL load prototype outcomes as additional context and perform convergence-aware refinement of `design.md` and `tasks.md`.
+
+#### Scenario: Convergence mode activated via flag
+- **WHEN** the user invokes `/iterate-on-plan <change-id> --prototype-context <change-id>`
+- **THEN** the skill SHALL load `prototype-findings.md`, variant diffs (`git diff main...prototype/<change-id>/v<n>` for each variant), and validation reports in addition to proposal/design/tasks
+- **AND** the skill SHALL emit findings that include `convergence.*` types (e.g., `convergence.prefer-variant-X`, `convergence.merge-A-data-model-with-B-api`)
+- **AND** refinement commits SHALL land on the feature branch (never on prototype branches)
+
+#### Scenario: Convergence without prototype context
+- **WHEN** the user invokes `/iterate-on-plan <change-id>` without `--prototype-context`
+- **THEN** the skill SHALL behave identically to its pre-prototyping behavior
+- **AND** SHALL NOT attempt to load prototype artifacts
+- **AND** SHALL NOT emit `convergence.*` findings
+
+#### Scenario: Missing prototype artifacts
+- **WHEN** `--prototype-context` is passed but `prototype-findings.md` does not exist
+- **THEN** the skill SHALL fail fast with a clear error message
+- **AND** SHALL NOT produce partial refinement commits
+
+### Requirement: Prototype Recommendation Signal
+
+The `iterate-on-plan` skill SHALL emit a non-actionable advisory finding of type `workflow.prototype-recommended` when the current refinement batch contains at least 3 high-criticality findings across the `clarity` and `feasibility` dimensions combined.
+
+#### Scenario: Threshold met
+- **WHEN** an `iterate-on-plan` refinement batch produces ≥3 high-criticality findings in `clarity` or `feasibility`
+- **THEN** the skill SHALL append a `workflow.prototype-recommended` finding to the iteration report
+- **AND** the finding SHALL reference the triggering findings
+- **AND** the finding SHALL suggest running `/prototype-feature <change-id>`
+
+#### Scenario: Threshold not met
+- **WHEN** high-criticality `clarity` + `feasibility` findings number fewer than 3
+- **THEN** the skill SHALL NOT emit a prototype-recommended finding
+
+#### Scenario: Advisory only — never auto-triggers
+- **WHEN** a `workflow.prototype-recommended` finding is emitted
+- **THEN** the skill SHALL NOT invoke `/prototype-feature` automatically
+- **AND** the decision SHALL remain with the user
+
+### Requirement: Prototype Worktree and Branch Support
+
+The `skills/worktree/scripts/worktree.py` script SHALL support the `prototype/<change-id>/v<n>` branch naming convention and compose correctly with the `--agent-id` suffix scheme used for parallel work packages.
+
+#### Scenario: Prototype branch creation
+- **WHEN** `worktree.py setup <change-id> --agent-id v1 --branch-prefix prototype` is invoked
+- **THEN** the resulting worktree SHALL be on branch `prototype/<change-id>/v1`
+- **AND** the worktree SHALL be at `.git-worktrees/<change-id>/v1/`
+
+#### Scenario: Branch override composition
+- **WHEN** `OPENSPEC_BRANCH_OVERRIDE` is set AND `--branch-prefix prototype` is passed
+- **THEN** the prototype prefix SHALL take precedence for prototype worktrees
+- **AND** the override SHALL still govern the parent feature branch
+
+#### Scenario: Worktree pin
+- **WHEN** prototype worktrees are created
+- **THEN** they SHALL be pinned to survive the default 24-hour GC timer
+- **AND** they SHALL remain pinned until `/cleanup-feature` teardown
+
+### Requirement: Variant Descriptor Schema
+
+The `skills/parallel-infrastructure/` consensus synthesizer SHALL provide a `VariantDescriptor` schema and a `synthesize_variants(descriptors) -> synthesis_plan` function.
+
+#### Scenario: VariantDescriptor schema published
+- **WHEN** `skills/parallel-infrastructure/` is installed
+- **THEN** `contracts/schemas/variant-descriptor.schema.json` (or the equivalent published location) SHALL define fields: `variant_id`, `angle`, `vendor`, `branch`, `automated_scores`, `human_picks`, `synthesis_hint`
+- **AND** every field except `synthesis_hint` SHALL be required
+
+#### Scenario: Synthesis plan generation
+- **WHEN** `synthesize_variants(descriptors)` is called with a list of VariantDescriptor objects
+- **THEN** the function SHALL return a synthesis plan enumerating per-aspect (data model, API, tests, layout) source-variant picks
+- **AND** the plan SHALL be consumable by iterate-on-plan's `--prototype-context` loader
+
+### Requirement: Cleanup Includes Prototype Branches
+
+The `cleanup-feature` skill SHALL delete prototype branches (local and remote) and tear down prototype worktrees as part of feature cleanup.
+
+#### Scenario: Prototype cleanup on merge
+- **WHEN** `/cleanup-feature <change-id>` runs after PR merge
+- **THEN** the skill SHALL enumerate `prototype/<change-id>/v*` branches (local and remote)
+- **AND** SHALL delete them alongside the feature branch
+- **AND** SHALL tear down associated worktrees
+
+#### Scenario: Prototype branches present but no prototype-findings
+- **WHEN** prototype branches exist without a corresponding `prototype-findings.md` (stale state)
+- **THEN** the skill SHALL still delete the branches
+- **AND** SHALL log the anomaly for operator awareness
+
+### Requirement: Workflow Documentation Updates
+
+The `docs/skills-workflow.md` document SHALL describe the optional prototyping stage between `/plan-feature` and `/implement-feature`, and SHALL document the design principle *"Divergence is first-class on both sides of the approval gate."* The `CLAUDE.md` workflow diagram SHALL include the optional `/prototype-feature` step.
+
+#### Scenario: Workflow doc describes prototype stage
+- **WHEN** `docs/skills-workflow.md` is read
+- **THEN** the skills-flow diagram SHALL show `/prototype-feature` as an optional step between proposal approval and implementation
+- **AND** a new "Divergence is first-class on both sides of the approval gate" section SHALL appear under Design Principles
+
+#### Scenario: CLAUDE.md workflow diagram updated
+- **WHEN** `CLAUDE.md` is read
+- **THEN** the workflow diagram in the Workflow section SHALL include an optional `/prototype-feature <change-id>` step
+- **AND** SHALL reference `/iterate-on-plan --prototype-context` as the convergence mechanism
+
+### Requirement: Sub-Agent Dispatch Protocol Helpers
+
+`skills/autopilot/scripts/phase_agent.py` SHALL expose two pure-Python helper entry points that the SKILL.md orchestration prose calls across the prose/Python boundary:
+
+1. **`build_phase_dispatch_kwargs(phase: str, change_id: str) -> dict`** — returns a JSON-serializable dict containing `{prompt, model, system_prompt, isolation, archetype}` for the given phase. The function SHALL:
+   - Validate `change_id` against the regex `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` and raise `ValueError` on failure.
+   - Read `loop-state.json` from `openspec/changes/<change_id>/loop-state.json`.
+   - Hydrate or bootstrap an incoming `PhaseRecord` from `state.last_handoff_id`.
+   - Call `_build_options(phase, state_dict)` and `_build_prompt(phase, ...)` internally.
+   - Atomically write `openspec/changes/<change_id>/.phase-resolution-cache.json` containing `{schema_version, change_id, phase, archetype, checksum}` where `checksum` is the SHA-256 of `change_id + phase + archetype`.
+
+2. **`apply_phase_outcome(change_id: str, phase: str, outcome: str, handoff_id: str) -> None`** — updates `loop-state.json` with the new `last_handoff_id`, appends to `handoff_ids` (skipping if already present), and sets `phase_archetype` from the cache file. The function SHALL:
+   - Be idempotent — calling twice with the same `(change_id, phase, outcome, handoff_id)` leaves `loop-state.json` in the same final state, with `handoff_id` appearing exactly once in `handoff_ids` and `phase_archetype` preserving the value written by the first call (NOT overwritten with `None` on the second call even though the cache file was deleted by the first).
+   - Detect replay via the rule: if loaded `state.last_handoff_id == handoff_id` AND `state.previous_phase == phase` (or `state.current_phase == phase`), treat the call as a replay. In replay mode, preserve `phase_archetype` and skip the cache validation (cache is allowed to be missing — the prior successful call deleted it).
+   - When NOT a replay, validate the cache file's `change_id`, `phase`, and `checksum`. On any mismatch (parse error, missing file, change-id mismatch, phase mismatch, checksum mismatch), set `phase_archetype = None`, log a structured warning, and continue without raising.
+   - On successful non-replay apply, delete the cache file (atomic rename to a temp path then unlink, so a crash mid-delete leaves the cache discoverable).
+
+Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose can shell out to them with structured arguments. The CLI surface is `runner.py build-dispatch --phase X --change-id Y` and `runner.py apply-outcome --phase X --change-id Y --outcome Z --handoff-id H`.
+
+#### Scenario: build_phase_dispatch_kwargs returns dispatch-ready dict
+
+- **GIVEN** an autopilot run is at the `IMPLEMENT` phase with a resolved archetype
+- **WHEN** `python3 runner.py build-dispatch --phase IMPLEMENT --change-id <id>` is invoked
+- **THEN** stdout SHALL be a single JSON object containing `prompt`, `model`, `system_prompt`, `isolation`, and `archetype` keys
+- **AND** `model` SHALL match the resolved archetype's model
+- **AND** `isolation` SHALL be `"worktree"` (since IMPLEMENT is in `_WORKTREE_PHASES`)
+- **AND** `openspec/changes/<id>/.phase-resolution-cache.json` SHALL contain `{"phase": "IMPLEMENT", "archetype": "implementer", "change_id": "<id>"}`
+
+#### Scenario: apply_phase_outcome updates loop state and is idempotent under replay
+
+- **GIVEN** `loop-state.json` exists at version 3 and the cache file `.phase-resolution-cache.json` is present with phase=IMPLEMENT, archetype=implementer
+- **WHEN** `python3 runner.py apply-outcome --change-id <id> --phase IMPLEMENT --outcome continue --handoff-id h-abc` is invoked
+- **THEN** `LoopState.last_handoff_id` SHALL equal `"h-abc"`, `LoopState.handoff_ids` SHALL contain `"h-abc"`, `LoopState.phase_archetype` SHALL equal `"implementer"`, and the cache file SHALL be deleted
+- **WHEN** the same command is invoked a second time (replay scenario — cache file is now absent because the first call deleted it)
+- **THEN** `apply_phase_outcome` SHALL detect the replay via `state.last_handoff_id == "h-abc"` AND `state.previous_phase == "IMPLEMENT"`
+- **AND** `LoopState.phase_archetype` SHALL still equal `"implementer"` (preserved, NOT overwritten with `null`)
+- **AND** `LoopState.handoff_ids` SHALL contain `"h-abc"` exactly once (no duplicate append)
+- **AND** the missing cache file SHALL NOT cause an error or warning
+
+#### Scenario: PLAN_FIX inherits phase_archetype from PLAN_REVIEW
+
+- **GIVEN** autopilot just completed `PLAN_REVIEW` with `LoopState.phase_archetype = "reviewer"` and convergence did not converge
+- **WHEN** the loop transitions to `PLAN_FIX`
+- **THEN** `LoopState.phase_archetype` SHALL still equal `"reviewer"` after PLAN_FIX completes (convergence_loop never overwrites the field)
+- **AND** the convergence loop SHALL NOT call `build_phase_dispatch_kwargs` for the PLAN_FIX phase
+
+#### Scenario: apply_phase_outcome with mismatched cache writes null archetype
+
+- **GIVEN** `.phase-resolution-cache.json` contains `{"phase": "PLAN", "archetype": "architect", "change_id": "<id>"}`
+- **WHEN** `apply_phase_outcome` is called with `--phase IMPLEMENT --change-id <id>`
+- **THEN** `LoopState.phase_archetype` SHALL be set to `None`
+- **AND** a structured warning SHALL be logged identifying the cache/phase mismatch
+
+#### Scenario: Joined prompt preserves phase task instructions even when phase prompt contains "---"
+
+- **GIVEN** an archetype's `system_prompt` is `"You are the implementer. Follow contracts."`
+- **AND** the resolved phase prompt for IMPLEMENT contains the substring `"\n---\n"` (e.g., a markdown rule inside task instructions)
+- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "<id>")` is called
+- **THEN** the returned `prompt` SHALL begin with the system_prompt followed by exactly one occurrence of the literal separator `"\n\n---\n\n"`
+- **AND** the original phase-prompt content SHALL appear in the returned `prompt` unchanged after the separator
+- **AND** all key task-instruction tokens (e.g., `"change_id"`, `"submit"`, `"complete"`) from the phase prompt SHALL appear in the returned `prompt`
+
+#### Scenario: build_phase_dispatch_kwargs rejects path-traversal change_id
+
+- **GIVEN** an attacker-controlled `change_id` value `"../../etc/passwd"`
+- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "../../etc/passwd")` is called
+- **THEN** the function SHALL raise `ValueError` before any filesystem access
+- **AND** no file SHALL be created or read outside `openspec/changes/`
+
+#### Scenario: Joined prompt token budget is enforced
+
+- **GIVEN** the joined prompt for any phase exceeds 75% of the resolved model's context window
+- **WHEN** the wp-skills-autopilot token-budget CI check runs across all 7 sub-agent-dispatching phases
+- **THEN** the check SHALL fail with a non-zero exit code
+- **AND** the failure message SHALL identify the phase, the joined-prompt token count, and the model context window
+- **AND** at the 60-75% range the check SHALL emit a warning but exit zero
+
+### Requirement: Vendor Findings Checkpoint Layout
+
+The system SHALL define a single canonical on-disk layout for per-vendor review findings, used by both the in-process `converge()` API and the CLI dispatcher. The layout SHALL be writable and readable by a shared helper module so neither caller hardcodes filenames or directory structure.
+
+The shared helper SHALL live under `skills/parallel-infrastructure/scripts/checkpoint_findings.py` so that the dependency direction is one-way: `autopilot` imports from `parallel-infrastructure`, never the reverse.
+
+The helper SHALL be responsible for constructing the per-vendor file's wrapper-object envelope (`review_type`, `target`, `reviewer_vendor`, `findings: [...]`). Callers pass in the raw `ReviewResult.findings` list and the wrapping metadata; the helper builds the wrapper object before writing. This keeps the wire-format contract centralized and prevents callers from accidentally writing raw arrays.
+
+The canonical layout SHALL use:
+
+- Per-vendor finding files at the existing dispatcher path (`<output_dir>/findings-{vendor}-{review_type}.json`) for CLI invocations, and at `<artifacts_dir>/.review-cache/round-N/findings-{vendor}-{review_type}.json` for in-process callers (where `N` is the convergence-loop round number, starting at 1; per-round subdivision preserves cross-round audit history). The two locations SHALL NOT be unified by this proposal; each call site continues writing where it already writes (or, for in-process, where this proposal newly writes).
+- Per-vendor finding file contents SHALL preserve the existing wrapper-object shape: `{review_type, target, reviewer_vendor, findings: [...]}`. This proposal does NOT change the per-vendor file format.
+- Manifest at `<output_dir>/review-manifest.json` (CLI) or `<artifacts_dir>/.review-cache/round-N/review-manifest.json` (in-process; one manifest per round). The manifest format SHALL be a strict superset of the format currently written by `review_dispatcher.py:write_manifest()`.
+
+The manifest SHALL preserve all fields the existing dispatcher writes (`review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received`) AND SHALL add: `schema_version` (integer, currently `1`), `change_id` (string), `created_at` (ISO-8601 UTC string), and `vendors[]` (per-vendor index with `name`, `findings_path`, `finding_count`).
+
+The shared helper SHALL write the manifest atomically (write-to-temp, fsync, rename, fsync parent directory) so a crash mid-write SHALL NOT leave a partially-written `review-manifest.json`. Per-vendor finding files SHALL be written via the same atomic-rename pattern.
+
+#### Scenario: Round-trip preserves vendor findings
+- **WHEN** the helper writes findings for vendor `claude` to a checkpoint directory
+- **AND** the helper reads from the same directory
+- **THEN** the returned dict (keyed by vendor name, values are lists of `ReviewFinding`) SHALL contain the same findings (id, type, criticality, description, disposition, file_path, line_range, vendor) as the original
+- **AND** the read SHALL succeed even if other vendor files are absent
+
+#### Scenario: Manifest is sufficient to enumerate vendors
+- **WHEN** an operator reads `review-manifest.json`
+- **THEN** the manifest SHALL list every vendor that produced findings in this review round
+- **AND** each entry SHALL point at a `findings_path` that exists on disk
+- **AND** the manifest SHALL NOT reference vendors whose finding files are missing
+
+#### Scenario: Manifest preserves existing dispatcher fields
+- **WHEN** the helper writes a manifest in a context where dispatch metadata is available (the CLI dispatcher's call site)
+- **THEN** the resulting `review-manifest.json` SHALL contain ALL of `review_type`, `target`, `dispatches[]`, `quorum_requested`, `quorum_received` (existing CLI fields)
+- **AND** SHALL ALSO contain `schema_version`, `change_id`, `created_at`, `vendors[]` (new fields)
+- **AND** existing CLI consumers reading the manifest SHALL continue to function without modification
+
+#### Scenario: In-process callers without dispatch metadata
+- **WHEN** the in-process `converge()` API writes a manifest
+- **AND** dispatch metadata (`model_used`, `elapsed_seconds`, etc.) is available from `ReviewResult` objects
+- **THEN** the helper SHALL pass that metadata through into the `dispatches[]` field
+- **AND** if dispatch metadata is absent (e.g., test fixtures), the helper SHALL write `dispatches: []` and the schema SHALL accept that shape
+
+#### Scenario: quorum_received reflects actual successful vendors
+- **WHEN** the helper writes a manifest
+- **THEN** `quorum_received` SHALL equal the count of vendors with non-empty `findings` (or, when dispatch metadata is provided, the count of `dispatches[].success == true`)
+- **AND** `quorum_received` SHALL NOT be silently set equal to `quorum_requested` (the count of vendors dispatched) — operators reading the manifest need to see the actual successful count, not the requested count
+
+#### Scenario: change_id is optional for CLI dispatcher
+- **WHEN** the CLI dispatcher (`review_dispatcher.py`) writes a manifest
+- **AND** the dispatcher has no `change_id` source (its existing `target` argument is used for generic feature/package identifiers like `cli-dispatch`)
+- **THEN** the helper SHALL accept `change_id=None` and the manifest's `change_id` field SHALL be `null`
+- **AND** the schema SHALL validate the manifest with `change_id: null`
+- **AND** in-process callers (`converge()`) SHALL populate `change_id` since they always have it
+
+#### Scenario: Manifest write is atomic
+- **WHEN** the helper writes `review-manifest.json`
+- **THEN** the bytes SHALL be written to a temporary path, fsync'd, atomically renamed to the final path, and the parent directory SHALL be fsync'd to persist the directory entry
+- **AND** an interrupt or crash mid-write SHALL leave EITHER the previous manifest intact OR a complete new manifest, never a partial file
+
+#### Scenario: Concurrent converge calls use distinct cache directories
+- **WHEN** two `converge()` invocations run with different `artifacts_dir` arguments
+- **THEN** each invocation SHALL write to its own checkpoint area under its own `artifacts_dir`
+- **AND** neither invocation SHALL read or modify the other's checkpoint files
+
+### Requirement: In-Process Converge Checkpoints Before Synthesis
+
+The `converge()` API in `skills/autopilot/scripts/convergence_loop.py` SHALL persist per-vendor findings to disk BEFORE invoking `synthesizer.synthesize()`. The checkpoint SHALL be written for every successful dispatch, regardless of whether synthesis subsequently succeeds. If synthesis raises, the exception SHALL propagate to the caller; this proposal does NOT introduce automatic recovery.
+
+#### Scenario: Successful synthesis path also writes checkpoints
+- **WHEN** `converge()` completes a review round (round number `N`) successfully
+- **THEN** `<artifacts_dir>/.review-cache/round-N/findings-{vendor}-{review_type}.json` SHALL exist for every vendor that returned findings
+- **AND** `<artifacts_dir>/.review-cache/round-N/review-manifest.json` SHALL exist
+- **AND** the returned `ConvergenceResult` SHALL have `checkpoint_dir` set to `<artifacts_dir>/.review-cache/round-N/`
+- **AND** earlier rounds' checkpoints (`round-1/`, `round-2/`, …) SHALL remain on disk for audit history
+
+#### Scenario: Synthesis failure leaves checkpoint intact and exception propagates
+- **WHEN** `synthesizer.synthesize()` raises an exception
+- **THEN** the per-vendor finding files SHALL remain on disk
+- **AND** `review-manifest.json` SHALL remain on disk
+- **AND** `converge()` SHALL re-raise the original synthesis exception (no fallback, no recovery)
+- **AND** an operator SHALL be able to manually invoke `consensus_synthesizer.py` against the checkpoint after diagnosing the underlying issue
+
+#### Scenario: Empty review round still produces a manifest
+- **WHEN** all vendors return zero findings (or no vendors are reachable)
+- **THEN** the checkpoint helper SHALL still write `review-manifest.json`
+- **AND** the manifest's `vendors[]` array MAY be empty
+- **AND** no per-vendor finding files SHALL be written for vendors that produced no output
+
+#### Scenario: Checkpoint write permission error
+- **WHEN** writing checkpoint files fails with `OSError`/`PermissionError` (filesystem full, directory not writable, etc.)
+- **THEN** `converge()` SHALL surface the error as a hard failure
+- **AND** synthesis SHALL NOT be attempted (the prerequisite for downstream recovery — readable on-disk findings — is impossible)
+- **AND** any partially-written per-vendor finding files SHALL be left in place for manual inspection
+
+### Requirement: ConvergenceResult Observability Field
+
+The `ConvergenceResult` dataclass returned by `converge()` SHALL include one new field: `checkpoint_dir: Path | None` (default `None`). The field SHALL be set to the absolute path of the checkpoint directory when the checkpoint write succeeded.
+
+**Why a single field, not two:** an earlier draft proposed a second `synthesis_failed: bool` field, but multi-vendor review caught that the field is unreachable: when synthesis raises, the exception propagates from `converge()` and no `ConvergenceResult` is returned. A boolean flag never set on the success path and never observed on the failure path is dead code. The exception itself is a perfectly observable signal that synthesis failed; callers that need recovery context can read `checkpoint_dir` from a `ConvergenceResult` they constructed themselves before the exception, or simply locate `<artifacts_dir>/.review-cache/` from caller-known state.
+
+#### Scenario: Existing callers see no behavior change
+- **WHEN** an existing caller of `converge()` does not read the new field
+- **THEN** every previously-passing test SHALL continue to pass
+- **AND** the result's other fields (findings, status, iterations, etc.) SHALL retain their prior semantics
+
+#### Scenario: Recovery-aware callers can locate the checkpoint
+- **WHEN** a caller checks `result.checkpoint_dir`
+- **AND** the checkpoint write succeeded for this invocation
+- **THEN** the value SHALL be a `Path` pointing at the absolute path of the checkpoint directory
+- **AND** the path SHALL exist on disk
+
+### Requirement: Structured Logging of Synthesis Failures
+
+The system SHALL emit a structured log entry when synthesis fails with a checkpoint present. This makes chronic synthesis failures observable to operators monitoring logs (or downstream log-aggregation systems like the journal) even if no human notices the immediate exception.
+
+The log emission SHALL use Python's standard `logging` module at level `ERROR` with a structured payload via `extra={...}`. The event identity SHALL be carried in BOTH `LogRecord.msg` (so the rendered text is human-readable and greppable) AND in `extra["event"]` (so automated test assertions and log-aggregation filters can match against a stable structured field rather than formatter-dependent rendered text). This proposal does NOT introduce a new HTTP audit endpoint or a new `coordination_bridge` helper; it uses the logging primitive that already exists.
+
+The structured payload SHALL include `event` (stable identifier — `"convergence.synthesis_failed_with_checkpoint"` or `"convergence.checkpoint_write_failed"`), `change_id` (or `null` if not applicable), `review_type`, `original_exception_class`, `original_exception_message`, `checkpoint_dir` (absolute path, post-`Path.resolve()`; or `artifacts_dir` for the checkpoint-write-failed case), and `timestamp` (ISO-8601 UTC).
+
+The log emission SHALL be wrapped in a small helper (`_safe_log_error`) that catches and suppresses any exception from the underlying `logger.error()` call. This is necessary because Python's logging module does NOT absorb exceptions from arbitrary custom handlers — a misconfigured `Handler.emit()` that raises would otherwise mask the original synthesis or checkpoint-write exception that prompted the log call.
+
+A separate log entry — `convergence.checkpoint_write_failed` — SHALL be emitted when the checkpoint write itself fails (OSError/PermissionError before synthesis). Same structured-payload pattern. Uses `artifacts_dir` instead of `checkpoint_dir` (since no checkpoint dir exists in this case).
+
+#### Scenario: Synthesis failure with checkpoint emits structured log entry
+- **WHEN** the checkpoint write succeeded AND synthesis raised
+- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose `LogRecord.extra["event"]` equals `"convergence.synthesis_failed_with_checkpoint"`
+- **AND** the log entry's structured payload SHALL contain all required fields
+- **AND** the original synthesis exception SHALL still propagate to the caller
+
+#### Scenario: Synthesis success emits no log entry
+- **WHEN** synthesis completes without raising
+- **THEN** NO log entry with `extra["event"] == "convergence.synthesis_failed_with_checkpoint"` SHALL be emitted
+
+#### Scenario: Checkpoint write failure emits a different log entry
+- **WHEN** the checkpoint write itself raises (filesystem full, permission denied, etc.) before synthesis is attempted
+- **THEN** exactly one `ERROR`-level log entry SHALL be emitted whose `LogRecord.extra["event"]` equals `"convergence.checkpoint_write_failed"`
+- **AND** the log entry's structured payload SHALL contain `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`
+- **AND** the OSError/PermissionError SHALL still propagate to the caller
+
+#### Scenario: Logging failure does not mask result
+- **WHEN** a custom log handler raises from its `emit()` method during `_safe_log_error()`
+- **THEN** the helper SHALL catch and discard the handler's exception
+- **AND** `converge()` SHALL still re-raise the original synthesis exception (or original OSError, as appropriate)
+- **AND** the helper SHALL NOT log the swallowed handler exception (avoids infinite recursion if THAT handler also fails)
+
+### Requirement: Checkpoint Path Safety
+
+The shared checkpoint helper SHALL guard against unsafe path inputs reaching the filesystem. The two attack surfaces are: (a) the caller-supplied `artifacts_dir` argument, and (b) vendor-supplied `vendor` names that interpolate into per-vendor filenames. Both SHALL be validated before any disk operation.
+
+#### Scenario: artifacts_dir is normalized
+- **WHEN** the helper is invoked with an `artifacts_dir` that contains symlinks, `..` segments, or unusual separators
+- **THEN** the helper SHALL resolve the path with `Path.resolve(strict=False)` to its canonical absolute form before any read/write
+- **AND** the resolved path SHALL be used for all subsequent operations (no string concatenation against the original)
+
+#### Scenario: vendor name with path separators is rejected
+- **WHEN** a finding's `vendor` field contains `/`, `\`, `..`, NUL, or any character outside `[A-Za-z0-9_-]`
+- **THEN** the helper SHALL reject the finding before any disk write
+- **AND** SHALL raise a structured validation error naming the vendor field and the offending characters
+
+#### Scenario: review_type is constrained
+- **WHEN** the helper is invoked with a `review_type` value outside `{"plan", "implementation"}`
+- **THEN** the helper SHALL reject the invocation before any disk write
+- **AND** SHALL raise a structured validation error
+
+#### Scenario: Manifest-referenced paths stay within manifest's directory
+- **WHEN** a reader follows `vendors[].findings_path` entries from a manifest
+- **THEN** each `findings_path` SHALL be a simple filename (no directory components, no `..`)
+- **AND** each resolved file SHALL have a parent directory equal to the manifest's directory (no escape via symlinks)
+- **AND** any `findings_path` failing these checks SHALL cause the reader to refuse with a structured error
+

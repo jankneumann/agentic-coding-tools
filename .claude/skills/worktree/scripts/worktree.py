@@ -29,6 +29,54 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Import the shared environment profile helper. Added to sys.path so the
+# import works whether worktree.py is invoked from the main repo, a
+# .git-worktrees/ entry, or as a shipped copy under .claude/skills/.
+# install.sh syncs skills/shared/ alongside skill dirs (see SHARED_LIBS).
+# The ModuleNotFoundError fallback below is defensive — only triggered if
+# shared/ is missing from the runtime layout (e.g. an out-of-tree install
+# or stripped environment).
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from shared.environment_profile import EnvironmentProfile, detect  # noqa: E402
+except ModuleNotFoundError:
+    from dataclasses import dataclass, field
+
+    @dataclass(frozen=True)
+    class EnvironmentProfile:  # type: ignore[no-redef]
+        isolation_provided: bool = False
+        source: str = "unavailable"
+        details: dict = field(default_factory=dict)
+
+    def detect(agent_id: str | None = None, **_kw: object) -> EnvironmentProfile:  # type: ignore[no-redef]
+        return EnvironmentProfile()
+
+# ---------------------------------------------------------------------------
+# Environment-aware short-circuit
+# ---------------------------------------------------------------------------
+
+def _short_circuit_if_isolated(op: str, agent_id: str | None = None) -> EnvironmentProfile | None:
+    """Return the detected profile if the caller already has isolation.
+
+    Callers check for a non-None return and emit operation-appropriate
+    success output before exiting. A None return means no short-circuit
+    applies — proceed with the original behavior.
+
+    Args:
+        op: Name of the worktree operation (for diagnostic output).
+        agent_id: Optional agent ID to pass to coordinator detection layer.
+    """
+    profile = detect(agent_id=agent_id)
+    if profile.isolation_provided:
+        print(
+            f"worktree: skipped {op} (isolation_provided=true, "
+            f"source={profile.source})",
+            file=sys.stderr,
+        )
+        return profile
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
@@ -72,18 +120,37 @@ def worktree_path(
     change_id: str,
     agent_id: str | None = None,
     prefix: str | None = None,
+    sibling: bool = False,
 ) -> Path:
     """Compute the worktree path under .git-worktrees/.
 
-    Patterns:
+    Default patterns (sibling=False — nested under <change-id>):
       .git-worktrees/<change-id>/                        (no agent, no prefix)
       .git-worktrees/<change-id>/<agent-id>/             (agent, no prefix)
       .git-worktrees/<prefix>/<change-id>/               (no agent, prefix)
       .git-worktrees/<prefix>/<change-id>/<agent-id>/    (agent + prefix)
+
+    Sibling patterns (sibling=True — agent worktree placed next to <change-id>
+    instead of inside it, mirroring the '--' separator used in branch names):
+      .git-worktrees/<change-id>--<agent-id>/            (agent, no prefix)
+      .git-worktrees/<prefix>/<change-id>--<agent-id>/   (agent + prefix)
+
+    Use sibling=True for sync-point worktrees like cleanup-feature whose
+    nested layout would otherwise pollute the parent worktree's `git status`
+    with an untracked subdirectory and force a `--force` teardown when both
+    worktrees are still alive. Parallel work-package agents stay nested
+    (the change-id parent is the natural grouping for related work).
+
+    sibling=True with no agent_id is silently a no-op — there is nothing to
+    place as a sibling — and falls through to the default change-id path.
     """
     base = main_repo / ".git-worktrees"
     if prefix:
         base = base / prefix
+
+    if sibling and agent_id:
+        return base / f"{change_id}--{agent_id}"
+
     base = base / change_id
     if agent_id:
         base = base / agent_id
@@ -118,52 +185,70 @@ def default_branch(
     return base
 
 
+PROTOTYPE_BRANCH_PREFIX = "prototype"
+_VALID_BRANCH_PREFIXES = frozenset({PROTOTYPE_BRANCH_PREFIX})
+
+
 def resolve_branch(
     change_id: str,
     agent_id: str | None = None,
     prefix: str | None = None,
     explicit: str | None = None,
     env: dict[str, str] | None = None,
+    branch_prefix: str | None = None,
 ) -> str:
     """Resolve the branch name a caller should use, applying override precedence.
 
-    Resolution proceeds in two steps:
+    Resolution proceeds in three steps:
 
-    1. **Base resolution** (the parent feature/session branch):
+    1. **Explicit override** (highest precedence):
        - ``explicit`` — if passed, used verbatim as the final branch and returned
-         immediately. This preserves backward compatibility with callers like
-         ``openspec-beads-worktree`` that pre-compose their own fully-qualified
-         task branches and pass them via ``--branch``.
+         immediately, even when ``branch_prefix`` is also set. This preserves
+         backward compatibility with callers like ``openspec-beads-worktree``
+         that pre-compose their own fully-qualified task branches.
+
+    2. **Branch-prefix scheme** (for prototype variants):
+       - When ``branch_prefix='prototype'``, the result is
+         ``prototype/<change-id>/<agent-id>`` (with '/' separator, not '--').
+         The prototype workflow never creates a parent ``prototype/<change-id>``
+         branch, so the git ref-storage limitation that forces '--' for the
+         openspec/<change-id> case doesn't apply. ``OPENSPEC_BRANCH_OVERRIDE``
+         is intentionally ignored here — the operator's session branch governs
+         the parent feature branch (see ``resolve_parent_branch``), but the
+         variants still need to land on prototype/* so cleanup-feature can
+         find and delete them by pattern.
+
+    3. **Base resolution + agent suffix** (the original two-layer logic):
        - ``OPENSPEC_BRANCH_OVERRIDE`` env var — operator-mandated base branch
          (e.g. Claude cloud harness sets ``claude/fix-branch-mismatch-9P9o1``).
          When set, it replaces the ``openspec/<change-id>`` default as the base.
        - ``default_branch`` namespace — ``<prefix>/<change-id>`` or
          ``openspec/<change-id>``.
-
-    2. **Agent suffix** (for parallel disambiguation):
-       When ``agent_id`` is provided, ``--<agent-id>`` is appended to the base.
-       This ensures parallel work-package agents get distinct branches:
-
-           claude/fix-branch-mismatch-9P9o1--wp-backend
-           claude/fix-branch-mismatch-9P9o1--wp-frontend
-           claude/fix-branch-mismatch-9P9o1--cleanup
-
-       These then merge back into the base (parent) branch via
-       ``merge_worktrees.py``. The ``--`` separator (not ``/``) is required
-       because git cannot have both ``refs/heads/a/b`` and ``refs/heads/a/b/c``
-       simultaneously — using ``/`` would make the base branch conflict with
-       any agent sub-branches.
-
-    ``explicit`` is treated as a full override that bypasses agent-suffix
-    composition entirely, because the caller has already made an explicit
-    naming choice.
+       - When ``agent_id`` is provided, ``--<agent-id>`` is appended to the base
+         (the '--' separator is required because git cannot have both
+         ``refs/heads/a/b`` and ``refs/heads/a/b/c`` simultaneously).
 
     Passing empty/whitespace strings is treated as "not set" and falls through
-    to the next layer.
+    to the next layer. Unknown ``branch_prefix`` values raise ``ValueError``;
+    argparse blocks them at the CLI layer via ``choices=`` but library callers
+    deserve a loud failure too.
     """
-    # Explicit caller-composed branch wins verbatim (skips agent suffix too)
+    # Explicit caller-composed branch wins verbatim (skips all composition)
     if explicit:
         return explicit
+
+    if branch_prefix is not None and branch_prefix not in _VALID_BRANCH_PREFIXES:
+        raise ValueError(
+            f"Unknown branch_prefix={branch_prefix!r}. "
+            f"Allowed: {sorted(_VALID_BRANCH_PREFIXES)} or None."
+        )
+
+    if branch_prefix == PROTOTYPE_BRANCH_PREFIX:
+        # Variants under prototype/<change>/<agent>. '/' is safe here because
+        # no parent ``prototype/<change>`` ref is ever created.
+        if agent_id:
+            return f"{PROTOTYPE_BRANCH_PREFIX}/{change_id}/{agent_id}"
+        return f"{PROTOTYPE_BRANCH_PREFIX}/{change_id}"
 
     environ = env if env is not None else os.environ
     override = (environ.get("OPENSPEC_BRANCH_OVERRIDE") or "").strip()
@@ -294,20 +379,49 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     The env var lets operator-mandated branches flow through to every caller of
     ``worktree.py setup`` without each skill needing to know about the override.
+
+    When ``EnvironmentProfile.detect()`` reports ``isolation_provided=True``
+    (e.g. a cloud harness ephemeral container), setup short-circuits: it
+    emits ``WORKTREE_PATH`` and ``WORKTREE_BRANCH`` pointing at the
+    current checkout and skips ``.git-worktrees/`` creation entirely.
     """
+    if _short_circuit_if_isolated("setup", agent_id=getattr(args, "agent_id", None)):
+        # Emit the in-place checkout values so downstream `eval` + `cd` is a
+        # no-op. Branch override is preserved: if OPENSPEC_BRANCH_OVERRIDE
+        # is set, the harness is expected to have already checked it out.
+        cwd = os.getcwd()
+        toplevel = run_git("rev-parse", "--show-toplevel", cwd=cwd)
+        current_branch = run_git("branch", "--show-current", cwd=cwd)
+        print(f"WORKTREE_PATH={toplevel}")
+        print(f"WORKTREE_BRANCH={current_branch}")
+        print("ISOLATION_PROVIDED=true", file=sys.stderr)
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
+    branch_prefix: str | None = getattr(args, "branch_prefix", None)
+    sibling: bool = bool(getattr(args, "sibling", False))
 
-    branch = resolve_branch(change_id, agent_id, prefix, explicit=args.branch)
+    branch = resolve_branch(
+        change_id, agent_id, prefix,
+        explicit=args.branch,
+        branch_prefix=branch_prefix,
+    )
     if not args.branch and branch != default_branch(change_id, agent_id, prefix):
-        # Emit diagnostic so operators can confirm the env override took effect
-        print("BRANCH_OVERRIDE_SOURCE=env", file=sys.stderr)
+        # Emit diagnostic so operators can confirm which override took effect
+        source = "branch-prefix" if branch_prefix else "env"
+        print(f"BRANCH_OVERRIDE_SOURCE={source}", file=sys.stderr)
         print(f"BRANCH_OVERRIDE_VALUE={branch}", file=sys.stderr)
 
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
+    # Worktree path layout is unaffected by branch_prefix — prototype variants
+    # live at .git-worktrees/<change>/<agent>/, the same shape that work-package
+    # agents use. The prototype namespace lives only in the branch name.
+    # `sibling=True` opts agent worktrees into a peer path next to the change
+    # dir; see worktree_path() docstring for the rationale.
+    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
 
     # Check if already in the target worktree
     try:
@@ -359,8 +473,14 @@ def cmd_setup(args: argparse.Namespace) -> int:
     registry = load_registry(main_repo)
     existing = find_entry(registry, change_id, agent_id)
     now = _utcnow_iso()
+    # Prototype worktrees auto-pin per D4: they must survive the 24h GC timer
+    # because /cleanup-feature is the only thing that should delete them, and
+    # the gap between dispatch and cleanup can span days while humans iterate.
+    auto_pin = branch_prefix == PROTOTYPE_BRANCH_PREFIX
     if existing:
         existing["last_heartbeat"] = now
+        if auto_pin:
+            existing["pinned"] = True
     else:
         registry["entries"].append({
             "change_id": change_id,
@@ -369,9 +489,11 @@ def cmd_setup(args: argparse.Namespace) -> int:
             "worktree_path": str(wt_path),
             "created_at": now,
             "last_heartbeat": now,
-            "pinned": False,
+            "pinned": auto_pin,
         })
     save_registry(main_repo, registry)
+    if auto_pin:
+        print("AUTO_PINNED=true (branch-prefix=prototype)", file=sys.stderr)
 
     # Bootstrap the worktree (copy .env, install deps, sync skills)
     bootstrapped = False
@@ -426,14 +548,34 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     If plain removal still fails with the git-specific "working trees
     containing submodules" error, fall back to ``--force``. Other removal
     errors (dirty tree, conflicting edits) are NOT force-overridden.
+
+    Short-circuits to a silent no-op when the caller already has
+    filesystem isolation (see ``EnvironmentProfile.detect``).
     """
+    if _short_circuit_if_isolated("teardown", agent_id=getattr(args, "agent_id", None)):
+        print("REMOVED=skipped")
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
+    sibling: bool = bool(getattr(args, "sibling", False))
 
-    wt_path = worktree_path(main_repo, change_id, agent_id, prefix)
+    wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
+
+    # Tolerate setups that created the worktree in the OPPOSITE layout.
+    # Without this, an operator who set up nested but tears down with
+    # --sibling (or vice-versa) would get "No worktree found" and have to
+    # manually clean up. Search for the alternate layout when the primary
+    # path is missing.
+    if not wt_path.is_dir() and agent_id:
+        alt_path = worktree_path(
+            main_repo, change_id, agent_id, prefix, sibling=not sibling,
+        )
+        if alt_path.is_dir():
+            wt_path = alt_path
 
     if not wt_path.is_dir():
         print(f"No worktree found for {change_id}"
@@ -546,7 +688,13 @@ def cmd_detect(_args: argparse.Namespace) -> int:
 
 
 def cmd_heartbeat(args: argparse.Namespace) -> int:
-    """Update the last_heartbeat timestamp for a registered worktree."""
+    """Update the last_heartbeat timestamp for a registered worktree.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("heartbeat", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -606,7 +754,13 @@ def cmd_list(_args: argparse.Namespace) -> int:
 
 
 def cmd_pin(args: argparse.Namespace) -> int:
-    """Mark a worktree as protected from garbage collection."""
+    """Mark a worktree as protected from garbage collection.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("pin", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -628,7 +782,13 @@ def cmd_pin(args: argparse.Namespace) -> int:
 
 
 def cmd_unpin(args: argparse.Namespace) -> int:
-    """Remove garbage collection protection from a worktree."""
+    """Remove garbage collection protection from a worktree.
+
+    No-op when the caller already has filesystem isolation.
+    """
+    if _short_circuit_if_isolated("unpin", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     change_id: str = args.change_id
@@ -699,7 +859,14 @@ def cmd_resolve_branch(args: argparse.Namespace) -> int:
 
 
 def cmd_gc(args: argparse.Namespace) -> int:
-    """Remove stale worktrees based on heartbeat age and pin status."""
+    """Remove stale worktrees based on heartbeat age and pin status.
+
+    No-op when the caller already has filesystem isolation — the
+    ephemeral container/harness manages its own lifecycle.
+    """
+    if _short_circuit_if_isolated("gc", agent_id=getattr(args, "agent_id", None)):
+        return 0
+
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     force: bool = args.force
@@ -802,8 +969,32 @@ def main() -> int:
     )
     setup_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
     setup_parser.add_argument(
+        "--branch-prefix",
+        dest="branch_prefix",
+        choices=sorted(_VALID_BRANCH_PREFIXES),
+        default=None,
+        help=(
+            "Alternate branch namespace. Currently 'prototype' is the only "
+            "supported value: it produces 'prototype/<change-id>/<agent-id>' "
+            "branches (with '/' separator) and auto-pins the worktree so it "
+            "survives the 24h GC timer until /cleanup-feature deletes it. "
+            "Wins over OPENSPEC_BRANCH_OVERRIDE for the variant branch but "
+            "leaves the parent feature branch untouched."
+        ),
+    )
+    setup_parser.add_argument(
         "--no-bootstrap", action="store_true",
         help="Skip environment bootstrap (deps, .env copy, skills sync)",
+    )
+    setup_parser.add_argument(
+        "--sibling", action="store_true",
+        help=(
+            "Place the agent worktree as a peer of the change-id dir "
+            "(.git-worktrees/<change-id>--<agent-id>/) instead of inside "
+            "it. Use for sync-point worktrees like cleanup-feature whose "
+            "nested layout would otherwise pollute the parent worktree's "
+            "git status with an untracked subdirectory. Requires --agent-id."
+        ),
     )
     setup_parser.set_defaults(func=cmd_setup)
 
@@ -812,6 +1003,15 @@ def main() -> int:
     teardown_parser.add_argument("change_id", help="Change ID or identifier")
     _add_agent_id_flag(teardown_parser)
     teardown_parser.add_argument("--prefix", help="Path prefix (e.g., fix-scrub)")
+    teardown_parser.add_argument(
+        "--sibling", action="store_true",
+        help=(
+            "Match the layout used at setup time. Teardown automatically "
+            "falls back to the alternate layout if the primary path is "
+            "missing, so this flag is informational unless you have both "
+            "layouts coexisting for the same agent-id."
+        ),
+    )
     teardown_parser.set_defaults(func=cmd_teardown)
 
     # status

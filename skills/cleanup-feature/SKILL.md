@@ -46,6 +46,19 @@ Use `docs/coordination-detection-template.md` as the shared detection preamble.
 - Execute hooks only when the matching `CAN_*` flag is `true`
 - If coordinator is unavailable, continue with standalone behavior
 
+## Active-Agent Guard (Sync-Point Skill)
+
+Before any other work, verify exclusive access — this skill operates on `main` and must not race other agents:
+
+```bash
+python skills/shared/active_agents.py
+```
+
+- Exit `0`: no active agents → proceed.
+- Exit `1`: one or more active agents hold worktrees → **stop**, surface the list to the operator (the script's stdout already prints it), and ask whether to wait or pass `--force`. Never auto-force.
+
+An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See `skills/shared/active_agents.py` and CLAUDE.md "Sync-Point Skills" for the contract; `docs/mental-models.md` gap G10 for the rationale.
+
 ## Steps
 
 ### 0. Detect Coordinator and Read Handoff
@@ -77,7 +90,12 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup)"
+# --sibling places the cleanup worktree at .git-worktrees/<change-id>--cleanup/
+# (peer of the implementation worktree at .git-worktrees/<change-id>/) rather
+# than nested inside it. The nested layout used to leave `cleanup/` as an
+# untracked directory in the impl worktree's git status and forced a
+# `git worktree remove --force` for the cleanup-of-cleanup case.
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup --sibling)"
 cd "$WORKTREE_PATH"
 
 # The cleanup worktree is on its OWN scratch branch (with the --cleanup suffix),
@@ -325,50 +343,53 @@ This annotation is preserved in the archive for traceability.
 
 ### 5b. Append Session Log
 
-Append a `Cleanup` phase entry to the session log, capturing merge strategy and task migration decisions. If no `session-log.md` exists from prior phases, create it and summarize the change from context.
+Construct a `PhaseRecord` for the `Cleanup` phase and call `write_both()`. If no `session-log.md` exists from prior phases, `write_both()` creates it and seeds the header on first call.
 
-**Phase entry template:**
+**Capture from this cleanup:**
 
-```markdown
----
+- **Decisions** — Merge strategy (squash vs rebase vs regular), task migration decisions, archive choices.
+- **Alternatives Considered** — Merge/cleanup approaches considered and rejected.
+- **Trade-offs** — Trade-offs accepted (e.g., chose squash over rebase to keep main linear).
+- **Open Questions** — Cleanup issues that need follow-up.
+- **Completed Work** — What was archived, migrated, or merged (e.g., `["merged PR #42 via squash", "migrated 3 open tasks to follow-up proposal"]`).
+- **Summary** — 2–3 sentences: merge strategy, task migration decisions, archive outcome.
 
-## Phase: Cleanup (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Alternatives Considered
-- <Alternative>: rejected because <reason>
-
-### Trade-offs
-- Accepted <X> over <Y> because <reason>
-
-### Open Questions
-- [ ] <unresolved question>
-
-### Context
-<2-3 sentences: merge strategy, task migration decisions, archive outcome>
-```
-
-**Focus on**: Merge strategy (squash vs regular), open task migration decisions, any cleanup issues encountered.
-
-**Sanitize-then-verify:**
+**Persist via `PhaseRecord.write_both()`:**
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision, Alternative, TradeOff
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name="Cleanup",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: merge strategy, task migration, archive outcome>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>"),
+    ],
+    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
+    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
+    open_questions=["<question>"],
+    completed_work=["<merge/archive deliverable>"],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/cleanup-<N>.json`). Each step logs warnings on failure but does not raise — if any step fails, `result.warnings` carries the diagnostic and the workflow continues to archiving. This step is non-blocking.
 
 ```bash
 git add "openspec/changes/<change-id>/session-log.md"
 ```
-
-If session log append or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
 
 ### 6. Archive OpenSpec Proposal
 
@@ -404,6 +425,22 @@ openspec validate --strict
 # Uses the resolved FEATURE_BRANCH to honor OPENSPEC_BRANCH_OVERRIDE
 git branch -d "$FEATURE_BRANCH" 2>/dev/null || true
 
+# Delete prototype variant branches (per add-prototyping-stage / D4).
+# These are prototype/<change-id>/v<n> branches created by /prototype-feature
+# and retained through the feature lifecycle for synthesis traceability.
+# The helper enumerates and force-deletes — variant branches were
+# exploratory and aren't expected to be merged into main (the chosen
+# design landed on the feature branch via /iterate-on-plan synthesis,
+# not via a merge of any single variant).
+python3 "<skill-base-dir>/scripts/cleanup_prototype.py" "${CHANGE_ID}" || true
+
+# Then push deletions for the prototype branches that had remote tracking
+# (best-effort — silently skip remotes that never had them).
+for variant_branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/prototype/${CHANGE_ID}/); do
+  remote_branch="${variant_branch#origin/}"
+  git push origin --delete "${remote_branch}" 2>/dev/null || true
+done
+
 # Prune remote tracking branches
 git fetch --prune
 ```
@@ -428,8 +465,10 @@ Remove all worktrees for this feature (including the cleanup worktree).
 # Return to shared checkout first (cleanup worktree is about to be removed)
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
-# Remove cleanup worktree
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
+# Remove cleanup worktree (sibling layout — see Step 1).
+# The teardown autodetects the alternate layout if a legacy nested cleanup
+# worktree exists, so this flag stays correct across the migration window.
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup --sibling
 
 # Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
@@ -437,6 +476,16 @@ if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" ${AGENT_FLAG}
+
+# Remove prototype variant worktrees (per add-prototyping-stage / D4).
+# These are .git-worktrees/<change-id>/v<n>/ created by /prototype-feature
+# and auto-pinned to survive the 24h GC. /cleanup-feature is what unpins +
+# removes them. Tear down v1..v6 best-effort — most invocations won't have
+# all six, but the loop covers the spec's max.
+for vid in v1 v2 v3 v4 v5 v6; do
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" unpin "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
+done
 
 # Garbage-collect stale worktrees
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc

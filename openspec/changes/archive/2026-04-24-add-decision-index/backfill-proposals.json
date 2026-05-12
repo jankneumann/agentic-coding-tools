@@ -1,0 +1,1625 @@
+{
+  "archive_root": "openspec/changes/archive",
+  "total_decisions_scanned": 141,
+  "high_confidence": 52,
+  "medium_confidence": 2,
+  "low_confidence": 8,
+  "no_match": 79,
+  "proposals": [
+    {
+      "change_id": "2026-03-31-add-phase-session-logs",
+      "phase_name": "Validation",
+      "phase_date": "2026-04-01",
+      "decision_index": 1,
+      "title": "Skipped deploy/smoke/security/e2e phases",
+      "rationale": "this change modifies SKILL.md instructions and Python utility scripts only, with no deployable services, API endpoints, or UI components.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-02",
+      "decision_index": 1,
+      "title": "Per-origin strategy defaults",
+      "rationale": "Selected over auto-detection (Approach B) and always-rebase (Approach C) because it leverages existing origin classification with minimal complexity",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 1,
+      "title": "Expanded spec coverage",
+      "rationale": "Added scenarios for all origin groups (agent, dependency, automation), conflict failure, and CLI override. Original spec only covered openspec and dependabot.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-02",
+      "decision_index": 1,
+      "title": "Strategy resolution at CLI level",
+      "rationale": "`resolve_strategy()` runs in `main()` before calling `merge_pr()`, keeping the core function signature unchanged. This is the least invasive change.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 1,
+      "title": "Use args.origin directly",
+      "rationale": "Removed unnecessary `getattr()` wrapper since the argument is always defined via `add_argument`",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-02",
+      "decision_index": 2,
+      "title": "Commit quality enforcement at implementation time",
+      "rationale": "Rather than cleaning up history at merge time, require agents to produce clean conventional commits during `/implement-feature`",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 2,
+      "title": "Explicit parallelizability annotation",
+      "rationale": "Added parallelizability section to tasks.md showing 4-wide parallel potential",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-02",
+      "decision_index": 2,
+      "title": "None sentinel for --strategy",
+      "rationale": "Changed default from `\"squash\"` to `None` so the code can distinguish \"operator didn't specify\" from \"operator chose squash\"",
+      "proposed_capability": "merge-pull-requests",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 2,
+      "title": "Connect origin to discovery output",
+      "rationale": "Added note in SKILL.md linking `--origin` to `discover_prs.py` output field",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-02",
+      "decision_index": 3,
+      "title": "Doc-only approach",
+      "rationale": "Minimal delta spec added for merge strategy selection; no heavy formal spec changes",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 3,
+      "title": "Corrected function references",
+      "rationale": "Fixed `merge()` \u2192 `merge_pr()` to match actual codebase (line 354)",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-02",
+      "decision_index": 3,
+      "title": "No repo settings change needed",
+      "rationale": "`allow_rebase_merge` was already `true` in the GitHub repo settings. Task 4.1 became a verification-only step.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Implementation Iteration 1",
+      "phase_date": "2026-04-02",
+      "decision_index": 3,
+      "title": "Fix test docstring grouping",
+      "rationale": "Converted bare string literals to comments for clarity",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-02-hybrid-merge-strategy",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-02",
+      "decision_index": 4,
+      "title": "Repo settings update included",
+      "rationale": "Enable rebase-merge alongside squash in GitHub repo settings via `gh api`",
+      "proposed_capability": "merge-pull-requests",
+      "confidence": 1.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-03",
+      "decision_index": 1,
+      "title": "Universal artifact generation",
+      "rationale": "Always generate contracts and work-packages during planning, even for sequential tier. Sequential features get a single `wp-main` package covering full scope.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-03",
+      "decision_index": 1,
+      "title": "No-interface features get README stub",
+      "rationale": "When a feature has no API, DB, or event interfaces, `contracts/` is created with a `README.md` documenting which sub-types were evaluated and why none apply. User chose this over skipping contracts entirely or requiring at least one contract type.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-03",
+      "decision_index": 1,
+      "title": "Parallel implementation of independent SKILL.md changes",
+      "rationale": "Dispatched three parallel agents for plan-feature, parallel-review-implementation, and implement-feature SKILL.md edits (no file overlap between them).",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-03",
+      "decision_index": 2,
+      "title": "Full-fidelity contracts at all tiers",
+      "rationale": "No lightweight stubs; same OpenAPI/DB/event schema artifacts regardless of tier.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-03",
+      "decision_index": 2,
+      "title": "Replaced \"full-fidelity\" with precise language",
+      "rationale": "Contracts use \"the same directory structure and file format as parallel tiers\" with only applicable sub-types included.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-03",
+      "decision_index": 2,
+      "title": "Phase 2 edits done directly",
+      "rationale": "merge-pull-requests SKILL.md and CLAUDE.md changes were small enough to do inline rather than dispatching agents.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-03",
+      "decision_index": 3,
+      "title": "Whole-branch review fallback",
+      "rationale": "When work-packages are missing (legacy PRs, external contributions), treat entire diff as single review unit rather than skipping or auto-generating packages.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-03",
+      "decision_index": 3,
+      "title": "Test tasks rephrased as acceptance criteria",
+      "rationale": "Tasks 1.1, 1.3, 1.5 are verification checklists (not unit test code), since this is a SKILL.md change.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-03",
+      "decision_index": 3,
+      "title": "Selective staging",
+      "rationale": "Only committed our actual changes and their runtime copies, not pre-existing dirty state from the worktree bootstrap.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-03",
+      "decision_index": 4,
+      "title": "Always consume contracts in implementation",
+      "rationale": "implement-feature reads contracts at all tiers for interface validation, not just parallel+.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-03",
+      "decision_index": 4,
+      "title": "Removed spec sync tasks (2.3, 2.4)",
+      "rationale": "Delta spec syncing to main specs is handled by `/cleanup-feature` after PR merge, not during implementation.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-04-universal-planning-artifacts",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-03",
+      "decision_index": 5,
+      "title": "Added failure/edge-case scenarios",
+      "rationale": "Partial contracts, malformed contract files, malformed work-packages.yaml, whole-branch review with contracts but no work-packages.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "software-factory-tooling",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 1,
+      "title": "Extend existing workflow instead of adding a separate factory mode",
+      "rationale": "the repository already has the right building blocks in gen-eval, OpenSpec workflow artifacts, validation phases, and feature discovery.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 1,
+      "title": "Holdout enforcement uses directory structure + manifest + skill filtering",
+      "rationale": "three reinforcing layers without filesystem-level exclusion policies. Directory split makes intent visible; manifest confirms metadata; skill logic enforces at runtime.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 2,
+      "title": "Treat public vs holdout as workflow-visible metadata",
+      "rationale": "visibility must be enforceable at validation and iteration gates, not just implied by directory names.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 2,
+      "title": "Process-analysis generated in /validate-feature only",
+      "rationale": "single generation point with all convergence data. Cleanup and merge gates consume read-only.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 3,
+      "title": "Add process-analysis as a new optional artifact",
+      "rationale": "archive mining needs normalized process outcomes, not only prose and git history.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 3,
+      "title": "DTU bootstrap is docs-only; live probes optional",
+      "rationale": "keeps bootstrap fast and offline-capable. Low-fidelity DTUs eligible for public scenarios only.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 4,
+      "title": "Split task 3.4 into 3.4a/3.4b/3.4c",
+      "rationale": "one subtask per consuming skill (iterate-on-implementation, cleanup-feature, merge-pull-requests) for single-commit granularity.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 5,
+      "title": "Rescoped task 6.1",
+      "rationale": "cross-phase integration smoke test only, not re-running all phase test suites.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-09-add-software-factory-tooling",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-06",
+      "decision_index": 6,
+      "title": "Fixed task 1.3 spec refs",
+      "rationale": "removed incorrect `software-factory-tooling.3.1-3.2` (External Project Bootstrap), task correctly maps to `gen-eval-framework.4.1-4.3` (Multi-Source Scenario Bootstrap).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 1,
+      "title": "Create dedicated roadmap skills",
+      "rationale": "Use `plan-roadmap` and `autopilot-roadmap` as new orchestrator skills that reuse current planning and autopilot capabilities.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Iterate-on-Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 1,
+      "title": "Added explicit Impact section",
+      "rationale": "aligned proposal with affected capability, skills, and docs.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 1,
+      "title": "Added machine-readable artifact schemas",
+      "rationale": "Created JSON Schema definitions for roadmap.yaml, checkpoint.json, and learning-log entries. These are the primary interface contracts between plan-roadmap and autopilot-roadmap, enabling independent parallel implementation.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 2,
+      "title": "Adopt policy-based limit handling",
+      "rationale": "Encode time-vs-money trade-offs as explicit execution policies (`wait_if_budget_exceeded`, `switch_if_time_saved`).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Iterate-on-Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 2,
+      "title": "Strengthened spec testability",
+      "rationale": "added failure/edge scenarios for each requirement area.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 2,
+      "title": "Moved shared runtime to dedicated directory",
+      "rationale": "Created `skills/roadmap-runtime/` following the established `skills/parallel-infrastructure/` pattern. Avoids duplicating code across consumer skill directories.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 3,
+      "title": "Use durable artifact-based context",
+      "rationale": "Keep roadmap state, checkpoints, and learning logs on disk to reduce dependence on a single context window.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Iterate-on-Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 3,
+      "title": "Improved parallelizability",
+      "rationale": "replaced single `wp-main` with decomposed work packages and dependency DAG.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 3,
+      "title": "Defined canonical artifact location model",
+      "rationale": "Roadmap artifacts live under the roadmap's own OpenSpec change directory. Child changes reference parent via `parent_roadmap` field; bidirectional linking enables traceability.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Iterate-on-Plan",
+      "phase_date": "2026-04-13",
+      "decision_index": 4,
+      "title": "Clarified assumptions as decisions",
+      "rationale": "made policy defaults and state authority explicit.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 4,
+      "title": "Redesigned learning-log as progressive disclosure",
+      "rationale": "Root `learning-log.md` index with per-item entries in `learnings/` subfolder. Bounds context assembly to O(k) where k = dependency fan-in + recency window. Compaction at 50-entry threshold.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 5,
+      "title": "Added cascading vendor failover",
+      "rationale": "Policy evaluation is recursive across remaining eligible vendors up to `max_switch_attempts_per_item`, rather than single-hop only.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 6,
+      "title": "Added item implementation failure handling",
+      "rationale": "Items can transition to `failed` with structured reason; dependents go to `blocked` or `replan_required`. Most common failure mode now has explicit spec coverage.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 7,
+      "title": "Added observability and sanitization requirements",
+      "rationale": "Structured log events for state transitions, policy decisions, and checkpoint operations. Sanitization contract prevents secret exposure in persisted artifacts.",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 8,
+      "title": "Regenerated work-packages.yaml with executor fields",
+      "rationale": "Added task_type, locks, worktree, verification steps, outputs, scope.deny per established schema pattern.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.27
+        ],
+        [
+          "software-factory-tooling",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-13-roadmap-openspec-orchestration",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-13",
+      "decision_index": 9,
+      "title": "Added CLAUDE.md update task",
+      "rationale": "Task 4.3 for updating the workflow table with roadmap skill entry points. AGENTS.md is a symlink to CLAUDE.md so it updates automatically.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-20",
+      "decision_index": 1,
+      "title": "Approach A: In-place migration",
+      "rationale": "Two files import fastmcp, no need for adapter layers or parallel modules",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Cleanup",
+      "phase_date": "2026-04-20",
+      "decision_index": 1,
+      "title": "Rebase-merge strategy",
+      "rationale": "8 structured commits (plan, dep, server, client, test, docs, review fixes) preserve granular history for git blame/bisect",
+      "proposed_capability": "merge-pull-requests",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-20",
+      "decision_index": 2,
+      "title": "Pin to >=3.2.3 exclusively",
+      "rationale": "Clean break, no dual-version compat shims",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Cleanup",
+      "phase_date": "2026-04-20",
+      "decision_index": 2,
+      "title": "All tasks marked complete",
+      "rationale": "2013 tests passing, lint and types clean, all 15 planned tasks were implemented",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-20",
+      "decision_index": 3,
+      "title": "Migrate SSE to HTTP Streamable",
+      "rationale": "SSE is legacy in 3.x, no external consumers depend on it",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Cleanup",
+      "phase_date": "2026-04-20",
+      "decision_index": 3,
+      "title": "No open task migration",
+      "rationale": "All work completed in this PR; no follow-up needed",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-20-migrate-fastmcp-3x",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-20",
+      "decision_index": 4,
+      "title": "Sequential tier",
+      "rationale": "Single architectural boundary (agent-coordinator only)",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Pure service layer approach",
+      "rationale": "Static in-code registry of HelpTopic dataclasses, shared across all three transports. Zero infrastructure dependencies. Selected over auto-generation (quality ceiling too low for workflow guidance) and DB-backed (overkill for 15 topics).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Cherry-pick from dev branch",
+      "rationale": "Reused the existing implementation from the dev branch rather than reimplementing from scratch, since all 24 tests and the full service layer were already complete and passing.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Implementation Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Remove repr formatting from error messages",
+      "rationale": "All three transports used `f\"Unknown topic: {topic!r}\"` which embeds Python-specific quoting in API responses. Changed to plain `f\"Unknown topic: {topic}\"` for cleaner, transport-neutral output.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "Static now, extensible later",
+      "rationale": "The `get_help_overview` / `get_help_topic` / `list_topic_names` interface is designed so runtime extension (plugin registration) can be added without breaking changes.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "Manual conflict resolution for coordination_api.py",
+      "rationale": "The cherry-pick had merge conflicts in the health endpoint section. Resolved by keeping the worktree's original inline health endpoint and removing duplicate `/live`, `/ready`, `/health` endpoints that referenced a non-existent `_database_health()` helper.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Implementation Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "Add hint field to CLI JSON error response",
+      "rationale": "The MCP and HTTP transports included a `hint` field in unknown-topic errors, but CLI JSON mode omitted it. Added for cross-transport schema consistency per spec scenario 9.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Transport-agnostic content",
+      "rationale": "Same help content regardless of caller transport (MCP, HTTP, CLI). Avoids content branching complexity.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Runtime import pattern for TestClient",
+      "rationale": "Used `TYPE_CHECKING` guard for type hints with runtime import inside the fixture to avoid import-time dependency on FastAPI in the test module header.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "Show all topics always",
+      "rationale": "No capability-aware filtering. Agents see all 15 topics regardless of which services are online, enabling discovery of capabilities they might want enabled.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cli-help-discovery",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "No auth on help endpoints",
+      "rationale": "Help is a discovery mechanism; requiring auth would defeat the purpose for agents that haven't authenticated yet.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 1,
+      "title": "Named Tunnel approach over DNS Proxy",
+      "rationale": "Provides full service mesh (API + MCP SSE + OpenBao), eliminates Railway hosting cost, and creates provider-portable stable URLs",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-04",
+      "decision_index": 1,
+      "title": "Added wildcard subdomain support to SSRF allowlist",
+      "rationale": "The existing _validate_url() did exact hostname matching only. Spec required wildcard support. Added ~10 lines to parse wildcard entries and match subdomains.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 2,
+      "title": "Full service mesh DNS",
+      "rationale": "Subdomains for all services (coord/mcp/vault) rather than just the API, enabling cloud agents to use all transport options",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-04",
+      "decision_index": 2,
+      "title": "Cloudflare profile extends Railway (not base)",
+      "rationale": "Inherits Railway's Postgres DSN, API host/port, workers. Only overrides coordination_allowed_hosts with wildcard domain.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 3,
+      "title": "Both Docker Compose and standalone service hosting",
+      "rationale": "Docker for development workflow, systemd/launchd for always-on production",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-04",
+      "decision_index": 3,
+      "title": "No nested profile interpolation",
+      "rationale": "The profile loader regex does not support nested variable references. Used simple wildcard pattern instead, with COORDINATION_ALLOWED_HOSTS env var overriding at runtime.",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 4,
+      "title": "Sequential tier",
+      "rationale": "Feature is focused on single architectural boundary (networking/deployment infrastructure)",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-cloudflare-domain-setup",
+      "phase_name": "Implementation",
+      "phase_date": "2026-04-04",
+      "decision_index": 4,
+      "title": "Comprehensive runbook",
+      "rationale": "Combined all documentation tasks (zone setup, Railway custom domain, tunnel, agent config, secrets) into a single docs/cloudflare-setup.md with clear sections for each path.",
+      "proposed_capability": "configuration",
+      "confidence": 1.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-replace-beads-with-builtin-tracker",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 1,
+      "title": "Coordinator-only (no offline fallback)",
+      "rationale": "Offline issue tracking is a subset of what OpenSpec tasks.md already provides. The coordinator is always running during meaningful work.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.775,
+      "alternatives": [
+        [
+          "agent-coordinator",
+          0.465
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-replace-beads-with-builtin-tracker",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 2,
+      "title": "Full beads replacement",
+      "rationale": "Remove all bd CLI references, hooks, skills, and .beads/ directory.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-replace-beads-with-builtin-tracker",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 3,
+      "title": "Extend work_queue (Approach A)",
+      "rationale": "Add labels, parent_id, issue_type, assignee, comments to existing table rather than creating a separate issues table.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-replace-beads-with-builtin-tracker",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 4,
+      "title": "IssueService as separate class (D1)",
+      "rationale": "Delegates to DB directly, not through WorkQueueService, to avoid inheriting agent-coordination semantics (policy checks, guardrails) inappropriate for issue CRUD.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-replace-beads-with-builtin-tracker",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-06",
+      "decision_index": 5,
+      "title": "task_type='issue' discrimination (D5)",
+      "rationale": "Issues set task_type='issue' so get_work won't accidentally claim them.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 1,
+      "title": "Full three-phase scope",
+      "rationale": "Deliver all phases (model hints, archetype registry, coordinator routing) rather than Phase 1 only. Rationale: centralized archetypes avoid config duplication and enable complexity-based escalation.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "configuration",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 2,
+      "title": "Extend existing fallback chains",
+      "rationale": "Archetypes override primary model but reuse agents.yaml fallback sequences. Avoids duplicating fallback config per archetype.",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 3,
+      "title": "System prompts per archetype",
+      "rationale": "Each archetype carries a role-specific system prompt prefix composed with task prompts. Improves output quality by framing agent behavior per role.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 4,
+      "title": "Complexity-based escalation",
+      "rationale": "Implementer archetype auto-escalates sonnet to opus when work-package exceeds thresholds (>3 write dirs, >2 deps, >500 LOC, or explicit complexity flag).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-04",
+      "decision_index": 5,
+      "title": "Layered Archetype System (Approach A)",
+      "rationale": "Selected over skill-embedded mapping (B) and work-package driven (C) for centralized config and coordinator routing.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "configuration",
+          0.27
+        ],
+        [
+          "skill-workflow",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Refinement",
+      "phase_date": "2026-04-10",
+      "decision_index": 1,
+      "title": "Rebase on main after 19 commits",
+      "rationale": "Cherry-picked original plan commit onto current main (5089f60) to incorporate speculative merge trains, autopilot rename, and other recent changes.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 1,
+      "title": "Remove `fallback_strategy` from spec",
+      "rationale": "Field was listed in Requirement 1 but undefined elsewhere. Fallback behavior is fully covered by design decision D4 (extend existing fallback chains).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-10",
+      "decision_index": 1,
+      "title": "Add failure scenario for fallback chain exhaustion",
+      "rationale": "Requirement 5 only had a 429-fallback success scenario. Added scenario for when all models in the chain are exhausted.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Vendor Review Remediation",
+      "phase_date": "2026-04-10",
+      "decision_index": 1,
+      "title": "Fix escalation dependency threshold",
+      "rationale": "Scenario had 2 deps but said more-than-2. Changed to 3 deps to match threshold consistently.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Refinement",
+      "phase_date": "2026-04-10",
+      "decision_index": 2,
+      "title": "Document merge train coexistence (D7)",
+      "rationale": "Added design decision D7 establishing that archetype routing and merge train routing are orthogonal filtering dimensions in `claim()`. Archetype filters by agent capability; merge trains filter by partition/wave ordering.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 2,
+      "title": "Add missing fallback chain test task (3.4.0)",
+      "rationale": "Requirement 5 had no corresponding test task. Added with `respx` mock approach for 429 simulation.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-10",
+      "decision_index": 2,
+      "title": "Add failure scenario for invalid archetype in work package",
+      "rationale": "Requirement 7 only had success scenarios. Added validation failure scenario for invalid archetype name pattern.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Vendor Review Remediation",
+      "phase_date": "2026-04-10",
+      "decision_index": 2,
+      "title": "Add missing archetypes.yaml-not-found scenario",
+      "rationale": "D5 graceful degradation now has explicit spec scenario.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Refinement",
+      "phase_date": "2026-04-10",
+      "decision_index": 3,
+      "title": "Keep all 3 phases in scope",
+      "rationale": "Confirmed full scope (model hints \u2192 archetype registry \u2192 coordinator routing) rather than scoping down to Phase 1 only.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 3,
+      "title": "Fix `wp-skill-archetype-refs` dependency",
+      "rationale": "Added `wp-skill-model-hints` to depends_on to prevent parallel file conflicts on shared SKILL.md files.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Vendor Review Remediation",
+      "phase_date": "2026-04-10",
+      "decision_index": 3,
+      "title": "Correct contracts README",
+      "rationale": "Acknowledged Phase 3 API parameter extensions as additive contract changes.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Refinement",
+      "phase_date": "2026-04-10",
+      "decision_index": 4,
+      "title": "Elevate from Draft to Approved",
+      "rationale": "Status changed after validating all artifacts pass OpenSpec validation, work-packages schema/DAG/locks, and parallel zones checks.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 4,
+      "title": "Clarify prompt composition ownership",
+      "rationale": "Expanded task 2.2.2 to include `compose_prompt()` function, resolving the ownership gap for design decision D2.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Vendor Review Remediation",
+      "phase_date": "2026-04-10",
+      "decision_index": 4,
+      "title": "Clarify resolve_model() callsite",
+      "rationale": "Skills call resolve_model() at dispatch time; Agent tool receives concrete model.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 5,
+      "title": "Clarify escalation metadata flow",
+      "rationale": "Updated task 2.2.3 to specify that dispatching skills pass package metadata as a dict; `resolve_model()` does not load YAML itself.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Vendor Review Remediation",
+      "phase_date": "2026-04-10",
+      "decision_index": 5,
+      "title": "Move API lock keys",
+      "rationale": "From wp-queue-routing to wp-api-mcp-integration where coordination_api.py is actually modified.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-specialized-workflow-agents",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-10",
+      "decision_index": 6,
+      "title": "Measurable scenario criteria",
+      "rationale": "Replaced subjective \"focused on cross-cutting concerns\" and \"report results concisely\" with pattern-matchable phrases.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Full Train in Coordinator",
+      "rationale": "Speculative merge train logic extends merge_queue.py rather than being a standalone skill. Rationale: single source of truth for merge ordering, reuses existing feature registry resource claims, ACID transactional guarantees for train state transitions.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.95,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.57
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "D8: Post-speculation claim validation",
+      "rationale": "After speculative ref creation, validate actual file changes match declared resource claims. Prevents unsafe partition assignment from dishonest or incorrect agent claims.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Requirement ID index (R1-R13)",
+      "rationale": "Added explicit requirement IDs and cross-reference index to agent-coordinator spec. Prevents task/spec mismatch as plan evolves.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 3",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Refresh-architecture RPC contract (HIGH)",
+      "rationale": "Created `contracts/internal/refresh-architecture-rpc.yaml` defining `is_graph_stale`, `trigger_refresh`, and `get_refresh_status`. Previously task 5.8 had an implicit cross-service orchestration dependency with no defined contract. Server side lives in wp-build-graph (new task 3.8, new file `skills/refresh-architecture/scripts/rpc_server.py`), client side lives in wp-integration (new task 5.8a, new file `agent-coordinator/src/refresh_rpc_client.py`).",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "File-path-to-namespace mapping function (Finding #1)",
+      "rationale": "Added tasks 1.4a/1.4b to wp-contracts defining `file_path_to_namespaces(path) -> set[str]` in merge_train_types.py. Mapping is declared as a list of `(glob_pattern, namespace)` tuples at module level. Rules reference the 9 namespaces in `docs/lock-key-namespaces.md`. Heuristic: unmapped paths are NOT treated as mismatches \u2014 they are out-of-scope for logical-namespace checking (file-path locks still apply). Task 2.6 (claim validation impl) now depends on 1.4b and specifies the exact algorithm using `actual_namespaces - declared_namespaces`.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 1.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 1,
+      "title": "Sentinel return type for RPC failures, not exceptions",
+      "rationale": "RefreshRpcClient and compute_affected_tests return RefreshClientUnavailable or None rather than raising on transport errors. The load-bearing invariant that merge-train progress must never be blocked on refresh-architecture is encoded in the type signature, so mypy enforces handling at every call site. A forgotten except clause would silently freeze the train; a forgotten sentinel check is a type error.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "Full Stacked Diffs",
+      "rationale": "Work packages land directly on main behind feature flags, not collected on feature branches. Rationale: maximum merge train throughput by reducing merge unit from feature to package; requires feature flag infrastructure.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "D9: BLOCKED entry recovery lifecycle",
+      "rationale": "BLOCKED entries can be manually re-enqueued or auto-re-evaluated after 1 hour. Prevents accumulation of permanently stuck entries.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "R12: Automatic Flag Creation",
+      "rationale": "Added spec requirement for auto-creating feature flags when first stacked-diff package is enqueued. Closes the gap between proposal Feature 4 and the spec.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 3",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "git merge-tree conflict detection method",
+      "rationale": "Task 2.4 now specifies dual detection (exit code AND stderr parsing), required git 2.38+ version check on adapter startup, and explicit `MergeTreeResult` return shape. Previously the task referenced `git merge-tree` without specifying how to detect conflicts.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "R12 scope conflict resolution (Finding #2)",
+      "rationale": "Moved the enqueue-flag-integration out of wp-feature-flags into wp-train-engine as new tasks 2.15 (tests) and 2.16 (implementation). wp-feature-flags now only owns the flag module itself and exposes `create_flag()` as a public function (task 4.4). wp-train-engine now depends on BOTH wp-contracts AND wp-feature-flags. wp-feature-flags priority lowered from 3 \u2192 2 (it's now a sibling dependency of wp-train-engine, not a successor). This keeps merge_queue.py ownership clean (only wp-train-engine writes to it).",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 2,
+      "title": "Hexagonal split: pure engine vs DB-backed service",
+      "rationale": "The engine (merge_train.py) operates on in-memory TrainEntry lists with zero DB knowledge (186+ pure unit tests, no DB setup). The service (merge_train_service.py) wraps it with load/save methods, authorization, and refresh-architecture probing. This split let wp-integration layer HTTP/MCP/sweeper surfaces on the service without touching the engine.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Priority Eject Recovery",
+      "rationale": "Failed train entries are ejected and re-queued at lower priority; independent successors continue without re-speculation. Rationale: fastest recovery, avoids O(N) re-speculation cost of full bisect model.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "D10: Affected-test traversal bounds",
+      "rationale": "BFS capped at 10K nodes with fallback to full test suite. Ensures predictable query latency on large graphs.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Scope boundaries documented",
+      "rationale": "Added explicit \"In scope (Phase 1)\" vs \"Deferred (Phase 2)\" section to proposal. DAG scheduling integration explicitly deferred.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 3",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Pipeline refactoring scoped for task 3.7",
+      "rationale": "Task 3.7 now itemizes the 5 sub-steps required to insert `test_linker` into `compile_architecture_graph.py`. The existing pipeline splits at stage 3 (sequential graph mutations) into stages 4-6 (concurrent read-only), so test_linker must go in the sequential phase as stage 3b, NOT as a drop-in insert. Estimated ~50 LOC.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "D12: Max-eject threshold + ABANDONED state (Finding #3)",
+      "rationale": "Added new design decision D12 bounding repeat-ejection via `MAX_EJECT_COUNT` (default 3) in merge_train_types.py. New terminal state ABANDONED added to MergeStatus enum. Added new spec requirement R14 (Max-Eject Threshold) with 3 scenarios: below threshold, reaches threshold, manual re-enqueue reset. Task 2.8 (eject impl) expanded with ABANDONED transition logic. Manual re-enqueue resets `eject_count = 0` and restores original `merge_priority`. TrainEntry metadata now tracks `eject_count` and `last_eject_reason`.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 3,
+      "title": "Subprocess runner Protocol for testability",
+      "rationale": "Both RefreshRpcClient and compute_affected_tests accept an injectable Runner callable matching the signature of subprocess.run. Tests use a _FakeRunner that queues exact responses. This avoids the global monkeypatch footgun where fakes leak across tests.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "Incremental Build Graph",
+      "rationale": "Test analysis ships in three phases: import-level (P1) \u2192 transitive closure (P2) \u2192 fixture-aware (P3). Rationale: ship value early, iterate based on false-positive/negative rates.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "D11: Train operation authorization",
+      "rationale": "compose_train requires trust level 3+, eject requires ownership or level 3+. Prevents unauthorized train manipulation.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "Impact section added",
+      "rationale": "Proposal now has quantified impact claims mapped to success criteria.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 3",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "Cross-partition merge ordering pseudo-code",
+      "rationale": "Added wave-based merge algorithm to design.md D4 and tightened task 2.12 to reference it. The algorithm: build ready-graph \u2192 topo-sort \u2192 advance in waves where each wave parallel-merges all currently-ready nodes \u2192 rebase partition speculative refs after cross-partition merges. Raises `TrainDeadlockError` if a wave is empty while pending remains.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.45,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.27
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "Git adapter contract alignment (Finding #4)",
+      "rationale": "Updated `contracts/internal/git-adapter-api.yaml` `create_speculative_ref` output to include both `tree_oid` (for caching) and `commit_sha` (new commit SHA after ref materialization), plus `success`, `conflict_files`, `error`. Removed the ambiguous `ref_sha` field. Task 2.4 now uses matching field names and documents the three distinct failure modes (conflict, non-conflict error, success). This eliminates the MergeTreeResult naming mismatch.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 4,
+      "title": "GIN + BTREE expression indexes for JSONB sub-doc queries",
+      "rationale": "Migration 020 pairs a GIN index on the whole metadata merge_queue sub-doc (for containment and ad-hoc queries) with BTREE expression indexes on the hot-path equality predicates (train_id, partition_id, and train_position cast to int). The int cast is non-optional \u2014 lexicographic ordering silently corrupts numeric sorts.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Lightweight Feature Flags",
+      "rationale": "Environment variable override with flags.yaml fallback. Rationale: minimal infrastructure, sufficient for gating incomplete features. No runtime flag service needed initially.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Scope separation: merge_train_types.py",
+      "rationale": "Extracted shared data types from merge_queue.py into merge_train_types.py to resolve write-scope overlap between wp-contracts and wp-train-engine.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 2",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Missing failure/edge scenarios",
+      "rationale": "Added 8 new scenarios across both specs: invalid ref names, empty test files, non-standard test locations, missing modules, relative imports, merge conflicts during speculation, invalid decomposition values, state transition triggers.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 3",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Feature flag missing-file fallback (LOW)",
+      "rationale": "Explicit failure-mode table added to design.md D7 and task 4.2: missing flags.yaml \u2192 empty registry (not crash), malformed flags.yaml \u2192 FlagsConfigError at startup (fail loud), orphaned flag reference \u2192 returns False (safe removal), undeclared FF_* env var \u2192 ignored with warning (fail closed).",
+      "proposed_capability": "configuration",
+      "confidence": 0.775,
+      "alternatives": [
+        [
+          "skill-workflow",
+          0.465
+        ]
+      ]
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Periodic compose_train sweep (Finding #5)",
+      "rationale": "Added new task 5.9 in wp-integration implementing `MERGE_TRAIN_SWEEP_INTERVAL_SECONDS` (default 60s) background task via `asyncio.create_task`. Added new spec scenario under R1 covering periodic invocation (catches exceptions, cancellable on shutdown, no-op on empty queue, testable single-pass mode). Updated design.md Data Flow to document both triggers: on-enqueue AND periodic sweep.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 5,
+      "title": "Background sweeper swallows every exception by design",
+      "rationale": "MergeTrainSweeper.run_once wraps compose_train in a bare except Exception because a crashed sweeper freezes the train indefinitely, which is worse than missing a cycle. Enforced by test_run_once_swallows_exceptions, which asserts a RuntimeError inside compose_train does not propagate.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 6,
+      "title": "Fail-closed feature flags",
+      "rationale": "Reject any FF_* env var not declared in flags.yaml, preventing injection of undeclared flags.",
+      "proposed_capability": "configuration",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 6,
+      "title": "affected_tests signature alignment (Finding #6)",
+      "rationale": "Updated spec codebase-analysis to match the contract signature `affected_tests(changed_files: list[str], graph_path: str | None = None) -> list[str] | None`. Added scenario documenting the `graph_path` parameter as a test-only / out-of-tree override. The spec's \"stale graph\" scenario already described the `None` return; this iteration fixed the signature mismatch.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 6,
+      "title": "Stateful integration fakes, not MagicMock, for full-lifecycle tests",
+      "rationale": "_StatefulRegistry and _StatefulDB round-trip DB updates back through metadata merge_queue so a compose-persist-reload cycle observes the new state. Critical for the BLOCKED recovery scenario: a MagicMock returning a stale list would have silently passed a broken implementation.",
+      "proposed_capability": "agent-coordinator",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 1",
+      "phase_date": "2026-04-09",
+      "decision_index": 7,
+      "title": "Git adapter injection prevention",
+      "rationale": "Ref name regex validation + shell=False exclusively. Prevents command injection via branch names.",
+      "proposed_capability": "software-factory-tooling",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Plan Iteration 4",
+      "phase_date": "2026-04-09",
+      "decision_index": 7,
+      "title": "Flag archival deferred (Finding #7)",
+      "rationale": "Moved flag archival mechanism to Phase 2 Scope Boundaries in proposal.md. \"Release cycle\" was undefined operationally, and defining it would require deciding between git-tag, time-window, or manual-trigger semantics \u2014 out of scope. Phase 1 supports `disabled`/`enabled` only. Task 4.3 updated to reflect the new scope.",
+      "proposed_capability": "skill-workflow",
+      "confidence": 0.9,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 7,
+      "title": "HTTP vs MCP authorization error shape divergence",
+      "rationale": "HTTP endpoints raise HTTPException 403 on TrainAuthorizationError; MCP tools return a dict with success false and reason authorization_denied. Different transports, different conventions \u2014 each caller gets the shape its stack expects.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 8,
+      "title": "agent_id resolved from principal, never from the request body",
+      "rationale": "The eject endpoint reads agent_id from resolve_identity on the X-API-Key header, not a body field. This closes the spoofing vector where a legitimate caller could eject any other agent entry by lying in the payload.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    },
+    {
+      "change_id": "2026-04-22-speculative-merge-trains",
+      "phase_name": "Implementation \u2014 wp-integration",
+      "phase_date": "2026-04-09",
+      "decision_index": 9,
+      "title": "Effects-before-write ordering for crash safety",
+      "rationale": "merge_queue.enqueue for stacked-diff features creates the feature flag before the DB update. A post-flag crash leaves a harmless orphan flag (reused on retry); a post-DB crash would leave an unguarded stacked-diff in the queue. Rule: effects whose absence corrupts state go before the write.",
+      "proposed_capability": null,
+      "confidence": 0.0,
+      "alternatives": []
+    }
+  ],
+  "generated_at": "2026-04-22T22:31:53.776113+00:00"
+}

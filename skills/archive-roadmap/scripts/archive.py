@@ -8,12 +8,30 @@ unless ``force=True``; refuses to overwrite an existing archive entry.
 
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+
+# roadmap_id must be a slug: alphanumeric start, then alphanumeric / hyphen / underscore,
+# max 100 chars. Prevents path traversal (../) or absolute paths from leaking through
+# load_roadmap(roadmap.yaml) into archive destination construction.
+_ROADMAP_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,99}$")
+
+
+class InvalidRoadmapIdError(ValueError):
+    """Raised when roadmap_id contains characters that could escape the archive root."""
+
+
+def _validate_roadmap_id(roadmap_id: str) -> None:
+    if not isinstance(roadmap_id, str) or not _ROADMAP_ID_PATTERN.fullmatch(roadmap_id):
+        raise InvalidRoadmapIdError(
+            f"Invalid roadmap_id {roadmap_id!r}: must match {_ROADMAP_ID_PATTERN.pattern}. "
+            f"Path-traversal sequences and separators are rejected."
+        )
 
 _RUNTIME_DIR = Path(__file__).resolve().parent.parent.parent / "roadmap-runtime" / "scripts"
 if str(_RUNTIME_DIR) not in sys.path:
@@ -91,6 +109,7 @@ def archive_roadmap(
         raise FileNotFoundError(f"No roadmap.yaml in workspace: {workspace}")
 
     roadmap = load_roadmap(roadmap_path)
+    _validate_roadmap_id(roadmap.roadmap_id)
     counts = dict(Counter(item.status.value for item in roadmap.items))
 
     if not force and not _terminal(counts):

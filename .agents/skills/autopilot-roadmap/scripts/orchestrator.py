@@ -40,11 +40,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from policy import (  # type: ignore[import-untyped]
-    PolicyDecision,
-    VendorLimit,
-    evaluate_policy,
-)
+from policy import PolicyDecision, VendorLimit, evaluate_policy  # type: ignore[import-untyped]
 from replanner import replan  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
@@ -184,8 +180,8 @@ def execute_roadmap(
             except Exception:
                 logger.debug("Replanner failed (non-fatal)", exc_info=True)
 
-        # Save updated roadmap
-        save_roadmap(roadmap, workspace / "roadmap.yaml")
+        # Save updated roadmap (in-place update — overwrite is expected here)
+        save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
 
     # Build summary
     return _build_summary(roadmap, checkpoint, policy_decisions)

@@ -18,13 +18,18 @@ Iteratively refine an OpenSpec proposal after `/plan-feature` creates it. Each i
 
 ## Arguments
 
-`$ARGUMENTS` - OpenSpec change-id (required), optionally followed by `--max <N>` (default: 3), `--threshold <level>` (default: "medium"; values: "critical", "high", "medium", "low"), and `--vendor-review` (dispatch multi-vendor review after iterate loop converges; automatic in coordinated tier)
+`$ARGUMENTS` - OpenSpec change-id (required), optionally followed by:
+- `--max <N>` (default: 3)
+- `--threshold <level>` (default: "medium"; values: "critical", "high", "medium", "low")
+- `--vendor-review` — dispatch multi-vendor review after iterate loop converges; automatic in coordinated tier
+- `--prototype-context <change-id>` — **convergence mode** (added by add-prototyping-stage / D1). When present, the skill loads `prototype-findings.md`, variant branch diffs, and validation reports as additional context, then emits `convergence.*` findings to refine `design.md` and `tasks.md` based on the picks captured by `/prototype-feature`. The change-id MUST match the iteration target. Fails fast if no findings file exists.
 
 ## Prerequisites
 
 - OpenSpec proposal exists at `openspec/changes/<change-id>/` with at least proposal.md, tasks.md, and one spec delta
 - Run `/plan-feature` first if no proposal exists
 - Proposal has NOT yet been approved (this skill refines before approval)
+- For `--prototype-context`: `/prototype-feature <change-id>` must have been run first and produced `openspec/changes/<change-id>/prototype-findings.md`
 
 ## OpenSpec Execution Preference
 
@@ -124,6 +129,41 @@ openspec status --change "$CHANGE_ID"
 ```
 
 Ensure `openspec/changes/<change-id>/plan-findings.md` exists and append each iteration's findings there.
+
+### 3.7. Load Prototype Context (Conditional — Convergence Mode)
+
+**Skipped when `--prototype-context` is NOT in argv.** The convergence path is always explicit per D1 / spec; iterate-on-plan does NOT auto-discover `prototype-findings.md`.
+
+When `--prototype-context <change-id>` is present, load the artifacts the `/prototype-feature` skill produced:
+
+```python
+from prototype_context import PrototypeContextMissing, load_prototype_context
+
+try:
+    ctx = load_prototype_context(
+        change_dir=Path("openspec/changes") / PROTOTYPE_CONTEXT_CHANGE_ID
+    )
+except PrototypeContextMissing as exc:
+    # Fail fast — the user explicitly asked for prototype-aware refinement,
+    # so silently downgrading to non-convergence iteration would be wrong.
+    raise SystemExit(f"--prototype-context: {exc}")
+```
+
+`ctx.descriptors` carries the parsed VariantDescriptors; `ctx.synthesis_plan` carries the per-aspect picks and pre-classified `convergence.*` recommended findings (computed via `parallel-infrastructure.synthesize_variants`).
+
+In step 5 (Review and Analyze), seed the iteration's finding list with `ctx.synthesis_plan["recommended_findings"]` so they appear alongside the standard clarity/feasibility/etc findings the analyzer produces. The convergence findings drive design.md and tasks.md refinements that synthesize the picked aspects from the variant branches.
+
+Also load the per-variant branch diffs as context (read-only — diffs are inputs, not edits):
+
+```bash
+for desc in $(ctx.descriptors); do
+  git diff main..."${desc.branch}" > /tmp/prototype-diff-"${desc.variant_id}".patch
+done
+```
+
+Refinement commits land on `$FEATURE_BRANCH` — never on prototype branches. The prototype branches stay untouched until `/cleanup-feature` deletes them.
+
+**Spec scenarios covered**: `ConvergenceViaIterateOnPlan.convergence-mode-activated`, `convergence-without-context` (the negative — not loading anything), `missing-prototype-artifacts` (fail fast).
 
 ### 4. Begin Iteration Loop
 
@@ -228,6 +268,15 @@ Produce a **structured plan analysis** with findings in this format:
 | security | `security` | Direct mapping |
 | performance | `performance` | Direct mapping |
 
+**Convergence finding taxonomy** (only emitted in convergence mode — when `--prototype-context` was supplied; produced by `parallel-infrastructure.synthesize_variants` and seeded into the iteration's findings list at step 3.7):
+
+| Finding Type | When Emitted | Resolution Hint |
+|---|---|---|
+| `convergence.merge-<aspect>-<vA>-and-<vB>` | Multiple variants picked for the same aspect (data_model / api / tests / layout) — humans wanted bits of both | Refine `design.md` to combine the picked elements; don't silently pick one |
+| `convergence.rewrite-<aspect>` | Zero variants picked for an aspect — none of them got it right | Rewrite the aspect in `design.md` from other context (proposal, spec deltas) — don't carry forward any variant's take |
+| `convergence.prefer-variant-<aspect>` | Single variant picked for an aspect (default source recorded in synthesis_plan) | The pick is unambiguous; refine to use that variant's approach |
+| `workflow.prototype-recommended` | NOT a convergence finding — the **inverse advisory** emitted by step 6.5 when this iteration produces ≥3 high-criticality clarity+feasibility findings (D8) | Suggest running `/prototype-feature` BEFORE the next iteration; never auto-trigger |
+
 ### 6. Check Termination Conditions
 
 **Stop iterating if:**
@@ -237,6 +286,28 @@ Produce a **structured plan analysis** with findings in this format:
 **If stopping**, skip to the **After Loop** section below.
 
 **Otherwise**, continue to step 7.
+
+### 6.5. Maybe Emit Prototype-Recommended Advisory (D8)
+
+After the standard finding analysis in step 5 produces this iteration's `findings` list, run the prototype-recommended emitter:
+
+```python
+from prototype_recommended import maybe_emit_prototype_recommended
+
+advisory = maybe_emit_prototype_recommended(findings, change_id=CHANGE_ID)
+if advisory is not None:
+    findings.append(advisory)
+```
+
+The emitter returns a single `workflow.prototype-recommended` finding when this iteration produced ≥3 high-criticality findings in the `clarity` or `feasibility` dimensions (combined). The advisory:
+
+- Has `criticality=low` so it sorts to the bottom of the report (it's a hint, not a fix-required item)
+- Names the triggering finding types in its description so the human knows WHY prototyping was suggested
+- Suggests `/prototype-feature <change-id>` as the next command — but never invokes it automatically (D8 is opt-in)
+
+If the threshold is not met, the emitter returns None and nothing is appended.
+
+**Spec scenarios covered**: `PrototypeRecommendationSignal.threshold-met`, `threshold-not-met`, `advisory-only`.
 
 ### 7. Implement Improvements
 
@@ -282,51 +353,56 @@ Fix any failures before proceeding. If fixes introduce new issues, address them 
 
 ### 8.5. Append Session Log
 
-Append a `Plan Iteration <N>` phase entry to the session log, capturing what changed in this iteration and why.
+Construct a `PhaseRecord` for the `Plan Iteration <N>` phase and call `write_both()`. The iteration number is auto-computed from prior `Plan Iteration` entries in the session-log so the agent does not have to count manually.
 
-**Determine iteration number:**
-- Read `openspec/changes/<change-id>/session-log.md` (if it exists)
-- Count existing `## Phase: Plan Iteration` headers
-- N = count + 1
+**Capture from this iteration:**
 
-**Phase entry template:**
+- **Decisions** — Decisions about which findings to address, which to defer, and how to restructure the proposal.
+- **Alternatives Considered** — Approaches considered and rejected during this iteration.
+- **Trade-offs** — Trade-offs accepted in scoping the iteration.
+- **Open Questions** — Unresolved questions remaining after the iteration.
+- **Completed Work** — Concrete fixes landed in this iteration (per-finding).
+- **Summary** — 2–3 sentences: which findings were addressed, what changed.
 
-```markdown
----
+**Persist via `PhaseRecord.write_both()`:**
 
-## Phase: Plan Iteration <N> (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Alternatives Considered
-- <Alternative>: rejected because <reason>
-
-### Trade-offs
-- Accepted <X> over <Y> because <reason>
-
-### Open Questions
-- [ ] <unresolved question>
-
-### Context
-<2-3 sentences: what findings were addressed, what changed>
-```
-
-**Focus on**: Which findings were addressed, which were deferred, key decisions about proposal changes.
-
-**Sanitize-then-verify:**
+This step MUST run BEFORE the `git add` in Step 9 so the session-log entry is included in that commit.
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision, Alternative, TradeOff
+from extract_session_log import count_phase_iterations
+
+n = count_phase_iterations(
+    "Plan Iteration", "openspec/changes/<change-id>/session-log.md"
+) + 1
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name=f"Plan Iteration {n}",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: findings addressed, what changed>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>"),
+    ],
+    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
+    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
+    open_questions=["<question>"],
+    completed_work=["<finding addressed>"],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
-
-The session-log.md is inside `openspec/changes/$CHANGE_ID/` so it will be picked up by the existing `git add` in Step 9.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/plan-iteration-<n>-<N>.json`). Each step logs warnings on failure but does not raise — the workflow continues even if the coordinator is unreachable. The session-log.md is inside `openspec/changes/$CHANGE_ID/` so it will be picked up by the existing `git add` in Step 9.
 
 ### 9. Commit Iteration
 

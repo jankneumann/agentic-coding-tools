@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jankneumann/agentic-coding-tools/openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json",
+  "title": "PhaseRecord",
+  "description": "Unified data model for a workflow phase boundary, renderable to both session-log markdown and coordinator handoff JSON. Round-trips losslessly through both representations.",
+  "type": "object",
+  "required": ["change_id", "phase_name", "agent_type", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "change_id": {
+      "type": "string",
+      "description": "OpenSpec change identifier (kebab-case, may be prefixed with date)",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "phase_name": {
+      "type": "string",
+      "description": "Phase title as it appears in session-log.md headers (e.g., 'Plan', 'Implementation Iteration 2', 'Cleanup')",
+      "minLength": 1,
+      "maxLength": 80,
+      "examples": ["Plan", "Plan Iteration 2", "Implementation", "Implementation Iteration 1", "Validation", "Cleanup"]
+    },
+    "agent_type": {
+      "type": "string",
+      "description": "Agent that authored this phase entry",
+      "enum": ["claude_code", "claude_cloud", "codex", "gemini", "autopilot", "human", "other"]
+    },
+    "session_id": {
+      "type": ["string", "null"],
+      "description": "Coordinator session identifier or null if not running under a registered session",
+      "default": null
+    },
+    "summary": {
+      "type": "string",
+      "description": "2-3 sentence overview of what was decided in this phase",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Decision"},
+      "default": []
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/Alternative"},
+      "default": []
+    },
+    "trade_offs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/TradeOff"},
+      "default": []
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 500},
+      "default": []
+    },
+    "completed_work": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 500},
+      "default": []
+    },
+    "in_progress": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 500},
+      "default": []
+    },
+    "next_steps": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 500},
+      "default": []
+    },
+    "relevant_files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/FileRef"},
+      "default": []
+    }
+  },
+  "$defs": {
+    "Decision": {
+      "type": "object",
+      "required": ["title", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short decision title (renders as bold prefix in markdown)",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this decision was made",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "capability": {
+          "type": ["string", "null"],
+          "description": "Kebab-case capability identifier matching openspec/specs/<capability>/. Renders as `architectural: <capability>` inline span. Picked up by the per-capability decision index regenerator (make decisions).",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+          "minLength": 2,
+          "maxLength": 52,
+          "default": null
+        },
+        "supersedes": {
+          "type": ["string", "null"],
+          "description": "Reference to a prior decision being reversed. Format: '<change-id>#D<n>' or '<change-id>#<phase-slug>/D<n>'. Renders as `supersedes: <ref>` inline span.",
+          "pattern": "^[a-z0-9-]+#([a-z-]+/)?D[0-9]+$",
+          "default": null
+        }
+      }
+    },
+    "Alternative": {
+      "type": "object",
+      "required": ["alternative", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "alternative": {
+          "type": "string",
+          "description": "The alternative that was considered and rejected",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why it was rejected",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "TradeOff": {
+      "type": "object",
+      "required": ["accepted", "over", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "type": "string",
+          "description": "What was chosen",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "over": {
+          "type": "string",
+          "description": "What was traded away",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this trade-off was acceptable",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "FileRef": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative path to a file relevant to this phase",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "description": {
+          "type": "string",
+          "description": "Short note explaining why this file matters",
+          "maxLength": 120,
+          "default": ""
+        }
+      }
+    }
+  }
+}

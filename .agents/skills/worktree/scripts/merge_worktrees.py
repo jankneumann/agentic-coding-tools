@@ -38,6 +38,26 @@ from worktree import (
     resolve_parent_branch as _resolve_parent_branch,
 )
 
+# Shared helper for execution-environment detection.
+# Falls back to a no-op detector when shared/ is not bundled in the
+# installed runtime (install.sh currently only syncs SKILL.md dirs).
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from shared.environment_profile import detect as _detect_env  # noqa: E402
+except ModuleNotFoundError:
+    from dataclasses import dataclass
+    from dataclasses import field as _field
+
+    @dataclass(frozen=True)
+    class _FallbackProfile:
+        isolation_provided: bool = False
+        source: str = "unavailable"
+        details: dict = _field(default_factory=dict)
+
+    def _detect_env(agent_id: str | None = None, **_kw: object) -> _FallbackProfile:  # type: ignore[no-redef]
+        return _FallbackProfile()
+
+
 # ---------------------------------------------------------------------------
 # Git helpers
 # ---------------------------------------------------------------------------
@@ -274,6 +294,29 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
+
+    # Short-circuit when the caller already has filesystem isolation
+    # (cloud harness ephemeral container). Each work-package agent in
+    # cloud mode runs in its own container and pushes its own branch;
+    # integration happens via PR, not local git-merge.
+    profile = _detect_env()
+    if profile.isolation_provided:
+        print(
+            f"merge_worktrees: skipped (isolation_provided=true, "
+            f"source={profile.source}); use PR-based integration "
+            f"for change_id={args.change_id}",
+            file=sys.stderr,
+        )
+        if args.json_output:
+            print(json.dumps({
+                "success": True,
+                "skipped": True,
+                "reason": "isolation_provided",
+                "source": profile.source,
+                "change_id": args.change_id,
+                "package_ids": args.package_ids,
+            }, indent=2))
+        return 0
 
     cwd = resolve_repo_root()
 

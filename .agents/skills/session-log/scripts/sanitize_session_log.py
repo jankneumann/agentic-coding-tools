@@ -105,11 +105,37 @@ def redact_secrets(content: str) -> tuple[str, list[dict[str, str]]]:
     return result, redactions
 
 
+# Shannon-entropy threshold for flagging a token as a likely secret.
+# Calibrated against sample strings (bits/char):
+#
+#   Random base62 token, 28 chars      4.74   (flagged)
+#   Random base64 token, 32 chars      4.94   (flagged)
+#   Anthropic key body (api03-...)     4.71   (flagged)
+#   Stripe-style test key              4.94   (flagged)
+#   GitHub PAT body                    5.32   (flagged)
+#   --- threshold 4.6 ---
+#   Mixed technical + English prose    ~4.2   (passes)
+#   Long declarative markdown prose    ~4.0   (passes)
+#   English sentence in quotes         ~3.9   (passes)
+#
+# Low-diversity key shapes (40-char hex hashes ~3.95, webhook-style IDs ~1.5)
+# fall below *any* entropy threshold and must be caught by dedicated
+# SECRET_PATTERNS entries, not by this heuristic.
+HIGH_ENTROPY_THRESHOLD = 4.6
+
+
 def redact_high_entropy(content: str) -> tuple[str, list[dict[str, str]]]:
     """Detect and redact high-entropy strings that may be secrets.
 
-    Targets strings >20 chars with entropy >4.5 bits/char that aren't
-    known safe patterns (UUIDs, SHAs, change-ids).
+    Targets strings >20 chars with entropy above HIGH_ENTROPY_THRESHOLD that
+    aren't known safe patterns (UUIDs, SHAs, change-ids).
+
+    Quoted captures can span multiple whitespace-separated parts — e.g.
+    `Authorization: "Bearer <JWT>"` — where a credential sits next to a
+    non-secret prefix. We split the candidate on whitespace and check each
+    long sub-token against the threshold; if any sub-token looks like a
+    secret, the whole match is redacted. Prose splits into many short,
+    low-entropy words, so this naturally keeps English sentences intact.
     """
     redactions: list[dict[str, str]] = []
 
@@ -120,16 +146,21 @@ def redact_high_entropy(content: str) -> tuple[str, list[dict[str, str]]]:
         token = m.group(1) or m.group(2)
         if token is None:
             return m.group(0)
-        if is_allowlisted(token):
-            return m.group(0)
-        entropy = shannon_entropy(token)
-        if entropy > 4.5:
-            redactions.append({
-                "type": "high-entropy",
-                "entropy": f"{entropy:.2f}",
-                "position": str(m.start()),
-            })
-            return "[REDACTED:high-entropy]"
+        # Split on whitespace so a quoted "Bearer <jwt>" is evaluated per
+        # sub-token; the unquoted branch has no whitespace by construction.
+        # Any sub-token that is long AND high-entropy triggers redaction of
+        # the entire match.
+        for sub in token.split():
+            if len(sub) < 20 or is_allowlisted(sub):
+                continue
+            entropy = shannon_entropy(sub)
+            if entropy > HIGH_ENTROPY_THRESHOLD:
+                redactions.append({
+                    "type": "high-entropy",
+                    "entropy": f"{entropy:.2f}",
+                    "position": str(m.start()),
+                })
+                return "[REDACTED:high-entropy]"
         return m.group(0)
 
     result = token_pattern.sub(check_and_redact, content)

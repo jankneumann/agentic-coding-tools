@@ -1,0 +1,27 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "C4 incomplete: `review-cache-layout.schema.json:81` requires every `vendors[]` entry to include `name`, `findings_path`, and `finding_count`, and `read_vendor_findings()` later indexes `entry[\"findings_path\"]`. But `write_manifest()` only validates `findings_path` and `finding_count` when they are present, so it can still write a schema-invalid manifest that its own reader cannot load cleanly.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "280-303",
+      "verifies_round_1": "C4"
+    },
+    {
+      "id": "F2",
+      "type": "robustness",
+      "criticality": "medium",
+      "description": "C7 incomplete: `json.dump()` raises `TypeError` for ordinary non-JSON-serializable payloads, but `_atomic_write_json()` only removes the temp file for `OSError` and `ValueError`. A malformed vendor finding containing a non-serializable value can still leave `<path>.tmp` residue after a partial write; the new test stubs `ValueError`, so it misses the real json encoder failure mode.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "77-89",
+      "verifies_round_1": "C7"
+    }
+  ]
+}

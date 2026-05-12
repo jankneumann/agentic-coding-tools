@@ -241,3 +241,110 @@ def _index_single_change(change_dir: Path) -> ArchiveEntry | None:
         has_process_analysis="process-analysis.md" in present or "process-analysis.json" in present,
         has_session_log="session-log.md" in present,
     )
+
+
+# ── Decision-index emitter pass (piggybacks on archive discovery) ───
+
+
+def emit_decisions_from_archive(
+    archive_root: Path,
+    output_dir: Path,
+    capabilities_root: Path,
+    *,
+    strict: bool = False,
+) -> int:
+    """Second-pass emitter: walk every session-log under archive_root and emit
+    `docs/decisions/<capability>.md` files.
+
+    Reuses the same walk pattern as `index_archive` so the two passes stay
+    consistent about "which changes exist". Returns the number of tagged
+    decisions extracted.
+    """
+    from decision_index import emit_decision_index, extract_decisions
+
+    all_decisions = []
+    for session_log in sorted(archive_root.rglob("session-log.md")):
+        all_decisions.extend(extract_decisions(session_log))
+
+    logger.info(
+        "Extracted %d tagged decisions from %s",
+        len(all_decisions),
+        archive_root,
+    )
+
+    emit_decision_index(
+        all_decisions,
+        output_dir=output_dir,
+        capabilities_root=capabilities_root,
+        strict=strict,
+    )
+    return len(all_decisions)
+
+
+def _cli_main(argv: list[str] | None = None) -> int:
+    """CLI entry point for archive-intelligence passes.
+
+    Currently exposes `--emit-decisions` which runs the per-capability
+    decision index pass. Additional passes (full archive JSON index,
+    exemplar registry rebuild) can be wired in here as flags.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Archive-intelligence passes over openspec/changes."
+    )
+    parser.add_argument(
+        "--archive-root",
+        type=Path,
+        default=Path("openspec/changes"),
+        help="Root to walk for session-log.md (default: openspec/changes)",
+    )
+    parser.add_argument(
+        "--emit-decisions",
+        action="store_true",
+        help="Emit per-capability decision index under --decisions-output-dir.",
+    )
+    parser.add_argument(
+        "--decisions-output-dir",
+        type=Path,
+        default=Path("docs/decisions"),
+        help="Output dir for decision index (default: docs/decisions)",
+    )
+    parser.add_argument(
+        "--capabilities-root",
+        type=Path,
+        default=Path("openspec/specs"),
+        help="Dir containing capability subdirs (default: openspec/specs)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero on unknown-capability tags (CI mode).",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable INFO logging."
+    )
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+    if args.emit_decisions:
+        emit_decisions_from_archive(
+            archive_root=args.archive_root,
+            output_dir=args.decisions_output_dir,
+            capabilities_root=args.capabilities_root,
+            strict=args.strict,
+        )
+        return 0
+
+    parser.error("no pass selected — try --emit-decisions")
+    return 2
+
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    raise SystemExit(_cli_main())

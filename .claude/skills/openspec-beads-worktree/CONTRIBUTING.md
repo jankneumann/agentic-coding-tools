@@ -63,34 +63,48 @@ Before starting, review: .claude/commands/project-rules.md
 
 ## Advanced Customization
 
-### Add Custom Beads Labels
+### Add Custom Issue Labels
 
-Edit Phase 2.3 to add custom labels:
+Edit Phase 2.3 to add custom labels via the coordinator HTTP bridge helpers
+(stdlib-only, no external deps, SSRF-validated — see
+`skills/coordination-bridge/scripts/coordination_bridge.py`):
 
-```bash
+```python
+from coordination_bridge import try_issue_create
+
 # Add company-specific labels
-issue_id=$(bd create "$task_title" \
-  --type task \
-  --priority $priority \
-  --parent $epic_id \
-  --label "openspec,$proposal,task-$task_num,team:backend,sprint:current" \
-  --description "$description" \
-  --json | jq -r '.id')
+result = try_issue_create(
+    title=task_title,
+    description=description,
+    issue_type="task",
+    priority=priority,
+    parent_id=epic_id,
+    labels=["openspec", proposal, f"task-{task_num}", "team:backend", "sprint:current"],
+)
+# result["status"] is one of: "ok" | "skipped" | "error"
+# On "ok", result["response"]["issue"]["id"] holds the new issue id.
 ```
 
-### Custom Dependency Types
+### Dependencies
 
-Beads supports multiple dependency types:
+Dependencies are expressed via the `depends_on` field on `try_issue_create`
+(at creation time). To traverse the graph later, use the dedicated helpers:
 
-```bash
-# Standard dependencies
-bd dep add $task_id $dep_id --type blocks
+```python
+from coordination_bridge import try_issue_create, try_issue_ready, try_issue_blocked
 
-# Custom relationships
-bd dep add $task_id $dep_id --type discovered-from
-bd dep add $task_id $dep_id --type related-to
-bd dep add $task_id $dep_id --type supersedes
+# Create with deps at creation time:
+try_issue_create(title="API", depends_on=[db_id])
+
+# Walk the graph:
+ready  = try_issue_ready(parent_id=epic_id)     # no unresolved deps
+blocked = try_issue_blocked()                    # at least one unresolved dep
 ```
+
+Beads' multiple edge types (`discovered-from`, `related-to`, `supersedes`) are
+not modeled directly — encode those relationships in the issue description or
+labels instead. The coordinator's dependency graph only distinguishes
+"satisfied" vs "unsatisfied".
 
 ### Add Slack Notifications
 

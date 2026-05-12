@@ -121,6 +121,19 @@ All data model operations use the shared runtime at `skills/roadmap-runtime/scri
 - `learning.py` - Learning entry write/read/compact
 - `context.py` - Bounded context assembly
 
+## Design Principle: Host-Assisted Only
+
+**Autopilot-roadmap must not make direct LLM API calls.** All reasoning happens in one of two places:
+
+1. **The orchestrating Claude Code agent**, via the `dispatch_fn` callback. `orchestrator.execute_roadmap()` hands `(item_id, phase, context)` tuples to the callback; the agent runs `/implement-feature` / `/validate-feature` / friends in response. The host agent is the LLM runtime; no external API key is required.
+2. **Deterministic code** — `replanner.replan()` (regex text matching over learning entries), `policy.evaluate_policy()` (arithmetic/rule-based vendor decisions).
+
+Any future work that needs semantic reasoning must be expressed as either (a) a new callback delegated to the host agent, or (b) a new dispatch phase routed through `/implement-feature`. Reaching for `llm_client.py` or an SDK like `anthropic` / `openai` / `google.generativeai` inside `skills/autopilot-roadmap/scripts/` is out of bounds and enforced by a guard test (`skills/tests/autopilot-roadmap/test_host_assisted_invariant.py`).
+
+The same principle applies to `skills/autopilot/scripts/`. The invariant exists because autopilot is typically invoked from a Claude Code session that already has a paid-for model loaded; routing reasoning through a second external API would double-bill and fragment the session's context.
+
+The one intentional exception elsewhere in the codebase is `skills/parallel-infrastructure/scripts/review_dispatcher.py` (used by `parallel-review-plan` and `parallel-review-implementation`), where vendor diversity is the feature — multi-vendor review requires calling *different* models to get independent findings. That's not host-assistable by construction.
+
 ## Next Step
 
 After roadmap execution completes:

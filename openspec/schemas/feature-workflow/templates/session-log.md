@@ -33,6 +33,18 @@
 
 - [ ] ...
 
+## Completed Work
+
+<!-- Optional. Bullet list of concrete deliverables landed in this session — separate from "Decisions" (which captures rationale). Omit section if not applicable. -->
+
+- ...
+
+## Relevant Files
+
+<!-- Optional. Repo-relative paths with a short description of why each file matters to this session. Helps the next-session reader skim quickly. Omit section if not applicable. -->
+
+- `path/to/file.py` — ...
+
 ## Session Metadata
 
 | Field | Value |

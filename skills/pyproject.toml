@@ -2,6 +2,7 @@
 name = "skill-scripts"
 version = "0.2.0"
 description = "Shared Python dependencies for infrastructure skills"
+license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
     "tree-sitter>=0.25.2,<1.0",
@@ -11,6 +12,7 @@ dependencies = [
     "hvac>=2.4.0",
     "jsonschema>=4.26.0",
     "pyyaml>=6.0",
+    "urllib3>=2.7.0",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +28,7 @@ test = [
 
 [tool.pytest.ini_options]
 testpaths = [
+    "shared/tests",
     "worktree/scripts/tests",
     "coordination-bridge/scripts/tests",
     "validate-packages/scripts/tests",
@@ -33,6 +36,7 @@ testpaths = [
     "refresh-architecture/scripts/tests",
     "bao-vault/scripts/tests",
     "changelog-version/tests",
+    "expedite/scripts/tests",
 ]
 
 [tool.ruff]

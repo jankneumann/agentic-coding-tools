@@ -1,5 +1,6 @@
 """Pytest fixtures for Agent Coordinator tests."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -8,6 +9,25 @@ import respx
 
 from src.config import AgentConfig, Config, LockConfig, SupabaseConfig, reset_config
 from src.db import SupabaseClient, reset_db
+
+
+def setup_api_config_env(monkeypatch: pytest.MonkeyPatch, test_key: str) -> Iterator[None]:
+    """Shared fixture-body for the four phase_archetype test modules.
+
+    Each module needs its own ``_TEST_KEY`` to keep auth assertions isolated,
+    but the env-mutation pattern is otherwise identical. Calling
+    ``yield from setup_api_config_env(monkeypatch, _TEST_KEY)`` from each
+    module's ``_api_config`` fixture collapses the four copies into one
+    body (closes the SonarCloud duplication finding from PR #146 round 2).
+    """
+    reset_config()
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
+    monkeypatch.setenv("COORDINATION_API_KEYS", test_key)
+    monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", "{}")
+    reset_config()
+    yield
+    reset_config()
 
 # =============================================================================
 # Environment Setup

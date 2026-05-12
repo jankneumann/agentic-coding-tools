@@ -9,8 +9,8 @@
 ### Decisions
 1. **Coordinator-only (no offline fallback)** — Offline issue tracking is a subset of what OpenSpec tasks.md already provides. The coordinator is always running during meaningful work.
 2. **Full beads replacement** — Remove all bd CLI references, hooks, skills, and .beads/ directory.
-3. **Extend work_queue (Approach A)** — Add labels, parent_id, issue_type, assignee, comments to existing table rather than creating a separate issues table.
-4. **IssueService as separate class (D1)** — Delegates to DB directly, not through WorkQueueService, to avoid inheriting agent-coordination semantics (policy checks, guardrails) inappropriate for issue CRUD.
+3. **Extend work_queue (Approach A)** `architectural: agent-coordinator` — Add labels, parent_id, issue_type, assignee, comments to existing table rather than creating a separate issues table.
+4. **IssueService as separate class (D1)** `architectural: agent-coordinator` — Delegates to DB directly, not through WorkQueueService, to avoid inheriting agent-coordination semantics (policy checks, guardrails) inappropriate for issue CRUD.
 5. **task_type='issue' discrimination (D5)** — Issues set task_type='issue' so get_work won't accidentally claim them.
 
 ### Alternatives Considered

@@ -581,8 +581,19 @@ def load_roadmap(path: Path, repo_root: Path | None = None) -> Roadmap:
     return Roadmap.from_dict(data)
 
 
-def save_roadmap(roadmap: Roadmap, path: Path) -> None:
-    """Save a roadmap to YAML."""
+def save_roadmap(roadmap: Roadmap, path: Path, *, overwrite: bool = False) -> None:
+    """Save a roadmap to YAML.
+
+    Creates parent directories as needed. Refuses to overwrite an existing
+    file unless ``overwrite=True`` — operators edit ``status``/``priority``
+    in place, so a silent overwrite would clobber their work.
+    """
+    if path.exists() and not overwrite:
+        raise FileExistsError(
+            f"Roadmap already exists at {path}. Pass overwrite=True to replace it, "
+            f"or choose a different workspace directory."
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
     roadmap.updated_at = datetime.now(timezone.utc).isoformat()
     path.write_text(yaml.dump(roadmap.to_dict(), default_flow_style=False, sort_keys=False))
 

@@ -15,7 +15,7 @@ if str(_RUNTIME_DIR) not in sys.path:
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem, save_roadmap  # type: ignore[import-untyped]
 
-from archive import archive_roadmap, IncompleteRoadmapError
+from archive import InvalidRoadmapIdError, archive_roadmap, IncompleteRoadmapError
 
 
 def _make_workspace(tmp_path: Path, *, items: list[RoadmapItem]) -> Path:
@@ -140,6 +140,37 @@ class TestCollisionAndMissing:
 
         with pytest.raises(FileNotFoundError, match="No roadmap.yaml"):
             archive_roadmap(workspace)
+
+
+class TestPathTraversalRejection:
+    """Reject roadmap_ids that could escape the archive root via path traversal."""
+
+    @pytest.mark.parametrize("bad_id", [
+        "../escape",
+        "../../etc",
+        "/absolute/path",
+        "..",
+        ".",
+        "with/slash",
+        "with\\backslash",
+        "-leading-hyphen",
+        "",
+    ])
+    def test_rejects_unsafe_roadmap_id(self, tmp_path: Path, bad_id: str) -> None:
+        workspace = tmp_path / "openspec" / "roadmaps" / "test-epic"
+        workspace.mkdir(parents=True)
+        roadmap = Roadmap(
+            schema_version=1,
+            roadmap_id=bad_id,
+            source_proposal="proposals/test.md",
+            items=[_item("ri-01", ItemStatus.COMPLETED)],
+        )
+        save_roadmap(roadmap, workspace / "roadmap.yaml")
+
+        with pytest.raises((InvalidRoadmapIdError, Exception)):
+            archive_roadmap(workspace, today=date(2026, 4, 24))
+        # Workspace must remain — we abort before any filesystem mutation.
+        assert workspace.exists()
 
 
 class TestArchiveRootOverride:

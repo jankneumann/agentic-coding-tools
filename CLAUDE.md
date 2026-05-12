@@ -16,6 +16,8 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 /plan-feature <description>                            → Proposal approval gate
   /iterate-on-plan <change-id> (optional)              → Refines plan before approval
   /parallel-review-plan <change-id> (optional)         → Independent plan review (vendor-diverse)
+  /prototype-feature <change-id> (optional)            → N parallel variant skeletons + human pick-and-choose
+  /iterate-on-plan <change-id> --prototype-context <change-id>  → Convergence: synthesize variants into design.md/tasks.md
 /implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
   /iterate-on-implementation <change-id> (optional)    → Refinement complete
   /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)
@@ -66,7 +68,7 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 
 ## Worktree Management
 
-- **Launcher invariant**: The shared checkout is **read-only**. Every skill that modifies git state (plan, implement, cleanup) MUST work in a worktree, never the shared checkout. This prevents conflicts when multiple agents run from the same directory.
+- **Launcher invariant**: The shared checkout is **read-only** in local multi-agent execution. Every skill that modifies git state (plan, implement, cleanup) MUST work in a worktree, never the shared checkout. This prevents conflicts when multiple agents run from the same directory. In cloud-harness environments (each agent gets its own ephemeral container), this invariant is provided by the container itself — see **Execution-environment detection** below; worktree write ops become no-ops and skills operate directly on the harness-provided checkout.
 - **Location**: `.git-worktrees/<change-id>/` for single-agent, `.git-worktrees/<change-id>/<agent-id>/` for parallel
 - **Registry**: `.git-worktrees/.registry.json` tracks owner, branch, heartbeat, pin status
 - **Commands**: `python3 skills/worktree/scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
@@ -85,6 +87,7 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
     - `$FEATURE_BRANCH` (query via `worktree.py resolve-branch <change-id> --parent`) — the PARENT feature/session branch, used for `git push`, `gh pr create/merge`, `git branch -d`, and lock cleanup.
     In single-agent mode they're equal; in parallel mode they differ.
   - **Branch resolution sharing**: `merge_worktrees.py` imports `resolve_branch`/`resolve_parent_branch` from `worktree.py` so both scripts always agree on what branch a given `(change-id, agent-id)` pair resolves to. Don't introduce a third copy of this logic elsewhere — call into `worktree.py` or use the `resolve-branch` CLI subcommand.
+- **Execution-environment detection**: `skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with `isolation_provided: bool`. When true (cloud harness, Codespaces, K8s pod), every `worktree.py` write command (`setup|teardown|pin|unpin|heartbeat|gc`) and `merge_worktrees.py` short-circuit to a silent success. Read-only commands (`list|status|resolve-branch`) are unchanged. Detection precedence: `AGENT_EXECUTION_ENV` (cloud|local) → coordinator `GET /agents/<id>` → `/.dockerenv`/`KUBERNETES_SERVICE_HOST`/`CODESPACES` heuristic → default false. Set `WORKTREE_DEBUG=1` to see the decision layer. Full operator guide: [docs/cloud-vs-local-execution.md](docs/cloud-vs-local-execution.md). `OPENSPEC_BRANCH_OVERRIDE` remains orthogonal — it controls branch naming, not whether worktrees are created.
 
 ### Sync-Point Skills
 

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jankneumann/agentic-coding-tools/openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json",
+  "title": "Handoff Local-File Fallback",
+  "description": "Schema for handoff JSON files written to openspec/changes/<change-id>/handoffs/<phase-slug>-<N>.json when the coordinator is unavailable. Mirrors the coordinator's write_handoff payload plus a small envelope with metadata about why the local fallback was used.",
+  "type": "object",
+  "required": ["schema_version", "written_at", "coordinator_error", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version for forward-compat parsing",
+      "const": 1
+    },
+    "written_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the local file was written"
+    },
+    "coordinator_error": {
+      "type": "object",
+      "description": "Why the coordinator write failed and we fell back to local",
+      "required": ["error_type", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "error_type": {
+          "type": "string",
+          "enum": ["unreachable", "policy_denied", "rpc_failed", "timeout", "unknown"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error description, sanitized of secrets",
+          "maxLength": 1000
+        },
+        "http_status": {
+          "type": ["integer", "null"],
+          "description": "HTTP status code if applicable (e.g., 403 for policy_denied)",
+          "default": null
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "The handoff payload that would have been sent to write_handoff. Field names match HandoffService.write parameters.",
+      "required": ["agent_name", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "session_id": {"type": ["string", "null"], "default": null},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "completed_work": {
+          "type": "array",
+          "items": {"type": "string", "maxLength": 500},
+          "default": []
+        },
+        "in_progress": {
+          "type": "array",
+          "items": {"type": "string", "maxLength": 500},
+          "default": []
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "rationale"],
+            "additionalProperties": false,
+            "properties": {
+              "title": {"type": "string", "maxLength": 200},
+              "rationale": {"type": "string", "maxLength": 2000},
+              "capability": {"type": ["string", "null"], "default": null},
+              "supersedes": {"type": ["string", "null"], "default": null}
+            }
+          },
+          "default": []
+        },
+        "next_steps": {
+          "type": "array",
+          "items": {"type": "string", "maxLength": 500},
+          "default": []
+        },
+        "relevant_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {"type": "string", "maxLength": 300},
+              "description": {"type": "string", "maxLength": 120, "default": ""}
+            }
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

@@ -167,11 +167,19 @@ else
   echo "  Compose file: $COMPOSE_FILE"
   echo "  Log file: $LOG_FILE"
 
-  # Start services with DEBUG logging, redirect output to log file
+  # Start services with DEBUG logging, redirect output to log file.
+  #
+  # When the compose file gates the API server behind a profile (e.g. the
+  # agent-coordinator's `coordinator-api` service uses `profiles: [api]` so it
+  # doesn't auto-start during simple `docker compose up`), pass
+  # `COMPOSE_PROFILES` so the API process IS started here — without it the
+  # smoke + e2e phases get connection-refused on the API port. Multiple
+  # profiles can be comma-separated (`api,langfuse`).
   AGENT_COORDINATOR_DB_PORT=${AGENT_COORDINATOR_DB_PORT:-54322} \
-  AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-3000} \
+  AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-8081} \
   AGENT_COORDINATOR_REALTIME_PORT=${AGENT_COORDINATOR_REALTIME_PORT:-4000} \
-  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d 2>&1 | tee "$LOG_FILE"
+  COMPOSE_PROFILES=${COMPOSE_PROFILES:-api} \
+  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
 
   # Wait for health checks
   echo "Waiting for services to be healthy..."
@@ -186,9 +194,10 @@ else
     sleep 1
   done
 
-  # Wait for REST API (up to 15 seconds)
-  for i in $(seq 1 15); do
-    if curl -s http://localhost:${AGENT_COORDINATOR_REST_PORT:-3000}/ > /dev/null 2>&1; then
+  # Wait for REST API health endpoint (up to 30 seconds — the API container
+  # may need build time on first run + warmup before /health flips to 200)
+  for i in $(seq 1 30); do
+    if curl -sf http://localhost:${AGENT_COORDINATOR_REST_PORT:-8081}/health > /dev/null 2>&1; then
       echo "REST API is ready"
       break
     fi
@@ -726,35 +735,46 @@ fi
 
 ### 14. Append Session Log
 
-Append a `Validation` phase entry to the session log, then commit and push.
+Construct a `PhaseRecord` for the `Validation` phase and call `write_both()`. Validation phases are typically read-only; emphasize the validation outcomes (pass/fail summary, waivers, deferred issues) in the structured fields rather than free-form prose.
 
-**Phase entry template:**
+**Capture from this validation:**
 
-```markdown
----
+- **Decisions** — Decisions about waivers granted, phases run/skipped, or deferred issues. For clean passes, leave empty (the rendered markdown omits the Decisions section).
+- **Open Questions** — Questions raised by validation that need follow-up (e.g., "Is X behavior intentional?").
+- **Completed Work** — Phases that ran and passed (e.g., `["spec", "evidence", "deploy", "smoke"]`).
+- **Next Steps** — Recommended next workflow step (cleanup, iterate-on-implementation, etc.).
+- **Summary** — 2–3 sentences: what was validated, pass/fail summary, any waivers.
 
-## Phase: Validation (<YYYY-MM-DD>)
-
-**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
-
-### Decisions
-1. **<Decision title>** — <rationale>
-
-### Context
-<2-3 sentences: what was validated, pass/fail summary, any waivers granted>
-```
-
-**Focus on**: Validation results, phases run, any waivers or deferred issues. For clean validation passes, use "No significant decisions required" in Decisions and focus on Context.
-
-**Sanitize-then-verify:**
+**Persist via `PhaseRecord.write_both()`:**
 
 ```bash
-python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
-  "openspec/changes/<change-id>/session-log.md" \
-  "openspec/changes/<change-id>/session-log.md"
+python3 - <<'EOF'
+import sys
+sys.path.insert(0, "skills/session-log/scripts")
+from phase_record import PhaseRecord, Decision
+
+record = PhaseRecord(
+    change_id="<change-id>",
+    phase_name="Validation",
+    agent_type="<agent-type>",
+    summary="<2-3 sentences: phases run, pass/fail summary, waivers>",
+    decisions=[
+        Decision(title="<title>", rationale="<rationale>"),
+    ],
+    completed_work=["spec", "evidence"],   # phases that passed
+    next_steps=["/cleanup-feature <change-id>"],
+)
+result = record.write_both()
+print(f"markdown_path={result.markdown_path}")
+print(f"sanitized={result.sanitized}")
+print(f"handoff_id={result.handoff_id or '(local fallback)'}")
+print(f"handoff_local_path={result.handoff_local_path}")
+for w in result.warnings:
+    print(f"WARN: {w}", file=sys.stderr)
+EOF
 ```
 
-Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
+`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`). Each step logs warnings on failure but does not raise.
 
 **Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
 
