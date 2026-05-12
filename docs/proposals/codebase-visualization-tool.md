@@ -37,6 +37,18 @@ Industry signal underlines the urgency. As coding agents are integrated into mai
 - The AI panel MUST operate on a retrieved subgraph + source slices, never on the full repository corpus.
 - Graph layout MUST be stable: a node's screen position MUST NOT change unless its graph-theoretic position changes.
 - Every visualization MUST be reachable via a shareable URL encoding the lens (filter set + zoom + time + selection).
+- **Symbol identity MUST be stable across renames, file moves, and small refactors.** Symbol IDs MUST be derived from a content-hash plus structural-position signature (parent module path + symbol name normalized + neighborhood signature) so that a git mv or a function rename does NOT break the bi-temporal validity chain, the blast-radius traversal, or the cross-version comparisons. Without this, every refactor produces phantom "removed + added" pairs that destroy temporal continuity.
+
+### Artifact families
+
+Every generated artifact in this system MUST belong to one of four families. The family determines lifecycle, retention, and the FalkorDB role of the artifact.
+
+- **Structural artifacts** describe the *current* shape of the codebase: graph topology, AST signatures, code metrics, ownership, parallel zones, layer mappings. Examples: `architecture.graph.json`, `parallel_zones.json`, `ast-bundles/*.json`, the metric properties on every node. Regenerable from source; canonical in git; ingested into FalkorDB as the spine.
+- **Semantic-change artifacts** describe *deltas* between two structural snapshots, classified beyond raw git diffs: added/removed/modified nodes/edges, plus change kinds (refactoring / micro-change / contract-change / test-impact / runtime-risk). Examples: `diff-graph.json`, architecture-fitness reports. Cheap to compute incrementally; drive the change lens and the diff overlay.
+- **Evidence artifacts** record *validation and runtime grounding*: test results, coverage, runtime traces, incidents, security findings, deployment manifests, contract checks. Examples: `security-review/*.json`, `runtime/traces/*.json`, `incidents.yaml`. Event-class (never overwritten); become `Finding`, `Incident`, `Trace` nodes in FalkorDB.
+- **Provenance artifacts** explain *how an entity came to exist*: which commit, branch, worktree, agent session, OpenSpec proposal, work package, review finding, validation run produced it. Examples: `openspec/changes/<id>/`, session logs, work-queue result JSON, worktree registry, merge logs. Becomes the spine of the agent-memory lens.
+
+Capabilities in the roadmap are organized to emit and consume artifacts within these families. Surfaces (HTTP API, MCP server, MCP App, SPA, lenses) consume across families; rendering capabilities are family-agnostic but lenses are family-specific.
 
 ### Artifact temporal model
 
@@ -120,6 +132,8 @@ Acceptance outcomes:
 - A migration runner MUST apply migrations idempotently and record applied versions.
 - All node and edge types MUST be documented in `docs/codeviz/schema.md` with examples.
 - Bi-temporal validity columns MUST be present on every edge.
+- Every Symbol/File node MUST carry a `stable_id` property derived from content-hash + structural-position signature; the schema MUST enforce a uniqueness constraint on `(repo_id, stable_id)`.
+- A `RENAMED_FROM` edge type MUST exist to record stable-ID continuity across renames detected at ingestion time.
 
 ### Capability: Ingestion pipeline — JSON snapshots to FalkorDB
 
@@ -130,6 +144,7 @@ Acceptance outcomes:
 - Re-ingesting the same snapshot MUST be a no-op (idempotent).
 - A second ingestion with a different `--commit-sha` MUST preserve prior temporal validity and only update edges that changed.
 - Ingestion logs MUST report node/edge counts created, updated, deprecated per type.
+- Ingestion MUST compute a stable `stable_id` per Symbol/File node (content-hash + structural-position signature) and MUST detect renames across snapshots, emitting `RENAMED_FROM` edges rather than `removed + added` pairs. A fixture test MUST verify that renaming `foo()` to `bar()` in the same module preserves the symbol's stable_id and emits exactly one `RENAMED_FROM` edge.
 
 ### Capability: Code metrics enrichment
 
@@ -154,13 +169,27 @@ Acceptance outcomes:
 
 ### Capability: MCP server interface over the graph
 
-Expose the same read operations as the HTTP API through an MCP server, so MCP-aware agents (Claude Desktop, Cursor, our own coordinator-orchestrated agents) can query the codeviz graph using the same state the SPA reads. The MCP server is a thin adapter over the FastAPI handlers; it MUST NOT duplicate the query logic. Aligns with the repo convention `MCP for local agents, HTTP for cloud agents` documented in `openspec/project.md`. Tools exposed: `loc`, `subgraph`, `dependents`, `at_commit_subgraph`, `cypher` (gated). Depends on the HTTP API server.
+Expose the read operations as an MCP server, so MCP-aware agents (Claude Desktop, Cursor, our own coordinator-orchestrated agents) can query the codeviz graph using the same state the SPA reads. The MCP server is a thin adapter over the FastAPI handlers; it MUST NOT duplicate the query logic. Aligns with the repo convention `MCP for local agents, HTTP for cloud agents` documented in `openspec/project.md`.
+
+Tools MUST be exposed as **user-task-oriented operations** rather than raw graph primitives, so a reasoning agent composes them naturally: `symbol_lookup(name)`, `neighbors(symbol_id, hops)`, `blast_radius(symbol_id, depth)`, `compare_snapshots(base_sha, head_sha)`, `tests_for_symbol(symbol_id)`, `commits_touching_symbol(symbol_id, limit)`, `worktree_variants(change_id)`, `review_findings_for_entity(entity_id)`, `explain_lineage(entity_id)`. Each tool is a named convenience wrapper over one or more primitive subgraph/dependents/at-commit queries. A `cypher(query)` tool is exposed only when an explicit env flag is set. Depends on the HTTP API server.
 
 Acceptance outcomes:
 - An MCP server MUST be runnable via `make codeviz-mcp` and reachable over stdio.
 - Every MCP tool MUST be a thin wrapper around an existing HTTP handler — adding the MCP surface MUST NOT introduce new query logic.
+- The nine user-task tools above MUST all be implemented and documented with example invocations.
 - The MCP server MUST be discoverable from `agent-coordinator/`'s capability registry.
 - Documentation MUST cover Claude Desktop and Cursor configuration snippets at `docs/codeviz/mcp.md`.
+
+### Capability: MCP App for in-conversation visualization
+
+In addition to the tools-only MCP server, package the SPA (or a focused subset) as an **MCP App** — an interactive visualization rendered inside the agent conversation (sandboxed iframe with bidirectional MCP tool calls). MCP Apps let an agent reason *with* the visualization in-context rather than asking the human to switch to a separate tab; the agent can call MCP tools from within the App and the App can request additional tools from the host. The first App MVP MUST surface the Atlas view + Change lens + a search/inspect panel; deeper views can be added incrementally. The App MUST be a thin wrapper around the existing SPA components — no parallel rendering codebase. Depends on `spa-scaffold-render` and `mcp-server-interface`.
+
+Acceptance outcomes:
+- An MCP App MUST be installable into a Claude Desktop / Cursor / compatible host via a single manifest.
+- The App MUST reuse the SPA's render components — no duplicate rendering implementation.
+- The App MUST be able to call MCP tools (e.g. `blast_radius`, `compare_snapshots`) and receive results via the MCP App bidirectional channel.
+- Sandboxing MUST follow the MCP App specification: no direct DOM access outside the iframe, no arbitrary network calls.
+- Documentation MUST include host-configuration snippets and a screenshot fixture at `docs/codeviz/mcp-app.md`.
 
 ## Phase 1 — Single-Page Web App Shell
 
@@ -197,29 +226,41 @@ Acceptance outcomes:
 - Cypher queries MUST be syntax-validated client-side before submission.
 - A saved filter MUST be restorable from its URL alone.
 
-### Capability: Lens-switching framework
+### Capability: Lens-switching framework (organized around the Five Views)
 
-A single switching control on the SPA that exposes named lenses, each a saved combination of coloring, edge weighting, node filtering, and overlay activation. Built-in lenses: **structure** (default layer-colored), **diff** (commit-range delta), **ownership** (CODEOWNERS-derived), **risk** (churn × fan-in × findings), **incident** (recent runtime/incident markers), **change-set** (touched-by current PR or OpenSpec change). Lenses MUST compose with filters: a lens defines defaults, the filter pane can override. Lens choice MUST be encoded in the URL so saved views round-trip.
+The SPA's UX is organized around **five primary views**. Each view answers a distinct reviewer question and is composed of one or more lenses. The lens-switching framework is the mechanism; the five views are the organizing taxonomy.
+
+- **Atlas view** — answers *"what exists here?"* Default landing surface. Composed of `structure` and `ownership` lenses over the structural-artifact family.
+- **Change view** — answers *"what changed, and why should I care?"* Composed of `diff` and `change-set` lenses over the semantic-change-artifact family. The lens MUST visualize the `change_kind` classification (refactoring / micro-change / contract-change / test-impact / runtime-risk / ordinary).
+- **Version & Variant view** — answers *"how did this area evolve across commits, branches, worktrees, and prototype variants?"* See its dedicated capability (`version-variant-view`) in Phase 4.
+- **Evidence view** — answers *"what validates or contradicts this code?"* Composed of `risk` and `incident` lenses plus test/coverage overlays over the evidence-artifact family.
+- **Agent Provenance view** — answers *"which agent or workflow artifact caused this state?"* Composed of the agent-memory lens over the provenance-artifact family (`agent-memory-visualization`).
+
+The lens-switching control on the SPA exposes named lenses, each a saved combination of coloring, edge weighting, node filtering, and overlay activation. Built-in lenses (initial set): **structure** (default layer-colored), **diff** (commit-range delta with change-kind classification), **ownership** (CODEOWNERS-derived), **risk** (churn × fan-in × findings), **incident** (recent runtime/incident markers), **change-set** (touched-by current PR or OpenSpec change). Lenses MUST compose with filters: a lens defines defaults, the filter pane can override. Lens choice MUST be encoded in the URL so saved views round-trip.
 
 This capability supersedes ad-hoc overlays. Existing capabilities — diff overlay, security finding overlay, test-coverage edges, parallel-zone clustering — register *as* lenses against the same framework rather than as bespoke renderers. Depends on the SPA render scaffold.
 
 Acceptance outcomes:
 - A lens registry MUST expose at least six built-in lenses on first load.
+- Each built-in lens MUST be declared as belonging to one of the five views in its registry entry.
 - Switching lenses MUST update the canvas in under 200 ms without re-fetching from the API for state already cached.
 - A lens MUST be expressible declaratively (YAML schema) so new lenses can be added without code changes for the common cases.
 - Lens choice MUST be URL-encoded and survive page reload.
+- The view-selector control MUST be visually distinct from the lens-selector control: a reviewer chooses a *view* (which determines the reviewer question) then optionally narrows to a *lens* within it.
 
 ## Phase 2 — Diff and Temporal Navigation
 
 ### Capability: Diff-graph artifact generator
 
-A script that diffs two `architecture.graph.json` snapshots (by commit SHA) and emits `diff-graph.json` containing `nodes_added`, `nodes_removed`, `nodes_modified`, `edges_added`, `edges_removed`, `parallel_zones_touched`, `blast_radius_summary`. Invoked by `make architecture-diff` (already partially exists) and by a Git hook on push. Output is committed under `docs/architecture-analysis/diffs/<commit-sha>.json`.
+A script that diffs two `architecture.graph.json` snapshots (by commit SHA) and emits `diff-graph.json` containing `nodes_added`, `nodes_removed`, `nodes_modified`, `edges_added`, `edges_removed`, `parallel_zones_touched`, `blast_radius_summary`, plus a **semantic change classification** on every entry that tags it as one of `{refactoring, micro-change, contract-change, test-impact, runtime-risk, ordinary}` based on heuristics: identical-AST-different-location → refactoring; signature-stable + body-changed → micro-change; signature-changed → contract-change; touches a `Test` node or its target → test-impact; touches an `Endpoint` or `INVOKES_AT_RUNTIME` edge → runtime-risk. Invoked by `make architecture-diff` and by a Git hook on push. Output is committed under `docs/architecture-analysis/diffs/<commit-sha>.json`.
 
 Acceptance outcomes:
 - Diff between two snapshots of the current repo MUST complete in under 5 seconds.
 - Output JSON MUST conform to a checked-in schema.
 - Blast-radius summary MUST report transitive callers up to depth 3.
 - A no-op commit (no graph change) MUST emit an empty-but-valid diff.
+- Every changed node and edge MUST carry a `change_kind` tag from the classification vocabulary; entries that match no specific class fall back to `ordinary`.
+- A fixture commit that renames a private function MUST be classified as `refactoring`, not `contract-change`.
 
 ### Capability: Diff overlay rendering in SPA
 
@@ -231,6 +272,7 @@ Acceptance outcomes:
 - Removed nodes MUST remain visible at low opacity until explicitly dismissed.
 - Ghost-overlay mode MUST visually distinguish *proposed* changes from *committed* changes via opacity and an explicit "pending" badge.
 - Ghost-overlay payloads MUST carry an agent identifier and a `proposed_at` timestamp so the reviewer can attribute and date proposed changes.
+- Every visible change MUST surface its `change_kind` tag from the diff-graph artifact (refactoring / micro-change / contract-change / test-impact / runtime-risk / ordinary) via an icon and color treatment; a filter MUST let the reviewer hide ordinary changes to focus on high-impact kinds.
 
 ### Capability: Temporal snapshot store and scrubber
 
@@ -308,6 +350,17 @@ Acceptance outcomes:
 - Active worktree branches (per `.git-worktrees/.registry.json`) MUST render as parallel tracks under their associated Proposal node.
 - The agent-memory lens MUST visualize multi-agent activity — multiple worktrees + their session-log streams simultaneously — without requiring page reload between branches.
 - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known state at any past point.
+
+### Capability: Version & Variant view
+
+A dedicated UX surface that answers *"how did this area evolve across commits, branches, worktrees, and prototype variants?"* — pulling together (i) git commit history per file/symbol, (ii) active worktree branches from `.git-worktrees/.registry.json`, (iii) prototype variant branches from `/prototype-feature` runs, and (iv) temporal snapshots from FalkorDB into a side-by-side comparison surface. Users select two or more "candidates" (commits, branches, worktree heads) and the view renders a multi-lane comparison: matching symbols are aligned across lanes, additions/removals/modifications are color-coded per lane, and validation-outcome badges (test pass/fail, fitness violations) attach to each lane head. EvoScat-style scatterplot mini-map for long histories. Reuses the same render layer as the Atlas view; the lane mechanism is the new piece. Depends on `agent-memory-visualization`, `temporal-snapshot-scrubber`, `multi-repo-federation`, and `spa-scaffold-render`.
+
+Acceptance outcomes:
+- A user MUST be able to select 2-N "candidates" (commits, branches, worktree heads, prototype variants) and see them rendered as parallel lanes against the same architectural region.
+- Matching symbols MUST align across lanes; non-matching symbols MUST be visually distinguished without breaking the alignment of matched ones.
+- Each lane head MUST surface validation-outcome badges (test pass/fail count, fitness violations, security findings).
+- A scatterplot mini-map MUST provide a global overview for histories longer than 50 commits.
+- The view MUST be addressable via URL parameters encoding the candidate list and the focused architectural region.
 
 ### Capability: Test ↔ symbol linkage
 
