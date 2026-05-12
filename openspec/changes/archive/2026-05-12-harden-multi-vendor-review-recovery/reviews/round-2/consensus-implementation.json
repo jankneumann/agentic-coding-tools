@@ -1,0 +1,85 @@
+{
+  "review_type": "implementation",
+  "target": "harden-multi-vendor-review-recovery",
+  "round": 2,
+  "vendors_dispatched": ["claude_code", "codex", "gemini"],
+  "vendors_succeeded": 3,
+  "raw_findings_total": 9,
+  "consensus_findings": [
+    {
+      "id": "R2-C1",
+      "type": "robustness",
+      "agreed_criticality": "medium",
+      "status": "confirmed",
+      "vendor_count": 3,
+      "vendors": ["claude_code", "codex", "gemini"],
+      "verifies_round_1": "C7",
+      "description": "_atomic_write_json's except tuple at checkpoint_findings.py:82 caught (OSError, ValueError) but missed TypeError. json.dump raises TypeError for the realistic non-serializable case (sets, datetime, custom classes); ValueError is only reachable for NaN/Infinity floats with allow_nan=False. The original C7 fix's test stubbed json.dump to fake-raise ValueError — vacuous coverage.",
+      "fix_commit": "886970f"
+    },
+    {
+      "id": "R2-C2",
+      "type": "spec_gap",
+      "agreed_criticality": "medium",
+      "status": "confirmed",
+      "vendor_count": 2,
+      "vendors": ["claude_code", "gemini"],
+      "verifies_round_1": "C2",
+      "description": "skills/autopilot/SKILL.md:155 and :306 still referenced reviews/round-N/ for the convergence durability checkpoint after the round-1 C2 fix. The runtime mirrors at .agents/skills/autopilot/SKILL.md and .claude/skills/autopilot/SKILL.md inherited the stale path. Operators following the operator-facing docs would look in the wrong place.",
+      "fix_commit": "9698aaa"
+    },
+    {
+      "id": "R2-C3",
+      "type": "spec_gap",
+      "agreed_criticality": "medium",
+      "status": "unconfirmed",
+      "vendor_count": 1,
+      "vendors": ["codex"],
+      "verifies_round_1": "C4",
+      "description": "Round-1 C4 fix at checkpoint_findings.py:280-303 introduced 'validate when present' semantics for vendors[].findings_path and finding_count. The contract schema (review-cache-layout.schema.json:81) marks both as REQUIRED, and read_vendor_findings unconditionally indexes findings_path. So a manifest the writer would now produce could be schema-invalid and unreadable by its own reader.",
+      "fix_commit": "b10ebcd"
+    },
+    {
+      "id": "R2-C4",
+      "type": "robustness",
+      "agreed_criticality": "low",
+      "status": "unconfirmed",
+      "vendor_count": 1,
+      "vendors": ["claude_code"],
+      "verifies_round_1": "C7",
+      "description": "Round-1 C7 fix wrapped json.dump/flush/fsync in try/except, but os.replace at checkpoint_findings.py:90 sat OUTSIDE the try/except. A failure during rename (read-only network filesystem, concurrent rename, rare corruption) would leak the .tmp file. Narrow window but defeats the leak-free hygiene goal.",
+      "fix_commit": "886970f"
+    },
+    {
+      "id": "R2-C5",
+      "type": "spec_gap",
+      "agreed_criticality": "low",
+      "status": "unconfirmed",
+      "vendor_count": 1,
+      "vendors": ["claude_code"],
+      "verifies_round_1": "C2",
+      "vendor_disposition": "accept",
+      "description": "Spec at openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md:75-76 specified flat .review-cache/findings-...json layout, but C2 fix introduced a round-N/ subdirectory the spec was silent on. Defensible interpretation but spec literal not satisfied. Vendor recommended accept-with-spec-amendment over flatten-the-code (audit history preservation).",
+      "fix_commit": "ca5f543"
+    },
+    {
+      "id": "R2-C6",
+      "type": "style",
+      "agreed_criticality": "low",
+      "status": "unconfirmed",
+      "vendor_count": 1,
+      "vendors": ["gemini"],
+      "verifies_round_1": "new",
+      "description": "checkpoint_findings.py:73 docstring referenced 'fsync at line 73' but after the C7 try/except addition the fsync moved to line 81. Trivial doc drift.",
+      "fix_commit": "886970f (covered by docstring rewrite)"
+    }
+  ],
+  "summary": {
+    "blocking": 3,
+    "high": 0,
+    "medium": 3,
+    "low": 3,
+    "convergence": "round-2-found-incomplete-fixes; all 6 addressed across 4 commits; ready for VALIDATE",
+    "vendor_diversity_notes": "Round 2 was a verification pass — all 3 vendors successfully identified that round-1 C7 fix missed TypeError (the realistic encoder failure mode). claude_code went deepest on completeness gaps (4 findings); codex stayed schema-precise (2 findings); gemini caught style/doc issues missed by the others. The 3-vendor agreement on C7 incompleteness is exactly the kind of consensus a single-vendor review would have missed."
+  }
+}

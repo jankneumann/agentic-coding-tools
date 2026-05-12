@@ -6,7 +6,7 @@ Tools and workflows for AI-assisted software development. Enables structured fea
 
 ### Agent Coordinator
 
-Multi-agent coordination system for AI coding assistants. Provides file locking, work queues, session handoffs, and agent discovery backed by Supabase.
+Multi-agent coordination system for AI coding assistants. Provides file locking, work queues, session handoffs, and agent discovery backed by PostgreSQL (ParadeDB by default for local development; Supabase supported as an optional cloud-managed backend).
 
 - [Overview](docs/agent-coordinator.md) — Architecture, capabilities, and design decisions
 - [Quick Start](agent-coordinator/README.md) — Setup, installation, and MCP integration
@@ -22,7 +22,7 @@ Structured feature development workflow using Claude Code slash commands. Guides
 
 ## Getting Started
 
-**Agent Coordinator**: Follow the [Quick Start](agent-coordinator/README.md) to set up Supabase, install dependencies, and configure Claude Code's MCP integration.
+**Agent Coordinator**: Follow the [Quick Start](agent-coordinator/README.md) to start PostgreSQL (ParadeDB via Docker Compose, or Supabase), install dependencies, and configure Claude Code's MCP integration.
 
 **Skills Workflow**: The skills are Claude Code slash commands defined in [`skills/`](skills/). Each skill is a `SKILL.md` file that Claude Code reads when invoked with `/skill-name`. Start with [`/plan-feature`](skills/plan-feature/SKILL.md) to create a proposal for your next feature.
 

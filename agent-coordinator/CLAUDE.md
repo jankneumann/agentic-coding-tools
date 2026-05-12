@@ -80,8 +80,12 @@ uv sync --all-extras
 # Run MCP server (for testing)
 python -m src.coordination_mcp --transport=http --port=8082
 
-# Run HTTP API
+# Run HTTP API (separate-process mode — fast iteration)
 python -m src.coordination_api  # Runs on :8081
+
+# Or run the API in Docker for full deploy + smoke + e2e validation
+# (uses the production Dockerfile, depends on the in-stack postgres)
+docker compose --profile api up -d --build coordinator-api
 
 # Run tests
 pytest -m "not e2e and not integration"
@@ -161,6 +165,7 @@ All write endpoints require `X-API-Key` header.
 | `/policy/validate` | POST | Yes | Validate Cedar policy text |
 | `/profiles/me` | GET | Yes | Get agent profile |
 | `/audit` | GET | Yes | Query audit trail |
+| `/archetypes/resolve_for_phase` | POST | Yes | Resolve archetype + model + system_prompt for an autopilot phase (per-phase archetype resolution) |
 | `/health` | GET | No | Health check |
 | `/status/report` | POST | No | Report agent status (heartbeat side effect) |
 | `/notifications/test` | POST | Yes | Send test notification to all channels |
@@ -186,9 +191,16 @@ All write endpoints require `X-API-Key` header.
 ## Environment Variables
 
 ```bash
-# Required
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=...
+# Required: choose ONE database backend
+
+# Option A: PostgreSQL via ParadeDB (default for local dev — set DB_BACKEND=postgres)
+DB_BACKEND=postgres
+POSTGRES_DSN=postgresql://postgres:postgres@localhost:54322/postgres
+
+# Option B: Supabase (cloud-managed alternative — set DB_BACKEND=supabase)
+# DB_BACKEND=supabase
+# SUPABASE_URL=https://xxx.supabase.co
+# SUPABASE_SERVICE_KEY=...
 
 # Agent identity
 AGENT_ID=claude-code-1
@@ -206,6 +218,15 @@ API_HOST=0.0.0.0
 API_PORT=8081
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
+
+# Compose `coordinator-api` service overrides (for `docker compose --profile api up`)
+# Each operator-facing var has a docker-internal default that works out of the box.
+COORDINATOR_POSTGRES_DSN=postgresql://postgres:postgres@postgres:5432/postgres  # default
+COORDINATOR_API_KEYS=dev-key-001                                                # default
+COORDINATOR_API_KEY_IDENTITIES={}                                               # default
+COORDINATOR_AGENT_ID=cloud-coordinator                                          # default
+COORDINATOR_AGENT_TYPE=coordinator                                              # default
+AGENT_COORDINATOR_REST_PORT=8081                                                # host port for the API
 
 # Notifications (optional — omit NOTIFICATION_CHANNELS to disable)
 NOTIFICATION_CHANNELS=gmail              # gmail,telegram,webhook (comma-separated)
