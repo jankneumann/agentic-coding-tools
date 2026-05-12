@@ -170,3 +170,29 @@ The `coupling` analyzer reads directly from `/refresh-architecture` artifacts. F
 ```bash
 python3 -m pytest <agent-skills-dir>/tech-debt-analysis/tests -q
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "Our CI doesn't fail on complexity, so high cyclomatic complexity isn't a problem" | The Design Stamina Hypothesis: design quality affects velocity over time, not pass/fail today. CI cares about *correctness now*; tech-debt analysis catches the *velocity decay* CI cannot see. |
+| "Duplication is fine — the duplicated code is short" | Even short duplicates compound: a 6-line idiom copied 12 times becomes 72 lines that must change together at the next requirement shift. Fowler's Rule of Three exists to prevent that compounding. |
+| "We'll fix the hub node when we have time" | Hub nodes have the largest blast radius (AWS Builders' Library); they degrade *every* dependent feature simultaneously. Refactor them first, not last. |
+| "I'll skip refreshing architecture artifacts — the graph is probably fine" | The coupling analyzer reads stale fan-in/fan-out from a stale graph. Stale graph → stale findings → wrong refactoring priorities. The skill explicitly warns when artifacts are >7 days old; honor the warning. |
+| "Star imports are a stylistic preference" | Star imports break the import analyzer's ability to detect what depends on what; they also defeat IDE rename refactoring. They are a real design defect, not style. |
+
+## Red Flags
+
+- A `tech-debt-report.json` produced without `docs/architecture-analysis/architecture.graph.json` being recent — the coupling analyzer either silently skipped or read stale data.
+- The report shows zero findings from the `complexity` analyzer on a codebase >5k LOC — almost certainly the analyzer ran on the wrong `--project-dir` or excluded all source files.
+- Hotspot files in the report are never cited in the next refactoring proposal — the analysis became theater.
+- A refactoring PR that claims to address tech debt but does not reference a specific finding ID from the report — no traceability between report and remediation.
+- Circular import findings are accepted with `# noqa` instead of resolved — fragile initialization order will eventually break in a new test runner / Python version.
+
+## Verification
+
+1. Confirm `docs/architecture-analysis/architecture.graph.json` exists and is <7 days old before running the `coupling` analyzer (the report's metadata includes a freshness flag — check it).
+2. Confirm the report's `findings` array is non-empty for a non-trivial codebase, AND that at least two analyzers contributed findings (single-analyzer reports usually mean the others crashed silently).
+3. Confirm any refactoring proposal derived from the report cites specific finding IDs (e.g., "addresses tech-debt-finding-12, tech-debt-finding-17") — traceable from report to remediation.
+4. Confirm the hotspot-files list at the top of the report was used to scope the refactoring — picking a non-hotspot file usually means the analysis was ignored.
+5. Confirm the report was re-run *after* the refactoring lands and the addressed findings disappeared (or moved below threshold) — closes the loop on Design Stamina.

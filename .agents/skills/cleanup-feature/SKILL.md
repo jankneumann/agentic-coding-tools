@@ -370,6 +370,52 @@ git add "openspec/changes/<change-id>/session-log.md"
 
 If session log append or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
 
+### 5c. Pre-Launch Checklist
+
+Before triggering staged rollout, every item below MUST pass. This is a **gate**, not a suggestion — if any item is red, halt and remediate before promoting traffic.
+
+- [ ] CI: all required workflows green on the merge commit (no allowed-to-fail bypasses)
+- [ ] Security scan: SAST + dependency audit clean (no new HIGH or CRITICAL findings vs baseline)
+- [ ] OpenSpec validate: `openspec validate --strict` exits zero against the archived change
+- [ ] Docs updated: any operator-facing change is reflected in `docs/` and the relevant runbook
+- [ ] Smoke tests: pass against staging (or production canary in pre-rollout mode) using the merged artifact, not a stale build
+- [ ] Rollback plan documented: feature flag name, kill-switch procedure, and on-call owner identified
+- [ ] Observability: dashboards and alerts for the changed surface are loaded and have a known-good baseline window (≥24h) to compare against
+
+If any item fails, do NOT proceed to staged rollout. Open a follow-up issue, mark this change `rollout-blocked`, and return to the relevant phase (validate, iterate, or doc-update).
+
+### 5d. Staged Rollout (post-merge)
+
+Promote the change through fixed traffic stages with a monitoring window between each stage. The rollout sequence is:
+
+| Stage | Traffic | Min monitoring window | Promotion criteria |
+|-------|---------|----------------------|--------------------|
+| 1 | **5%** | 30 min (or 1 full traffic cycle) | All thresholds below green |
+| 2 | **25%** | 1 hour | All thresholds green AND no Stage 1 anomalies replayed |
+| 3 | **50%** | 2 hours | All thresholds green AND error budget intact |
+| 4 | **100%** | continuous | Steady-state, alerting active |
+
+**Reference:** This skill assumes the change is shipped behind a feature flag (per the OpenSpec workflow). The flag, not a deploy, gates the traffic split. If the change is NOT flag-gated (e.g., infra-only), use blue/green or weighted DNS instead — the stages still apply.
+
+#### Decision thresholds (promote to next stage only if ALL are true)
+
+- Error rate < **2× baseline** for the changed surface (compare to the 24h baseline window)
+- p95 latency increase < **50%** vs baseline
+- **Zero data integrity errors** in the rollout window (FK violations, checksum mismatches, dropped writes)
+- **Zero security regressions** (no new auth failures, no PII in logs, no expanded permission grants)
+- Business KPI within **±10%** of baseline (conversion, signup, etc., where applicable)
+
+#### Rollback triggers (automatic — flip the flag back if ANY is true)
+
+- Error rate ≥ 2× baseline sustained for >5 minutes
+- p95 latency ≥ 50% above baseline sustained for >5 minutes
+- ANY data integrity error (no threshold — one is enough)
+- ANY security regression
+- Pager-grade alert fired against the changed surface
+- Operator intervention requested (manual rollback always wins)
+
+On rollback: flip the flag to **0%**, capture the rollout-state snapshot (metrics, logs, traces from the failure window), file an issue tagged `rollback-postmortem`, and DO NOT re-promote until root cause is identified.
+
 ### 6. Archive OpenSpec Proposal
 
 Preferred path:
@@ -479,3 +525,31 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 /validate-feature <change-id>   # Deploy + test → validation gate (optional)
 /cleanup-feature <change-id>    # Merge + archive → done
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "CI is green, just send 100% — staged rollout is for big changes" | Staged rollout catches regressions CI cannot see (production traffic shape, real data, real concurrency). Skipping it pushes the failure mode onto users instead of synthetics. |
+| "We don't have feature flags here, so we'll just merge and watch" | "Watching" without a flip-back path means the only rollback is a revert PR + redeploy, which is minutes-to-hours slow. A flag (or blue/green, or weighted DNS) is what makes rollback fast enough to matter. |
+| "The pre-launch checklist is overkill for a small change" | Most rollback incidents come from "small" changes where the team waived a checklist item. The checklist's value is exactly that it doesn't bend for size. |
+| "Latency went up 60%, but it's still within SLO — we'll keep going" | A 60% jump is a regression even when it's inside SLO. SLOs are the *floor*, not the rollback threshold. The rollback threshold is the threshold. |
+| "We can skip archiving until tomorrow" | The archive step closes the loop on spec drift. Postponing it leaves `openspec/changes/<id>/` and `openspec/specs/` out of sync, which silently breaks the next agent's view of the world. |
+
+## Red Flags
+
+- The merge commit landed on main but no rollout-stage record exists in the session log (silent jump to 100%).
+- A staged rollout was started but the monitoring window between stages was <30 minutes for Stage 1 (or skipped entirely).
+- The pre-launch checklist appears in the session log as "checked" but no artifact (CI link, scan output, validation report) is cited.
+- A rollback trigger fired but the flag was NOT flipped back — instead the team "kept watching".
+- The OpenSpec change-id is archived but `openspec validate --strict` was not re-run after the archive.
+- Open tasks were silently dropped (no migration to coordinator issues or follow-up proposal).
+
+## Verification
+
+1. The session log's Cleanup phase entry cites the rollout sequence (5%→25%→50%→100%) with timestamps for each stage promotion AND lists the metrics observed at each stage (error rate, p95, data-integrity count).
+2. Pre-launch checklist is recorded with a concrete artifact reference per item (CI run URL, security scan report path, validation-report.md, runbook link, dashboard link).
+3. `openspec validate --strict` was re-run AFTER `openspec archive` and exited zero. The output is captured in the cleanup transcript.
+4. The feature flag (or equivalent traffic gate) is identified by name in the session log, with the kill-switch procedure documented.
+5. If a rollback trigger fired during rollout, an issue tagged `rollback-postmortem` exists and the flag is currently at 0%.
+6. Open tasks from `tasks.md` are accounted for: either all checked, or migrated to coordinator issues / follow-up proposal with a Migration Notes line in the original `tasks.md`.

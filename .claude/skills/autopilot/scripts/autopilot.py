@@ -35,9 +35,7 @@ except ImportError:
     assess_complexity = None  # type: ignore[assignment]
 
 try:
-    from implementation_strategy_selector import (
-        select_strategies,  # type: ignore[import-untyped]
-    )
+    from implementation_strategy_selector import select_strategies  # type: ignore[import-untyped]
 except ImportError:
     select_strategies = None  # type: ignore[assignment]
 

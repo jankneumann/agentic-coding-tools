@@ -90,3 +90,26 @@ The orchestrator produces:
 ```bash
 python3 -m pytest <agent-skills-dir>/bug-scrub/tests -q
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "CI is green, so a bug-scrub is unnecessary" | CI runs only the configured checks at the configured strictness. Bug-scrub aggregates signals CI does not surface — deferred OpenSpec tasks, code markers, stale architecture diagnostics, security-report findings. |
+| "I'll skip mypy/ruff because the project doesn't enforce them" | The collectors skip unavailable tools by design; running them surfaces *latent* issues even on projects that do not gate on them. The cost is one command. |
+| "The report from last week is fine" | The skill's staleness logic flags reports older than 7 days for a reason — code drifts, deferred lists grow, new TODOs land daily. A stale report under-reports current debt. |
+| "I'll just look at high-severity findings" | High-severity findings are loud but rarely the root cause; clusters of medium-severity findings in one hotspot file usually signal the deeper structural problem. Filter only after reading the hotspot summary. |
+
+## Red Flags
+
+- A `bug-scrub-report.json` older than 7 days being used as input to `/plan-feature` or `/fix-scrub` without a refresh — staleness warning was ignored.
+- A report that shows zero findings from `pytest`, `ruff`, AND `mypy` simultaneously — almost certainly the collectors did not actually execute (missing tools, wrong project-dir).
+- The `deferred` source returns zero entries on a project with multiple active OpenSpec changes — the OpenSpec CLI was not on the PATH or `--project-dir` pointed outside the repo.
+- A planning session referencing "the bug-scrub report" without anyone able to produce the file path — the report exists only in chat, not on disk.
+
+## Verification
+
+1. Confirm the report was generated within the last 7 days: `stat -c %y docs/bug-scrub/bug-scrub-report.json` (or equivalent) returns a recent timestamp.
+2. Confirm at least three sources contributed findings (the report's `sources` field has length ≥ 3) — a single-source report is incomplete.
+3. Confirm the report path was cited (with file path and severity filter) in any downstream plan or fix-scrub invocation that claims to act on it.
+4. Confirm the markers source was not trivially empty: a non-trivial codebase with zero TODO/FIXME/HACK/XXX is suspicious; either the markers collector was disabled or `--project-dir` was wrong.

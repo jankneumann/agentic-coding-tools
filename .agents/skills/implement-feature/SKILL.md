@@ -119,6 +119,29 @@ if [[ "$CURRENT_BRANCH" != "$WORKTREE_BRANCH" ]]; then
 fi
 ```
 
+## Implementation Rules (0–5)
+
+These rules govern every line of code written under this skill. They apply to all tiers and to every sub-agent dispatched in Step 3b. When in doubt, re-read this section.
+
+- **Rule 0 — Simplicity First.** Prefer the smallest change that solves the problem. Three similar lines beat a premature abstraction. Before writing any code, ask: *"What is the simplest thing that could work?"* — then do that.
+- **Rule 0.5 — Scope Discipline.** Touch only what the work package's `write_allow` requires. Do not opportunistically clean up adjacent code, refactor unrelated imports, or add features that weren't asked for. When you spot something genuinely broken outside scope, log it with the **Scope discipline template** below — do not silently fix it.
+- **Rule 1 — One Thing at a Time.** Each commit is one logical change. No mixing concerns. A commit that says `feat(auth): add login AND fix unrelated typo` is two commits pretending to be one.
+- **Rule 2 — Keep It Compilable.** Every commit on the feature branch must build and pass existing tests. No "broken middle" commits — even mid-feature, the tip of the branch is always green. If you must land partial work, hide it behind a feature flag (Rule 3).
+- **Rule 3 — Feature Flags for Risky Changes.** If a feature is incomplete, uncertain, or potentially destabilizing, gate it behind a flag that defaults OFF. This lets the work merge without risking production callers.
+- **Rule 4 — Safe Defaults.** New config keys, env vars, and parameters MUST default to the **current** behavior. Adding a config that changes behavior unless explicitly set is a silent breaking change.
+- **Rule 5 — Rollback-Friendly.** Every change should have an obvious revert path: a single revertable commit, an OFF-by-default flag, or a documented rollback procedure. If reverting requires a manual data migration, call that out in the PR description.
+
+### Scope discipline template
+
+When a sub-agent (or you) notices an issue outside the current work package's scope, do NOT fix it. Log it with this exact template at the bottom of the work-package result and file a follow-up:
+
+```
+NOTICED BUT NOT TOUCHING:
+- <file or area>: <what's wrong> — out of scope for this work package, file follow-up.
+```
+
+This template is **mandatory** for any out-of-scope observation. It surfaces the issue (so it isn't lost) without polluting the current diff.
+
 ### 3a. Generate Change Context & Test Plan (Phase 1 -- TDD RED) [all tiers]
 
 Before implementing, create the traceability skeleton and write failing tests:
@@ -184,12 +207,12 @@ Task(
   model=impl_model,  # archetype: implementer (sonnet, or opus if escalated)
   description="Implement task N: <brief>",
   prompt="You are implementing OpenSpec <change-id>, Task N.
-## Your Task
+**Your Task**
 <TASK_DESCRIPTION>
-## File Scope (CRITICAL)
+**File Scope (CRITICAL)**
 You MAY modify: <list specific files>
 You must NOT modify any other files.
-## Context
+**Context**
 - Read openspec/changes/<change-id>/proposal.md
 - Read openspec/changes/<change-id>/design.md
 Do NOT commit - the orchestrator will handle commits.",
@@ -230,17 +253,24 @@ Task(
   description="Implement <package-id>",
   prompt="You are implementing work package <package-id> for OpenSpec <change-id>.
 
-## File Scope (CRITICAL)
+**File Scope (CRITICAL)**
 write_allow: <from work-packages.yaml>
 read_allow: <from work-packages.yaml>
 deny: <from work-packages.yaml>
 
-## Context
+**Context**
 <context slice from Context Slicing table below>
 
-## Verification
+**Verification**
 After implementation, run:
 <verification steps from work-packages.yaml>
+
+**Scope Discipline**
+Follow Implementation Rules 0–5 (see `skills/implement-feature/SKILL.md`).
+If you notice issues outside this package's `write_allow`, do NOT fix them.
+Append to your result using the literal `NOTICED BUT NOT TOUCHING:` template
+documented in the parent skill, so they're filed as follow-ups instead of
+silently widening this PR.
 
 Do NOT commit - the orchestrator will handle commits.",
   run_in_background=true
@@ -489,3 +519,29 @@ After PR is approved:
 ```
 /cleanup-feature <change-id>
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "While I'm in this file I'll fix the unrelated bug too" | Violates Rule 0.5 (Scope Discipline). The fix may pass review on its own merit but it bloats the diff, hides the real change, and couples your PR's fate to an unrelated risk. Use the `NOTICED BUT NOT TOUCHING:` template instead. |
+| "This commit is broken but the next one fixes it — squash will hide it" | Violates Rule 2. Rebase-merge means every commit lands on main individually; a broken middle commit breaks `git bisect` for the next person to chase a regression. |
+| "Adding the new flag and flipping the default in one go is cleaner" | Violates Rule 4 (Safe Defaults). Default-flip changes behavior for every existing caller silently. Land the flag OFF, ship it, then change the default in a separate, revertable commit. |
+| "I'll skip the per-task checkbox flip and batch them at the end" | The trailing "mark tasks complete" commit is routinely lost in rebase/squash. Past incident: 0/29 checkboxes flipped while 100% of code was on main. Couple the bookkeeping to the implementation commit. |
+
+## Red Flags
+
+- A commit message containing the word "and" describing two distinct changes (Rule 1 violation).
+- A diff that touches files outside the package's `write_allow` without a recorded `NOTICED BUT NOT TOUCHING:` justification (Rule 0.5 violation).
+- A new config key whose default value changes behavior for existing deployments (Rule 4 violation).
+- `tasks.md` shows unchecked boxes after Step 5 (per-task checkbox discipline violation).
+- A "WIP" or "fixup" commit on the feature branch at PR-creation time (Rule 2 violation).
+- The PR description has no obvious rollback path — no flag, no single revert commit, no migration plan (Rule 5 violation).
+
+## Verification
+
+1. Cite the Implementation Rules section that informed each non-trivial design choice (e.g., "Rule 3: gated behind `FEATURE_X_ENABLED`, default OFF").
+2. Show that every commit on the branch builds and passes tests in isolation: `git log --oneline main..HEAD` followed by spot-checking ≥1 mid-branch commit.
+3. Confirm the diff contains zero touches outside `write_allow` from `work-packages.yaml`, OR every such touch is documented under `NOTICED BUT NOT TOUCHING:`.
+4. Confirm `grep -E "^\s*- \[ \]" openspec/changes/<change-id>/tasks.md` returns nothing (per-task checkbox discipline applied).
+5. Confirm the PR description names the rollback path (flag name to flip, single commit to revert, or migration to run).

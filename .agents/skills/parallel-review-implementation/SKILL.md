@@ -42,6 +42,56 @@ The reviewer receives per-package context:
 
 The reviewer MUST NOT modify any files.
 
+## Five-Axis Finding Schema
+
+Every finding produced by this skill MUST be classified into BOTH dimensions below. The JSON Schema at `openspec/schemas/review-findings.schema.json` enforces both fields as `required` — output that omits either is rejected by the validator in Step 7.
+
+### Five Axes (the `axis` field)
+
+Adopted from the `code-review-and-quality` reference skill. Pick exactly one per finding:
+
+| Axis | What it covers in implementation review |
+|---|---|
+| `correctness` | Does the code do what the spec/contract demands? Bugs, off-by-one, broken edge cases, wrong return values. |
+| `readability` | Will the next maintainer understand intent? Naming, comments, dead code, unclear control flow. |
+| `architecture` | Does the change respect module boundaries? Coupling, layering, dependency direction, premature abstraction, scope creep. |
+| `security` | Does the code introduce or fail to prevent risk? Injection, missing auth/authz, insecure defaults, leaked secrets, OWASP categories. |
+| `performance` | Will it scale? N+1 queries, unbounded loops, missing pagination, sync calls in hot paths, memory blowups. |
+
+The legacy `type` enum (`spec_gap`, `contract_mismatch`, etc. — see Step 6) is preserved for backward compatibility; `axis` is the new mandatory categorization that all reviewers — human or vendor — must agree on.
+
+### Five Severity Prefixes (the `severity` field)
+
+Every finding's `description` MUST begin with one of these markers. The `severity` enum value MUST match the prefix.
+
+| Prefix | Severity value | Meaning |
+|---|---|---|
+| `Critical` | `critical` | Blocks merge. Must be fixed before integration. |
+| `Nit` | `nit` | Should fix but does not block. Quality, naming, minor structure. |
+| `Optional` | `optional` | Consider it. Author may accept or reject without further discussion. |
+| `FYI` | `fyi` | Informational. Surfaces context the author may not have known; no action required. |
+| `none` | `none` | Positive observation. Names what the implementation got right so good patterns survive review. |
+
+Example finding (note prefix and matching `severity`):
+
+```json
+{
+  "id": 1,
+  "axis": "security",
+  "severity": "critical",
+  "type": "security",
+  "criticality": "critical",
+  "description": "Critical: handlers/users.py:42 builds the SQL query with f-string concatenation of `request.user_id` — SQL injection vector.",
+  "resolution": "Use a parameterized query (`?` placeholder + bound value) via the existing `db.execute(query, params)` helper.",
+  "disposition": "fix",
+  "package_id": "wp-backend",
+  "file_path": "handlers/users.py",
+  "line_range": {"start": 42, "end": 44}
+}
+```
+
+Reviewers MUST NOT collapse multiple severities onto one finding (split them). Reviewers MUST NOT use a severity that contradicts the `disposition` (e.g., `severity: critical` with `disposition: accept` is incoherent — escalate instead).
+
 ## Steps
 
 ### 0. Detect Review Mode
@@ -248,3 +298,30 @@ Like `parallel-review-plan`, this skill is self-contained:
 When this skill is dispatched *to* another vendor by the orchestrator, only the review steps run (produce findings). Multi-vendor dispatch is handled by the orchestrating agent in Phase C3 of `/parallel-implement-feature`.
 
 **Agent discovery resolution chain**: The dispatcher resolves agents via the coordination MCP server configured in `~/.claude.json` → `mcpServers.coordination`. It extracts the `agent-coordinator/` directory from the MCP server args and runs `get_dispatch_configs.py` to load `agents.yaml`. If the coordinator is not configured, pass `--agents-yaml <path>` explicitly as fallback. Use `--list-agents` to verify available agents.
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "The diff is small — I'll skip the axis classification" | The schema rejects findings without `axis`/`severity` regardless of diff size. Cross-vendor consensus matches findings by axis + file_path + line_range; missing axis means your review is invisible to the integration gate. |
+| "This is a `correctness` issue but it also has `security` implications — I'll merge them" | Split into two findings. The integration gate routes `security` findings differently (mandatory `fix`, never `accept`). Burying security under correctness lets the gate under-react. |
+| "The verification result already says PASS — I don't need to look at the code" | The verification cross-check (Step 5) is necessary but not sufficient. PASS only means the package's own tests passed; cross-package interactions, security, and architectural fit are not covered. |
+| "I'll mark everything `Nit` to be polite" | Politeness is not the goal; truth is. A `Critical` finding marked `Nit` causes the integration gate to merge a broken change. Use `none` for positive observations instead of downgrading real issues. |
+
+## Red Flags
+
+- A `review-findings.json` for a non-empty diff that contains zero findings AND no `severity: none` positive observations — the reviewer almost certainly did not actually read the diff.
+- `severity: critical` paired with `disposition: accept` — these contradict each other; the orchestrator's integration gate cannot resolve this safely.
+- A finding with `axis: security` and `disposition: accept` — security findings must be `fix` or `escalate`, never silently accepted.
+- Description prose lacks the matching severity prefix (`Critical:` / `Nit:` / `Optional:` / `FYI:`). The prefix is the human-readable signal; if it disagrees with the enum, the reviewer wrote JSON without re-reading the prose.
+- Findings without `file_path`/`line_range` for code-level issues (correctness, security, performance) — these fields are what enables cross-vendor consensus matching; omitting them isolates the finding.
+- Scope-violation findings missing — modified files outside the package's `write_allow` should always produce a `correctness` + `severity: critical` finding (see Step 2).
+
+## Verification
+
+1. Run the JSON Schema validator from Step 7 and confirm `Valid` — this proves `axis` and `severity` are present on every finding.
+2. Spot-check 3 findings: confirm the `description` text begins with the prefix matching the `severity` enum value (e.g., `severity: critical` ↔ description starts with `Critical:`).
+3. Confirm `disposition` is coherent with `severity` AND `axis`: `security` findings never `accept`; `critical` findings always `fix` or `escalate`; `none` findings always `accept`.
+4. Confirm at least two different `axis` values appear across the findings array (a single-axis review missed the other four dimensions of the schema).
+5. Confirm scope verification (Step 2) actually ran in per-package mode — if any modified file was outside `write_allow`, it must appear as a `severity: critical` finding.
+6. Confirm `reviewer_vendor` and `package_id` (or `target: "whole-branch"` in whole-branch mode) are populated — anonymous or untargeted findings cannot participate in consensus.

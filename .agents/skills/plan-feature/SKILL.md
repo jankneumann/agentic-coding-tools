@@ -339,6 +339,43 @@ After selection:
 - If "Need more detail": ask follow-up questions, loop back to Step 4
 - If an approach is selected: update `proposal.md` with a `### Selected Approach` subsection recording the choice and any modifications the user requested. Demote unselected approaches to brief entries under the Recommended subsection.
 
+## Task Sizing Reference
+
+Use the table below when generating `tasks.md` (Step 6) and `work-packages.yaml` (Step 8). Sizing is about *agent attention budget*, not raw effort — a task should fit inside one focused implementation session.
+
+| Size | Time budget | Typical scope | Action |
+|---|---|---|---|
+| **XS** | ≤ 30 min | One-line edit, doc tweak, single test | Ship as-is. |
+| **S** | 30 min – 2 hr | Single function/method change, narrow refactor | Ship as-is. |
+| **M** | 2 hr – 1 day | Multi-file change in one module, new test suite | Ship as-is; checkpoint after. |
+| **L** | 1 – 3 days | Cross-module change, new component, schema migration | **CONSIDER SPLITTING.** Try to decompose into 2–3 M-sized tasks. If splitting doesn't reduce risk, keep but flag. |
+| **XL** | > 3 days | Cross-system, multiple subsystems, new bounded context | **MUST SPLIT.** Do not generate a tasks.md entry at XL — go back to Step 6 and decompose. |
+
+### "And" splitting heuristic
+
+If a task title contains the word **"and"** OR describes two distinct outcomes, split it. The conjunction is almost always a sign that two tasks have been collapsed into one.
+
+| Original title | Decision | Result |
+|---|---|---|
+| "Add caching and metrics" | **Split** — two outcomes | "Add caching" + "Add metrics" |
+| "Wire EventBus and retire polling" | **Split** — two outcomes | "Wire EventBus" + "Retire polling fallback" |
+| "Refactor user auth" | **Keep** — single outcome | (no change) |
+| "Investigate flaky test and propose fix" | **Split** — investigation and fix have different completion criteria | "Investigate flaky test" + "Apply fix from investigation" |
+| "Stand up Postgres and Redis" | **Split** — two independent dependencies | "Stand up Postgres" + "Stand up Redis" |
+
+The heuristic is mechanical on purpose: it catches almost all hidden multi-tasks without requiring deep context.
+
+### Checkpoint cadence
+
+Every 2–3 tasks, the implementing agent should pause for a self-check:
+
+1. Run the test suite (or the relevant subset) and confirm it's green.
+2. Review the cumulative diff (`git diff main...HEAD`) and confirm every change maps to a completed task.
+3. Verify no scope creep: the diff touches only files inside the package's `write_allow`.
+4. Update `tasks.md` checkboxes for completed tasks (per `/implement-feature` Step 4 discipline).
+
+This cadence is recorded in `tasks.md` as explicit `- [ ] Checkpoint: run tests, review diff, verify scope` markers between groups of 2–3 implementation tasks. The checkpoint isn't decorative — it's the integration point where Rules 0.5 (scope) and 2 (compilable) get verified.
+
 ### 6. Generate Specs, Tasks, and Design [all tiers]
 
 Now that the direction is confirmed, generate the remaining planning artifacts.
@@ -645,3 +682,32 @@ After approval:
 ```
 /implement-feature <change-id>
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "I know what the user wants — I can skip discovery" | The fastest way to redo a plan is to skip the gates that prevent rework. Steps 3 and 5 are cheap insurance against generating tasks.md against the wrong target. |
+| "An L-sized task is fine — splitting it is overhead" | L tasks routinely become XL once implementation starts; the split costs less now (in plan) than mid-implementation (where it forces work-package re-decomposition and lock re-acquisition). |
+| "The title says 'and' but they're tightly coupled — keep as one task" | Tightly coupled work usually deserves a *shared dependency* between two tasks, not a single fused task. Fusing hides the second outcome from the checkpoint cadence. |
+| "I'll skip the contracts step — this is a small feature" | Contracts are the coordination boundary between parallel agents AND the artifact that lets `/validate-feature` distinguish implementation from spec. Even a `contracts/README.md` stub documents that the question was asked. |
+| "Approaches Considered is busywork — I already know the right approach" | The Approaches section forces you to articulate at least one alternative; if you can't, the "right" approach is probably untested. Reviewers (and Gate 1) need this to push back. |
+
+## Red Flags
+
+- A task in `tasks.md` whose title contains the word "and" (almost always a hidden two-task; see "And splitting heuristic").
+- An L-sized task with no decomposition attempt recorded in `design.md`.
+- An XL task that survived to Gate 2 (Step 12) without being split.
+- `work-packages.yaml` declares parallel packages with overlapping `write_allow` scopes (violates the parallel-package rule in Step 8b).
+- A spec file uses `## Requirements` instead of `## ADDED Requirements` / `## MODIFIED Requirements` — `openspec validate` will reject it.
+- `proposal.md` lacks an "Approaches Considered" section, or has only one approach listed.
+- No checkpoint markers in `tasks.md` between groups of 2–3 implementation tasks.
+
+## Verification
+
+1. Cite the size class assigned to each task in `tasks.md` and confirm none are XL and ≤ 1 are L (per Task Sizing Reference).
+2. Run `grep -i ' and ' openspec/changes/<change-id>/tasks.md | grep -E '^\s*- \[' ` and confirm any matches are intentional (and noted in `design.md`).
+3. Confirm `tasks.md` contains at least one `Checkpoint:` marker per 3 implementation tasks.
+4. Confirm `openspec validate <change-id> --strict` passes (Step 9).
+5. Confirm `proposal.md` lists ≥ MIN_APPROACHES distinct approaches and marks one as Recommended (Step 4).
+6. Confirm Gate 1 and Gate 2 user-approval responses are recorded in the session log (Step 11.5).
