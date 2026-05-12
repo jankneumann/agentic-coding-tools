@@ -27,6 +27,7 @@ Industry signal underlines the urgency. As coding agents are integrated into mai
 - **Reuse the content-analyzer stack.** FalkorDB + Graphiti-style temporal episodes; do not invent a new graph database, query language, or temporal model.
 - **2D first.** Cytoscape.js is the primary render target. 3D (three.js / CodeCity metaphor) is an optional later view, never the default.
 - **No vendor lock-in for the UI.** All data is fetched via a documented HTTP API the SPA consumes; agents and CLI tools can hit the same endpoints.
+- **Read-mostly by default; reversibility determines consent.** All API surfaces (HTTP, MCP server, MCP App, Action API) MUST tag every operation as `read`, `reversible-write`, or `destructive-write`. Read and reversible-write operations are auto-allowed and emit audit events; destructive-write operations require explicit consent (prompt, signature, or pre-authorized scope) and emit audit events. The model mirrors Claude Code's `allow / ask / deny` permission tiers. Reversibility is defined in the Constraints section.
 
 ## Constraints
 
@@ -49,6 +50,21 @@ Every generated artifact in this system MUST belong to one of four families. The
 - **Provenance artifacts** explain *how an entity came to exist*: which commit, branch, worktree, agent session, OpenSpec proposal, work package, review finding, validation run produced it. Examples: `openspec/changes/<id>/`, session logs, work-queue result JSON, worktree registry, merge logs. Becomes the spine of the agent-memory lens.
 
 Capabilities in the roadmap are organized to emit and consume artifacts within these families. Surfaces (HTTP API, MCP server, MCP App, SPA, lenses) consume across families; rendering capabilities are family-agnostic but lenses are family-specific.
+
+### Operation reversibility taxonomy
+
+Every operation exposed by an API surface MUST be classified as one of three kinds, mirroring Claude Code's `allow / ask / deny` permission model. Classification determines whether the operation runs immediately or requires explicit consent.
+
+- **Read** — pure queries with no side effects: subgraph lookups, dependent traversals, snapshot retrieval, source-slice fetches, AST-bundle reads, audit-log queries. Auto-allowed. Audit events optional.
+- **Reversible-write** — state changes that can be undone by a single operator command without data loss, coordination, or destruction of other operators' work. Examples: ingesting a fresh snapshot into FalkorDB (drop the namespace to undo), creating a new annotation (delete it), saving a named view (delete it), importing a graph pack into a fresh repo namespace (unload the namespace), additive Cypher (`CREATE`, `MERGE` without overwriting properties), tagging a commit-aware episode. Auto-allowed. MUST emit an audit event.
+- **Destructive-write** — state changes that are hard or impossible to reverse cleanly, that delete or overwrite existing data, that touch state visible to other operators, or that mutate canonical artifacts. Examples: `DETACH DELETE` of any node beyond a small allow-listed threshold, overwriting a committed JSON snapshot, importing a graph pack *over* an existing namespace, modifying or deleting another operator's saved views, force-rebuilding the FalkorDB store, schema migrations that drop or rename node/edge types. MUST require explicit consent (per-operation prompt, signed-token approval, or pre-authorized scope such as "this agent may perform destructive operations for the next N minutes"). MUST emit an audit event regardless of consent path.
+
+**Classification rules:**
+
+- The classifier is centralized in one Python module (e.g. `skills/shared/op_reversibility.py`) so the HTTP API, MCP server, MCP App, and Action API all share the same decisions.
+- Cypher queries MUST be classified by a query analyzer that inspects the AST: any clause containing `DELETE`, `DETACH DELETE`, `REMOVE`, or `SET` of properties that already have a value triggers destructive classification. Unknown or unparseable queries fall back to destructive.
+- The taxonomy applies to **v1 production capabilities only**. Prototype-feature skeletons (the four rendering variants) are exempt during the prototype phase to avoid blocking iteration; they MUST adopt the classifier before promotion to production.
+- Audit events MUST use the event-artifact family (`docs/codeviz/audit/<YYYY-MM-DD>/<run-id>.json` with the mandatory artifact header) — no new substrate.
 
 ### Artifact temporal model
 
@@ -166,6 +182,9 @@ Acceptance outcomes:
 - OpenAPI schema MUST be auto-generated and committed.
 - `/cypher` MUST be disabled by default and require an explicit env flag.
 - Server MUST refuse cross-repo queries unless `repo_id` is explicitly specified.
+- Every endpoint MUST declare an `operation_kind` in `{read, reversible-write, destructive-write}` via the shared `op_reversibility` classifier; the OpenAPI schema MUST expose this tag.
+- The `/cypher` endpoint MUST run an AST-level classifier on every submitted query before execution; queries that contain `DELETE`, `DETACH DELETE`, `REMOVE`, or property-overwriting `SET` MUST be classified destructive and refused unless an explicit consent token is presented.
+- Reversible-write endpoints MUST emit an audit-event artifact; destructive-write endpoints MUST emit an audit event AND require a consent token, regardless of whether the caller is human or agent.
 
 ### Capability: MCP server interface over the graph
 
@@ -179,6 +198,8 @@ Acceptance outcomes:
 - The nine user-task tools above MUST all be implemented and documented with example invocations.
 - The MCP server MUST be discoverable from `agent-coordinator/`'s capability registry.
 - Documentation MUST cover Claude Desktop and Cursor configuration snippets at `docs/codeviz/mcp.md`.
+- Every MCP tool's schema MUST declare an `operation_kind` annotation inherited from the wrapped HTTP handler; clients MUST be able to filter tool listings by `operation_kind`.
+- Destructive-write tools MUST surface as MCP tools that require host-mediated consent (the standard MCP user-consent flow); reversible-write tools MUST emit audit events without prompting.
 
 ### Capability: MCP App for in-conversation visualization
 
@@ -190,6 +211,7 @@ Acceptance outcomes:
 - The App MUST be able to call MCP tools (e.g. `blast_radius`, `compare_snapshots`) and receive results via the MCP App bidirectional channel.
 - Sandboxing MUST follow the MCP App specification: no direct DOM access outside the iframe, no arbitrary network calls.
 - Documentation MUST include host-configuration snippets and a screenshot fixture at `docs/codeviz/mcp-app.md`.
+- Tool calls initiated from inside the App MUST respect the same `operation_kind` taxonomy as direct MCP server calls — destructive-write tools MUST trigger the host's standard consent UI; reversible-write tools MUST surface a visible audit-event indicator (small badge) so the operator sees what the App is doing in-context.
 
 ## Phase 1 — Single-Page Web App Shell
 
@@ -320,6 +342,8 @@ Acceptance outcomes:
 - Action API MUST be documented in `docs/codeviz/agent-api.md` with example invocations.
 - Headless screenshots MUST be reproducible from a URL alone.
 - A sample skill (`codeviz-snapshot`) MUST demonstrate end-to-end agent use.
+- Every action MUST declare an `operation_kind` via the shared `op_reversibility` classifier; pure navigation actions (select / filter / zoom / scrub) are `read`.
+- Destructive-write actions MUST accept a `consent_token` header (or a pre-authorized scope claim) and MUST refuse the operation without one; reversible-write actions MUST emit an audit event with the calling agent's identifier.
 
 ## Phase 4 — Multi-Repo and Cross-Artifact Linkage
 
