@@ -1,0 +1,47 @@
+{
+  "findings": [
+    {
+      "id": "harness-system-prompt-discrepancy",
+      "type": "bug",
+      "criticality": "high",
+      "description": "Discrepancy between phase_agent.py and Design D2 regarding system_prompt support. Design D2 states the harness Agent() tool does not support a system_prompt parameter, but phase_agent.py attempts to pass it in the options dict (line 352). This will likely cause sub-agent dispatch to fail or ignore the system prompt. phase_agent.py must be updated to fold the system_prompt into the prompt text using the \\n\\n---\\n\\n separator as described in the design.",
+      "disposition": "fix",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": "342-355"
+    },
+    {
+      "id": "proposal-design-truncation",
+      "type": "doc",
+      "criticality": "medium",
+      "description": "The Proposal and Design artifacts are truncated at the end of the D-1 section (e.g., 'adding phase_archetype TEXT to the a'). This omits the full plan for the SQL migration and subsequent sections (D-2 status reporter details, etc.), preventing a complete review of the end-to-end wiring.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md"
+    },
+    {
+      "id": "agent-info-missing-field",
+      "type": "bug",
+      "criticality": "low",
+      "description": "AgentInfo dataclass and its from_dict factory method are missing the phase_archetype field. This is a required update for G4 and D-1 (AgentInfo persistence) to expose which archetype an agent is currently running under.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/src/discovery.py",
+      "line_range": "21-51"
+    },
+    {
+      "id": "status-reporter-missing-payload",
+      "type": "bug",
+      "criticality": "low",
+      "description": "report_status.py does not read or include phase_archetype in its POST /status/report payload. This wiring is required for G3 and D-2 to enable correlation of phase behavior with archetype in dashboards.",
+      "disposition": "fix",
+      "file_path": "agent-coordinator/scripts/report_status.py",
+      "line_range": "101-111"
+    },
+    {
+      "id": "skill-md-parsing-ambiguity",
+      "type": "clarity",
+      "criticality": "medium",
+      "description": "The proposal states that SKILL.md will parse the sub-agent's last message for (outcome, handoff_id) 'per the protocol in phase_agent._validate_result'. However, _validate_result is a Python type-check for a tuple, not a text-parsing regex. The proposal should specify the exact string format the sub-agent is instructed to use and the regex the orchestrator will use to parse it from the transcript to ensure robustness.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md"
+    }
+  ]
+}

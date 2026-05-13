@@ -1,0 +1,73 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "claude-r2-001",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "design.md:215 says in-process callers without dispatch metadata write 'quorum_requested: <N vendors>, quorum_received: <N vendors>' — but `quorum_received` should reflect actual SUCCESSFUL vendors, not the requested count. If 3 vendors were requested and 1 timed out, `quorum_received` should be 2, not 3. The current text would mislead operators reading the manifest.",
+      "disposition": "fix",
+      "resolution": "Update design.md and (if applicable) spec.md R1.S4 to specify: in-process callers SHALL set `quorum_received` to the count of vendors with non-empty findings (or another concrete success criterion); `quorum_requested` SHALL be the count of vendors dispatched.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/design.md",
+      "line_range": {"start": 210, "end": 220},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-002",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "R3.S3 (synthesis_failed defaults to False on happy path) is testable only if a ConvergenceResult is constructed. But the design says when synthesis raises, the exception propagates and a result is NOT returned. So the only way `synthesis_failed=True` can be observed is if a caller wraps converge() in try/except and constructs their own partial result. Spec doesn't say which callers do this. The field is essentially documented but never set by converge() itself.",
+      "disposition": "fix",
+      "resolution": "Either (a) drop `synthesis_failed` from the dataclass since converge() never sets it (callers that catch the exception know synthesis failed without a flag), OR (b) document at least one caller that constructs a partial ConvergenceResult and sets the flag, justifying the field's existence.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 88, "end": 110},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-003",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "The audit event `convergence.synthesis_failed_with_checkpoint` is only emitted when synthesis fails WITH checkpoint present. If the checkpoint write itself fails (OSError/PermissionError before synthesis), there is NO audit event. Operators relying on `query_audit('convergence.synthesis_failed_with_checkpoint')` to detect chronic synthesis issues would miss the case where the system can't even checkpoint. This is a silent failure mode.",
+      "disposition": "fix",
+      "resolution": "Add a parallel audit event `convergence.checkpoint_write_failed` emitted when the checkpoint write raises before synthesis is attempted. Include `change_id`, `review_type`, `original_exception_class`, `original_exception_message`, `artifacts_dir`, `timestamp`. Same best-effort emission pattern (audit failures don't mask the OSError).",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/specs/skill-workflow/spec.md",
+      "line_range": {"start": 117, "end": 145},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-004",
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "review-cache-layout.schema.json marks `dispatches`, `quorum_requested`, `quorum_received` as required AND `additionalProperties: false`. After this proposal lands, all manifests have these fields. But operators inspecting a manifest from BEFORE this proposal landed (e.g., archived `.review-cache/` from a prior run) would fail schema validation. The schema description says these manifests will be 'regenerated next time the dispatcher runs' but doesn't define what 'regenerated' means for an archived/read-only directory.",
+      "disposition": "accept",
+      "resolution": "Document in contracts/README.md that legacy manifests don't validate against schema_version=1 and operators wanting to inspect them should treat them as a separate (un-versioned) format. No code change needed; just clarify expectations.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/contracts/review-cache-layout.schema.json",
+      "line_range": {"start": 7, "end": 25},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-005",
+      "type": "testability",
+      "criticality": "low",
+      "description": "Task 1.3 says 'grep for any caller that reads the manifest or globs the output dir.' But this is a one-time grep at implementation time, not a regression-detecting test. If someone adds a new caller post-merge that violates the manifest contract, nothing catches it. The shared manifest format is a coordination boundary; consumers SHOULD be enforced via fixture-based tests, not grep.",
+      "disposition": "fix",
+      "resolution": "Add a test fixture in skills/tests/parallel-infrastructure/ that loads each known manifest consumer's reading code (or a representative subset) against synthetic manifests (CLI-shape, in-process-shape, both with empty dispatches). Run as part of wp-cli-migrate's verification.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {"start": 38, "end": 42},
+      "vendor": "claude_code"
+    },
+    {
+      "id": "claude-r2-006",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Spec R5 (Path Safety) S2 rejects vendor names outside `[A-Za-z0-9_-]+`. But the existing dispatcher's vendor names include `gpt-5-codex` and `claude_code` — both compliant. Are there any vendor adapter configs in agents.yaml or elsewhere that emit names with periods, dots, or version qualifiers? The constraint should be verified against the actual vendor name set used in production, not just the development examples.",
+      "disposition": "fix",
+      "resolution": "Add a verification step to task 0.2 that grep's existing vendor names from the codebase (`agents.yaml`, vendor adapter configs) and asserts they all match the regex. If any don't, expand the regex to accept them OR document migration plan for non-compliant names.",
+      "file_path": "openspec/changes/harden-multi-vendor-review-recovery/tasks.md",
+      "line_range": {"start": 18, "end": 28},
+      "vendor": "claude_code"
+    }
+  ]
+}

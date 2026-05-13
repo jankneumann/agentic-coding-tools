@@ -1,0 +1,112 @@
+{
+  "findings": [
+    {
+      "id": "R1-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The artifacts disagree on where system_prompt folding happens. D1 tells SKILL.md to call Agent(prompt=<system_prompt> + separator + <prompt>), while tasks/specs require build_phase_dispatch_kwargs to return a prompt that is already folded. Implementers can easily double-prepend the archetype system prompt or write incompatible tests. Pick one contract: preferably have build-dispatch return the final Agent prompt, and have SKILL.md pass it through unchanged.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 59,
+        "end": 66
+      }
+    },
+    {
+      "id": "R1-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "apply_phase_outcome is specified as idempotent, but the cache lifecycle makes the second identical call overwrite the previously resolved archetype with null. The first successful call deletes .phase-resolution-cache.json; the second call sees a missing cache, and the spec says missing cache sets phase_archetype=None. That violates the idempotency scenario expecting the cached archetype after both calls. The helper needs a replay rule, such as preserving phase_archetype when last_handoff_id already equals the requested handoff_id.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 113,
+        "end": 116
+      }
+    },
+    {
+      "id": "R1-003",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The status-report JSON schema is incompatible with the existing POST /status/report contract. It requires change_id and phase even though StatusReportRequest defaults both, and it restricts event_type to progress/blocked/completed/failed even though report_status.py currently sends status.phase_transition or status.escalated and archived specs also use gate_check/phase_skip. This contract would reject valid existing clients and misguide implementation tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/contracts/events/status-report.schema.json",
+      "line_range": {
+        "start": 7,
+        "end": 46
+      }
+    },
+    {
+      "id": "R1-004",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "The AgentInfo persistence plan understates the database work. DiscoveryService.discover currently reads through the discover_agents SQL RPC, and heartbeat uses the agent_heartbeat SQL RPC. A migration that only adds a column will not make GET /discovery/agents return phase_archetype and may not persist heartbeat updates unless Python bypasses or updates those RPCs. Add explicit tasks/design steps to update discover_agents output and the heartbeat persistence path.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 299,
+        "end": 309
+      }
+    },
+    {
+      "id": "R1-005",
+      "type": "work_package_validity",
+      "criticality": "medium",
+      "description": "wp-skills-autopilot does not allow or lock all files its tasks must write. Task 2.9b creates skills/autopilot/scripts/token_budget_check.py and task 2.11 edits .gitignore, but the package write_allow and locks only include phase_agent.py, runner.py, autopilot.py, SKILL.md, and tests. The package will fail scope checking or force out-of-scope edits.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/work-packages.yaml",
+      "line_range": {
+        "start": 104,
+        "end": 120
+      }
+    },
+    {
+      "id": "R1-006",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "report_status.py currently deduplicates only on phase and change_id. The plan adds phase_archetype to the POST body but does not update the cache key. If a Stop hook reports the same phase before phase_archetype is populated, a later report in the same phase with the resolved archetype will be skipped, so discovery can remain null despite successful resolution.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/tasks.md",
+      "line_range": {
+        "start": 175,
+        "end": 188
+      }
+    },
+    {
+      "id": "R1-007",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The PLAN phase scenario contradicts the dispatch matrix. The spec says PLAN continues through /plan-feature and does not receive an explicit Agent dispatch block, but the PLAN scenario still asserts 'the sub-agent dispatch SHALL receive these options verbatim.' That is not testable on the proposed production path unless /plan-feature itself is changed, which is listed as out of scope.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 24,
+        "end": 32
+      }
+    },
+    {
+      "id": "R1-008",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The fallback trigger is inconsistent and tied to the wrong signal. The proposal says AGENT_EXECUTION_ENV indicates whether harness Agent is available, while the design says to inspect tool presence in the system prompt. In this repo AGENT_EXECUTION_ENV is an isolation-profile signal (cloud/local), not a tool-availability flag. Define a deterministic availability contract or leave the check as an orchestrator-level prose guard.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/proposal.md",
+      "line_range": {
+        "start": 57,
+        "end": 62
+      }
+    },
+    {
+      "id": "R1-009",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The plan requires PLAN_FIX, IMPL_FIX, and VAL_FIX to record phase_archetype via 'the convergence loop's existing audit path', but convergence_loop.py has no phase_archetype handling and no task adds it. Without explicit convergence-loop wiring, the 'All 13 non-terminal phases' spec will fail for the *_FIX phases.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/wire-autopilot-phase-subagents/design.md",
+      "line_range": {
+        "start": 417,
+        "end": 424
+      }
+    }
+  ]
+}

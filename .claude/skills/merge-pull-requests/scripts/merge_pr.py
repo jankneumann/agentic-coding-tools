@@ -9,11 +9,18 @@ Actions:
   refresh-branch  - Merge base branch into PR to get fresh CI (stale merge commit)
 
 Usage:
-  python merge_pr.py merge <pr_number> [--strategy squash|merge|rebase] [--validation-report PATH] [--force] [--allow-unapproved] [--dry-run]
+  python merge_pr.py merge <pr_number> [--strategy squash|merge|rebase] [--validation-report PATH] [--force] [--force-approval] [--dry-run]
   python merge_pr.py close <pr_number> --reason <text> [--dry-run]
   python merge_pr.py batch-close <pr_numbers_comma_sep> --reason <text> [--dry-run]
   python merge_pr.py rerun-checks <pr_number> [--dry-run]
   python merge_pr.py refresh-branch <pr_number> [--dry-run]
+
+Force flags (narrowly scoped — opt into each bypass deliberately):
+  --force            Override the validation-report pre-merge gate. Does NOT
+                     bypass the approval (review_decision) gate.
+  --force-approval   Bypass the review-approval gate. Intended for sole-
+                     maintainer workflows where no formal review applies.
+                     Branch protection on GitHub still enforces server-side.
 
 Output: JSON result to stdout.
 """
@@ -71,56 +78,12 @@ def get_pr_status(pr_number: int) -> dict:
         raw = run_gh([
             "pr", "view", str(pr_number), "--json",
             "state,mergeable,statusCheckRollup,reviewDecision,"
-            "headRefName,baseRefName,title,isDraft,isCrossRepository,reviewRequests",
+            "headRefName,title,isDraft,isCrossRepository,reviewRequests",
         ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
         print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
         sys.exit(1)
     return json.loads(raw)
-
-
-def _base_branch_requires_approval(base_branch: str) -> bool:
-    """Return True iff the base branch's protection requires approving reviews.
-
-    Queries ``gh api repos/:owner/:repo/branches/<base>/protection``. Mirrors
-    GitHub's own enforcement so we only gate when GitHub would also gate.
-
-    Decision matrix:
-      - 404 ("Branch not protected") → False (solo-dev / unprotected branch)
-      - 200 with ``required_pull_request_reviews`` absent → False
-      - 200 with ``required_approving_review_count == 0`` → False
-      - 200 with ``required_approving_review_count >= 1`` → True
-      - Any other failure (403, timeout, parse error, empty base) → True
-        (fail-closed, preserves the historical strict behavior so we never
-        silently merge unapproved PRs in protected repos we couldn't probe).
-    """
-    if not base_branch:
-        return True
-
-    try:
-        result = run_gh_unchecked(
-            ["api", f"repos/:owner/:repo/branches/{base_branch}/protection"],
-            timeout=GH_TIMEOUT,
-        )
-    except subprocess.TimeoutExpired:
-        return True
-
-    if result.returncode != 0:
-        stderr_lower = (result.stderr or "").lower()
-        if "not found" in stderr_lower or "http 404" in stderr_lower:
-            return False
-        return True
-
-    try:
-        data = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return True
-
-    pr_reviews = data.get("required_pull_request_reviews")
-    if not pr_reviews:
-        return False
-    required_count = pr_reviews.get("required_approving_review_count") or 0
-    return required_count >= 1
 
 
 def check_approval_freshness(pr_number: int) -> dict:
@@ -250,13 +213,6 @@ def validate_pr(pr_number: int) -> dict:
     review_decision = status.get("reviewDecision", "")
     approved = review_decision == "APPROVED"
 
-    # Mirror GitHub's own enforcement: only require approval when the base
-    # branch's protection rules require it. Solo-dev repos with no protection
-    # land in the no-gate branch and can merge unapproved PRs the same way
-    # `gh pr merge` would allow.
-    base_branch = status.get("baseRefName", "")
-    approval_required = _base_branch_requires_approval(base_branch)
-
     # Check for stale approval (commits pushed after last approval)
     approval_freshness = {}
     if approved:
@@ -279,7 +235,6 @@ def validate_pr(pr_number: int) -> dict:
         "pr_number": pr_number,
         "title": status.get("title", ""),
         "branch": status.get("headRefName", ""),
-        "base_branch": base_branch,
         "is_draft": is_draft,
         "is_fork": is_fork,
         "mergeable": mergeable,
@@ -291,7 +246,6 @@ def validate_pr(pr_number: int) -> dict:
         "check_details": check_details,
         "review_decision": review_decision,
         "approved": approved,
-        "approval_required": approval_required,
         "approval_may_be_stale": approval_freshness.get(
             "approval_may_be_stale", False,
         ),
@@ -301,7 +255,7 @@ def validate_pr(pr_number: int) -> dict:
             and checks_ok
             and not checks_pending
             and not is_draft
-            and (approved or not approval_required)
+            and approved
         ),
     }
 
@@ -321,11 +275,48 @@ def _has_merge_queue() -> bool:
         return False
 
 
-def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
+def _delete_remote_branch_via_api(branch: str) -> dict:
+    """Delete a remote branch via the GitHub REST API.
+
+    Used as a fallback after `gh pr merge --delete-branch` succeeds at
+    merging but fails its local-branch-update step (a fatal failure mode
+    when local main is checked out in a worktree). When that happens, gh
+    aborts before the remote-branch DELETE that should follow, leaving
+    a dangling remote branch — `git fetch --prune` later catches it,
+    but the cleanup script should clean up explicitly.
+    """
+    if not branch:
+        return {"deleted": False, "reason": "no_branch_name"}
+
+    try:
+        result = run_gh_unchecked(
+            [
+                "api", "-X", "DELETE",
+                f"repos/:owner/:repo/git/refs/heads/{branch}",
+            ],
+            timeout=GH_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return {"deleted": False, "reason": "timeout", "branch": branch}
+
+    if result.returncode == 0:
+        return {"deleted": True, "branch": branch}
+
+    stderr = (result.stderr or "").strip()
+    # Reference Already Does Not Exist — branch was already deleted server-side
+    if "not found" in stderr.lower() or "reference does not exist" in stderr.lower():
+        return {"deleted": True, "branch": branch, "already_absent": True}
+
+    return {"deleted": False, "branch": branch, "error": stderr}
+
+
+def _try_merge(
+    pr_number: int, strategy: str, is_fork: bool, branch: str = "",
+) -> dict:
     """Attempt the actual gh pr merge command, handling edge cases."""
     # Try merge queue first if available
     if _has_merge_queue():
-        result = _try_merge_queue(pr_number, strategy, is_fork)
+        result = _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
         if result.get("success"):
             return result
         # If merge queue attempt failed (e.g., queue not actually enabled),
@@ -368,20 +359,34 @@ def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
     # Detect merge queue requirement and retry
     stderr_lower = stderr.lower()
     if "merge queue" in stderr_lower or "enqueue" in stderr_lower:
-        return _try_merge_queue(pr_number, strategy, is_fork)
+        return _try_merge_queue(pr_number, strategy, is_fork, branch=branch)
 
-    # Merge may have succeeded but branch deletion failed
+    # Merge may have succeeded but branch deletion failed. The most common
+    # mode is gh's local-branch update step erroring out (e.g. "fatal: not
+    # a git repository" when main is checked out in a worktree, or "branch
+    # is not fully merged" against a stale local copy). gh aborts before
+    # the remote DELETE that should follow, so attempt the API cleanup.
     post_status = get_pr_status(pr_number)
     if post_status.get("state") == "MERGED":
+        delete_result: dict | None = None
+        if not is_fork and branch:
+            delete_result = _delete_remote_branch_via_api(branch)
+
+        warning = "PR merged but branch deletion may have failed"
+        if delete_result and delete_result.get("deleted"):
+            warning += "; remote branch cleaned up via API fallback"
+
         resp = {
             "action": "merge",
             "success": True,
             "status": "merged",
             "pr_number": pr_number,
             "strategy": strategy,
-            "warning": "PR merged but branch deletion may have failed",
+            "warning": warning,
             "stderr": stderr,
         }
+        if delete_result:
+            resp["remote_branch_delete"] = delete_result
         if is_fork:
             resp["note"] = "Fork PR — remote branch not deleted"
         return resp
@@ -397,7 +402,9 @@ def _try_merge(pr_number: int, strategy: str, is_fork: bool) -> dict:
     return resp
 
 
-def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
+def _try_merge_queue(
+    pr_number: int, strategy: str, is_fork: bool, branch: str = "",
+) -> dict:
     """Retry merge using --merge-queue for repos that require it."""
     strategy_flag = f"--{strategy}"
     merge_args = ["pr", "merge", str(pr_number), strategy_flag, "--merge-queue"]
@@ -428,11 +435,37 @@ def _try_merge_queue(pr_number: int, strategy: str, is_fork: bool) -> dict:
             resp["note"] += "; fork PR — remote branch not deleted"
         return resp
 
+    # Some merge-queue failures still result in successful integration; the
+    # branch wasn't deleted then either. Mirror the same fallback path.
+    stderr = result.stderr.strip()
+    post_status = get_pr_status(pr_number)
+    if post_status.get("state") == "MERGED":
+        delete_result: dict | None = None
+        if not is_fork and branch:
+            delete_result = _delete_remote_branch_via_api(branch)
+        resp = {
+            "action": "merge",
+            "success": True,
+            "status": "merged",
+            "pr_number": pr_number,
+            "strategy": strategy,
+            "merge_queue": True,
+            "warning": (
+                "PR merged via queue but branch deletion may have failed"
+            ),
+            "stderr": stderr,
+        }
+        if delete_result:
+            resp["remote_branch_delete"] = delete_result
+        if is_fork:
+            resp["note"] = "Fork PR — remote branch not deleted"
+        return resp
+
     return {
         "action": "merge",
         "success": False,
         "pr_number": pr_number,
-        "error": result.stderr.strip() or "Merge queue command failed",
+        "error": stderr or "Merge queue command failed",
     }
 
 
@@ -476,7 +509,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
              dry_run: bool = False,
              validation_report: str | None = None,
              force: bool = False,
-             allow_unapproved: bool = False) -> dict:
+             force_approval: bool = False) -> dict:
     validation = validate_pr(pr_number)
 
     # Pre-merge gate: if a validation report is provided, check all required
@@ -486,6 +519,23 @@ def merge_pr(pr_number: int, strategy: str = "squash",
         gate_result = _check_pre_merge_gate(
             validation_report, force=force,
         )
+
+    # --force-approval mutates the validation view rather than threading a
+    # bypass flag through every gate: any caller that reads validation["approved"]
+    # or validation["can_merge"] downstream sees the operator's explicit
+    # decision, and the JSON result records why the bypass was applied.
+    bypassed_approval = False
+    if force_approval and not validation["approved"]:
+        validation["bypassed_approval"] = True
+        validation["original_review_decision"] = validation["review_decision"]
+        validation["approved"] = True
+        validation["can_merge"] = (
+            validation["mergeable"] == "MERGEABLE"
+            and not validation["checks_failed"]
+            and not validation["checks_pending"]
+            and not validation["is_draft"]
+        )
+        bypassed_approval = True
 
     if dry_run:
         result = {
@@ -500,6 +550,8 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             result["gate"] = gate_result
             if gate_result["action"] == "halt":
                 result["would_merge"] = False
+        if bypassed_approval:
+            result["bypassed_approval"] = True
         return result
 
     # Gate check: block merge if gate halted (and not forced)
@@ -543,15 +595,12 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             "validation": validation,
         }
 
-    if (
-        not validation["approved"]
-        and validation["approval_required"]
-        and not allow_unapproved
-    ):
+    if not validation["approved"]:
         reason = "Review approval required before merging"
         if validation["pending_reviewers"]:
             reviewers = ", ".join(validation["pending_reviewers"])
             reason += f" (pending: {reviewers})"
+        reason += " (use --force-approval for sole-maintainer workflows)"
         return {
             "action": "merge",
             "success": False,
@@ -560,17 +609,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             "validation": validation,
         }
 
-    # ``can_merge`` factors approval into its calculation. Approval was just
-    # handled explicitly above (including the ``--allow-unapproved`` bypass),
-    # so the fall-through catch-all must skip approval to avoid re-blocking
-    # an intentionally-allowed unapproved merge.
-    structural_ok = (
-        validation["mergeable"] == "MERGEABLE"
-        and not validation["checks_failed"]
-        and not validation["checks_pending"]
-        and not validation["is_draft"]
-    )
-    if not structural_ok:
+    if not validation["can_merge"]:
         return {
             "action": "merge",
             "success": False,
@@ -581,6 +620,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
 
     result = _try_merge(
         pr_number, strategy, validation.get("is_fork", False),
+        branch=validation.get("branch") or "",
     )
 
     # Include stale approval warning on successful merges
@@ -591,6 +631,11 @@ def merge_pr(pr_number: int, strategy: str = "squash",
         result["warning"] += (
             "Approval may be stale — commits were pushed after the last approval"
         )
+
+    # Surface the bypass on every successful or failed merge response so
+    # callers (and the audit log) can see that approval was overridden.
+    if bypassed_approval:
+        result["bypassed_approval"] = True
 
     # Include gate result if present
     if gate_result:
@@ -883,16 +928,16 @@ def main():
     )
     merge_parser.add_argument(
         "--force", action="store_true",
-        help="Override pre-merge gate (explicit user bypass)",
+        help=(
+            "Override pre-merge validation-report gate. Does NOT bypass the "
+            "review-approval gate; pair with --force-approval if required."
+        ),
     )
     merge_parser.add_argument(
-        "--allow-unapproved", action="store_true",
+        "--force-approval", dest="force_approval", action="store_true",
         help=(
-            "Bypass the approval gate. By default the approval gate is "
-            "enforced only when the base branch's protection rules require "
-            "approving reviews (mirroring GitHub). This flag forces a bypass "
-            "even when protection requires approval — useful for admin "
-            "overrides or when probing protection failed."
+            "Bypass the review-approval gate for sole-maintainer workflows. "
+            "GitHub branch protection still applies server-side."
         ),
     )
     merge_parser.add_argument("--dry-run", action="store_true")
@@ -942,7 +987,7 @@ def main():
             args.pr_number, strategy, args.dry_run,
             validation_report=args.validation_report,
             force=args.force,
-            allow_unapproved=args.allow_unapproved,
+            force_approval=args.force_approval,
         )
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)

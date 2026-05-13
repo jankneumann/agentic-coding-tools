@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-08T16:40:56.130423+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Major re-scope after multi-vendor PLAN_REVIEW (claude+codex+gemini) converged on a fundamental architectural flaw: the proposed CLI subprocess fallback uses the same Finding.from_dict() parser as the in-process path, so both paths fail identically on the motivating bug. Dropped automatic recovery (R3); reframed proposal as durable-checkpoint-plus-manual-recovery. Spec compressed from 6 requirements / 24 scenarios to 5 requirements / 17 scenarios. LOC estimate dropped from 1190 to 780. Contract schemas corrected (per-vendor file is wrapper object, not raw array). Helper relocated under parallel-infrastructure/ to fix dependency cycle.",
+    "completed_work": [
+      "Re-wrote proposal.md with new framing (durable checkpoint, not automatic recovery); previous approach 1 marked NOW REJECTED with explanation",
+      "Re-wrote spec.md: dropped R3 (CLI subprocess fallback) entirely; kept R1 (layout), R2 (in-process checkpointing), R3-renumbered (observability fields, was R4), R4-renumbered (audit, was R5), R5-renumbered (path safety, was R6). 5 requirements / 17 scenarios.",
+      "Re-wrote tasks.md: dropped Phase 5 (CLI fallback) entirely; renumbered phases; integration test (Phase 5 new) verifies durability NOT recovery",
+      "Re-wrote design.md with corrected architectural diagram (helper under parallel-infrastructure/); Decision Log now D1-D6 with all decisions reflecting the new framing",
+      "Fixed contracts/finding.schema.json: per-vendor file is wrapper object {review_type, target, reviewer_vendor, findings: [...]}, NOT raw array. Synthesizer crash during consensus run was direct evidence of the original schema's incorrectness.",
+      "Re-wrote work-packages.yaml: 5 packages (wp-contracts, wp-checkpoint-helper, wp-cli-migrate, wp-converge-checkpoint, wp-integration). LOC estimates: 80+240+120+200+140 = 780 (down from 1190).",
+      "Updated contracts/README.md to reflect superset framing and wrapper-object correction",
+      "Re-validated: openspec --strict passes, work-packages validates, JSON schemas parse"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Drop automatic recovery; deliver durable checkpoint only (D1)",
+        "rationale": "Multi-vendor review caught that both paths share Finding.from_dict(). The CLI subprocess can't escape parser bugs; it just experiences them from a subprocess. Honest framing of what's achievable: durable on-disk state for manual recovery, with automatic recovery deferred to a follow-up proposal that depends on the parser fix landing first.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Same on-disk path as the CLI dispatcher; no relocation (D2)",
+        "rationale": "Codex finding caught that routing CLI per-vendor writes into .review-cache/ would silently move artifacts that other code globs at <output_dir>/findings-*-{review_type}.json. Compatibility cost outweighed the cosmetic benefit of unified paths.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Move checkpoint_findings.py under parallel-infrastructure/ (dependency direction)",
+        "rationale": "Both claude-003 (low) and gemini #2 (medium) flagged the bidirectional dependency cycle in the original placement. autopilot already imports from parallel-infrastructure (ReviewOrchestrator). Putting the helper under autopilot/ would create a back-edge.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Per-vendor finding-file schema = wrapper object, NOT raw array (D4)",
+        "rationale": "The synthesizer literally crashed on my findings file (raw array shape) during PLAN_REVIEW consensus run. The existing wire format is a wrapper object with findings: [...] inside. Schema must mirror reality.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      },
+      {
+        "title": "Manifest is a superset preserving existing dispatcher fields (D3)",
+        "rationale": "Codex finding #3 + my own claude-006 (the only matcher-confirmed cross-vendor finding). Replacing the existing manifest format would lose model_used / elapsed_seconds / error_class \u2014 operationally valuable. Superset is additive and backward-compatible.",
+        "capability": "multi-vendor-review",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

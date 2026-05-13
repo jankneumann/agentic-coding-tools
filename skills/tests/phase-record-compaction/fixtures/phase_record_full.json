@@ -1,0 +1,56 @@
+{
+  "change_id": "phase-record-compaction",
+  "phase_name": "Implementation Iteration 2",
+  "agent_type": "autopilot",
+  "session_id": "sess-2026-04-25-9P9o1",
+  "summary": "Wired PhaseRecord through autopilot Layer 1 boundaries. Six handoff sites now populated. Backward-compat snapshot loading verified.",
+  "decisions": [
+    {
+      "title": "Bump LoopState schema_version to 2",
+      "rationale": "Adding last_handoff_id field requires version increment so serialized snapshots can be migrated forward.",
+      "capability": "skill-workflow",
+      "supersedes": null
+    },
+    {
+      "title": "Use append_phase_entry shim rather than direct port",
+      "rationale": "Out-of-tree callers still invoke the legacy API. Hard removal would break silently.",
+      "capability": "skill-workflow",
+      "supersedes": "2026-01-15-old-handoff-design#D2"
+    }
+  ],
+  "alternatives": [
+    {
+      "alternative": "Migrate snapshots eagerly at load time",
+      "reason": "Lazy backward-compat is simpler and avoids needing a migration runner."
+    }
+  ],
+  "trade_offs": [
+    {
+      "accepted": "Two API surfaces during transition",
+      "over": "Single canonical API immediately",
+      "reason": "Shim is shallow (~10 lines) and DeprecationWarning makes the migration discoverable."
+    }
+  ],
+  "open_questions": [
+    "Should append_phase_entry shim removal be conditional on a deprecation-warning grep across all consumers, or time-based?"
+  ],
+  "completed_work": [
+    "Added LoopState.last_handoff_id field with default None",
+    "Bumped LoopState schema_version to 2",
+    "Replaced _maybe_handoff description-string call with PhaseRecord assembly",
+    "Implemented build_phase_record() per-phase builders for all 9 _HANDOFF_BOUNDARIES pairs",
+    "Added handoff_id append to state.handoff_ids and state.last_handoff_id update"
+  ],
+  "in_progress": [
+    "Token instrumentation wiring at phase boundaries (phase_token_pre/post audit entries)"
+  ],
+  "next_steps": [
+    "Land token instrumentation",
+    "Hand off to wp-autopilot-layer-2 for sub-agent isolation"
+  ],
+  "relevant_files": [
+    {"path": "skills/autopilot/scripts/autopilot.py", "description": "_maybe_handoff modified at line 712; LoopState extended at line 64"},
+    {"path": "skills/autopilot/scripts/handoff_builder.py", "description": "New module — per-phase PhaseRecord builders"},
+    {"path": "skills/session-log/scripts/phase_record.py", "description": "PhaseRecord dataclass consumed by handoff_builder"}
+  ]
+}

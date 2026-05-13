@@ -1183,29 +1183,56 @@ class ReviewOrchestrator:
         output_path: Path,
         review_type: str,
         target: str,
+        vendors: list[dict[str, Any]] | None = None,
     ) -> None:
-        """Write review-manifest.json with dispatch metadata."""
-        manifest = {
-            "review_type": review_type,
-            "target": target,
-            "dispatches": [
-                {
-                    "vendor": r.vendor,
-                    "success": r.success,
-                    "model_used": r.model_used,
-                    "models_attempted": r.models_attempted,
-                    "elapsed_seconds": r.elapsed_seconds,
-                    "error": r.error,
-                    "error_class": r.error_class.value if r.error_class else None,
-                }
-                for r in results
-            ],
-            "quorum_requested": len(results),
-            "quorum_received": sum(1 for r in results if r.success),
-        }
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump(manifest, f, indent=2)
+        """Write review-manifest.json via the shared checkpoint_findings helper.
+
+        The manifest is the superset shape: legacy fields (review_type, target,
+        dispatches[], quorum_requested, quorum_received) plus new fields
+        (schema_version, change_id=null, created_at, vendors[]). Existing
+        callers reading the legacy fields continue to work; the new fields
+        are additive.
+
+        The helper always writes ``review-manifest.json`` under
+        ``output_path.parent`` (this is the canonical filename baked into
+        the schema). To prevent silent caller confusion, ``output_path.name``
+        MUST equal ``"review-manifest.json"`` — passing any other filename
+        raises ``ValueError`` instead of silently losing the requested name.
+        ``vendors`` defaults to an empty index for callers that pre-date
+        the per-vendor file write loop in main().
+        """
+        if output_path.name != "review-manifest.json":
+            raise ValueError(
+                f"output_path.name must be 'review-manifest.json', "
+                f"got {output_path.name!r}. The helper writes a fixed "
+                f"filename; pass the desired parent directory with "
+                f"trailing 'review-manifest.json' if you need to be explicit."
+            )
+
+        from checkpoint_findings import write_manifest as _cf_write_manifest
+
+        dispatches = [
+            {
+                "vendor": r.vendor,
+                "success": r.success,
+                "model_used": r.model_used,
+                "models_attempted": r.models_attempted,
+                "elapsed_seconds": r.elapsed_seconds,
+                "error": r.error,
+                "error_class": r.error_class.value if r.error_class else None,
+            }
+            for r in results
+        ]
+        _cf_write_manifest(
+            output_path.parent,
+            review_type=review_type,
+            target=target,
+            vendors=list(vendors) if vendors is not None else [],
+            change_id=None,
+            dispatches=dispatches,
+            quorum_requested=len(results),
+            quorum_received=sum(1 for r in results if r.success),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1351,24 +1378,43 @@ def main() -> int:
         exclude_vendor=args.exclude_vendor,
     )
 
-    # Write results
+    # Write results via the shared checkpoint_findings helper. Per-vendor
+    # files preserve the existing wrapper-object shape and path layout; the
+    # manifest gains the superset fields needed by the in-process converge()
+    # caller while preserving everything legacy callers parse.
+    from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    vendors_index: list[dict[str, Any]] = []
     for result in results:
         if result.success and result.findings:
-            fpath = output_dir / f"findings-{result.vendor}-{args.review_type}.json"
-            with open(fpath, "w") as f:
-                json.dump(result.findings, f, indent=2)
-            print(f"[OK] {result.vendor}: {len(result.findings.get('findings', []))} findings"
+            findings_array = result.findings.get("findings", [])
+            _cf_write_vendor_findings(
+                output_dir,
+                vendor=result.vendor,
+                review_type=args.review_type,
+                target="cli-dispatch",
+                findings=findings_array,
+            )
+            vendors_index.append({
+                "name": result.vendor,
+                "findings_path": f"findings-{result.vendor}-{args.review_type}.json",
+                "finding_count": len(findings_array),
+            })
+            print(f"[OK] {result.vendor}: {len(findings_array)} findings"
                   f" (model: {result.model_used}, {result.elapsed_seconds:.1f}s)")
         else:
             print(f"[FAIL] {result.vendor}: {result.error}"
                   f" (models tried: {result.models_attempted})")
 
-    # Write manifest
+    # Write manifest with the vendor index pointing at per-vendor files
     manifest_path = output_dir / "review-manifest.json"
-    orch.write_manifest(results, manifest_path, args.review_type, "cli-dispatch")
+    orch.write_manifest(
+        results, manifest_path, args.review_type, "cli-dispatch",
+        vendors=vendors_index,
+    )
     print(f"\nManifest: {manifest_path}")
 
     succeeded = sum(1 for r in results if r.success)

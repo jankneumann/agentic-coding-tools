@@ -5,8 +5,16 @@ Provides functions to append structured phase entries to session-log.md
 and merge-log files. Each workflow skill calls these at phase boundaries
 to build a living decision record.
 
+DEPRECATION NOTICE
+------------------
+`append_phase_entry` is deprecated. New code should use
+``PhaseRecord(...).write_both()`` from ``phase_record.py``, which produces
+both the session-log markdown AND a structured coordinator handoff from
+a single in-memory object. The shim here remains so out-of-tree callers
+keep working during the transition.
+
 Functions:
-  append_phase_entry  — Append a phase entry to session-log.md (creates if missing)
+  append_phase_entry  — DEPRECATED. Append a phase entry + best-effort handoff write
   append_merge_entry  — Append a merge session entry to a dated merge-log file
   count_phase_iterations — Count existing iteration entries for auto-increment
   generate_self_summary_prompt — Reference template for agent self-summary
@@ -14,9 +22,13 @@ Functions:
 
 from __future__ import annotations
 
+import logging
 import re
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
+
+_logger = logging.getLogger(__name__)
 
 
 SESSION_LOG_HEADER = """\
@@ -29,26 +41,18 @@ SESSION_LOG_HEADER = """\
 MERGE_LOG_HEADER = "# Merge Log: {date}\n"
 
 
-def append_phase_entry(
+def _append_phase_entry_markdown(
     change_id: str,
     phase_name: str,
     content: str,
     session_log_path: str | Path | None = None,
 ) -> Path:
-    """Append a phase entry to session-log.md.
+    """Internal: append the markdown-only phase entry to session-log.md.
 
-    Creates the file with a header if it doesn't exist. Appends
-    a ``---`` separator before the entry on subsequent appends.
-
-    Args:
-        change_id: OpenSpec change-id.
-        phase_name: Phase name (e.g., "Plan", "Plan Iteration 2").
-        content: The phase entry body (markdown, without the phase header).
-        session_log_path: Override path. Defaults to
-            ``openspec/changes/<change_id>/session-log.md``.
-
-    Returns:
-        The Path to the session-log.md file.
+    This is the original behavior of ``append_phase_entry`` extracted to
+    a private helper. ``PhaseRecord.write_both()`` calls this directly
+    so it can compose its own 3-step pipeline without re-triggering the
+    public shim's deprecation warning or duplicate coordinator write.
     """
     path = Path(session_log_path) if session_log_path else Path(
         f"openspec/changes/{change_id}/session-log.md"
@@ -68,6 +72,114 @@ def append_phase_entry(
         path.write_text(header + f"\n{phase_header}\n", encoding="utf-8")
 
     return path
+
+
+def append_phase_entry(
+    change_id: str,
+    phase_name: str,
+    content: str,
+    session_log_path: str | Path | None = None,
+) -> Path:
+    """DEPRECATED: append a phase entry to session-log.md.
+
+    Emits a ``DeprecationWarning`` and additionally attempts a best-effort
+    coordinator handoff write so legacy callers automatically gain the
+    structured-handoff benefit without code changes.
+
+    Markdown output is unchanged from the original implementation — existing
+    callers see no diff in their session-log.md content.
+
+    .. deprecated::
+        Use ``PhaseRecord(...).write_both()`` from ``phase_record.py``
+        instead. See ``skills/session-log/SKILL.md`` for migration guidance.
+
+    Args:
+        change_id: OpenSpec change-id.
+        phase_name: Phase name (e.g., "Plan", "Plan Iteration 2").
+        content: The phase entry body (markdown, without the phase header).
+        session_log_path: Override path. Defaults to
+            ``openspec/changes/<change_id>/session-log.md``.
+
+    Returns:
+        The Path to the session-log.md file.
+    """
+    warnings.warn(
+        "append_phase_entry() is deprecated. Use "
+        "PhaseRecord(...).write_both() from skills/session-log/scripts/phase_record.py "
+        "instead. The new API produces both session-log markdown AND a structured "
+        "coordinator handoff from a single in-memory object.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    # 1. Original markdown append (unchanged behavior)
+    path = _append_phase_entry_markdown(change_id, phase_name, content, session_log_path)
+
+    # 2. Best-effort coordinator handoff write so legacy callers get the
+    # structured-handoff benefit. Failures here are silently swallowed —
+    # the legacy contract is "returns Path on success, raises on filesystem
+    # error" and we must preserve that.
+    _try_legacy_coordinator_handoff(change_id, phase_name, content)
+
+    return path
+
+
+def _try_legacy_coordinator_handoff(
+    change_id: str, phase_name: str, content: str
+) -> None:
+    """Best-effort coordinator handoff for the deprecated shim path.
+
+    Uses the first non-empty line of `content` (truncated to 500 chars) as
+    the PhaseRecord summary. Other PhaseRecord fields stay empty — the
+    legacy `content` arg is freeform markdown without structured fields.
+
+    Skipped entirely when the env var ``SESSION_LOG_LEGACY_HANDOFF=disabled``
+    is set (used in tests + by callers that don't want the deprecated path
+    to attempt network calls). ``PYTEST_CURRENT_TEST`` also triggers skip
+    so unit tests don't spend their time in coordinator timeouts.
+    """
+    import os as _os
+    if _os.environ.get("SESSION_LOG_LEGACY_HANDOFF") == "disabled":
+        return
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        # Local import to avoid circular dependency at module load time
+        # (phase_record.py imports this module).
+        import sys as _sys
+        from importlib import import_module
+
+        # Ensure phase_record is importable from the same directory.
+        _here = Path(__file__).resolve().parent
+        if str(_here) not in _sys.path:
+            _sys.path.insert(0, str(_here))
+        phase_record = import_module("phase_record")
+    except Exception as exc:  # noqa: BLE001
+        _logger.debug("Legacy shim coordinator write skipped (import): %s", exc)
+        return
+
+    try:
+        first_line = next(
+            (line.strip() for line in content.splitlines() if line.strip()),
+            "",
+        )
+        summary = (first_line[:500].rstrip() or
+                   f"{phase_name} phase entry (via deprecated append_phase_entry)")
+        record = phase_record.PhaseRecord(
+            change_id=change_id,
+            phase_name=phase_name,
+            agent_type="legacy_shim",
+            summary=summary,
+        )
+        # Step 3 only — markdown was already written above.
+        # We use the internal coordinator step to avoid double-appending markdown.
+        record._step_coordinator(  # noqa: SLF001 — intentional internal use
+            coordinator_writer=None,
+            handoffs_dir=None,
+            warnings=[],
+        )
+    except Exception as exc:  # noqa: BLE001
+        _logger.debug("Legacy shim coordinator write skipped (write): %s", exc)
 
 
 def append_merge_entry(

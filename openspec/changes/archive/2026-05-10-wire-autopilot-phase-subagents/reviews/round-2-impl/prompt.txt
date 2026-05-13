@@ -1,0 +1,52 @@
+You are reviewing an IMPLEMENTATION (not a plan) for OpenSpec change `wire-autopilot-phase-subagents`.
+
+## TIME BUDGET
+You have ~25 minutes. Read the listed files efficiently — do NOT exhaustively re-read full directories. Skim, identify issues, emit JSON. Cap your output at ~15 findings; only the most impactful ones.
+
+## Scope (read these — others are out of scope)
+Implementation under review (commits ce17159..HEAD on this branch):
+- `skills/autopilot/scripts/phase_agent.py` — added `build_phase_dispatch_kwargs`, `apply_phase_outcome`, helper functions, `_PROMPT_SEPARATOR` constant (search for "build_phase_dispatch_kwargs")
+- `skills/autopilot/scripts/runner.py` — NEW CLI (subcommands: build-dispatch, apply-outcome)
+- `skills/autopilot/scripts/autopilot.py` — added `_resolve_phase_archetype_for_state_only` (called for INIT and SUBMIT_PR)
+- `skills/autopilot/scripts/token_budget_check.py` — NEW CI gate, imports `_PROMPT_SEPARATOR` from phase_agent
+- `skills/autopilot/scripts/audit_log_validator.py` — NEW operator script
+- `skills/autopilot/SKILL.md` — rewrote 7 phase dispatch blocks with explicit Agent() calls
+- `agent-coordinator/database/migrations/023_add_phase_archetype.sql`
+- `agent-coordinator/src/discovery.py` — extended AgentInfo + DiscoveryService
+- `agent-coordinator/src/coordination_api.py` — Literal enum on StatusReportRequest, /discovery/agents handler
+- `agent-coordinator/scripts/report_status.py` — POSTs phase_archetype with client-side validation
+- New tests in `skills/tests/autopilot/` and `agent-coordinator/tests/`
+
+Spec source of truth: `openspec/changes/wire-autopilot-phase-subagents/specs/skill-workflow/spec.md` and `specs/agent-coordinator/spec.md`.
+Design decisions: `openspec/changes/wire-autopilot-phase-subagents/design.md` (D1-D8).
+
+## What to find
+1. **Spec compliance** — drift between WHAT spec scenarios require vs HOW code does it.
+2. **Cross-file integration** — does data flow correctly: build-dispatch writes cache → orchestrator dispatches Agent → apply-outcome reads cache → state persists → report_status reads state → coordinator persists → discovery surfaces?
+3. **Edge cases** — empty inputs, missing files, malformed JSON, races, network failures.
+4. **Test coverage gaps** — spec scenarios with no covering assertion, or tests that assert on happy path only.
+5. **Security** — path traversal, injection, validation gaps. (Note: PostgREST injection at discovery.py:241 is pre-existing/out-of-scope.)
+6. **Performance** — token budget, prompt size, unnecessary I/O.
+
+## Output
+Emit ONE JSON object to stdout — schema:
+```json
+{
+  "review_round": 2,
+  "review_type": "implementation",
+  "vendor": "<your-vendor-name>",
+  "findings": [
+    {
+      "id": "R-001",
+      "type": "correctness|spec_gap|architecture|security|performance|observability|style",
+      "criticality": "critical|high|medium|low",
+      "description": "What's wrong + WHY it matters. Reference file:line.",
+      "file_path": "skills/autopilot/scripts/phase_agent.py",
+      "line_range": {"start": 100, "end": 120},
+      "disposition": "fix|acknowledge|wontfix"
+    }
+  ]
+}
+```
+
+Skip cosmetic issues. Prioritize correctness and spec-gap over style. If everything looks good, emit `findings: []` — that's a valid result.

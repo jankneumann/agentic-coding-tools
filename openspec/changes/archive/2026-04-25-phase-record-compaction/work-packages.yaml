@@ -1,0 +1,556 @@
+schema_version: 1
+
+feature:
+  id: phase-record-compaction
+  title: "Phase-Record Compaction — Unified PhaseRecord + Autopilot Sub-Agent Isolation"
+  plan_revision: 1
+  created_by: claude-opus-4-7
+  created_at: "2026-04-25T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/phase-record-compaction/contracts/README.md"
+    files:
+      - "openspec/changes/phase-record-compaction/contracts/README.md"
+      - "openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json"
+      - "openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────
+  # wp-contracts: schemas + fixtures (root, no deps) — tasks 1.1-1.4
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "PhaseRecord JSON Schemas + Fixtures"
+    task_type: contract
+    description: "Tasks 1.1-1.4. Define JSON Schema contracts for PhaseRecord and the handoff local-file fallback envelope. Validate against fixture payloads to lock the contract before downstream packages consume it."
+    role: backend-implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json"
+        - "openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json"
+        - "openspec/changes/phase-record-compaction/contracts/README.md"
+      keys:
+        - "feature:phase-record-compaction:contracts"
+        - "contract:phase-record-schema"
+        - "contract:handoff-local-fallback-schema"
+      ttl_minutes: 60
+      reason: "PhaseRecord schema definition — root contract package"
+    scope:
+      write_allow:
+        - "openspec/changes/phase-record-compaction/contracts/**"
+        - "skills/tests/phase-record-compaction/test_schema_fixtures.py"
+        - "skills/tests/phase-record-compaction/fixtures/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/session-log/**"
+        - "skills/autopilot/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Validate JSON Schemas are well-formed"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json,jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(p))) for p in [\"openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json\", \"openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json\"]]'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "schemas_valid"
+        - name: "Run fixture-validation tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction/test_schema_fixtures.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "fixture_tests_passed"
+    inputs: {}
+    outputs:
+      result_keys:
+        - "schemas_valid"
+        - "fixture_tests_passed"
+      artifacts:
+        - "openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json"
+        - "openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json"
+        - "openspec/changes/phase-record-compaction/contracts/README.md"
+    metadata:
+      loc_estimate: 200
+      package_kind: config
+
+  # ─────────────────────────────────────────────────────────────────
+  # wp-phase-record-model: PhaseRecord dataclass + write_both — tasks 2.1-2.11
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-phase-record-model
+    title: "PhaseRecord Data Model + write_both Pipeline"
+    task_type: feature
+    description: "Tasks 2.1-2.11. Implement the PhaseRecord dataclass family (PhaseRecord, Decision, Alternative, TradeOff, FileRef), markdown render+parse with architectural-tag round-trip preservation, handoff payload (de)serialization, and the three-step write_both() pipeline (append → sanitize → coordinator-or-local-fallback). Extend the session-log template in place. Re-implement append_phase_entry as a deprecation-warned shim."
+    role: backend-implementer
+    priority: 1
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/session-log/scripts/extract_session_log.py"
+        - "skills/session-log/SKILL.md"
+        - "openspec/schemas/feature-workflow/templates/session-log.md"
+      keys:
+        - "feature:phase-record-compaction:model"
+      ttl_minutes: 120
+      reason: "PhaseRecord data model and session-log skill integration"
+    scope:
+      write_allow:
+        - "skills/session-log/**"
+        - "openspec/schemas/feature-workflow/templates/session-log.md"
+        - "skills/tests/phase-record-compaction/test_phase_record_*.py"
+        - "skills/tests/session-log/test_extract_session_log.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/autopilot/**"
+        - "skills/plan-feature/**"
+        - "skills/iterate-on-plan/**"
+        - "skills/implement-feature/**"
+        - "skills/iterate-on-implementation/**"
+        - "skills/validate-feature/**"
+        - "skills/cleanup-feature/**"
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "PhaseRecord unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction/test_phase_record_model.py skills/tests/phase-record-compaction/test_phase_record_markdown.py skills/tests/phase-record-compaction/test_phase_record_handoff.py skills/tests/phase-record-compaction/test_phase_record_write_both.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "phase_record_tests_passed"
+        - name: "Existing session-log tests still pass (shim compat)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/session-log/scripts/test_extract_session_log.py skills/session-log/scripts/test_sanitize_session_log.py skills/tests/session-log/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "session_log_existing_tests_passed"
+        - name: "mypy strict on phase_record.py"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy --strict skills/session-log/scripts/phase_record.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_phase_record_clean"
+    inputs:
+      depends_on_artifacts:
+        - "openspec/changes/phase-record-compaction/contracts/schemas/phase-record.schema.json"
+        - "openspec/changes/phase-record-compaction/contracts/schemas/handoff-local-fallback.schema.json"
+    outputs:
+      result_keys:
+        - "phase_record_tests_passed"
+        - "session_log_existing_tests_passed"
+        - "mypy_phase_record_clean"
+        - "phase_record_module_implemented"
+        - "session_log_template_extended"
+        - "append_phase_entry_shim_added"
+      artifacts:
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/session-log/scripts/extract_session_log.py"
+        - "skills/session-log/SKILL.md"
+        - "openspec/schemas/feature-workflow/templates/session-log.md"
+    metadata:
+      loc_estimate: 700
+      package_kind: data_model
+
+  # ─────────────────────────────────────────────────────────────────
+  # wp-skills-retrofit: 6 SKILL.md updates — tasks 3.1-3.7
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-skills-retrofit
+    title: "Phase-Boundary Skill Retrofits (6 SKILL.md files)"
+    task_type: refactor
+    description: "Tasks 3.1-3.7. Replace `append_phase_entry(...)` calls with `PhaseRecord(...).write_both()` in the six phase-boundary skills: plan-feature, iterate-on-plan, implement-feature, iterate-on-implementation, validate-feature, cleanup-feature. Each skill's 'Append Session Log' step is updated to construct a PhaseRecord with the appropriate phase_name and structured fields. Add an integration test asserting matching session-log + handoff content."
+    role: backend-implementer
+    priority: 2
+    depends_on:
+      - wp-phase-record-model
+    locks:
+      files:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+      keys:
+        - "feature:phase-record-compaction:retrofit"
+      ttl_minutes: 120
+      reason: "Coordinated retrofit of six phase-boundary skill SKILL.md files to use PhaseRecord API"
+    scope:
+      write_allow:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+        - "skills/tests/phase-record-compaction/test_skills_integration.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/session-log/scripts/**"
+        - "skills/autopilot/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All six skill SKILL.md files reference PhaseRecord.write_both"
+          kind: command
+          command: "for f in skills/plan-feature/SKILL.md skills/iterate-on-plan/SKILL.md skills/implement-feature/SKILL.md skills/iterate-on-implementation/SKILL.md skills/validate-feature/SKILL.md skills/cleanup-feature/SKILL.md; do grep -q 'PhaseRecord.*write_both' \"$f\" || { echo \"MISSING in $f\"; exit 1; }; done"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "all_skills_retrofitted"
+        - name: "Skills integration test (matching session-log + handoff content)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction/test_skills_integration.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_integration_passed"
+    inputs:
+      depends_on_artifacts:
+        - "skills/session-log/scripts/phase_record.py"
+    outputs:
+      result_keys:
+        - "all_skills_retrofitted"
+        - "skills_integration_passed"
+      artifacts:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/cleanup-feature/SKILL.md"
+    metadata:
+      loc_estimate: 500
+      package_kind: config
+
+  # ─────────────────────────────────────────────────────────────────
+  # wp-autopilot-layer-1: handoff_builder + LoopState pruning + token meter
+  # tasks 4.1-4.9
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-autopilot-layer-1
+    title: "Autopilot Layer 1 — Structured Handoff Wiring + Token Instrumentation"
+    task_type: feature
+    description: "Tasks 4.1-4.9. Replace _maybe_handoff's description-string call with PhaseRecord assembly via build_phase_record(). Add LoopState.last_handoff_id field with backward-compat snapshot loading. Implement phase_token_meter.py (SDK primary, proxy fallback, env-var disable) and wire phase_token_pre/post audit entries at each _HANDOFF_BOUNDARIES transition."
+    role: backend-implementer
+    priority: 2
+    depends_on:
+      - wp-phase-record-model
+    locks:
+      files:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/handoff_builder.py"
+        - "skills/autopilot/scripts/phase_token_meter.py"
+      keys:
+        - "feature:phase-record-compaction:wiring"
+      ttl_minutes: 120
+      reason: "Autopilot Layer 1 — structured handoffs + token instrumentation"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/handoff_builder.py"
+        - "skills/autopilot/scripts/phase_token_meter.py"
+        - "skills/tests/phase-record-compaction/test_handoff_builder.py"
+        - "skills/tests/phase-record-compaction/test_loopstate_schema.py"
+        - "skills/tests/phase-record-compaction/test_autopilot_handoff_dispatch.py"
+        - "skills/tests/phase-record-compaction/test_phase_token_meter.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/session-log/scripts/**"
+        - "skills/plan-feature/**"
+        - "skills/iterate-on-plan/**"
+        - "skills/implement-feature/**"
+        - "skills/iterate-on-implementation/**"
+        - "skills/validate-feature/**"
+        - "skills/cleanup-feature/**"
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Layer 1 unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction/test_handoff_builder.py skills/tests/phase-record-compaction/test_loopstate_schema.py skills/tests/phase-record-compaction/test_autopilot_handoff_dispatch.py skills/tests/phase-record-compaction/test_phase_token_meter.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "layer_1_tests_passed"
+        - name: "Existing autopilot tests still pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/scripts/tests/test_autopilot.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "autopilot_existing_tests_passed"
+        - name: "mypy strict on Layer 1 modules"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy --strict skills/autopilot/scripts/handoff_builder.py skills/autopilot/scripts/phase_token_meter.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_layer_1_clean"
+    inputs:
+      depends_on_artifacts:
+        - "skills/session-log/scripts/phase_record.py"
+    outputs:
+      result_keys:
+        - "layer_1_tests_passed"
+        - "autopilot_existing_tests_passed"
+        - "mypy_layer_1_clean"
+        - "loopstate_schema_v2"
+        - "handoff_builder_implemented"
+        - "phase_token_meter_implemented"
+      artifacts:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/handoff_builder.py"
+        - "skills/autopilot/scripts/phase_token_meter.py"
+    metadata:
+      loc_estimate: 600
+      package_kind: integration
+
+  # ─────────────────────────────────────────────────────────────────
+  # wp-autopilot-layer-2: phase_agent.py + sub-agent isolation
+  # tasks 5.1-5.6 — risk-isolated as the last leaf before integration
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-autopilot-layer-2
+    title: "Autopilot Layer 2 — Phase Sub-Agent Isolation + Crash Recovery"
+    task_type: feature
+    description: "Tasks 5.1-5.6. Implement phase_agent.py wrapping Agent(...) with the standard prompt scaffold (artifacts manifest, incoming PhaseRecord JSON, phase task). Apply isolation:worktree only to IMPLEMENT. Add crash recovery: 3 retries with same incoming handoff, then PhaseEscalationError. Wire into autopilot for IMPLEMENT, IMPL_REVIEW, VALIDATE callbacks. This is the riskiest package — positioned last so it can be dropped from the merge if needed without losing the format unification."
+    role: backend-implementer
+    priority: 3
+    depends_on:
+      - wp-autopilot-layer-1
+    locks:
+      files:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/autopilot.py"
+      keys:
+        - "feature:phase-record-compaction:isolation"
+      ttl_minutes: 120
+      reason: "Autopilot Layer 2 — sub-agent isolation for IMPLEMENT/IMPL_REVIEW/VALIDATE"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/tests/phase-record-compaction/test_phase_agent.py"
+        - "skills/tests/phase-record-compaction/test_phase_agent_recovery.py"
+        - "skills/tests/phase-record-compaction/test_loopstate_opacity.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/session-log/scripts/**"
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Layer 2 unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction/test_phase_agent.py skills/tests/phase-record-compaction/test_phase_agent_recovery.py skills/tests/phase-record-compaction/test_loopstate_opacity.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "layer_2_tests_passed"
+        - name: "All autopilot tests pass (including Layer 1 + 2)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/scripts/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "all_autopilot_tests_passed"
+        - name: "mypy strict on Layer 2 module"
+          kind: command
+          command: "skills/.venv/bin/python -m mypy --strict skills/autopilot/scripts/phase_agent.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mypy_layer_2_clean"
+    inputs:
+      depends_on_artifacts:
+        - "skills/autopilot/scripts/handoff_builder.py"
+        - "skills/autopilot/scripts/autopilot.py"
+    outputs:
+      result_keys:
+        - "layer_2_tests_passed"
+        - "all_autopilot_tests_passed"
+        - "mypy_layer_2_clean"
+        - "phase_agent_implemented"
+        - "crash_recovery_implemented"
+        - "loopstate_opacity_verified"
+      artifacts:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/autopilot.py"
+    metadata:
+      loc_estimate: 500
+      package_kind: integration
+
+  # ─────────────────────────────────────────────────────────────────
+  # wp-integration: full validation + decision-index round-trip + smoke
+  # tasks 6.1-6.5
+  # ─────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration Validation + Decision-Index Round-Trip + Smoke Run"
+    task_type: integration
+    description: "Tasks 6.1-6.5. Run the full pytest suite, openspec validate --strict, mypy strict, ruff, and the make-decisions byte-identical regression check. Smoke-run a representative mid-size feature through autopilot end-to-end with token instrumentation enabled, and verify ≥30% peak-context-window reduction."
+    role: integrator
+    priority: 4
+    depends_on:
+      - wp-skills-retrofit
+      - wp-autopilot-layer-2
+    locks:
+      files: []
+      keys:
+        - "feature:phase-record-compaction:integration"
+      ttl_minutes: 60
+      reason: "Integration test pass — read-mostly, asserts cross-package coherence"
+    scope:
+      write_allow:
+        - "openspec/changes/phase-record-compaction/validation-report.md"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: phase-record-compaction
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full pytest suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/ skills/session-log/scripts/ skills/autopilot/scripts/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "full_pytest_passed"
+        - name: "openspec validate strict"
+          kind: command
+          command: "npx -y @fission-ai/openspec validate phase-record-compaction --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_clean"
+        - name: "ruff + mypy on all modified modules"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/session-log/scripts/phase_record.py skills/autopilot/scripts/handoff_builder.py skills/autopilot/scripts/phase_agent.py skills/autopilot/scripts/phase_token_meter.py skills/autopilot/scripts/autopilot.py && skills/.venv/bin/python -m mypy --strict skills/session-log/scripts/phase_record.py skills/autopilot/scripts/handoff_builder.py skills/autopilot/scripts/phase_agent.py skills/autopilot/scripts/phase_token_meter.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ruff_mypy_clean"
+        - name: "make decisions byte-identical regression"
+          kind: command
+          command: "skills/.venv/bin/python skills/tests/phase-record-compaction/check_decisions_roundtrip.py"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "decisions_index_unchanged"
+        - name: "Smoke run with token instrumentation (≥30% reduction target)"
+          kind: command
+          command: "skills/.venv/bin/python skills/tests/phase-record-compaction/smoke_run_token_reduction.py --threshold 0.30"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/phase-record-compaction/validation-report.md"
+            result_keys:
+              - "token_reduction_percentage"
+              - "smoke_run_passed"
+    inputs:
+      depends_on_artifacts:
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+    outputs:
+      result_keys:
+        - "full_pytest_passed"
+        - "openspec_strict_clean"
+        - "ruff_mypy_clean"
+        - "decisions_index_unchanged"
+        - "token_reduction_percentage"
+        - "smoke_run_passed"
+      artifacts:
+        - "openspec/changes/phase-record-compaction/validation-report.md"
+    metadata:
+      loc_estimate: 100
+      package_kind: integration

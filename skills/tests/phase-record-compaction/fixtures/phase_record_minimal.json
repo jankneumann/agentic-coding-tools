@@ -1,0 +1,6 @@
+{
+  "change_id": "phase-record-compaction",
+  "phase_name": "Plan",
+  "agent_type": "claude_code",
+  "summary": "Minimal PhaseRecord with only required fields populated. Decisions, alternatives, trade_offs, open_questions, completed_work, in_progress, next_steps, and relevant_files all default to empty arrays."
+}

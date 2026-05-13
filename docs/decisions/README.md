@@ -24,6 +24,8 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 
 - [agent-coordinator](./agent-coordinator.md)
 - [configuration](./configuration.md)
+- [coordination-bridge](./coordination-bridge.md)
 - [merge-pull-requests](./merge-pull-requests.md)
+- [observability](./observability.md)
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)

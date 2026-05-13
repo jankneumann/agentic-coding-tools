@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "harden-multi-vendor-review-recovery",
+  "reviewer_vendor": "gemini-2-0-flash",
+  "findings": [
+    {
+      "id": "gemini-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Internal contradiction regarding the 'synthesis_failed' field in ConvergenceResult. While 'proposal.md' and 'tasks.md' (Task 2.2) state the field was dropped after Round 2 review, it still appears in 'work-packages.yaml' (wp-converge-checkpoint, wp-integration) and documentation tasks (Task 6.1).",
+      "disposition": "fix",
+      "resolution": "Remove all remaining references to 'synthesis_failed' from work-packages.yaml and documentation tasks to align with the Round 2 decision."
+    },
+    {
+      "id": "gemini-002",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Signature inconsistency for 'write_manifest' between design and tasks. 'design.md' places 'change_id' as the second positional argument, while 'tasks.md' (Task 0.2) defines it as an optional keyword argument 'change_id=None' after 'vendors'.",
+      "disposition": "fix",
+      "resolution": "Harmonize the 'write_manifest' signature across design.md and tasks.md. Making it optional/keyword-argument is preferred as CLI callers will omit it."
+    },
+    {
+      "id": "gemini-003",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Ambiguity in atomic write requirements. 'design.md' correctly specifies 'fsync' for manifest and temp files, but 'tasks.md' (Task 0.2) omits 'fsync' for 'write_vendor_findings'. Without parent-directory fsync, the directory entry for new checkpoint files may not survive a power loss even if the file content was fsynced.",
+      "disposition": "fix",
+      "resolution": "Explicitly include 'parent-dir fsync' in Task 0.2 for both 'write_vendor_findings' and 'write_manifest' to ensure durability on directory creation."
+    },
+    {
+      "id": "gemini-004",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The architectural diagram in 'design.md' for 'write_vendor_findings' is missing the 'reviewer_vendor' parameter which is explicitly required in 'tasks.md' (Task 0.2) to support the wrapper-object shape.",
+      "disposition": "fix",
+      "resolution": "Update the diagram in design.md to include the 'reviewer_vendor' parameter."
+    },
+    {
+      "id": "gemini-005",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "The verification step for 'wp-integration' (Doc lint) asserts that 'synthesis_failed' must be present in the documentation. Since the field has been dropped from the implementation plan, this test will fail.",
+      "disposition": "fix",
+      "resolution": "Update the verification command in work-packages.yaml to only assert 'checkpoint_dir'."
+    },
+    {
+      "id": "gemini-006",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The type 'ReviewFinding' used in 'design.md' and 'tasks.md' (return type of read_vendor_findings) is undefined. It is unclear if this refers to the 'Finding' class from 'consensus_synthesizer.py' or a raw 'dict[str, Any]'.",
+      "disposition": "fix",
+      "resolution": "Clarify the definition of 'ReviewFinding'. Returning raw dicts from the IO helper is recommended to keep dependencies lean."
+    }
+  ]
+}

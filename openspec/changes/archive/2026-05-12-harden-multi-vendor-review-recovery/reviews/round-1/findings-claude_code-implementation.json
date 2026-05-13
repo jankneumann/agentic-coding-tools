@@ -1,0 +1,25 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "F1",
+      "type": "robustness",
+      "criticality": "medium",
+      "description": "read_manifest() does not validate schema_version on read, despite the inline comment at checkpoint_findings.py:36-38 declaring 'readers must refuse unknown versions'. The current behavior is to silently accept any schema_version (including a future 2 with breaking field semantics) and return the parsed dict to the caller. If a v1 reader encounters a v2 manifest in the future, it will misinterpret fields whose semantics changed and may silently produce wrong recovery results \u2014 exactly the failure mode the proposal is trying to prevent. Either (a) make the comment honest by removing 'readers must refuse unknown versions' (acknowledging current intent: v1 is the only known version), or (b) add a guard in read_manifest: `if data.get('schema_version') != MANIFEST_SCHEMA_VERSION: raise ValueError(...)`. Option (b) is cheap and matches the documented invariant.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "294-308"
+    },
+    {
+      "id": "F2",
+      "type": "robustness",
+      "criticality": "low",
+      "description": "_atomic_write_json leaves a '<path>.tmp' file behind when json.dump, f.flush(), or os.fsync raises mid-write (e.g., disk full while serializing a large findings list, OOM mid-encode, or signal during fsync). The next successful write to the same target overwrites the residue, but under chronic failure conditions (sustained disk pressure across multiple converge() rounds) the artifacts directory accumulates stale .tmp files that are never cleaned up. The atomic-rename invariant the proposal promises ('crash leaves either old manifest or new, never partial') is preserved \u2014 this is purely a disk-leak hygiene issue. Recommend wrapping the open block in try/except that calls tmp.unlink(missing_ok=True) on any non-replace failure, then re-raises.",
+      "disposition": "fix",
+      "file_path": "skills/parallel-infrastructure/scripts/checkpoint_findings.py",
+      "line_range": "57-79"
+    }
+  ]
+}

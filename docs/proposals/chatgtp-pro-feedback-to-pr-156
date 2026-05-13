@@ -1,0 +1,166 @@
+I’d keep the direction of PR #156, but I would **not treat it as a locked implementation plan yet**. It should become an ADR + experiment roadmap: keep the five-view UX and artifact taxonomy, but add an explicit “adopt-before-build” evaluation stage, fix the roadmap truncation, and separate deterministic code-intelligence facts from probabilistic AI/Graphiti memory.
+
+## Immediate PR-level fixes
+
+**1. Fix the generated roadmap before any scaffolding runs.**
+The PR currently adds a docs-only proposal and roadmap, with 1,668 additions across four changed files. The roadmap is meant to decompose the proposal into implementation items, but an existing review comment already caught that several `description` fields are clipped mid-sentence, and notes that downstream scaffolding uses `item.description` as generated proposal summary text. That is a real blocker because it will propagate ambiguous requirements into child OpenSpec proposals.  
+
+**2. Add a “buy/adopt/benchmark before build” phase before the FalkorDB commitment.**
+The proposal says the graph store “MUST be FalkorDB” and the roadmap starts with FalkorDB container/schema/ingestion work. FalkorDB may still be the right choice, especially given your Graphiti reuse goal, but the proposal should first benchmark existing code-intelligence substrates: SCIP/Sourcegraph-style symbol indexes, CodeQL databases, Joern CPGs, Semgrep findings, OpenRewrite recipes, and Codebase-Memory-style MCP graph retrieval. The roadmap already compares renderers, but it does **not** compare extraction/indexing substrates with the same rigor.  
+
+**3. Change the tone from “VS Code cannot do this” to “existing tools solve slices; our gap is integration.”**
+The proposal says VS Code and editors are “file-tree + symbol-driven” and lack architectural zones, blast radius, temporal navigation, and cross-artifact linkage. That gap is directionally right, but the premise is too broad: Sourcegraph precise code navigation already supports code host/diff/API workflows and relies on SCIP, a language-agnostic code-intelligence protocol for definitions, references, and implementations. The differentiated product is not “better go-to-definition”; it is **agentic architectural review across code, tests, runtime evidence, OpenSpec, provenance, and PR history**. 
+
+## Missing considerations to add
+
+### 1. Edge confidence and provenance
+
+The graph should not present every edge as equally true. Add `evidence_kind`, `extractor`, `extractor_version`, `confidence`, `last_verified_at`, and `source_span` to every node and edge.
+
+A static `CALLS` edge from SCIP or CodeQL should be treated differently from a tree-sitter heuristic, a Semgrep match, an LLM-inferred relation, or an OpenTelemetry trace. This matters because the UI will otherwise make uncertain relationships look authoritative, and the AI panel may over-answer based on weak edges.
+
+Add an explicit rule: **the AI may cite only edges with provenance, and must state uncertainty when confidence is below threshold.**
+
+### 2. A real extraction-accuracy benchmark
+
+The roadmap has performance targets such as “subgraph queries under 100 ms” and “render 1,471 nodes under 2 seconds,” but not graph-correctness targets. Add a fixture suite that measures precision/recall for imports, calls, tests, routes, DB reads/writes, OpenSpec links, and rename continuity.
+
+For example:
+
+| Edge type                  | Gold source                         | Required metric               |
+| -------------------------- | ----------------------------------- | ----------------------------- |
+| `IMPORTS`                  | language parser / SCIP              | >98% precision                |
+| `CALLS`                    | SCIP/CodeQL/Joern where available   | precision + recall sample     |
+| `TESTS`                    | coverage + naming/import heuristics | confidence-scored, not binary |
+| `WRITES_TO` / `READS_FROM` | CodeQL/Joern/custom SQL analysis    | must expose uncertainty       |
+| `INVOKES_AT_RUNTIME`       | OpenTelemetry traces                | timestamped runtime evidence  |
+
+Codebase-Memory is especially relevant here: it builds a Tree-sitter knowledge graph exposed via MCP and reports 83% answer quality versus 92% for file exploration while using 10x fewer tokens and 2.1x fewer tool calls. That should become a benchmark target or adoption candidate, not merely background research.
+
+### 3. Threat model for localhost, MCP, graph packs, and deep links
+
+The reversibility taxonomy is a good start, but it is not enough. Add a formal threat model covering:
+
+* malicious repo contents poisoning the graph,
+* path traversal in source-slice endpoints,
+* `vscode://file/...` deep-link path leakage,
+* graph packs containing proprietary source snippets or secrets,
+* hostile MCP tools or UI iframe actions,
+* local HTTP server exposure beyond localhost,
+* CORS/CSRF on the FastAPI server,
+* audit-event flooding by agents,
+* imported graph packs overwriting trusted namespaces.
+
+Also, do not rely only on a Cypher AST classifier. FalkorDB has behavioral limitations that matter for safety; for example, `LIMIT` does not constrain eager `CREATE`, `SET`, `DELETE`, or `MERGE` operations, and relationship matching can behave unexpectedly unless relations are explicitly referenced. Use separate read-only query paths, database roles or command-level restrictions where possible, and prefer `GRAPH.RO_QUERY` for read endpoints.
+
+### 4. Offline AI and embedding strategy
+
+The proposal says the tool must run fully offline, while also planning Graphiti-style embedding-based retrieval. Graphiti + FalkorDB is a strong fit for temporal/multi-agent memory, but the FalkorDB docs show Graphiti examples using LLM and embedding providers, with OpenAI API key configuration in the standard setup. Add a clear offline provider requirement: local embeddings, disabled semantic expansion by default, and deterministic structural retrieval as the default path. 
+
+### 5. Storage, retention, and repo-bloat budgets
+
+“JSON files remain canonical and committed to git” is useful for diffability, but it will become painful as snapshots, AST bundles, traces, graph packs, audit events, and event artifacts accumulate. Add explicit budgets:
+
+* maximum committed artifact size per PR,
+* retention period for event artifacts,
+* compression policy for graph packs,
+* artifact redaction policy,
+* when to commit only a manifest + summary instead of full artifacts,
+* `.gitignore` rules for local/generated/private graph artifacts,
+* CI enforcement for accidentally committed source slices or secrets.
+
+The current artifact families are a good foundation; they need operational limits. 
+
+### 6. Accessibility and cognitive-load requirements
+
+The UX proposal is strong on lenses and semantic zoom, but missing accessibility and comprehension constraints. Add:
+
+* keyboard-only graph navigation,
+* colorblind-safe palettes,
+* non-color encodings for findings and change kinds,
+* screen-reader fallbacks through table/list views,
+* minimap and breadcrumbs,
+* “why am I seeing this?” explanations for every edge,
+* task-first guided flows for review scenarios.
+
+The research supports this: Helveg/Interactive Diagrams emphasizes interactive, filterable node-link diagrams with details on demand, and ReviewVis found that graph-based review visualizations can help developers navigate and understand change sets. But those benefits depend on careful filtering and task framing, not just rendering a graph.
+
+### 7. Evaluation metrics beyond rendering speed
+
+Add dogfooding metrics tied to actual reviewer outcomes:
+
+* time to identify blast radius,
+* missed impacted files/tests,
+* number of PR review comments requiring architectural context,
+* agent token/tool-call reduction,
+* false-positive/false-negative rate of graph edges,
+* user trust rating per edge/lens,
+* time to answer “what changed and why should I care?”,
+* number of agent edits reverted due to architectural mismatch.
+
+Microsoft’s Code Researcher result is a useful north star: it outperformed SWE-agent on large systems-code fixes by doing deeper multi-file and commit-history research, exploring about 10 files per trajectory versus 1.33 for SWE-agent. That argues for **context exploration instrumentation**, not only visualization.
+
+## Flawed or risky assumptions
+
+**Assumption: tree-sitter-derived graphs can be the structural truth.**
+Tree-sitter is great for syntax and skeleton extraction, but call graphs, references, overloads, dynamic dispatch, generated code, route registration, and DB access need compiler/LSP/indexer support where available. Use tree-sitter as a fallback and for AST bundles, not as the only source of truth.
+
+**Assumption: stable symbol IDs can be solved with content hash + structural position + normalized name.**
+This will break under common refactors: renamed functions, extracted helpers, moved modules, overloads, nested closures, generated code, decorators, and large body rewrites. Make continuity probabilistic and evidence-backed: combine SCIP/LSIF identity, file history, AST similarity, git rename detection, signature similarity, callers/callees, and human override. The graph should emit `RENAMED_FROM` with confidence, not pretend stability is deterministic.
+
+**Assumption: Graphiti should model the whole program graph.**
+Graphiti is excellent for temporal agent memory and semi-structured episodes, but deterministic program structure should come from code-intelligence tools. Use Graphiti for agent sessions, decisions, provenance, review findings, and semantic memory; use SCIP/CodeQL/Joern/tree-sitter artifacts for code facts.
+
+**Assumption: semantic zoom should prescribe implementation details.**
+The PR says semantic zoom must use coordinate-domain rescaling and even calls out D3 `rescaleX/rescaleY`. That is too renderer-specific. Specify outcomes instead: readable labels, stable node positions, predictable reveal thresholds, constant visual stroke/label size, preserved mental map. Let Cytoscape/Sigma/Three implementations satisfy those outcomes differently.
+
+**Assumption: MCP Apps can be a near-term universal surface.**
+MCP Apps are now an official extension for interactive UI inside MCP hosts, but client support and security behavior still vary by host. Keep the standalone SPA as the canonical UI, then wrap a subset as an MCP App after the core components and permission model are stable.
+
+**Assumption: “reversible writes” can be auto-allowed.**
+Even reversible writes can cause hidden damage: corrupted local state, polluted audit logs, overwritten views, misleading annotations, or agent-created false memory. Default agents to read-only. Allow reversible writes only under scoped sessions with visible UI indicators and rate limits.
+
+## Existing tools to adopt rather than rebuild
+
+| Need                                      | Adopt / integrate                 | Why                                                                                                                                                                        |
+| ----------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Precise symbols, definitions, references  | **SCIP / Sourcegraph indexers**   | SCIP is a language-agnostic index format already used for go-to-definition, references, implementations, and multi-language code navigation.                               |
+| Structural MCP graph baseline             | **Codebase-Memory**               | Very close to the proposal: Tree-sitter KG, MCP tools, 66 languages, reduced token/tool-call use. Use as benchmark or component before writing your own graph extractor.   |
+| Security and variant analysis             | **CodeQL**                        | CodeQL is specifically designed for scalable code analysis and vulnerability-variant detection. Ingest CodeQL/SARIF findings instead of recreating vulnerability analysis. |
+| Deep program graphs and data/control flow | **Joern / Code Property Graphs**  | Joern’s CPG unifies syntax, control flow, data flow, and higher-level overlays across languages. Use it where you need real dataflow/control-flow, not only imports/calls. |
+| Lightweight architecture/security rules   | **Semgrep**                       | Semgrep gives fast custom rules for security, style, bugs, and project-specific guardrails across many languages. Ingest findings as evidence artifacts.                   |
+| Deterministic refactoring/remediation     | **OpenRewrite / Moderne recipes** | Agents should not hand-edit repetitive transformations when a recipe can produce deterministic, reviewable changes over lossless semantic trees.                           |
+| Primary 2D graph UI                       | **Cytoscape.js first**            | It supports compound nodes, graph algorithms, layouts, and interaction patterns that fit module/file/symbol nesting.                                                       |
+| Large WebGL graph rendering               | **Sigma.js + graphology**         | Better candidate when the graph grows from thousands to tens/hundreds of thousands of visible elements.                                                                    |
+| Temporal agent memory                     | **Graphiti + FalkorDB**           | Good fit for agent memory, episodes, temporal reasoning, and multi-tenancy; do not confuse it with compiler-accurate code indexing.                                        |
+| Behavioral hotspot/risk inspiration       | **CodeScene-like metrics**        | Hotspots + code health are a proven way to prioritize technical debt; your risk lens should ingest churn and ownership, not only static dependency fan-in.                 |
+| Commercial static comprehension reference | **SciTools Understand**           | Worth studying for UX and API ideas around call trees, dependency graphs, metrics, comparisons, and cross-references.                                                      |
+
+## Concrete roadmap changes I would add
+
+**Add P0: “Existing substrate evaluation.”**
+Before `falkordb-container`, add a milestone that runs the same repo through SCIP, Codebase-Memory, CodeQL, Joern, Semgrep, and your current `architecture.graph.json`, then compares edge coverage, false positives, build complexity, offline support, query latency, and artifact size.
+
+**Add P0: “Graph fact model.”**
+Define deterministic facts, heuristic facts, runtime facts, human-authored facts, and AI-inferred facts. Require every fact to expose provenance and confidence.
+
+**Add P1: “SARIF and external findings ingestion.”**
+Use SARIF as the standard interchange for CodeQL/Semgrep/Sonar/security outputs, then map them into `Finding` nodes.
+
+**Add P1: “Sourcegraph/SCIP importer.”**
+Do not build all symbol/reference extraction yourself. Start with a SCIP importer and use it to populate `Symbol`, `DEFINES`, `REFERENCES`, `IMPLEMENTS`, and maybe call-related edges where indexers support them.
+
+**Add P1: “Threat model and sandbox.”**
+Make this a formal artifact, not scattered constraints. Include HTTP/MCP/App/graph-pack/source-slice boundaries.
+
+**Add P2: “Graph-quality CI.”**
+A PR should fail if graph generation becomes stale, extractor versions change without schema migrations, edge counts swing unexpectedly, or fixture precision/recall regresses.
+
+**Add P2: “Task-based UX study.”**
+Before selecting Cytoscape vs Sigma vs D3 vs Three.js, define three reviewer tasks and score the prototypes on task success, not just FPS/render time.
+
+## Bottom line
+
+The PR’s core idea is right: **humans need architectural review surfaces, not just faster diffs.** The strongest parts are the artifact-family taxonomy, five-view UX framing, 2D-first stance, graph-selection-anchored AI, and the decision to keep git-diffable JSON artifacts. 
+
+The main correction is this: **do not build a bespoke code-intelligence platform from scratch.** Build the opinionated agentic UX, provenance model, artifact lifecycle, and review workflows; adopt existing extractors and analyzers wherever possible. Use FalkorDB/Graphiti for temporal/provenance memory if it wins the benchmark, but let SCIP, CodeQL, Joern, Semgrep, OpenRewrite, OpenTelemetry, and SARIF provide as much of the factual substrate as they can.

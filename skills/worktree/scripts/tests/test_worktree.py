@@ -4,30 +4,30 @@ import argparse
 import json
 import os
 import subprocess
-from datetime import datetime, timezone, timedelta
+
+# Import the module under test
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-# Import the module under test
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import worktree
 from worktree import (
-    worktree_path,
-    default_branch,
-    resolve_branch,
-    load_registry,
-    save_registry,
-    find_entry,
-    remove_entry,
-    parse_duration_hours,
+    cmd_gc,
     cmd_heartbeat,
     cmd_list,
     cmd_pin,
     cmd_unpin,
-    cmd_gc,
+    default_branch,
+    find_entry,
+    load_registry,
+    parse_duration_hours,
+    remove_entry,
+    resolve_branch,
+    save_registry,
+    worktree_path,
 )
 
 
@@ -116,6 +116,45 @@ class TestWorktreePathWithAgentId:
     def test_without_agent_id_backward_compat(self, tmp_path: Path) -> None:
         result = worktree_path(tmp_path, "change")
         assert result == tmp_path / ".git-worktrees" / "change"
+
+
+class TestWorktreePathSibling:
+    """sibling=True places the agent worktree as a peer of <change-id>
+    instead of nested inside it. Used by cleanup-feature to avoid leaving
+    `cleanup/` as an untracked directory in the implementation worktree.
+    """
+
+    def test_sibling_places_agent_next_to_change_dir(self, tmp_path: Path) -> None:
+        result = worktree_path(
+            tmp_path, "feat", agent_id="cleanup", sibling=True,
+        )
+        assert result == tmp_path / ".git-worktrees" / "feat--cleanup"
+
+    def test_sibling_with_prefix(self, tmp_path: Path) -> None:
+        result = worktree_path(
+            tmp_path, "feat", agent_id="cleanup",
+            prefix="fix", sibling=True,
+        )
+        assert result == tmp_path / ".git-worktrees" / "fix" / "feat--cleanup"
+
+    def test_sibling_without_agent_is_noop(self, tmp_path: Path) -> None:
+        # Nothing to "place beside" — fall back to default change-id path
+        result = worktree_path(tmp_path, "feat", sibling=True)
+        assert result == tmp_path / ".git-worktrees" / "feat"
+
+    def test_sibling_path_is_not_inside_change_dir(self, tmp_path: Path) -> None:
+        """Regression: the whole point of --sibling is that the cleanup
+        worktree must not be a path-descendant of the impl worktree. A nested
+        layout polluted the impl's `git status` with an untracked
+        cleanup/ subdirectory and forced --force on teardown."""
+        impl = worktree_path(tmp_path, "feat")
+        cleanup = worktree_path(
+            tmp_path, "feat", agent_id="cleanup", sibling=True,
+        )
+        # The cleanup path must NOT be inside the impl path
+        assert impl not in cleanup.parents
+        # Both must share the .git-worktrees parent
+        assert impl.parent == cleanup.parent
 
 
 class TestDefaultBranch:
@@ -542,6 +581,56 @@ class TestCmdTeardown:
             result = worktree.cmd_teardown(teardown_args)
         assert result == 1
 
+    def test_sibling_setup_and_teardown_roundtrip(self, git_repo: Path) -> None:
+        """The cleanup-feature flow: --sibling setup and --sibling teardown
+        place and remove the worktree at <change>--<agent>/, never inside
+        the parent <change>/ dir."""
+        impl = git_repo / ".git-worktrees" / "feat"
+        sibling_path = git_repo / ".git-worktrees" / "feat--cleanup"
+
+        with _chdir(git_repo):
+            # Both worktrees exist independently
+            worktree.cmd_setup(_make_args("setup", change_id="feat"))
+            worktree.cmd_setup(_make_args(
+                "setup", change_id="feat", agent_id="cleanup", sibling=True,
+            ))
+
+        assert impl.is_dir()
+        assert sibling_path.is_dir()
+        # Critical: sibling cleanup is NOT inside the impl worktree
+        assert sibling_path.parent == impl.parent
+
+        # Tear down only the cleanup; impl untouched
+        with _chdir(git_repo):
+            result = worktree.cmd_teardown(_make_args(
+                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
+            ))
+        assert result == 0
+        assert not sibling_path.is_dir()
+        assert impl.is_dir()  # impl survives
+
+    def test_teardown_falls_back_to_alternate_layout(self, git_repo: Path) -> None:
+        """Mixed-layout robustness: a setup that used the nested default
+        layout is teardownable with --sibling and vice versa, so the
+        migration window doesn't strand cleanup worktrees."""
+        nested_path = git_repo / ".git-worktrees" / "feat" / "cleanup"
+
+        with _chdir(git_repo):
+            # Setup with default (nested) layout
+            worktree.cmd_setup(_make_args(
+                "setup", change_id="feat", agent_id="cleanup",
+            ))
+        assert nested_path.is_dir()
+
+        # Teardown with --sibling (operator updated the SKILL but worktree
+        # was created on the old version)
+        with _chdir(git_repo):
+            result = worktree.cmd_teardown(_make_args(
+                "teardown", change_id="feat", agent_id="cleanup", sibling=True,
+            ))
+        assert result == 0
+        assert not nested_path.is_dir()
+
 
 class TestCmdStatus:
     def test_specific_worktree_exists(self, git_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -837,6 +926,7 @@ def _make_args(command: str, **kwargs: object) -> argparse.Namespace:
         "no_bootstrap": True,
         "agent_id": None,
         "parent": False,
+        "sibling": False,
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)

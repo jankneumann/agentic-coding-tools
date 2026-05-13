@@ -29,6 +29,15 @@ try:
 except ImportError:
     converge = None  # type: ignore[assignment]
 
+# coordination_bridge ships under skills/coordination-bridge/scripts/. Make
+# sure that directory is on sys.path so the lazy import inside
+# _resolve_phase_archetype_for_state_only resolves it. The actual import
+# is lazy (inside the function) to avoid mypy strict-mode complications
+# with cross-package import-not-found warnings.
+_BRIDGE_SCRIPTS = _SCRIPTS_DIR.parent.parent / "coordination-bridge" / "scripts"
+if str(_BRIDGE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_BRIDGE_SCRIPTS))
+
 try:
     from complexity_gate import assess_complexity  # type: ignore[import-untyped]
 except ImportError:
@@ -46,9 +55,16 @@ except ImportError:
 
 @dataclass
 class LoopState:
-    """Persistent state for the autopilot loop."""
+    """Persistent state for the autopilot loop.
 
-    schema_version: int = 1
+    Schema versions:
+        1 — initial
+        2 — adds last_handoff_id (phase-record-compaction)
+        3 — adds phase_archetype (per OpenSpec
+            add-per-phase-archetype-resolution; design decision D7)
+    """
+
+    schema_version: int = 3
     change_id: str = ""
     current_phase: str = "INIT"
     iteration: int = 0
@@ -62,6 +78,7 @@ class LoopState:
     implementation_strategy: dict[str, str] = field(default_factory=dict)
     memory_ids: list[str] = field(default_factory=list)
     handoff_ids: list[str] = field(default_factory=list)
+    last_handoff_id: str | None = None
     started_at: str = ""
     phase_started_at: str = ""
     previous_phase: str | None = None
@@ -69,6 +86,13 @@ class LoopState:
     val_review_enabled: bool = False
     cli_review_enabled: bool = True
     error: str | None = None
+    # NEW (v3): name of the archetype resolved for the current phase. Set by
+    # phase_agent._build_options after a successful coordinator resolution;
+    # remains None when resolution falls back to the harness default (D9) or
+    # for phases where archetype injection is bypassed (operator override
+    # path per D8). Persisted in loop-state.json and emitted in
+    # POST /status/report payloads alongside `phase`.
+    phase_archetype: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -83,9 +107,22 @@ def save_state(state: LoopState, path: str | Path) -> None:
 
 
 def load_state(path: str | Path) -> LoopState:
-    """Deserialize a LoopState from the JSON file at *path*."""
+    """Deserialize a LoopState from the JSON file at *path*.
+
+    Migrates older snapshots forward (D7): v2 files load with
+    ``phase_archetype = None`` and ``schema_version = 3``; the migration is
+    persisted on the next ``save_state`` call.
+    """
     data = json.loads(Path(path).read_text())
-    return LoopState(**{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__})
+    state = LoopState(
+        **{k: v for k, v in data.items() if k in LoopState.__dataclass_fields__}
+    )
+    # v2 → v3 forward migration: bump schema_version on load so callers see
+    # the current shape immediately. phase_archetype defaults to None via the
+    # dataclass default. The new schema_version is persisted on next save.
+    if state.schema_version < 3:
+        state.schema_version = 3
+    return state
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +222,61 @@ class PhaseFn(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# State-only archetype resolver (D7 — wire-autopilot-phase-subagents)
+# ---------------------------------------------------------------------------
+
+# Phases that record `phase_archetype` on the state machine itself rather
+# than via a sub-agent dispatch. Per D7 these are INIT and SUBMIT_PR.
+_STATE_ONLY_PHASES: frozenset[str] = frozenset({"INIT", "SUBMIT_PR"})
+
+
+def _resolve_phase_archetype_for_state_only(
+    state: LoopState,
+    phase: str,
+) -> None:
+    """Resolve and record the archetype for a state-only phase.
+
+    State-only phases (INIT, SUBMIT_PR) do not dispatch a sub-agent — they
+    are state transitions executed inline by the loop driver. The spec
+    requires `LoopState.phase_archetype` to be populated for these phases
+    too, so observability dashboards can correlate every non-terminal
+    phase with its archetype.
+
+    The resolution path mirrors `phase_agent._build_options`'s archetype
+    branch: it queries the coordinator via
+    ``coordination_bridge.try_resolve_archetype_for_phase(phase, signals)``
+    and records the resolved archetype name on `state.phase_archetype`.
+
+    On any failure (bridge unavailable, coordinator returns None,
+    malformed response), `state.phase_archetype` is left as None — this
+    matches the bridge-failure fallback semantics from
+    `add-per-phase-archetype-resolution` D9.
+    """
+    if phase not in _STATE_ONLY_PHASES:
+        # Defensive — caller is expected to gate on _STATE_ONLY_PHASES, but
+        # keep the function tolerant rather than raising.
+        return
+    try:
+        # Lazy import keeps the cross-package dependency out of module-load
+        # type checking and gracefully degrades if the bridge module is
+        # missing (e.g., minimal harness environments).
+        import coordination_bridge  # type: ignore[import-not-found]
+        resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, {})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "_resolve_phase_archetype_for_state_only(%s) bridge raised: %s; "
+            "leaving phase_archetype=None",
+            phase, exc,
+        )
+        return
+    if not isinstance(resolved, dict):
+        return
+    archetype = resolved.get("archetype")
+    if isinstance(archetype, str) and archetype:
+        state.phase_archetype = archetype
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -270,7 +362,8 @@ def run_loop(
     implement_fn: Callable[[LoopState], str] | None = None,
     validate_fn: Callable[[LoopState], str] | None = None,
     submit_pr_fn: Callable[[LoopState], str] | None = None,
-    handoff_fn: Callable[[LoopState, str], None] | None = None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None = None,
+    token_meter_fn: Callable[[LoopState, str, str, str], None] | None = None,
     memory_fn: Callable[[LoopState, str], str | None] | None = None,
     gate_check_fn: Callable[[LoopState], bool] | None = None,
     converge_fn: Callable[..., Any] | None = None,
@@ -400,8 +493,11 @@ def run_loop(
         prev_phase = state.current_phase
         _apply_transition(state, outcome, status_fn=status_fn)
 
-        # Write handoff at major boundaries
-        _maybe_handoff(prev_phase, state.current_phase, state, handoff_fn)
+        # Write handoff at major boundaries (with optional token instrumentation)
+        _maybe_handoff(
+            prev_phase, state.current_phase, state, handoff_fn,
+            token_meter_fn=token_meter_fn,
+        )
 
         save_state(state, state_path)
 
@@ -437,7 +533,7 @@ def _run_phase(
     implement_fn: Callable[[LoopState], str] | None,
     validate_fn: Callable[[LoopState], str] | None,
     submit_pr_fn: Callable[[LoopState], str] | None,
-    handoff_fn: Callable[[LoopState, str], None] | None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None,
     memory_fn: Callable[[LoopState, str], str | None] | None,
     gate_check_fn: Callable[[LoopState], bool] | None,
     converge_fn: Callable[..., Any] | None,
@@ -517,6 +613,9 @@ def _phase_init(
 ) -> str:
     """Run complexity assessment and configure the loop accordingly."""
     state.phase_started_at = _now_iso()
+    # D7: state-only phases must still record phase_archetype so observability
+    # surfaces are uniform across the 13 non-terminal phases.
+    _resolve_phase_archetype_for_state_only(state, "INIT")
 
     if assess_complexity_fn is not None:
         wp_path = change_dir / "work-packages.yaml"
@@ -666,6 +765,8 @@ def _phase_submit_pr(
 ) -> str:
     """Delegate to PR submission callback (stub if absent)."""
     state.phase_started_at = _now_iso()
+    # D7: state-only phases must still record phase_archetype.
+    _resolve_phase_archetype_for_state_only(state, "SUBMIT_PR")
     if submit_pr_fn is not None:
         return submit_pr_fn(state)
     return "created"
@@ -703,10 +804,55 @@ def _maybe_handoff(
     prev_phase: str,
     next_phase: str,
     state: LoopState,
-    handoff_fn: Callable[[LoopState, str], None] | None,
+    handoff_fn: Callable[[LoopState, Any], str | None] | None,
+    token_meter_fn: Callable[[LoopState, str, str, str], None] | None = None,
 ) -> None:
+    """Dispatch a structured PhaseRecord handoff at known boundaries.
+
+    Builds a PhaseRecord summarizing the just-completed prev_phase via
+    handoff_builder.build_phase_record, calls handoff_fn(state, record),
+    and records the returned handoff_id (if any) on the state.
+
+    handoff_fn signature: ``Callable[[LoopState, PhaseRecord], str | None]``
+    where the return is the coordinator-issued handoff_id (or local
+    fallback marker), or None if no id could be recorded.
+
+    token_meter_fn signature:
+        ``Callable[[LoopState, event_type, prev_phase, next_phase], None]``
+    The driver calls it twice per boundary: once with event_type=
+    "phase_token_pre" before the handoff, and once with "phase_token_post"
+    after. Implementations typically call ``phase_token_meter.measure_context``
+    against the current driver context and emit an audit entry to the
+    coordinator. Failures inside token_meter_fn are caught and logged
+    (token instrumentation must never crash the loop — D9).
+    """
     if handoff_fn is None:
         return
-    if (prev_phase, next_phase) in _HANDOFF_BOUNDARIES:
-        desc = f"Transition {prev_phase} -> {next_phase} for {state.change_id}"
-        handoff_fn(state, desc)
+    if (prev_phase, next_phase) not in _HANDOFF_BOUNDARIES:
+        return
+
+    if token_meter_fn is not None:
+        try:
+            token_meter_fn(state, "phase_token_pre", prev_phase, next_phase)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("token_meter_fn (pre) failed: %s", exc)
+
+    try:
+        from handoff_builder import build_phase_record  # type: ignore[import-not-found]
+    except ImportError:
+        logger.warning(
+            "handoff_builder not importable; skipping structured handoff at %s -> %s",
+            prev_phase, next_phase,
+        )
+        return
+    record = build_phase_record(state, prev_phase, next_phase)
+    handoff_id = handoff_fn(state, record)
+    if isinstance(handoff_id, str) and handoff_id:
+        state.handoff_ids.append(handoff_id)
+        state.last_handoff_id = handoff_id
+
+    if token_meter_fn is not None:
+        try:
+            token_meter_fn(state, "phase_token_post", prev_phase, next_phase)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("token_meter_fn (post) failed: %s", exc)
