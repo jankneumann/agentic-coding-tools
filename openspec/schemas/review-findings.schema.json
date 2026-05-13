@@ -12,7 +12,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "type", "criticality", "description", "disposition"],
+        "required": ["id", "type", "criticality", "description", "disposition", "axis", "severity"],
         "properties": {
           "id": { "type": "integer" },
           "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience"] },
@@ -29,6 +29,16 @@
               "end": { "type": "integer" }
             },
             "description": "Line range within file_path (optional)"
+          },
+          "axis": {
+            "type": "string",
+            "enum": ["correctness", "readability", "architecture", "security", "performance"],
+            "description": "5-axis review categorization (from code-review-and-quality skill)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "nit", "optional", "fyi", "none"],
+            "description": "5-severity prefix (from code-review-and-quality skill)"
           }
         }
       }

@@ -59,6 +59,20 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 - **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
+### Save Point Pattern and Change Summary template
+
+**Save Point Pattern**: While iterating on a complex change, commit at each working slice (use `wip:` prefix). Squash before final merge. Lets you revert to a known-good state without losing progress.
+
+**Change Summary template**: Include in every agent-authored PR description:
+
+```
+CHANGES MADE: <bullet list>
+DIDN'T TOUCH: <out-of-scope items intentionally not addressed>
+CONCERNS: <known issues, follow-ups, things reviewers should challenge>
+```
+
+For the full pattern, see `skills/merge-pull-requests/SKILL.md`.
+
 ## Skills
 
 - **Canonical source**: `skills/` at repo root. ALWAYS edit skills here.
@@ -112,6 +126,7 @@ The active-agent guard checks `.git-worktrees/.registry.json` for non-stale entr
 - [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns
 - [Architecture Artifacts](docs/architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
 - [Skills Workflow](docs/skills-workflow.md) — Workflow guide, stage-by-stage explanation, design principles
+- [Skills Catalogue](docs/skills-catalogue.md) — Discoverable index of every skill grouped by purpose; trigger + related + user_invocable per skill
 - [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
 - [OpenBao Secret Management](docs/openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
 - [Cross-Repo Setup](docs/cross-repo-setup.md) — Using skills, scripts, and MCP servers in other repositories
