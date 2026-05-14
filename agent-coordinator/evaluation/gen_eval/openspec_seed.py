@@ -42,7 +42,7 @@ _SCENARIO_HEADING_RE = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$")
 _HEADING_RE = re.compile(r"^#{1,6}\s+\S")
 
 
-class InvalidChangeId(ValueError):
+class InvalidChangeIdError(ValueError):
     """Raised when a change-id fails the validation regex.
 
     The argparse layer translates this to exit status 64 (usage error).
@@ -82,12 +82,12 @@ def validate_change_id(value: str) -> str:
     """argparse ``type=`` validator for ``--openspec-change``.
 
     Raises:
-        InvalidChangeId: If ``value`` does not match ``^[a-zA-Z0-9_-]+$``.
+        InvalidChangeIdError: If ``value`` does not match ``^[a-zA-Z0-9_-]+$``.
             The message names the regex constraint so operators can correct
             their input.
     """
     if not isinstance(value, str) or not CHANGE_ID_RE.match(value):
-        raise InvalidChangeId(
+        raise InvalidChangeIdError(
             f"change-id MUST match {CHANGE_ID_RE.pattern}: got {value!r}"
         )
     return value
@@ -307,7 +307,7 @@ def render_constraints_section(scenarios: list[ParsedScenario]) -> str:
 
 __all__ = [
     "CHANGE_ID_RE",
-    "InvalidChangeId",
+    "InvalidChangeIdError",
     "ParsedScenario",
     "SECTION_FOOTER",
     "SECTION_HEADER",

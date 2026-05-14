@@ -20,9 +20,10 @@ import logging
 import os
 import re
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,8 @@ class BehavioralFinding:
     criticality: str = "high"
     disposition: str = "fix"
     type: str = "behavioral_failure"
+    axis: str = "correctness"
+    severity: str = "critical"
     file_path: str | None = None
     line_start: int | None = None
     line_end: int | None = None
@@ -140,6 +143,8 @@ class BehavioralFinding:
             "criticality": self.criticality,
             "description": self.description,
             "disposition": self.disposition,
+            "axis": self.axis,
+            "severity": self.severity,
         }
         if self.file_path:
             out["file_path"] = self.file_path

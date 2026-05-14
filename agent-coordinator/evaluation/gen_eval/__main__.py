@@ -11,7 +11,10 @@ import logging
 import sys
 from pathlib import Path
 
-from .openspec_seed import InvalidChangeId, validate_change_id  # noqa: F401  (InvalidChangeId re-exported for callers)
+from .openspec_seed import (  # noqa: F401  (InvalidChangeIdError re-exported for callers)
+    InvalidChangeIdError,
+    validate_change_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +25,7 @@ EX_USAGE = 64
 
 
 def _argparse_change_id(value: str) -> str:
-    """argparse type= adapter: maps InvalidChangeId to argparse.ArgumentTypeError.
+    """argparse type= adapter: maps InvalidChangeIdError to argparse.ArgumentTypeError.
 
     Argparse will then call ``parser.error`` which exits with the configured
     status (we install a custom error handler in :func:`parse_args` that
@@ -30,7 +33,7 @@ def _argparse_change_id(value: str) -> str:
     """
     try:
         return validate_change_id(value)
-    except InvalidChangeId as exc:
+    except InvalidChangeIdError as exc:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
