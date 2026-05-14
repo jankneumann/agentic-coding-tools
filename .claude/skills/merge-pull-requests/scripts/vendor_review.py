@@ -19,7 +19,7 @@ import json
 import sys
 from pathlib import Path
 
-from shared import check_gh, run_gh
+from _helpers import check_gh, run_gh
 
 # ---------------------------------------------------------------------------
 # Thresholds — PRs below these are "small" and skip vendor review

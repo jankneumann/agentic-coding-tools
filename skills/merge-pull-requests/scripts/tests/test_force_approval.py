@@ -25,12 +25,14 @@ import merge_pr as mp
 def _validation_response(
     *, approved: bool = False, mergeable: str = "MERGEABLE",
     is_draft: bool = False, branch: str = "openspec/test-feature",
+    base_branch: str = "main", approval_required: bool = True,
 ) -> dict[str, Any]:
     """Construct a validate_pr-shaped dict for monkey-patching."""
     return {
         "pr_number": 42,
         "title": "Test PR",
         "branch": branch,
+        "base_branch": base_branch,
         "is_draft": is_draft,
         "is_fork": False,
         "mergeable": mergeable,
@@ -42,10 +44,12 @@ def _validation_response(
         "check_details": [],
         "review_decision": "APPROVED" if approved else "REVIEW_REQUIRED",
         "approved": approved,
+        "approval_required": approval_required,
         "approval_may_be_stale": False,
         "pending_reviewers": [],
         "can_merge": (
-            mergeable == "MERGEABLE" and approved
+            mergeable == "MERGEABLE"
+            and (approved or not approval_required)
             and not is_draft
         ),
     }

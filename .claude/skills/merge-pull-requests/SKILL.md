@@ -34,6 +34,19 @@ If scripts are missing, run `skills/install.sh` to sync them from the canonical 
 - Repository has a remote configured
 - On `main` branch with clean working directory
 
+## Active-Agent Guard (Sync-Point Skill)
+
+Before any other work, verify exclusive access — this skill merges into `main` and must not race other agents:
+
+```bash
+python skills/shared/active_agents.py
+```
+
+- Exit `0`: no active agents → proceed.
+- Exit `1`: one or more active agents hold worktrees → **stop**, surface the list to the operator (the script's stdout already prints it), and ask whether to wait or pass `--force`. Never auto-force.
+
+An entry is "active" when it is pinned OR its `last_heartbeat` is within 1 hour. See `skills/shared/active_agents.py` and CLAUDE.md "Sync-Point Skills" for the contract; `docs/mental-models.md` gap G10 for the rationale.
+
 ## Steps
 
 ### 1. Verify Environment
@@ -416,7 +429,7 @@ The script validates CI status (distinguishing failed from pending), draft statu
 - **Merge conflicts**: Surfaces `CONFLICTING` status with specific guidance to rebase or merge the base branch
 - **Stale approvals**: Warns if commits were pushed after the last approval
 - **Pending reviewers**: Shows which reviewers (including CODEOWNERS teams) haven't reviewed yet
-- **Conditional approval gate**: Probes the base branch's protection rules and only requires approval when GitHub itself would (i.e., `required_approving_review_count >= 1`). Solo repos and unprotected branches merge without an approval check, the same way `gh pr merge` would allow. Pass `--allow-unapproved` to force-bypass even when protection requires approval (admin overrides, or when probing protection failed and the gate fell back to strict mode).
+- **Conditional approval gate**: Probes the base branch's protection rules and only requires approval when GitHub itself would (i.e., `required_approving_review_count >= 1`). Solo repos and unprotected branches merge without an approval check, the same way `gh pr merge` would allow. Pass `--force-approval` to force-bypass even when protection requires approval (admin overrides, or when probing protection failed and the gate fell back to strict mode).
 
 **After every merge, update local state:**
 ```bash

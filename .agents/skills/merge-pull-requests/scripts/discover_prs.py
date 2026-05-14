@@ -24,7 +24,7 @@ import json
 import re
 import sys
 
-from shared import check_clean_worktree, check_gh, run_gh, safe_author
+from _helpers import check_clean_worktree, check_gh, run_gh, safe_author
 
 # Jules automation heuristics: title patterns only match when combined
 # with a label or author signal to avoid false positives on human PRs.

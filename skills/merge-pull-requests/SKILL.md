@@ -429,7 +429,7 @@ The script validates CI status (distinguishing failed from pending), draft statu
 - **Merge conflicts**: Surfaces `CONFLICTING` status with specific guidance to rebase or merge the base branch
 - **Stale approvals**: Warns if commits were pushed after the last approval
 - **Pending reviewers**: Shows which reviewers (including CODEOWNERS teams) haven't reviewed yet
-- **Conditional approval gate**: Probes the base branch's protection rules and only requires approval when GitHub itself would (i.e., `required_approving_review_count >= 1`). Solo repos and unprotected branches merge without an approval check, the same way `gh pr merge` would allow. Pass `--allow-unapproved` to force-bypass even when protection requires approval (admin overrides, or when probing protection failed and the gate fell back to strict mode).
+- **Conditional approval gate**: Probes the base branch's protection rules and only requires approval when GitHub itself would (i.e., `required_approving_review_count >= 1`). Solo repos and unprotected branches merge without an approval check, the same way `gh pr merge` would allow. Pass `--force-approval` to force-bypass even when protection requires approval (admin overrides, or when probing protection failed and the gate fell back to strict mode).
 
 **After every merge, update local state:**
 ```bash
