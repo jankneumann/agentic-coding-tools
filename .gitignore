@@ -213,6 +213,9 @@ __marimo__/
 # Claude Code subagent worktrees (temporary)
 .claude/worktrees/
 
+# Runtime lockfiles from Claude Code skills (e.g. /schedule)
+.claude/*.lock
+
 # Git worktrees (used by OpenSpec skills for feature isolation)
 .git-worktrees/
 # Worktree registry is inside .git-worktrees/ and covered by the above pattern
