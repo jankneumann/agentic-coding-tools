@@ -5,6 +5,94 @@
 
 ---
 
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan
+
+**Single umbrella change vs roadmap of 4 small changes** — One plan-approval gate + one PR keeps human-attention cost bounded; cross-WP dependencies become intra-change contracts in contracts/
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**Foundation-only scope this session** — 2330 LOC spread across 7 WPs exceeds single-session capacity; 4 scope-isolated foundation packages provide clean checkpoint with no incomplete state
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**WP3-WP7 dispatched as serial sub-agent chain** — Each WP consumes prior schema/output; parallelism not possible within the gen-eval extension chain
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**WP1+WP2+WP6 dispatched in parallel via Task() sub-agents** — Disjoint write_allow scopes (README.md, docs/*, agents.yaml+review_dispatcher.py); ~2x speedup over sequential
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**Defer 8.1 (E2E) and 8.3 (rebase test) with documented rationale rather than skipping silently** — Honest reporting > artificial completion; future operators see exactly what's verified vs deferred
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**Pause before SUBMIT_PR for explicit user authorization** — Project guidelines: 'Do NOT create a pull request unless the user explicitly asks for one' — autopilot's --force authorized implementation, not PR creation
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan Iteration 1
+
+**Worker-vendor recording implemented as a new section 3z in implement-feature/SKILL.md** — Worker side of vendor-diversity needed wiring; SKILL.md was the natural integration point
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+
+---
+
+## 2026-05-08 — factory-missions-architecture-alignment
+
+### Phase: Plan
+
+**This proposal merges before harness-engineering-features** — Operator-selected; harness-engineering-features rebases onto our additive sections (no edits to existing content reduces conflict risk)
+
+- Status: `active`
+- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D7)
+
+---
+
 ## 2026-04-25 — 2026-04-25-phase-record-compaction
 
 ### Phase: Plan

@@ -22,9 +22,12 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 
 ## Active capabilities in this index
 
+- [agent-archetypes](./agent-archetypes.md)
 - [agent-coordinator](./agent-coordinator.md)
 - [configuration](./configuration.md)
 - [coordination-bridge](./coordination-bridge.md)
+- [evaluation-framework](./evaluation-framework.md)
+- [gen-eval-framework](./gen-eval-framework.md)
 - [merge-pull-requests](./merge-pull-requests.md)
 - [observability](./observability.md)
 - [skill-workflow](./skill-workflow.md)
