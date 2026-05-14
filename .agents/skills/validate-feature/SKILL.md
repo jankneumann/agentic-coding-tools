@@ -262,7 +262,11 @@ If Smoke fails (SMOKE_EXIT != 0 and != 5), stop validation and skip to Teardown.
 **Phase name:** `gen-eval`
 **Criticality:** Non-critical (continues on failure)
 
-Run generator-evaluator testing when interface descriptors exist for the project. This phase auto-detects descriptor files and runs in `template-only` mode by default, requiring no CLI or SDK dependencies.
+Run generator-evaluator testing when interface descriptors exist for the project. This phase auto-detects descriptor files and selects between two modes:
+
+- **`cli-augmented` mode** when both an interface descriptor AND an OpenSpec change directory at `openspec/changes/<change-id>/specs/` exist. Gen-eval is invoked with `--mode cli-augmented --openspec-change <change-id>` so the generator seeds scenarios from the change's WHEN/THEN spec blocks.
+- **`template-only` mode** (existing fallback) when descriptors exist but no OpenSpec change directory. Requires no CLI or SDK dependencies.
+- **Skipped** when no descriptors are found.
 
 ```bash
 # Auto-detect gen-eval descriptors
@@ -272,7 +276,19 @@ if [ -z "$GENEVAL_DESCRIPTORS" ]; then
   echo "SKIP: No gen-eval descriptors found. Skipping gen-eval phase."
   GENEVAL_RESULT="skip"
 else
-  echo "Running gen-eval testing (template-only mode)..."
+  # Mode selection: cli-augmented requires both descriptor AND OpenSpec change dir
+  GENEVAL_CHANGE_DIR="$PROJECT_ROOT/openspec/changes/$CHANGE_ID/specs"
+  if [ -d "$GENEVAL_CHANGE_DIR" ]; then
+    GENEVAL_MODE_FLAGS="--mode cli-augmented --openspec-change $CHANGE_ID"
+    GENEVAL_MODE_LABEL="mode=cli-augmented"
+    echo "gen-eval: $GENEVAL_MODE_LABEL (descriptor + OpenSpec change present at $GENEVAL_CHANGE_DIR)"
+  else
+    GENEVAL_MODE_FLAGS="--mode template-only --no-services"
+    GENEVAL_MODE_LABEL="mode=template-only"
+    echo "gen-eval: $GENEVAL_MODE_LABEL (no OpenSpec change at openspec/changes/$CHANGE_ID/specs/, falling back to template-only)"
+  fi
+
+  echo "Running gen-eval testing ($GENEVAL_MODE_LABEL)..."
   GENEVAL_FAILED=false
 
   for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
@@ -283,8 +299,7 @@ else
     if [ ! -f "$GENEVAL_PYTHON" ]; then GENEVAL_PYTHON="python3"; fi
     (cd "$GENEVAL_MODULE_ROOT" && "$GENEVAL_PYTHON" -m evaluation.gen_eval \
       --descriptor "$DESCRIPTOR" \
-      --mode template-only \
-      --no-services \
+      $GENEVAL_MODE_FLAGS \
       --report-format both \
       --output-dir "$PROJECT_ROOT/openspec/changes/$CHANGE_ID" 2>&1)
     GENEVAL_EXIT=$?
@@ -307,7 +322,7 @@ else
 fi
 ```
 
-Gen-eval failures are non-critical and do not block validation. Results are included in the validation report for informational purposes.
+Gen-eval failures are non-critical and do not block validation. Results are included in the validation report for informational purposes. cli-augmented mode failures (e.g., from prompt-injection attempts caught by the parser) still degrade gracefully — the validate-feature pipeline continues to subsequent phases.
 
 ### 5. Security Phase
 

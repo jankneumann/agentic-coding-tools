@@ -806,6 +806,237 @@ _SDK_SYSTEM_PROMPT = (
 
 
 # ---------------------------------------------------------------------------
+# Vendor-diversity policy (worker vs validator) — see agents.yaml policies block
+# ---------------------------------------------------------------------------
+
+_DEFAULT_VENDOR_DIVERSITY_POLICY: dict[str, Any] = {
+    "enforce_for": ["worker_vs_validator"],
+    "fallback": "warn_and_continue",
+    "scope": "per_change",
+}
+
+
+_CHANGE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
+def _dispatch_state_path(change_id: str, repo_root: Path | None = None) -> Path:
+    """Return the path to the change-scoped dispatch-state file.
+
+    Validates ``change_id`` against ``^[a-zA-Z0-9_-]+$`` to prevent path
+    traversal from callers that don't pre-validate. The same regex is used
+    by gen-eval's ``--openspec-change`` flag at argparse time; here we
+    re-validate at this API boundary for defense in depth.
+    """
+    if not isinstance(change_id, str) or not _CHANGE_ID_RE.match(change_id):
+        raise ValueError(
+            f"change_id MUST match {_CHANGE_ID_RE.pattern}: got {change_id!r}"
+        )
+    base = repo_root if repo_root is not None else Path.cwd()
+    return base / "openspec" / "changes" / change_id / ".dispatch-state.json"
+
+
+def load_vendor_diversity_policy(
+    agents_yaml_path: Path | None = None,
+) -> dict[str, Any]:
+    """Load the vendor_diversity policy from agents.yaml.
+
+    Falls back to the default policy (enforced) if the file or the policy
+    block is missing. Returns the policy dict (never None).
+    """
+    if agents_yaml_path is None or not agents_yaml_path.is_file():
+        return dict(_DEFAULT_VENDOR_DIVERSITY_POLICY)
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        logger.warning(
+            "PyYAML not available; using default vendor_diversity policy",
+        )
+        return dict(_DEFAULT_VENDOR_DIVERSITY_POLICY)
+    try:
+        doc = yaml.safe_load(agents_yaml_path.read_text()) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("Failed to load agents.yaml (%s); using default policy", exc)
+        return dict(_DEFAULT_VENDOR_DIVERSITY_POLICY)
+    policy = (doc.get("policies") or {}).get("vendor_diversity")
+    if not isinstance(policy, dict):
+        return dict(_DEFAULT_VENDOR_DIVERSITY_POLICY)
+    # Merge with defaults so missing keys are filled in.
+    merged = dict(_DEFAULT_VENDOR_DIVERSITY_POLICY)
+    merged.update(policy)
+    return merged
+
+
+def read_dispatch_state(
+    change_id: str,
+    repo_root: Path | None = None,
+    state_path: Path | None = None,
+) -> dict[str, Any]:
+    """Read change-scoped dispatch state.
+
+    Returns ``{}`` if the file is missing. Refuses to read (returns ``{}``
+    and logs an error) if the file's permissions include the world-write bit
+    (``0002``) — this is the tamper-resistance guard from the spec.
+    """
+    path = state_path if state_path is not None else _dispatch_state_path(
+        change_id, repo_root,
+    )
+    if not path.is_file():
+        return {}
+    try:
+        st_mode = path.stat().st_mode
+    except OSError as exc:
+        logger.warning("Failed to stat dispatch-state file %s: %s", path, exc)
+        return {}
+    if st_mode & 0o002:
+        logger.error(
+            "vendor_diversity: refusing to read dispatch-state %s "
+            "(world-writable, mode=%o); falling back to no-history mode",
+            path, st_mode & 0o777,
+        )
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Failed to read dispatch-state %s: %s", path, exc)
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    # Normalise the keys we care about; preserve unknown fields untouched.
+    data.setdefault("worker_vendors", [])
+    data.setdefault("validator_vendors", [])
+    data.setdefault("change_id", change_id)
+    return data
+
+
+def write_dispatch_state(
+    change_id: str,
+    state: dict[str, Any],
+    repo_root: Path | None = None,
+    state_path: Path | None = None,
+) -> Path:
+    """Write change-scoped dispatch state with mode 0644.
+
+    Creates parent directories if needed. Returns the path written.
+    """
+    path = state_path if state_path is not None else _dispatch_state_path(
+        change_id, repo_root,
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "worker_vendors": list(state.get("worker_vendors", [])),
+        "validator_vendors": list(state.get("validator_vendors", [])),
+        "change_id": state.get("change_id", change_id),
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    try:
+        path.chmod(0o644)
+    except OSError as exc:
+        logger.warning("Failed to chmod dispatch-state %s: %s", path, exc)
+    return path
+
+
+def record_worker_vendor(
+    change_id: str,
+    vendor: str,
+    repo_root: Path | None = None,
+    state_path: Path | None = None,
+) -> Path:
+    """Record that a worker with *vendor* was dispatched for *change_id*.
+
+    Idempotent — appends only if the vendor isn't already in the list.
+    Used by `implement-feature` worker-side selection so subsequent validator
+    selection sees the worker's vendor.
+    """
+    state = read_dispatch_state(change_id, repo_root, state_path)
+    workers = list(state.get("worker_vendors", []))
+    if vendor not in workers:
+        workers.append(vendor)
+    state["worker_vendors"] = workers
+    state["change_id"] = change_id
+    state.setdefault("validator_vendors", [])
+    return write_dispatch_state(change_id, state, repo_root, state_path)
+
+
+def select_validator_vendor(
+    candidates: list[str],
+    change_id: str,
+    agents_yaml_path: Path | None = None,
+    repo_root: Path | None = None,
+    state_path: Path | None = None,
+) -> tuple[str | None, str]:
+    """Select a validator vendor for *change_id*.
+
+    Implements the worker-vs-validator vendor-diversity policy:
+
+    * If policy is disabled (``enforce_for`` does not include
+      ``worker_vs_validator``), returns the first candidate with a
+      "policy disabled" log message.
+    * Otherwise, excludes vendors recorded as workers for this change.
+    * If the resulting candidate set is empty, returns the first original
+      candidate and logs a warning ("only N vendor available, violating
+      policy but continuing"). Does NOT raise — fallback is warn_and_continue.
+
+    Records the selected validator vendor in dispatch state for downstream
+    invocations.
+
+    Returns a tuple ``(selected_vendor, log_message)``. ``selected_vendor`` is
+    None only when *candidates* is empty.
+    """
+    if not candidates:
+        return None, "vendor_diversity: no candidates available"
+
+    policy = load_vendor_diversity_policy(agents_yaml_path)
+    enforce_for = policy.get("enforce_for") or []
+
+    if "worker_vs_validator" not in enforce_for:
+        selected = candidates[0]
+        msg = "vendor_diversity: policy disabled by config"
+        logger.info(msg)
+        # Still record selection so downstream tooling can audit.
+        state = read_dispatch_state(change_id, repo_root, state_path)
+        validators = list(state.get("validator_vendors", []))
+        if selected not in validators:
+            validators.append(selected)
+        state["validator_vendors"] = validators
+        state.setdefault("worker_vendors", [])
+        state["change_id"] = change_id
+        write_dispatch_state(change_id, state, repo_root, state_path)
+        return selected, msg
+
+    state = read_dispatch_state(change_id, repo_root, state_path)
+    worker_vendors = list(state.get("worker_vendors", []))
+    filtered = [c for c in candidates if c not in worker_vendors]
+
+    if filtered:
+        selected = filtered[0]
+        excluded = ",".join(worker_vendors) if worker_vendors else "(none)"
+        msg = (
+            f"vendor_diversity: excluded {excluded} (worker), "
+            f"selected {selected} (validator) for {change_id}"
+        )
+        logger.info(msg)
+    else:
+        selected = candidates[0]
+        n = len(set(candidates))
+        msg = (
+            f"vendor_diversity: only {n} vendor available "
+            f"({selected}), violating policy but continuing"
+        )
+        logger.warning(msg)
+
+    # Persist the validator selection.
+    validators = list(state.get("validator_vendors", []))
+    if selected not in validators:
+        validators.append(selected)
+    state["validator_vendors"] = validators
+    state.setdefault("worker_vendors", worker_vendors)
+    state["change_id"] = change_id
+    write_dispatch_state(change_id, state, repo_root, state_path)
+
+    return selected, msg
+
+
+# ---------------------------------------------------------------------------
 # Review orchestrator
 # ---------------------------------------------------------------------------
 

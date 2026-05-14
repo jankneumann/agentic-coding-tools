@@ -21,9 +21,17 @@ Usage:
 from __future__ import annotations
 
 import json
+import logging
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class ConsensusInputError(ValueError):
+    """Raised when a per-vendor findings file fails schema validation."""
 
 
 # ---------------------------------------------------------------------------
@@ -419,6 +427,134 @@ class ConsensusSynthesizer:
 
 
 # ---------------------------------------------------------------------------
+# Behavioral / gen-eval vendor source (additive — see WP5 of
+# factory-missions-architecture-alignment)
+# ---------------------------------------------------------------------------
+
+# Lower-numbered values rank first when sorting ascending.
+# critical < high < medium < low in the spec contract.
+_SEVERITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def load_behavioral_findings(
+    input_dir: Path,
+    *,
+    schema_path: Path | None = None,
+    vendor: str = "gen-eval",
+    log_stream: Any = None,
+) -> list[Finding]:
+    """Load behavioral findings from ``findings-<vendor>.json``.
+
+    Returns an empty list when the file is missing — gen-eval may
+    legitimately not have run for changes without descriptors. When the
+    file exists, validates it against the review-findings schema (if a
+    schema path is provided or jsonschema is available) and raises
+    :class:`ConsensusInputError` on schema-violation.
+
+    Args:
+        input_dir: directory in which to look for ``findings-<vendor>.json``.
+        schema_path: optional path to ``review-findings.schema.json``.
+            When None, attempts to locate it at
+            ``openspec/schemas/review-findings.schema.json`` relative to
+            the repo root (best-effort).
+        vendor: vendor name (default ``gen-eval``).
+        log_stream: file-like object to write the "no gen-eval findings"
+            log line to. Defaults to ``sys.stdout`` so the synthesizer's
+            stdout vendor-count log is consistent.
+
+    Returns:
+        A list of :class:`Finding` objects with ``vendor=<vendor>``.
+    """
+    if log_stream is None:
+        log_stream = sys.stdout
+
+    findings_path = input_dir / f"findings-{vendor}.json"
+    if not findings_path.exists():
+        # Per spec: "Missing gen-eval findings file is not an error."
+        msg = f"no {vendor} findings (skipping behavioral source)"
+        print(msg, file=log_stream)
+        logger.info(msg)
+        return []
+
+    try:
+        data = json.loads(findings_path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ConsensusInputError(
+            f"{findings_path}: invalid JSON: {exc}"
+        ) from exc
+
+    # Optional schema validation. We tolerate jsonschema being unavailable
+    # since the synthesizer's existing flow doesn't require it.
+    if schema_path is None:
+        # Best-effort lookup: walk up from this file looking for the
+        # repo's openspec/schemas directory.
+        here = Path(__file__).resolve()
+        for parent in here.parents:
+            candidate = parent / "openspec" / "schemas" / "review-findings.schema.json"
+            if candidate.exists():
+                schema_path = candidate
+                break
+
+    if schema_path is not None and schema_path.exists():
+        try:
+            import jsonschema  # type: ignore[import-untyped]
+
+            schema = json.loads(schema_path.read_text())
+            try:
+                jsonschema.validate(data, schema)
+            except jsonschema.ValidationError as exc:
+                raise ConsensusInputError(
+                    f"{findings_path}: schema violation: {exc.message} "
+                    f"(at {'/'.join(str(p) for p in exc.absolute_path)})"
+                ) from exc
+        except ImportError:
+            # jsonschema not installed; skip validation gracefully.
+            pass
+
+    findings_data = data.get("findings", [])
+    if not isinstance(findings_data, list):
+        raise ConsensusInputError(
+            f"{findings_path}: 'findings' must be a list"
+        )
+
+    return [Finding.from_dict(f, vendor=vendor) for f in findings_data]
+
+
+def rank_findings(findings: list[Finding]) -> list[Finding]:
+    """Rank findings uniformly by severity (critical → low).
+
+    Ties are broken by source-file order (insertion order — the caller is
+    responsible for passing findings already ordered by source file).
+    Per the contract: ``critical < high < medium < low`` mapped to
+    ascending sort, where lower ranks come first.
+
+    The synthesizer MUST NOT introduce different ranking logic for
+    behavioral vs scrutiny findings (per
+    ``contracts/findings-vendor-source.md``). This helper enforces that
+    by ranking purely on the schema's ``criticality`` field.
+    """
+    indexed = list(enumerate(findings))
+    indexed.sort(
+        key=lambda pair: (
+            _SEVERITY_RANK.get(pair[1].criticality, 99),
+            pair[0],  # stable tie-break by original index (source-file order)
+        )
+    )
+    return [f for _, f in indexed]
+
+
+def format_vendor_counts(per_vendor_counts: dict[str, int]) -> str:
+    """Format per-vendor count log line per the contract.
+
+    Matches the regex ``merged: .*claude=N.*codex=M.*gen-eval=K.*``
+    expected by the "Synthesizer merges gen-eval and reviewer findings"
+    spec scenario.
+    """
+    parts = [f"{name}={count}" for name, count in per_vendor_counts.items()]
+    return "merged: " + ", ".join(parts)
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -442,8 +578,16 @@ def main() -> int:
     )
     parser.add_argument("--target", required=True, help="Feature or package ID")
     parser.add_argument(
-        "--findings", nargs="+", required=True,
-        help="Per-vendor findings JSON files",
+        "--findings", nargs="*", default=[],
+        help="Per-vendor findings JSON files (use this OR --input-dir)",
+    )
+    parser.add_argument(
+        "--input-dir",
+        help=(
+            "Directory containing findings-<vendor>.json files. When set, "
+            "all findings-*.json in the directory are loaded (including "
+            "findings-gen-eval.json as a behavioral source)."
+        ),
     )
     parser.add_argument("--output", required=True, help="Output consensus JSON path")
     parser.add_argument("--quorum", type=int, default=2, help="Minimum reviewers")
@@ -451,26 +595,59 @@ def main() -> int:
         "--threshold", type=float, default=MATCH_THRESHOLD,
         help="Match score threshold for confirmed status",
     )
+    parser.add_argument(
+        "--schema",
+        help="Optional path to review-findings.schema.json for validation",
+    )
     args = parser.parse_args()
 
     # Load per-vendor findings
     vendor_results: list[VendorResult] = []
-    for fpath in args.findings:
-        p = Path(fpath)
+    findings_paths: list[Path] = [Path(p) for p in args.findings]
+
+    if args.input_dir:
+        input_dir = Path(args.input_dir)
+        # Discover all findings-*.json files in the directory, but defer
+        # findings-gen-eval.json to the additive behavioral source path so
+        # missing-file handling is identical to non-directory invocations.
+        for path in sorted(input_dir.glob("findings-*.json")):
+            if path.name == "findings-gen-eval.json":
+                continue
+            findings_paths.append(path)
+
+    for p in findings_paths:
         if not p.exists():
-            print(f"Warning: {fpath} not found, skipping", file=__import__("sys").stderr)
+            print(f"Warning: {p} not found, skipping", file=sys.stderr)
             vendor_results.append(VendorResult(
                 vendor=p.stem, findings=[], success=False,
-                error=f"File not found: {fpath}",
+                error=f"File not found: {p}",
             ))
             continue
         data = json.loads(p.read_text())
-        vendor = data.get("reviewer_vendor", p.stem.split("-")[-1])
+        # findings-claude.json -> "claude" (drop the "findings-" prefix)
+        default_vendor = p.stem
+        if default_vendor.startswith("findings-"):
+            default_vendor = default_vendor[len("findings-"):]
+        vendor = data.get("reviewer_vendor", default_vendor)
         findings = [
             Finding.from_dict(f, vendor=vendor)
             for f in data.get("findings", [])
         ]
         vendor_results.append(VendorResult(vendor=vendor, findings=findings))
+
+    # Additive behavioral source: load findings-gen-eval.json from
+    # --input-dir (if provided). Missing file is not an error.
+    behavioral_findings: list[Finding] = []
+    if args.input_dir:
+        schema_path = Path(args.schema) if args.schema else None
+        behavioral_findings = load_behavioral_findings(
+            Path(args.input_dir),
+            schema_path=schema_path,
+        )
+        if behavioral_findings:
+            vendor_results.append(VendorResult(
+                vendor="gen-eval", findings=behavioral_findings,
+            ))
 
     synth = ConsensusSynthesizer(
         match_threshold=args.threshold, quorum=args.quorum,
@@ -480,7 +657,23 @@ def main() -> int:
         target=args.target,
         vendor_results=vendor_results,
     )
+
+    # Sort consensus_findings uniformly by severity ascending (critical
+    # first), with ties broken by original (source-file) order. This
+    # matches the contract that scrutiny and behavioral findings are
+    # ranked by the same key. Stable sort preserves source-file order.
+    report.consensus_findings.sort(
+        key=lambda cf: _SEVERITY_RANK.get(cf.agreed_criticality, 99),
+    )
+    # Re-id after sort for stable output ordering.
+    for new_id, cf in enumerate(report.consensus_findings, start=1):
+        cf.id = new_id
+
     synth.write_report(report, Path(args.output))
+
+    # Per-vendor count log (regex `merged: .*claude=N.*codex=M.*gen-eval=K`)
+    counts = {vr.vendor: len(vr.findings) for vr in vendor_results}
+    print(format_vendor_counts(counts))
 
     # Print summary
     print(f"Consensus: {report.total_unique} findings "
