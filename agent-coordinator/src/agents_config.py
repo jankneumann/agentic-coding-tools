@@ -136,6 +136,21 @@ AGENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "required": ["agents"],
     "properties": {
+        "policies": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "enforce_for": {
+                        "type": "array",
+                        "items": {"type": "string", "minLength": 1},
+                    },
+                    "fallback": {"type": "string", "minLength": 1},
+                    "scope": {"type": "string", "minLength": 1},
+                },
+                "additionalProperties": True,
+            },
+        },
         "agents": {
             "type": "object",
             "minProperties": 1,

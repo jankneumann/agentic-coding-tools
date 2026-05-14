@@ -29,7 +29,6 @@ from evaluation.gen_eval.findings_emitter import (
     parse_openspec_source,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers — duck-typed scenario stand-ins
 # ---------------------------------------------------------------------------

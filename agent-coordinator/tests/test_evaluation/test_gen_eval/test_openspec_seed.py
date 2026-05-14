@@ -29,7 +29,7 @@ from evaluation.gen_eval.openspec_seed import (
     CHANGE_ID_RE,
     SECTION_FOOTER,
     SECTION_HEADER,
-    InvalidChangeId,
+    InvalidChangeIdError,
     ParsedScenario,
     escape_scenario_body,
     parse_openspec_change,
@@ -167,29 +167,29 @@ def test_parse_handles_multiple_spec_files(tmp_path: Path) -> None:
 
 
 def test_validate_change_id_rejects_path_traversal() -> None:
-    with pytest.raises(InvalidChangeId) as exc_info:
+    with pytest.raises(InvalidChangeIdError) as exc_info:
         validate_change_id("../etc")
     # Error message MUST name the regex constraint (per spec scenario)
     assert CHANGE_ID_RE.pattern in str(exc_info.value)
 
 
 def test_validate_change_id_rejects_path_separator() -> None:
-    with pytest.raises(InvalidChangeId):
+    with pytest.raises(InvalidChangeIdError):
         validate_change_id("foo/bar")
 
 
 def test_validate_change_id_rejects_dot() -> None:
-    with pytest.raises(InvalidChangeId):
+    with pytest.raises(InvalidChangeIdError):
         validate_change_id("foo.bar")
 
 
 def test_validate_change_id_rejects_shell_metacharacters() -> None:
-    with pytest.raises(InvalidChangeId):
+    with pytest.raises(InvalidChangeIdError):
         validate_change_id("foo;rm -rf /")
 
 
 def test_validate_change_id_rejects_empty() -> None:
-    with pytest.raises(InvalidChangeId):
+    with pytest.raises(InvalidChangeIdError):
         validate_change_id("")
 
 
