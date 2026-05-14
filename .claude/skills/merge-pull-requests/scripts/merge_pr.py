@@ -31,7 +31,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from shared import (
+from _helpers import (
     GH_TIMEOUT,
     check_gh,
     parse_pr_numbers,
@@ -78,12 +78,55 @@ def get_pr_status(pr_number: int) -> dict:
         raw = run_gh([
             "pr", "view", str(pr_number), "--json",
             "state,mergeable,statusCheckRollup,reviewDecision,"
-            "headRefName,title,isDraft,isCrossRepository,reviewRequests",
+            "headRefName,baseRefName,title,isDraft,isCrossRepository,reviewRequests",
         ], timeout=GH_TIMEOUT)
     except RuntimeError as e:
         print(f"Error: Could not fetch PR #{pr_number}: {e}", file=sys.stderr)
         sys.exit(1)
     return json.loads(raw)
+
+
+def _base_branch_requires_approval(base_branch: str) -> bool:
+    """Return True iff the base branch's protection requires approving reviews.
+
+    Mirrors GitHub's own enforcement so we only gate when GitHub would also gate.
+
+    Decision matrix:
+      - 404 ("Branch not protected") → False (solo-dev / unprotected branch)
+      - 200 with ``required_pull_request_reviews`` absent → False
+      - 200 with ``required_approving_review_count == 0`` → False
+      - 200 with ``required_approving_review_count >= 1`` → True
+      - Any other failure (403, timeout, parse error, empty base) → True
+        (fail-closed: never silently merge unapproved PRs in protected repos
+        we couldn't probe).
+    """
+    if not base_branch:
+        return True
+
+    try:
+        result = run_gh_unchecked(
+            ["api", f"repos/:owner/:repo/branches/{base_branch}/protection"],
+            timeout=GH_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return True
+
+    if result.returncode != 0:
+        stderr_lower = (result.stderr or "").lower()
+        if "not found" in stderr_lower or "http 404" in stderr_lower:
+            return False
+        return True
+
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return True
+
+    pr_reviews = data.get("required_pull_request_reviews")
+    if not pr_reviews:
+        return False
+    required_count = pr_reviews.get("required_approving_review_count") or 0
+    return required_count >= 1
 
 
 def check_approval_freshness(pr_number: int) -> dict:
@@ -213,6 +256,13 @@ def validate_pr(pr_number: int) -> dict:
     review_decision = status.get("reviewDecision", "")
     approved = review_decision == "APPROVED"
 
+    # Mirror GitHub's own enforcement: only require approval when the base
+    # branch's protection rules require it. Solo-dev repos with no protection
+    # land in the no-gate branch and can merge unapproved PRs the same way
+    # `gh pr merge` would allow.
+    base_branch = status.get("baseRefName", "")
+    approval_required = _base_branch_requires_approval(base_branch)
+
     # Check for stale approval (commits pushed after last approval)
     approval_freshness = {}
     if approved:
@@ -235,6 +285,7 @@ def validate_pr(pr_number: int) -> dict:
         "pr_number": pr_number,
         "title": status.get("title", ""),
         "branch": status.get("headRefName", ""),
+        "base_branch": base_branch,
         "is_draft": is_draft,
         "is_fork": is_fork,
         "mergeable": mergeable,
@@ -246,6 +297,7 @@ def validate_pr(pr_number: int) -> dict:
         "check_details": check_details,
         "review_decision": review_decision,
         "approved": approved,
+        "approval_required": approval_required,
         "approval_may_be_stale": approval_freshness.get(
             "approval_may_be_stale", False,
         ),
@@ -255,7 +307,7 @@ def validate_pr(pr_number: int) -> dict:
             and checks_ok
             and not checks_pending
             and not is_draft
-            and approved
+            and (approved or not approval_required)
         ),
     }
 
@@ -595,7 +647,7 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             "validation": validation,
         }
 
-    if not validation["approved"]:
+    if validation["approval_required"] and not validation["approved"]:
         reason = "Review approval required before merging"
         if validation["pending_reviewers"]:
             reviewers = ", ".join(validation["pending_reviewers"])

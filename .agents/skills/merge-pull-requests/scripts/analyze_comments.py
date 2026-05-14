@@ -14,7 +14,7 @@ import argparse
 import json
 import sys
 
-from shared import check_gh, run_gh, safe_author
+from _helpers import check_gh, run_gh, safe_author
 
 REVIEW_THREADS_QUERY = """
 query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
