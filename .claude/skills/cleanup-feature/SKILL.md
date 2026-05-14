@@ -77,12 +77,7 @@ openspec show $CHANGE_ID
 **Launcher Invariant**: The shared checkout is read-only. Perform all cleanup operations in a worktree:
 
 ```bash
-# --sibling places the cleanup worktree at .git-worktrees/<change-id>--cleanup/
-# (peer of the implementation worktree at .git-worktrees/<change-id>/) rather
-# than nested inside it. The nested layout used to leave `cleanup/` as an
-# untracked directory in the impl worktree's git status and forced a
-# `git worktree remove --force` for the cleanup-of-cleanup case.
-eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup --sibling)"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID" --agent-id cleanup)"
 cd "$WORKTREE_PATH"
 
 # The cleanup worktree is on its OWN scratch branch (with the --cleanup suffix),
@@ -330,53 +325,96 @@ This annotation is preserved in the archive for traceability.
 
 ### 5b. Append Session Log
 
-Construct a `PhaseRecord` for the `Cleanup` phase and call `write_both()`. If no `session-log.md` exists from prior phases, `write_both()` creates it and seeds the header on first call.
+Append a `Cleanup` phase entry to the session log, capturing merge strategy and task migration decisions. If no `session-log.md` exists from prior phases, create it and summarize the change from context.
 
-**Capture from this cleanup:**
+**Phase entry template:**
 
-- **Decisions** — Merge strategy (squash vs rebase vs regular), task migration decisions, archive choices.
-- **Alternatives Considered** — Merge/cleanup approaches considered and rejected.
-- **Trade-offs** — Trade-offs accepted (e.g., chose squash over rebase to keep main linear).
-- **Open Questions** — Cleanup issues that need follow-up.
-- **Completed Work** — What was archived, migrated, or merged (e.g., `["merged PR #42 via squash", "migrated 3 open tasks to follow-up proposal"]`).
-- **Summary** — 2–3 sentences: merge strategy, task migration decisions, archive outcome.
+```markdown
+---
 
-**Persist via `PhaseRecord.write_both()`:**
+## Phase: Cleanup (<YYYY-MM-DD>)
 
-```bash
-python3 - <<'EOF'
-import sys
-sys.path.insert(0, "skills/session-log/scripts")
-from phase_record import PhaseRecord, Decision, Alternative, TradeOff
+**Agent**: <agent-type> | **Session**: <session-id-or-N/A>
 
-record = PhaseRecord(
-    change_id="<change-id>",
-    phase_name="Cleanup",
-    agent_type="<agent-type>",
-    summary="<2-3 sentences: merge strategy, task migration, archive outcome>",
-    decisions=[
-        Decision(title="<title>", rationale="<rationale>"),
-    ],
-    alternatives=[Alternative(alternative="<approach>", reason="<rejection reason>")],
-    trade_offs=[TradeOff(accepted="<X>", over="<Y>", reason="<reason>")],
-    open_questions=["<question>"],
-    completed_work=["<merge/archive deliverable>"],
-)
-result = record.write_both()
-print(f"markdown_path={result.markdown_path}")
-print(f"sanitized={result.sanitized}")
-print(f"handoff_id={result.handoff_id or '(local fallback)'}")
-print(f"handoff_local_path={result.handoff_local_path}")
-for w in result.warnings:
-    print(f"WARN: {w}", file=sys.stderr)
-EOF
+### Decisions
+1. **<Decision title>** — <rationale>
+
+### Alternatives Considered
+- <Alternative>: rejected because <reason>
+
+### Trade-offs
+- Accepted <X> over <Y> because <reason>
+
+### Open Questions
+- [ ] <unresolved question>
+
+### Context
+<2-3 sentences: merge strategy, task migration decisions, archive outcome>
 ```
 
-`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/cleanup-<N>.json`). Each step logs warnings on failure but does not raise — if any step fails, `result.warnings` carries the diagnostic and the workflow continues to archiving. This step is non-blocking.
+**Focus on**: Merge strategy (squash vs regular), open task migration decisions, any cleanup issues encountered.
+
+**Sanitize-then-verify:**
+
+```bash
+python3 "<skill-base-dir>/../session-log/scripts/sanitize_session_log.py" \
+  "openspec/changes/<change-id>/session-log.md" \
+  "openspec/changes/<change-id>/session-log.md"
+```
+
+Read the sanitized output and verify: (1) all sections present, (2) no incorrect `[REDACTED:*]` markers, (3) markdown intact. If over-redacted, rewrite without secrets, re-sanitize (one attempt max). If sanitization exits non-zero, skip session log and proceed.
 
 ```bash
 git add "openspec/changes/<change-id>/session-log.md"
 ```
+
+If session log append or sanitization fails at any point, log a warning and proceed to archiving without the session log. This step is non-blocking.
+
+### 5c. Pre-Launch Checklist
+
+Before triggering staged rollout, every item below MUST pass. This is a **gate**, not a suggestion — if any item is red, halt and remediate before promoting traffic.
+
+- [ ] CI: all required workflows green on the merge commit (no allowed-to-fail bypasses)
+- [ ] Security scan: SAST + dependency audit clean (no new HIGH or CRITICAL findings vs baseline)
+- [ ] OpenSpec validate: `openspec validate --strict` exits zero against the archived change
+- [ ] Docs updated: any operator-facing change is reflected in `docs/` and the relevant runbook
+- [ ] Smoke tests: pass against staging (or production canary in pre-rollout mode) using the merged artifact, not a stale build
+- [ ] Rollback plan documented: feature flag name, kill-switch procedure, and on-call owner identified
+- [ ] Observability: dashboards and alerts for the changed surface are loaded and have a known-good baseline window (≥24h) to compare against
+
+If any item fails, do NOT proceed to staged rollout. Open a follow-up issue, mark this change `rollout-blocked`, and return to the relevant phase (validate, iterate, or doc-update).
+
+### 5d. Staged Rollout (post-merge)
+
+Promote the change through fixed traffic stages with a monitoring window between each stage. The rollout sequence is:
+
+| Stage | Traffic | Min monitoring window | Promotion criteria |
+|-------|---------|----------------------|--------------------|
+| 1 | **5%** | 30 min (or 1 full traffic cycle) | All thresholds below green |
+| 2 | **25%** | 1 hour | All thresholds green AND no Stage 1 anomalies replayed |
+| 3 | **50%** | 2 hours | All thresholds green AND error budget intact |
+| 4 | **100%** | continuous | Steady-state, alerting active |
+
+**Reference:** This skill assumes the change is shipped behind a feature flag (per the OpenSpec workflow). The flag, not a deploy, gates the traffic split. If the change is NOT flag-gated (e.g., infra-only), use blue/green or weighted DNS instead — the stages still apply.
+
+#### Decision thresholds (promote to next stage only if ALL are true)
+
+- Error rate < **2× baseline** for the changed surface (compare to the 24h baseline window)
+- p95 latency increase < **50%** vs baseline
+- **Zero data integrity errors** in the rollout window (FK violations, checksum mismatches, dropped writes)
+- **Zero security regressions** (no new auth failures, no PII in logs, no expanded permission grants)
+- Business KPI within **±10%** of baseline (conversion, signup, etc., where applicable)
+
+#### Rollback triggers (automatic — flip the flag back if ANY is true)
+
+- Error rate ≥ 2× baseline sustained for >5 minutes
+- p95 latency ≥ 50% above baseline sustained for >5 minutes
+- ANY data integrity error (no threshold — one is enough)
+- ANY security regression
+- Pager-grade alert fired against the changed surface
+- Operator intervention requested (manual rollback always wins)
+
+On rollback: flip the flag to **0%**, capture the rollout-state snapshot (metrics, logs, traces from the failure window), file an issue tagged `rollback-postmortem`, and DO NOT re-promote until root cause is identified.
 
 ### 6. Archive OpenSpec Proposal
 
@@ -412,22 +450,6 @@ openspec validate --strict
 # Uses the resolved FEATURE_BRANCH to honor OPENSPEC_BRANCH_OVERRIDE
 git branch -d "$FEATURE_BRANCH" 2>/dev/null || true
 
-# Delete prototype variant branches (per add-prototyping-stage / D4).
-# These are prototype/<change-id>/v<n> branches created by /prototype-feature
-# and retained through the feature lifecycle for synthesis traceability.
-# The helper enumerates and force-deletes — variant branches were
-# exploratory and aren't expected to be merged into main (the chosen
-# design landed on the feature branch via /iterate-on-plan synthesis,
-# not via a merge of any single variant).
-python3 "<skill-base-dir>/scripts/cleanup_prototype.py" "${CHANGE_ID}" || true
-
-# Then push deletions for the prototype branches that had remote tracking
-# (best-effort — silently skip remotes that never had them).
-for variant_branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/prototype/${CHANGE_ID}/); do
-  remote_branch="${variant_branch#origin/}"
-  git push origin --delete "${remote_branch}" 2>/dev/null || true
-done
-
 # Prune remote tracking branches
 git fetch --prune
 ```
@@ -452,10 +474,8 @@ Remove all worktrees for this feature (including the cleanup worktree).
 # Return to shared checkout first (cleanup worktree is about to be removed)
 cd "$(git rev-parse --git-common-dir | sed 's|/.git$||')"
 
-# Remove cleanup worktree (sibling layout — see Step 1).
-# The teardown autodetects the alternate layout if a legacy nested cleanup
-# worktree exists, so this flag stays correct across the migration window.
-python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup --sibling
+# Remove cleanup worktree
+python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id cleanup
 
 # Remove implementation worktree (if exists from linear-implement-feature)
 AGENT_FLAG=""
@@ -463,16 +483,6 @@ if [[ -n "${AGENT_ID:-}" ]]; then
   AGENT_FLAG="--agent-id ${AGENT_ID}"
 fi
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" ${AGENT_FLAG}
-
-# Remove prototype variant worktrees (per add-prototyping-stage / D4).
-# These are .git-worktrees/<change-id>/v<n>/ created by /prototype-feature
-# and auto-pinned to survive the 24h GC. /cleanup-feature is what unpins +
-# removes them. Tear down v1..v6 best-effort — most invocations won't have
-# all six, but the loop covers the spec's max.
-for vid in v1 v2 v3 v4 v5 v6; do
-  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" unpin "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
-  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" teardown "${CHANGE_ID}" --agent-id "${vid}" 2>/dev/null || true
-done
 
 # Garbage-collect stale worktrees
 python3 "<skill-base-dir>/../worktree/scripts/worktree.py" gc
@@ -515,3 +525,31 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 /validate-feature <change-id>   # Deploy + test → validation gate (optional)
 /cleanup-feature <change-id>    # Merge + archive → done
 ```
+
+## Common Rationalizations
+
+| Rationalization | Why it's wrong |
+|---|---|
+| "CI is green, just send 100% — staged rollout is for big changes" | Staged rollout catches regressions CI cannot see (production traffic shape, real data, real concurrency). Skipping it pushes the failure mode onto users instead of synthetics. |
+| "We don't have feature flags here, so we'll just merge and watch" | "Watching" without a flip-back path means the only rollback is a revert PR + redeploy, which is minutes-to-hours slow. A flag (or blue/green, or weighted DNS) is what makes rollback fast enough to matter. |
+| "The pre-launch checklist is overkill for a small change" | Most rollback incidents come from "small" changes where the team waived a checklist item. The checklist's value is exactly that it doesn't bend for size. |
+| "Latency went up 60%, but it's still within SLO — we'll keep going" | A 60% jump is a regression even when it's inside SLO. SLOs are the *floor*, not the rollback threshold. The rollback threshold is the threshold. |
+| "We can skip archiving until tomorrow" | The archive step closes the loop on spec drift. Postponing it leaves `openspec/changes/<id>/` and `openspec/specs/` out of sync, which silently breaks the next agent's view of the world. |
+
+## Red Flags
+
+- The merge commit landed on main but no rollout-stage record exists in the session log (silent jump to 100%).
+- A staged rollout was started but the monitoring window between stages was <30 minutes for Stage 1 (or skipped entirely).
+- The pre-launch checklist appears in the session log as "checked" but no artifact (CI link, scan output, validation report) is cited.
+- A rollback trigger fired but the flag was NOT flipped back — instead the team "kept watching".
+- The OpenSpec change-id is archived but `openspec validate --strict` was not re-run after the archive.
+- Open tasks were silently dropped (no migration to coordinator issues or follow-up proposal).
+
+## Verification
+
+1. The session log's Cleanup phase entry cites the rollout sequence (5%→25%→50%→100%) with timestamps for each stage promotion AND lists the metrics observed at each stage (error rate, p95, data-integrity count).
+2. Pre-launch checklist is recorded with a concrete artifact reference per item (CI run URL, security scan report path, validation-report.md, runbook link, dashboard link).
+3. `openspec validate --strict` was re-run AFTER `openspec archive` and exited zero. The output is captured in the cleanup transcript.
+4. The feature flag (or equivalent traffic gate) is identified by name in the session log, with the kill-switch procedure documented.
+5. If a rollback trigger fired during rollout, an issue tagged `rollback-postmortem` exists and the flag is currently at 0%.
+6. Open tasks from `tasks.md` are accounted for: either all checked, or migrated to coordinator issues / follow-up proposal with a Migration Notes line in the original `tasks.md`.

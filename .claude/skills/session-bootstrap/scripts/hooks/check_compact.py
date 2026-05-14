@@ -44,7 +44,7 @@ from typing import Any
 PREFIX = "[check_compact]"
 DEFAULT_THRESHOLD_PCT = 70
 DEFAULT_CONTEXT_LIMIT = 200_000
-PHASE_BOUNDARY_WINDOW_SEC = 60
+PHASE_BOUNDARY_WINDOW_SEC = 300
 CHAR_PER_TOKEN = 4
 SDK_CACHE_TTL_SEC = 30
 
@@ -229,7 +229,7 @@ def _measure_tokens(transcript_path: Path) -> int:
     return _proxy_estimate(messages)
 
 
-def _all_worktree_roots() -> list[Path]:
+def _all_worktree_roots(cwd: Path | None = None) -> list[Path]:
     """Return every checkout known to the current git repository (main +
     linked worktrees). Falls back to [cwd] when not in a git repo or git
     is missing.
@@ -239,18 +239,20 @@ def _all_worktree_roots() -> list[Path]:
     Phase-boundary detection should be session-scoped, not cwd-scoped, so
     we glob handoffs from every checkout the repo knows about.
     """
+    cwd = cwd or Path.cwd()
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
             capture_output=True, text=True, timeout=2, check=True,
+            cwd=str(cwd),
         )
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return [Path.cwd()]
+        return [cwd]
     roots: list[Path] = []
     for line in result.stdout.splitlines():
         if line.startswith("worktree "):
             roots.append(Path(line.split(" ", 1)[1]))
-    return roots or [Path.cwd()]
+    return roots or [cwd]
 
 
 def _recent_phase_boundary() -> str | None:
@@ -294,11 +296,21 @@ def main() -> int:
 
     payload = _read_hook_input()
     transcript = Path(payload.get("transcript_path", ""))
+
+    boundary = _recent_phase_boundary()
+    if boundary:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+        _block(
+            f"Natural decomposition point reached: {boundary} handoff just "
+            f"written. Run /compact now to consolidate context before the "
+            f"next phase."
+        )
+
     tokens = _measure_tokens(transcript)
     limit = _env_int("CLAUDE_CONTEXT_LIMIT", DEFAULT_CONTEXT_LIMIT)
     threshold = _env_int("CLAUDE_COMPACT_THRESHOLD_PCT", DEFAULT_THRESHOLD_PCT)
     pct = (tokens * 100) // max(limit, 1)
-    boundary = _recent_phase_boundary()
 
     if pct >= threshold:
         flag.parent.mkdir(parents=True, exist_ok=True)
@@ -308,14 +320,6 @@ def main() -> int:
             f"(threshold {threshold}%, agent={_agent_id()}). "
             f"Run /compact now. Phase handoffs are persisted, so context "
             f"will be rehydrated by SessionStart after compaction."
-        )
-    elif boundary:
-        flag.parent.mkdir(parents=True, exist_ok=True)
-        flag.touch()
-        _block(
-            f"Natural decomposition point reached: {boundary} handoff just "
-            f"written. Run /compact now to consolidate context before the "
-            f"next phase."
         )
 
     return 0
