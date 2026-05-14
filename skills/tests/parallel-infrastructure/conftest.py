@@ -21,12 +21,14 @@ SKILL_SCRIPTS = (
 if str(SKILL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SKILL_SCRIPTS))
 
-CHANGE_DIR = (
-    Path(__file__).resolve().parents[3]
-    / "openspec"
-    / "changes"
-    / "add-prototyping-stage"
-)
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_CHANGES = _REPO_ROOT / "openspec" / "changes"
+CHANGE_DIR = _CHANGES / "add-prototyping-stage"
+if not CHANGE_DIR.exists():
+    # Resolve the archived copy: openspec/changes/archive/<date>-add-prototyping-stage/
+    archived = sorted((_CHANGES / "archive").glob("*-add-prototyping-stage"))
+    if archived:
+        CHANGE_DIR = archived[-1]
 SCHEMA_DIR = CHANGE_DIR / "contracts" / "schemas"
 
 
