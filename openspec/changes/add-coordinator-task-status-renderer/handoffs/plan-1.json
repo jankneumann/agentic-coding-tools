@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-14T12:03:55.103364+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a coordinator-owned managed block in tasks.md that renders task status (checkboxes, claimed_by, completion timestamps) from coordinator-recorded issues. The renderer is invoked by pre-commit and post-merge hooks, falls back to a stale marker on coordinator failure, and is seeded by /plan-feature Gate 2 approval. No new coordinator schema; reuses existing managed-block helpers from plan-roadmap and HTTP helpers from coordination-bridge.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reuse plan-roadmap managed-block markers",
+        "rationale": "skills/plan-roadmap/scripts/renderer.py already implements _gen_block/_extract_human_sections with <!-- GENERATED: begin/end <name> --> markers. Adopting the existing convention (block name 'coordinator:tasks-status') avoids inventing a parallel pattern and inherits tested helpers.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      },
+      {
+        "title": "Wire both pre-commit and post-merge hooks",
+        "rationale": "Pre-commit catches drift the committer introduces; post-merge catches drift incoming from other agents' merged work. Coverage matrix in design.md (D2) established the two are non-overlapping. With Q3='stale marker' selected, neither hook can block git operations, removing the usual objection to network-dependent hooks.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      },
+      {
+        "title": "Seed coordinator issues at /plan-feature Gate 2 approval",
+        "rationale": "Earlier alternatives \u2014 seed at /implement-feature start, or lazily on first renderer invocation \u2014 were rejected. Gate-2 seeding means tasks.md has live coordinator state from the moment the plan is approved, with no dead window where the renderer would only emit stale markers.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      },
+      {
+        "title": "Stale-marker fallback rather than silent skip or hard fail",
+        "rationale": "User-selected at discovery Gate 0. Silent skip leaves last-known state without indication of staleness \u2014 defeats the trust-restoration goal. Hard fail couples local git operations to remote coordinator uptime. Stale marker surfaces the outage in PR diffs and repaints cleanly on recovery.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      },
+      {
+        "title": "Skip Step 10 (resource-claim pre-registration)",
+        "rationale": "Step 2 exploration confirmed neither in-flight change (add-engineering-methodology-skills, harness-engineering-features) competes for the files or logical keys this proposal claims. Pre-registering 12 zero-TTL planning claims would add HTTP and audit-log surface without surfacing new conflict information. Logged here so the skip is traceable.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      },
+      {
+        "title": "Defer GET /issues/by-change/<id> convenience endpoint to a follow-up",
+        "rationale": "list_issues(labels=['change:<id>']) suffices at OpenSpec scale (10-30 tasks per change). A dedicated endpoint would save client-side label filtering at the cost of added coordinator API surface. Revisit if the renderer becomes a hot path.",
+        "capability": "coordinator-task-status-renderer",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run /implement-feature add-coordinator-task-status-renderer once the user approves at Gate 2.",
+      "Start with wp-contracts (Phase 1) \u2014 the contracts/README.md is already drafted but should be reviewed against the spec scenarios.",
+      "wp-renderer-skill, wp-plan-feature-integration, wp-hooks can run in parallel after wp-contracts (parallel_zones validation confirmed 3 parallel pairs)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+        "description": "Approved proposal with selected Approach 1 and discovery decisions baked in"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+        "description": "Architecture sketch, 7 decisions (D1-D7), and open questions"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "description": "ADDED Requirements with 16 spec scenarios covering renderer, fallback, hooks, seeding, and packaging"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+        "description": "29 tasks across 5 phases with TDD ordering and checkpoint markers"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+        "description": "CLI contracts for renderer + seeder; managed-block format reference"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-task-status-renderer/work-packages.yaml",
+        "description": "5 packages, DAG: wp-contracts \u2192 {renderer, plan-feature, hooks} (parallel) \u2192 wp-integration"
+      }
+    ]
+  }
+}

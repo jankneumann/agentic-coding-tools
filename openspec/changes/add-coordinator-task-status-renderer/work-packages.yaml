@@ -1,0 +1,357 @@
+schema_version: 1
+
+feature:
+  id: add-coordinator-task-status-renderer
+  title: "Coordinator-owned task-status managed block in tasks.md"
+  plan_revision: 1
+  created_by: claude-opus-4-7
+  created_at: "2026-05-14T12:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 1 — Contracts (gates everything else)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-contracts
+    title: "Define CLI contracts for renderer + seeder, and managed-block format"
+    task_type: contracts
+    description: |
+      Author contracts/README.md documenting:
+        - render_tasks_status.py CLI invocation (args, exit codes, stdout format)
+        - seed_tasks_from_md.py CLI invocation (args, idempotency rules)
+        - Managed-block markers and emitted content format
+        - Stale-marker format
+      Covers tasks 1.1–1.4.
+      Spec scenarios: coordinator-task-status-renderer.1, .2, .4, .7, .8, .9
+      Design decisions: D1, D3, D5, D6, D7
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md"
+      keys:
+        - "feature:add-coordinator-task-status-renderer:contracts"
+      ttl_minutes: 60
+      reason: "Authoring CLI + managed-block contracts"
+    scope:
+      write_allow:
+        - "openspec/changes/add-coordinator-task-status-renderer/contracts/**"
+      read_allow:
+        - "openspec/**"
+        - "skills/plan-roadmap/scripts/renderer.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/database/migrations/017_issue_tracking.sql"
+    worktree:
+      name: "wp-contracts"
+      mode: "isolated"
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "validate-openspec"
+          kind: "command"
+          command: "openspec validate add-coordinator-task-status-renderer --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_validate_exit_code"
+    outputs:
+      result_keys:
+        - "contracts_revision"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 2 — Renderer skill (parallel after wp-contracts)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-renderer-skill
+    title: "Build coordinator-task-status-renderer skill: renderer + seeder + tests"
+    task_type: implement
+    description: |
+      Implements the new skill at skills/coordinator-task-status-renderer/:
+        - scripts/render_tasks_status.py (reads coordinator via try_issue_list, renders managed block)
+        - scripts/seed_tasks_from_md.py (parses tasks.md, POSTs issues idempotently)
+        - SKILL.md with frontmatter (user_invocable: false)
+      Tests at skills/tests/coordinator-task-status-renderer/.
+      Covers tasks 2.1–2.15.
+      Spec scenarios: coordinator-task-status-renderer.1, .2, .3, .4, .5, .6, .7, .8, .9, .10, .11
+      Design decisions: D1, D3, D4, D5, D6, D7
+    role: python-engineer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/coordinator-task-status-renderer/SKILL.md"
+        - "skills/coordinator-task-status-renderer/scripts/render_tasks_status.py"
+        - "skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py"
+      keys:
+        - "feature:add-coordinator-task-status-renderer:renderer"
+        - "feature:add-coordinator-task-status-renderer:tests"
+      ttl_minutes: 240
+      reason: "Implementing renderer skill scripts and unit tests"
+    scope:
+      write_allow:
+        - "skills/coordinator-task-status-renderer/**"
+        - "skills/tests/coordinator-task-status-renderer/**"
+      read_allow:
+        - "skills/plan-roadmap/scripts/renderer.py"
+        - "skills/coordination-bridge/**"
+        - "skills/install.sh"
+        - "skills/pyproject.toml"
+        - "openspec/changes/add-coordinator-task-status-renderer/**"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/src/work_queue.py"
+    worktree:
+      name: "wp-renderer-skill"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "run-unit-tests"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordinator-task-status-renderer/ -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "skills/tests/coordinator-task-status-renderer/.pytest_cache/"
+            result_keys:
+              - "renderer_tests_passed"
+              - "seeder_tests_passed"
+        - name: "install-skill"
+          kind: "command"
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none"
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - ".claude/skills/coordinator-task-status-renderer/SKILL.md"
+              - ".agents/skills/coordinator-task-status-renderer/SKILL.md"
+            result_keys:
+              - "skill_installed"
+    outputs:
+      result_keys:
+        - "renderer_tests_passed"
+        - "seeder_tests_passed"
+        - "skill_installed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 3 — Plan-feature integration (parallel after wp-contracts)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-plan-feature-integration
+    title: "Wire seeder into /plan-feature Gate 2 approval step"
+    task_type: implement
+    description: |
+      Edits skills/plan-feature/SKILL.md Step 12 (Gate 2 — Plan Approval) so the
+      "Approve" outcome invokes seed_tasks_from_md.py with the change-id.
+      Adds skills/tests/plan-feature/test_gate2_invokes_seeder.py asserting the
+      seeder is called on approval and skipped on revise/reject paths.
+      Covers tasks 3.1–3.5.
+      Spec scenarios: coordinator-task-status-renderer.7, .8
+      Design decisions: D3
+    role: skill-author
+    priority: 3
+    depends_on:
+      - wp-contracts
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/tests/plan-feature/test_gate2_invokes_seeder.py"
+      keys:
+        - "feature:add-coordinator-task-status-renderer:wiring"
+      ttl_minutes: 120
+      reason: "Wiring Gate 2 seeder invocation"
+    scope:
+      write_allow:
+        - "skills/plan-feature/SKILL.md"
+        - "skills/tests/plan-feature/test_gate2_invokes_seeder.py"
+      read_allow:
+        - "skills/plan-feature/**"
+        - "skills/coordinator-task-status-renderer/**"
+        - "skills/coordination-bridge/**"
+        - "openspec/changes/add-coordinator-task-status-renderer/**"
+    worktree:
+      name: "wp-plan-feature-integration"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "plan-feature-integration-test"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-feature/test_gate2_invokes_seeder.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "plan_feature_integration_passed"
+    outputs:
+      result_keys:
+        - "plan_feature_integration_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 4 — Git hooks (parallel after wp-contracts)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-hooks
+    title: "Wire renderer into .githooks/pre-commit and .githooks/post-merge"
+    task_type: implement
+    description: |
+      Edits .githooks/pre-commit to detect staged openspec/changes/<id>/tasks.md
+      paths, invoke render_tasks_status.py for each, and re-stage the rendered
+      file (following the existing ruff-import-sort pattern in this file).
+      Edits .githooks/post-merge (currently a no-op stub from the beads removal)
+      to detect tasks.md files touched by the merge and invoke the renderer.
+      Adds skills/tests/githooks/ tests for both hooks.
+      Covers tasks 4.1–4.11.
+      Spec scenarios: coordinator-task-status-renderer.12, .13, .14, .15, .16
+      Design decisions: D2, D4
+    role: shell-engineer
+    priority: 4
+    depends_on:
+      - wp-contracts
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - ".githooks/pre-commit"
+        - ".githooks/post-merge"
+      keys:
+        - "feature:add-coordinator-task-status-renderer:precommit"
+        - "feature:add-coordinator-task-status-renderer:postmerge"
+      ttl_minutes: 120
+      reason: "Editing repo git hooks"
+    scope:
+      write_allow:
+        - ".githooks/pre-commit"
+        - ".githooks/post-merge"
+        - "skills/tests/githooks/**"
+      read_allow:
+        - ".githooks/**"
+        - "skills/coordinator-task-status-renderer/**"
+        - "openspec/changes/add-coordinator-task-status-renderer/**"
+    worktree:
+      name: "wp-hooks"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "hook-integration-tests"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/githooks/ -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "githooks_tests_passed"
+    outputs:
+      result_keys:
+        - "githooks_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 5 — Integration (after all implementation packages)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-integration
+    title: "End-to-end test, docs catalogue, final validation"
+    task_type: integrate
+    description: |
+      Adds end-to-end test at skills/tests/integration/test_coord_task_status_e2e.py
+      exercising: seeder run for a fixture change-id → modify coordinator state →
+      invoke renderer → assert tasks.md managed block reflects current state.
+      Updates docs/skills-catalogue.md with the new skill entry.
+      Adds a brief note to CLAUDE.md if the skill list there is currently
+      authoritative (otherwise skip).
+      Covers tasks 5.1–5.5.
+      Spec scenarios: composite e2e
+      Design decisions: D1–D7
+    role: python-engineer
+    priority: 5
+    depends_on:
+      - wp-renderer-skill
+      - wp-plan-feature-integration
+      - wp-hooks
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/tests/integration/test_coord_task_status_e2e.py"
+        - "docs/skills-catalogue.md"
+        - "CLAUDE.md"
+      keys:
+        - "feature:add-coordinator-task-status-renderer:docs"
+        - "feature:add-coordinator-task-status-renderer:integration"
+      ttl_minutes: 120
+      reason: "End-to-end validation and docs"
+    scope:
+      write_allow:
+        - "skills/tests/integration/test_coord_task_status_e2e.py"
+        - "docs/skills-catalogue.md"
+        - "CLAUDE.md"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/add-coordinator-task-status-renderer/**"
+        - ".githooks/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: "wp-integration"
+      mode: "isolated"
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "e2e-test"
+          kind: "command"
+          command: "skills/.venv/bin/python -m pytest skills/tests/integration/test_coord_task_status_e2e.py -v"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "e2e_passed"
+        - name: "validate-packages"
+          kind: "command"
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-coordinator-task-status-renderer/work-packages.yaml"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "work_packages_valid"
+        - name: "final-openspec-validate"
+          kind: "command"
+          command: "openspec validate add-coordinator-task-status-renderer --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_final_valid"
+    outputs:
+      result_keys:
+        - "e2e_passed"
+        - "work_packages_valid"
+        - "openspec_final_valid"
