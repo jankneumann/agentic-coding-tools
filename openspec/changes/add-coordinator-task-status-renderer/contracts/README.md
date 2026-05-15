@@ -20,18 +20,19 @@ Because no machine-checkable sub-type applies, this README is the contract artif
 **Invocation:**
 
 ```
-python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <change-id> [--repo-root <path>]
+python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <change-id> [--repo-root <path>] [--timeout-seconds <N>]
 ```
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `<change-id>` | positional, string | yes | OpenSpec change identifier (e.g., `add-coordinator-task-status-renderer`). Matches a directory under `openspec/changes/`. |
 | `--repo-root <path>` | option, string | no | Absolute path to repo root. Defaults to `git rev-parse --show-toplevel`. |
+| `--timeout-seconds <N>` | option, integer | no | Max wall-clock time for the coordinator HTTP call. On timeout the renderer follows the stale-marker fallback path. Default: `5`. |
 
 **Effects:**
 
 1. Reads `<repo-root>/openspec/changes/<change-id>/tasks.md`.
-2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])`.
+2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"], limit=100)`. (NOTE: at v1 the coordinator's `IssueService.list_issues` post-filters by `labels` after PostgREST returns up to `limit` rows. `MAX_PAGE_SIZE=100` is the hard cap. At OpenSpec v1 scale — ~10–30 tasks per active change, low total active-change count — `limit=100` is sufficient. Scaling beyond a single active change at a time requires the server-side label-push follow-up listed in proposal "Out of Scope".)
 3. For each returned issue, extracts the `task_key` from its `task:<key>` label (the renderer ignores `metadata.task_key` — see D7).
 4. Renders a managed block per the format defined below.
 5. Writes the rewritten `tasks.md` back to the same path. The renderer SHALL NOT touch the git index; auto-staging is the hook's responsibility.
@@ -57,17 +58,32 @@ Marker name is exactly `coordinator:tasks-status`. The colon is part of the name
 ```
 
 Where:
-- `<x or space>`: `x` if issue status is `completed`, otherwise space.
-- `<task_key>`: extracted from the issue's `task:<key>` label (strip the `task:` prefix). Issues without a `task:<key>` label SHALL be skipped (logged to stderr). Lines SHALL be sorted by `<task_key>` ascending lexicographically using natural-numeric order for dotted keys (e.g., `1.2` before `1.10`, `2.1` before `10.1`).
+- `<x or space>`: `x` if `issue.status == "completed"`, otherwise space. The coordinator's stored status vocabulary (returned by `Issue.to_dict()`) is exactly `pending | claimed | running | completed | failed | cancelled`. (`closed` is a *friendly* alias used by some clients but never appears on the GET path.)
+- `<task_key>`: extracted from the issue's `task:<key>` label (strip the `task:` prefix). Issues without a `task:<key>` label SHALL be skipped (logged to stderr). Lines SHALL be sorted by `<task_key>` ascending using the natural-numeric comparator defined below.
 - `<title>`: the issue title.
-- `<status annotation>`: format depends on the coordinator's friendly status:
+- `<status annotation>`: format keys directly off `issue.status`:
   - `pending` → `pending`
-  - `in_progress` → `in_progress, claimed by <assignee>` (with `<assignee>` from `issue.assignee`; if unset, render `claimed`)
-  - `closed` (with `close_reason` matching `completed|done`) → `done by <assignee> <ISO-date>`
-  - `closed` (other reasons) → `closed: <close_reason>`
-  - `failed` → `failed: <close_reason>`
-- If `depends_on` contains UUIDs whose referenced issues are not closed, append ` — blocked on <task_keys>` to non-closed lines (look up each UUID's `task:<key>` label from the same list response — no extra HTTP round-trips required).
+  - `claimed` → `claimed by <assignee>` (with `<assignee>` from `issue.assignee`; if unset, render `claimed`)
+  - `running` → `in_progress, claimed by <assignee>` (or just `in_progress` if `assignee` is unset)
+  - `completed` → `done by <assignee> <YYYY-MM-DD>` (date derived from `issue.completed_at` truncated to UTC date; omit `by <assignee>` if `assignee` is unset)
+  - `failed` → `failed: <close_reason>` (`close_reason` from `issue.close_reason`; render `failed` if unset)
+  - `cancelled` → `cancelled: <close_reason>` (or `cancelled` if unset)
+- If `depends_on` contains UUIDs whose referenced issues are not yet `completed`, append ` — blocked on <comma-separated task_keys>` to those lines. Task keys are extracted from the `task:<key>` label of each referenced issue (resolved from the same list response — no extra HTTP round-trips). Comma-separated, natural-numeric-sorted, no trailing comma.
 - Evidence URIs are NOT surfaced in v1 (the `IssueService` does not currently expose a `result.evidence_uri` field on the GET path). Deferred to a follow-up.
+
+**Natural-numeric comparator (canonical, must be deterministic across runs):**
+
+Given two task keys `a` and `b`, compare as follows:
+1. Tokenize each key on `.` into segments.
+2. For each segment, split into a leading-digit run and a trailing-suffix string. The leading digits parse as integer (missing → `-1`); the trailing suffix is compared lexicographically (case-sensitive).
+3. Segment comparison: integer part first; if tied, suffix lexicographically.
+4. Key comparison: zip-compare segments; shorter key (fewer segments) sorts before longer when all shared segments are equal (so `1.1` < `1.1.1`).
+5. Letter-prefixed keys (those whose first character is alphabetic, e.g., `T1`) are bucketed AFTER all-numeric keys, and within the letter bucket compared as `(prefix_string_lex, trailing_digits_as_int, trailing_suffix_lex)`.
+6. Stable tie-breaker: if the comparator returns equal, fall back to the issue's UUID lexicographic order (guarantees deterministic output).
+
+Examples (sorted order): `1.1`, `1.2`, `1.10`, `2.4`, `2.4a`, `2.9`, `2.9a`, `T1`, `T10`.
+
+A renderer unit test SHALL exercise these exact keys to lock the comparator down.
 
 **Rendered-content format (stale fallback):**
 
@@ -157,14 +173,35 @@ This is the canonical specification of the markers and content the renderer emit
 
 ```markdown
 <!-- GENERATED: begin coordinator:tasks-status -->
-- [x] 1.1: Document renderer CLI invocation contract — done by wp-contracts 2026-05-15 (evidence: ci/run/4821)
+- [x] 1.1: Document renderer CLI invocation contract — done by wp-contracts 2026-05-15
 - [x] 1.2: Document seeder CLI invocation contract — done by wp-contracts 2026-05-15
-- [ ] 2.1: Write test: managed-block insertion when absent — claimed by wp-renderer-skill 2026-05-15
+- [ ] 2.1: Write test: managed-block insertion when absent — claimed by wp-renderer-skill
 - [ ] 2.2: Write test: managed-block replacement preserves hand-content — pending — blocked on 2.1
 <!-- GENERATED: end coordinator:tasks-status -->
 ```
 
 The renderer SHALL emit valid GFM checkboxes (`- [ ]` or `- [x]`) so that downstream consumers (notably `/cleanup-feature`'s open-task scanner) can read the block with their existing parsers.
+
+---
+
+## Hook Contract (renderer invocation by git hooks)
+
+The pre-commit and post-merge hooks are part of this change's CLI surface. They are tested as black-box subprocess invocations and therefore have a documented contract:
+
+**Renderer-path resolution.** Both hooks resolve the renderer script path in this order:
+
+1. `$COORDINATOR_TASK_STATUS_RENDERER` if set (test seam and emergency override).
+2. `<repo-root>/skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` (the canonical install path).
+
+**Invocation.** Hooks invoke the renderer once per affected change-id with `python3 <resolved-path> <change-id>`. No additional arguments are passed by the hook itself (operators wanting non-default `--timeout-seconds` set it via shell defaults outside the hook).
+
+**Failure behavior.** If the renderer exits non-zero:
+- Pre-commit: the hook logs `[pre-commit] renderer failed for <change-id> (exit=<N>); skipping re-stage`, does NOT run `git add` on the file, and allows the commit to proceed.
+- Post-merge: the hook logs an equivalent warning and continues.
+
+**Path detection.** Hooks detect affected `tasks.md` paths via:
+- Pre-commit: `git diff --cached --name-only -z` filtered through a regex matching `openspec/changes/<id>/tasks.md`.
+- Post-merge: `git diff --name-only -z ORIG_HEAD HEAD` (or `MERGE_HEAD HEAD` in the merge-commit case) with the same regex.
 
 ---
 

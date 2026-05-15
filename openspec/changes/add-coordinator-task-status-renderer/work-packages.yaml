@@ -89,25 +89,33 @@ packages:
     task_type: implement
     description: |
       Implements the new skill at skills/coordinator-task-status-renderer/:
-        - scripts/render_tasks_status.py — reads coordinator via try_issue_list,
-          extracts task_key from each issue's `task:<key>` label (NOT metadata),
-          renders the managed block. Locally duplicates the `_gen_block` and
-          `_extract_generated_blocks` helpers from plan-roadmap rather than
-          importing private symbols. Writes single-pass when markers absent
-          AND coordinator unreachable (D9).
+        - scripts/render_tasks_status.py — reads coordinator via
+          `try_issue_list(labels=["change:<id>"], limit=100)`, extracts
+          task_key from each issue's `task:<key>` label (NOT metadata),
+          renders the managed block. Keys checkbox/status off the STORED
+          status (`pending|claimed|running|completed|failed|cancelled`) per
+          D10 — never the friendly alias. Locally duplicates the `_gen_block`
+          and `_extract_generated_blocks` helpers from plan-roadmap rather
+          than importing private symbols. Implements the canonical natural-
+          numeric comparator from contracts/README.md (handles dotted keys,
+          `a` suffixes, letter prefixes). Enforces a 5s default wall-clock
+          timeout on the coordinator call (`--timeout-seconds N` override).
+          Writes single-pass when markers absent AND coordinator unreachable
+          (D9). Emits ` — blocked on <keys>` suffix when depends_on points
+          at non-completed upstream issues.
         - scripts/seed_tasks_from_md.py — parses tasks.md and `**Dependencies**:`
           annotations, topologically sorts task keys, and POSTs via
           try_issue_create with `labels=["change:<id>", "task:<key>"]` plus
           `depends_on=[UUIDs]`. Does NOT pass `metadata` (current
           IssueCreateRequest does not accept it; carrying identity in labels
           per D7). Idempotency check reads `task:<key>` labels off existing
-          issues returned by `try_issue_list(labels=["change:<id>"])`.
+          issues returned by `try_issue_list(labels=["change:<id>"], limit=100)`.
           Exits 1 on dependency cycle (D8).
         - SKILL.md with frontmatter (user_invocable: false).
       Tests at skills/tests/coordinator-task-status-renderer/.
-      Covers tasks 2.1–2.15 (including 2.4a, 2.9a).
+      Covers tasks 2.1–2.15 (including 2.4a, 2.4b, 2.4c, 2.4d, 2.9a).
       Spec scenarios: coordinator-task-status-renderer.1, .2, .3, .4, "Markers absent AND coordinator unreachable on first invocation", .5, .6, .7, .8, "Seeding aborts on dependency cycle", .9, .10, .11
-      Design decisions: D1, D3, D4, D5, D6, D7, D8, D9
+      Design decisions: D1, D3, D4, D5, D6, D7, D8, D9, D10
     role: python-engineer
     priority: 2
     depends_on:
@@ -174,16 +182,23 @@ packages:
   # ───────────────────────────────────────────────────────────────────
 
   - package_id: wp-plan-feature-integration
-    title: "Wire seeder into /plan-feature Gate 2 approval step"
+    title: "Wire seeder into /plan-feature Gate 2 + /implement-feature retry"
     task_type: implement
     description: |
       Edits skills/plan-feature/SKILL.md Step 12 (Gate 2 — Plan Approval) so the
       "Approve" outcome invokes seed_tasks_from_md.py with the change-id.
-      Adds skills/tests/plan-feature/test_gate2_invokes_seeder.py asserting the
-      seeder is called on approval and skipped on revise/reject paths.
-      Covers tasks 3.1–3.5.
-      Spec scenarios: coordinator-task-status-renderer.7, .8
-      Design decisions: D3
+      Edits skills/implement-feature/SKILL.md to add a "seeding retry on empty
+      change-id" first step (D11): if try_issue_list(labels=["change:<id>"])
+      returns empty and the coordinator is reachable, invoke the seeder before
+      claiming work.
+      Adds skills/tests/plan-feature/test_gate2_invokes_seeder.py and
+      skills/tests/implement-feature/test_seeding_retry_on_empty.py — these are
+      **content-assertion tests** against the SKILL.md files (the seeder name
+      is mentioned in the right step, the idempotency caveat is documented).
+      The wp-integration package owns the actual orchestration e2e (5.1).
+      Covers tasks 3.1–3.5, 3.2a, 3.4a.
+      Spec scenarios: coordinator-task-status-renderer.7, .8, "Seeding retry at /implement-feature start"
+      Design decisions: D3, D11
     role: skill-author
     priority: 3
     depends_on:
@@ -194,17 +209,22 @@ packages:
     locks:
       files:
         - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
         - "skills/tests/plan-feature/test_gate2_invokes_seeder.py"
+        - "skills/tests/implement-feature/test_seeding_retry_on_empty.py"
       keys:
         - "feature:add-coordinator-task-status-renderer:wiring"
       ttl_minutes: 120
-      reason: "Wiring Gate 2 seeder invocation"
+      reason: "Wiring Gate 2 seeder invocation + implement-feature retry"
     scope:
       write_allow:
         - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
         - "skills/tests/plan-feature/test_gate2_invokes_seeder.py"
+        - "skills/tests/implement-feature/test_seeding_retry_on_empty.py"
       read_allow:
         - "skills/plan-feature/**"
+        - "skills/implement-feature/**"
         - "skills/coordinator-task-status-renderer/**"
         - "skills/coordination-bridge/**"
         - "openspec/changes/add-coordinator-task-status-renderer/**"
@@ -216,7 +236,7 @@ packages:
       steps:
         - name: "plan-feature-integration-test"
           kind: "command"
-          command: "skills/.venv/bin/python -m pytest skills/tests/plan-feature/test_gate2_invokes_seeder.py -v"
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-feature/test_gate2_invokes_seeder.py skills/tests/implement-feature/test_seeding_retry_on_empty.py -v"
           expect_exit_code: 0
           evidence:
             artifacts: []
@@ -241,11 +261,16 @@ packages:
       to detect tasks.md files touched by the merge and invoke the renderer.
       Adds skills/tests/githooks/ tests for both hooks using a hermetic
       tmp_path git fixture with a fake renderer stub (see Phase 4 hook test
-      strategy note in tasks.md). The hook SHALL respect a
+      strategy note in tasks.md). The hooks SHALL respect a
       COORDINATOR_TASK_STATUS_RENDERER env var pointing at an alternate
       script path so tests can substitute the renderer without invoking
-      the real coordinator.
-      Covers tasks 4.1–4.11.
+      the real coordinator (now spec'd as part of the hook contract — see
+      contracts/README.md "Hook Contract" section). Test coverage includes
+      the failure-mode scenario where the renderer stub exits non-zero —
+      the commit MUST still succeed AND `git add` MUST NOT be invoked for
+      the file in that case.
+      Covers tasks 4.1–4.11, plus 4.3a (renderer-failure non-blocking),
+      4.3b (pre-commit env-var override), 4.8a (post-merge env-var override).
       Spec scenarios: coordinator-task-status-renderer.12, .13, .14, .15, .16
       Design decisions: D2, D4
     role: shell-engineer

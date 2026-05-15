@@ -30,8 +30,11 @@
                              ▼  (HTTPS)
                 ┌─────────────────────────────────┐
                 │ agent-coordinator HTTP API       │
-                │   GET /issues?labels=change:...  │
-                │   (existing endpoint)            │
+                │   POST /issues/list              │
+                │   body: {labels:["change:<id>"], │
+                │          limit:100}              │
+                │   (existing endpoint; bridge     │
+                │    abstracts the HTTP details)   │
                 └─────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -99,7 +102,15 @@ It is visible in `tasks.md` and in PR diffs, surfacing the outage to reviewers w
 
 ### D5: Labels-based filtering rather than a dedicated `GET /issues/by-change/<id>` endpoint
 
-The existing `IssueService.list_issues(labels=["change:<id>"])` path is sufficient at OpenSpec scale (typically 10–30 tasks per change). A convenience endpoint would save a label-filter step on the client but adds API surface. Defer to a follow-up if the label-filter pattern becomes a hotspot.
+The existing `IssueService.list_issues(labels=["change:<id>"])` path is sufficient at OpenSpec v1 scale (typically 10–30 tasks per change, low total active-change count). A convenience endpoint would save a label-filter step on the client but adds API surface. Defer to a follow-up if the label-filter pattern becomes a hotspot.
+
+**Known limitation — read carefully:** `IssueService.list_issues` applies its labels filter **AFTER** PostgREST returns up to `limit` rows (see `agent-coordinator/src/issue_service.py:269-274`, post-filter loop). `MAX_PAGE_SIZE = 100`. This means:
+
+- If the coordinator holds >100 issues that pass the other filters (`task_type=eq.issue`, etc.) but only a few of them carry `change:<id>`, the change's tasks **can be dropped before the labels filter runs**.
+- Mitigation in v1: the renderer passes `limit=100` and operates at a scale where this is unlikely (single-digit active changes × ~10–30 tasks each = well below 100).
+- Follow-up: push the labels filter into the PostgREST query (`labels=cs.{change:...}`) or add the dedicated `/issues/by-change/<id>` endpoint mentioned above. Tracked in proposal "Out of Scope" as `query-issues-by-change-label-server-side`.
+
+The seeder's idempotency check has the same constraint — but seeding runs once at Gate 2 against a small population of just-created issues, so collisions are bounded.
 
 ### D6: Renderer is invoked per-change-id, not globally
 
@@ -142,6 +153,24 @@ The spec requires `depends_on = [<UUIDs of issues for upstream tasks>]`. UUIDs a
 
 The seeder SHALL fail loudly (exit 1) if the dependency graph parsed from `tasks.md` contains a cycle. Forward references to task keys that do not appear in the file SHALL be logged as warnings and dropped from `depends_on` (not fatal).
 
+### D10: Status vocabulary — render off stored `issue.status`, not a friendly alias
+
+`Issue.to_dict()` returns the **stored** status, which is exactly one of `pending | claimed | running | completed | failed | cancelled` (see `agent-coordinator/src/issue_service.py:103-122`). The user-friendly aliases `open | in_progress | closed | all` are write-side conveniences in `STATUS_MAP` and `STATUS_WRITE_MAP`; they are not present on read responses.
+
+**Decision:** the renderer SHALL key its checkbox-tick rule and its status annotation on the stored status. The spec mandates `- [x]` iff `issue.status == "completed"`. No "friendly-status alias" lookup is performed. This avoids the contradiction in the previous draft where the spec said `closed` and the contract said `completed` while neither matched the actual response shape.
+
+**Why:** the alternative (rendering off a friendly alias) requires a mapping layer in the renderer that duplicates `STATUS_MAP` and adds a second source of truth. Keying off the stored status keeps the renderer trivially correct and matches what `coordination_bridge.try_issue_list` actually returns.
+
+### D11: Seeding-retry path at `/implement-feature` start
+
+If Gate 2 seeding silently no-ops because the coordinator was unreachable (D4), no later step re-attempts seeding. The renderer is read-only by design (D-architecture), so the empty managed block would persist with a stale marker indefinitely after the coordinator recovered.
+
+**Decision:** `/implement-feature` SHALL check `try_issue_list(labels=["change:<id>"])` as its first step. If the result is empty (and the coordinator is reachable — distinguish from coordinator-failure), `/implement-feature` SHALL invoke the seeder before claiming work. The seeder's idempotency (D3) makes this safe in the partial-success case where Gate 2 succeeded but post-Gate-2 state was lost.
+
+**Why this is the right hook point:** `/implement-feature` is the next phase that needs the coordinator state to exist, so retrying there is naturally aligned. Putting retry inside the renderer would violate the renderer's read-only invariant.
+
+**Test coverage:** spec scenario "Seeding retry at `/implement-feature` start" pins the behavior. The wp-plan-feature-integration package's test suite is widened to cover this path.
+
 ### D9: Behavior when coordinator is unreachable AND markers are absent
 
 When the renderer is invoked against a `tasks.md` that has no managed-block markers and the coordinator HTTP call fails, the renderer SHALL append the managed-block markers to the end of the file with the stale-marker as the content, in a single write:
@@ -156,7 +185,7 @@ This guarantees the markers exist for the next successful invocation to repaint,
 
 ## Open Questions
 
-1. **Should the renderer also surface `depends_on` chains in the block** (e.g., "T3: blocked on T2")? The spec includes it as part of the status annotation; the implementer may choose to defer this to a v2 if the basic checkbox + claimed_by view solves the immediate pain.
+1. **`depends_on` chains in the rendered block** — RESOLVED in v1. The spec scenario "Block content reflects current coordinator state" now explicitly mandates a ` — blocked on <task_keys>` suffix when an issue's `depends_on` references uncompleted upstream issues. The contract specifies the rendering and the comparator. (Resolution: include in v1; previous draft incorrectly deferred this.)
 2. **How are work-package labels (`wp:<id>`) reconciled with plan-time seeding** when work-packages.yaml isn't generated until `/plan-feature` Step 8 (after task seeding would naturally fire)? Resolution: defer wp-label assignment to `/implement-feature` start, which can PATCH labels via `try_issue_update(labels=...)`. Seeder at Gate 2 only sets the `change:<id>` and `task:<key>` labels. (Note: `try_issue_update` does support label updates — see `coordination_bridge.py:976`.)
 3. **Should the renderer write to a `.skip-render` sentinel** to suppress the next hook fire (escape valve for emergencies)? Not in v1; revisit if a real need surfaces.
 4. **Should the renderer block work-tree state outside `tasks.md`?** No. The renderer SHALL only read+write `openspec/changes/<change-id>/tasks.md`. It SHALL NOT touch the index, other files, or git state. Auto-staging is the *hook's* responsibility (D2), not the renderer's.

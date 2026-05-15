@@ -1,0 +1,10 @@
+{
+  "vendor": "gemini",
+  "success": false,
+  "elapsed_seconds": 300.03031079197535,
+  "error": "Timeout after 300s",
+  "error_class": "transient",
+  "model_used": null,
+  "findings": [],
+  "raw_response": null
+}
