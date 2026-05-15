@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-15T18:56:50.992649+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a Kanban-style coordinator visualization webapp (MVP) at apps/kanban-viz/ as a Vite+React+TS frontend reading agent-coordinator FastAPI directly via three new endpoints (/sync-points/status, /worktrees/active, /events/work SSE). Three columns + vendor swimlanes + sync-point gate banner. Composes with the in-flight add-coordinator-task-status-renderer data contract and codeviz storage-tier + reversibility-taxonomy conventions; no FalkorDB writes in v1 (schema reserved). Hand-drafted artifacts validated and approved at Gate 1; lock-key canonicalization and parallel-package scope overlaps were the two real fixes.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Local web app (Vite+React+TS) as v1 frontend, not Mac-native or TUI",
+        "rationale": "Works in cloud-harness sessions (a primary user), local Mac/Linux, and Tauri-wrapped native from one codebase. Approach 2 (Swift) was disqualified by cloud-harness incompatibility; Approach 3 (TUI) cannot render vendor swimlanes legibly and loses drag-to-approve. Composes with codeviz's eventual SPA on the same toolchain.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "SSE (one-way) for live updates, not WebSocket",
+        "rationale": "Live data flows server\u2192client only. SSE reuses HTTP auth, traverses proxies, has trivial client surface (EventSource). WebSocket framing/ping-pong adds no UX value on a read-mostly board. Polling fallback engages transparently on EventSource error.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "No JSON sidecar mirror of work_queue state",
+        "rationale": "Coordinator remains the single source of truth. A mirrored docs/kanban-viz/state.json would duplicate the source and recreate the display-drift problem that add-coordinator-task-status-renderer was built to solve. Only saved views (git-committed, user-curated) and audit events (event-class, dated paths) persist to disk.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "FalkorDB work-state schema reserved but NOT implemented in v1",
+        "rationale": "Codeviz Phase 0 introduces FalkorDB; v1 of the Kanban predates it. To avoid a future rename pass we reserve node labels (WorkPackage, Agent, Vendor, Worktree, Lock, SyncPoint, AuditEvent) and edge types (CLAIMED_BY, BLOCKED_ON, LOCKS_FILE, WORKING_IN, RAN_BY, BLOCKS_SYNCPOINT, IMPLEMENTS_TASK) in docs/kanban-viz/falkordb-reservation.md. Codeviz Phase 0 ingestion adopts these without coordination overhead.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "Codeviz operation reversibility taxonomy applied to every UI write action",
+        "rationale": "read auto-allowed; reversible-write (save-view, drag-to-Ready) auto-allowed + audit; destructive-write (force-release-lock, kick-agent) requires per-action consent prompt + audit on both confirm and decline. Reversibility classifier hard-coded in v1 with a comment pointing to the codeviz reservation in skills/shared/op_reversibility.py for future convergence.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "Tauri scaffold ships in v1; production Tauri build does NOT",
+        "rationale": "cargo check verifies the scaffold compiles; CI does not build/sign/notarize a binary. Lowers follow-up cost for native distribution to ~100 lines without committing to App Store distribution prematurely. Browser code paths run without @tauri-apps/api evaluated; Tauri APIs feature-detected at runtime.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "Saved views and audit events follow codeviz storage tier policy",
+        "rationale": "Saved views \u2192 docs/kanban-viz/saved-views/<slug>.json (git, mandatory artifact header). Audit events \u2192 docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json (event-class, dated, mandatory header, 90-day in-tree retention per codeviz policy). No new substrate.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      },
+      {
+        "title": "Reuse skills/shared/check_no_active_agents() for /sync-points/status endpoint",
+        "rationale": "The active-agent guard already exists for /cleanup-feature, /merge-pull-requests, /update-specs sync-point skills. The new endpoint is a thin projection over the same function. Logic MUST NOT be duplicated.",
+        "capability": "coordinator-kanban-viz",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "wp-contracts: author the three new endpoint contracts + saved-view + audit-event JSON schemas (Phase 1).",
+      "Verify add-coordinator-task-status-renderer's contracts/README.md is on main before pinning generated TypeScript types in wp-frontend-skeleton.",
+      "Confirm sse-starlette or equivalent SSE library choice for the coordinator endpoint at wp-coord-endpoints start.",
+      "If operator wants resource-claim pre-registration (Step 10), invoke from /implement-feature start; ttl_minutes=0 planning claims have not been registered by this plan-feature run."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+        "description": "Why + What Changes + Approaches + Selected Approach 1"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+        "description": "Architecture diagram + D1-D8 decisions + storage alignment + Tauri checklist"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/tasks.md",
+        "description": "8 phases, 68 tasks with TDD ordering and checkpoints"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/work-packages.yaml",
+        "description": "8 packages with non-overlapping file scopes; coordinated-tier DAG"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+        "description": "HTTP + SSE + JSON-Schema contracts + FalkorDB reservation"
+      },
+      {
+        "path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+        "description": "10 ADDED Requirements with WHEN/THEN scenarios"
+      }
+    ]
+  }
+}

@@ -1,0 +1,622 @@
+schema_version: 1
+
+feature:
+  id: add-coordinator-kanban-viz
+  title: "Coordinator Kanban visualization MVP — three columns + vendor swimlanes + sync-point banner"
+  plan_revision: 1
+  created_by: claude-opus-4-7
+  created_at: "2026-05-15T12:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+      - "contracts/schemas/events/transition.json"
+      - "contracts/schemas/events/audit.json"
+      - "contracts/schemas/events/snapshot.json"
+      - "contracts/schemas/saved-view.json"
+      - "contracts/schemas/audit-event.json"
+
+# NOTE: cross-change dependency on `add-coordinator-task-status-renderer`
+# is documented in proposal.md and contracts/README.md (Related coordinator
+# surface). The work-packages schema is single-change-scoped and does not
+# model inter-change references — implementations re-pin generated types
+# against the renderer's contracts/README.md as it lands.
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 1 — Contracts (gates everything else)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-contracts
+    title: "Author HTTP/SSE/file-format contracts and FalkorDB reservation"
+    task_type: contracts
+    description: |
+      Author contracts/README.md and the JSON schema files documenting:
+        - GET /sync-points/status response
+        - GET /worktrees/active response
+        - GET /events/work SSE protocol + event payload schemas
+        - Saved-view JSON file format with mandatory artifact header
+        - Audit-event JSON file format with mandatory artifact header
+        - Frontend ↔ coordinator type generation pipeline
+        - FalkorDB schema reservation (no implementation in this change)
+      Covers tasks 1.1–1.6.
+      Spec scenarios: all "New Coordinator Endpoint" requirements,
+                       "Saved Views with Mandatory Artifact Header",
+                       "Reversibility-Classified UI Actions" (audit format)
+      Design decisions: D2 (SSE), D5 (sync-point reuse), D6 (FalkorDB
+                        reservation), D7 (saved-view), D8 (reversibility table)
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/changes/add-coordinator-kanban-viz/contracts/README.md"
+        - "openspec/changes/add-coordinator-kanban-viz/contracts/schemas/**"
+        - "docs/kanban-viz/falkordb-reservation.md"
+      keys:
+        - "feature:add-coordinator-kanban-viz:contracts"
+      ttl_minutes: 90
+      reason: "Authoring contracts and FalkorDB reservation"
+    scope:
+      write_allow:
+        - "openspec/changes/add-coordinator-kanban-viz/contracts/**"
+        - "docs/kanban-viz/falkordb-reservation.md"
+      read_allow:
+        - "openspec/**"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/work_queue.py"
+        - "skills/shared/check_no_active_agents.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "openspec/roadmaps/codeviz/proposal.md"
+    worktree:
+      name: "wp-contracts"
+      mode: "isolated"
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "validate-openspec"
+          kind: "command"
+          command: "openspec validate add-coordinator-kanban-viz --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_validate_exit_code"
+        - name: "validate-json-schemas"
+          kind: "command"
+          command: "skills/.venv/bin/python -m jsonschema --instance /dev/null openspec/changes/add-coordinator-kanban-viz/contracts/schemas/saved-view.json || true"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "json_schemas_well_formed"
+    outputs:
+      result_keys:
+        - "contracts_revision"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 2 — Coordinator endpoints (parallel after wp-contracts)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-coord-endpoints
+    title: "Implement /sync-points/status, /worktrees/active, and /events/work SSE on coordinator"
+    task_type: implement
+    description: |
+      Adds three new endpoints to agent-coordinator/src/coordination_api.py:
+        - GET /sync-points/status (reuses shared.check_no_active_agents)
+        - GET /worktrees/active (projects .git-worktrees/.registry.json)
+        - GET /events/work (SSE; sse-starlette; binds to Postgres LISTEN)
+      Adds NOTIFY emission to IssueService.update_status and
+      AuditService.append. Adds backpressure coalescing to SSE handler.
+      Tests under skills/tests/agent-coordinator/.
+      Covers tasks 2.1–2.14.
+      Spec scenarios: "New Coordinator Endpoint — Sync-Point Status" (all),
+                       "...Worktree Active Projection" (all),
+                       "...Work Event Stream (SSE)" (all),
+                       "Backpressure coalesces excessive events"
+      Design decisions: D2 (SSE), D5 (sync-point reuse)
+    role: python-engineer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/sync_points.py"
+      keys:
+        - "feature:add-coordinator-kanban-viz:endpoints"
+      ttl_minutes: 300
+      reason: "Implementing new coordinator endpoints + NOTIFY wiring"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/sync_points.py"
+        - "agent-coordinator/src/worktrees_view.py"
+        - "agent-coordinator/src/event_stream.py"
+        - "agent-coordinator/pyproject.toml"
+        - "skills/tests/agent-coordinator/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/changes/add-coordinator-kanban-viz/**"
+        - "skills/shared/check_no_active_agents.py"
+        - "skills/worktree/scripts/worktree.py"
+    worktree:
+      name: "wp-coord-endpoints"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "run-unit-tests"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/ -v -k 'sync_points or worktrees_active or events_work or notify'"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coord_endpoint_tests_passed"
+    outputs:
+      result_keys:
+        - "coord_endpoint_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 3 — Frontend skeleton (parallel after wp-contracts)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-frontend-skeleton
+    title: "Scaffold apps/kanban-viz Vite+React+TS, board components, useCoordinator hook"
+    task_type: implement
+    description: |
+      Scaffolds apps/kanban-viz/ (Vite + React + TS), wires TS type
+      generation from coordinator Pydantic models, implements Board /
+      Column / Card components, useCoordinator hook with SSE + polling
+      fallback, and gitignore. Tests with vitest under
+      apps/kanban-viz/src/__tests__/.
+      Covers tasks 3.1–3.11.
+      Spec scenarios: "Three-Column Kanban Board" (all),
+                       "Live Update via SSE with Polling Fallback" (transition,
+                       polling fallback, snapshot)
+      Design decisions: D1 (apps/ location), D2 (SSE), D3 (no JSON sidecar)
+    role: frontend-engineer
+    priority: 3
+    depends_on:
+      - wp-contracts
+    timeout_minutes: 300
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/package.json"
+        - "apps/kanban-viz/.gitignore"
+        - "apps/kanban-viz/.nvmrc"
+        - "apps/kanban-viz/tsconfig.json"
+        - "apps/kanban-viz/vite.config.ts"
+      keys:
+        - "feature:add-coordinator-kanban-viz:skeleton"
+      ttl_minutes: 360
+      reason: "Scaffolding frontend"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/package.json"
+        - "apps/kanban-viz/.gitignore"
+        - "apps/kanban-viz/.nvmrc"
+        - "apps/kanban-viz/tsconfig.json"
+        - "apps/kanban-viz/vite.config.ts"
+        - "apps/kanban-viz/index.html"
+        - "apps/kanban-viz/public/**"
+        - "apps/kanban-viz/src/main.tsx"
+        - "apps/kanban-viz/src/App.tsx"
+        - "apps/kanban-viz/src/components/Board.tsx"
+        - "apps/kanban-viz/src/components/Column.tsx"
+        - "apps/kanban-viz/src/components/Card.tsx"
+        - "apps/kanban-viz/src/components/EmptyState.tsx"
+        - "apps/kanban-viz/src/hooks/useCoordinator.ts"
+        - "apps/kanban-viz/src/lib/event-stream.ts"
+        - "apps/kanban-viz/src/lib/coordinator-client.ts"
+        - "apps/kanban-viz/src/generated/coordinator-types.ts"
+        - "apps/kanban-viz/src/styles/**"
+        - "apps/kanban-viz/scripts/generate-types.ts"
+        - "apps/kanban-viz/src/__tests__/board/**"
+      read_allow:
+        - "openspec/changes/add-coordinator-kanban-viz/**"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/src/audit_service.py"
+        - "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md"
+    worktree:
+      name: "wp-frontend-skeleton"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "frontend-typecheck"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm install && npm run typecheck"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "frontend_typecheck_passed"
+        - name: "frontend-tests"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm test -- --run"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "frontend_skeleton_tests_passed"
+    outputs:
+      result_keys:
+        - "frontend_typecheck_passed"
+        - "frontend_skeleton_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 4 — Vendor swimlanes (after wp-frontend-skeleton)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-frontend-swimlanes
+    title: "Implement vendor swimlanes on In-Flight cards with consensus collapse"
+    task_type: implement
+    description: |
+      Adds VendorSwimlanes component sourcing children from
+      agent_profiles.metadata.vendor and most-recent audit_log row per
+      vendor. Implements consensus collapse on completed work-package using
+      parallel-infrastructure consensus synthesizer output. Lane updates
+      route through useCoordinator's audit event stream.
+      Covers tasks 4.1–4.8.
+      Spec scenarios: "Vendor Swimlanes on In-Flight Cards" (all)
+      Design decisions: D4
+    role: frontend-engineer
+    priority: 4
+    depends_on:
+      - wp-frontend-skeleton
+      - wp-coord-endpoints
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+      keys:
+        - "feature:add-coordinator-kanban-viz:swimlanes"
+      ttl_minutes: 240
+      reason: "Implementing swimlanes UI"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/components/VendorSwimlanes.tsx"
+        - "apps/kanban-viz/src/components/ConsensusIndicator.tsx"
+        - "apps/kanban-viz/src/hooks/useSwimlaneData.ts"
+        - "apps/kanban-viz/src/lib/vendor-colors.ts"
+        - "apps/kanban-viz/src/__tests__/swimlanes/**"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/agent_profiles.py"
+        - "skills/parallel-infrastructure/**"
+    worktree:
+      name: "wp-frontend-swimlanes"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "swimlane-tests"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm test -- --run swimlane"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "swimlane_tests_passed"
+    outputs:
+      result_keys:
+        - "swimlane_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 5 — Sync-point gate banner (after wp-frontend-skeleton)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-frontend-sync-banner
+    title: "Implement sync-point gate banner with consent-prompt component"
+    task_type: implement
+    description: |
+      Adds SyncPointBanner pinned to top of board, polling
+      /sync-points/status every 5s and updating on relevant SSE events.
+      Adds ConsentPrompt component for destructive-write confirmation.
+      Wires kick-agent action with audit emission on both confirm and
+      decline paths.
+      Covers tasks 5.1–5.8.
+      Spec scenarios: "Sync-Point Gate Banner" (all)
+      Design decisions: D5, D8
+    role: frontend-engineer
+    priority: 5
+    depends_on:
+      - wp-frontend-skeleton
+      - wp-coord-endpoints
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/components/SyncPointBanner.tsx"
+        - "apps/kanban-viz/src/components/ConsentPrompt.tsx"
+      keys:
+        - "feature:add-coordinator-kanban-viz:banner"
+      ttl_minutes: 180
+      reason: "Implementing sync-point banner UI"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/components/SyncPointBanner.tsx"
+        - "apps/kanban-viz/src/components/ConsentPrompt.tsx"
+        - "apps/kanban-viz/src/hooks/useSyncPointStatus.ts"
+        - "apps/kanban-viz/src/__tests__/banner/**"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/src/coordination_api.py"
+    worktree:
+      name: "wp-frontend-sync-banner"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "sync-banner-tests"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm test -- --run sync-banner"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "sync_banner_tests_passed"
+    outputs:
+      result_keys:
+        - "sync_banner_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 6 — Saved views + audit emission (after wp-frontend-skeleton)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-saved-views
+    title: "Implement saved views, audit emission, and reversibility classifier"
+    task_type: implement
+    description: |
+      Adds saveView() persisting to docs/kanban-viz/saved-views/<slug>.json
+      with mandatory artifact header. Adds SavedViewsDrawer UI for
+      list/save/load. Implements drag-to-Ready interaction emitting
+      reversible-write audit events. Adds reversibility classifier
+      (apps/kanban-viz/src/lib/reversibility.ts) per design D8 with
+      comment pointing to the codeviz reservation in
+      skills/shared/op_reversibility.py.
+      Covers tasks 6.1–6.10.
+      Spec scenarios: "Saved Views with Mandatory Artifact Header" (all),
+                       "Reversibility-Classified UI Actions" (all)
+      Design decisions: D7, D8
+    role: frontend-engineer
+    priority: 6
+    depends_on:
+      - wp-frontend-skeleton
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src/lib/saved-views.ts"
+        - "apps/kanban-viz/src/lib/audit-emit.ts"
+        - "apps/kanban-viz/src/lib/reversibility.ts"
+        - "apps/kanban-viz/src/components/SavedViewsDrawer.tsx"
+      keys:
+        - "feature:add-coordinator-kanban-viz:views"
+      ttl_minutes: 240
+      reason: "Implementing saved-views and audit emission"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/lib/saved-views.ts"
+        - "apps/kanban-viz/src/lib/audit-emit.ts"
+        - "apps/kanban-viz/src/lib/reversibility.ts"
+        - "apps/kanban-viz/src/lib/artifact-header.ts"
+        - "apps/kanban-viz/src/components/SavedViewsDrawer.tsx"
+        - "apps/kanban-viz/src/components/DragToReady.tsx"
+        - "apps/kanban-viz/src/hooks/useSavedViews.ts"
+        - "apps/kanban-viz/src/__tests__/views/**"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "openspec/changes/add-coordinator-kanban-viz/**"
+        - "openspec/roadmaps/codeviz/proposal.md"
+    worktree:
+      name: "wp-saved-views"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "saved-views-tests"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm test -- --run saved-views"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "saved_views_tests_passed"
+    outputs:
+      result_keys:
+        - "saved_views_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 7 — Tauri scaffold (parallel after wp-frontend-skeleton)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-tauri-scaffold
+    title: "Scaffold Tauri 2.x src-tauri/ with cargo-check verification (no production build)"
+    task_type: implement
+    description: |
+      Adds apps/kanban-viz/src-tauri/ with:
+        - Cargo.toml (Tauri 2.x deps pinned)
+        - tauri.conf.json (allowlist http.request only, deny all else)
+        - src/main.rs (minimal builder)
+        - .gitignore for target/
+      Adds runtime feature-detect for Tauri APIs in
+      apps/kanban-viz/src/lib/runtime.ts. Adds tests asserting browser
+      paths function without @tauri-apps/api evaluated at module-load.
+      No production build is wired into CI.
+      Covers tasks 7.1–7.5.
+      Spec scenarios: "Frontend Packaging" (Tauri scaffold),
+                       "Tauri scaffold passes cargo check",
+                       "Browser code paths run without Tauri APIs"
+      Design decisions: design.md "Tauri-readiness checklist"
+    role: frontend-engineer
+    priority: 7
+    depends_on:
+      - wp-frontend-skeleton
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/src-tauri/Cargo.toml"
+        - "apps/kanban-viz/src-tauri/tauri.conf.json"
+        - "apps/kanban-viz/src-tauri/src/main.rs"
+        - "apps/kanban-viz/src-tauri/.gitignore"
+        - "apps/kanban-viz/src/lib/runtime.ts"
+      keys:
+        - "feature:add-coordinator-kanban-viz:scaffold"
+      ttl_minutes: 120
+      reason: "Scaffolding Tauri shell"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src-tauri/**"
+        - "apps/kanban-viz/src/lib/runtime.ts"
+        - "apps/kanban-viz/src/__tests__/runtime/**"
+      read_allow:
+        - "apps/kanban-viz/**"
+    worktree:
+      name: "wp-tauri-scaffold"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "tauri-cargo-check"
+          kind: "command"
+          command: "cd apps/kanban-viz/src-tauri && cargo check"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "tauri_cargo_check_passed"
+        - name: "browser-isolation-tests"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm test -- --run runtime-isolation"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "browser_isolation_tests_passed"
+    outputs:
+      result_keys:
+        - "tauri_cargo_check_passed"
+        - "browser_isolation_tests_passed"
+
+  # ───────────────────────────────────────────────────────────────────
+  # Phase 8 — Integration (after all implementation packages)
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-integration
+    title: "End-to-end test, docs, and final validation"
+    task_type: integrate
+    description: |
+      Adds end-to-end test launching coordinator + kanban-viz with fixture
+      data, exercising: initial render, status transition propagation
+      via SSE, vendor swimlane update on audit event, sync-point banner
+      with kick-consent flow, save-view with audit emission. Updates
+      docs/skills-catalogue.md if appropriate, adds
+      docs/kanban-viz/README.md, brief CLAUDE.md note.
+      Covers tasks 8.1–8.6.
+      Spec scenarios: composite e2e
+      Design decisions: D1–D8
+    role: full-stack-engineer
+    priority: 8
+    depends_on:
+      - wp-coord-endpoints
+      - wp-frontend-skeleton
+      - wp-frontend-swimlanes
+      - wp-frontend-sync-banner
+      - wp-saved-views
+      - wp-tauri-scaffold
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "apps/kanban-viz/e2e/**"
+        - "docs/kanban-viz/README.md"
+        - "docs/skills-catalogue.md"
+        - "CLAUDE.md"
+      keys:
+        - "feature:add-coordinator-kanban-viz:integration"
+      ttl_minutes: 240
+      reason: "End-to-end test and documentation"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/e2e/**"
+        - "docs/kanban-viz/README.md"
+        - "docs/skills-catalogue.md"
+        - "CLAUDE.md"
+      read_allow:
+        - "apps/kanban-viz/**"
+        - "agent-coordinator/**"
+        - "openspec/changes/add-coordinator-kanban-viz/**"
+        - "skills/**"
+    worktree:
+      name: "wp-integration"
+      mode: "isolated"
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "e2e-test"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm run e2e"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "kanban_viz_e2e_passed"
+        - name: "validate-packages"
+          kind: "command"
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-coordinator-kanban-viz/work-packages.yaml"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "work_packages_valid"
+        - name: "final-openspec-validate"
+          kind: "command"
+          command: "openspec validate add-coordinator-kanban-viz --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_final_valid"
+    outputs:
+      result_keys:
+        - "kanban_viz_e2e_passed"
+        - "work_packages_valid"
+        - "openspec_final_valid"
