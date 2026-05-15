@@ -52,12 +52,18 @@
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 2.5 Checkpoint: run `pytest skills/tests/coordinator-task-status-renderer/test_render*.py` — confirm tests RED
-  **Dependencies**: 2.1, 2.2, 2.3, 2.4
+- [ ] 2.4a Write test: markers absent AND coordinator unreachable on first invocation — single-write inserts markers with stale-marker content
+  **Spec scenarios**: "Markers absent AND coordinator unreachable on first invocation"
+  **Design decisions**: D9
+  **Dependencies**: 1.4
+  **Size**: S
 
-- [ ] 2.6 Implement `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` using `try_issue_list` and managed-block helpers from `plan-roadmap/scripts/renderer.py`
-  **Spec scenarios**: coordinator-task-status-renderer.1, .2, .3, .4, .5, .6
-  **Design decisions**: D1, D4, D5 (labels-based filtering), D6
+- [ ] 2.5 Checkpoint: run `pytest skills/tests/coordinator-task-status-renderer/test_render*.py` — confirm tests RED
+  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.4a
+
+- [ ] 2.6 Implement `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` using `try_issue_list` and locally-duplicated marker helpers (do NOT import the underscore-prefixed `_gen_block` / `_extract_generated_blocks` from `plan-roadmap/scripts/renderer.py` — duplicate them; do NOT use `_extract_human_sections`, write a marker-aware prefix/suffix splitter instead, per D1)
+  **Spec scenarios**: coordinator-task-status-renderer.1, .2, .3, .4, .4a (markers absent + coordinator down), .5, .6
+  **Design decisions**: D1, D4, D5 (labels-based filtering), D6, D7 (extract task_key from `task:<key>` label), D9 (markers absent + unreachable single-write)
   **Dependencies**: 2.5
   **Size**: M
 
@@ -71,9 +77,15 @@
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 2.9 Write test: seeder is idempotent on `(change_id, task_key)`
+- [ ] 2.9 Write test: seeder is idempotent on `(change:<id>, task:<key>)` label pair (matches by querying `try_issue_list(labels=["change:<id>"])` and reading the `task:<key>` label off each returned issue)
   **Spec scenarios**: coordinator-task-status-renderer.8 (re-run after partial seeding)
   **Design decisions**: D3, D7
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 2.9a Write test: seeder topologically orders POSTs by `**Dependencies**:` and aborts with exit 1 on cycle
+  **Spec scenarios**: "Seeding aborts on dependency cycle"
+  **Design decisions**: D8
   **Dependencies**: 1.4
   **Size**: S
 
@@ -84,15 +96,15 @@
   **Size**: S
 
 - [ ] 2.11 Checkpoint: confirm seeder tests RED
-  **Dependencies**: 2.8, 2.9, 2.10
+  **Dependencies**: 2.8, 2.9, 2.9a, 2.10
 
-- [ ] 2.12 Implement `skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py` using coordination_bridge HTTP helpers
-  **Spec scenarios**: coordinator-task-status-renderer.7, .8, .9
-  **Design decisions**: D3, D7
+- [ ] 2.12 Implement `skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py` using `try_issue_create` (per contracts/README — POSTs `labels=["change:<id>", "task:<key>"]` plus `depends_on=[UUIDs]`; does NOT pass `metadata` because `IssueCreateRequest` does not accept it; topological order per D8)
+  **Spec scenarios**: coordinator-task-status-renderer.7, .8, .9, "Seeding aborts on dependency cycle"
+  **Design decisions**: D3, D7, D8
   **Dependencies**: 2.11
   **Size**: M
 
-- [ ] 2.13 Confirm tests 2.8–2.10 are GREEN
+- [ ] 2.13 Confirm tests 2.8–2.9a, 2.10 are GREEN
   **Dependencies**: 2.12
   **Size**: XS
 
@@ -131,6 +143,8 @@
   **Size**: XS
 
 ## Phase 4 — Hook wiring (wp-hooks)
+
+> **Hook test strategy.** Hook tests SHALL use pytest with a `tmp_path` git fixture: initialize a throwaway git repo, set `core.hooksPath` to the repo's `.githooks/`, stage a synthetic `openspec/changes/<id>/tasks.md`, and run `git commit` (or `git merge` for post-merge). The renderer SHALL be stubbed via a `COORDINATOR_TASK_STATUS_RENDERER` env var pointing at a fake script that records its invocation argv to a temp file. This keeps tests hermetic — no real coordinator HTTP calls, no real `python3` invocation of the actual renderer — and lets the hook layer be tested independently of the renderer. The renderer's own tests (Phase 2) cover the rendering logic.
 
 - [ ] 4.1 Write test: pre-commit invokes renderer when `openspec/changes/<id>/tasks.md` is staged
   **Spec scenarios**: coordinator-task-status-renderer.12 (pre-commit fires on staged tasks.md)

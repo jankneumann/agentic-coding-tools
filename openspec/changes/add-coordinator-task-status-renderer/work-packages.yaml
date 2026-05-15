@@ -89,13 +89,25 @@ packages:
     task_type: implement
     description: |
       Implements the new skill at skills/coordinator-task-status-renderer/:
-        - scripts/render_tasks_status.py (reads coordinator via try_issue_list, renders managed block)
-        - scripts/seed_tasks_from_md.py (parses tasks.md, POSTs issues idempotently)
-        - SKILL.md with frontmatter (user_invocable: false)
+        - scripts/render_tasks_status.py — reads coordinator via try_issue_list,
+          extracts task_key from each issue's `task:<key>` label (NOT metadata),
+          renders the managed block. Locally duplicates the `_gen_block` and
+          `_extract_generated_blocks` helpers from plan-roadmap rather than
+          importing private symbols. Writes single-pass when markers absent
+          AND coordinator unreachable (D9).
+        - scripts/seed_tasks_from_md.py — parses tasks.md and `**Dependencies**:`
+          annotations, topologically sorts task keys, and POSTs via
+          try_issue_create with `labels=["change:<id>", "task:<key>"]` plus
+          `depends_on=[UUIDs]`. Does NOT pass `metadata` (current
+          IssueCreateRequest does not accept it; carrying identity in labels
+          per D7). Idempotency check reads `task:<key>` labels off existing
+          issues returned by `try_issue_list(labels=["change:<id>"])`.
+          Exits 1 on dependency cycle (D8).
+        - SKILL.md with frontmatter (user_invocable: false).
       Tests at skills/tests/coordinator-task-status-renderer/.
-      Covers tasks 2.1–2.15.
-      Spec scenarios: coordinator-task-status-renderer.1, .2, .3, .4, .5, .6, .7, .8, .9, .10, .11
-      Design decisions: D1, D3, D4, D5, D6, D7
+      Covers tasks 2.1–2.15 (including 2.4a, 2.9a).
+      Spec scenarios: coordinator-task-status-renderer.1, .2, .3, .4, "Markers absent AND coordinator unreachable on first invocation", .5, .6, .7, .8, "Seeding aborts on dependency cycle", .9, .10, .11
+      Design decisions: D1, D3, D4, D5, D6, D7, D8, D9
     role: python-engineer
     priority: 2
     depends_on:
@@ -227,7 +239,12 @@ packages:
       file (following the existing ruff-import-sort pattern in this file).
       Edits .githooks/post-merge (currently a no-op stub from the beads removal)
       to detect tasks.md files touched by the merge and invoke the renderer.
-      Adds skills/tests/githooks/ tests for both hooks.
+      Adds skills/tests/githooks/ tests for both hooks using a hermetic
+      tmp_path git fixture with a fake renderer stub (see Phase 4 hook test
+      strategy note in tasks.md). The hook SHALL respect a
+      COORDINATOR_TASK_STATUS_RENDERER env var pointing at an alternate
+      script path so tests can substitute the renderer without invoking
+      the real coordinator.
       Covers tasks 4.1–4.11.
       Spec scenarios: coordinator-task-status-renderer.12, .13, .14, .15, .16
       Design decisions: D2, D4

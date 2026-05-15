@@ -11,7 +11,7 @@ This proposal closes the gap by treating `tasks.md` as a hybrid document: hand-a
 ## What Changes
 
 1. **New skill** `coordinator-task-status-renderer` at `skills/coordinator-task-status-renderer/` with a `scripts/render_tasks_status.py` that reads coordinator issue state for a given change-id and updates a managed block in `tasks.md`.
-2. **Seeding in `/plan-feature`** (Gate 2): when the user approves the plan, plan-feature POSTs each task from `tasks.md` to the coordinator as an issue with `labels=["change:<change-id>"]` and `metadata={"task_key": "T<n>", "change_id": <change-id>}`. Idempotent on re-run.
+2. **Seeding in `/plan-feature`** (Gate 2): when the user approves the plan, plan-feature POSTs each task from `tasks.md` to the coordinator as an issue with `labels=["change:<change-id>", "task:<task_key>"]`. Idempotency keys on the `(change:<id>, task:<key>)` label pair. (Rationale: the current `POST /issues/create` API does not accept a `metadata` field; encoding the task key as a label avoids expanding API surface while remaining queryable via the existing `try_issue_list(labels=...)` filter. See D7.)
 3. **Hook wiring**: `.githooks/pre-commit` invokes the renderer for any change-id whose `tasks.md` is staged; `.githooks/post-merge` invokes the renderer for any change-id whose `tasks.md` was touched by the merge. Both fall back to a stale-marker on coordinator failure rather than blocking git operations.
 4. **Managed block format** in `tasks.md`:
    ```
@@ -27,7 +27,8 @@ This proposal closes the gap by treating `tasks.md` as a hybrid document: hand-a
 ## What Doesn't Change
 
 - `tasks.md` hand-authored prose, descriptions, and acceptance criteria above and below the managed block are preserved.
-- The coordinator's `work_queue` schema — no migrations required. Labels + metadata JSONB already support this use case.
+- The coordinator's `work_queue` schema — no migrations required. The existing `labels TEXT[]` column carries both `change:<id>` and `task:<key>` labels; no `metadata` write path is required for v1.
+- The coordinator's HTTP API surface — `POST /issues/create` and `POST /issues/list` are used as-is. No new fields are added to `IssueCreateRequest` / `IssueListRequest`.
 - `/implement-feature`'s per-commit checkbox-flip discipline is retained as a fallback; the renderer simply makes it unnecessary when working correctly.
 - `/cleanup-feature`'s open-task scanning logic — managed-block output remains valid GFM checkbox syntax that the existing scanner handles unchanged.
 
