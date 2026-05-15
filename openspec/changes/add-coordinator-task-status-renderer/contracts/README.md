@@ -32,8 +32,13 @@ python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <
 
 1. Reads `<repo-root>/openspec/changes/<change-id>/tasks.md`.
 2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])`.
-3. Renders a managed block per the format defined below.
-4. Writes the rewritten `tasks.md` back to the same path.
+3. For each returned issue, extracts the `task_key` from its `task:<key>` label (the renderer ignores `metadata.task_key` — see D7).
+4. Renders a managed block per the format defined below.
+5. Writes the rewritten `tasks.md` back to the same path. The renderer SHALL NOT touch the git index; auto-staging is the hook's responsibility.
+
+**Behavior when both the coordinator is unreachable AND the markers are absent:**
+
+The renderer SHALL append the managed-block markers to the end of the file with the stale-marker as the content, in a single write — guaranteeing the markers exist for the next successful invocation to repaint (see D9).
 
 **Managed-block markers:**
 
@@ -53,16 +58,16 @@ Marker name is exactly `coordinator:tasks-status`. The colon is part of the name
 
 Where:
 - `<x or space>`: `x` if issue status is `completed`, otherwise space.
-- `<task_key>`: from `metadata.task_key`. Lines SHALL be sorted by `task_key` ascending lexicographically.
+- `<task_key>`: extracted from the issue's `task:<key>` label (strip the `task:` prefix). Issues without a `task:<key>` label SHALL be skipped (logged to stderr). Lines SHALL be sorted by `<task_key>` ascending lexicographically using natural-numeric order for dotted keys (e.g., `1.2` before `1.10`, `2.1` before `10.1`).
 - `<title>`: the issue title.
-- `<status annotation>`: format depends on status:
+- `<status annotation>`: format depends on the coordinator's friendly status:
   - `pending` → `pending`
-  - `claimed` → `claimed by <assignee>` (with `<assignee>` from `issue.assignee` or `claimed_by`)
-  - `running` → `in_progress, claimed by <assignee>`
-  - `completed` → `done by <assignee> <ISO-date>` plus `(evidence: <result.evidence_uri>)` if present
-  - `failed` → `failed: <error_message>`
-  - `cancelled` → `cancelled`
-- If `depends_on` contains UUIDs that are not in `completed` status, append ` — blocked on <task_keys>` to non-completed lines.
+  - `in_progress` → `in_progress, claimed by <assignee>` (with `<assignee>` from `issue.assignee`; if unset, render `claimed`)
+  - `closed` (with `close_reason` matching `completed|done`) → `done by <assignee> <ISO-date>`
+  - `closed` (other reasons) → `closed: <close_reason>`
+  - `failed` → `failed: <close_reason>`
+- If `depends_on` contains UUIDs whose referenced issues are not closed, append ` — blocked on <task_keys>` to non-closed lines (look up each UUID's `task:<key>` label from the same list response — no extra HTTP round-trips required).
+- Evidence URIs are NOT surfaced in v1 (the `IssueService` does not currently expose a `result.evidence_uri` field on the GET path). Deferred to a follow-up.
 
 **Rendered-content format (stale fallback):**
 
@@ -90,7 +95,7 @@ The renderer SHALL NOT exit non-zero on coordinator failure — that path trigge
 
 ## CLI Contract: `seed_tasks_from_md.py`
 
-**Purpose.** Parse a change's `tasks.md` and create coordinator issues for each task. Idempotent on `(change_id, task_key)`.
+**Purpose.** Parse a change's `tasks.md` and create coordinator issues for each task. Idempotent on the `(change:<id>, task:<key>)` label pair.
 
 **Invocation:**
 
@@ -107,42 +112,42 @@ python3 skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <c
 **Effects:**
 
 1. Parses `<repo-root>/openspec/changes/<change-id>/tasks.md` for `- [ ]` or `- [x]` lines bearing a task key (e.g., `T1`, `1.1`, `2.6`).
-2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues.
-3. For each task key in `tasks.md` not already present in the coordinator (matched by `metadata.task_key`):
-   - POSTs `/work/submit` with the issue payload defined below.
+2. Parses `**Dependencies**:` annotations beneath each task to build a dependency DAG over task keys.
+3. Topologically sorts task keys; aborts with exit 1 if a cycle is detected.
+4. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues. Builds a map `existing_task_keys -> issue_uuid` by reading the `task:<key>` label from each returned issue.
+5. For each task key in topological order, if no existing issue carries the `task:<key>` label:
+   - POSTs via `coordination_bridge.try_issue_create(...)` with the payload defined below.
+   - Records the returned UUID into the `existing_task_keys` map so downstream tasks can reference it in their `depends_on`.
 
-**Issue payload:**
+**Issue payload (passed as kwargs to `try_issue_create`):**
 
-```json
-{
-  "task_type": "issue",
-  "issue_type": "task",
-  "title": "<task title extracted from tasks.md line>",
-  "labels": ["change:<change-id>"],
-  "metadata": {
-    "change_id": "<change-id>",
-    "task_key": "<key from tasks.md>",
-    "tasks_md_anchor": <line number, optional best-effort>
-  },
-  "depends_on": [<UUIDs of issues for upstream task keys, if discoverable>]
-}
+```python
+try_issue_create(
+    title="<task title extracted from tasks.md line>",
+    issue_type="task",
+    labels=["change:<change-id>", "task:<task_key>"],
+    depends_on=[<UUIDs of upstream issues, resolved from earlier POSTs in this run or pre-existing issues>],
+)
 ```
 
 Notes:
-- `depends_on` resolution: if a task line declares `**Dependencies**: 1.4, 2.5`, the seeder SHALL look up issues with `metadata.task_key in ["1.4", "2.5"]` and use their UUIDs. If a referenced task is not yet seeded (because seeding runs top-to-bottom), the seeder MAY do two passes: first POST all issues with empty `depends_on`, then PATCH each with the resolved UUIDs.
-- Work-package labels (`wp:<id>`) are NOT applied at seed time. They are applied by `/implement-feature` when work-packages.yaml is consumed.
+- Underlying HTTP path is `POST /issues/create` (see `IssueCreateRequest` in `agent-coordinator/src/coordination_api.py`). This is **not** `/work/submit`.
+- The seeder does NOT pass `metadata`. The current `IssueCreateRequest` schema does not accept it; the `task:<key>` label is the durable carrier of task identity (see D7).
+- `depends_on` resolution uses single-pass topological seeding (D8). The `POST /issues/update` API does not accept `depends_on`, so we cannot retro-PATCH; this constraint requires us to know all upstream UUIDs at POST time.
+- Forward references (a task declares a dependency on a key that does not appear in `tasks.md`) are logged to stderr and dropped from `depends_on` (non-fatal).
+- Work-package labels (`wp:<id>`) are NOT applied at seed time. They are applied by `/implement-feature` when work-packages.yaml is consumed (via `try_issue_update(labels=[...])`).
 
 **Exit codes:**
 
 | Code | Meaning |
 |---|---|
 | 0 | Success. All tasks either created or already present. Coordinator-unreachable case also exits 0 (per D4). |
-| 1 | Malformed `tasks.md` (cannot extract task keys), filesystem error, or other internal error. |
+| 1 | Malformed `tasks.md` (cannot extract task keys), dependency cycle detected (per D8), filesystem error, or other internal error. |
 
 **Stdout/stderr:**
 
 - stdout: one line per issue created, format `created <task_key> <issue_uuid>`. One line per existing match, `exists <task_key> <issue_uuid>`. One summary line at end: `seeded <change-id> created=<N> existing=<M>`.
-- stderr: warnings (e.g., unresolved dependency reference). Coordinator-unreachable logged here with the count of unseeded tasks.
+- stderr: warnings (e.g., unresolved/forward dependency reference). Coordinator-unreachable logged here with the count of unseeded tasks.
 
 ---
 
@@ -169,9 +174,12 @@ These existing coordinator endpoints/columns are read by this change but defined
 
 | Surface | Defined in | Used by |
 |---|---|---|
-| `GET /issues?labels=<csv>` | `openspec/specs/agent-coordinator/` | Renderer |
-| `POST /work/submit` | `openspec/specs/agent-coordinator/` | Seeder |
-| `work_queue.labels TEXT[]` | `database/migrations/017_issue_tracking.sql` | Both |
-| `work_queue.metadata JSONB` | `database/migrations/017_issue_tracking.sql` | Both |
+| `POST /issues/list` (with `labels=[...]` filter) | `agent-coordinator/src/coordination_api.py` (`IssueListRequest`) | Renderer, Seeder (idempotency check) |
+| `POST /issues/create` | `agent-coordinator/src/coordination_api.py` (`IssueCreateRequest`) | Seeder |
+| `POST /issues/update` | `agent-coordinator/src/coordination_api.py` (`IssueUpdateRequest`) | Future: `/implement-feature` wp-label PATCH |
+| `work_queue.labels TEXT[]` (with GIN index) | `database/migrations/017_issue_tracking.sql` | Both (carries `change:<id>`, `task:<key>`) |
 | `work_queue.depends_on UUID[]` | `database/migrations/001_core_schema.sql` | Both |
 | `IssueService.list_issues(labels=...)` post-filter | `agent-coordinator/src/issue_service.py` | Renderer (transitively, via coordination-bridge) |
+| Helpers `try_issue_create`, `try_issue_list`, `try_issue_update` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Both |
+
+**Note on `metadata` JSONB:** the `work_queue.metadata` column exists (added by migration 017) but is **not writable through the current `POST /issues/create` HTTP API** — `IssueCreateRequest` has no `metadata` field, and `IssueService.create()` only populates `metadata.body` from `description`. This is why this change carries task identity via labels rather than metadata (see D7). Expanding the API to accept arbitrary metadata is a separate concern.

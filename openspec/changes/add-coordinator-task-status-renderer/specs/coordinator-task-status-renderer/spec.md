@@ -19,10 +19,11 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 #### Scenario: Block content reflects current coordinator state
 
 **WHEN** the renderer runs against a change-id whose coordinator issues exist
-**THEN** each issue labeled `change:<change-id>` SHALL appear as one line in the managed block
-**AND** each line SHALL be valid GFM checkbox syntax (`- [ ]` for non-`completed` status, `- [x]` for `completed`)
-**AND** each line SHALL include the task key from `metadata.task_key`, the issue title, and a status annotation showing claimed_by (if set) and completion timestamp (if set)
-**AND** lines SHALL be sorted by task key in ascending lexicographic order
+**THEN** each issue labeled `change:<change-id>` AND carrying a `task:<task_key>` label SHALL appear as one line in the managed block
+**AND** each line SHALL be valid GFM checkbox syntax (`- [ ]` for non-closed status, `- [x]` for `closed` with `close_reason` matching `completed|done`)
+**AND** each line SHALL include the task key extracted from the `task:<task_key>` label, the issue title, and a status annotation showing the assignee (if set) and the completion timestamp (if set)
+**AND** lines SHALL be sorted by task key in ascending natural-numeric order (so `1.2` precedes `1.10`)
+**AND** issues lacking a `task:<task_key>` label SHALL be skipped and a single-line warning per skipped issue SHALL be written to stderr
 
 #### Scenario: Hand-authored content outside the block is preserved
 
@@ -41,6 +42,13 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 **WHEN** the renderer runs against a `tasks.md` that does not yet contain the managed-block markers
 **THEN** the renderer SHALL append the managed block at the end of the file
 **AND** the appended block SHALL begin with `<!-- GENERATED: begin coordinator:tasks-status -->` and end with `<!-- GENERATED: end coordinator:tasks-status -->`
+
+#### Scenario: Markers absent AND coordinator unreachable on first invocation
+
+**WHEN** the renderer runs against a `tasks.md` that does not yet contain the managed-block markers AND the coordinator HTTP call (via `coordination_bridge.try_issue_list`) fails or returns an error
+**THEN** the renderer SHALL append the managed block at the end of the file with the stale-marker as its content (a single line `> Coordinator unreachable at <ISO-8601 timestamp> — status frozen.`)
+**AND** the appended block SHALL begin with `<!-- GENERATED: begin coordinator:tasks-status -->` and end with `<!-- GENERATED: end coordinator:tasks-status -->`
+**AND** the renderer SHALL exit with status 0
 
 ---
 
@@ -111,13 +119,14 @@ The `/plan-feature` skill SHALL POST a coordinator issue for each task in `tasks
 
 Each issue SHALL be created with:
 - `issue_type = "task"`
-- `labels = ["change:<change-id>", "wp:<work-package-id>"]` (work-package label optional if tasks aren't yet partitioned)
-- `metadata.task_key = "<T1, T2, ...>"` (the task identifier appearing in `tasks.md`)
-- `metadata.change_id = "<change-id>"`
-- `metadata.tasks_md_anchor = "<line number of the originating task in tasks.md>"` (optional, best-effort)
-- `depends_on = [<UUIDs of issues for upstream tasks>]` derived from task dependencies declared in `tasks.md`
+- `labels = ["change:<change-id>", "task:<task_key>"]` where `<task_key>` is the task identifier appearing in `tasks.md` (e.g., `1.1`, `T1`, `2.6`)
+- `depends_on = [<UUIDs of issues for upstream tasks>]` derived from `**Dependencies**:` annotations in `tasks.md`, resolved in topological order during a single pass (see design D8)
 
-The seeding step SHALL be idempotent: re-invoking it for the same change-id SHALL NOT create duplicate issues. Duplicate detection SHALL key on the pair `(metadata.change_id, metadata.task_key)`.
+Notes:
+- The seeder SHALL NOT pass a `metadata` field; the current `POST /issues/create` API does not accept one (see contracts/README "Related coordinator surface" note). Task identity lives in the `task:<task_key>` label.
+- The work-package label (`wp:<id>`) is NOT applied at seed time. `/implement-feature` applies it later via `try_issue_update(labels=...)` once `work-packages.yaml` is generated.
+
+The seeding step SHALL be idempotent: re-invoking it for the same change-id SHALL NOT create duplicate issues. Duplicate detection SHALL key on the `(change:<change-id>, task:<task_key>)` label pair found by querying `try_issue_list(labels=["change:<change-id>"])` and inspecting each returned issue's labels.
 
 #### Scenario: Plan approved — issues created in coordinator
 
@@ -128,10 +137,17 @@ The seeding step SHALL be idempotent: re-invoking it for the same change-id SHAL
 
 #### Scenario: Re-run after partial seeding
 
-**WHEN** `/plan-feature` Gate 2 is re-approved for a change-id that already has some coordinator issues with `metadata.change_id = "<change-id>"`
-**THEN** `/plan-feature` SHALL detect existing issues by `(change_id, task_key)` pair
+**WHEN** `/plan-feature` Gate 2 is re-approved for a change-id that already has some coordinator issues labeled `change:<change-id>`
+**THEN** `/plan-feature` SHALL detect existing issues by inspecting their labels for the `task:<task_key>` pair
 **AND** SHALL create issues only for task_keys not already present
 **AND** SHALL NOT modify or delete existing issues
+
+#### Scenario: Seeding aborts on dependency cycle
+
+**WHEN** `/plan-feature` invokes the seeder against a `tasks.md` whose `**Dependencies**:` annotations form a cycle (e.g., T1 depends on T2 and T2 depends on T1)
+**THEN** the seeder SHALL exit with status 1
+**AND** SHALL log a single-line error to stderr identifying the cycle members
+**AND** SHALL NOT create any coordinator issues for the change-id in that invocation
 
 #### Scenario: Coordinator unreachable at Gate 2 — seeding is non-blocking
 
