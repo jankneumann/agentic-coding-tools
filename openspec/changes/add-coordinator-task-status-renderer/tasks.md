@@ -58,16 +58,33 @@
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 2.5 Checkpoint: run `pytest skills/tests/coordinator-task-status-renderer/test_render*.py` — confirm tests RED
-  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.4a
+- [ ] 2.4b Write test: renderer enforces wall-clock timeout (default 5s, overridable via `--timeout-seconds`) — slow-coordinator stub triggers stale-marker write
+  **Spec scenarios**: "Coordinator HTTP call fails — block shows stale marker" (timeout is treated as coordinator failure)
+  **Design decisions**: D4 (timeout clause added)
+  **Dependencies**: 1.4
+  **Size**: S
 
-- [ ] 2.6 Implement `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` using `try_issue_list` and locally-duplicated marker helpers (do NOT import the underscore-prefixed `_gen_block` / `_extract_generated_blocks` from `plan-roadmap/scripts/renderer.py` — duplicate them; do NOT use `_extract_human_sections`, write a marker-aware prefix/suffix splitter instead, per D1)
+- [ ] 2.4c Write test: natural-numeric comparator orders `1.1, 1.2, 1.10, 2.4, 2.4a, 2.9, 2.9a, T1, T10` in the documented canonical order
+  **Spec scenarios**: coordinator-task-status-renderer.1 (sort ordering)
+  **Design decisions**: D1 (rendered-content format), contracts/README.md natural-numeric comparator specification
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 2.4d Write test: `depends_on` referencing uncompleted upstream issues emits ` — blocked on <keys>` suffix; completed upstream issues do not
+  **Spec scenarios**: coordinator-task-status-renderer.1 (blocked-on rendering)
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 2.5 Checkpoint: run `pytest skills/tests/coordinator-task-status-renderer/test_render*.py` — confirm tests RED
+  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.4a, 2.4b, 2.4c, 2.4d
+
+- [ ] 2.6 Implement `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` using `try_issue_list(labels=["change:<id>"], limit=100)` and locally-duplicated marker helpers (do NOT import the underscore-prefixed `_gen_block` / `_extract_generated_blocks` from `plan-roadmap/scripts/renderer.py` — duplicate them; do NOT use `_extract_human_sections`, write a marker-aware prefix/suffix splitter instead, per D1). Key the checkbox/status-annotation rendering off the stored `issue.status` per D10; implement the canonical natural-numeric comparator from contracts/README.md; enforce a 5s default wall-clock timeout (overridable via `--timeout-seconds`) per D4
   **Spec scenarios**: coordinator-task-status-renderer.1, .2, .3, .4, .4a (markers absent + coordinator down), .5, .6
-  **Design decisions**: D1, D4, D5 (labels-based filtering), D6, D7 (extract task_key from `task:<key>` label), D9 (markers absent + unreachable single-write)
+  **Design decisions**: D1, D4, D5 (labels-based filtering + limit=100), D6, D7 (extract task_key from `task:<key>` label), D9 (markers absent + unreachable single-write), D10 (stored status vocabulary)
   **Dependencies**: 2.5
   **Size**: M
 
-- [ ] 2.7 Confirm tests 2.1–2.4 are GREEN
+- [ ] 2.7 Confirm tests 2.1–2.4d are GREEN
   **Dependencies**: 2.6
   **Size**: XS
 
@@ -118,19 +135,27 @@
 
 ## Phase 3 — Plan-feature integration (wp-plan-feature-integration)
 
-- [ ] 3.1 Write test: `/plan-feature` Gate 2 approval triggers seeder for the change-id
+> **Testability note.** `skills/plan-feature/SKILL.md` is markdown prose executed by an agent — there is no Python entry point to drive end-to-end from pytest. The tests below are **SKILL.md content assertions** (the file mentions the seeder by name in the Gate 2 / Approve flow, and an idempotency caveat is documented). Actual orchestration is exercised by the wp-integration end-to-end test (5.1), which spins up a fixture coordinator and runs the real seeder script. This split is intentional: cheap fast assertions guard the SKILL.md wiring; one slow e2e test guards the behavior.
+
+- [ ] 3.1 Write content-assertion test: `skills/plan-feature/SKILL.md` Step 12 documents invocation of `seed_tasks_from_md.py <change-id>` on the Approve outcome
   **Spec scenarios**: coordinator-task-status-renderer.7
   **Contracts**: contracts/README.md (seeder CLI)
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 3.2 Write test: Gate 2 re-approval does not duplicate issues
+- [ ] 3.2 Write content-assertion test: `skills/plan-feature/SKILL.md` Step 12 documents the seeder's idempotency guarantee (mentions the `(change:<id>, task:<key>)` label pair OR cites D3/D7)
   **Spec scenarios**: coordinator-task-status-renderer.8
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 3.3 Checkpoint: confirm plan-feature integration tests RED
-  **Dependencies**: 3.1, 3.2
+- [ ] 3.2a Write content-assertion test: `skills/implement-feature/SKILL.md` documents the seeding-retry path at start of `/implement-feature` (D11)
+  **Spec scenarios**: "Seeding retry at /implement-feature start"
+  **Design decisions**: D11
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 3.3 Checkpoint: confirm plan-feature integration content-assertion tests RED
+  **Dependencies**: 3.1, 3.2, 3.2a
 
 - [ ] 3.4 Edit `skills/plan-feature/SKILL.md` Step 12 to invoke seeder on "Approve" selection
   **Spec scenarios**: coordinator-task-status-renderer.7, .8
@@ -138,8 +163,14 @@
   **Dependencies**: 3.3
   **Size**: S
 
-- [ ] 3.5 Confirm tests 3.1–3.2 are GREEN
-  **Dependencies**: 3.4
+- [ ] 3.4a Edit `skills/implement-feature/SKILL.md` to add a "seeding retry on empty change-id" first step (per D11)
+  **Spec scenarios**: "Seeding retry at /implement-feature start"
+  **Design decisions**: D11
+  **Dependencies**: 3.3
+  **Size**: S
+
+- [ ] 3.5 Confirm tests 3.1–3.2a are GREEN
+  **Dependencies**: 3.4, 3.4a
   **Size**: XS
 
 ## Phase 4 — Hook wiring (wp-hooks)
@@ -163,8 +194,20 @@
   **Dependencies**: 1.4
   **Size**: S
 
+- [ ] 4.3a Write test: pre-commit allows commit to proceed when renderer stub exits non-zero, AND `git add` is NOT invoked for that file
+  **Spec scenarios**: coordinator-task-status-renderer.14 (renderer failure non-blocking)
+  **Design decisions**: D2 (hook contract — failure-mode)
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 4.3b Write test: pre-commit honors `COORDINATOR_TASK_STATUS_RENDERER` env-var override (uses stub when set, falls back to default path when unset)
+  **Spec scenarios**: pre-commit hook contract (env-var override)
+  **Design decisions**: D2 (hook contract)
+  **Dependencies**: 1.4
+  **Size**: S
+
 - [ ] 4.4 Checkpoint: confirm pre-commit tests RED
-  **Dependencies**: 4.1, 4.2, 4.3
+  **Dependencies**: 4.1, 4.2, 4.3, 4.3a, 4.3b
 
 - [ ] 4.5 Edit `.githooks/pre-commit` to detect staged tasks.md paths, invoke renderer, re-stage
   **Spec scenarios**: coordinator-task-status-renderer.12, .13, .14 (renderer failure non-blocking)
@@ -172,7 +215,7 @@
   **Dependencies**: 4.4
   **Size**: S
 
-- [ ] 4.6 Confirm pre-commit tests 4.1–4.3 are GREEN
+- [ ] 4.6 Confirm pre-commit tests 4.1–4.3b are GREEN
   **Dependencies**: 4.5
   **Size**: XS
 
@@ -186,16 +229,22 @@
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 4.9 Checkpoint: confirm post-merge tests RED
-  **Dependencies**: 4.7, 4.8
+- [ ] 4.8a Write test: post-merge honors `COORDINATOR_TASK_STATUS_RENDERER` env-var override (mirror of 4.3b)
+  **Spec scenarios**: post-merge hook contract (env-var override)
+  **Design decisions**: D2 (hook contract)
+  **Dependencies**: 1.4
+  **Size**: S
 
-- [ ] 4.10 Edit `.githooks/post-merge` (currently no-op stub) to detect merged tasks.md paths and invoke renderer
+- [ ] 4.9 Checkpoint: confirm post-merge tests RED
+  **Dependencies**: 4.7, 4.8, 4.8a
+
+- [ ] 4.10 Edit `.githooks/post-merge` (currently no-op stub) to detect merged tasks.md paths and invoke renderer; honor `COORDINATOR_TASK_STATUS_RENDERER` env var per Hook Contract
   **Spec scenarios**: coordinator-task-status-renderer.15, .16
   **Design decisions**: D2
   **Dependencies**: 4.9
   **Size**: S
 
-- [ ] 4.11 Confirm post-merge tests 4.7–4.8 are GREEN
+- [ ] 4.11 Confirm post-merge tests 4.7–4.8a are GREEN
   **Dependencies**: 4.10
   **Size**: XS
 

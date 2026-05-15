@@ -20,9 +20,10 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 
 **WHEN** the renderer runs against a change-id whose coordinator issues exist
 **THEN** each issue labeled `change:<change-id>` AND carrying a `task:<task_key>` label SHALL appear as one line in the managed block
-**AND** each line SHALL be valid GFM checkbox syntax (`- [ ]` for non-closed status, `- [x]` for `closed` with `close_reason` matching `completed|done`)
+**AND** each line SHALL be valid GFM checkbox syntax: `- [x]` when the issue's stored `status` field equals `completed`, otherwise `- [ ]` (the coordinator's stored status values are exactly `pending|claimed|running|completed|failed|cancelled`; `closed` is a *friendly* alias used by some clients but is never present on `Issue.to_dict()` output)
 **AND** each line SHALL include the task key extracted from the `task:<task_key>` label, the issue title, and a status annotation showing the assignee (if set) and the completion timestamp (if set)
-**AND** lines SHALL be sorted by task key in ascending natural-numeric order (so `1.2` precedes `1.10`)
+**AND** when an issue's `depends_on` contains UUIDs whose referenced issues are not yet `completed`, the rendered line SHALL be suffixed with ` — blocked on <comma-separated-task_keys>`, with task_keys read from the `task:<key>` label of each referenced issue and sorted in the same natural-numeric order as the main list
+**AND** lines SHALL be sorted by task key using the natural-numeric comparator defined in `contracts/README.md` (handles dotted, alphanumeric-suffixed, and letter-prefixed keys deterministically)
 **AND** issues lacking a `task:<task_key>` label SHALL be skipped and a single-line warning per skipped issue SHALL be written to stderr
 
 #### Scenario: Hand-authored content outside the block is preserved
@@ -56,6 +57,8 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 
 When the coordinator API cannot be reached, the renderer SHALL replace the managed block with an explicit stale-marker rather than blocking the calling operation or leaving the previous block unchanged.
 
+The renderer SHALL impose a maximum wall-clock time of 5 seconds (configurable via `--timeout-seconds`) on its coordinator call. On timeout, the renderer SHALL treat the result as a coordinator failure and follow the stale-marker fallback path. The timeout is enforced by the renderer wrapping its `coordination_bridge.try_issue_list` call in `concurrent.futures` or by passing a timeout argument if the bridge supports one.
+
 #### Scenario: Coordinator HTTP call fails — block shows stale marker
 
 **WHEN** the renderer is invoked and the coordinator API call (via `coordination_bridge.try_issue_list`) fails or returns an error
@@ -75,6 +78,8 @@ When the coordinator API cannot be reached, the renderer SHALL replace the manag
 
 The repository's `.githooks/pre-commit` hook SHALL invoke the renderer for any change-id whose `tasks.md` is among the staged files in the pending commit, and SHALL re-stage the file after rendering so that the committed `tasks.md` reflects current coordinator state.
 
+The hook SHALL honor the `COORDINATOR_TASK_STATUS_RENDERER` environment variable: when set to a script path, the hook SHALL invoke that script instead of the default `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py`. This is a documented test seam used by the Phase 4 hook test fixtures and operator escape valve for emergency renderer replacement.
+
 #### Scenario: Staged tasks.md triggers renderer
 
 **WHEN** a developer runs `git commit` after staging `openspec/changes/<change-id>/tasks.md`
@@ -92,12 +97,15 @@ The repository's `.githooks/pre-commit` hook SHALL invoke the renderer for any c
 **WHEN** the renderer exits with a non-zero status (e.g., from a non-coordinator error such as malformed `tasks.md`)
 **THEN** the pre-commit hook SHALL log a warning identifying the change-id
 **AND** the commit SHALL proceed without re-staging the file
+**AND** `git add` SHALL NOT be invoked against the file for that failed render (the original staged content is preserved unchanged)
 
 ---
 
 ### Requirement: Post-merge Hook Integration
 
 The repository's `.githooks/post-merge` hook SHALL invoke the renderer for any change-id whose `tasks.md` was modified by the merge operation that triggered the hook.
+
+The hook SHALL honor the `COORDINATOR_TASK_STATUS_RENDERER` environment variable using the same semantics as the pre-commit hook (test seam + emergency override).
 
 #### Scenario: Pull updates a tasks.md — renderer fires
 
@@ -132,7 +140,7 @@ The seeding step SHALL be idempotent: re-invoking it for the same change-id SHAL
 
 **WHEN** the user selects "Approve — proceed to implementation" at `/plan-feature` Gate 2
 **THEN** `/plan-feature` SHALL POST one coordinator issue per task listed in `tasks.md`
-**AND** each issue SHALL carry the labels and metadata specified above
+**AND** each issue SHALL carry the labels and fields specified above (NO `metadata` field is passed — the current `IssueCreateRequest` does not accept one; identity lives in the `task:<key>` label)
 **AND** the initial status of each issue SHALL be `pending`
 
 #### Scenario: Re-run after partial seeding
@@ -155,6 +163,13 @@ The seeding step SHALL be idempotent: re-invoking it for the same change-id SHAL
 **THEN** `/plan-feature` SHALL log a warning identifying the change-id and the unseeded task_keys
 **AND** `/plan-feature` SHALL exit successfully without creating issues
 **AND** the next invocation of the renderer (via hook) SHALL display the coordinator-unreachable stale marker until issues can be created
+
+#### Scenario: Seeding retry at `/implement-feature` start
+
+**WHEN** `/implement-feature` is invoked for a `<change-id>` AND `try_issue_list(labels=["change:<change-id>"])` returns zero issues
+**THEN** `/implement-feature` SHALL invoke the seeder (`seed_tasks_from_md.py <change-id>`) as a first step BEFORE claiming any work
+**AND** the seeder's idempotency guarantee (D3, scenario "Re-run after partial seeding") SHALL prevent duplicate issue creation if a partial Gate-2 seed succeeded earlier
+**AND** if the coordinator is still unreachable, `/implement-feature` SHALL log a warning and continue (the renderer's stale-marker fallback will surface the outage in `tasks.md`)
 
 ---
 

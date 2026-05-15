@@ -1,0 +1,170 @@
+{
+  "vendor": "codex",
+  "success": true,
+  "elapsed_seconds": 163.80992120801238,
+  "error": null,
+  "error_class": null,
+  "model_used": "gpt-5.5",
+  "findings": [
+    {
+      "id": "duplicate-checkbox-source",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The selected approach preserves the original hand-authored task checkboxes while adding a second generated GFM checkbox block, but downstream consumers are explicitly left unchanged. Existing cleanup and validation logic scan `tasks.md` for any unchecked `- [ ]` line, so completed coordinator issues rendered as checked in the generated block will not prevent the original unchecked task lines from triggering drift failures or open-task migration. This breaks the stated goal of removing checkbox-discipline failures for `/cleanup-feature` and related scanners.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+      "line_range": [
+        29,
+        33
+      ],
+      "disposition": "fix",
+      "suggestion": "Make one checkbox surface authoritative. Either have the renderer update the original task checkbox lines in place, or explicitly update `/validate-feature`, `/cleanup-feature`, and any task-status readers to ignore hand-authored checkboxes and read only the managed block. Add tests proving a completed coordinator task no longer appears open to those consumers."
+    },
+    {
+      "id": "label-filter-not-reliable",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "D5 assumes the existing `try_issue_list(labels=[\"change:<id>\"])` path is sufficient, but the current coordinator service applies the result limit before Python-side label filtering. Once the coordinator has more than the first page of issues, a change's labeled tasks can be omitted from renderer reads and seeder idempotency checks, causing empty status blocks or duplicate issue creation. The plan also overstates that this uses the labels GIN index; the current list path does not push label containment into the database query.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+      "line_range": [
+        100,
+        102
+      ],
+      "disposition": "fix",
+      "suggestion": "Do not rely on the current post-filtered list path for change identity. Add the deferred by-change endpoint or change `IssueService.list_issues` to apply label containment before limit/pagination, then update contracts and tests to cover more than 50 unrelated issues."
+    },
+    {
+      "id": "seed-outage-no-recovery",
+      "type": "completeness",
+      "criticality": "high",
+      "description": "The spec makes Gate 2 seeding non-blocking when the coordinator is unreachable, but no later step retries seeding. If approval happens during an outage, no coordinator issues exist; when the coordinator recovers, the renderer only reads issues and the seeder is not invoked, so the block can become empty or remain stale indefinitely despite the plan being approved.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        152,
+        157
+      ],
+      "disposition": "fix",
+      "suggestion": "Define an automatic retry path, such as invoking the seeder at `/implement-feature` start when no `change:<id>` issues exist, recording a pending-seed marker, or having hooks call a non-mutating detector that prompts a seeding retry. Add a recovery scenario: Gate 2 outage, coordinator later reachable, issues eventually created without manual plan re-approval."
+    },
+    {
+      "id": "status-vocabulary-mismatch",
+      "type": "consistency",
+      "criticality": "high",
+      "description": "The spec says checked boxes are emitted for `closed` issues with a completion-like `close_reason`, while the contract says checked boxes use `completed`, and the coordinator `Issue.to_dict()` returns stored statuses such as `pending`, `claimed`, `running`, `completed`, `failed`, and `cancelled`. If implementers follow the spec literally, completed coordinator tasks will render unchecked, directly recreating the downstream false-positive problem.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        21,
+        24
+      ],
+      "disposition": "fix",
+      "suggestion": "Normalize the requirement around the actual response shape: render `- [x]` when `issue.status == \"completed\"` unless a deliberately separate non-done closed state exists. If friendly names are desired, define the mapping from stored statuses to rendered annotations in one place and align the contract, spec, and tests."
+    },
+    {
+      "id": "metadata-wording-regression",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "The seeding scenario still says each issue carries the labels and metadata specified above, but the same requirement and contract repeatedly state that no `metadata` field is passed because `IssueCreateRequest` does not accept one. This wording can lead tests or implementers to assert metadata that the plan intentionally removed.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        131,
+        136
+      ],
+      "disposition": "fix",
+      "suggestion": "Replace `labels and metadata specified above` with `labels and fields specified above`, or explicitly say no metadata is included in the create payload."
+    },
+    {
+      "id": "missing-hook-failure-test",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "The spec requires a non-zero renderer exit to be non-blocking for pre-commit, and task 4.5 lists that scenario, but the planned hook tests only cover invoke, re-stage, and skip cases. Without a red/green test for renderer failure, the hook can accidentally block commits or re-stage stale output and still satisfy the listed test tasks.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+      "line_range": [
+        149,
+        175
+      ],
+      "disposition": "fix",
+      "suggestion": "Add an explicit Phase 4 test where the `COORDINATOR_TASK_STATUS_RENDERER` stub exits non-zero; assert the commit succeeds, a warning is emitted, and `git add` is not run for that file after the failed render."
+    }
+  ],
+  "raw_response": {
+    "findings": [
+      {
+        "id": "duplicate-checkbox-source",
+        "type": "correctness",
+        "criticality": "high",
+        "description": "The selected approach preserves the original hand-authored task checkboxes while adding a second generated GFM checkbox block, but downstream consumers are explicitly left unchanged. Existing cleanup and validation logic scan `tasks.md` for any unchecked `- [ ]` line, so completed coordinator issues rendered as checked in the generated block will not prevent the original unchecked task lines from triggering drift failures or open-task migration. This breaks the stated goal of removing checkbox-discipline failures for `/cleanup-feature` and related scanners.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+        "line_range": [
+          29,
+          33
+        ],
+        "disposition": "fix",
+        "suggestion": "Make one checkbox surface authoritative. Either have the renderer update the original task checkbox lines in place, or explicitly update `/validate-feature`, `/cleanup-feature`, and any task-status readers to ignore hand-authored checkboxes and read only the managed block. Add tests proving a completed coordinator task no longer appears open to those consumers."
+      },
+      {
+        "id": "label-filter-not-reliable",
+        "type": "correctness",
+        "criticality": "high",
+        "description": "D5 assumes the existing `try_issue_list(labels=[\"change:<id>\"])` path is sufficient, but the current coordinator service applies the result limit before Python-side label filtering. Once the coordinator has more than the first page of issues, a change's labeled tasks can be omitted from renderer reads and seeder idempotency checks, causing empty status blocks or duplicate issue creation. The plan also overstates that this uses the labels GIN index; the current list path does not push label containment into the database query.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+        "line_range": [
+          100,
+          102
+        ],
+        "disposition": "fix",
+        "suggestion": "Do not rely on the current post-filtered list path for change identity. Add the deferred by-change endpoint or change `IssueService.list_issues` to apply label containment before limit/pagination, then update contracts and tests to cover more than 50 unrelated issues."
+      },
+      {
+        "id": "seed-outage-no-recovery",
+        "type": "completeness",
+        "criticality": "high",
+        "description": "The spec makes Gate 2 seeding non-blocking when the coordinator is unreachable, but no later step retries seeding. If approval happens during an outage, no coordinator issues exist; when the coordinator recovers, the renderer only reads issues and the seeder is not invoked, so the block can become empty or remain stale indefinitely despite the plan being approved.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          152,
+          157
+        ],
+        "disposition": "fix",
+        "suggestion": "Define an automatic retry path, such as invoking the seeder at `/implement-feature` start when no `change:<id>` issues exist, recording a pending-seed marker, or having hooks call a non-mutating detector that prompts a seeding retry. Add a recovery scenario: Gate 2 outage, coordinator later reachable, issues eventually created without manual plan re-approval."
+      },
+      {
+        "id": "status-vocabulary-mismatch",
+        "type": "consistency",
+        "criticality": "high",
+        "description": "The spec says checked boxes are emitted for `closed` issues with a completion-like `close_reason`, while the contract says checked boxes use `completed`, and the coordinator `Issue.to_dict()` returns stored statuses such as `pending`, `claimed`, `running`, `completed`, `failed`, and `cancelled`. If implementers follow the spec literally, completed coordinator tasks will render unchecked, directly recreating the downstream false-positive problem.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          21,
+          24
+        ],
+        "disposition": "fix",
+        "suggestion": "Normalize the requirement around the actual response shape: render `- [x]` when `issue.status == \"completed\"` unless a deliberately separate non-done closed state exists. If friendly names are desired, define the mapping from stored statuses to rendered annotations in one place and align the contract, spec, and tests."
+      },
+      {
+        "id": "metadata-wording-regression",
+        "type": "consistency",
+        "criticality": "medium",
+        "description": "The seeding scenario still says each issue carries the labels and metadata specified above, but the same requirement and contract repeatedly state that no `metadata` field is passed because `IssueCreateRequest` does not accept one. This wording can lead tests or implementers to assert metadata that the plan intentionally removed.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          131,
+          136
+        ],
+        "disposition": "fix",
+        "suggestion": "Replace `labels and metadata specified above` with `labels and fields specified above`, or explicitly say no metadata is included in the create payload."
+      },
+      {
+        "id": "missing-hook-failure-test",
+        "type": "testability",
+        "criticality": "medium",
+        "description": "The spec requires a non-zero renderer exit to be non-blocking for pre-commit, and task 4.5 lists that scenario, but the planned hook tests only cover invoke, re-stage, and skip cases. Without a red/green test for renderer failure, the hook can accidentally block commits or re-stage stale output and still satisfy the listed test tasks.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+        "line_range": [
+          149,
+          175
+        ],
+        "disposition": "fix",
+        "suggestion": "Add an explicit Phase 4 test where the `COORDINATOR_TASK_STATUS_RENDERER` stub exits non-zero; assert the commit succeeds, a warning is emitted, and `git add` is not run for that file after the failed render."
+      }
+    ]
+  }
+}
