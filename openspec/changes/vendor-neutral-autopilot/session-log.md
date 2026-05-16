@@ -117,3 +117,28 @@ Gate 2 approved the provider-neutral dispatch adapter plan for implementation. T
 
 ### Context
 Implemented provider-neutral autopilot dispatch across the coordinator, autopilot phase helpers, lifecycle skill docs, and dry-run provider smoke harness. The implementation preserves Claude Code compatibility while resolving Codex and Gemini models through provider-specific mappings.
+
+---
+
+## Phase: Cleanup (2026-05-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Skip task migration — all tasks already checked** — `tasks.md` scan returned zero unchecked items, matching the Implementation phase's "Completed Work" summary (all tasks.md checkboxes done). No coordinator issues or follow-up proposal needed.
+2. **Skip pre-merge validation gate (Step 2.5a)** — PR #165 was already merged in the 2026-05-16 merge-pull-requests session (merge commit 7001514). The gate's purpose is to block merge; that ship has sailed. Documented for auditor traceability.
+3. **Staged rollout (Step 5d) and Pre-launch checklist (Step 5c) recorded as N/A** — This change is dev-tooling: provider-neutral dispatch adapters, archetype-model maps, lifecycle SKILL.md doc updates, and a CLI smoke harness. There is no production traffic to shift, no feature flag, no error-rate baseline. The skill's rollout sections were authored for customer-facing features; explicit N/A is the right answer here.
+4. **CI failure during merge (validate-decision-index) was already resolved on the PR branch** — The Cleanup phase did NOT need to re-run `make decisions`: that regeneration was pushed to the PR branch as commit 7001514's predecessor before merge. The 2026-05-16 merge log captures the writer-drift pattern variant that triggered it (session-log mutation, not archive operation).
+5. **Coordinator feature-registry mark_merged step is skipped** — Same as the coordinator-task-status-renderer cleanup: no register_feature record exists for this change under the local-profile API key flow (memory: project_coordinator_api_key_permissions.md). Documenting rather than treating as a cleanup failure.
+
+### Alternatives Considered
+- Run `make architecture` mid-cleanup: deferred to a post-cleanup maintenance pass. The artifact is project-global and would be discarded on cleanup-branch teardown.
+
+### Trade-offs
+- Accepted formal "N/A" entries in the session log over deleting the rollout/checklist scaffolding because the skill's Verification step explicitly looks for those sections — silent omission fails the auditor; explicit N/A with rationale passes.
+
+### Open Questions
+- [ ] None remaining. The one open question from the Implementation phase ("Whether future Gemini/Jules production dispatch should add full async polling beyond the current configured adapter contract") is intentionally deferred — there is no current Gemini/Jules production dispatch consumer to test against; revisit if/when one is added.
+
+### Context
+Cleanup operations: confirmed PR #165 already merged (commit 7001514, rebase-merge), no open tasks to migrate, archived OpenSpec change via `openspec archive`, validated repository integrity via `openspec validate --strict`, deleted the local feature branch `vendor-neutral-autopilot` (remote was already pruned in the prior cleanup run for coordinator-task-status-renderer), and tore down the cleanup worktree.
