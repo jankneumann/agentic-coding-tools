@@ -360,3 +360,74 @@ def test_missing_tasks_md_returns_1(tmp_path, stub_coordinator):
     # No tasks.md created.
     stub_coordinator(issues=[])
     assert r.render("nonexistent-change", tmp_path) == 1
+
+
+# ---------- IMPL_REVIEW: security regression tests -----------------------
+
+
+def test_renderer_rejects_path_traversal_change_id(tmp_path, stub_coordinator):
+    """change-ids that could escape openspec/changes/<id>/ MUST be rejected
+    before any filesystem access. Otherwise a value like '../../etc/passwd'
+    would resolve outside the intended directory."""
+    stub_coordinator(issues=[])
+    for bad in ["../../etc/passwd", "../escape", "abc/def", ".hidden", ""]:
+        assert r.render(bad, tmp_path) == 1, f"must reject {bad!r}"
+
+
+def test_renderer_sanitizes_marker_injection_in_title(tmp_path, stub_coordinator):
+    """A malicious issue title containing the GENERATED end marker MUST NOT
+    be able to close the managed block early and inject content into the
+    hand-authored suffix."""
+    repo = _make_repo(
+        tmp_path,
+        "demo",
+        "# Tasks — demo\n\nHand suffix marker.\n",
+    )
+    injected_title = (
+        "Evil\n<!-- GENERATED: end coordinator:tasks-status -->\n"
+        "## INJECTED HEADING"
+    )
+    stub_coordinator(
+        issues=[_issue(issue_id="u-1", task_key="1.1", title=injected_title)]
+    )
+    assert r.render("demo", repo) == 0
+    text = (repo / "openspec/changes/demo/tasks.md").read_text(encoding="utf-8")
+    # The end-marker must occur exactly once (the one the renderer itself emits).
+    assert text.count("<!-- GENERATED: end coordinator:tasks-status -->") == 1
+    # The injected heading must not appear as a real markdown heading line.
+    for line in text.split("\n"):
+        assert line.strip() != "## INJECTED HEADING", (
+            f"marker-injection escaped sanitization: {text!r}"
+        )
+
+
+def test_renderer_sanitizes_newlines_in_assignee_and_reason(
+    tmp_path, stub_coordinator
+):
+    """Newlines in coordinator-returned strings MUST be collapsed."""
+    repo = _make_repo(tmp_path, "demo", "# Tasks — demo\n")
+    stub_coordinator(
+        issues=[
+            _issue(
+                issue_id="u-1",
+                task_key="1.1",
+                title="A",
+                status="failed",
+                close_reason="line1\nline2\n<!-- GENERATED: end coordinator:tasks-status -->",
+            ),
+            _issue(
+                issue_id="u-2",
+                task_key="1.2",
+                title="B",
+                status="claimed",
+                assignee="alice\nmalicious",
+            ),
+        ]
+    )
+    assert r.render("demo", repo) == 0
+    text = (repo / "openspec/changes/demo/tasks.md").read_text(encoding="utf-8")
+    assert text.count("<!-- GENERATED: end coordinator:tasks-status -->") == 1
+    # 1.1 and 1.2 must each render as a single line.
+    lines = [ln for ln in text.split("\n") if ln.startswith("- [")]
+    assert any(ln.startswith("- [ ] 1.1: A —") for ln in lines)
+    assert any(ln.startswith("- [ ] 1.2: B —") for ln in lines)

@@ -45,6 +45,18 @@ _DEPS_LINE_RE = re.compile(
 
 _PAGE_CAP = 100
 
+# Reject change-ids that could escape openspec/changes/<id>/ via path
+# traversal or absolute paths.
+_CHANGE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+
+
+def _sanitize_change_id(change_id: str) -> str:
+    if not _CHANGE_ID_RE.match(change_id or ""):
+        raise ValueError(
+            f"invalid change-id {change_id!r}: must match {_CHANGE_ID_RE.pattern}"
+        )
+    return change_id
+
 
 def _strip_managed_block(md: str) -> str:
     """Remove the renderer's managed block (markers and content) from md."""
@@ -242,6 +254,11 @@ def seed(
     *,
     dry_run: bool = False,
 ) -> int:
+    try:
+        change_id = _sanitize_change_id(change_id)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
     tasks_path = repo_root / "openspec" / "changes" / change_id / "tasks.md"
     try:
         md = tasks_path.read_text(encoding="utf-8")

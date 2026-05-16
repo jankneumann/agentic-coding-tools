@@ -46,6 +46,42 @@ _INFO_COMMENT_TMPL = (
 _PAGE_CAP = 100
 _DEFAULT_TIMEOUT_SECONDS = 5
 
+# Reject change-ids that could escape openspec/changes/<id>/ via path
+# traversal or absolute paths. Matches the OpenSpec change-id convention
+# (lowercase ASCII letters, digits, dashes, underscores).
+_CHANGE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+
+
+def _sanitize_change_id(change_id: str) -> str:
+    if not _CHANGE_ID_RE.match(change_id or ""):
+        raise ValueError(
+            f"invalid change-id {change_id!r}: must match {_CHANGE_ID_RE.pattern}"
+        )
+    return change_id
+
+
+def _sanitize_inline(text: str) -> str:
+    """Strip CR/LF and neutralize any embedded GENERATED marker tokens.
+
+    Coordinator-returned strings (title, assignee, close_reason) flow into
+    the managed block. A malicious value containing a literal end-marker
+    could close the block early and inject content into the hand-authored
+    suffix; a newline could break our line-oriented split. This function
+    coerces any such payload into a single safe line.
+    """
+    if not isinstance(text, str):
+        text = "" if text is None else str(text)
+    # Collapse all newlines (and tabs) to a single space.
+    cleaned = text.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    # Neutralize embedded marker substrings (case-insensitive belt-and-braces).
+    cleaned = re.sub(
+        r"<!--\s*GENERATED\s*:\s*(begin|end)\s+coordinator:tasks-status\s*-->",
+        "<!-- (sanitized marker) -->",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    return cleaned
+
 
 def _gen_block(content: str) -> str:
     """Wrap content in the renderer's generated-block markers."""
@@ -135,7 +171,8 @@ def _extract_task_key(issue: dict[str, Any]) -> str | None:
 def _format_status_annotation(issue: dict[str, Any]) -> str:
     """Format the trailing status annotation per contracts/README.md."""
     status = issue.get("status", "pending")
-    assignee = issue.get("assignee")
+    raw_assignee = issue.get("assignee")
+    assignee = _sanitize_inline(raw_assignee) if raw_assignee else None
     if status == "pending":
         return "pending"
     if status == "claimed":
@@ -165,11 +202,13 @@ def _format_status_annotation(issue: dict[str, Any]) -> str:
         return "done"
     if status == "failed":
         reason = issue.get("close_reason")
+        reason = _sanitize_inline(reason) if reason else None
         return f"failed: {reason}" if reason else "failed"
     if status == "cancelled":
         reason = issue.get("close_reason")
+        reason = _sanitize_inline(reason) if reason else None
         return f"cancelled: {reason}" if reason else "cancelled"
-    return status
+    return _sanitize_inline(str(status))
 
 
 def _build_blocked_on_suffix(
@@ -206,7 +245,7 @@ def _render_issue_line(
         )
         return None
     box = "x" if issue.get("status") == "completed" else " "
-    title = issue.get("title", "")
+    title = _sanitize_inline(issue.get("title", ""))
     status_annot = _format_status_annotation(issue)
     blocked = _build_blocked_on_suffix(issue, by_uuid)
     return f"- [{box}] {task_key}: {title} — {status_annot}{blocked}"
@@ -362,7 +401,13 @@ def render(
     - Coordinator unreachable / timeout / cap-exceeded: writes stale-marker
       block (cap-exceeded reports error and returns 1).
     - tasks.md missing / unreadable: returns 1.
+    - Invalid change-id (path traversal attempt): returns 1.
     """
+    try:
+        change_id = _sanitize_change_id(change_id)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
     tasks_path = repo_root / "openspec" / "changes" / change_id / "tasks.md"
     try:
         md = tasks_path.read_text(encoding="utf-8")
