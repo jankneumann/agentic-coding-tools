@@ -48,3 +48,28 @@
 
 ### Context
 Planned a coordinated OpenSpec change to make autopilot and its lifecycle skills vendor-neutral across Claude Code, Codex, and Gemini/Jules. Gate 1 selected the provider-neutral dispatch adapter approach with provider-specific model mapping and a manual CLI smoke path.
+
+## Phase: Plan Approval (2026-05-15)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Gate 2 approved** `architectural: skill-workflow` — The operator selected approval option 1, so the plan is ready for `/implement-feature vendor-neutral-autopilot`.
+2. **Preserve latest Gemini API model names** `architectural: agent-archetypes` — The operator updated Gemini model names in the design to match the latest models available via the API; implementation should preserve those configured model IDs unless a later source check proves they changed again.
+
+### Completed Work
+- Recorded Gate 2 approval.
+- Recorded the operator note about latest Gemini API model names.
+
+### Next Steps
+- Run `/implement-feature vendor-neutral-autopilot`.
+- Implementation should preserve the Gemini model names currently recorded in `design.md` unless a later source check proves they changed again.
+
+### Relevant Files
+- `openspec/changes/vendor-neutral-autopilot/proposal.md` — Approved proposal
+- `openspec/changes/vendor-neutral-autopilot/design.md` — Provider model mapping design with updated Gemini names
+- `openspec/changes/vendor-neutral-autopilot/tasks.md` — Approved task plan
+- `openspec/changes/vendor-neutral-autopilot/work-packages.yaml` — Approved coordinated work packages
+
+### Context
+Gate 2 approved the provider-neutral dispatch adapter plan for implementation. The Gemini model mapping has been intentionally updated to the latest API model names supplied by the operator.

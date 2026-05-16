@@ -83,12 +83,14 @@ model_aliases:
     standard: gpt-5.4
     economy: gpt-5.4-mini
   gemini:
-    premium: gemini-2.5-pro
-    standard: gemini-2.5-flash
-    economy: gemini-2.5-flash
+    premium: gemini-3.1-pro-preview
+    standard: gemini-3-flash-preview
+    economy: gemini-3-flash-lite
 ```
 
 Archetypes can then refer to logical tiers (`premium`, `standard`, `economy`) or retain legacy aliases that are translated for non-Claude providers.
+
+Operator note: the Gemini model IDs above were updated at Gate 2 to match the latest models available via the Gemini API. Implementation should treat the configured names as source data and avoid hardcoding older Gemini defaults.
 
 Rationale: `opus`, `sonnet`, and `haiku` are useful shorthand for Claude operators, but they should not leak into Codex or Gemini dispatch.
 
@@ -129,4 +131,3 @@ Rationale: provider-neutral dispatch is a runtime behavior, not just a static co
 - Whether the Codex adapter should prefer the in-process harness sub-agent surface when available or the Codex CLI for maximum operator reproducibility.
 - Whether Gemini/Jules async dispatch should be smoke-tested in submit-only mode when polling is unavailable.
 - Whether logical model tiers should replace `model` in `archetypes.yaml` immediately, or whether a compatibility layer should translate existing `opus`/`sonnet`/`haiku` values first.
-
