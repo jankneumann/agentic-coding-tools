@@ -218,14 +218,23 @@ def _resolve_repo_root(arg: str | None) -> Path:
 
 def _existing_issues_by_task_key(
     change_id: str,
-) -> tuple[dict[str, str], bool]:
-    """Returns (task_key -> uuid, ok). ok=False signals coordinator unreachable."""
+) -> tuple[dict[str, str], str]:
+    """Returns (task_key -> uuid, status).
+
+    status is one of:
+      - "ok"          — listing succeeded; the mapping is complete.
+      - "unreachable" — coordinator did not respond ok; caller should
+                        degrade gracefully (skip seeding, exit 0).
+      - "truncated"   — coordinator returned the page cap; the mapping
+                        may be incomplete and seeding could produce
+                        duplicates. Caller MUST treat as a hard error.
+    """
     result = coordination_bridge.try_issue_list(
         labels=[f"change:{change_id}"], limit=_PAGE_CAP
     )
     status = result.get("status", "skipped")
     if status not in ("ok", "success"):
-        return {}, False
+        return {}, "unreachable"
     issues = result.get("data", {}).get("issues") or result.get("issues") or []
     if isinstance(issues, list) and len(issues) >= _PAGE_CAP:
         print(
@@ -234,7 +243,7 @@ def _existing_issues_by_task_key(
             "(silent truncation risk).",
             file=sys.stderr,
         )
-        return {}, False
+        return {}, "truncated"
     out: dict[str, str] = {}
     for iss in issues:
         labels = iss.get("labels") or []
@@ -245,7 +254,7 @@ def _existing_issues_by_task_key(
                 if uid:
                     out[k] = str(uid)
                 break
-    return out, True
+    return out, "ok"
 
 
 def seed(
@@ -298,8 +307,16 @@ def seed(
         print(f"seeded {change_id} created=0 existing=0 (dry-run)", file=sys.stdout)
         return 0
 
-    existing, ok = _existing_issues_by_task_key(change_id)
-    if not ok:
+    existing, list_status = _existing_issues_by_task_key(change_id)
+    if list_status == "truncated":
+        # Page cap hit — the existing-issues map may be incomplete, so
+        # idempotency cannot be guaranteed. Refuse to seed.
+        print(
+            f"seeded {change_id} created=0 existing=0 (aborted: truncated)",
+            file=sys.stdout,
+        )
+        return 1
+    if list_status == "unreachable":
         print(
             f"WARN: coordinator unreachable; cannot seed {change_id}",
             file=sys.stderr,

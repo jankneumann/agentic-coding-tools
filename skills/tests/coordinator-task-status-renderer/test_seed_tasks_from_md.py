@@ -179,6 +179,25 @@ def test_seeder_exits_0_when_coordinator_unreachable(tmp_path, fake_bridge):
     assert fb.create_calls == []
 
 
+# ---------- pagination cap -> exit 1, no posts ---------------------------
+
+
+def test_seeder_exits_1_when_list_hits_pagination_cap(tmp_path, fake_bridge):
+    # If the coordinator returns >= _PAGE_CAP issues, the existing-issues
+    # map could be incomplete and idempotency cannot be guaranteed. The
+    # seeder must refuse and return a hard error rather than masquerade
+    # as success.
+    md = "# Tasks\n\n- [ ] 1.1 First\n  **Dependencies**: None\n"
+    repo = _make_repo(tmp_path, "demo", md)
+    existing = [
+        {"id": f"u-{i}", "labels": ["change:demo", f"task:other.{i}"]}
+        for i in range(s._PAGE_CAP)
+    ]
+    fb = fake_bridge(existing=existing)
+    assert s.seed("demo", repo) == 1
+    assert fb.create_calls == []
+
+
 def test_dry_run_makes_no_calls(tmp_path, fake_bridge):
     md = "# Tasks\n\n- [ ] 1.1 First\n  **Dependencies**: None\n"
     repo = _make_repo(tmp_path, "demo", md)
