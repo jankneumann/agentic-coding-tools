@@ -39,7 +39,7 @@
 
 **Diff size**: −1 LOC across 1 canonical file (mirror copies regenerated, not counted).
 
-**Commit**: pending — will be created next as `fix(coordinator-task-status-renderer): IMPL_ITERATE — drop unused import os`.
+**Commit**: `97ef489` — `fix(coordinator-task-status-renderer): IMPL_ITERATE — drop unused import os`.
 
 ## Final test count
 
