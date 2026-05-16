@@ -36,6 +36,13 @@ Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architectu
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
+## Provider-Neutral Dispatch
+
+When validation delegates checks or evidence review, treat the provider-neutral dispatch adapter
+as the canonical cross-provider path. Claude Code, Codex, and
+Gemini/Jules are first-class providers when configured; Claude-specific harness
+examples are adapter internals, with inline validation as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:

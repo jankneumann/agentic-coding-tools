@@ -114,8 +114,8 @@ Failure here is non-fatal — the helper logs a warning and writes
 ### 2. PLAN Phase
 
 **Record PLAN phase archetype** (state-only resolver — D9 / VAL_REVIEW G-V-001).
-PLAN dispatches via the `/plan-feature` slash command rather than the harness
-`Agent(...)` tool, so it doesn't go through `runner.py build-dispatch`. To
+PLAN dispatches via the `/plan-feature` slash command rather than the
+provider-neutral dispatch adapter, so it doesn't go through `runner.py build-dispatch`. To
 keep observability uniform across all 13 non-terminal phases, shell out:
 
 ```bash
@@ -137,16 +137,20 @@ If argument was an existing change-id:
 ### Per-Phase Sub-Agent Dispatch Protocol
 
 The following 7 phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE,
-IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch to a sub-agent via the harness
-`Agent(...)` tool. Each block follows the same 3-step protocol:
+IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch through the provider-neutral
+dispatch adapter when an adapter is available. Claude Code adapters may
+internally call the Claude harness `Agent(...)` tool; Codex and Gemini/Jules
+use their configured provider adapter or fall through to the inline path.
+Each block follows the same 3-step protocol:
 
 1. **Build dispatch kwargs** by shelling out to `runner.py build-dispatch`.
    The runner queries the coordinator for the resolved archetype, builds
    the per-phase prompt scaffold, folds `system_prompt` into `prompt`
    with the literal separator `\n\n---\n\n`, and writes a per-run
    resolution cache. JSON output: `{prompt, model, system_prompt,
-   isolation, archetype}`.
-2. **Invoke the harness `Agent(...)` tool** with the JSON values.
+   isolation, archetype, provider, phase, expected_outcomes}`.
+2. **Invoke the provider-neutral dispatch adapter** with the JSON values.
+   Claude Code's adapter may translate this to `Agent(...)` internally.
    **Treat `prompt` as opaque — do not concatenate, do not prepend, do
    not split on the separator.** SKILL.md never folds; folding lives
    inside `build_phase_dispatch_kwargs` (single source of truth).
@@ -156,10 +160,10 @@ IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch to a sub-agent via the harness
    `phase_archetype`) and consumes the cache file.
 
 **Fallback (D5)**: If `runner.py build-dispatch` returns `archetype: null`
-(coordinator unreachable or fallback), OR if the harness `Agent(...)`
-tool is not exposed in the current orchestrator session, the dispatch
-block falls through to the inline-prose path (the slash-command
-invocation), and `apply-outcome` records `phase_archetype = null`.
+(coordinator unreachable or fallback), OR if no provider-neutral dispatch
+adapter is exposed in the current orchestrator session, the dispatch block
+falls through to the inline-prose path (the slash-command invocation), and
+`apply-outcome` records `phase_archetype = null`.
 
 The dispatch invocation uses paths relative to the autopilot skill dir.
 Substitute `<skill-base-dir>` with the autopilot skill's actual location
@@ -181,8 +185,8 @@ Dispatch protocol (3 steps):
    ```
    Parse the JSON output. Capture `prompt`, `model`, `isolation`.
 
-2. Call the harness `Agent(...)` tool with those values, treating `prompt`
-   as opaque (no concatenation):
+2. Call the provider-neutral dispatch adapter with those values, treating
+   `prompt` as opaque (no concatenation). Claude adapter internal example:
    ```
    result = Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
                   isolation=<dispatch.isolation>)
@@ -198,7 +202,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If step 1 returned `archetype: null` OR `Agent(...)` is
+**Fallback**: If step 1 returned `archetype: null` OR the dispatch adapter is
 unavailable, run the inline path: invoke `/iterate-on-plan <change-id>`
 directly. After the slash command returns, run `apply-outcome` so
 `phase_archetype = null` is recorded for this phase.
@@ -233,7 +237,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke the convergence loop directly:
 
 ```python
@@ -304,7 +308,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke `/implement-feature <change-id>` (tier
 auto-detected based on coordinator + work-packages.yaml). Record
 `package_authors` from the implementation results. After completion,
@@ -337,7 +341,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke `/iterate-on-implementation <change-id>`. Then run
 `apply-outcome` so `phase_archetype = null` is recorded.
 
@@ -370,7 +374,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke the convergence loop with `fix_mode="targeted"`
 and a `post_fix_validator` callback for scoped pytest/mypy/openspec
 checks. Then run `apply-outcome` to record `phase_archetype = null`.
@@ -406,7 +410,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke `/validate-feature <change-id>` (tier
 auto-detected). Then run `apply-outcome` to record `phase_archetype = null`.
 
@@ -438,7 +442,7 @@ Dispatch protocol (3 steps):
      --outcome <outcome> --handoff-id <handoff_id>
    ```
 
-**Fallback**: If `archetype: null` OR `Agent(...)` unavailable, run the
+**Fallback**: If `archetype: null` OR the dispatch adapter is unavailable, run the
 inline path — invoke the convergence loop with `review_type="implementation"`
 and `fix_mode="targeted"`, scoped to the validation evidence. Then run
 `apply-outcome` to record `phase_archetype = null`.
@@ -508,37 +512,40 @@ At each state transition, report:
 
 Each non-terminal phase resolves an archetype (e.g. `architect`, `implementer`,
 `reviewer`, `analyst`, `runner`) before the sub-agent dispatches. The resolved
-archetype determines both the model (`opus`/`sonnet`/`haiku`) and the system
-prompt the sub-agent runs with. Mapping lives coordinator-side at
-`agent-coordinator/archetypes.yaml` under `phase_mapping`.
+archetype determines both the logical model tier (`premium`/`standard`/
+`economy`, with legacy Claude aliases still accepted for Claude Code) and the
+system prompt the sub-agent runs with. Provider-specific model mapping lives
+coordinator-side at `agent-coordinator/archetypes.yaml` under `model_aliases`;
+phase-to-archetype mapping lives under `phase_mapping`.
 
 **Default mapping** (per design D11; tunable in `archetypes.yaml`):
 
-| Phases | Archetype | Default model |
+| Phases | Archetype | Default tier |
 |---|---|---|
-| `PLAN`, `PLAN_ITERATE`, `PLAN_FIX` | `architect` | opus |
-| `PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW` | `reviewer` | opus |
-| `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_FIX` | `implementer` | sonnet (escalates to opus on size signals) |
-| `VALIDATE`, `VAL_FIX` | `analyst` | sonnet |
-| `INIT`, `SUBMIT_PR` | `runner` | haiku |
+| `PLAN`, `PLAN_ITERATE`, `PLAN_FIX` | `architect` | premium |
+| `PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW` | `reviewer` | premium |
+| `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_FIX` | `implementer` | standard (escalates to premium on size signals) |
+| `VALIDATE`, `VAL_FIX` | `analyst` | standard |
+| `INIT`, `SUBMIT_PR` | `runner` | economy |
 
 **Operator override** — force a specific model for one or more phases via the
 `AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. Format:
 `<PHASE>=<model>[,<PHASE>=<model>]*`. Example:
 
 ```bash
-export AUTOPILOT_PHASE_MODEL_OVERRIDE="PLAN=opus,IMPL_REVIEW=sonnet,VALIDATE=haiku"
+export AUTOPILOT_PHASE_MODEL_OVERRIDE="PLAN=gpt-5.5,IMPL_REVIEW=gpt-5.4,VALIDATE=gpt-5.4-mini"
 ```
 
 Override sets `options["model"]` only; the `system_prompt` is left to the
-harness default to keep override behavior predictable. Unknown phase names
-are warned and ignored; unknown model names pass through (validated by the
-harness).
+provider adapter default to keep override behavior predictable. Unknown phase
+names are warned and ignored; unknown model names pass through to the selected
+provider adapter for validation.
 
 **Failure mode** — if the coordinator endpoint is unreachable or returns an
 error, the bridge logs a structured warning and the phase dispatches with the
-harness default model. `LoopState.phase_archetype` is recorded as `null` for
-such phases so observability dashboards can flag default-fallback runs.
+provider adapter or inline fallback default model. `LoopState.phase_archetype`
+is recorded as `null` for such phases so observability dashboards can flag
+default-fallback runs.
 
 **Observability** — `LoopState.phase_archetype` (schema_version=3) is
 persisted in `loop-state.json` and (when wired) emitted in

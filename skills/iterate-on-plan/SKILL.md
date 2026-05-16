@@ -31,6 +31,14 @@ Iteratively refine an OpenSpec proposal after `/plan-feature` creates it. Each i
 - Proposal has NOT yet been approved (this skill refines before approval)
 - For `--prototype-context`: `/prototype-feature <change-id>` must have been run first and produced `openspec/changes/<change-id>/prototype-findings.md`
 
+## Provider-Neutral Dispatch
+
+When this skill delegates analysis work, treat the provider-neutral dispatch adapter
+as the canonical cross-provider path. Claude Code, Codex, and
+Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+or `Agent(...)` snippets are provider-specific examples, with inline execution
+as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:

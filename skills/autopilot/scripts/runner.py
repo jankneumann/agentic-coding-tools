@@ -48,6 +48,7 @@ def _cmd_build_dispatch(args: argparse.Namespace) -> int:
         result = phase_agent.build_phase_dispatch_kwargs(
             phase=args.phase,
             change_id=args.change_id,
+            provider=args.provider,
         )
     except ValueError as exc:
         sys.stderr.write(f"runner: {exc}\n")
@@ -126,6 +127,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     bd.add_argument("--phase", required=True, help="Phase id (e.g. IMPLEMENT).")
     bd.add_argument("--change-id", required=True, help="OpenSpec change identifier.")
+    bd.add_argument(
+        "--provider",
+        default=None,
+        help="Optional provider id for provider-neutral dispatch payloads.",
+    )
     bd.set_defaults(func=_cmd_build_dispatch)
 
     ao = sub.add_parser(

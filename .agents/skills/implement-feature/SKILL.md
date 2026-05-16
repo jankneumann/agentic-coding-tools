@@ -28,6 +28,14 @@ Implement an approved OpenSpec proposal. Automatically selects execution tier ba
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/plan-feature` first if no proposal exists
 
+## Provider-Neutral Dispatch
+
+When this skill delegates work packages, treat the provider-neutral dispatch adapter
+as the canonical cross-provider path. Claude Code, Codex, and
+Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+or `Agent(...)` snippets are provider-specific examples, with inline execution
+as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:
