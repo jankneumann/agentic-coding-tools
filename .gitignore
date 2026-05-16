@@ -250,6 +250,10 @@ artifacts/
 # Per-run autopilot phase-resolution cache (wire-autopilot-phase-subagents D4)
 openspec/changes/*/.phase-resolution-cache.json
 
+# Coordinator task-status renderer stale-marker sidecar
+# (contracts/README.md: "openspec/changes/<id>/.tasks-status.state.json (gitignored)")
+openspec/changes/*/.tasks-status.state.json
+
 # Transient curator scratch from /plan-roadmap structural pass (consumed by finalize)
 openspec/.plan-roadmap-tmp/
 

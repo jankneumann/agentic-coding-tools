@@ -1,0 +1,275 @@
+{
+  "vendor": "claude_code",
+  "success": true,
+  "elapsed_seconds": 207.344765249989,
+  "error": null,
+  "error_class": null,
+  "model_used": "(default)",
+  "findings": [
+    {
+      "id": "f1-checkbox-status-value-wrong",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The contract's checkbox-tick rule references a status that the coordinator does not emit. contracts/README.md says `<x or space>: x if issue status is completed, otherwise space`, but the coordinator's friendly statuses (also enumerated in the same contract section just below) are `pending | in_progress | closed | failed` \u2014 there is no `completed` status; `completed` is a `close_reason`. The spec gets this right (`- [x]` for `closed` with `close_reason` matching `completed|done`). An implementer following the contract literally would never tick any boxes. The spec-driven test for scenario .1 would catch it, but only after wasted implementation cycles.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        73,
+        73
+      ],
+      "disposition": "fix",
+      "suggestion": "Replace 'x if issue status is `completed`' with 'x if issue status is `closed` AND `close_reason` matches `completed|done`, otherwise space'. Make the checkbox-tick rule and the status-annotation rule consistent, and align the wording with the spec scenario."
+    },
+    {
+      "id": "f2-blocked-on-annotation-missing-from-spec",
+      "type": "consistency",
+      "criticality": "high",
+      "description": "The 'blocked on <task_keys>' annotation is required by the contract ('If `depends_on` contains UUIDs whose referenced issues are not closed, append ` \u2014 blocked on <task_keys>` to non-closed lines') and shown in the proposal example (`- [ ] T3: smoke test \u2014 blocked on T2`), and design.md Open Question 1 even claims 'The spec includes it as part of the status annotation' \u2014 but the spec scenario 'Block content reflects current coordinator state' only requires 'the task key, the issue title, and a status annotation showing the assignee (if set) and the completion timestamp (if set)'. It says nothing about blocked-on rendering. The spec is the authoritative artifact, so this requirement is currently un-specified \u2014 implementers using only the spec would omit it and the design open question's claim is false.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        16,
+        25
+      ],
+      "disposition": "fix",
+      "suggestion": "Either (a) add a clause to spec scenario 'Block content reflects current coordinator state' specifying the blocked-on rendering ('AND when an issue's `depends_on` contains UUIDs whose referenced issues are not closed, the line SHALL be suffixed with ` \u2014 blocked on <comma-separated task_keys>`'), or (b) defer the blocked-on annotation to v2 by removing it from contracts/README.md and the proposal example. Picking (a) keeps the v1 behavior consistent with the examples; whichever is chosen, also fix design.md Open Question 1 so it accurately reflects the spec."
+    },
+    {
+      "id": "f3-http-method-inconsistency",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "design.md's architecture diagram shows the coordinator surface as `GET /issues?labels=change:...`, but contracts/README.md 'Related coordinator surface' table says `POST /issues/list` (matching `IssueListRequest` in `agent-coordinator/src/coordination_api.py`). Implementers triangulating from these will be confused about which method the bridge issues. Since `try_issue_list` is the only call path, only the bridge needs to know, but the documentation should be coherent.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+      "line_range": [
+        15,
+        23
+      ],
+      "disposition": "fix",
+      "suggestion": "Update the ASCII diagram in design.md to show `POST /issues/list (labels=[change:<id>])` instead of `GET /issues?labels=...`, matching the actual API. Add a one-line note that `try_issue_list` is the call-site abstraction; clients don't construct the HTTP request directly."
+    },
+    {
+      "id": "f4-coordinator-renderer-env-var-not-in-spec",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "The hook-test strategy in tasks.md (Phase 4 note) and the work-package description for wp-hooks require the pre-commit / post-merge hooks to respect a `COORDINATOR_TASK_STATUS_RENDERER` environment variable pointing at an alternate script path so tests can substitute a stub. This is a real behavioral requirement of the hooks, and the Phase 4 tests depend on it. But the spec section 'Pre-commit Hook Integration' / 'Post-merge Hook Integration' is silent on it. An implementer reading the spec only would implement the hooks without the env-var override, and the Phase 4 tests would fail.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        55,
+        92
+      ],
+      "disposition": "fix",
+      "suggestion": "Add a scenario under both 'Pre-commit Hook Integration' and 'Post-merge Hook Integration' along the lines of: 'WHEN the environment variable `COORDINATOR_TASK_STATUS_RENDERER` is set to a script path THEN the hook SHALL invoke that script instead of the default `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py`. This is a test seam.' Then call out in contracts/README.md that this env var is part of the hook contract, not just a test detail."
+    },
+    {
+      "id": "f5-renderer-timeout-not-specified",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "design.md mentions 'short circuit at coordination-bridge timeout (~2s) into stale-marker write' and gives a 'default 5s' hook target, but neither the spec nor the contract requires the renderer (or the bridge it calls) to enforce a timeout. If `try_issue_list` blocks indefinitely (e.g., TCP RST loss), every commit that touches `tasks.md` will hang \u2014 a serious UX regression. The fallback behavior is only correct if the renderer actually times out and writes the stale marker.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        40,
+        50
+      ],
+      "disposition": "fix",
+      "suggestion": "Add a clause to the 'Coordinator-Unreachable Fallback' requirement: 'The renderer SHALL impose a maximum wall-clock time of N seconds (default 5) on its coordinator call; on timeout it SHALL treat the result as a coordinator failure and follow the stale-marker fallback path.' Mirror this in contracts/README.md by adding a `--timeout-seconds` option or documenting the default. Confirm that `coordination_bridge.try_issue_list` accepts a timeout argument or that the renderer wraps it accordingly."
+    },
+    {
+      "id": "f6-natural-numeric-sort-undefined-for-mixed-keys",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "The spec mandates 'natural-numeric order (so `1.2` precedes `1.10`)' for line sorting. Real task keys in this change include `2.4a`, `2.9a` (alphanumeric suffix), and the spec acknowledges keys like `T1`, `2.6` (mixed letter-prefixed and dotted-numeric forms). The contract reiterates 'natural-numeric order for dotted keys' without resolving the cross-format question. How should `T1` and `1.1` compare? Where does `2.4a` fall relative to `2.4` and `2.5`? Without a precise algorithm, different implementations (or the same one across patch releases) would order lines differently, defeating the idempotency scenario .3.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        85,
+        88
+      ],
+      "disposition": "fix",
+      "suggestion": "Specify the comparator precisely. A workable rule: split each key on '.' into segments; for each segment, compare as (integer, suffix) tuples where the leading digit run is the integer (missing \u2192 -1) and the rest is the suffix compared lexicographically. Letter-prefixed keys (`T1`) sort by (prefix-string, then trailing-digits-as-int) and rank after all-numeric keys. Add a stable secondary sort (issue UUID) so the renderer is deterministic when keys collide. Add a renderer test fixture exercising `1.1`, `1.2`, `1.10`, `2.4`, `2.4a`, `T1`, `T10` so the comparator is locked down."
+    },
+    {
+      "id": "f7-plan-feature-gate2-integration-testability",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "Tasks 3.1\u20133.2 ('Write test: /plan-feature Gate 2 approval triggers seeder' and 'Gate 2 re-approval does not duplicate issues') and the wp-plan-feature-integration verification step `pytest skills/tests/plan-feature/test_gate2_invokes_seeder.py` aim to test integration with a SKILL.md-orchestrated step. plan-feature is markdown prose that Claude executes \u2014 there is no Python entry point to drive end-to-end from pytest. The realistic test is either a grep over SKILL.md (brittle, doesn't exercise actual orchestration) or an e2e test that requires the agent harness (out of scope for unit tests). Spec scenarios .7/.8 will not be verified by these pytest cases.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+      "line_range": [
+        78,
+        96
+      ],
+      "disposition": "fix",
+      "suggestion": "Either (a) reframe 3.1/3.2 as 'assertion tests on SKILL.md content' (assert the file contains a documented invocation of `seed_tasks_from_md.py` in Step 12 and that the description handles idempotency) and rename the file accordingly, or (b) extract the seeding orchestration into a small Python helper that plan-feature calls, and unit-test that helper. Option (b) is heavier but gives genuine integration coverage. Without one of these, scenarios .7 and .8 are only covered by the wp-integration e2e (5.1), which is fragile to write."
+    },
+    {
+      "id": "f8-evidence-uri-example-vs-deferral-mismatch",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "The proposal's example block (`- [x] T1: implement foo \u2014 done by wp-backend 2026-05-13 (ci/run/4821)`) and the contract's reference example (`done by wp-contracts 2026-05-15 (evidence: ci/run/4821)`) both show an evidence URI suffix, but contracts/README.md explicitly states: 'Evidence URIs are NOT surfaced in v1 (the IssueService does not currently expose a `result.evidence_uri` field on the GET path). Deferred to a follow-up.' A reader will be confused about whether v1 emits the parenthetical or not.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+      "line_range": [
+        16,
+        22
+      ],
+      "disposition": "fix",
+      "suggestion": "Remove `(ci/run/4821)` and `(evidence: ci/run/4821)` from the proposal example and the contracts/README.md 'Managed-Block Format (reference)' example. Note explicitly in a footnote that 'evidence URI rendering is deferred to a future revision.'"
+    },
+    {
+      "id": "f9-iso-date-format-ambiguous",
+      "type": "testability",
+      "criticality": "low",
+      "description": "The contract specifies the status annotation as `done by <assignee> <ISO-date>`, but `<ISO-date>` is not defined. ISO-8601 is a family of formats (full timestamp `2026-05-15T10:42:00Z` vs. date-only `2026-05-15`). The proposal example uses `2026-05-13` (date-only). Without explicit clarity, the renderer test will need to be loose, or the implementation will produce strings that diff against tests across timezones.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        80,
+        81
+      ],
+      "disposition": "fix",
+      "suggestion": "Replace `<ISO-date>` with `<YYYY-MM-DD>` and add a sentence: 'Dates are emitted in UTC date-only form derived from the issue's closure timestamp. Timezone-converted local dates are not used to keep the output deterministic across hosts.'"
+    },
+    {
+      "id": "f10-stale-marker-timestamp-breaks-idempotency",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Spec scenario 'Re-render is idempotent when state has not advanced' guarantees byte-identical output on re-run. The stale-marker emitted on coordinator failure is `> Coordinator unreachable at <ISO-8601 timestamp> \u2014 status frozen.` \u2014 the timestamp updates on every invocation, so consecutive runs against an unreachable coordinator produce different files. This isn't strictly a contradiction (the precondition mentions 'no intervening coordinator state changes', and an unreachable coordinator may or may not count), but it could cause noisy commit churn during outages because the pre-commit hook re-stages the rewritten file.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        40,
+        45
+      ],
+      "disposition": "fix",
+      "suggestion": "Either (a) make the stale marker stable by omitting the timestamp or rounding it to a coarse window (e.g., hour bucket) and noting that the marker is 'soft', or (b) add an explicit caveat to the idempotency scenario: 'idempotency does not apply when the renderer is in the coordinator-unreachable fallback path; the timestamp on the stale marker will advance on each run.' Option (a) is the better UX during outages \u2014 a quiet sticky marker rather than per-commit timestamp churn."
+    }
+  ],
+  "raw_response": {
+    "findings": [
+      {
+        "id": "f1-checkbox-status-value-wrong",
+        "type": "correctness",
+        "criticality": "high",
+        "description": "The contract's checkbox-tick rule references a status that the coordinator does not emit. contracts/README.md says `<x or space>: x if issue status is completed, otherwise space`, but the coordinator's friendly statuses (also enumerated in the same contract section just below) are `pending | in_progress | closed | failed` \u2014 there is no `completed` status; `completed` is a `close_reason`. The spec gets this right (`- [x]` for `closed` with `close_reason` matching `completed|done`). An implementer following the contract literally would never tick any boxes. The spec-driven test for scenario .1 would catch it, but only after wasted implementation cycles.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+        "line_range": [
+          73,
+          73
+        ],
+        "disposition": "fix",
+        "suggestion": "Replace 'x if issue status is `completed`' with 'x if issue status is `closed` AND `close_reason` matches `completed|done`, otherwise space'. Make the checkbox-tick rule and the status-annotation rule consistent, and align the wording with the spec scenario."
+      },
+      {
+        "id": "f2-blocked-on-annotation-missing-from-spec",
+        "type": "consistency",
+        "criticality": "high",
+        "description": "The 'blocked on <task_keys>' annotation is required by the contract ('If `depends_on` contains UUIDs whose referenced issues are not closed, append ` \u2014 blocked on <task_keys>` to non-closed lines') and shown in the proposal example (`- [ ] T3: smoke test \u2014 blocked on T2`), and design.md Open Question 1 even claims 'The spec includes it as part of the status annotation' \u2014 but the spec scenario 'Block content reflects current coordinator state' only requires 'the task key, the issue title, and a status annotation showing the assignee (if set) and the completion timestamp (if set)'. It says nothing about blocked-on rendering. The spec is the authoritative artifact, so this requirement is currently un-specified \u2014 implementers using only the spec would omit it and the design open question's claim is false.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          16,
+          25
+        ],
+        "disposition": "fix",
+        "suggestion": "Either (a) add a clause to spec scenario 'Block content reflects current coordinator state' specifying the blocked-on rendering ('AND when an issue's `depends_on` contains UUIDs whose referenced issues are not closed, the line SHALL be suffixed with ` \u2014 blocked on <comma-separated task_keys>`'), or (b) defer the blocked-on annotation to v2 by removing it from contracts/README.md and the proposal example. Picking (a) keeps the v1 behavior consistent with the examples; whichever is chosen, also fix design.md Open Question 1 so it accurately reflects the spec."
+      },
+      {
+        "id": "f3-http-method-inconsistency",
+        "type": "consistency",
+        "criticality": "medium",
+        "description": "design.md's architecture diagram shows the coordinator surface as `GET /issues?labels=change:...`, but contracts/README.md 'Related coordinator surface' table says `POST /issues/list` (matching `IssueListRequest` in `agent-coordinator/src/coordination_api.py`). Implementers triangulating from these will be confused about which method the bridge issues. Since `try_issue_list` is the only call path, only the bridge needs to know, but the documentation should be coherent.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+        "line_range": [
+          15,
+          23
+        ],
+        "disposition": "fix",
+        "suggestion": "Update the ASCII diagram in design.md to show `POST /issues/list (labels=[change:<id>])` instead of `GET /issues?labels=...`, matching the actual API. Add a one-line note that `try_issue_list` is the call-site abstraction; clients don't construct the HTTP request directly."
+      },
+      {
+        "id": "f4-coordinator-renderer-env-var-not-in-spec",
+        "type": "completeness",
+        "criticality": "medium",
+        "description": "The hook-test strategy in tasks.md (Phase 4 note) and the work-package description for wp-hooks require the pre-commit / post-merge hooks to respect a `COORDINATOR_TASK_STATUS_RENDERER` environment variable pointing at an alternate script path so tests can substitute a stub. This is a real behavioral requirement of the hooks, and the Phase 4 tests depend on it. But the spec section 'Pre-commit Hook Integration' / 'Post-merge Hook Integration' is silent on it. An implementer reading the spec only would implement the hooks without the env-var override, and the Phase 4 tests would fail.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          55,
+          92
+        ],
+        "disposition": "fix",
+        "suggestion": "Add a scenario under both 'Pre-commit Hook Integration' and 'Post-merge Hook Integration' along the lines of: 'WHEN the environment variable `COORDINATOR_TASK_STATUS_RENDERER` is set to a script path THEN the hook SHALL invoke that script instead of the default `skills/coordinator-task-status-renderer/scripts/render_tasks_status.py`. This is a test seam.' Then call out in contracts/README.md that this env var is part of the hook contract, not just a test detail."
+      },
+      {
+        "id": "f5-renderer-timeout-not-specified",
+        "type": "completeness",
+        "criticality": "medium",
+        "description": "design.md mentions 'short circuit at coordination-bridge timeout (~2s) into stale-marker write' and gives a 'default 5s' hook target, but neither the spec nor the contract requires the renderer (or the bridge it calls) to enforce a timeout. If `try_issue_list` blocks indefinitely (e.g., TCP RST loss), every commit that touches `tasks.md` will hang \u2014 a serious UX regression. The fallback behavior is only correct if the renderer actually times out and writes the stale marker.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          40,
+          50
+        ],
+        "disposition": "fix",
+        "suggestion": "Add a clause to the 'Coordinator-Unreachable Fallback' requirement: 'The renderer SHALL impose a maximum wall-clock time of N seconds (default 5) on its coordinator call; on timeout it SHALL treat the result as a coordinator failure and follow the stale-marker fallback path.' Mirror this in contracts/README.md by adding a `--timeout-seconds` option or documenting the default. Confirm that `coordination_bridge.try_issue_list` accepts a timeout argument or that the renderer wraps it accordingly."
+      },
+      {
+        "id": "f6-natural-numeric-sort-undefined-for-mixed-keys",
+        "type": "testability",
+        "criticality": "medium",
+        "description": "The spec mandates 'natural-numeric order (so `1.2` precedes `1.10`)' for line sorting. Real task keys in this change include `2.4a`, `2.9a` (alphanumeric suffix), and the spec acknowledges keys like `T1`, `2.6` (mixed letter-prefixed and dotted-numeric forms). The contract reiterates 'natural-numeric order for dotted keys' without resolving the cross-format question. How should `T1` and `1.1` compare? Where does `2.4a` fall relative to `2.4` and `2.5`? Without a precise algorithm, different implementations (or the same one across patch releases) would order lines differently, defeating the idempotency scenario .3.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+        "line_range": [
+          85,
+          88
+        ],
+        "disposition": "fix",
+        "suggestion": "Specify the comparator precisely. A workable rule: split each key on '.' into segments; for each segment, compare as (integer, suffix) tuples where the leading digit run is the integer (missing \u2192 -1) and the rest is the suffix compared lexicographically. Letter-prefixed keys (`T1`) sort by (prefix-string, then trailing-digits-as-int) and rank after all-numeric keys. Add a stable secondary sort (issue UUID) so the renderer is deterministic when keys collide. Add a renderer test fixture exercising `1.1`, `1.2`, `1.10`, `2.4`, `2.4a`, `T1`, `T10` so the comparator is locked down."
+      },
+      {
+        "id": "f7-plan-feature-gate2-integration-testability",
+        "type": "testability",
+        "criticality": "medium",
+        "description": "Tasks 3.1\u20133.2 ('Write test: /plan-feature Gate 2 approval triggers seeder' and 'Gate 2 re-approval does not duplicate issues') and the wp-plan-feature-integration verification step `pytest skills/tests/plan-feature/test_gate2_invokes_seeder.py` aim to test integration with a SKILL.md-orchestrated step. plan-feature is markdown prose that Claude executes \u2014 there is no Python entry point to drive end-to-end from pytest. The realistic test is either a grep over SKILL.md (brittle, doesn't exercise actual orchestration) or an e2e test that requires the agent harness (out of scope for unit tests). Spec scenarios .7/.8 will not be verified by these pytest cases.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+        "line_range": [
+          78,
+          96
+        ],
+        "disposition": "fix",
+        "suggestion": "Either (a) reframe 3.1/3.2 as 'assertion tests on SKILL.md content' (assert the file contains a documented invocation of `seed_tasks_from_md.py` in Step 12 and that the description handles idempotency) and rename the file accordingly, or (b) extract the seeding orchestration into a small Python helper that plan-feature calls, and unit-test that helper. Option (b) is heavier but gives genuine integration coverage. Without one of these, scenarios .7 and .8 are only covered by the wp-integration e2e (5.1), which is fragile to write."
+      },
+      {
+        "id": "f8-evidence-uri-example-vs-deferral-mismatch",
+        "type": "consistency",
+        "criticality": "low",
+        "description": "The proposal's example block (`- [x] T1: implement foo \u2014 done by wp-backend 2026-05-13 (ci/run/4821)`) and the contract's reference example (`done by wp-contracts 2026-05-15 (evidence: ci/run/4821)`) both show an evidence URI suffix, but contracts/README.md explicitly states: 'Evidence URIs are NOT surfaced in v1 (the IssueService does not currently expose a `result.evidence_uri` field on the GET path). Deferred to a follow-up.' A reader will be confused about whether v1 emits the parenthetical or not.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+        "line_range": [
+          16,
+          22
+        ],
+        "disposition": "fix",
+        "suggestion": "Remove `(ci/run/4821)` and `(evidence: ci/run/4821)` from the proposal example and the contracts/README.md 'Managed-Block Format (reference)' example. Note explicitly in a footnote that 'evidence URI rendering is deferred to a future revision.'"
+      },
+      {
+        "id": "f9-iso-date-format-ambiguous",
+        "type": "testability",
+        "criticality": "low",
+        "description": "The contract specifies the status annotation as `done by <assignee> <ISO-date>`, but `<ISO-date>` is not defined. ISO-8601 is a family of formats (full timestamp `2026-05-15T10:42:00Z` vs. date-only `2026-05-15`). The proposal example uses `2026-05-13` (date-only). Without explicit clarity, the renderer test will need to be loose, or the implementation will produce strings that diff against tests across timezones.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+        "line_range": [
+          80,
+          81
+        ],
+        "disposition": "fix",
+        "suggestion": "Replace `<ISO-date>` with `<YYYY-MM-DD>` and add a sentence: 'Dates are emitted in UTC date-only form derived from the issue's closure timestamp. Timezone-converted local dates are not used to keep the output deterministic across hosts.'"
+      },
+      {
+        "id": "f10-stale-marker-timestamp-breaks-idempotency",
+        "type": "consistency",
+        "criticality": "low",
+        "description": "Spec scenario 'Re-render is idempotent when state has not advanced' guarantees byte-identical output on re-run. The stale-marker emitted on coordinator failure is `> Coordinator unreachable at <ISO-8601 timestamp> \u2014 status frozen.` \u2014 the timestamp updates on every invocation, so consecutive runs against an unreachable coordinator produce different files. This isn't strictly a contradiction (the precondition mentions 'no intervening coordinator state changes', and an unreachable coordinator may or may not count), but it could cause noisy commit churn during outages because the pre-commit hook re-stages the rewritten file.",
+        "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+        "line_range": [
+          40,
+          45
+        ],
+        "disposition": "fix",
+        "suggestion": "Either (a) make the stale marker stable by omitting the timestamp or rounding it to a coarse window (e.g., hour bucket) and noting that the marker is 'soft', or (b) add an explicit caveat to the idempotency scenario: 'idempotency does not apply when the renderer is in the coordinator-unreachable fallback path; the timestamp on the stale marker will advance on each run.' Option (a) is the better UX during outages \u2014 a quiet sticky marker rather than per-commit timestamp churn."
+      }
+    ],
+    "notes": "Plan is in good shape overall \u2014 D7 (labels-as-identity) and D8 (single-pass topological seeding) are well-justified given the actual coordinator API surface, and D9 (markers-absent + coordinator-unreachable single-write) closes a subtle initialization gap. The two highest-impact issues are f1 (contract specifies a non-existent coordinator status as the checkbox-tick predicate) and f2 (the 'blocked on' annotation is required by the contract and example but not by the spec, which the design.md open-question section incorrectly claims it is). Both are pure documentation fixes; no architectural rework needed. f4 (renderer timeout) and f6 (sort comparator) are worth tightening before implementation to avoid retrofitting tests."
+  }
+}

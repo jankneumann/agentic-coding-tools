@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-05-16T07:51:32Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 900.0422378329677,
+      "error": "Timeout after 900s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 6.650900417007506,
+      "error": "Reading additional input from stdin...\nOpenAI Codex v0.130.0\n--------\nworkdir: /Users/jankneumann/Coding/agentic-coding-tools\nmodel: gpt-5.5\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: high\nreasoning summaries: none\nsession id: 019e2f59-3c37-7512-b943-c1aad5fc9640\n--------\nuser\n# IMPL_REVIEW \u2014 multi-vendor implementation review\n\nYou are reviewing the IMPLEMENTATION of OpenSpec change `add-coordinator-task-status-renderer`. The plan went through 2 rounds of PLAN_REVIEW (",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "gemini",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "auto"
+      ],
+      "elapsed_seconds": 900.0345612909878,
+      "error": "Timeout after 900s",
+      "error_class": "transient"
+    }
+  ],
+  "quorum_requested": 3,
+  "quorum_received": 0,
+  "vendors": []
+}

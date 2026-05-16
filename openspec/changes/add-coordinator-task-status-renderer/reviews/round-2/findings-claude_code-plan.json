@@ -1,0 +1,124 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "r2-f1-cycle-detection-ordering",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Spec scenario 'Seeding aborts on dependency cycle' guarantees that 'SHALL NOT create any coordinator issues for the change-id in that invocation' when a cycle is detected. D8 selects single-pass topological seeding, but does not pin down that cycle detection MUST run as a preflight before any POST. A naive implementation that POSTs as it pops nodes from Kahn's queue (or DFS-pre-order) will create issues for the acyclic portion of the graph before discovering it cannot drain the queue. The seeder then exits 1 with partial state in the coordinator, violating the spec scenario. The seeder is supposed to be idempotent (D3), so on retry the partial issues would survive \u2014 but a re-run with the original buggy tasks.md would still abort on cycle, leaving the partial set as orphans.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+      "line_range": [
+        137,
+        147
+      ],
+      "disposition": "fix",
+      "suggestion": "Make the implementation ordering explicit in both design.md D8 and contracts/README.md seeder CLI: 'The seeder SHALL perform a complete cycle-detection pass over the parsed DAG BEFORE issuing any POST. Implementations using Kahn's algorithm SHALL verify that the topological sort produces all nodes; implementations using DFS SHALL run the cycle-detection pass to completion first. No coordinator state shall be mutated until cycle absence is proven.' Add a corresponding test (sibling of 2.9a) that asserts coordinator-issue count is unchanged after a cycle-aborted invocation."
+    },
+    {
+      "id": "r2-f2-renderer-timeout-bridge-mismatch",
+      "type": "feasibility",
+      "criticality": "high",
+      "description": "The spec requires the renderer to impose a 5s wall-clock default (overridable via `--timeout-seconds`) on its coordinator call, and the spec mentions enforcement via `concurrent.futures` OR a bridge timeout argument. Verification against `skills/coordination-bridge/scripts/coordination_bridge.py:915-948`: `try_issue_list` exposes NO `timeout` kwarg. The underlying `_http_request` (line 207-215) uses `DEFAULT_TIMEOUT_SECONDS` from env var `COORDINATION_HTTP_TIMEOUT`, which defaults to 1.5s \u2014 strictly shorter than the renderer's spec'd 5s default. As a result, (a) the bridge will time out first and produce a coordinator-failure result, which is fine for the stale-marker path, but (b) `--timeout-seconds 30` set by an operator (e.g. for a slow cold-start coordinator) will be silently shortened to 1.5s by the bridge, contradicting the contract. The renderer cannot actually honor a value larger than `COORDINATION_HTTP_TIMEOUT`. Task 2.4b's slow-coordinator stub test won't catch this because it exercises the timeout-fires path, not the timeout-honored-faithfully path.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        70,
+        75
+      ],
+      "disposition": "fix",
+      "suggestion": "Pick one resolution and document it: (a) Have the renderer set `os.environ['COORDINATION_HTTP_TIMEOUT'] = str(timeout)` before calling `try_issue_list`, and call this out in contracts/README.md as an implementation requirement; (b) Add a `timeout: float | None = None` kwarg to `try_issue_list` (small, in-scope change to coordination-bridge) and use it from the renderer; or (c) Reduce the renderer's default to match the bridge default (1.5s) and document that operators tuning latency must export `COORDINATION_HTTP_TIMEOUT` themselves. Option (b) is cleanest; option (a) keeps the bridge surface untouched. Whichever is chosen, add a renderer unit test that verifies `--timeout-seconds 10` actually allows a 5s coordinator response to succeed (currently it would not)."
+    },
+    {
+      "id": "r2-f3-dependencies-annotation-format-unspecified",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "Both design.md D8 and contracts/README.md seeder CLI section state the seeder parses `**Dependencies**:` annotations beneath each task to build a DAG, but neither artifact specifies the parsing grammar. This change's own tasks.md mixes three forms: `**Dependencies**: None`, `**Dependencies**: 1.1`, and `**Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.4a, 2.4b, 2.4c, 2.4d`. Is `None` a sentinel meaning empty, or is it a parse error? Are leading/trailing whitespace, trailing commas, or hyphen-separated lists (`1.1 - 1.4`) accepted? Does case matter (`**dependencies**:`)? Are dependencies hierarchically scoped to the immediately preceding task line, or is the parser whitespace-aware? Without a precise grammar, test fixtures may pass while real-world tasks.md files fail, or vice versa. Task 2.9a tests cycle detection but says nothing about parse-edge cases.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        122,
+        137
+      ],
+      "disposition": "fix",
+      "suggestion": "Add a 'Dependency annotation grammar' subsection to contracts/README.md: 'The seeder identifies dependencies by locating lines of the form `**Dependencies**: <RHS>` (case-sensitive, anchored to a task block via indentation/proximity to the most recent `- [ ]` / `- [x]` line). The RHS is parsed as: literal `None` (case-insensitive) \u2192 empty list; otherwise comma-separated task keys with optional surrounding whitespace. Trailing commas allowed. Unknown keys are warnings (forward-reference handling per D8).' Mirror in spec scenario .7 to make it spec-tested. Add a parser unit test exercising the three forms in this change's own tasks.md plus at least one edge case (empty RHS, only whitespace)."
+    },
+    {
+      "id": "r2-f4-issue-dict-fields-not-enumerated",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "The renderer's rendered-content rules reference `issue.status`, `issue.assignee`, `issue.completed_at`, `issue.close_reason`, `issue.labels`, `issue.depends_on`, and (implicitly for the stable tie-breaker) `issue.uuid`. Contracts/README.md and spec.md treat `try_issue_list`'s response shape as self-evident \u2014 but the renderer fails ungracefully (KeyError on dict access) if the bridge returns a dict that omits any of these. The bridge returns `_execute_single_endpoint_operation`'s envelope; what the API service nests inside that envelope under `data.issues[]` is what the renderer actually consumes. A reader of this plan cannot verify whether `completed_at`, `close_reason`, or `assignee` are reliably present without inspecting `agent-coordinator/src/issue_service.py:103-122`. An implementer should not have to do that triangulation.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        76,
+        90
+      ],
+      "disposition": "fix",
+      "suggestion": "Add to contracts/README.md a 'Renderer-consumed response shape' subsection enumerating the exact dict keys the renderer reads from each item in `try_issue_list(...)['data']['issues']`: `uuid` (str), `status` (str \u2014 one of the six stored values), `title` (str), `assignee` (str | null), `completed_at` (ISO-8601 str | null), `close_reason` (str | null), `labels` (list[str]), `depends_on` (list[str \u2014 UUIDs]). State the renderer's behavior for any null/missing field. This both pins the contract and gives Phase 2 tests a concrete fixture to mock against."
+    },
+    {
+      "id": "r2-f5-stale-marker-timestamp-still-violates-idempotency",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "Round-1 f10 flagged this and the v2 edits did not address it. Spec scenario 'Re-render is idempotent when state has not advanced' (spec.md:35-40) guarantees byte-identical output on a second invocation when state has not advanced. The stale-marker path (`> Coordinator unreachable at <ISO-8601 timestamp> \u2014 status frozen.`) writes a fresh timestamp on every invocation. During a coordinator outage, every pre-commit fire re-stages a different file because the timestamp updates \u2014 generating commit churn in tasks.md exactly when reviewers are most likely to be confused (the outage banner is the only visible state). Round-1 reviewer suggested either making the marker stable (round timestamp to coarse bucket / omit) or carving out a spec exception. Neither edit landed.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        35,
+        40
+      ],
+      "disposition": "fix",
+      "suggestion": "Pick the lower-noise option: omit the timestamp from the stale marker entirely (`> Coordinator unreachable \u2014 status frozen.`) and rely on commit metadata to encode 'when did this happen'. Alternatively, add a sentence to scenario 'Re-render is idempotent when state has not advanced': 'Idempotency does not apply when both invocations follow the coordinator-unreachable fallback path; the timestamp on the stale marker advances each run.' The first option is cleaner \u2014 outage banners don't need timestamps in tasks.md when the file's git history already carries them."
+    },
+    {
+      "id": "r2-f6-spec-scenario-numbering-shadow",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "tasks.md and work-packages.yaml routinely cite spec scenarios by synthetic numbers (`.4a`, `.9a`, `.4` for what is actually named 'Markers absent AND coordinator unreachable on first invocation', etc.), but spec.md identifies scenarios by name only \u2014 there is no explicit numbering, and OpenSpec's parser does not assign one. This is harmless to humans but breaks any automated traceability tool that tries to compute scenario\u2192task coverage by joining on the cited identifier. Task 2.6 even mixes both forms in a single line (`.4a (markers absent + coordinator down)`). The same scenario is also cited inconsistently: 2.4a quotes its full name, 2.6 uses `.4a`.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+      "line_range": [
+        55,
+        90
+      ],
+      "disposition": "fix",
+      "suggestion": "Pick one citation style for the whole change and apply it: either (a) number scenarios explicitly in spec.md by adding a numeric prefix to each `#### Scenario:` heading (`#### Scenario 1.5: Markers absent AND coordinator unreachable on first invocation`), or (b) cite scenarios by full name everywhere in tasks.md and work-packages.yaml (drop the `.N`/`.Na` shorthand). Option (b) is lighter and matches existing OpenSpec conventions in other changes."
+    },
+    {
+      "id": "r2-f7-d11-retry-requires-coordinator-reachable-detection",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "D11 says `/implement-feature` SHALL invoke the seeder when `try_issue_list(labels=['change:<id>'])` returns empty 'AND the coordinator is reachable \u2014 distinguish from coordinator-failure'. But the failure mode of `try_issue_list` is that it returns a dict (per coordination-bridge convention) with success/error envelope, not an exception. An empty `issues` list is indistinguishable from a coordinator-unreachable result unless the caller inspects the envelope. The spec scenario 'Seeding retry at /implement-feature start' and the design doc skip over this detection logic. An implementer following the spec literally might trigger seeder retry even when the coordinator is unreachable, blocking `/implement-feature` startup or producing confusing log noise.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/design.md",
+      "line_range": [
+        165,
+        180
+      ],
+      "disposition": "fix",
+      "suggestion": "Tighten D11 and the spec scenario: 'WHEN /implement-feature is invoked AND the call to `try_issue_list(labels=[change:<id>])` returns a successful response (envelope `success=True`) with zero issues' \u2014 explicitly require the success envelope to distinguish from a coordinator-failure response. Add a note in contracts/README.md describing the bridge response envelope shape (`{success: bool, error: str | None, data: ...}`) so callers know which field to inspect."
+    },
+    {
+      "id": "r2-f8-evidence-artifacts-pytest-cache",
+      "type": "testability",
+      "criticality": "low",
+      "description": "work-packages.yaml wp-renderer-skill verification step `run-unit-tests` declares `evidence.artifacts: ['skills/tests/coordinator-task-status-renderer/.pytest_cache/']`. The `.pytest_cache/` directory contains pytest internal state (last failed tests, node IDs), not test outcomes. It does not prove tests passed and is typically gitignored. Verifiers reading this evidence cannot tell whether tests genuinely ran green. The same problem will recur if other packages copy this pattern.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/work-packages.yaml",
+      "line_range": [
+        140,
+        148
+      ],
+      "disposition": "fix",
+      "suggestion": "Replace the `.pytest_cache/` artifact with a real test report. Either emit JUnit XML (`pytest --junitxml=reports/renderer-tests.xml`) and list that path, or drop the `artifacts` entry entirely and rely on the `expect_exit_code: 0` + `result_keys` to encode test-pass evidence. Apply the same fix to any other package using `.pytest_cache/` as evidence."
+    },
+    {
+      "id": "r2-f9-blocked-on-comparator-target",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Spec scenario 'Block content reflects current coordinator state' specifies that the blocked-on suffix lists referenced task keys 'sorted in the same natural-numeric order as the main list', but contracts/README.md is silent on the order of the comma-separated keys in the blocked-on suffix. The spec and contract should agree explicitly. Without a pinned ordering rule, two implementations could emit `blocked on 2.1, 2.4a` vs `blocked on 2.4a, 2.1` and both pass the test for scenario .1's main-list ordering. Idempotency scenario .3 would then fail on diff-noise.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        89,
+        92
+      ],
+      "disposition": "fix",
+      "suggestion": "Add to the blocked-on bullet in contracts/README.md: 'Task keys in the blocked-on suffix SHALL be sorted using the same natural-numeric comparator defined above for the main list. Comma-space separated, no trailing comma.' Add an explicit assertion to test 2.4d that exercises a multi-dep case (e.g., depends_on = [2.4a, 2.1] should render `\u2014 blocked on 2.1, 2.4a`)."
+    }
+  ]
+}

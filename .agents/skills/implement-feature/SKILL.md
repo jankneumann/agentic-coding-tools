@@ -74,6 +74,26 @@ Tier: <tier> -- <rationale>
 
 If `CAN_HANDOFF=true`, read recent handoff context.
 
+### 0a. Seeding Retry on Empty Change-Id [all tiers]
+
+Per D11 of `add-coordinator-task-status-renderer`: at the very start of
+`/implement-feature`, query the coordinator for any issues bearing
+`change:<change-id>`. If the list is empty AND the coordinator is reachable,
+the seeder was either skipped at Gate 2 or its earlier run failed — invoke it
+now before claiming any work:
+
+```bash
+# Pseudocode — drop in coordination_bridge.try_issue_list to inspect.
+if coordinator_reachable and try_issue_list(labels=["change:<change-id>"]) is empty:
+    skills/.venv/bin/python skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <change-id>
+```
+
+This "seeding retry" path makes Gate 2 robust to transient coordinator outages:
+empty change-ids are auto-repaired at the first implementation step. The
+seeder is idempotent on `(change:<id>, task:<key>)`, so re-running is safe.
+Skip this step when the coordinator is genuinely unreachable; the renderer's
+stale-marker fallback still works and `/implement-feature` proceeds.
+
 ### 1. Verify Proposal Exists [all tiers]
 
 ```bash

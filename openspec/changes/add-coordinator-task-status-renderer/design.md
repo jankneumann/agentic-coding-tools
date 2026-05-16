@@ -30,8 +30,11 @@
                              ▼  (HTTPS)
                 ┌─────────────────────────────────┐
                 │ agent-coordinator HTTP API       │
-                │   GET /issues?labels=change:...  │
-                │   (existing endpoint)            │
+                │   POST /issues/list              │
+                │   body: {labels:["change:<id>"], │
+                │          limit:100}              │
+                │   (existing endpoint; bridge     │
+                │    abstracts the HTTP details)   │
                 └─────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -46,21 +49,38 @@
                              │
                              ▼  (write)
                 ┌─────────────────────────────────┐
-                │ coordinator: POST /work/submit   │
-                │ with issue_type=task, labels,    │
-                │ metadata.task_key, depends_on    │
+                │ coordinator: POST /issues/create │
+                │ with issue_type=task,            │
+                │ labels=[change:<id>,task:<key>], │
+                │ depends_on=[UUIDs]               │
                 └─────────────────────────────────┘
 ```
 
 The renderer never writes to the coordinator. The seeder never reads `tasks.md` apart from parsing it for task definitions to seed.
 
+## Invariants
+
+**Authoritative Source Of Truth (v1).** Hand-authored checkboxes OUTSIDE the managed block remain authoritative for downstream consumers (notably `/cleanup-feature`'s open-task scanner). The managed block is a strict projection of coordinator state and is informational/PR-review-display only. Implementers SHALL NOT mutate hand-authored checkboxes outside the managed block, and downstream consumers SHALL NOT consult the managed block for v1. The rendered block carries an inline HTML comment as its first line documenting this so anyone reading raw `tasks.md` finds the policy without leaving the file:
+
+```html
+<!-- Informational projection — see openspec/changes/<change-id>/proposal.md "What Doesn't Change" -->
+```
+
+Future-impl risk (TODO, deferred): when `/implement-feature` applies `wp:<id>` labels via `try_issue_update(labels=...)`, the bridge replaces the labels array wholesale rather than merging. An implementer adding only `wp:<id>` could erase `change:<id>` / `task:<key>` and break renderer lookup + seeder idempotency. Mitigation when wp-labeling lands: read-merge-write (fetch current labels, append `wp:<id>`, PUT the union). Tracked separately; not in v1 scope.
+
+Known limitation (accepted, v1): pre-commit auto-staging of the rendered `tasks.md` is a whole-file `git add`. A developer who used `git add -p` to partially stage `tasks.md` will have the unstaged hand-authored edits also staged by the hook. Standard practice for formatter-style hooks; `tasks.md` is rarely partially staged. Documented as a known sharp edge.
+
 ## Decisions
 
 ### D1: Reuse `<!-- GENERATED: begin/end <name> -->` markers from plan-roadmap renderer
 
-The repo already has a managed-block convention in `skills/plan-roadmap/scripts/renderer.py` with helpers `_gen_block()`, `_extract_generated_blocks()`, `_extract_human_sections()`. We import or duplicate (TBD by implementer) those helpers rather than inventing new marker syntax.
+The repo already has a managed-block convention in `skills/plan-roadmap/scripts/renderer.py`. The marker regexes (`_GEN_BEGIN_RE`, `_GEN_END_RE`) and the helpers `_gen_block()` and `_extract_generated_blocks()` are reusable in spirit but are module-private (underscore-prefixed) and not exported.
 
-**Why:** consistency across managed-block uses in the repo; the helpers are already tested; reviewers familiar with `plan-roadmap` recognize the pattern.
+**Decision:** the renderer SHALL duplicate the marker constants and the two helpers `_gen_block` and `_extract_generated_blocks` locally rather than reach into a private import. The cost is ~20 lines of duplicated code; the benefit is no cross-skill coupling on private symbols.
+
+**Specifically NOT reused:** `_extract_human_sections` from plan-roadmap is hardcoded to roadmap-specific section names (`## Cross-Cutting Themes`, `## Out of Scope`). It is unsuitable for `tasks.md`. The renderer SHALL implement its own "preserve everything outside markers" extraction as a simple two-piece split: `(prefix_before_begin_marker, suffix_after_end_marker)`. No section-awareness is needed because the renderer never touches content outside the markers.
+
+**Why:** consistency across managed-block uses in the repo; the marker syntax is unambiguous (`<!-- GENERATED: begin <name> -->`), and reviewers familiar with `plan-roadmap` recognize the pattern.
 
 **Block name:** `coordinator:tasks-status`. The colon distinguishes it from existing plan-roadmap block names without breaking the parser (markers match by full name string, not by prefix).
 
@@ -78,7 +98,7 @@ Issues exist in the coordinator from the moment the plan is approved. Alternativ
 - **Seed at `/implement-feature` start**: rejected because `tasks.md` between Gate 2 and implementation start would have no coordinator state to render — the renderer would show all stale markers during that window.
 - **Lazy on first reference**: rejected as too implicit; a renderer that silently mutates the coordinator on read is hard to reason about.
 
-The seeder is idempotent on `(change_id, task_key)`, so re-running Gate 2 (e.g., after a "Revise tasks" loop) does not create duplicates.
+The seeder is idempotent on `(change:<id>, task:<key>)` labels, so re-running Gate 2 (e.g., after a "Revise tasks" loop) does not create duplicates. Idempotency check: query `try_issue_list(labels=["change:<id>"])`, build the set of existing `task:<key>` labels, and only POST for task keys not already present.
 
 ### D4: Stale-marker fallback rather than silent skip or hard fail
 
@@ -94,7 +114,15 @@ It is visible in `tasks.md` and in PR diffs, surfacing the outage to reviewers w
 
 ### D5: Labels-based filtering rather than a dedicated `GET /issues/by-change/<id>` endpoint
 
-The existing `IssueService.list_issues(labels=["change:<id>"])` path is sufficient at OpenSpec scale (typically 10–30 tasks per change). A convenience endpoint would save a label-filter step on the client but adds API surface. Defer to a follow-up if the label-filter pattern becomes a hotspot.
+The existing `IssueService.list_issues(labels=["change:<id>"])` path is sufficient at OpenSpec v1 scale (typically 10–30 tasks per change, low total active-change count). A convenience endpoint would save a label-filter step on the client but adds API surface. Defer to a follow-up if the label-filter pattern becomes a hotspot.
+
+**Known limitation — read carefully:** `IssueService.list_issues` applies its labels filter **AFTER** PostgREST returns up to `limit` rows (see `agent-coordinator/src/issue_service.py:269-274`, post-filter loop). `MAX_PAGE_SIZE = 100`. This means:
+
+- If the coordinator holds >100 issues that pass the other filters (`task_type=eq.issue`, etc.) but only a few of them carry `change:<id>`, the change's tasks **can be dropped before the labels filter runs**.
+- Mitigation in v1: the renderer passes `limit=100` and operates at a scale where this is unlikely (single-digit active changes × ~10–30 tasks each = well below 100).
+- Follow-up: push the labels filter into the PostgREST query (`labels=cs.{change:...}`) or add the dedicated `/issues/by-change/<id>` endpoint mentioned above. Tracked in proposal "Out of Scope" as `query-issues-by-change-label-server-side`.
+
+The seeder's idempotency check has the same constraint — but seeding runs once at Gate 2 against a small population of just-created issues, so collisions are bounded.
 
 ### D6: Renderer is invoked per-change-id, not globally
 
@@ -102,9 +130,24 @@ Each hook invocation scopes the render to the specific change-id(s) whose `tasks
 
 **Why:** keeps the renderer single-purpose; lets hooks run multiple invocations in parallel if multiple change tasks.md files are staged in one commit.
 
-### D7: Seeding metadata includes `task_key` and `change_id`, not the tasks.md line number as a primary key
+### D7: Identity is carried by labels (`change:<id>`, `task:<key>`), not by `metadata.*`
 
-Line numbers in `tasks.md` are unstable across edits. The primary key for an issue in the coordinator is `(change_id, task_key)` — both human-readable, both stable. `metadata.tasks_md_anchor` may record the line number as a best-effort breadcrumb but the renderer SHALL NOT rely on it for correctness.
+Line numbers in `tasks.md` are unstable across edits, so they cannot serve as identity. The compound identity for an issue is the pair of labels `("change:<change-id>", "task:<task_key>")` — both human-readable, both stable, both queryable through the existing `try_issue_list(labels=...)` filter.
+
+**Why labels and not `metadata`:** The current `POST /issues/create` API (`IssueCreateRequest` at `agent-coordinator/src/coordination_api.py:90`) accepts only `title|description|issue_type|priority|labels|parent_id|assignee|depends_on`. There is no `metadata` field on the request, and the service derives `metadata` from `description` only. Adding a `metadata` write path would require:
+- Extending `IssueCreateRequest` with a `metadata` field
+- Extending `IssueService.create()` to merge incoming metadata into the JSONB write
+- Adding a `metadata` parameter to `coordination_bridge.try_issue_create`
+- A new metadata-filtering query path (JSONB containment) for idempotency lookup
+
+That is enough surface to warrant a separate proposal. Encoding `task:<key>` as a label uses the existing labels indexed GIN index and the existing label-filter idempotency path. The `tasks_md_anchor` breadcrumb is therefore deferred to a follow-up.
+
+**Reserved label namespaces** used by this change:
+- `change:<change-id>` — owns the change-id identity of the issue.
+- `task:<task_key>` — owns the per-change task identity.
+- `wp:<work-package-id>` — applied later by `/implement-feature`, not by the seeder.
+
+No other consumer in the repo currently uses the `task:` label prefix; this proposal claims it.
 
 ## Performance
 
@@ -113,8 +156,52 @@ Line numbers in `tasks.md` are unstable across edits. The primary key for an iss
 - Post-merge added latency: equal to renderer latency, only when a merge touched `tasks.md`.
 - Network failure path: short circuit at coordination-bridge timeout (~2s) into stale-marker write.
 
+### D8: Dependency-ordered single-pass seeding
+
+The spec requires `depends_on = [<UUIDs of issues for upstream tasks>]`. UUIDs are assigned on creation, so the seeder must know upstream UUIDs at the moment it POSTs a downstream issue. Two strategies were considered:
+
+- **Two-pass (POST all, then PATCH depends_on):** rejected because the current `POST /issues/update` API (`IssueUpdateRequest`) accepts only `title|description|status|priority|labels|assignee|issue_type` — there is **no** `depends_on` field on update. Adding one is out of scope.
+- **Single-pass in topological order:** the seeder parses all task `**Dependencies**:` annotations from `tasks.md`, builds a DAG, topologically sorts, then POSTs from root to leaf. Each POST can include the already-resolved upstream UUIDs in its `depends_on`. **Selected.**
+
+**Managed-block exclusion (parser invariant).** On re-seed of a `tasks.md` that already contains the renderer's managed block, the block itself will contain `- [ ]` / `- [x]` checkbox lines. The seeder SHALL split `tasks.md` on the `<!-- GENERATED: begin coordinator:tasks-status -->` / `<!-- GENERATED: end coordinator:tasks-status -->` markers and parse ONLY the hand-authored prefix and suffix. Lines inside the managed block SHALL be ignored to prevent duplicate task-key resolution and false-cycle reports. This is enforced by test 2.9b.
+
+The seeder SHALL fail loudly (exit 1) if the dependency graph parsed from `tasks.md` contains a cycle. Forward references to task keys that do not appear in the file SHALL be logged as warnings and dropped from `depends_on` (not fatal).
+
+**Two-phase ordering (MANDATORY).** The seeder SHALL run as two strictly ordered phases against the in-memory DAG: (1) parse `tasks.md` → build dep graph → run a complete cycle-detection pass; on cycle, log members and exit 1 BEFORE issuing any `try_issue_create` POST; (2) only after cycle absence is proven, topologically order and POST. Implementations using Kahn's algorithm SHALL verify that the topological sort produces all nodes before POSTing; DFS-based implementations SHALL complete cycle detection before the POST phase. No coordinator state SHALL be mutated until phase (1) succeeds.
+
+### D10: Status vocabulary — render off stored `issue.status`, not a friendly alias
+
+`Issue.to_dict()` returns the **stored** status, which is exactly one of `pending | claimed | running | completed | failed | cancelled` (see `agent-coordinator/src/issue_service.py:103-122`). The user-friendly aliases `open | in_progress | closed | all` are write-side conveniences in `STATUS_MAP` and `STATUS_WRITE_MAP`; they are not present on read responses.
+
+**Decision:** the renderer SHALL key its checkbox-tick rule and its status annotation on the stored status. The spec mandates `- [x]` iff `issue.status == "completed"`. No "friendly-status alias" lookup is performed. This avoids the contradiction in the previous draft where the spec said `closed` and the contract said `completed` while neither matched the actual response shape.
+
+**Why:** the alternative (rendering off a friendly alias) requires a mapping layer in the renderer that duplicates `STATUS_MAP` and adds a second source of truth. Keying off the stored status keeps the renderer trivially correct and matches what `coordination_bridge.try_issue_list` actually returns.
+
+### D11: Seeding-retry path at `/implement-feature` start
+
+If Gate 2 seeding silently no-ops because the coordinator was unreachable (D4), no later step re-attempts seeding. The renderer is read-only by design (D-architecture), so the empty managed block would persist with a stale marker indefinitely after the coordinator recovered.
+
+**Decision:** `/implement-feature` SHALL check `try_issue_list(labels=["change:<id>"])` as its first step. If the result is empty (and the coordinator is reachable — distinguish from coordinator-failure), `/implement-feature` SHALL invoke the seeder before claiming work. The seeder's idempotency (D3) makes this safe in the partial-success case where Gate 2 succeeded but post-Gate-2 state was lost.
+
+**Why this is the right hook point:** `/implement-feature` is the next phase that needs the coordinator state to exist, so retrying there is naturally aligned. Putting retry inside the renderer would violate the renderer's read-only invariant.
+
+**Test coverage:** spec scenario "Seeding retry at `/implement-feature` start" pins the behavior. The wp-plan-feature-integration package's test suite is widened to cover this path.
+
+### D9: Behavior when coordinator is unreachable AND markers are absent
+
+When the renderer is invoked against a `tasks.md` that has no managed-block markers and the coordinator HTTP call fails, the renderer SHALL append the managed-block markers to the end of the file with the stale-marker as the content, in a single write:
+
+```
+<!-- GENERATED: begin coordinator:tasks-status -->
+> Coordinator unreachable at <ISO-8601 timestamp> — status frozen.
+<!-- GENERATED: end coordinator:tasks-status -->
+```
+
+This guarantees the markers exist for the next successful invocation to repaint, even if the first run hit an outage.
+
 ## Open Questions
 
-1. **Should the renderer also surface `depends_on` chains in the block** (e.g., "T3: blocked on T2")? The spec includes it as part of the status annotation; the implementer may choose to defer this to a v2 if the basic checkbox + claimed_by view solves the immediate pain.
-2. **How are work-package labels (`wp:<id>`) reconciled with plan-time seeding** when work-packages.yaml isn't generated until `/plan-feature` Step 8 (after task seeding would naturally fire)? Resolution: defer wp-label assignment to `/implement-feature` start, which can PATCH labels via the issue_service. Seeder at Gate 2 only sets the `change:<id>` label.
+1. **`depends_on` chains in the rendered block** — RESOLVED in v1. The spec scenario "Block content reflects current coordinator state" now explicitly mandates a ` — blocked on <task_keys>` suffix when an issue's `depends_on` references uncompleted upstream issues. The contract specifies the rendering and the comparator. (Resolution: include in v1; previous draft incorrectly deferred this.)
+2. **How are work-package labels (`wp:<id>`) reconciled with plan-time seeding** when work-packages.yaml isn't generated until `/plan-feature` Step 8 (after task seeding would naturally fire)? Resolution: defer wp-label assignment to `/implement-feature` start, which can PATCH labels via `try_issue_update(labels=...)`. Seeder at Gate 2 only sets the `change:<id>` and `task:<key>` labels. (Note: `try_issue_update` does support label updates — see `coordination_bridge.py:976`.)
 3. **Should the renderer write to a `.skip-render` sentinel** to suppress the next hook fire (escape valve for emergencies)? Not in v1; revisit if a real need surfaces.
+4. **Should the renderer block work-tree state outside `tasks.md`?** No. The renderer SHALL only read+write `openspec/changes/<change-id>/tasks.md`. It SHALL NOT touch the index, other files, or git state. Auto-staging is the *hook's* responsibility (D2), not the renderer's.

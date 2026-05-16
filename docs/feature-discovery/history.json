@@ -1,11 +1,41 @@
 {
-  "updated_at": "2026-04-14T00:00:00Z",
+  "updated_at": "2026-05-15T00:00:00Z",
   "recommendations": [
+    {
+      "opportunity_id": "execute-add-coordinator-task-status-renderer",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "recommended",
+      "reason": "TOP PICK. Proposal planned 2026-05-14 (one day before this exploration). Pain ('tasks.md checkbox drift, lost reviewer trust') is the freshest, most concrete user-facing UX pain in the signal field. S effort, all infra exists, ~250 LOC. Recommend execution rather than inventing a new proposal."
+    },
+    {
+      "opportunity_id": "add-why-am-i-blocked-skill",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "recommended",
+      "reason": "Operator-side complement to task-status-renderer. One-command 'why is this feature stuck?' that aggregates locks + work-queue + approvals + artifacts + worktree state. Directly applies the attention-bottleneck framing the factory-missions work just codified."
+    },
+    {
+      "opportunity_id": "add-coordinator-glance-page",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "promoted",
+      "reason": "Collapses the April 3-step visualization stack (SSE + TUI + web dashboard + Tauri) into one minimal HTML page served by FastAPI. Strategically supersedes add-agent-state-stream + add-agent-state-tui + add-coordinator-web-dashboard as a NEAR-TERM move; those remain follow-ons."
+    },
+    {
+      "opportunity_id": "add-find-skill-palette",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "deferred",
+      "reason": "New /find-skill fuzzy-search across the 80+ skill catalog. Worth doing but lower urgency than the two top picks."
+    },
+    {
+      "opportunity_id": "add-handoff-summary-skill",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "deferred",
+      "reason": "Structured pre-compact handoff renderer. Composes with session-bootstrap (actively iterated). Promote only if /why-am-i-blocked ships and compact-quality pain re-emerges."
+    },
     {
       "opportunity_id": "add-agent-state-stream",
       "recommended_at": "2026-04-14T00:00:00Z",
-      "status": "recommended",
-      "reason": "SSE feed aggregating agent/lock/work/approval state. Prerequisite for every visualization surface (TUI, web, Tauri, menu bar). Top pick for agent-visualization focus."
+      "status": "superseded",
+      "reason": "Superseded as a near-term move by add-coordinator-glance-page (polling instead of streaming). Re-rank to recommended if glance-page polling proves too chatty."
     },
     {
       "opportunity_id": "add-worktree-registry-aggregator",

@@ -117,6 +117,7 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
 |---|---|---|
 | · `worktree` | Worktree lifecycle: setup, teardown, heartbeat, pin, GC, merge | Internal |
 | · `coordination-bridge` | HTTP fallback bridge for coordinator when MCP transport is unavailable | Internal |
+| · `coordinator-task-status-renderer` | Render and seed the coordinator-owned task-status block in OpenSpec `tasks.md` (invoked by `.githooks/pre-commit`, `.githooks/post-merge`, and `/plan-feature` Gate 2) | Internal |
 | · `parallel-infrastructure` | Shared parallel execution: DAG scheduling, review dispatch, consensus synthesis, scope checking | Internal |
 | · `validate-packages` | Validation scripts for work packages, parallel zones, and work results | Internal |
 | · `validate-flows` | Architecture flow validation for cross-layer interactions | Internal |

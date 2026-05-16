@@ -5,7 +5,8 @@
 # Chain order:
 #   1. pre-commit.old (home-path leak detection)
 #   2. ruff import sorting (auto-fix staged Python files)
-#   (beads sync removed — issues now tracked in coordinator)
+#   3. coordinator task-status renderer (refresh openspec/changes/<id>/tasks.md
+#      managed block when tasks.md is staged)
 
 # --- 1. Run existing hook first ---
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,13 +18,14 @@ if [ -x "$HOOK_DIR/pre-commit.old" ]; then
     fi
 fi
 
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
 # --- 2. Auto-fix ruff import sorting on staged Python files ---
 # Find staged .py files (Added, Copied, Modified, Renamed)
 STAGED_PY=$(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
 if [ -n "$STAGED_PY" ]; then
     # Try ruff from known venv locations, then PATH
     RUFF=""
-    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     for candidate in \
         "$REPO_ROOT/agent-coordinator/.venv/bin/ruff" \
         "$REPO_ROOT/skills/.venv/bin/ruff"; do
@@ -40,6 +42,62 @@ if [ -n "$STAGED_PY" ]; then
         # Auto-fix import sorting in-place, then re-stage
         echo "$STAGED_PY" | xargs "$RUFF" check --select I --fix --quiet 2>/dev/null
         echo "$STAGED_PY" | xargs git add 2>/dev/null
+    fi
+fi
+
+# --- 3. Coordinator task-status renderer ---
+# When openspec/changes/<id>/tasks.md is staged, invoke the renderer to refresh
+# the coordinator-managed block, then re-stage the rewritten file. Renderer
+# failures are non-blocking: log a warning and let the commit proceed without
+# re-staging that file.
+#
+# Renderer-path resolution (see contracts/README.md "Hook Contract"):
+#   1. $COORDINATOR_TASK_STATUS_RENDERER (test seam / emergency override)
+#   2. <repo-root>/skills/coordinator-task-status-renderer/scripts/render_tasks_status.py
+STAGED_TASKS=$(git diff --cached --name-only --diff-filter=ACMR \
+    | grep -E '^openspec/changes/[^/]+/tasks\.md$' || true)
+if [ -n "$STAGED_TASKS" ]; then
+    RENDERER="${COORDINATOR_TASK_STATUS_RENDERER:-$REPO_ROOT/skills/coordinator-task-status-renderer/scripts/render_tasks_status.py}"
+    if [ ! -e "$RENDERER" ]; then
+        echo "[pre-commit] renderer not found at $RENDERER; skipping tasks.md refresh" >&2
+    else
+        # Pick a python: stub may be a shell script (run directly) or .py.
+        case "$RENDERER" in
+            *.py)
+                PYTHON_BIN=""
+                for candidate in \
+                    "$REPO_ROOT/skills/.venv/bin/python" \
+                    "$REPO_ROOT/agent-coordinator/.venv/bin/python"; do
+                    if [ -x "$candidate" ]; then
+                        PYTHON_BIN="$candidate"
+                        break
+                    fi
+                done
+                if [ -z "$PYTHON_BIN" ] && command -v python3 >/dev/null 2>&1; then
+                    PYTHON_BIN="python3"
+                fi
+                RENDER_CMD="$PYTHON_BIN $RENDERER"
+                ;;
+            *)
+                RENDER_CMD="$RENDERER"
+                ;;
+        esac
+        echo "$STAGED_TASKS" | while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            # Extract <change-id> from openspec/changes/<change-id>/tasks.md
+            change_id=$(echo "$path" | sed -E 's|^openspec/changes/([^/]+)/tasks\.md$|\1|')
+            if [ -z "$change_id" ] || [ "$change_id" = "$path" ]; then
+                continue
+            fi
+            # shellcheck disable=SC2086
+            $RENDER_CMD "$change_id"
+            RC=$?
+            if [ $RC -eq 0 ]; then
+                git add "$path" 2>/dev/null
+            else
+                echo "[pre-commit] renderer failed for $change_id (exit=$RC); skipping re-stage" >&2
+            fi
+        done
     fi
 fi
 
