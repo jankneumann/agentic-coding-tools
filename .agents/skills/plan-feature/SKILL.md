@@ -659,6 +659,21 @@ Use **AskUserQuestion** to request final approval with these options:
 - "Revise approach" (description: "Go back to approach selection with different options")
 - "Reject -- start over" (description: "Discard this proposal and start fresh")
 
+**On Approve -- seed coordinator issues (D3):**
+
+After the user selects "Approve -- proceed to implementation", invoke the
+seeder to create coordinator issues for every hand-authored task in `tasks.md`:
+
+```bash
+skills/.venv/bin/python skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <change-id>
+```
+
+The seeder is idempotent on the `(change:<id>, task:<key>)` label pair
+(per D3 / D7): re-runs after partial seeding only POST new tasks and skip any
+that already carry the matching `task:<key>` label. If the coordinator is
+unreachable, the seeder logs a warning and exits 0 — Gate 2 still completes,
+and `/implement-feature` retries seeding on its first invocation per D11.
+
 If `CAN_HANDOFF=true`, write completion handoff.
 
 **STOP HERE -- Wait for approval before proceeding to implementation.**
