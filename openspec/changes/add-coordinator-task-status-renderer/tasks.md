@@ -88,7 +88,7 @@
   **Dependencies**: 2.6
   **Size**: XS
 
-- [ ] 2.8 Write test: seeder POSTs correct labels and metadata per task
+- [ ] 2.8 Write test: seeder POSTs correct labels and issue fields per task AND explicitly asserts that no `metadata` field is passed to `try_issue_create` (per D7 — `IssueCreateRequest` does not accept metadata; identity lives in the `task:<key>` label)
   **Spec scenarios**: coordinator-task-status-renderer.7 (issues created)
   **Contracts**: contracts/README.md (seeder CLI)
   **Dependencies**: 1.4
@@ -100,9 +100,15 @@
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 2.9a Write test: seeder topologically orders POSTs by `**Dependencies**:` and aborts with exit 1 on cycle
+- [ ] 2.9a Write test: seeder topologically orders POSTs by `**Dependencies**:` and aborts with exit 1 on cycle. Test SHALL also assert that on cycle, **zero** `try_issue_create` calls are issued (cycle detection precedes the POST phase, per D8 two-phase ordering)
   **Spec scenarios**: "Seeding aborts on dependency cycle"
   **Design decisions**: D8
+  **Dependencies**: 1.4
+  **Size**: S
+
+- [ ] 2.9b Write test: seeder ignores content inside the renderer's managed block. Fixture: a `tasks.md` whose hand-authored prefix defines tasks `T1, T2` AND whose managed block (between `<!-- GENERATED: begin coordinator:tasks-status -->` / `end` markers) contains `- [ ] T1: ...` and `- [ ] T3: ...` checkbox lines. Assert the seeder parses ONLY `T1, T2` from the hand-authored region, ignores `T3` from inside the block, and never reports `T1` as duplicate
+  **Spec scenarios**: coordinator-task-status-renderer.8 (idempotency on re-seed)
+  **Design decisions**: D8 managed-block exclusion
   **Dependencies**: 1.4
   **Size**: S
 
@@ -113,7 +119,7 @@
   **Size**: S
 
 - [ ] 2.11 Checkpoint: confirm seeder tests RED
-  **Dependencies**: 2.8, 2.9, 2.9a, 2.10
+  **Dependencies**: 2.8, 2.9, 2.9a, 2.9b, 2.10
 
 - [ ] 2.12 Implement `skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py` using `try_issue_create` (per contracts/README — POSTs `labels=["change:<id>", "task:<key>"]` plus `depends_on=[UUIDs]`; does NOT pass `metadata` because `IssueCreateRequest` does not accept it; topological order per D8)
   **Spec scenarios**: coordinator-task-status-renderer.7, .8, .9, "Seeding aborts on dependency cycle"
@@ -121,7 +127,7 @@
   **Dependencies**: 2.11
   **Size**: M
 
-- [ ] 2.13 Confirm tests 2.8–2.9a, 2.10 are GREEN
+- [ ] 2.13 Confirm tests 2.8–2.9b, 2.10 are GREEN
   **Dependencies**: 2.12
   **Size**: XS
 

@@ -25,6 +25,7 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 **AND** when an issue's `depends_on` contains UUIDs whose referenced issues are not yet `completed`, the rendered line SHALL be suffixed with ` — blocked on <comma-separated-task_keys>`, with task_keys read from the `task:<key>` label of each referenced issue and sorted in the same natural-numeric order as the main list
 **AND** lines SHALL be sorted by task key using the natural-numeric comparator defined in `contracts/README.md` (handles dotted, alphanumeric-suffixed, and letter-prefixed keys deterministically)
 **AND** issues lacking a `task:<task_key>` label SHALL be skipped and a single-line warning per skipped issue SHALL be written to stderr
+**AND** if the `try_issue_list` response contains exactly 100 results (the `MAX_PAGE_SIZE` cap), the renderer SHALL exit 1 with a hard ERROR rather than silently rendering a possibly-truncated set (the same guard applies to the seeder; see contracts/README.md). Coordinator pagination is tracked as the follow-up `query-issues-by-change-label-server-side`.
 
 #### Scenario: Hand-authored content outside the block is preserved
 
@@ -37,6 +38,15 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 **WHEN** the renderer runs twice against the same change-id with no intervening coordinator state changes
 **THEN** the second invocation SHALL produce a file byte-identical to the first invocation's output
 **AND** `git diff` SHALL show no changes after the second invocation
+
+Two-tier idempotency: (a) **Coordinator reachable** — full byte-identity idempotency across invocations as above. (b) **Coordinator unreachable (stale-marker path)** — the renderer SHALL persist the last stale-marker timestamp in a sidecar `openspec/changes/<change-id>/.tasks-status.state.json` keyed by change-id. While the coordinator remains unreachable, subsequent invocations SHALL reuse the persisted timestamp (keeping the rendered block byte-identical). A successful coordinator response on a later invocation SHALL clear the sidecar's stale-state entry so the next outage starts a fresh staleness window. The sidecar SHALL NOT be committed (added to `.gitignore` via the install step).
+
+#### Scenario: Managed block is a strict projection — downstream scanners ignore it
+
+**WHEN** `/cleanup-feature`'s open-task scanner (or any other downstream consumer) scans `openspec/changes/<change-id>/tasks.md` for unchecked GFM checkboxes in v1
+**THEN** it SHALL read ONLY hand-authored checkboxes outside the managed block (the prefix above `<!-- GENERATED: begin coordinator:tasks-status -->` and the suffix below `<!-- GENERATED: end coordinator:tasks-status -->`)
+**AND** SHALL NOT treat checkboxes inside the managed block as authoritative for "open tasks" determination
+**AND** the rendered managed block SHALL begin with the inline HTML-comment line `<!-- Informational projection — see openspec/changes/<change-id>/proposal.md "What Doesn't Change" -->` (immediately after the `begin` marker, before any rendered checkbox lines) to document this policy in-file
 
 #### Scenario: Managed-block markers absent — renderer inserts them
 
@@ -57,7 +67,7 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 
 When the coordinator API cannot be reached, the renderer SHALL replace the managed block with an explicit stale-marker rather than blocking the calling operation or leaving the previous block unchanged.
 
-The renderer SHALL impose a maximum wall-clock time of 5 seconds (configurable via `--timeout-seconds`) on its coordinator call. On timeout, the renderer SHALL treat the result as a coordinator failure and follow the stale-marker fallback path. The timeout is enforced by the renderer wrapping its `coordination_bridge.try_issue_list` call in `concurrent.futures` or by passing a timeout argument if the bridge supports one.
+The renderer SHALL impose a maximum wall-clock time of 5 seconds (configurable via `--timeout-seconds`) on its coordinator call. On timeout, the renderer SHALL treat the result as a coordinator failure and follow the stale-marker fallback path. The timeout SHALL be enforced **at the renderer layer** by wrapping the `coordination_bridge.try_issue_list` call in `concurrent.futures.ThreadPoolExecutor.submit(...).result(timeout=N)` (or equivalent — e.g., `signal.alarm(N)` on POSIX). The renderer MUST NOT rely on the bridge's internal `COORDINATION_HTTP_TIMEOUT` envelope, which defaults to a shorter value and would silently shorten an operator-supplied `--timeout-seconds 30`. The stale-marker fallback path SHALL be triggered by either a bridge-side failure response OR a renderer-level timeout.
 
 #### Scenario: Coordinator HTTP call fails — block shows stale marker
 
@@ -153,9 +163,10 @@ The seeding step SHALL be idempotent: re-invoking it for the same change-id SHAL
 #### Scenario: Seeding aborts on dependency cycle
 
 **WHEN** `/plan-feature` invokes the seeder against a `tasks.md` whose `**Dependencies**:` annotations form a cycle (e.g., T1 depends on T2 and T2 depends on T1)
-**THEN** the seeder SHALL exit with status 1
+**THEN** the seeder SHALL run cycle detection over the in-memory dependency graph as a preflight BEFORE issuing any `try_issue_create` POST
+**AND** the seeder SHALL exit with status 1
 **AND** SHALL log a single-line error to stderr identifying the cycle members
-**AND** SHALL NOT create any coordinator issues for the change-id in that invocation
+**AND** SHALL NOT create any coordinator issues for the change-id in that invocation (cycle detection precedes the POST phase, so partial seeding is impossible even for the acyclic prefix of the graph)
 
 #### Scenario: Coordinator unreachable at Gate 2 — seeding is non-blocking
 

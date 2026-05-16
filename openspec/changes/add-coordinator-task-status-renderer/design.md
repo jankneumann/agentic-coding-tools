@@ -58,6 +58,18 @@
 
 The renderer never writes to the coordinator. The seeder never reads `tasks.md` apart from parsing it for task definitions to seed.
 
+## Invariants
+
+**Authoritative Source Of Truth (v1).** Hand-authored checkboxes OUTSIDE the managed block remain authoritative for downstream consumers (notably `/cleanup-feature`'s open-task scanner). The managed block is a strict projection of coordinator state and is informational/PR-review-display only. Implementers SHALL NOT mutate hand-authored checkboxes outside the managed block, and downstream consumers SHALL NOT consult the managed block for v1. The rendered block carries an inline HTML comment as its first line documenting this so anyone reading raw `tasks.md` finds the policy without leaving the file:
+
+```html
+<!-- Informational projection — see openspec/changes/<change-id>/proposal.md "What Doesn't Change" -->
+```
+
+Future-impl risk (TODO, deferred): when `/implement-feature` applies `wp:<id>` labels via `try_issue_update(labels=...)`, the bridge replaces the labels array wholesale rather than merging. An implementer adding only `wp:<id>` could erase `change:<id>` / `task:<key>` and break renderer lookup + seeder idempotency. Mitigation when wp-labeling lands: read-merge-write (fetch current labels, append `wp:<id>`, PUT the union). Tracked separately; not in v1 scope.
+
+Known limitation (accepted, v1): pre-commit auto-staging of the rendered `tasks.md` is a whole-file `git add`. A developer who used `git add -p` to partially stage `tasks.md` will have the unstaged hand-authored edits also staged by the hook. Standard practice for formatter-style hooks; `tasks.md` is rarely partially staged. Documented as a known sharp edge.
+
 ## Decisions
 
 ### D1: Reuse `<!-- GENERATED: begin/end <name> -->` markers from plan-roadmap renderer
@@ -151,7 +163,11 @@ The spec requires `depends_on = [<UUIDs of issues for upstream tasks>]`. UUIDs a
 - **Two-pass (POST all, then PATCH depends_on):** rejected because the current `POST /issues/update` API (`IssueUpdateRequest`) accepts only `title|description|status|priority|labels|assignee|issue_type` — there is **no** `depends_on` field on update. Adding one is out of scope.
 - **Single-pass in topological order:** the seeder parses all task `**Dependencies**:` annotations from `tasks.md`, builds a DAG, topologically sorts, then POSTs from root to leaf. Each POST can include the already-resolved upstream UUIDs in its `depends_on`. **Selected.**
 
+**Managed-block exclusion (parser invariant).** On re-seed of a `tasks.md` that already contains the renderer's managed block, the block itself will contain `- [ ]` / `- [x]` checkbox lines. The seeder SHALL split `tasks.md` on the `<!-- GENERATED: begin coordinator:tasks-status -->` / `<!-- GENERATED: end coordinator:tasks-status -->` markers and parse ONLY the hand-authored prefix and suffix. Lines inside the managed block SHALL be ignored to prevent duplicate task-key resolution and false-cycle reports. This is enforced by test 2.9b.
+
 The seeder SHALL fail loudly (exit 1) if the dependency graph parsed from `tasks.md` contains a cycle. Forward references to task keys that do not appear in the file SHALL be logged as warnings and dropped from `depends_on` (not fatal).
+
+**Two-phase ordering (MANDATORY).** The seeder SHALL run as two strictly ordered phases against the in-memory DAG: (1) parse `tasks.md` → build dep graph → run a complete cycle-detection pass; on cycle, log members and exit 1 BEFORE issuing any `try_issue_create` POST; (2) only after cycle absence is proven, topologically order and POST. Implementations using Kahn's algorithm SHALL verify that the topological sort produces all nodes before POSTing; DFS-based implementations SHALL complete cycle detection before the POST phase. No coordinator state SHALL be mutated until phase (1) succeeds.
 
 ### D10: Status vocabulary — render off stored `issue.status`, not a friendly alias
 
