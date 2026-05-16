@@ -121,6 +121,10 @@ Implementation planning should therefore:
 - Preserve logical archetypes while resolving provider-specific model IDs for the selected provider.
 - Include a manual end-to-end CLI smoke path that can be run from a specific agent CLI to prove `/autopilot` works in that runtime.
 
+### Gate 2 Approval
+
+The operator approved this plan for implementation. The operator also noted that the Gemini model names in the design were updated to match the latest models available via the API, and implementation should preserve those configured model IDs unless a later source check proves they changed again.
+
 ## Conflict Notes
 
 - `factory-missions-architecture-alignment` already includes worker/validator vendor diversity work in `review_dispatcher.py`. This proposal should build on that policy, not duplicate it.
