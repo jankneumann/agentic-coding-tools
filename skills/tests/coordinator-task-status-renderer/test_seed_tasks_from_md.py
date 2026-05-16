@@ -208,6 +208,15 @@ def test_seeder_topologically_orders_three_node_chain(tmp_path, fake_bridge):
     assert posted == ["task:1.1", "task:1.2", "task:1.3"]
 
 
+def test_seeder_rejects_path_traversal_change_id(tmp_path, fake_bridge):
+    """change-ids that could escape openspec/changes/<id>/ MUST be rejected."""
+    fb = fake_bridge()
+    for bad in ["../../etc/passwd", "../escape", "abc/def", ".hidden", ""]:
+        assert s.seed(bad, tmp_path) == 1, f"must reject {bad!r}"
+    assert fb.list_calls == []
+    assert fb.create_calls == []
+
+
 def test_forward_ref_to_unknown_key_is_warned_not_fatal(tmp_path, fake_bridge):
     md = (
         "# Tasks\n\n"
