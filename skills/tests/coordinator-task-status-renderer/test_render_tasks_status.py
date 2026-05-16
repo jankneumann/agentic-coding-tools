@@ -39,7 +39,7 @@ def _issue(
         "id": issue_id,
         "title": title,
         "status": status,
-        "labels": [f"change:demo", f"task:{task_key}"],
+        "labels": ["change:demo", f"task:{task_key}"],
     }
     if assignee is not None:
         issue["assignee"] = assignee
