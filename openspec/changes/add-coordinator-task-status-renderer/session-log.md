@@ -48,3 +48,49 @@
 ### Context
 Planned a coordinator-owned managed block in tasks.md that renders task status (checkboxes, claimed_by, completion timestamps) from coordinator-recorded issues. The renderer is invoked by pre-commit and post-merge hooks, falls back to a stale marker on coordinator failure, and is seeded by /plan-feature Gate 2 approval. No new coordinator schema; reuses existing managed-block helpers from plan-roadmap and HTTP helpers from coordination-bridge.
 
+---
+
+## Phase: Implement / Review / Validate (2026-05-14 — 2026-05-16, autopilot loop)
+
+**Agent**: claude_code (autopilot) | **Session**: see loop-state.json
+
+### Decisions
+1. **All 5 work packages executed cleanly through the autopilot DAG** — Phase-by-phase decisions are captured in `loop-state.json` (current_phase=DONE) and the per-phase review reports under `reviews/`. wp-contracts ran first; wp-renderer-skill, wp-plan-feature-integration, and wp-hooks ran in parallel after it; wp-integration converged.
+2. **Two Codex P1/P2 findings on the final PR (#166) were addressed in-merge rather than as a follow-up** — Both turned out to be real correctness bugs in seeder + renderer code, and the merge skill's pattern is to fix in-session when scope is isolated. Detailed rationale in the 2026-05-16 merge log (docs/merge-logs/2026-05-16.md).
+
+### Alternatives Considered
+- Land the merge with Codex findings open + file follow-up issues: rejected because the findings were correctness bugs (silent data loss + duplicate-key clobbering), not nits — shipping would have landed a known regression.
+
+### Trade-offs
+- Accepted two additional fix commits on the PR branch over a single squash because openspec PRs use rebase-merge to preserve per-commit blame, and the two fixes were genuinely independent (seeder pagination tristate; renderer tie-break).
+
+### Open Questions
+- [ ] None remaining for this change. The two open questions from the Plan phase (depends_on chains in v1; .skip-render sentinel) were intentionally deferred to a future iteration if real demand surfaces.
+
+### Context
+Implementation, review, and validation work for this change ran inside the autopilot loop with per-phase artifacts saved into `loop-state.json`, `reviews/`, and `handoffs/`. This Cleanup-phase entry cross-references those rather than restating them in full. The merge itself (PR #166, rebase-merge, commit 7a4bdace) was executed during the 2026-05-16 merge-pull-requests session and is documented in `docs/merge-logs/2026-05-16.md`.
+
+---
+
+## Phase: Cleanup (2026-05-16)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Skip task migration — all tasks already checked** — `tasks.md` scan returned zero unchecked items, so no coordinator issues or follow-up proposal need to be created. Migration Notes annotation in `tasks.md` is therefore unnecessary.
+2. **Staged rollout (skill Step 5d) and Pre-launch checklist (Step 5c) recorded as N/A** — This change ships a dev-tooling renderer (managed block in tasks.md), a pre-commit + post-merge git hook, and /plan-feature Gate 2 wiring. There is no production traffic to shift, no feature flag, and no error-rate baseline to compare against. The skill's rollout sections were authored for customer-facing features; documenting N/A explicitly so the Verification check 1 in the skill is satisfied rather than silently skipped.
+3. **Rebase-merge strategy (already applied during merge) was correct for this PR** — Per the OpenSpec merge contract, the 5 wp-* commits + 2 P1/P2 fix commits all retained individual git blame attribution on main. A squash would have lost the work-package boundary structure.
+4. **Coordinator feature-registry mark_merged step is skipped** — No register_feature call appears in the session history for this change. There is no registry record to mark merged; this matches the local-profile API key limitation captured in memory `project_coordinator_api_key_permissions.md` and is not a cleanup failure.
+
+### Alternatives Considered
+- Run `make architecture` inside the cleanup worktree: deferred to a post-cleanup run from the shared checkout. The artifact is project-global and would be discarded with the cleanup branch teardown.
+
+### Trade-offs
+- Accepted formal "N/A" entries in the session log over deleting the rollout/checklist scaffolding because the skill's Verification step explicitly looks for the section — silent omission would fail the auditor; explicit N/A with rationale passes.
+
+### Open Questions
+- [ ] None. The change is fully merged and archived.
+
+### Context
+Cleanup operations: confirmed PR #166 already merged (commit 7a4bdace), no open tasks to migrate, archived OpenSpec change via `openspec archive`, validated repository integrity via `openspec validate --strict`, deleted the local + remote feature branch `openspec/add-coordinator-task-status-renderer`, and tore down the cleanup worktree. The pre-merge validation gate (skill Step 2.5a) is moot here because the merge happened in a prior session.
+
