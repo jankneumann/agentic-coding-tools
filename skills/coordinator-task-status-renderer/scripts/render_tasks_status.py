@@ -258,21 +258,20 @@ def _render_block_content(
     by_uuid: dict[str, dict[str, Any]] = {
         i["id"]: i for i in issues if i.get("id")
     }
-    rendered: list[tuple[str, str]] = []
+    # Carry the UUID alongside each rendered row so the stable
+    # tie-breaker survives duplicate task_keys (a dict keyed by
+    # task_key would let the last issue's UUID overwrite earlier
+    # ones, making sort order depend on input order).
+    rendered: list[tuple[str, str, str]] = []
     for issue in issues:
         line = _render_issue_line(issue, by_uuid)
         if line is None:
             continue
         key = _extract_task_key(issue) or ""
-        rendered.append((key, line))
-    # Stable tie-breaker on UUID
-    by_uuid_for_tie = {
-        _extract_task_key(i) or "": (i.get("id") or "") for i in issues
-    }
-    rendered.sort(
-        key=lambda kv: (_key_sort_key(kv[0]), by_uuid_for_tie.get(kv[0], ""))
-    )
-    for _, line in rendered:
+        uuid = str(issue.get("id") or "")
+        rendered.append((key, uuid, line))
+    rendered.sort(key=lambda row: (_key_sort_key(row[0]), row[1]))
+    for _, _, line in rendered:
         lines.append(line)
     return "\n".join(lines)
 
