@@ -101,7 +101,17 @@ packages:
               - "openspec_validate_exit_code"
         - name: "validate-json-schemas"
           kind: "command"
-          command: "skills/.venv/bin/python -m jsonschema --instance /dev/null openspec/changes/add-coordinator-kanban-viz/contracts/schemas/saved-view.json || true"
+          # Verify every schema under contracts/schemas/** is itself a valid
+          # JSON Schema (Draft 2020-12). check_schema raises on a malformed
+          # schema. Fails fast if no schemas were authored. No `|| true`.
+          command: >
+            skills/.venv/bin/python -c "import json, pathlib, sys;
+            from jsonschema import Draft202012Validator;
+            root = pathlib.Path('openspec/changes/add-coordinator-kanban-viz/contracts/schemas');
+            schemas = sorted(root.rglob('*.json'));
+            assert schemas, f'no schemas authored under {root}';
+            [Draft202012Validator.check_schema(json.loads(p.read_text(encoding='utf-8'))) for p in schemas];
+            print(f'validated {len(schemas)} schema(s)')"
           expect_exit_code: 0
           evidence:
             artifacts: []
@@ -119,14 +129,16 @@ packages:
     title: "Implement /sync-points/status, /worktrees/active, and /events/work SSE on coordinator"
     task_type: implement
     description: |
-      Adds three new endpoints to agent-coordinator/src/coordination_api.py:
+      Adds four new endpoints to agent-coordinator/src/coordination_api.py:
         - GET /sync-points/status (reuses shared.check_no_active_agents)
         - GET /worktrees/active (projects .git-worktrees/.registry.json)
-        - GET /events/work (SSE; sse-starlette; binds to Postgres LISTEN)
+        - POST /events/auth (mints short-lived single-use JWT for SSE)
+        - GET /events/work (SSE; sse-starlette; binds to Postgres LISTEN;
+          validates JWT from query string, redacts token= from access logs)
       Adds NOTIFY emission to IssueService.update_status and
       AuditService.append. Adds backpressure coalescing to SSE handler.
       Tests under skills/tests/agent-coordinator/.
-      Covers tasks 2.1–2.14.
+      Covers tasks 2.1–2.15.
       Spec scenarios: "New Coordinator Endpoint — Sync-Point Status" (all),
                        "...Worktree Active Projection" (all),
                        "...Work Event Stream (SSE)" (all),

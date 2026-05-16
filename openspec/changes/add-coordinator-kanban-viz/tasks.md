@@ -75,8 +75,18 @@
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.8 Checkpoint: confirm tests 2.1–2.7 RED
-  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7
+- [ ] 2.7a Write test: `POST /events/auth` mints a JWT with `aud=events`, `exp` within `ttl=300s`, fresh `nonce`, requires `Authorization: Bearer` header
+  **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake"
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.7b Write test: `GET /events/work` rejects requests with missing / expired / wrong-aud / replayed-nonce / change_ids-mismatched JWT (401, stream not opened); access log captures the request line with `token=` redacted
+  **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake", "Token-in-URL mitigations"
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.8 Checkpoint: confirm tests 2.1–2.7b RED
+  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b
 
 - [ ] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` reusing `shared.check_no_active_agents()`
   **Spec scenarios**: "...Sync-Point Status" (all)
@@ -89,24 +99,30 @@
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.11 Implement `GET /events/work` SSE handler with Postgres `LISTEN` binding (use `sse-starlette` or equivalent)
-  **Spec scenarios**: "...Work Event Stream (SSE)" (all)
+- [ ] 2.11 Implement `POST /events/auth` JWT-mint endpoint (header-authenticated; short-lived single-use token bound to `aud=events`, `change_ids`, server-stored `nonce`)
+  **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake"
   **Design decisions**: D2
   **Dependencies**: 2.8
+  **Size**: M
+
+- [ ] 2.12 Implement `GET /events/work` SSE handler with Postgres `LISTEN` binding (use `sse-starlette` or equivalent); validate JWT from query string, redact `token=` from access logs, reject on signature/nonce/exp/aud mismatch
+  **Spec scenarios**: "...Work Event Stream (SSE)" (all)
+  **Design decisions**: D2
+  **Dependencies**: 2.8, 2.11
   **Size**: L
 
-- [ ] 2.12 Add NOTIFY emission to `IssueService.update_status` and `AuditService.append`
+- [ ] 2.13 Add NOTIFY emission to `IssueService.update_status` and `AuditService.append`
   **Spec scenarios**: "NOTIFY emission is wired into existing transaction paths"
   **Dependencies**: 2.8
   **Size**: M
 
-- [ ] 2.13 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
+- [ ] 2.14 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
   **Spec scenarios**: "Backpressure coalesces excessive events"
-  **Dependencies**: 2.11
+  **Dependencies**: 2.12
   **Size**: M
 
-- [ ] 2.14 Confirm tests 2.1–2.7 GREEN
-  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13
+- [ ] 2.15 Confirm tests 2.1–2.7 GREEN
+  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.14
   **Size**: XS
 
 ## Phase 3 — Frontend skeleton (wp-frontend-skeleton)
@@ -149,10 +165,10 @@
   **Dependencies**: 3.7
   **Size**: M
 
-- [ ] 3.9 Implement `useCoordinator()` hook that fetches `GET /issues?labels=...` and subscribes to `GET /events/work`
+- [ ] 3.9 Implement `useCoordinator()` hook that fetches `GET /issues?labels=...`, mints an SSE token via `POST /events/auth`, and subscribes to `GET /events/work?token=...`
   **Spec scenarios**: "Status transition propagates within 200ms", "Polling fallback engages on EventSource failure"
   **Design decisions**: D2
-  **Dependencies**: 3.8, 2.14
+  **Dependencies**: 3.8, 2.15
   **Size**: M
 
 - [ ] 3.10 Implement polling fallback inside `useCoordinator()` that engages on `EventSource` error
@@ -315,7 +331,7 @@
 
 - [ ] 8.1 End-to-end test: launch coordinator + kanban-viz, seed fixture issues across statuses, drive a transition, assert UI updates within 200ms
   **Spec scenarios**: composite (board, swimlane update, sync-point banner, save-view audit)
-  **Dependencies**: 2.14, 3.11, 4.8, 5.8, 6.10, 7.5
+  **Dependencies**: 2.15, 3.11, 4.8, 5.8, 6.10, 7.5
   **Size**: L
 
 - [ ] 8.2 Confirm e2e test GREEN

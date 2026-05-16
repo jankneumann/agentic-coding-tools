@@ -89,7 +89,7 @@ A Python `textual` app rendering the Kanban in the terminal. Reads the same coor
 **Approach 1: Local web app (Vite + React + TS) reading coordinator HTTP+SSE directly.** Selected at Gate 1 (Direction Approval).
 
 Discovery-question decisions baked in:
-- **Live update mechanism**: Server-Sent Events from a new `/events/work` endpoint, falling back to polling at 5s if SSE is unavailable. WebSocket rejected for v1 — SSE is one-way (server → client) which matches the read-mostly UI, has no framing/extension complexity, and reuses HTTP auth.
+- **Live update mechanism**: Server-Sent Events from a new `/events/work` endpoint, falling back to polling at 5s if SSE is unavailable. WebSocket rejected for v1 — SSE is one-way (server → client) which matches the read-mostly UI and has no framing/extension complexity. SSE auth needs a dedicated mint-and-redeem handshake (`POST /events/auth` → short-lived JWT in URL) because browser `EventSource` cannot attach `Authorization` headers; see design.md D2 and contracts/README.md for the full flow and token-in-URL mitigations.
 - **Persistence layer for saved views**: small JSON artifacts under `docs/kanban-viz/saved-views/<name>.json`, committed to git, carrying the codeviz mandatory header. No database; no FalkorDB in v1. Aligns with codeviz storage-tier policy: small + diffable + canonical → git.
 - **TUI parity**: deferred to a follow-up. Approach 3 is good enough to revisit *after* the web app proves which views matter.
 - **Tauri shell**: scaffold ships in v1, build does not. Reduces follow-up cost without committing to native distribution prematurely.

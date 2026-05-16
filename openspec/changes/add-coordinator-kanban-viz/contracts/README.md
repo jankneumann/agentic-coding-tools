@@ -100,12 +100,23 @@ Authorization: Bearer <coordinator-api-key>
 
 **Purpose.** Live stream of work-queue transitions and audit events scoped to one or more change-ids.
 
+**Auth handshake (required).** Browser/webview `EventSource` cannot attach arbitrary headers (per the HTML Living Standard — `EventSource` only exposes `withCredentials`, not request headers). Re-using the API-key `Authorization` header from other endpoints is therefore not possible here. Clients MUST mint a short-lived JWT via the auth-mint endpoint and pass it in the query string:
+
+1. `POST /events/auth` with header `Authorization: Bearer <coordinator-api-key>` (this call is a normal authenticated `fetch`, headers work). Server returns a single-use JWT (`ttl=300s`, `aud=events`, `nonce=<server-generated>`, `change_ids=<csv>`), signed with the events-channel signing key.
+2. `new EventSource('/events/work?change_ids=<csv>&token=<jwt>')`. Server validates the JWT (signature, unexpired, unused nonce, `aud=events`, `change_ids` matches query). On any failure: HTTP 401 and the stream is not opened.
+3. On 401 the client refreshes via step 1 and reconnects. Native `EventSource` auto-reconnect MUST be disabled or unwired from stale tokens to prevent 401 retry loops.
+
+**Token-in-URL mitigations (server obligations).**
+- Access logs MUST redact the `token` query parameter (e.g., uvicorn access-log formatter strips `token=`).
+- The dashboard HTML response MUST set `Referrer-Policy: no-referrer` so cross-origin navigation does not leak the SSE URL via `Referer`.
+- The `nonce` from each minted JWT MUST be stored server-side until `exp`; replays are rejected.
+- The JWT signing key MUST be distinct from the API-key/session key (separation of concerns: an exfiltrated SSE token cannot impersonate the user against `POST` endpoints).
+
 **Request:**
 
 ```
-GET /events/work?change_ids=<csv>
+GET /events/work?change_ids=<csv>&token=<short-lived-jwt>
 Accept: text/event-stream
-Authorization: Bearer <coordinator-api-key>
 ```
 
 **Connection establishment response:**
