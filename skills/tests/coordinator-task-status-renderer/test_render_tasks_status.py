@@ -226,6 +226,35 @@ def test_natural_numeric_comparator_canonical_order():
     assert r._sort_task_keys(keys) == expected
 
 
+# ---------- duplicate task_key -> stable per-issue UUID tie-break --------
+
+
+def test_duplicate_task_key_breaks_tie_by_uuid_not_input_order(
+    tmp_path, stub_coordinator
+):
+    # When two coordinator issues share a task_key (a duplicate that
+    # should never happen in steady state but is possible during
+    # mid-migration or operator error), the rendered output must order
+    # them deterministically by UUID — not by input order. Otherwise
+    # output depends on coordinator API ordering and re-renders aren't
+    # byte-identical.
+    repo = _make_repo(tmp_path, "demo", "# Tasks — demo\n")
+    # Provide the higher-UUID issue first to prove the sort uses UUID,
+    # not list position.
+    issues = [
+        _issue(issue_id="u-zzz", task_key="1.1", title="Z-title"),
+        _issue(issue_id="u-aaa", task_key="1.1", title="A-title"),
+    ]
+    stub_coordinator(issues=issues)
+    assert r.render("demo", repo) == 0
+    text = (repo / "openspec/changes/demo/tasks.md").read_text(encoding="utf-8")
+    a_idx = text.index("A-title")
+    z_idx = text.index("Z-title")
+    # u-aaa sorts before u-zzz, so "A-title" must appear before "Z-title"
+    # regardless of input ordering.
+    assert a_idx < z_idx
+
+
 # ---------- 2.4d depends_on yields blocked-on suffix ----------------------
 
 
