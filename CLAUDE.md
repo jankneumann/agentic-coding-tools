@@ -39,6 +39,7 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 - **`roadmap-runtime`** — Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization, context assembly
 - **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
 - **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and autopilot)
+- **`coordinator-task-status-renderer`** — Renders the coordinator-owned status block inside `openspec/changes/<id>/tasks.md`. The block (between `<!-- GENERATED: begin coordinator:tasks-status -->` / `end` markers) is an *informational projection* of coordinator state; the hand-authored checkboxes outside the block remain the authoritative source. Wired into `.githooks/pre-commit` (re-render on staged tasks.md), `.githooks/post-merge` (refresh after merges that touch tasks.md), and `/plan-feature` Gate 2 (seeds coordinator issues on Approve).
 
 See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the full implementation reference.
 

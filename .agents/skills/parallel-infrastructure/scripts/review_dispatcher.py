@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -32,6 +33,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -1121,6 +1124,77 @@ class ReviewOrchestrator:
 
         return cls(adapters, sdk_adapters)
 
+    @staticmethod
+    def _config_from_agents_yaml(path: Path) -> dict[str, Any] | None:
+        """Load dispatch config directly from an agents.yaml file.
+
+        This keeps non-Claude environments from depending on ``~/.claude.json``
+        just to discover the local repo's dispatch configuration.
+        """
+        if not path.is_file():
+            return None
+        try:
+            import yaml  # type: ignore[import-untyped]
+        except ImportError:
+            logger.warning("PyYAML not available; cannot load %s", path)
+            return None
+        try:
+            raw = yaml.safe_load(path.read_text()) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            logger.warning("agents.yaml load error from %s: %s", path, exc)
+            return None
+        agents_out: list[dict[str, Any]] = []
+        for agent_id, agent in (raw.get("agents") or {}).items():
+            cli = agent.get("cli")
+            sdk = agent.get("sdk")
+            if not cli and not sdk:
+                continue
+            agents_out.append({
+                "agent_id": agent_id,
+                "type": agent.get("type"),
+                "transport": agent.get("transport", "mcp"),
+                "openbao_role_id": agent.get("openbao_role_id"),
+                "cli": cli,
+                "sdk": sdk,
+            })
+        logger.info("Loaded dispatch config from agents.yaml: %s", path)
+        return {"agents": agents_out}
+
+    @staticmethod
+    def _explicit_agents_yaml_path() -> Path | None:
+        raw = os.environ.get("AGENTS_YAML")
+        if not raw:
+            return None
+        return Path(raw).expanduser()
+
+    @staticmethod
+    def _find_local_agents_yaml(start: Path | None = None) -> Path | None:
+        """Find repo-local ``agent-coordinator/agents.yaml`` by walking up."""
+        current = (start or Path.cwd()).resolve()
+        for candidate_root in (current, *current.parents):
+            candidate = candidate_root / "agent-coordinator" / "agents.yaml"
+            if candidate.is_file():
+                return candidate
+        return None
+
+    @classmethod
+    def _load_from_http(cls) -> dict[str, Any] | None:
+        """Load dispatch config from the HTTP coordinator endpoint."""
+        base_url = os.environ.get("COORDINATION_API_URL", "http://localhost:8081").rstrip("/")
+        url = f"{base_url}/agents/dispatch-configs"
+        req = Request(url, method="GET")
+        req.add_header("User-Agent", "agentic-coding-tools/0.1")
+        try:
+            with urlopen(req, timeout=3.0) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read())
+                    if isinstance(data, dict):
+                        logger.info("Loaded dispatch config from HTTP coordinator: %s", url)
+                        return data
+        except (URLError, OSError, ValueError, json.JSONDecodeError) as exc:
+            logger.debug("HTTP dispatch config discovery failed at %s: %s", url, exc)
+        return None
+
     @classmethod
     def _find_coordinator_dir(cls) -> tuple[str, Path] | None:
         """Discover the agent-coordinator directory from MCP config.
@@ -1150,16 +1224,27 @@ class ReviewOrchestrator:
 
     @classmethod
     def from_coordinator(cls) -> "ReviewOrchestrator":
-        """Create orchestrator by calling get_dispatch_configs via subprocess.
+        """Create orchestrator using provider-neutral discovery order."""
+        explicit = cls._explicit_agents_yaml_path()
+        if explicit:
+            data = cls._config_from_agents_yaml(explicit)
+            if data is not None:
+                return cls.from_config_dict(data)
 
-        Discovers the agent-coordinator directory from the coordination
-        MCP server config in ``~/.claude.json``, then runs
-        ``get_dispatch_configs.py`` using the same Python binary.
-        Works from any repo — no local agent-coordinator checkout required.
-        """
+        data = cls._load_from_http()
+        if data is not None:
+            return cls.from_config_dict(data)
+
+        local = cls._find_local_agents_yaml()
+        if local:
+            data = cls._config_from_agents_yaml(local)
+            if data is not None:
+                return cls.from_config_dict(data)
+
+        # Provider-native fallback. Today this includes Claude Code MCP config.
         found = cls._find_coordinator_dir()
         if not found:
-            logger.warning("coordination MCP server not configured in ~/.claude.json")
+            logger.warning("No provider-native coordination MCP config found")
             return cls({})
 
         python_bin, ac_dir = found
@@ -1186,44 +1271,18 @@ class ReviewOrchestrator:
 
     @classmethod
     def from_agents_yaml(cls, path: Path | None = None) -> "ReviewOrchestrator":
-        """Create orchestrator from an explicit agents.yaml path.
-
-        Uses ``_find_coordinator_dir()`` to locate the
-        ``get_dispatch_configs.py`` script, then passes *path* as an
-        argument so the script loads the specified YAML instead of its
-        default.  Works from any repo.
-        """
-        found = cls._find_coordinator_dir()
-        if not found:
-            logger.warning(
-                "agent-coordinator not found — "
-                "coordination MCP server not configured in ~/.claude.json",
-            )
+        """Create orchestrator from explicit or local agents.yaml."""
+        resolved = path or cls._explicit_agents_yaml_path() or cls._find_local_agents_yaml()
+        if resolved is None:
+            logger.warning("agents.yaml not found via explicit path or local repo fallback")
             return cls({})
-
-        python_bin, ac_dir = found
-        script = ac_dir / "get_dispatch_configs.py"
-        if not script.is_file():
-            logger.warning("get_dispatch_configs.py not found at %s", script)
+        data = cls._config_from_agents_yaml(resolved)
+        if data is None:
             return cls({})
-
-        cmd = [python_bin, str(script)]
-        if path is not None:
-            cmd.append(str(path))
-
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode != 0:
-                logger.warning(
-                    "agents.yaml load failed: %s", result.stderr[:200],
-                )
-                return cls({})
-            data = json.loads(result.stdout)
             return cls.from_config_dict(data)
-        except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError) as exc:
-            logger.warning("agents.yaml load error: %s", exc)
+        except (KeyError, TypeError) as exc:
+            logger.warning("agents.yaml dispatch config conversion failed: %s", exc)
             return cls({})
 
     def discover_reviewers(

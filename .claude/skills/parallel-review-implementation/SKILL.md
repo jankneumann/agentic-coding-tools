@@ -30,6 +30,13 @@ Optional flags:
 - Package worktree has committed changes
 - Work-queue result JSON is available
 
+## Provider-Neutral Dispatch
+
+Implementation review uses the provider-neutral dispatch adapter/configuration
+path as the canonical cross-provider mechanism. Claude Code, Codex, and
+Gemini/Jules are first-class reviewers when configured; provider-specific CLI
+or harness details stay inside their adapters.
+
 ## Input (Read-Only)
 
 The reviewer receives per-package context:

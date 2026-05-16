@@ -25,6 +25,14 @@ Iteratively refine a feature implementation after `/implement-feature` completes
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
+## Provider-Neutral Dispatch
+
+When this skill delegates refinement or validation work, treat the
+provider-neutral dispatch adapter as the canonical cross-provider path. Claude
+Code, Codex, and Gemini/Jules are first-class providers when configured;
+Claude-style `Task(...)` or `Agent(...)` snippets are provider-specific
+examples, with inline execution as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:

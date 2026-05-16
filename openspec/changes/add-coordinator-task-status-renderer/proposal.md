@@ -11,25 +11,26 @@ This proposal closes the gap by treating `tasks.md` as a hybrid document: hand-a
 ## What Changes
 
 1. **New skill** `coordinator-task-status-renderer` at `skills/coordinator-task-status-renderer/` with a `scripts/render_tasks_status.py` that reads coordinator issue state for a given change-id and updates a managed block in `tasks.md`.
-2. **Seeding in `/plan-feature`** (Gate 2): when the user approves the plan, plan-feature POSTs each task from `tasks.md` to the coordinator as an issue with `labels=["change:<change-id>"]` and `metadata={"task_key": "T<n>", "change_id": <change-id>}`. Idempotent on re-run.
+2. **Seeding in `/plan-feature`** (Gate 2): when the user approves the plan, plan-feature POSTs each task from `tasks.md` to the coordinator as an issue with `labels=["change:<change-id>", "task:<task_key>"]`. Idempotency keys on the `(change:<id>, task:<key>)` label pair. (Rationale: the current `POST /issues/create` API does not accept a `metadata` field; encoding the task key as a label avoids expanding API surface while remaining queryable via the existing `try_issue_list(labels=...)` filter. See D7.)
 3. **Hook wiring**: `.githooks/pre-commit` invokes the renderer for any change-id whose `tasks.md` is staged; `.githooks/post-merge` invokes the renderer for any change-id whose `tasks.md` was touched by the merge. Both fall back to a stale-marker on coordinator failure rather than blocking git operations.
 4. **Managed block format** in `tasks.md`:
    ```
    <!-- GENERATED: begin coordinator:tasks-status -->
-   - [x] T1: implement foo         — done by wp-backend 2026-05-13 (ci/run/4821)
+   - [x] T1: implement foo         — done by wp-backend 2026-05-13
    - [ ] T2: deploy foo            — in_progress, claimed by wp-deploy 2026-05-14
-   - [ ] T3: smoke test            — blocked on T2
+   - [ ] T3: smoke test            — pending — blocked on T2
    <!-- GENERATED: end coordinator:tasks-status -->
    ```
-   Reuses the existing marker pattern from `skills/plan-roadmap/scripts/renderer.py`.
+   Reuses the existing marker pattern from `skills/plan-roadmap/scripts/renderer.py`. Evidence URIs (`ci/run/...`) are intentionally NOT rendered in v1 — see "Out of Scope" for the rationale.
 5. **Optional coordinator-side convenience endpoint** `GET /issues/by-change/<change-id>` to avoid client-side label filtering. Falls back to existing `list_issues(labels=[...])` if not added in v1.
 
 ## What Doesn't Change
 
 - `tasks.md` hand-authored prose, descriptions, and acceptance criteria above and below the managed block are preserved.
-- The coordinator's `work_queue` schema — no migrations required. Labels + metadata JSONB already support this use case.
+- The coordinator's `work_queue` schema — no migrations required. The existing `labels TEXT[]` column carries both `change:<id>` and `task:<key>` labels; no `metadata` write path is required for v1.
+- The coordinator's HTTP API surface — `POST /issues/create` and `POST /issues/list` are used as-is. No new fields are added to `IssueCreateRequest` / `IssueListRequest`.
 - `/implement-feature`'s per-commit checkbox-flip discipline is retained as a fallback; the renderer simply makes it unnecessary when working correctly.
-- `/cleanup-feature`'s open-task scanning logic — managed-block output remains valid GFM checkbox syntax that the existing scanner handles unchanged.
+- `/cleanup-feature`'s open-task scanning logic — managed-block output remains valid GFM checkbox syntax. **For v1, the managed block is informational/projection-only**: `/cleanup-feature` continues to read hand-authored checkboxes (outside the managed block) as the authoritative source of "open tasks" for migration. The managed block restores trust in the *displayed* state; converting `/cleanup-feature` to read it as authoritative is a follow-up (see "Out of Scope" below). Implementers SHALL NOT mutate hand-authored checkbox lines outside the managed block.
 
 ## Approaches Considered
 
@@ -112,3 +113,6 @@ The main risk — silently clobbered hand-edits inside the managed block — is 
 - Generalizing the renderer to other files beyond `tasks.md` (e.g., `proposal.md` status sections, `session-log.md` summaries). Out of scope for v1; revisit if multiple managed-block use cases emerge.
 - Backfilling existing in-flight changes' issues into the coordinator. New behavior applies to changes created/approved after this lands. Manual backfill is a one-shot script the operator can run if desired.
 - Migrating away from the `/implement-feature` per-commit checkbox-flip discipline. The renderer makes it redundant, but removing it is a separate cleanup.
+- Switching `/cleanup-feature`'s open-task scanner to read the managed block as authoritative (currently it reads hand-authored checkboxes). This is the next obvious follow-up but requires updating multiple downstream consumers and is deferred to keep v1 surgical.
+- Pushing the `labels` filter server-side (currently `IssueService.list_issues` post-filters labels in Python after a 50-row `limit`). At OpenSpec scale (~10–30 tasks per change), v1 mitigates by passing `limit=100` AND filtering on the `change:<id>` label first; broader scale requires a coordinator-side filter or pagination follow-up (tracked as `query-issues-by-change-label-server-side`).
+- Surfacing evidence URIs in the rendered line. The `IssueService` does not currently expose `result.evidence_uri` on the GET path. Deferred to a follow-up; the example outputs in this proposal therefore omit `(ci/run/...)` suffixes.

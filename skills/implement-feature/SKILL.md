@@ -28,6 +28,14 @@ Implement an approved OpenSpec proposal. Automatically selects execution tier ba
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/plan-feature` first if no proposal exists
 
+## Provider-Neutral Dispatch
+
+When this skill delegates work packages, treat the provider-neutral dispatch adapter
+as the canonical cross-provider path. Claude Code, Codex, and
+Gemini/Jules are first-class providers when configured; Claude-style `Task(...)`
+or `Agent(...)` snippets are provider-specific examples, with inline execution
+as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:
@@ -65,6 +73,26 @@ Tier: <tier> -- <rationale>
 ```
 
 If `CAN_HANDOFF=true`, read recent handoff context.
+
+### 0a. Seeding Retry on Empty Change-Id [all tiers]
+
+Per D11 of `add-coordinator-task-status-renderer`: at the very start of
+`/implement-feature`, query the coordinator for any issues bearing
+`change:<change-id>`. If the list is empty AND the coordinator is reachable,
+the seeder was either skipped at Gate 2 or its earlier run failed — invoke it
+now before claiming any work:
+
+```bash
+# Pseudocode — drop in coordination_bridge.try_issue_list to inspect.
+if coordinator_reachable and try_issue_list(labels=["change:<change-id>"]) is empty:
+    skills/.venv/bin/python skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <change-id>
+```
+
+This "seeding retry" path makes Gate 2 robust to transient coordinator outages:
+empty change-ids are auto-repaired at the first implementation step. The
+seeder is idempotent on `(change:<id>, task:<key>)`, so re-running is safe.
+Skip this step when the coordinator is genuinely unreachable; the renderer's
+stale-marker fallback still works and `/implement-feature` proceeds.
 
 ### 1. Verify Proposal Exists [all tiers]
 

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-15T20:14:01.692004+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Planned a coordinated OpenSpec change to make autopilot and its lifecycle skills vendor-neutral across Claude Code, Codex, and Gemini/Jules. Gate 1 selected the provider-neutral dispatch adapter approach with provider-specific model mapping and a manual CLI smoke path.",
+    "completed_work": [
+      "Created proposal.md with three approaches and recorded Gate 1 selection of Approach 2.",
+      "Created design.md with decisions D1-D6.",
+      "Created strict delta specs for skill-workflow, agent-archetypes, coordination-bridge, and configuration.",
+      "Created runtime contracts, tasks.md, and coordinated work-packages.yaml.",
+      "Validated OpenSpec strict mode, work-package schema/DAG/lock keys, and parallel scope checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use provider-neutral dispatch adapters",
+        "rationale": "The operator selected Approach 2 so phase dispatch becomes a runtime contract shared by Claude Code, Codex, and Gemini/Jules instead of a Claude-only Agent surface.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Resolve archetypes to provider-specific model IDs",
+        "rationale": "Logical archetypes remain stable, but concrete model names must be selected per provider to avoid passing Claude aliases to Codex or Gemini.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Require manual provider smoke coverage",
+        "rationale": "The success bar includes an end-to-end smoke path that can be manually triggered from a chosen CLI provider, so static validation alone is insufficient.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Obtain Gate 2 approval.",
+      "Run /implement-feature vendor-neutral-autopilot after approval.",
+      "Start implementation with contract and model-resolution tests before adapter code."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/proposal.md",
+        "description": "Gate 1 proposal and selected approach"
+      },
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/design.md",
+        "description": "Provider-neutral dispatch design"
+      },
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/tasks.md",
+        "description": "Test-first implementation plan"
+      },
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/work-packages.yaml",
+        "description": "Coordinated execution DAG"
+      },
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/contracts/phase-dispatch-contract.md",
+        "description": "Provider dispatch payload and result contract"
+      }
+    ]
+  }
+}

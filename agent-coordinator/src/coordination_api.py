@@ -245,6 +245,11 @@ class ResolveForPhaseRequest(BaseModel):
             "phase_mapping[phase].signals."
         ),
     )
+    provider: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Optional provider id for provider-specific model resolution.",
+    )
 
 
 class MergeQueueEnqueueRequest(BaseModel):
@@ -1926,7 +1931,11 @@ def create_coordination_api() -> FastAPI:
         from .audit import get_audit_service
 
         try:
-            resolved = _resolve(request.phase, request.signals)
+            resolved = _resolve(
+                request.phase,
+                request.signals,
+                provider=request.provider,
+            )
         except KeyError as exc:
             raise HTTPException(
                 status_code=404,
@@ -1945,10 +1954,15 @@ def create_coordination_api() -> FastAPI:
                 agent_id=principal.get("agent_id"),
                 agent_type=principal.get("agent_type"),
                 operation="resolve_archetype_for_phase",
-                parameters={"phase": request.phase, "signals": request.signals},
+                parameters={
+                    "phase": request.phase,
+                    "signals": request.signals,
+                    "provider": request.provider,
+                },
                 result={
                     "archetype": resolved.archetype,
                     "model": resolved.model,
+                    "provider": resolved.provider,
                 },
                 success=True,
             )
@@ -1964,6 +1978,7 @@ def create_coordination_api() -> FastAPI:
             "system_prompt": resolved.system_prompt,
             "archetype": resolved.archetype,
             "reasons": list(resolved.reasons),
+            "provider": resolved.provider,
         }
 
     # --------------------------------------------------------------------- #

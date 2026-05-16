@@ -1,48 +1,62 @@
-schema_version: 2
+schema_version: 3
+
+model_aliases:
+  claude_code:
+    premium: opus
+    standard: sonnet
+    economy: haiku
+  codex:
+    premium: gpt-5.5
+    standard: gpt-5.4
+    economy: gpt-5.4-mini
+  gemini:
+    premium: gemini-3.1-pro-preview
+    standard: gemini-3-flash-preview
+    economy: gemini-3-flash-lite
 
 archetypes:
   architect:
-    model: opus
+    model: premium
     system_prompt: |
       You are a software architect. Focus on cross-cutting concerns, dependency
       ordering, interface contracts, and long-term maintainability. Think deeply
       before committing to a design. Identify risks and trade-offs explicitly.
 
   analyst:
-    model: sonnet
+    model: standard
     system_prompt: |
       You are a codebase analyst. Read thoroughly, synthesize findings concisely,
       and identify patterns, gaps, and conflicts. Report structured findings
       without making changes.
 
   implementer:
-    model: sonnet
+    model: standard
     system_prompt: |
       You are a focused implementer. Follow the work-package contract exactly.
       Do not refactor beyond scope. Write tests for new code. Keep changes
       minimal and well-scoped. If you encounter ambiguity, prefer the simpler
       interpretation.
     escalation:
-      escalate_to: opus
+      escalate_to: premium
       max_write_dirs: 3
       max_dependencies: 2
       loc_threshold: 100
 
   reviewer:
-    model: opus
+    model: premium
     system_prompt: |
       You are a code reviewer. Evaluate correctness, security, performance, and
       adherence to contracts. Identify issues by severity. Be specific about
       locations and fixes. Do not rewrite code — describe what should change.
 
   runner:
-    model: haiku
+    model: economy
     system_prompt: |
       Execute the requested command and report results. Include exit codes,
       error output, and pass/fail summary. Do not analyze or suggest fixes.
 
   documenter:
-    model: sonnet
+    model: standard
     system_prompt: |
       You are a documentation writer. Update specs, changelogs, and architecture
       artifacts to match implementation reality. Be precise and concise. Follow

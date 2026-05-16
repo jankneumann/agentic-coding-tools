@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": "seeder-parses-managed-block",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The `seed_tasks_from_md.py` script parses `tasks.md` for lines matching `- [ ]` or `- [x]` to identify task keys. Because the managed block rendered by `render_tasks_status.py` uses this exact syntax, invoking the seeder on a file that already contains the managed block (e.g., via the /implement-feature retry path) will cause it to parse the generated tasks alongside the hand-authored ones. This will result in duplicate task keys and cause the dependency resolution or topological sort to fail.",
+      "file_path": "contracts/README.md",
+      "disposition": "fix",
+      "suggestion": "Update the seeder contract to explicitly strip or ignore content between the `<!-- GENERATED: begin coordinator:tasks-status -->` and `<!-- GENERATED: end coordinator:tasks-status -->` markers before parsing the file for task definitions."
+    },
+    {
+      "id": "limit-100-causes-data-corruption",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The proposed mitigation for the 100-limit post-filter issue in `try_issue_list(labels=...)` is mathematically insufficient and will cause silent data corruption. Because `limit=100` is applied before the Python-side label filter, if the total number of issues across all changes in the coordinator exceeds 100, a specific change's issues will be dropped from the response. When this happens, the seeder will falsely conclude they don't exist and recreate duplicates, while the renderer will delete them from the managed block in `tasks.md`.",
+      "file_path": "design.md",
+      "disposition": "fix",
+      "suggestion": "Require updating `coordination_bridge.try_issue_list` to pass the label filter to PostgREST natively using the contains (`cs`) operator, e.g., `labels=cs.{change:<id>}`, rather than post-filtering in Python. This guarantees correct results regardless of the total issue count."
+    },
+    {
+      "id": "unresolved-upstream-uuid-crash",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "The renderer specification mandates that upstream UUIDs in `depends_on` are resolved to task keys by reading the `task:<key>` label from the same list response. However, it does not specify the behavior if a referenced UUID is not found in the response (e.g., if the upstream issue was deleted or manually edited). This could lead to an unhandled KeyError or a crash during rendering.",
+      "file_path": "specs/coordinator-task-status-renderer/spec.md",
+      "disposition": "fix",
+      "suggestion": "Specify a fallback behavior for the renderer when an upstream UUID cannot be resolved to a task key (e.g., render the short UUID instead, or omit it entirely and log a warning to stderr)."
+    },
+    {
+      "id": "pre-commit-clobbers-partial-stage",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "The `.githooks/pre-commit` hook is specified to use `git add` to auto-stage `tasks.md` after rendering. If a developer uses `git add -p` to partially stage changes in `tasks.md`, the hook will overwrite their intent by staging all unstaged changes in the file.",
+      "file_path": "specs/coordinator-task-status-renderer/spec.md",
+      "disposition": "accept",
+      "suggestion": "Accept this limitation for v1, as auto-staging the entire file is standard practice for simple formatter hooks, and `tasks.md` is generally not partially staged."
+    }
+  ]
+}

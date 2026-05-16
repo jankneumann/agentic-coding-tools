@@ -56,6 +56,12 @@ _DEFAULT_CONTEXT_WINDOWS: dict[str, int] = {
     "opus": 200_000,
     "sonnet": 200_000,
     "haiku": 200_000,
+    "gpt-5.5": 400_000,
+    "gpt-5.4": 400_000,
+    "gpt-5.4-mini": 400_000,
+    "gemini-3.1-pro-preview": 1_000_000,
+    "gemini-3-flash-preview": 1_000_000,
+    "gemini-3-flash-lite": 1_000_000,
     # Generic fallback for unknown model names — matches the Claude family
     # default; if a vendor with a smaller window is added, callers should
     # pass --context-window explicitly.
@@ -75,10 +81,22 @@ _FALLBACK_MODEL_BY_PHASE: dict[str, str] = {
     "VAL_REVIEW":    "opus",
 }
 
+_PROVIDER_MODEL_BY_TIER: dict[str, dict[str, str]] = {
+    "claude_code": {"premium": "opus", "standard": "sonnet", "economy": "haiku"},
+    "codex": {"premium": "gpt-5.5", "standard": "gpt-5.4", "economy": "gpt-5.4-mini"},
+    "gemini": {
+        "premium": "gemini-3.1-pro-preview",
+        "standard": "gemini-3-flash-preview",
+        "economy": "gemini-3-flash-lite",
+    },
+}
+_LEGACY_TO_TIER = {"opus": "premium", "sonnet": "standard", "haiku": "economy"}
+
 
 @dataclass
 class PhaseReport:
     phase: str
+    provider: str
     model: str
     chars: int
     estimated_tokens: int
@@ -134,6 +152,7 @@ def _evaluate_phase(
     phase: str,
     *,
     context_window_override: int | None,
+    provider: str = "claude_code",
 ) -> PhaseReport:
     system_prompt = _synthetic_system_prompt()
     phase_prompt = _build_phase_prompt(phase)
@@ -142,7 +161,9 @@ def _evaluate_phase(
     # SC#1: hardcoded literal would let CI silently pass broken builds).
     joined = f"{system_prompt}{phase_agent._PROMPT_SEPARATOR}{phase_prompt}"
 
-    model = _FALLBACK_MODEL_BY_PHASE.get(phase, "default")
+    legacy_model = _FALLBACK_MODEL_BY_PHASE.get(phase, "default")
+    tier = _LEGACY_TO_TIER.get(legacy_model)
+    model = _PROVIDER_MODEL_BY_TIER.get(provider, {}).get(tier or "", legacy_model)
     context_window = (
         context_window_override
         if context_window_override is not None
@@ -160,6 +181,7 @@ def _evaluate_phase(
 
     return PhaseReport(
         phase=phase,
+        provider=provider,
         model=model,
         chars=len(joined),
         estimated_tokens=estimated_tokens,
@@ -169,9 +191,13 @@ def _evaluate_phase(
     )
 
 
-def run(*, context_window_override: int | None = None) -> int:
+def run(*, context_window_override: int | None = None, provider: str = "claude_code") -> int:
     reports = [
-        _evaluate_phase(phase, context_window_override=context_window_override)
+        _evaluate_phase(
+            phase,
+            context_window_override=context_window_override,
+            provider=provider,
+        )
         for phase in _DISPATCHING_PHASES
     ]
 
@@ -180,7 +206,7 @@ def run(*, context_window_override: int | None = None) -> int:
 
     for r in reports:
         sys.stdout.write(
-            f"phase={r.phase:<13} model={r.model:<7} "
+            f"phase={r.phase:<13} provider={r.provider:<11} model={r.model:<26} "
             f"tokens~={r.estimated_tokens:>6} window={r.context_window:>7} "
             f"pct={r.pct:6.2f}% severity={r.severity}\n"
         )
@@ -193,7 +219,8 @@ def run(*, context_window_override: int | None = None) -> int:
         for r in fails:
             sys.stderr.write(
                 f"  - {r.phase}: ~{r.estimated_tokens} tokens at "
-                f"{r.pct:.2f}% of {r.context_window}-token window ({r.model})\n"
+                f"{r.pct:.2f}% of {r.context_window}-token window "
+                f"({r.provider}/{r.model})\n"
             )
         return 1
 
@@ -204,7 +231,8 @@ def run(*, context_window_override: int | None = None) -> int:
         for r in warns:
             sys.stderr.write(
                 f"  - {r.phase}: ~{r.estimated_tokens} tokens at "
-                f"{r.pct:.2f}% of {r.context_window}-token window ({r.model})\n"
+                f"{r.pct:.2f}% of {r.context_window}-token window "
+                f"({r.provider}/{r.model})\n"
             )
 
     return 0
@@ -223,8 +251,14 @@ def main(argv: list[str] | None = None) -> int:
             "Useful for testing the gate with smaller windows."
         ),
     )
+    parser.add_argument(
+        "--provider",
+        choices=["claude_code", "codex", "gemini"],
+        default="claude_code",
+        help="Provider model map to use for context-window reporting.",
+    )
     args = parser.parse_args(argv)
-    return run(context_window_override=args.context_window)
+    return run(context_window_override=args.context_window, provider=args.provider)
 
 
 if __name__ == "__main__":  # pragma: no cover

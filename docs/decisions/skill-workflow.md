@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-05-16 — vendor-neutral-autopilot
+
+### Phase: Implementation
+
+**Keep adapter boundary small** — The provider dispatch module normalizes payload/result contracts and lets each runtime supply its own runner without rewriting autopilot state management.
+
+- Status: `active`
+- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D2)
+
+---
+
+## 2026-05-15 — vendor-neutral-autopilot
+
+### Phase: Plan
+
+**Use provider-neutral dispatch adapters** — The operator selected Approach 2 so phase dispatch becomes a runtime contract shared by Claude Code, Codex, and Gemini/Jules instead of a Claude-only Agent surface.
+
+- Status: `active`
+- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D1)
+
+---
+
+## 2026-05-15 — vendor-neutral-autopilot
+
+### Phase: Plan Approval
+
+**Gate 2 approved** — The operator selected approval option 1, so the plan is ready for `/implement-feature vendor-neutral-autopilot`.
+
+- Status: `active`
+- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D1)
+
+---
+
+## 2026-05-15 — vendor-neutral-autopilot
+
+### Phase: Plan
+
+**Require manual provider smoke coverage** — The success bar includes an end-to-end smoke path that can be manually triggered from a chosen CLI provider, so static validation alone is insufficient.
+
+- Status: `active`
+- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D3)
+
+---
+
 ## 2026-05-08 — factory-missions-architecture-alignment
 
 ### Phase: Plan

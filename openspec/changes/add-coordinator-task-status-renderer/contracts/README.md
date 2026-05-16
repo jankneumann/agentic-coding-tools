@@ -20,20 +20,26 @@ Because no machine-checkable sub-type applies, this README is the contract artif
 **Invocation:**
 
 ```
-python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <change-id> [--repo-root <path>]
+python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <change-id> [--repo-root <path>] [--timeout-seconds <N>]
 ```
 
 | Argument | Type | Required | Description |
 |---|---|---|---|
 | `<change-id>` | positional, string | yes | OpenSpec change identifier (e.g., `add-coordinator-task-status-renderer`). Matches a directory under `openspec/changes/`. |
 | `--repo-root <path>` | option, string | no | Absolute path to repo root. Defaults to `git rev-parse --show-toplevel`. |
+| `--timeout-seconds <N>` | option, integer | no | Max wall-clock time for the coordinator HTTP call, enforced at the renderer layer (`concurrent.futures` or `signal.alarm`) — NOT delegated to the bridge's `COORDINATION_HTTP_TIMEOUT` envelope, which is shorter and would silently truncate operator overrides. On timeout the renderer follows the stale-marker fallback path. Default: `5`. |
 
 **Effects:**
 
 1. Reads `<repo-root>/openspec/changes/<change-id>/tasks.md`.
-2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])`.
-3. Renders a managed block per the format defined below.
-4. Writes the rewritten `tasks.md` back to the same path.
+2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"], limit=100)`. (NOTE: at v1 the coordinator's `IssueService.list_issues` post-filters by `labels` after PostgREST returns up to `limit` rows. `MAX_PAGE_SIZE=100` is the hard cap. At OpenSpec v1 scale — ~10–30 tasks per active change, low total active-change count — `limit=100` is sufficient. Scaling beyond a single active change at a time requires the server-side label-push follow-up listed in proposal "Out of Scope".) **Pagination guard:** if `try_issue_list` returns exactly 100 results (the cap), the renderer SHALL emit a hard ERROR to stderr identifying the cap-overrun risk and SHALL exit 1 (this is NOT a coordinator-unreachable failure; it is a correctness ceiling). A silent truncation would risk deleting issues from the managed block. The follow-up `query-issues-by-change-label-server-side` lifts this cap.
+3. For each returned issue, extracts the `task_key` from its `task:<key>` label (the renderer ignores `metadata.task_key` — see D7).
+4. Renders a managed block per the format defined below.
+5. Writes the rewritten `tasks.md` back to the same path. The renderer SHALL NOT touch the git index; auto-staging is the hook's responsibility.
+
+**Behavior when both the coordinator is unreachable AND the markers are absent:**
+
+The renderer SHALL append the managed-block markers to the end of the file with the stale-marker as the content, in a single write — guaranteeing the markers exist for the next successful invocation to repaint (see D9).
 
 **Managed-block markers:**
 
@@ -47,22 +53,45 @@ Marker name is exactly `coordinator:tasks-status`. The colon is part of the name
 
 **Rendered-content format (normal case):**
 
+The first line inside the managed block (immediately after `<!-- GENERATED: begin coordinator:tasks-status -->`) SHALL be the informational-projection comment:
+
+```
+<!-- Informational projection — see openspec/changes/<change-id>/proposal.md "What Doesn't Change" -->
+```
+
+Followed by one line per task in the form:
+
 ```
 - [<x or space>] <task_key>: <title> — <status annotation>
 ```
 
 Where:
-- `<x or space>`: `x` if issue status is `completed`, otherwise space.
-- `<task_key>`: from `metadata.task_key`. Lines SHALL be sorted by `task_key` ascending lexicographically.
+- `<x or space>`: `x` if `issue.status == "completed"`, otherwise space. The coordinator's stored status vocabulary (returned by `Issue.to_dict()`) is exactly `pending | claimed | running | completed | failed | cancelled`. (`closed` is a *friendly* alias used by some clients but never appears on the GET path.)
+- `<task_key>`: extracted from the issue's `task:<key>` label (strip the `task:` prefix). Issues without a `task:<key>` label SHALL be skipped (logged to stderr). Lines SHALL be sorted by `<task_key>` ascending using the natural-numeric comparator defined below.
 - `<title>`: the issue title.
-- `<status annotation>`: format depends on status:
+- `<status annotation>`: format keys directly off `issue.status`:
   - `pending` → `pending`
-  - `claimed` → `claimed by <assignee>` (with `<assignee>` from `issue.assignee` or `claimed_by`)
-  - `running` → `in_progress, claimed by <assignee>`
-  - `completed` → `done by <assignee> <ISO-date>` plus `(evidence: <result.evidence_uri>)` if present
-  - `failed` → `failed: <error_message>`
-  - `cancelled` → `cancelled`
-- If `depends_on` contains UUIDs that are not in `completed` status, append ` — blocked on <task_keys>` to non-completed lines.
+  - `claimed` → `claimed by <assignee>` (with `<assignee>` from `issue.assignee`; if unset, render `claimed`)
+  - `running` → `in_progress, claimed by <assignee>` (or just `in_progress` if `assignee` is unset)
+  - `completed` → `done by <assignee> <YYYY-MM-DD>` (date derived from `issue.completed_at` truncated to UTC date; omit `by <assignee>` if `assignee` is unset)
+  - `failed` → `failed: <close_reason>` (`close_reason` from `issue.close_reason`; render `failed` if unset)
+  - `cancelled` → `cancelled: <close_reason>` (or `cancelled` if unset)
+- If `depends_on` contains UUIDs whose referenced issues are not yet `completed`, append ` — blocked on <comma-separated task_keys>` to those lines. Task keys are extracted from the `task:<key>` label of each referenced issue (resolved from the same list response — no extra HTTP round-trips). Comma-separated, natural-numeric-sorted, no trailing comma.
+- Evidence URIs are NOT surfaced in v1 (the `IssueService` does not currently expose a `result.evidence_uri` field on the GET path). Deferred to a follow-up.
+
+**Natural-numeric comparator (canonical, must be deterministic across runs):**
+
+Given two task keys `a` and `b`, compare as follows:
+1. Tokenize each key on `.` into segments.
+2. For each segment, split into a leading-digit run and a trailing-suffix string. The leading digits parse as integer (missing → `-1`); the trailing suffix is compared lexicographically (case-sensitive).
+3. Segment comparison: integer part first; if tied, suffix lexicographically.
+4. Key comparison: zip-compare segments; shorter key (fewer segments) sorts before longer when all shared segments are equal (so `1.1` < `1.1.1`).
+5. Letter-prefixed keys (those whose first character is alphabetic, e.g., `T1`) are bucketed AFTER all-numeric keys, and within the letter bucket compared as `(prefix_string_lex, trailing_digits_as_int, trailing_suffix_lex)`.
+6. Stable tie-breaker: if the comparator returns equal, fall back to the issue's UUID lexicographic order (guarantees deterministic output).
+
+Examples (sorted order): `1.1`, `1.2`, `1.10`, `2.4`, `2.4a`, `2.9`, `2.9a`, `T1`, `T10`.
+
+A renderer unit test SHALL exercise these exact keys to lock the comparator down.
 
 **Rendered-content format (stale fallback):**
 
@@ -71,6 +100,8 @@ Where:
 ```
 
 Single line; replaces any prior managed-block content.
+
+**Stale-marker idempotency (two-tier).** The timestamp embedded in the stale marker would otherwise advance on every invocation and break the "Re-render is idempotent" scenario during a coordinator outage. The renderer SHALL persist the most-recent stale-marker timestamp in a sidecar `openspec/changes/<change-id>/.tasks-status.state.json` (gitignored). On entry to the stale-marker path, the renderer SHALL reuse the persisted timestamp if present; otherwise it SHALL write the current ISO-8601 timestamp to both the file AND the sidecar. On a successful coordinator response, the renderer SHALL clear the sidecar's stale entry. Effect: throughout a coordinator outage window, the rendered block is byte-stable; the timestamp only advances when an outage actually starts fresh.
 
 **Exit codes:**
 
@@ -90,7 +121,7 @@ The renderer SHALL NOT exit non-zero on coordinator failure — that path trigge
 
 ## CLI Contract: `seed_tasks_from_md.py`
 
-**Purpose.** Parse a change's `tasks.md` and create coordinator issues for each task. Idempotent on `(change_id, task_key)`.
+**Purpose.** Parse a change's `tasks.md` and create coordinator issues for each task. Idempotent on the `(change:<id>, task:<key>)` label pair.
 
 **Invocation:**
 
@@ -107,42 +138,43 @@ python3 skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <c
 **Effects:**
 
 1. Parses `<repo-root>/openspec/changes/<change-id>/tasks.md` for `- [ ]` or `- [x]` lines bearing a task key (e.g., `T1`, `1.1`, `2.6`).
-2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues.
-3. For each task key in `tasks.md` not already present in the coordinator (matched by `metadata.task_key`):
-   - POSTs `/work/submit` with the issue payload defined below.
+2. Parses `**Dependencies**:` annotations beneath each task to build a dependency DAG over task keys. Parsing operates ONLY on the hand-authored regions of `tasks.md` (the prefix before `<!-- GENERATED: begin coordinator:tasks-status -->` and the suffix after `<!-- GENERATED: end coordinator:tasks-status -->`). Any content inside the managed block SHALL be ignored — re-seeding a file that already has a rendered block MUST NOT pick up its generated checkbox lines as task definitions.
+3. **Phase 1 — Cycle detection (mandatory preflight).** Runs a complete cycle-detection pass over the in-memory DAG. On cycle, logs the cycle members to stderr and exits 1 WITHOUT issuing any `try_issue_create` POST. No coordinator state is mutated in this phase.
+4. **Phase 2 — Topological POSTs.** Only after phase 1 succeeds, topologically sorts task keys and POSTs from root to leaf.
+5. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues. Builds a map `existing_task_keys -> issue_uuid` by reading the `task:<key>` label from each returned issue. **Pagination guard:** if the list call returns exactly `MAX_PAGE_SIZE=100` results (page boundary indistinguishable from saturated cap), the seeder SHALL log an ERROR identifying the cap-overrun risk and exit 1. The renderer SHALL apply the same guard. This is intentionally a hard error — silently truncating risks recreating duplicates (seeder) or deleting issues from the managed block (renderer). The follow-up `query-issues-by-change-label-server-side` lifts this cap.
+6. For each task key in topological order, if no existing issue carries the `task:<key>` label:
+   - POSTs via `coordination_bridge.try_issue_create(...)` with the payload defined below.
+   - Records the returned UUID into the `existing_task_keys` map so downstream tasks can reference it in their `depends_on`.
 
-**Issue payload:**
+**Issue payload (passed as kwargs to `try_issue_create`):**
 
-```json
-{
-  "task_type": "issue",
-  "issue_type": "task",
-  "title": "<task title extracted from tasks.md line>",
-  "labels": ["change:<change-id>"],
-  "metadata": {
-    "change_id": "<change-id>",
-    "task_key": "<key from tasks.md>",
-    "tasks_md_anchor": <line number, optional best-effort>
-  },
-  "depends_on": [<UUIDs of issues for upstream task keys, if discoverable>]
-}
+```python
+try_issue_create(
+    title="<task title extracted from tasks.md line>",
+    issue_type="task",
+    labels=["change:<change-id>", "task:<task_key>"],
+    depends_on=[<UUIDs of upstream issues, resolved from earlier POSTs in this run or pre-existing issues>],
+)
 ```
 
 Notes:
-- `depends_on` resolution: if a task line declares `**Dependencies**: 1.4, 2.5`, the seeder SHALL look up issues with `metadata.task_key in ["1.4", "2.5"]` and use their UUIDs. If a referenced task is not yet seeded (because seeding runs top-to-bottom), the seeder MAY do two passes: first POST all issues with empty `depends_on`, then PATCH each with the resolved UUIDs.
-- Work-package labels (`wp:<id>`) are NOT applied at seed time. They are applied by `/implement-feature` when work-packages.yaml is consumed.
+- Underlying HTTP path is `POST /issues/create` (see `IssueCreateRequest` in `agent-coordinator/src/coordination_api.py`). This is **not** `/work/submit`.
+- The seeder does NOT pass `metadata`. The current `IssueCreateRequest` schema does not accept it; the `task:<key>` label is the durable carrier of task identity (see D7).
+- `depends_on` resolution uses single-pass topological seeding (D8). The `POST /issues/update` API does not accept `depends_on`, so we cannot retro-PATCH; this constraint requires us to know all upstream UUIDs at POST time.
+- Forward references (a task declares a dependency on a key that does not appear in `tasks.md`) are logged to stderr and dropped from `depends_on` (non-fatal).
+- Work-package labels (`wp:<id>`) are NOT applied at seed time. They are applied by `/implement-feature` when work-packages.yaml is consumed (via `try_issue_update(labels=[...])`).
 
 **Exit codes:**
 
 | Code | Meaning |
 |---|---|
 | 0 | Success. All tasks either created or already present. Coordinator-unreachable case also exits 0 (per D4). |
-| 1 | Malformed `tasks.md` (cannot extract task keys), filesystem error, or other internal error. |
+| 1 | Malformed `tasks.md` (cannot extract task keys), dependency cycle detected (per D8), filesystem error, or other internal error. |
 
 **Stdout/stderr:**
 
 - stdout: one line per issue created, format `created <task_key> <issue_uuid>`. One line per existing match, `exists <task_key> <issue_uuid>`. One summary line at end: `seeded <change-id> created=<N> existing=<M>`.
-- stderr: warnings (e.g., unresolved dependency reference). Coordinator-unreachable logged here with the count of unseeded tasks.
+- stderr: warnings (e.g., unresolved/forward dependency reference). Coordinator-unreachable logged here with the count of unseeded tasks.
 
 ---
 
@@ -152,14 +184,35 @@ This is the canonical specification of the markers and content the renderer emit
 
 ```markdown
 <!-- GENERATED: begin coordinator:tasks-status -->
-- [x] 1.1: Document renderer CLI invocation contract — done by wp-contracts 2026-05-15 (evidence: ci/run/4821)
+- [x] 1.1: Document renderer CLI invocation contract — done by wp-contracts 2026-05-15
 - [x] 1.2: Document seeder CLI invocation contract — done by wp-contracts 2026-05-15
-- [ ] 2.1: Write test: managed-block insertion when absent — claimed by wp-renderer-skill 2026-05-15
+- [ ] 2.1: Write test: managed-block insertion when absent — claimed by wp-renderer-skill
 - [ ] 2.2: Write test: managed-block replacement preserves hand-content — pending — blocked on 2.1
 <!-- GENERATED: end coordinator:tasks-status -->
 ```
 
 The renderer SHALL emit valid GFM checkboxes (`- [ ]` or `- [x]`) so that downstream consumers (notably `/cleanup-feature`'s open-task scanner) can read the block with their existing parsers.
+
+---
+
+## Hook Contract (renderer invocation by git hooks)
+
+The pre-commit and post-merge hooks are part of this change's CLI surface. They are tested as black-box subprocess invocations and therefore have a documented contract:
+
+**Renderer-path resolution.** Both hooks resolve the renderer script path in this order:
+
+1. `$COORDINATOR_TASK_STATUS_RENDERER` if set (test seam and emergency override).
+2. `<repo-root>/skills/coordinator-task-status-renderer/scripts/render_tasks_status.py` (the canonical install path).
+
+**Invocation.** Hooks invoke the renderer once per affected change-id with `python3 <resolved-path> <change-id>`. No additional arguments are passed by the hook itself (operators wanting non-default `--timeout-seconds` set it via shell defaults outside the hook).
+
+**Failure behavior.** If the renderer exits non-zero:
+- Pre-commit: the hook logs `[pre-commit] renderer failed for <change-id> (exit=<N>); skipping re-stage`, does NOT run `git add` on the file, and allows the commit to proceed.
+- Post-merge: the hook logs an equivalent warning and continues.
+
+**Path detection.** Hooks detect affected `tasks.md` paths via:
+- Pre-commit: `git diff --cached --name-only -z` filtered through a regex matching `openspec/changes/<id>/tasks.md`.
+- Post-merge: `git diff --name-only -z ORIG_HEAD HEAD` (or `MERGE_HEAD HEAD` in the merge-commit case) with the same regex.
 
 ---
 
@@ -169,9 +222,12 @@ These existing coordinator endpoints/columns are read by this change but defined
 
 | Surface | Defined in | Used by |
 |---|---|---|
-| `GET /issues?labels=<csv>` | `openspec/specs/agent-coordinator/` | Renderer |
-| `POST /work/submit` | `openspec/specs/agent-coordinator/` | Seeder |
-| `work_queue.labels TEXT[]` | `database/migrations/017_issue_tracking.sql` | Both |
-| `work_queue.metadata JSONB` | `database/migrations/017_issue_tracking.sql` | Both |
+| `POST /issues/list` (with `labels=[...]` filter) | `agent-coordinator/src/coordination_api.py` (`IssueListRequest`) | Renderer, Seeder (idempotency check) |
+| `POST /issues/create` | `agent-coordinator/src/coordination_api.py` (`IssueCreateRequest`) | Seeder |
+| `POST /issues/update` | `agent-coordinator/src/coordination_api.py` (`IssueUpdateRequest`) | Future: `/implement-feature` wp-label PATCH |
+| `work_queue.labels TEXT[]` (with GIN index) | `database/migrations/017_issue_tracking.sql` | Both (carries `change:<id>`, `task:<key>`) |
 | `work_queue.depends_on UUID[]` | `database/migrations/001_core_schema.sql` | Both |
 | `IssueService.list_issues(labels=...)` post-filter | `agent-coordinator/src/issue_service.py` | Renderer (transitively, via coordination-bridge) |
+| Helpers `try_issue_create`, `try_issue_list`, `try_issue_update` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Both |
+
+**Note on `metadata` JSONB:** the `work_queue.metadata` column exists (added by migration 017) but is **not writable through the current `POST /issues/create` HTTP API** — `IssueCreateRequest` has no `metadata` field, and `IssueService.create()` only populates `metadata.body` from `description`. This is why this change carries task identity via labels rather than metadata (see D7). Expanding the API to accept arbitrary metadata is a separate concern.

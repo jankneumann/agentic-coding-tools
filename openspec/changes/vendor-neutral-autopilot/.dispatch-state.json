@@ -1,0 +1,7 @@
+{
+  "change_id": "vendor-neutral-autopilot",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}
