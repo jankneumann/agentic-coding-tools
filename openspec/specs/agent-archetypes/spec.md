@@ -5,78 +5,47 @@ TBD - created by archiving change specialized-workflow-agents. Update Purpose af
 ## Requirements
 ### Requirement: Archetype Definition Schema
 
-The system SHALL support an `archetypes.yaml` configuration file that defines
-named agent archetypes. Each archetype SHALL specify:
-- `model`: Primary model identifier (`opus`, `sonnet`, `haiku`)
-- `system_prompt`: Role-specific instruction prefix composed with task prompts
-- `escalation`: Optional rules for complexity-based model upgrade
-The archetype schema SHALL be validated at load time using JSON Schema, following
-the `agents.yaml` validation pattern in `agents_config.py`.
+The system SHALL support an `archetypes.yaml` configuration file that defines named agent archetypes. Each archetype SHALL specify:
 
-Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be
-validated at all system boundaries (config loading, API submission, MCP tools).
+- A logical model tier or legacy model alias.
+- `system_prompt`: role-specific instruction prefix composed with task prompts.
+- `escalation`: optional rules for complexity-based tier or model upgrade.
 
-The archetype configuration SHALL be loaded once at startup and cached in a
-module-level singleton (following the `_agents` cache pattern in `agents_config.py`).
-Subsequent calls to `get_archetype()` SHALL return cached results without file I/O.
+Archetype model values SHALL be resolved through provider-aware model mapping before dispatch. Legacy Claude aliases (`opus`, `sonnet`, `haiku`) SHALL remain valid for Claude Code compatibility, but non-Claude providers SHALL receive provider-specific model IDs.
 
-#### Scenario: Valid archetype loads successfully
+Archetype names SHALL match the pattern `^[a-z][a-z0-9_-]{0,31}$` and SHALL be validated at all system boundaries.
 
-**WHEN** `archetypes.yaml` contains an archetype named `implementer` with
-model `sonnet`, a system_prompt string, and escalation rules
-**THEN** `load_archetypes_config()` SHALL return an `ArchetypeConfig` with
-all fields populated
-**AND** the archetype SHALL be accessible by name via `get_archetype("implementer")`
+#### Scenario: Archetype resolves for Codex provider
 
-#### Scenario: Invalid archetype rejected at load time
+- **WHEN** `architect` resolves under provider `codex`
+- **THEN** the logical role SHALL remain `architect`
+- **AND** the dispatch model SHALL be a Codex model ID from provider mapping
+- **AND** the raw Claude alias `opus` SHALL NOT be dispatched to Codex unless explicitly configured as a Codex model alias
 
-**WHEN** `archetypes.yaml` contains an archetype missing the required `model` field
-**THEN** `load_archetypes_config()` SHALL raise a `ValidationError`
-**AND** the error message SHALL identify the missing field and archetype name
+#### Scenario: Archetype resolves for Gemini provider
 
-#### Scenario: Unknown archetype referenced in Task call
-
-**WHEN** a skill references `archetype="nonexistent"` in a Task() call
-**THEN** the runtime SHALL fall back to the ambient model (current behavior)
-**AND** SHALL log a warning identifying the unknown archetype name
-
-#### Scenario: Archetypes config file not found at runtime
-
-**WHEN** `archetypes.yaml` does not exist at the expected path
-**THEN** `load_archetypes_config()` SHALL return an empty dict
-**AND** SHALL log a warning identifying the missing file path
-**AND** all subsequent `get_archetype()` calls SHALL return `None`
-
----
+- **WHEN** `reviewer` resolves under provider `gemini`
+- **THEN** the logical role SHALL remain `reviewer`
+- **AND** the dispatch model SHALL be a Gemini model ID from provider mapping
 
 ### Requirement: Predefined Archetypes
 
-The system SHALL ship with the following predefined archetypes:
+The system SHALL ship with predefined archetypes for `architect`, `analyst`, `implementer`, `reviewer`, `runner`, and `documenter`.
 
-| Archetype | Model | Role |
-|-----------|-------|------|
-| `architect` | opus | Planning, architecture decisions, cross-package dependency analysis |
-| `analyst` | sonnet | Codebase exploration, gap analysis, context gathering |
-| `implementer` | sonnet | Single work-package implementation, file edits, test writing |
-| `reviewer` | opus | Review consensus synthesis, security review, cross-package coherence |
-| `runner` | haiku | Linting, test execution, validation gates, schema checks |
-| `documenter` | sonnet | Spec sync, changelog, architecture artifact refresh |
+Each predefined archetype SHALL include a `system_prompt` tuned to its role. Each archetype SHALL map to a logical model tier that can be translated to provider-specific model IDs for Claude Code, Codex, and Gemini/Jules.
 
-Each predefined archetype SHALL include a `system_prompt` tuned to its role.
+#### Scenario: Architect archetype maps per provider
 
-#### Scenario: Architect archetype uses Opus for planning
+- **WHEN** a phase dispatch requests archetype `architect`
+- **THEN** Claude Code SHALL receive its configured premium Claude model
+- **AND** Codex SHALL receive its configured premium Codex model
+- **AND** Gemini/Jules SHALL receive its configured premium Gemini model
 
-**WHEN** a skill dispatches `Task(archetype="architect", ...)`
-**THEN** the task SHALL execute with model `opus`
-**AND** the system prompt SHALL contain the phrase "software architect"
+#### Scenario: Runner archetype maps per provider
 
-#### Scenario: Runner archetype uses Haiku for validation
-
-**WHEN** a skill dispatches `Task(archetype="runner", ...)`
-**THEN** the task SHALL execute with model `haiku`
-**AND** the system prompt SHALL contain the phrase "execute" and "report"
-
----
+- **WHEN** a validation phase dispatch requests archetype `runner`
+- **THEN** each provider SHALL receive its configured economy or validation-appropriate model
+- **AND** the system prompt SHALL contain role guidance for executing and reporting commands
 
 ### Requirement: Skill Model Hint Integration
 
@@ -168,63 +137,39 @@ When escalation triggers, the runtime SHALL:
 
 ### Requirement: Fallback Chain Integration
 
-Archetype model selection SHALL integrate with the existing `agents.yaml`
-model fallback chain rather than defining independent fallback sequences.
+Archetype model selection SHALL integrate with the existing `agents.yaml` model fallback chain rather than defining independent fallback sequences.
 
 The resolution order SHALL be:
-1. Archetype primary model (potentially escalated)
-2. `agents.yaml` `cli.model_fallbacks` for the active agent
-3. `agents.yaml` `sdk.model` and `sdk.model_fallbacks` (if SDK dispatch available)
 
-#### Scenario: Archetype model exhausted falls back to agents.yaml chain
+1. Provider-specific archetype model for the active provider.
+2. `agents.yaml` `cli.model_fallbacks` for the active provider agent.
+3. `agents.yaml` `sdk.model` and `sdk.model_fallbacks` when SDK dispatch is available.
 
-**WHEN** the `reviewer` archetype specifies model `opus`
-**AND** the primary model dispatch returns an `ErrorClass.CAPACITY` error
-(testable via `respx` mock returning HTTP 429)
-**THEN** the dispatcher SHALL try the next model in the agent's
-`cli.model_fallbacks` list (e.g., `claude-sonnet-4-6`)
-**AND** SHALL NOT define its own independent fallback chain
+#### Scenario: Archetype model exhausted falls back inside same provider
 
-#### Scenario: All models in fallback chain exhausted
-
-**WHEN** the `implementer` archetype specifies model `sonnet`
-**AND** both the primary model and all `cli.model_fallbacks` return errors
-**THEN** the dispatcher SHALL raise a dispatch failure with the last error
-**AND** SHALL NOT retry models already attempted in this dispatch
-
----
+- **WHEN** provider `codex` resolves `reviewer` to a primary Codex model
+- **AND** the primary model dispatch returns an `ErrorClass.CAPACITY` error
+- **THEN** the dispatcher SHALL try the next Codex model in that agent's `cli.model_fallbacks`
+- **AND** it SHALL NOT fall back to a Claude model unless the selected provider explicitly changes
 
 ### Requirement: Work Queue Archetype Routing
 
-The coordinator work queue SHALL support archetype-aware task routing.
+The coordinator work queue SHALL support archetype-aware task routing and provider-aware model selection.
 
-The `submit_work()` operation SHALL accept an optional `agent_requirements`
-parameter containing:
-- `archetype`: Preferred archetype name
-- `min_trust_level`: Minimum trust level required (optional)
+The `submit_work()` operation SHALL accept optional `agent_requirements` containing:
 
-The `claim_task()` operation SHALL filter available tasks by the claiming
-agent's declared archetype compatibility when `agent_requirements` is present.
+- `archetype`: preferred archetype name.
+- `provider`: optional provider preference.
+- `min_trust_level`: optional minimum trust level.
 
-#### Scenario: Task with archetype requirement matched to capable agent
+The claim operation SHALL filter available tasks by the claiming agent's declared archetype compatibility and provider identity when those requirements are present.
 
-**WHEN** a task is submitted with `agent_requirements.archetype = "reviewer"`
-**AND** an agent with `archetypes: ["reviewer", "architect"]` calls `claim()`
-**THEN** the agent SHALL successfully claim the task
+#### Scenario: Provider preference routes to matching agent
 
-#### Scenario: Task with archetype requirement skipped by incompatible agent
-
-**WHEN** a task is submitted with `agent_requirements.archetype = "reviewer"`
-**AND** an agent with `archetypes: ["runner"]` calls `claim()`
-**THEN** the task SHALL NOT be claimed by this agent
-**AND** the claim result SHALL indicate no matching tasks available
-
-#### Scenario: Task without archetype requirement claimable by any agent
-
-**WHEN** a task is submitted without `agent_requirements`
-**THEN** any agent SHALL be able to claim it (backward compatible)
-
----
+- **WHEN** a task is submitted with `agent_requirements.archetype = "implementer"` and `agent_requirements.provider = "gemini"`
+- **AND** a Gemini agent with `archetypes: ["implementer"]` calls claim
+- **THEN** the agent SHALL be eligible to claim the task
+- **AND** a Codex-only agent SHALL NOT claim that provider-constrained task
 
 ### Requirement: Work Package Archetype Field
 

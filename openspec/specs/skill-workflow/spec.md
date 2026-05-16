@@ -3318,127 +3318,106 @@ The `parse_markdown()` (or equivalent) function SHALL extract these spans into `
 
 ### Requirement: Per-Phase Archetype Resolution in Autopilot
 
-The autopilot state machine SHALL resolve an archetype for every non-terminal phase before dispatching the phase's sub-agent, SHALL inject the resolved `model` and `system_prompt` into the sub-agent dispatch options, AND SHALL apply the resolved archetype on the **production execution path** (not only in unit tests of `phase_agent`).
+The autopilot state machine SHALL resolve an archetype for every non-terminal phase before dispatching phase work, SHALL build a provider-neutral phase dispatch payload for sub-agent-capable phases, and SHALL apply the resolved archetype on the production execution path.
 
 The resolution SHALL:
-1. Be performed inside `skills/autopilot/scripts/phase_agent.py:_build_options(phase, state_dict)`.
+
+1. Be performed inside `skills/autopilot/scripts/phase_agent.py:_build_options(phase, state_dict)` or a compatibility wrapper that preserves that public behavior.
 2. Extract per-phase signals from `state_dict` based on the `signals` field of the phase mapping.
 3. Call the coordinator endpoint `POST /archetypes/resolve_for_phase` via `coordination_bridge.try_resolve_archetype_for_phase(phase, signals)`.
-4. Set `options["model"]` and `options["system_prompt"]` from the response.
+4. Resolve a logical archetype and model tier to a provider-specific model identifier for the selected provider.
 5. Record the resolved archetype name in `state_dict["_resolved_archetype"]` for downstream use by `LoopState.phase_archetype`.
 
 The 13 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`.
 
-The `skills/autopilot/SKILL.md` orchestration prose SHALL invoke the harness `Agent(...)` tool for the following 7 phases: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the resolved `model` and SHALL fold the resolved `system_prompt` into the agent's prompt text using the fixed separator `\n\n---\n\n` (the literal four-character newline-newline-three-dashes-newline-newline string, asserted verbatim).
+The `skills/autopilot/SKILL.md` orchestration prose SHALL dispatch the following 7 phases through the provider-neutral dispatch adapter when an adapter is available: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the provider-specific model ID and SHALL fold the resolved `system_prompt` into the prompt text using the fixed separator `\n\n---\n\n`.
 
-State-only phases (`INIT`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver in `autopilot.run_loop`, even though they do not dispatch a sub-agent.
+State-only phases (`INIT`, `PLAN`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver, even though they do not dispatch a phase sub-agent.
 
-Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL record `LoopState.phase_archetype` for audit purposes via the convergence loop's existing audit path, but SHALL NOT receive a separate `Agent(...)` dispatch block in SKILL.md (the convergence loop in `convergence_loop.py` handles their dispatch internally).
+Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit or record `LoopState.phase_archetype` for audit purposes via the convergence loop's existing path, but SHALL NOT receive a separate provider-adapter dispatch block in SKILL.md.
 
-The skill-delegated `PLAN` phase (which invokes `/plan-feature`) SHALL NOT receive an explicit `Agent(...)` dispatch block; it SHALL continue to dispatch via the existing skill-invocation path because `/plan-feature` itself manages sub-agent dispatch internally.
+#### Scenario: PLAN phase resolves to provider-specific architect model
 
-#### Scenario: PLAN phase resolves to architect archetype
-
-- **WHEN** autopilot enters the `PLAN` phase
+- **GIVEN** autopilot is running under provider `codex`
 - **AND** `phase_mapping.PLAN.archetype` is `"architect"`
-- **THEN** `_build_options("PLAN", state_dict)` SHALL return options containing `"model": "opus"` and `"system_prompt"` matching the architect's system prompt
-- **AND** the sub-agent dispatch SHALL receive these options verbatim
+- **AND** the provider model map resolves `architect` or its tier to `gpt-5.5`
+- **WHEN** autopilot enters the `PLAN` phase
+- **THEN** the resolved phase metadata SHALL contain `"archetype": "architect"`
+- **AND** the dispatch metadata SHALL contain `"model": "gpt-5.5"`
+- **AND** the dispatch metadata SHALL NOT contain Claude-only model aliases unless the Codex mapping explicitly declares them
 
-#### Scenario: IMPLEMENT phase resolves with escalation signals
+#### Scenario: IMPLEMENT phase resolves with provider-specific escalation
 
-- **GIVEN** a work package with `loc_estimate=250` is being processed
+- **GIVEN** autopilot is running under provider `gemini`
+- **AND** a work package with `loc_estimate=250` is being processed
 - **WHEN** autopilot enters the `IMPLEMENT` phase
-- **THEN** `_build_options("IMPLEMENT", state_dict)` SHALL extract `loc_estimate` from `state_dict` and pass it as a signal
-- **AND** the resolved `model` SHALL be `"opus"` (escalated from `sonnet`)
-- **AND** `state_dict["_resolved_archetype"]` SHALL be `"implementer"`
+- **THEN** the phase resolver SHALL extract `loc_estimate` from `state_dict` and pass it as a signal
+- **AND** the resolved archetype SHALL be `"implementer"`
+- **AND** the model tier SHALL escalate from `standard` to `premium`
+- **AND** the provider-specific model SHALL be a Gemini model ID from the configured Gemini mapping
 
-#### Scenario: 10 of 13 non-terminal phases set phase_archetype
-
-- **WHEN** autopilot completes a full state machine run from INIT to DONE
-- **THEN** the following 10 phases SHALL have set `LoopState.phase_archetype` to a non-null value matching `phase_mapping`: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW`, `SUBMIT_PR`
-- **AND** the convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit `phase_archetype` from their preceding REVIEW phase via the shared `LoopState` (no separate write — convergence_loop never overwrites the field)
-- **AND** if a `_FIX` phase runs without a preceding successful REVIEW (e.g. quorum lost on round 1), `LoopState.phase_archetype` MAY be `null` for that phase — this is acceptable per the design and SHALL NOT cause autopilot to escalate
-
-#### Scenario: Production autopilot run dispatches harness Agent with resolved model
+#### Scenario: Production autopilot run dispatches through provider adapter
 
 - **GIVEN** a real autopilot run executing from `/autopilot <change-id>` against an available coordinator
+- **AND** the active provider is `codex`
 - **WHEN** the run reaches the `IMPLEMENT` phase
-- **THEN** the SKILL.md dispatch block SHALL invoke the harness `Agent(...)` tool with `model` set to the resolved `phase_mapping.IMPLEMENT.model`
-- **AND** the prompt passed to `Agent(...)` SHALL begin with the resolved `system_prompt` followed by `\n\n---\n\n` followed by the per-phase task prompt
-- **AND** after the `Agent(...)` call returns, `LoopState.phase_archetype` in `loop-state.json` SHALL equal `"implementer"`
-- **AND** `LoopState.last_handoff_id` SHALL be updated to the `handoff_id` returned from the dispatched sub-agent
+- **THEN** the SKILL.md dispatch block SHALL invoke the provider-neutral dispatch adapter
+- **AND** the adapter SHALL receive a payload conforming to `contracts/phase-dispatch-contract.md`
+- **AND** the payload's `model` SHALL be provider-specific for Codex
+- **AND** the prompt passed to the adapter SHALL begin with the resolved `system_prompt` followed by `\n\n---\n\n` followed by the per-phase task prompt
+- **AND** after the adapter returns, `LoopState.phase_archetype` in `loop-state.json` SHALL equal `"implementer"`
+- **AND** `LoopState.last_handoff_id` SHALL be updated to the `handoff_id` returned from the dispatched provider result
 
-#### Scenario: INIT phase records archetype despite being state-only
+#### Scenario: Claude remains supported
 
-- **WHEN** autopilot enters the `INIT` phase
-- **THEN** `autopilot._resolve_phase_archetype_for_state_only(state, "INIT")` SHALL be called
-- **AND** `LoopState.phase_archetype` SHALL be set to `"runner"` (per phase_mapping)
-- **AND** no harness `Agent(...)` call SHALL be made for INIT
-
----
+- **GIVEN** autopilot is running under provider `claude_code`
+- **AND** the Claude dispatch adapter is available
+- **WHEN** autopilot dispatches a phase that previously used `Agent(...)`
+- **THEN** the provider-neutral adapter MAY invoke the existing Claude harness `Agent(...)` surface internally
+- **AND** the public SKILL.md contract SHALL still describe the provider-neutral adapter rather than requiring non-Claude providers to expose `Agent(...)`
 
 ### Requirement: Per-Phase Archetype Resolution Override
 
-The system SHALL support an environment variable `AUTOPILOT_PHASE_MODEL_OVERRIDE` that forces specific models for specific phases, overriding the resolved archetype's model.
+The system SHALL support an environment variable `AUTOPILOT_PHASE_MODEL_OVERRIDE` that forces specific provider model IDs for specific phases, overriding the resolved provider-specific model.
 
-Format: `<PHASE>=<model>[,<PHASE>=<model>]*` (e.g., `PLAN=opus,IMPL_REVIEW=sonnet`).
+Format: `<PHASE>=<model>[,<PHASE>=<model>]*`.
 
 Override behavior:
+
 - Override SHALL take precedence over archetype-resolved model.
-- Override SHALL set `options["model"]` only; `options["system_prompt"]` SHALL NOT be set when an override is in effect (harness default applies).
+- Override SHALL set only the dispatch model value; it SHALL NOT change the resolved archetype.
 - Unknown phase names in the override string SHALL be logged as warnings and ignored.
-- Unknown model names SHALL pass through (validated downstream by the harness).
+- Unknown model names SHALL pass through only to the selected provider adapter, which is responsible for provider-specific validation or failure reporting.
 
-#### Scenario: Override forces a specific model for a phase
+#### Scenario: Override forces a Codex model for a phase
 
-- **GIVEN** `AUTOPILOT_PHASE_MODEL_OVERRIDE=PLAN=opus`
+- **GIVEN** `AUTOPILOT_PROVIDER=codex`
+- **AND** `AUTOPILOT_PHASE_MODEL_OVERRIDE=PLAN=gpt-5.4`
 - **WHEN** autopilot enters the `PLAN` phase
-- **THEN** `options["model"]` SHALL be `"opus"`
-- **AND** `options` SHALL NOT contain `"system_prompt"`
-
-#### Scenario: Override with unknown phase logs warning
-
-- **GIVEN** `AUTOPILOT_PHASE_MODEL_OVERRIDE=BOGUS=opus,PLAN=sonnet`
-- **WHEN** autopilot starts
-- **THEN** a warning SHALL be logged identifying `BOGUS` as an unknown phase
-- **AND** the `PLAN=sonnet` override SHALL be honored normally
-
----
+- **THEN** the dispatch model SHALL be `"gpt-5.4"`
+- **AND** the resolved archetype SHALL remain `"architect"`
 
 ### Requirement: Per-Phase Archetype Resolution Failure Mode
 
-If the coordinator endpoint is unreachable or returns an error, OR if the harness `Agent(...)` tool is not available in the executing orchestrator, autopilot SHALL fall back to the existing inline-prose execution path for that phase and continue.
+If the coordinator endpoint is unreachable or returns an error, OR if no provider adapter is available in the executing orchestrator, autopilot SHALL fall back to the existing inline-prose execution path for that phase and continue.
 
 Fallback behavior:
-- `coordination_bridge.try_resolve_archetype_for_phase(phase, signals)` SHALL return `None` on any failure (network error, timeout, 4xx, 5xx, malformed response).
-- When `None` is returned, `_build_options` SHALL NOT set `options["model"]` or `options["system_prompt"]`.
+
+- `coordination_bridge.try_resolve_archetype_for_phase(phase, signals)` SHALL return `None` on any failure.
+- When `None` is returned, phase dispatch SHALL omit provider-specific model and system prompt values unless an override is present.
 - `LoopState.phase_archetype` SHALL be set to `None` for that phase.
-- A structured warning SHALL be logged including the phase name, the error reason, and a hint that operators can use `AUTOPILOT_PHASE_MODEL_OVERRIDE` as a temporary mitigation.
-- The phase SHALL still complete normally — the SKILL.md dispatch block SHALL fall through to the existing inline slash-command path (`/iterate-on-implementation`, `/implement-feature`, etc.) instead of `Agent(...)` dispatch.
+- A structured warning SHALL be logged including the phase name, selected provider, error reason, and a hint that operators can use `AUTOPILOT_PHASE_MODEL_OVERRIDE` or provider config as temporary mitigation.
+- The phase SHALL still complete normally by falling through to the existing inline slash-command path.
 
-#### Scenario: Coordinator unreachable, autopilot continues
+#### Scenario: Provider adapter unavailable falls back gracefully
 
-- **GIVEN** the coordinator returns HTTP 503 for `POST /archetypes/resolve_for_phase`
-- **WHEN** autopilot enters the `PLAN` phase
-- **THEN** `_build_options("PLAN", state_dict)` SHALL return options without `model` or `system_prompt` keys
-- **AND** the SKILL.md dispatch block SHALL fall through to the inline `/plan-feature` invocation
-- **AND** `LoopState.phase_archetype` SHALL be `None` for that phase
-- **AND** a structured warning SHALL be logged
-
-#### Scenario: Network timeout falls back gracefully
-
-- **GIVEN** `coordination_bridge.try_resolve_archetype_for_phase` raises `TimeoutError`
-- **WHEN** the bridge call is made
-- **THEN** the function SHALL return `None`
-- **AND** autopilot SHALL NOT crash or retry the resolution within the same phase dispatch
-
-#### Scenario: Harness Agent tool not exposed, fallback to inline path
-
-- **GIVEN** the orchestrator session does not expose the harness `Agent(...)` tool (e.g., minimal API-only execution)
+- **GIVEN** `AUTOPILOT_PROVIDER=gemini`
+- **AND** no Gemini/Jules dispatch adapter is configured in the current runtime
 - **WHEN** autopilot enters the `IMPLEMENT` phase
-- **THEN** the SKILL.md dispatch block SHALL detect the missing tool and SHALL fall through to the inline `/implement-feature <change-id>` invocation
+- **THEN** the SKILL.md dispatch block SHALL detect the missing adapter
+- **AND** it SHALL fall through to the inline `/implement-feature <change-id>` invocation
 - **AND** `LoopState.phase_archetype` SHALL be `None` for that phase
-- **AND** a structured warning SHALL be logged identifying that `Agent(...)` was unavailable
+- **AND** a structured warning SHALL identify the selected provider and adapter unavailability
 
 ### Requirement: Prototype Feature Skill
 
@@ -3630,79 +3609,29 @@ The `docs/skills-workflow.md` document SHALL describe the optional prototyping s
 
 ### Requirement: Sub-Agent Dispatch Protocol Helpers
 
-`skills/autopilot/scripts/phase_agent.py` SHALL expose two pure-Python helper entry points that the SKILL.md orchestration prose calls across the prose/Python boundary:
+`skills/autopilot/scripts/phase_agent.py` SHALL expose pure-Python helper entry points that the SKILL.md orchestration prose calls across the prose/Python boundary:
 
-1. **`build_phase_dispatch_kwargs(phase: str, change_id: str) -> dict`** — returns a JSON-serializable dict containing `{prompt, model, system_prompt, isolation, archetype}` for the given phase. The function SHALL:
-   - Validate `change_id` against the regex `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` and raise `ValueError` on failure.
-   - Read `loop-state.json` from `openspec/changes/<change_id>/loop-state.json`.
-   - Hydrate or bootstrap an incoming `PhaseRecord` from `state.last_handoff_id`.
-   - Call `_build_options(phase, state_dict)` and `_build_prompt(phase, ...)` internally.
-   - Atomically write `openspec/changes/<change_id>/.phase-resolution-cache.json` containing `{schema_version, change_id, phase, archetype, checksum}` where `checksum` is the SHA-256 of `change_id + phase + archetype`.
+1. `build_phase_dispatch_kwargs(phase: str, change_id: str) -> dict` SHALL remain backward compatible and return a JSON-serializable dict containing at least `{prompt, model, system_prompt, isolation, archetype}` for the given phase.
+2. `build_phase_dispatch_payload(phase: str, change_id: str, provider: str | None = None) -> dict` SHALL return a provider-neutral payload conforming to `contracts/phase-dispatch-contract.md`.
+3. `apply_phase_outcome(change_id: str, phase: str, outcome: str, handoff_id: str) -> None` SHALL continue to update `loop-state.json` with the new `last_handoff_id`, append to `handoff_ids`, and set `phase_archetype` from the resolution cache.
 
-2. **`apply_phase_outcome(change_id: str, phase: str, outcome: str, handoff_id: str) -> None`** — updates `loop-state.json` with the new `last_handoff_id`, appends to `handoff_ids` (skipping if already present), and sets `phase_archetype` from the cache file. The function SHALL:
-   - Be idempotent — calling twice with the same `(change_id, phase, outcome, handoff_id)` leaves `loop-state.json` in the same final state, with `handoff_id` appearing exactly once in `handoff_ids` and `phase_archetype` preserving the value written by the first call (NOT overwritten with `None` on the second call even though the cache file was deleted by the first).
-   - Detect replay via the rule: if loaded `state.last_handoff_id == handoff_id` AND `state.previous_phase == phase` (or `state.current_phase == phase`), treat the call as a replay. In replay mode, preserve `phase_archetype` and skip the cache validation (cache is allowed to be missing — the prior successful call deleted it).
-   - When NOT a replay, validate the cache file's `change_id`, `phase`, and `checksum`. On any mismatch (parse error, missing file, change-id mismatch, phase mismatch, checksum mismatch), set `phase_archetype = None`, log a structured warning, and continue without raising.
-   - On successful non-replay apply, delete the cache file (atomic rename to a temp path then unlink, so a crash mid-delete leaves the cache discoverable).
+The helper surface SHALL validate `change_id`, read `loop-state.json`, hydrate or bootstrap incoming handoff context, atomically write the phase-resolution cache, and remain idempotent under replay.
 
-Both helpers SHALL be invocable as CLI scripts via `runner.py` so SKILL.md prose can shell out to them with structured arguments. The CLI surface is `runner.py build-dispatch --phase X --change-id Y` and `runner.py apply-outcome --phase X --change-id Y --outcome Z --handoff-id H`.
+#### Scenario: build_phase_dispatch_payload returns provider-neutral payload
 
-#### Scenario: build_phase_dispatch_kwargs returns dispatch-ready dict
+- **GIVEN** an autopilot run is at the `IMPLEMENT` phase with provider `codex`
+- **WHEN** `python3 runner.py build-dispatch --phase IMPLEMENT --change-id <id> --provider codex` is invoked
+- **THEN** stdout SHALL contain a single JSON object with `prompt`, `model`, `system_prompt`, `isolation`, `archetype`, `provider`, `phase`, and `expected_outcomes`
+- **AND** `model` SHALL be a Codex model ID from provider mapping
+- **AND** `isolation` SHALL be `"worktree"` because IMPLEMENT is worktree-isolated
+- **AND** the resolution cache SHALL still contain the logical archetype for `apply_phase_outcome`
 
-- **GIVEN** an autopilot run is at the `IMPLEMENT` phase with a resolved archetype
-- **WHEN** `python3 runner.py build-dispatch --phase IMPLEMENT --change-id <id>` is invoked
-- **THEN** stdout SHALL be a single JSON object containing `prompt`, `model`, `system_prompt`, `isolation`, and `archetype` keys
-- **AND** `model` SHALL match the resolved archetype's model
-- **AND** `isolation` SHALL be `"worktree"` (since IMPLEMENT is in `_WORKTREE_PHASES`)
-- **AND** `openspec/changes/<id>/.phase-resolution-cache.json` SHALL contain `{"phase": "IMPLEMENT", "archetype": "implementer", "change_id": "<id>"}`
+#### Scenario: Joined prompt token budget is provider aware
 
-#### Scenario: apply_phase_outcome updates loop state and is idempotent under replay
-
-- **GIVEN** `loop-state.json` exists at version 3 and the cache file `.phase-resolution-cache.json` is present with phase=IMPLEMENT, archetype=implementer
-- **WHEN** `python3 runner.py apply-outcome --change-id <id> --phase IMPLEMENT --outcome continue --handoff-id h-abc` is invoked
-- **THEN** `LoopState.last_handoff_id` SHALL equal `"h-abc"`, `LoopState.handoff_ids` SHALL contain `"h-abc"`, `LoopState.phase_archetype` SHALL equal `"implementer"`, and the cache file SHALL be deleted
-- **WHEN** the same command is invoked a second time (replay scenario — cache file is now absent because the first call deleted it)
-- **THEN** `apply_phase_outcome` SHALL detect the replay via `state.last_handoff_id == "h-abc"` AND `state.previous_phase == "IMPLEMENT"`
-- **AND** `LoopState.phase_archetype` SHALL still equal `"implementer"` (preserved, NOT overwritten with `null`)
-- **AND** `LoopState.handoff_ids` SHALL contain `"h-abc"` exactly once (no duplicate append)
-- **AND** the missing cache file SHALL NOT cause an error or warning
-
-#### Scenario: PLAN_FIX inherits phase_archetype from PLAN_REVIEW
-
-- **GIVEN** autopilot just completed `PLAN_REVIEW` with `LoopState.phase_archetype = "reviewer"` and convergence did not converge
-- **WHEN** the loop transitions to `PLAN_FIX`
-- **THEN** `LoopState.phase_archetype` SHALL still equal `"reviewer"` after PLAN_FIX completes (convergence_loop never overwrites the field)
-- **AND** the convergence loop SHALL NOT call `build_phase_dispatch_kwargs` for the PLAN_FIX phase
-
-#### Scenario: apply_phase_outcome with mismatched cache writes null archetype
-
-- **GIVEN** `.phase-resolution-cache.json` contains `{"phase": "PLAN", "archetype": "architect", "change_id": "<id>"}`
-- **WHEN** `apply_phase_outcome` is called with `--phase IMPLEMENT --change-id <id>`
-- **THEN** `LoopState.phase_archetype` SHALL be set to `None`
-- **AND** a structured warning SHALL be logged identifying the cache/phase mismatch
-
-#### Scenario: Joined prompt preserves phase task instructions even when phase prompt contains "---"
-
-- **GIVEN** an archetype's `system_prompt` is `"You are the implementer. Follow contracts."`
-- **AND** the resolved phase prompt for IMPLEMENT contains the substring `"\n---\n"` (e.g., a markdown rule inside task instructions)
-- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "<id>")` is called
-- **THEN** the returned `prompt` SHALL begin with the system_prompt followed by exactly one occurrence of the literal separator `"\n\n---\n\n"`
-- **AND** the original phase-prompt content SHALL appear in the returned `prompt` unchanged after the separator
-- **AND** all key task-instruction tokens (e.g., `"change_id"`, `"submit"`, `"complete"`) from the phase prompt SHALL appear in the returned `prompt`
-
-#### Scenario: build_phase_dispatch_kwargs rejects path-traversal change_id
-
-- **GIVEN** an attacker-controlled `change_id` value `"../../etc/passwd"`
-- **WHEN** `build_phase_dispatch_kwargs("IMPLEMENT", "../../etc/passwd")` is called
-- **THEN** the function SHALL raise `ValueError` before any filesystem access
-- **AND** no file SHALL be created or read outside `openspec/changes/`
-
-#### Scenario: Joined prompt token budget is enforced
-
-- **GIVEN** the joined prompt for any phase exceeds 75% of the resolved model's context window
-- **WHEN** the wp-skills-autopilot token-budget CI check runs across all 7 sub-agent-dispatching phases
+- **GIVEN** the joined prompt for any phase exceeds 75% of the selected provider model's context window
+- **WHEN** the autopilot token-budget CI check runs across all sub-agent-dispatching phases
 - **THEN** the check SHALL fail with a non-zero exit code
-- **AND** the failure message SHALL identify the phase, the joined-prompt token count, and the model context window
+- **AND** the failure message SHALL identify the phase, provider, provider-specific model, joined-prompt token count, and context window
 - **AND** at the 60-75% range the check SHALL emit a warning but exit zero
 
 ### Requirement: Vendor Findings Checkpoint Layout
@@ -3874,4 +3803,56 @@ The shared checkpoint helper SHALL guard against unsafe path inputs reaching the
 - **THEN** each `findings_path` SHALL be a simple filename (no directory components, no `..`)
 - **AND** each resolved file SHALL have a parent directory equal to the manifest's directory (no escape via symlinks)
 - **AND** any `findings_path` failing these checks SHALL cause the reader to refuse with a structured error
+
+### Requirement: Lifecycle Skills Use Provider-Neutral Dispatch Terminology
+
+The lifecycle skills called by `/autopilot` SHALL describe phase or task delegation using provider-neutral dispatch terminology rather than Claude-only `Agent(...)` terminology.
+
+This requirement applies to:
+
+- `skills/autopilot/SKILL.md`
+- `skills/plan-feature/SKILL.md`
+- `skills/implement-feature/SKILL.md`
+- `skills/iterate-on-plan/SKILL.md`
+- `skills/iterate-on-implementation/SKILL.md`
+- `skills/parallel-review-plan/SKILL.md`
+- `skills/parallel-review-implementation/SKILL.md`
+- `skills/validate-feature/SKILL.md`
+
+#### Scenario: Skill docs do not make Agent the canonical cross-provider path
+
+- **WHEN** lifecycle skill docs are scanned for provider-dispatch instructions
+- **THEN** Claude-specific `Agent(...)` references SHALL be labeled as Claude adapter internals or examples
+- **AND** the canonical instruction SHALL refer to the provider-neutral dispatch adapter or inline fallback
+- **AND** Codex and Gemini/Jules SHALL be described as first-class providers where adapters are configured
+
+### Requirement: Manual Provider Smoke Path
+
+The system SHALL provide an end-to-end smoke path that can be manually triggered by an operator from a specific agent CLI and verifies `/autopilot` provider-neutral dispatch behavior.
+
+The smoke path SHALL:
+
+- Accept a provider selector.
+- Use a fixture or minimal change-id.
+- Exercise the same provider model mapping used by real phase dispatch.
+- Exercise the provider dispatch adapter in dry-run or real mode.
+- Verify normalized `outcome` and `handoff_id` handling.
+- Fail if a non-Claude provider receives `opus`, `sonnet`, or `haiku` without explicit mapping.
+
+#### Scenario: Codex CLI smoke succeeds
+
+- **GIVEN** the operator runs the smoke path with provider `codex`
+- **WHEN** the smoke reaches the provider dispatch step
+- **THEN** the dispatch payload SHALL contain a Codex model ID
+- **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
+- **AND** the smoke SHALL report a pass/fail summary suitable for manual verification
+
+#### Scenario: Gemini CLI smoke succeeds in configured mode
+
+- **GIVEN** the operator runs the smoke path with provider `gemini`
+- **AND** Gemini/Jules dispatch is configured for dry-run, sync CLI, or async polling
+- **WHEN** the smoke reaches the provider dispatch step
+- **THEN** the dispatch payload SHALL contain a Gemini model ID
+- **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
+- **AND** the smoke SHALL report any adapter limitations as warnings rather than silently skipping the provider
 

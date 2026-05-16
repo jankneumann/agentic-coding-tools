@@ -130,6 +130,8 @@ The helper surface SHALL validate `change_id`, read `loop-state.json`, hydrate o
 - **AND** the failure message SHALL identify the phase, provider, provider-specific model, joined-prompt token count, and context window
 - **AND** at the 60-75% range the check SHALL emit a warning but exit zero
 
+## ADDED Requirements
+
 ### Requirement: Lifecycle Skills Use Provider-Neutral Dispatch Terminology
 
 The lifecycle skills called by `/autopilot` SHALL describe phase or task delegation using provider-neutral dispatch terminology rather than Claude-only `Agent(...)` terminology.
