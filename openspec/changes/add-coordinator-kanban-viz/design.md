@@ -58,7 +58,9 @@ The frontend lives in a sibling top-level directory, not nested inside the coord
 
 ### D2: Server-Sent Events, not WebSocket, for live updates
 
-Live updates flow one direction (server → client). SSE is HTTP/1.1-native, traverses proxies cleanly, reuses the existing `Authorization` header for auth, and has a tiny client surface (`new EventSource(url)`). WebSocket adds bidirectional framing, ping/pong, and reconnection complexity for no UX benefit on a read-mostly board.
+Live updates flow one direction (server → client). SSE is HTTP/1.1-native, traverses proxies cleanly, and has a tiny client surface (`new EventSource(url)`). WebSocket adds bidirectional framing, ping/pong, and reconnection complexity for no UX benefit on a read-mostly board.
+
+SSE has a known auth-surface gap: browser `EventSource` cannot attach arbitrary headers (HTML Living Standard exposes only `withCredentials`), so the API-key `Authorization: Bearer` flow used by the other endpoints does NOT carry over. We mint a short-lived single-use JWT via `POST /events/auth` and pass it as `?token=<jwt>` on the `EventSource` URL. Mitigations (log redaction, `Referrer-Policy: no-referrer`, server-side nonce store, key separation) are specified in `contracts/README.md` under the `GET /events/work` section. WebSocket would not change this: any browser auth handshake on a stream channel hits the same headers-on-handshake limitation.
 
 The single SSE endpoint (`GET /events/work?change_ids=<csv>`) emits two event kinds:
 
