@@ -1,0 +1,9 @@
+{
+  "round": 1,
+  "vendors_dispatched": ["claude_code", "codex", "gemini"],
+  "vendors_success": ["claude_code", "codex"],
+  "vendors_failed": ["gemini"],
+  "vendor_findings_count": {"claude_code": 10, "codex": 6, "gemini": 0},
+  "blocking_count": 12,
+  "note": "Synthesis crashed due to line_range list vs dict bug; consensus computed manually from per-vendor findings. Round-1 summary is reconstructed."
+}

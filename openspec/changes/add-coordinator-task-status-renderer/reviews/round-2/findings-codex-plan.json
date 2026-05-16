@@ -1,0 +1,59 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "authoritative-checkbox-source-still-unresolved",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The round-2 plan still leaves two checkbox sources in `tasks.md`: hand-authored task checkboxes outside the managed block and generated GFM checkboxes inside it. The proposal now says `/cleanup-feature` continues to read the hand-authored checkboxes as authoritative and implementers SHALL NOT mutate them, while the stated problem is that stale hand-authored checkboxes create reviewer distrust and downstream false positives. Implementing this literally means completed coordinator tasks can render as checked in the generated block while the original task lines remain unchecked, so existing `/implement-feature` and `/cleanup-feature` scanners will still see open work or the repo must keep the old manual checkbox discipline.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/proposal.md",
+      "line_range": [
+        5,
+        33
+      ],
+      "disposition": "fix",
+      "suggestion": "Make one source authoritative for v1. Either update the original task checkbox lines in place, or change downstream scanners to ignore hand-authored checkboxes and consume only the managed block, with tests proving completed coordinator tasks no longer appear open. If the managed block is intentionally informational-only, narrow the proposal goal and remove claims that this fixes downstream checkbox drift."
+    },
+    {
+      "id": "wp-label-update-can-erase-identity-labels",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "The spec says `/implement-feature` later applies `wp:<id>` via `try_issue_update(labels=...)`, but `try_issue_update` replaces the whole labels array rather than merging labels. If an implementer adds only the work-package label, the existing `change:<id>` and `task:<key>` labels can be erased, breaking renderer lookup and seeder idempotency. The plan also does not include a task or test that implements this label merge safely.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/specs/coordinator-task-status-renderer/spec.md",
+      "line_range": [
+        133,
+        135
+      ],
+      "disposition": "fix",
+      "suggestion": "Either defer `wp:<id>` labeling entirely in v1, or add explicit requirements, tasks, and tests that `/implement-feature` performs a read-merge-write label update preserving `change:<id>` and `task:<key>` labels when adding `wp:<id>`."
+    },
+    {
+      "id": "partial-staging-precommit-edge-case",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "The pre-commit contract requires the hook to render and then `git add` the whole `tasks.md` file, but it does not address partially staged `tasks.md` changes. In that case, auto-staging after rendering will also stage any previously unstaged hand-authored edits outside the managed block, which violates normal index semantics and can accidentally commit unrelated plan edits.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md",
+      "line_range": [
+        187,
+        204
+      ],
+      "disposition": "fix",
+      "suggestion": "Specify and test the partial-staging behavior. A conservative option is for the pre-commit hook to detect when `tasks.md` has both staged and unstaged changes and skip rendering with a warning; a stronger option is to render against the staged blob and update only the index."
+    },
+    {
+      "id": "metadata-test-wording-regression",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "Task 2.8 still asks for a test that the seeder POSTs correct labels and metadata per task, while the design, spec, and contract all intentionally forbid passing metadata because `IssueCreateRequest` does not accept it. A worker following this task literally may write a red test that contradicts the accepted labels-only identity design.",
+      "file_path": "openspec/changes/add-coordinator-task-status-renderer/tasks.md",
+      "line_range": [
+        91,
+        95
+      ],
+      "disposition": "fix",
+      "suggestion": "Change task 2.8 to assert the correct labels and issue fields, and explicitly assert that no `metadata` field is sent in the `try_issue_create` payload."
+    }
+  ]
+}
