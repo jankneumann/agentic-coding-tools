@@ -1,0 +1,60 @@
+{
+  "schema_version": 3,
+  "change_id": "add-coordinator-task-status-renderer",
+  "current_phase": "DONE",
+  "iteration": 0,
+  "total_iterations": 11,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    12,
+    6,
+    0
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "claude": true,
+    "codex": true,
+    "gemini": true
+  },
+  "packages_status": {
+    "wp-contracts": "complete",
+    "wp-hooks": "complete",
+    "wp-integration": "complete",
+    "wp-plan-feature-integration": "complete",
+    "wp-renderer-skill": "complete"
+  },
+  "package_authors": {
+    "wp-contracts": "claude-opus-4-7",
+    "wp-hooks": "claude-opus-4-7",
+    "wp-integration": "claude-opus-4-7",
+    "wp-plan-feature-integration": "claude-opus-4-7",
+    "wp-renderer-skill": "claude-opus-4-7"
+  },
+  "implementation_strategy": {
+    "wp-contracts": "sequential_single_agent",
+    "wp-hooks": "sequential_single_agent",
+    "wp-integration": "sequential_single_agent",
+    "wp-plan-feature-integration": "sequential_single_agent",
+    "wp-renderer-skill": "sequential_single_agent"
+  },
+  "memory_ids": [],
+  "handoff_ids": [
+    "plan-iterate-a3f2c891",
+    "plan-review-c70cfacb",
+    "implement-9a2b1c34",
+    "impl-iterate-44f99a12",
+    "impl-review-7d3e9f2a",
+    "validate-83ff2aa",
+    "val-review-9594f27",
+    "submit-pr-166"
+  ],
+  "last_handoff_id": "submit-pr-166",
+  "started_at": "2026-05-15T19:13:22.073992+00:00",
+  "phase_started_at": "2026-05-16T16:00:59.228343+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner"
+}
