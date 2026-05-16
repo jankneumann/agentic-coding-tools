@@ -27,12 +27,12 @@ python3 skills/coordinator-task-status-renderer/scripts/render_tasks_status.py <
 |---|---|---|---|
 | `<change-id>` | positional, string | yes | OpenSpec change identifier (e.g., `add-coordinator-task-status-renderer`). Matches a directory under `openspec/changes/`. |
 | `--repo-root <path>` | option, string | no | Absolute path to repo root. Defaults to `git rev-parse --show-toplevel`. |
-| `--timeout-seconds <N>` | option, integer | no | Max wall-clock time for the coordinator HTTP call. On timeout the renderer follows the stale-marker fallback path. Default: `5`. |
+| `--timeout-seconds <N>` | option, integer | no | Max wall-clock time for the coordinator HTTP call, enforced at the renderer layer (`concurrent.futures` or `signal.alarm`) — NOT delegated to the bridge's `COORDINATION_HTTP_TIMEOUT` envelope, which is shorter and would silently truncate operator overrides. On timeout the renderer follows the stale-marker fallback path. Default: `5`. |
 
 **Effects:**
 
 1. Reads `<repo-root>/openspec/changes/<change-id>/tasks.md`.
-2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"], limit=100)`. (NOTE: at v1 the coordinator's `IssueService.list_issues` post-filters by `labels` after PostgREST returns up to `limit` rows. `MAX_PAGE_SIZE=100` is the hard cap. At OpenSpec v1 scale — ~10–30 tasks per active change, low total active-change count — `limit=100` is sufficient. Scaling beyond a single active change at a time requires the server-side label-push follow-up listed in proposal "Out of Scope".)
+2. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"], limit=100)`. (NOTE: at v1 the coordinator's `IssueService.list_issues` post-filters by `labels` after PostgREST returns up to `limit` rows. `MAX_PAGE_SIZE=100` is the hard cap. At OpenSpec v1 scale — ~10–30 tasks per active change, low total active-change count — `limit=100` is sufficient. Scaling beyond a single active change at a time requires the server-side label-push follow-up listed in proposal "Out of Scope".) **Pagination guard:** if `try_issue_list` returns exactly 100 results (the cap), the renderer SHALL emit a hard ERROR to stderr identifying the cap-overrun risk and SHALL exit 1 (this is NOT a coordinator-unreachable failure; it is a correctness ceiling). A silent truncation would risk deleting issues from the managed block. The follow-up `query-issues-by-change-label-server-side` lifts this cap.
 3. For each returned issue, extracts the `task_key` from its `task:<key>` label (the renderer ignores `metadata.task_key` — see D7).
 4. Renders a managed block per the format defined below.
 5. Writes the rewritten `tasks.md` back to the same path. The renderer SHALL NOT touch the git index; auto-staging is the hook's responsibility.
@@ -52,6 +52,14 @@ The renderer SHALL append the managed-block markers to the end of the file with 
 Marker name is exactly `coordinator:tasks-status`. The colon is part of the name.
 
 **Rendered-content format (normal case):**
+
+The first line inside the managed block (immediately after `<!-- GENERATED: begin coordinator:tasks-status -->`) SHALL be the informational-projection comment:
+
+```
+<!-- Informational projection — see openspec/changes/<change-id>/proposal.md "What Doesn't Change" -->
+```
+
+Followed by one line per task in the form:
 
 ```
 - [<x or space>] <task_key>: <title> — <status annotation>
@@ -93,6 +101,8 @@ A renderer unit test SHALL exercise these exact keys to lock the comparator down
 
 Single line; replaces any prior managed-block content.
 
+**Stale-marker idempotency (two-tier).** The timestamp embedded in the stale marker would otherwise advance on every invocation and break the "Re-render is idempotent" scenario during a coordinator outage. The renderer SHALL persist the most-recent stale-marker timestamp in a sidecar `openspec/changes/<change-id>/.tasks-status.state.json` (gitignored). On entry to the stale-marker path, the renderer SHALL reuse the persisted timestamp if present; otherwise it SHALL write the current ISO-8601 timestamp to both the file AND the sidecar. On a successful coordinator response, the renderer SHALL clear the sidecar's stale entry. Effect: throughout a coordinator outage window, the rendered block is byte-stable; the timestamp only advances when an outage actually starts fresh.
+
 **Exit codes:**
 
 | Code | Meaning |
@@ -128,10 +138,11 @@ python3 skills/coordinator-task-status-renderer/scripts/seed_tasks_from_md.py <c
 **Effects:**
 
 1. Parses `<repo-root>/openspec/changes/<change-id>/tasks.md` for `- [ ]` or `- [x]` lines bearing a task key (e.g., `T1`, `1.1`, `2.6`).
-2. Parses `**Dependencies**:` annotations beneath each task to build a dependency DAG over task keys.
-3. Topologically sorts task keys; aborts with exit 1 if a cycle is detected.
-4. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues. Builds a map `existing_task_keys -> issue_uuid` by reading the `task:<key>` label from each returned issue.
-5. For each task key in topological order, if no existing issue carries the `task:<key>` label:
+2. Parses `**Dependencies**:` annotations beneath each task to build a dependency DAG over task keys. Parsing operates ONLY on the hand-authored regions of `tasks.md` (the prefix before `<!-- GENERATED: begin coordinator:tasks-status -->` and the suffix after `<!-- GENERATED: end coordinator:tasks-status -->`). Any content inside the managed block SHALL be ignored — re-seeding a file that already has a rendered block MUST NOT pick up its generated checkbox lines as task definitions.
+3. **Phase 1 — Cycle detection (mandatory preflight).** Runs a complete cycle-detection pass over the in-memory DAG. On cycle, logs the cycle members to stderr and exits 1 WITHOUT issuing any `try_issue_create` POST. No coordinator state is mutated in this phase.
+4. **Phase 2 — Topological POSTs.** Only after phase 1 succeeds, topologically sorts task keys and POSTs from root to leaf.
+5. Calls coordinator: `coordination_bridge.try_issue_list(labels=["change:<change-id>"])` to discover existing issues. Builds a map `existing_task_keys -> issue_uuid` by reading the `task:<key>` label from each returned issue. **Pagination guard:** if the list call returns exactly `MAX_PAGE_SIZE=100` results (page boundary indistinguishable from saturated cap), the seeder SHALL log an ERROR identifying the cap-overrun risk and exit 1. The renderer SHALL apply the same guard. This is intentionally a hard error — silently truncating risks recreating duplicates (seeder) or deleting issues from the managed block (renderer). The follow-up `query-issues-by-change-label-server-side` lifts this cap.
+6. For each task key in topological order, if no existing issue carries the `task:<key>` label:
    - POSTs via `coordination_bridge.try_issue_create(...)` with the payload defined below.
    - Records the returned UUID into the `existing_task_keys` map so downstream tasks can reference it in their `depends_on`.
 
