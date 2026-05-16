@@ -197,7 +197,7 @@ agents:
     transport: mcp
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
-    archetypes: [analyst, implementer, reviewer, runner, documenter]
+    archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
     description: Local Gemini worker with full coordination access
     cli:
       command: gemini
@@ -212,8 +212,8 @@ agents:
         quick:
           args: ["-p", "", "--approval-mode", "yolo"]
       model_flag: "-m"
-      model: "auto"
-      model_fallbacks: ["flash"]
+      model: "gemini-3-flash-preview"
+      model_fallbacks: ["gemini-3-flash-lite"]
       prompt_via_stdin: true
 
   gemini-remote:
@@ -254,12 +254,12 @@ agents:
             interval_seconds: 60
             timeout_seconds: 3600
       model_flag: "-m"
-      model: "auto"
-      model_fallbacks: ["flash"]
+      model: "gemini-3-flash-preview"
+      model_fallbacks: ["gemini-3-flash-lite"]
     sdk:
       package: google-generativeai
       method: generate_content
-      model: gemini-2.5-pro
-      model_fallbacks: [gemini-2.5-flash]
+      model: gemini-3.1-pro-preview
+      model_fallbacks: [gemini-3-flash-preview, gemini-3-flash-lite]
       api_key_env: GOOGLE_API_KEY
       max_tokens: 16384

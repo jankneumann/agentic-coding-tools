@@ -73,3 +73,47 @@ Planned a coordinated OpenSpec change to make autopilot and its lifecycle skills
 
 ### Context
 Gate 2 approved the provider-neutral dispatch adapter plan for implementation. The Gemini model mapping has been intentionally updated to the latest API model names supplied by the operator.
+
+---
+
+## Phase: Implementation (2026-05-16)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Resolve archetype models through provider maps** `architectural: agent-archetypes` — This preserves legacy Claude aliases while preventing opus/sonnet/haiku from being dispatched to Codex or Gemini.
+2. **Keep adapter boundary small** `architectural: skill-workflow` — The provider dispatch module normalizes payload/result contracts and lets each runtime supply its own runner without rewriting autopilot state management.
+3. **Use local agents.yaml fallback before provider-native config** `architectural: configuration` — Codex and Gemini-only environments should discover repo-local dispatch config without requiring ~/.claude.json.
+
+### Alternatives Considered
+- Coordinator-only dispatch broker: rejected because Rejected at planning because it would require a larger coordinator API and work-queue migration than needed for this feature.
+
+### Trade-offs
+- Accepted Dry-run smoke harness for manual CLI verification over Real remote provider execution in tests because Dry-run exercises the same model mapping and adapter normalization path without requiring external credentials or paid remote jobs.
+
+### Open Questions
+- [ ] Whether future Gemini/Jules production dispatch should add full async polling beyond the current configured adapter contract.
+
+### Completed Work
+- Added provider model map defaults and schema support in agent-coordinator archetype resolution.
+- Added provider-aware phase resolution through the coordinator endpoint and bridge helper.
+- Added HTTP-first/local agents.yaml dispatch config discovery without requiring Claude config.
+- Added provider-neutral phase dispatch payloads, adapter result normalization, runner --provider support, and provider-aware token budget reporting.
+- Updated autopilot and called lifecycle skills to use provider-neutral dispatch terminology.
+- Added Codex/Gemini dry-run smoke harness and manual smoke documentation.
+- Completed change-context traceability and all tasks.md checkboxes.
+
+### Next Steps
+- Run PR review on the implementation.
+- Run cleanup-feature after approval to execute Docker-dependent validation gates before merge.
+
+### Relevant Files
+- `agent-coordinator/src/agents_config.py` — Provider model mapping and provider-aware archetype resolution
+- `skills/autopilot/scripts/phase_agent.py` — Provider-neutral dispatch payload builder
+- `skills/autopilot/scripts/provider_dispatch.py` — Dispatch adapter contract and normalization
+- `skills/autopilot/scripts/smoke_provider_dispatch.py` — Manual provider dry-run smoke harness
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — Provider-neutral dispatch config discovery
+- `openspec/changes/vendor-neutral-autopilot/change-context.md` — Requirement traceability and validation evidence
+
+### Context
+Implemented provider-neutral autopilot dispatch across the coordinator, autopilot phase helpers, lifecycle skill docs, and dry-run provider smoke harness. The implementation preserves Claude Code compatibility while resolving Codex and Gemini models through provider-specific mappings.

@@ -258,7 +258,23 @@ def _check_phase_model_override(phase: str) -> str | None:
     return overrides.get(phase)
 
 
-def _build_options(phase: str, state_dict: dict[str, Any]) -> dict[str, Any]:
+def _selected_provider(provider: str | None = None) -> str | None:
+    """Resolve the active provider from explicit arg or runtime env."""
+    raw = provider or os.environ.get("AUTOPILOT_PROVIDER") or os.environ.get("AGENT_TYPE")
+    if not raw:
+        return None
+    normalized = raw.strip()
+    if normalized == "claude":
+        return "claude_code"
+    return normalized or None
+
+
+def _build_options(
+    phase: str,
+    state_dict: dict[str, Any],
+    *,
+    provider: str | None = None,
+) -> dict[str, Any]:
     """Assemble sub-agent dispatch options for *phase*.
 
     Resolution order (precedence high → low):
@@ -292,7 +308,12 @@ def _build_options(phase: str, state_dict: dict[str, Any]) -> dict[str, Any]:
 
     # Path 2: coordinator archetype resolution
     signals = _extract_signals_for_phase(phase, state_dict)
-    resolved = coordination_bridge.try_resolve_archetype_for_phase(phase, signals)
+    selected_provider = _selected_provider(provider)
+    resolved = coordination_bridge.try_resolve_archetype_for_phase(
+        phase,
+        signals,
+        provider=selected_provider,
+    )
     if resolved is not None:
         options["model"] = resolved["model"]
         options["system_prompt"] = resolved["system_prompt"]
@@ -801,6 +822,7 @@ def _hydrate_incoming_handoff(
 def build_phase_dispatch_kwargs(
     phase: str,
     change_id: str,
+    provider: str | None = None,
 ) -> dict[str, Any]:
     """Return the dispatch payload for a phase sub-agent (D3).
 
@@ -832,7 +854,8 @@ def build_phase_dispatch_kwargs(
 
     # _build_options writes _resolved_archetype into state_dict on the
     # archetype path; we read it back below to populate the cache.
-    options = _build_options(phase, state_dict)
+    selected_provider = _selected_provider(provider)
+    options = _build_options(phase, state_dict, provider=selected_provider)
     phase_prompt = _build_prompt(phase, state_dict, incoming, artifacts_manifest=None)
 
     system_prompt = options.get("system_prompt")
@@ -856,12 +879,46 @@ def build_phase_dispatch_kwargs(
     _atomic_write_json(_cache_path(change_id), cache_payload)
 
     return {
+        "schema_version": 1,
+        "change_id": change_id,
+        "phase": phase,
+        "provider": selected_provider,
         "prompt": folded_prompt,
         "model": model,
         "system_prompt": system_prompt,
         "isolation": isolation,
         "archetype": archetype,
+        "expected_outcomes": _expected_outcomes_for_phase(phase),
     }
+
+
+def _expected_outcomes_for_phase(phase: str) -> list[str]:
+    """Return allowed outcomes for a phase dispatch payload."""
+    return {
+        "PLAN_ITERATE": ["complete", "failed"],
+        "PLAN_REVIEW": ["converged", "not_converged", "max_iter"],
+        "IMPLEMENT": ["complete", "failed"],
+        "IMPL_ITERATE": ["complete", "failed"],
+        "IMPL_REVIEW": ["converged", "not_converged", "max_iter"],
+        "VALIDATE": ["passed", "failed"],
+        "VAL_REVIEW": ["converged", "not_converged"],
+    }.get(phase, ["complete", "failed"])
+
+
+def build_phase_dispatch_payload(
+    phase: str,
+    change_id: str,
+    provider: str | None = None,
+) -> dict[str, Any]:
+    """Return a provider-neutral phase dispatch payload."""
+    payload = build_phase_dispatch_kwargs(
+        phase=phase,
+        change_id=change_id,
+        provider=provider,
+    )
+    if payload.get("provider") is None:
+        payload["provider"] = "claude_code"
+    return payload
 
 
 def _read_state_dict(change_id: str) -> dict[str, Any]:
@@ -1110,6 +1167,7 @@ def record_state_only_archetype(change_id: str, phase: str) -> None:
 __all__ = [
     "PhaseEscalationError",
     "apply_phase_outcome",
+    "build_phase_dispatch_payload",
     "build_phase_dispatch_kwargs",
     "make_phase_callback",
     "record_state_only_archetype",

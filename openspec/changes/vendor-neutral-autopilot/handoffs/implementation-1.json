@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-16T03:07:10.364061+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented provider-neutral autopilot dispatch across the coordinator, autopilot phase helpers, lifecycle skill docs, and dry-run provider smoke harness. The implementation preserves Claude Code compatibility while resolving Codex and Gemini models through provider-specific mappings.",
+    "completed_work": [
+      "Added provider model map defaults and schema support in agent-coordinator archetype resolution.",
+      "Added provider-aware phase resolution through the coordinator endpoint and bridge helper.",
+      "Added HTTP-first/local agents.yaml dispatch config discovery without requiring Claude config.",
+      "Added provider-neutral phase dispatch payloads, adapter result normalization, runner --provider support, and provider-aware token budget reporting.",
+      "Updated autopilot and called lifecycle skills to use provider-neutral dispatch terminology.",
+      "Added Codex/Gemini dry-run smoke harness and manual smoke documentation.",
+      "Completed change-context traceability and all tasks.md checkboxes."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Resolve archetype models through provider maps",
+        "rationale": "This preserves legacy Claude aliases while preventing opus/sonnet/haiku from being dispatched to Codex or Gemini.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Keep adapter boundary small",
+        "rationale": "The provider dispatch module normalizes payload/result contracts and lets each runtime supply its own runner without rewriting autopilot state management.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Use local agents.yaml fallback before provider-native config",
+        "rationale": "Codex and Gemini-only environments should discover repo-local dispatch config without requiring ~/.claude.json.",
+        "capability": "configuration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run PR review on the implementation.",
+      "Run cleanup-feature after approval to execute Docker-dependent validation gates before merge."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/agents_config.py",
+        "description": "Provider model mapping and provider-aware archetype resolution"
+      },
+      {
+        "path": "skills/autopilot/scripts/phase_agent.py",
+        "description": "Provider-neutral dispatch payload builder"
+      },
+      {
+        "path": "skills/autopilot/scripts/provider_dispatch.py",
+        "description": "Dispatch adapter contract and normalization"
+      },
+      {
+        "path": "skills/autopilot/scripts/smoke_provider_dispatch.py",
+        "description": "Manual provider dry-run smoke harness"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "Provider-neutral dispatch config discovery"
+      },
+      {
+        "path": "openspec/changes/vendor-neutral-autopilot/change-context.md",
+        "description": "Requirement traceability and validation evidence"
+      }
+    ]
+  }
+}

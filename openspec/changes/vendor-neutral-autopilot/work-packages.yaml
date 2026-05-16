@@ -110,6 +110,7 @@ packages:
         - "agent-coordinator/archetypes.yaml"
         - "agent-coordinator/agents.yaml"
         - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
       keys:
         - "feature:vendor-neutral-autopilot:model"
       ttl_minutes: 180
@@ -119,6 +120,7 @@ packages:
         - "agent-coordinator/archetypes.yaml"
         - "agent-coordinator/agents.yaml"
         - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/tests/test_archetypes_config.py"
         - "agent-coordinator/tests/test_phase_archetype_resolution.py"
         - "skills/tests/vendor-neutral-autopilot/test_model_resolution.py"
@@ -168,7 +170,14 @@ packages:
     locks:
       files:
         - "skills/coordination-bridge/scripts/check_coordinator.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - ".agents/skills/coordination-bridge/scripts/check_coordinator.py"
+        - ".agents/skills/coordination-bridge/scripts/coordination_bridge.py"
+        - ".agents/skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - ".claude/skills/coordination-bridge/scripts/check_coordinator.py"
+        - ".claude/skills/coordination-bridge/scripts/coordination_bridge.py"
+        - ".claude/skills/parallel-infrastructure/scripts/review_dispatcher.py"
       keys:
         - "feature:vendor-neutral-autopilot:config"
       ttl_minutes: 180
@@ -176,7 +185,14 @@ packages:
     scope:
       write_allow:
         - "skills/coordination-bridge/scripts/check_coordinator.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - ".agents/skills/coordination-bridge/scripts/check_coordinator.py"
+        - ".agents/skills/coordination-bridge/scripts/coordination_bridge.py"
+        - ".agents/skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - ".claude/skills/coordination-bridge/scripts/check_coordinator.py"
+        - ".claude/skills/coordination-bridge/scripts/coordination_bridge.py"
+        - ".claude/skills/parallel-infrastructure/scripts/review_dispatcher.py"
         - "skills/tests/coordination-bridge/**"
         - "skills/tests/parallel-infrastructure/**"
         - "skills/tests/vendor-neutral-autopilot/test_config_discovery.py"
@@ -239,6 +255,10 @@ packages:
       write_allow:
         - "skills/autopilot/SKILL.md"
         - "skills/autopilot/scripts/**"
+        - ".agents/skills/autopilot/SKILL.md"
+        - ".agents/skills/autopilot/scripts/**"
+        - ".claude/skills/autopilot/SKILL.md"
+        - ".claude/skills/autopilot/scripts/**"
         - "skills/tests/autopilot/**"
         - "skills/tests/vendor-neutral-autopilot/test_dispatch_adapter.py"
       read_allow:
@@ -308,6 +328,20 @@ packages:
         - "skills/parallel-review-plan/SKILL.md"
         - "skills/parallel-review-implementation/SKILL.md"
         - "skills/validate-feature/SKILL.md"
+        - ".agents/skills/plan-feature/SKILL.md"
+        - ".agents/skills/implement-feature/SKILL.md"
+        - ".agents/skills/iterate-on-plan/SKILL.md"
+        - ".agents/skills/iterate-on-implementation/SKILL.md"
+        - ".agents/skills/parallel-review-plan/SKILL.md"
+        - ".agents/skills/parallel-review-implementation/SKILL.md"
+        - ".agents/skills/validate-feature/SKILL.md"
+        - ".claude/skills/plan-feature/SKILL.md"
+        - ".claude/skills/implement-feature/SKILL.md"
+        - ".claude/skills/iterate-on-plan/SKILL.md"
+        - ".claude/skills/iterate-on-implementation/SKILL.md"
+        - ".claude/skills/parallel-review-plan/SKILL.md"
+        - ".claude/skills/parallel-review-implementation/SKILL.md"
+        - ".claude/skills/validate-feature/SKILL.md"
         - "skills/tests/vendor-neutral-autopilot/test_lifecycle_docs.py"
       read_allow:
         - "skills/**"
@@ -365,6 +399,8 @@ packages:
     scope:
       write_allow:
         - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - ".agents/skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - ".claude/skills/autopilot/scripts/smoke_provider_dispatch.py"
         - "skills/tests/vendor-neutral-autopilot/test_smoke_provider_dispatch.py"
         - "docs/autopilot-provider-smoke.md"
       read_allow:
@@ -423,7 +459,11 @@ packages:
       reason: "Final validation for vendor-neutral autopilot"
     scope:
       write_allow:
+        - "openspec/changes/vendor-neutral-autopilot/.dispatch-state.json"
+        - "openspec/changes/vendor-neutral-autopilot/change-context.md"
+        - "openspec/changes/vendor-neutral-autopilot/tasks.md"
         - "openspec/changes/vendor-neutral-autopilot/session-log.md"
+        - "openspec/changes/vendor-neutral-autopilot/work-packages.yaml"
       read_allow:
         - "**"
     worktree:

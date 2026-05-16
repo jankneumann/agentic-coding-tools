@@ -27,6 +27,14 @@ Optional flags:
 - `--explore` -- Deep-dive mode: more discovery questions (5-8 vs 2-5), more approaches (3-5 vs 2-3), web search for prior art when available
 - `--interview` -- Confidence-gated discovery: replaces the fixed question budget with an adaptive loop that keeps asking (in batches of 2-4) until self-assessed confidence reaches ≥ 0.95 on a five-dimension rubric or the user asks to move on. Prioritizes latent intent ("what you actually want") over surface request ("what you think you should want"). Auto-enabled when `$ARGUMENTS` is short/vague (≤ 3 words or no verb)
 
+## Provider-Neutral Dispatch
+
+When this skill delegates context gathering or review work, treat the
+provider-neutral dispatch adapter as the canonical cross-provider path. Claude
+Code, Codex, and Gemini/Jules are first-class providers when configured; any
+Claude harness `Agent(...)` usage is a provider-specific adapter internal or
+example, with inline execution as the fallback.
+
 ## OpenSpec Execution Preference
 
 Use OpenSpec-generated runtime assets first, then CLI fallback:

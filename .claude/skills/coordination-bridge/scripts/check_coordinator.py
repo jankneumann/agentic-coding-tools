@@ -99,11 +99,19 @@ def probe_route(base_url: str, path: str, timeout: float = 2.0) -> bool:
 
 
 def detect_mcp_server() -> bool:
-    """Detect whether the coordination MCP server is configured and connected.
+    """Detect whether a provider-native coordination MCP server is connected.
 
-    Uses ``claude mcp get coordination`` to check registration and status.
-    Returns True if the server is connected, False otherwise.
+    Explicit provider-neutral environment hints are checked first. Claude Code
+    MCP config remains supported as one provider-native fallback, but it is not
+    required for HTTP or local non-Claude environments.
     """
+    if os.environ.get("COORDINATION_MCP_CONNECTED", "").lower() in {"1", "true", "yes"}:
+        return True
+    explicit_config = os.environ.get("COORDINATION_MCP_CONFIG")
+    if explicit_config and os.path.exists(os.path.expanduser(explicit_config)):
+        return True
+
+    # Claude Code provider-native fallback.
     claude_bin = shutil.which("claude")
     if not claude_bin:
         return False

@@ -1132,6 +1132,7 @@ def try_resolve_archetype_for_phase(
     phase: str,
     signals: dict[str, Any] | None = None,
     *,
+    provider: str | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
@@ -1150,14 +1151,18 @@ def try_resolve_archetype_for_phase(
     resolved_url = _resolve_http_url(http_url)
     if not resolved_url:
         logger.warning(
-            "try_resolve_archetype_for_phase failed for phase=%s: missing_http_url; "
-            "set COORDINATION_API_URL or AUTOPILOT_PHASE_MODEL_OVERRIDE to mitigate",
+            "try_resolve_archetype_for_phase failed for phase=%s provider=%s: "
+            "missing_http_url; set COORDINATION_API_URL, provider model mapping, "
+            "or AUTOPILOT_PHASE_MODEL_OVERRIDE to mitigate",
             phase,
+            provider or "(default)",
         )
         return None
 
     resolved_key = _resolve_api_key(api_key)
     payload: dict[str, Any] = {"phase": phase, "signals": signals or {}}
+    if provider:
+        payload["provider"] = provider
     response = _http_request(
         method="POST",
         path="/archetypes/resolve_for_phase",
@@ -1169,10 +1174,12 @@ def try_resolve_archetype_for_phase(
     status = response.get("status_code")
     if status != 200:
         logger.warning(
-            "try_resolve_archetype_for_phase failed for phase=%s: HTTP status=%s error=%s; "
-            "phase will dispatch with harness defaults; set AUTOPILOT_PHASE_MODEL_OVERRIDE "
+            "try_resolve_archetype_for_phase failed for phase=%s provider=%s: "
+            "HTTP status=%s error=%s; phase will dispatch with harness defaults; "
+            "check provider model mapping or set AUTOPILOT_PHASE_MODEL_OVERRIDE "
             "to force a specific model",
             phase,
+            provider or "(default)",
             status,
             response.get("error"),
         )
@@ -1181,18 +1188,20 @@ def try_resolve_archetype_for_phase(
     data = response.get("data")
     if not isinstance(data, dict):
         logger.warning(
-            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "try_resolve_archetype_for_phase failed for phase=%s provider=%s: malformed_response "
             "(expected dict, got %s)",
             phase,
+            provider or "(default)",
             type(data).__name__,
         )
         return None
 
     if not all(k in data for k in _ARCHETYPE_RESOLVE_REQUIRED_FIELDS):
         logger.warning(
-            "try_resolve_archetype_for_phase failed for phase=%s: malformed_response "
+            "try_resolve_archetype_for_phase failed for phase=%s provider=%s: malformed_response "
             "(missing required fields; got keys=%s)",
             phase,
+            provider or "(default)",
             sorted(data.keys()),
         )
         return None

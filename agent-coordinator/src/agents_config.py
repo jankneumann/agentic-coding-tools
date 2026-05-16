@@ -20,6 +20,37 @@ from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolat
 
 logger = logging.getLogger(__name__)
 
+# Provider-specific model map. Archetypes can continue to use legacy Claude
+# aliases or logical tiers; dispatch resolves them against this map only when a
+# provider is selected.
+MODEL_TIERS: tuple[str, ...] = ("premium", "standard", "economy")
+LEGACY_CLAUDE_ALIAS_TO_TIER: dict[str, str] = {
+    "opus": "premium",
+    "sonnet": "standard",
+    "haiku": "economy",
+}
+DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
+    "schema_version": 1,
+    "tiers": list(MODEL_TIERS),
+    "providers": {
+        "claude_code": {
+            "premium": "opus",
+            "standard": "sonnet",
+            "economy": "haiku",
+        },
+        "codex": {
+            "premium": "gpt-5.5",
+            "standard": "gpt-5.4",
+            "economy": "gpt-5.4-mini",
+        },
+        "gemini": {
+            "premium": "gemini-3.1-pro-preview",
+            "standard": "gemini-3-flash-preview",
+            "economy": "gemini-3-flash-lite",
+        },
+    },
+}
+
 # ---------------------------------------------------------------------------
 # Archetype name pattern (shared between schema and runtime validation)
 # ---------------------------------------------------------------------------
@@ -54,7 +85,20 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
     "properties": {
         # schema_version=2 enables phase_mapping per OpenSpec
         # add-per-phase-archetype-resolution; v1 remains valid for legacy configs.
-        "schema_version": {"type": "integer", "enum": [1, 2]},
+        "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        "model_aliases": {
+            "type": ["object", "null"],
+            "additionalProperties": {
+                "type": "object",
+                "required": list(MODEL_TIERS),
+                "additionalProperties": False,
+                "properties": {
+                    "premium": {"type": "string", "minLength": 1},
+                    "standard": {"type": "string", "minLength": 1},
+                    "economy": {"type": "string", "minLength": 1},
+                },
+            },
+        },
         "archetypes": {
             "type": "object",
             "minProperties": 1,
@@ -68,7 +112,10 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                 "properties": {
                     "model": {
                         "type": "string",
-                        "enum": ["opus", "sonnet", "haiku"],
+                        "enum": [
+                            "premium", "standard", "economy",
+                            "opus", "sonnet", "haiku",
+                        ],
                     },
                     "system_prompt": {"type": "string"},
                     "escalation": {
@@ -76,7 +123,10 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
                         "properties": {
                             "escalate_to": {
                                 "type": "string",
-                                "enum": ["opus", "sonnet", "haiku"],
+                                "enum": [
+                                    "premium", "standard", "economy",
+                                    "opus", "sonnet", "haiku",
+                                ],
                             },
                             "max_write_dirs": {
                                 "type": "integer",
@@ -404,6 +454,27 @@ class ResolvedArchetype:
     system_prompt: str
     archetype: str
     reasons: list[str]
+    provider: str | None = None
+
+
+class ProviderModelMappingError(ValueError):
+    """Raised when a logical/legacy model cannot resolve for a provider."""
+
+    def __init__(self, provider: str, model: str, tier: str | None = None) -> None:
+        self.provider = provider
+        self.model = model
+        self.tier = tier
+        if tier:
+            message = (
+                f"missing provider model mapping for provider={provider!r}, "
+                f"tier={tier!r}, source_model={model!r}"
+            )
+        else:
+            message = (
+                f"missing provider model mapping for provider={provider!r}, "
+                f"source_model={model!r}"
+            )
+        super().__init__(message)
 
 
 # ---------------------------------------------------------------------------
@@ -827,7 +898,7 @@ def load_archetypes_config(
     If the file does not exist, returns an empty dict and logs a warning
     (design decision D5: graceful degradation).
     """
-    global _archetypes, _phase_mapping
+    global _archetypes, _phase_mapping, _provider_model_map
     if _archetypes is not None:
         return _archetypes
 
@@ -847,6 +918,7 @@ def load_archetypes_config(
         raise ValueError("Empty archetypes.yaml file")
 
     validate(instance=raw, schema=ARCHETYPES_SCHEMA)
+    _provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
 
     result: dict[str, ArchetypeConfig] = {}
     for name, data in raw["archetypes"].items():
@@ -889,6 +961,7 @@ def load_archetypes_config(
 
 _archetypes: dict[str, ArchetypeConfig] | None = None
 _phase_mapping: dict[str, PhaseMappingEntry] | None = None
+_provider_model_map: dict[str, Any] | None = None
 
 
 def get_archetype(name: str) -> ArchetypeConfig | None:
@@ -919,9 +992,84 @@ def get_phase_mapping() -> dict[str, PhaseMappingEntry]:
 
 def reset_archetypes_config() -> None:
     """Reset the global archetypes + phase_mapping caches (for testing)."""
-    global _archetypes, _phase_mapping
+    global _archetypes, _phase_mapping, _provider_model_map
     _archetypes = None
     _phase_mapping = None
+    _provider_model_map = None
+
+
+def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, Any]:
+    """Return a schema-shaped provider model map.
+
+    ``archetypes.yaml`` stores only the ``model_aliases`` provider object for
+    readability, while tests and contracts use the full schema shape.
+    """
+    if not raw_map:
+        return {
+            "schema_version": DEFAULT_PROVIDER_MODEL_MAP["schema_version"],
+            "tiers": list(DEFAULT_PROVIDER_MODEL_MAP["tiers"]),
+            "providers": {
+                provider: dict(mapping)
+                for provider, mapping in DEFAULT_PROVIDER_MODEL_MAP["providers"].items()
+            },
+        }
+    if "providers" in raw_map:
+        return raw_map
+    return {
+        "schema_version": 1,
+        "tiers": list(MODEL_TIERS),
+        "providers": {
+            provider: dict(mapping)
+            for provider, mapping in raw_map.items()
+        },
+    }
+
+
+def get_provider_model_map() -> dict[str, Any]:
+    """Return the currently loaded provider model map or defaults."""
+    if _provider_model_map is None:
+        return _normalize_provider_model_map(None)
+    return _provider_model_map
+
+
+def resolve_provider_model(
+    model: str,
+    *,
+    provider: str | None,
+    model_map: dict[str, Any] | None = None,
+) -> str:
+    """Resolve a logical/legacy model value for *provider*.
+
+    Without a provider, current behavior is preserved and the source model is
+    returned unchanged. With a provider, logical tiers and legacy Claude aliases
+    are translated through the provider map. Exact provider-specific model IDs
+    already present in that provider's mapping are accepted as explicit aliases.
+    """
+    if not provider:
+        return model
+
+    normalized = _normalize_provider_model_map(model_map or get_provider_model_map())
+    providers = normalized.get("providers") or {}
+    provider_map = providers.get(provider)
+    if not isinstance(provider_map, dict):
+        raise ProviderModelMappingError(provider, model)
+
+    tier: str | None
+    if model in MODEL_TIERS:
+        tier = model
+    else:
+        tier = LEGACY_CLAUDE_ALIAS_TO_TIER.get(model)
+
+    if tier:
+        candidate = provider_map.get(tier)
+        if isinstance(candidate, str) and candidate:
+            return candidate
+        raise ProviderModelMappingError(provider, model, tier)
+
+    if model in provider_map.values():
+        return model
+
+    raise ProviderModelMappingError(provider, model)
 
 
 # ---------------------------------------------------------------------------
@@ -969,6 +1117,8 @@ def resolve_model(
     *,
     return_reasons: bool = False,
     phase: str | None = None,
+    provider: str | None = None,
+    model_map: dict[str, Any] | None = None,
 ) -> str | tuple[str, list[str]]:
     """Resolve the effective model for a work package.
 
@@ -984,12 +1134,24 @@ def resolve_model(
         phase: Optional autopilot phase name. Currently used only to enrich
             log messages (design decision D3); does not change escalation
             behavior. Reserved for future phase-specific escalation rules.
+        provider: Optional provider id. When supplied, the logical or legacy
+            archetype model resolves to a provider-specific model ID.
 
     Returns:
         The resolved model string, or (model, reasons) if *return_reasons*.
     """
+    def _finalize(source_model: str, reasons: list[str]) -> str | tuple[str, list[str]]:
+        resolved = resolve_provider_model(
+            source_model,
+            provider=provider,
+            model_map=model_map,
+        )
+        if provider and resolved != source_model:
+            reasons = [*reasons, f"provider={provider} mapped {source_model} to {resolved}"]
+        return (resolved, reasons) if return_reasons else resolved
+
     if not archetype.escalation:
-        return (archetype.model, []) if return_reasons else archetype.model
+        return _finalize(archetype.model, [])
 
     rules = archetype.escalation
     reasons: list[str] = []
@@ -1021,9 +1183,9 @@ def resolve_model(
                 "Escalating %s to %s: %s",
                 archetype.name, escalated_model, ", ".join(reasons),
             )
-        return (escalated_model, reasons) if return_reasons else escalated_model
+        return _finalize(escalated_model, reasons)
 
-    return (archetype.model, []) if return_reasons else archetype.model
+    return _finalize(archetype.model, [])
 
 
 # ---------------------------------------------------------------------------
@@ -1034,6 +1196,8 @@ def resolve_model(
 def resolve_archetype_for_phase(
     phase: str,
     signals: dict[str, Any] | None = None,
+    *,
+    provider: str | None = None,
 ) -> ResolvedArchetype:
     """Resolve archetype, model, and system_prompt for an autopilot phase.
 
@@ -1087,6 +1251,7 @@ def resolve_archetype_for_phase(
         filtered,
         return_reasons=True,
         phase=phase,
+        provider=provider,
     )
     # When return_reasons=True, the return type is the tuple branch.
     assert isinstance(model_result, tuple), (
@@ -1106,4 +1271,5 @@ def resolve_archetype_for_phase(
         system_prompt=archetype.system_prompt,
         archetype=archetype.name,
         reasons=reasons,
+        provider=provider,
     )
