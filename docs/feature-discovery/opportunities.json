@@ -1,144 +1,188 @@
 {
-  "generated_at": "2026-04-14T00:00:00Z",
-  "focus_area": "agent-visualization-and-session-management-ui",
+  "generated_at": "2026-05-15T00:00:00Z",
+  "focus_area": "user-facing-ux-recent-pain-new-capability",
   "history_adjustment_applied": true,
   "weights": {
     "impact": 0.4,
     "strategic_fit": 0.25,
     "effort": 0.2,
-    "risk": 0.15
+    "risk": 0.15,
+    "focus_match": 0.1
   },
   "mappings": {
     "priority": { "low": 1, "med": 2, "high": 3 },
     "effort": { "S": 1, "M": 2, "L": 3 }
   },
-  "operator_context": {
-    "terminal": "ghostty",
-    "workflow": "one window per repo/working directory; tabs within each window for agents and shell",
-    "pain_point": "no global/cross-window view of agent state; tab-hopping does not scale as parallel agent count and repo count grow"
+  "localized_focus": {
+    "raw_input": "",
+    "interview_ran": true,
+    "questions_asked": [
+      "Which axis are you trying to move with the next change?",
+      "What triggered this exploration — concrete recent pain or proactive?",
+      "Which surface area should the candidate touch?"
+    ],
+    "answers": {
+      "axis": "New capability",
+      "trigger": "Concrete recent pain",
+      "surface": "User-facing UX"
+    },
+    "derived_focus_string": "Add a new user-facing UX capability (CLI / slash command / output / docs / status rendering / dashboards) driven by a concrete recent pain. Refactors, optimizations, and infra-only work are out of scope."
+  },
+  "recent_pain_signals_inferred": [
+    "2026-05-14: add-coordinator-task-status-renderer planned (e0995bd) — display drift between coordinator state and tasks.md checkboxes named explicitly as the pain.",
+    "2026-05-13: PR #140 conflict resolution + cleanup-feature test fixes — multi-PR triage friction.",
+    "2026-05-12: check_compact widened boundary window (1b4c830) — auto-compact behavior needed tuning.",
+    "2026-05-12: codeviz proposal iterating with feedback from ChatGPT Pro / Codex / Gemini — codebase-comprehension surface still pre-implementation after >2 days of refinement.",
+    "2026-05-08: session-bootstrap rich pre-compact handoff + auto-compact (multiple commits) — long-session continuity actively being iterated."
+  ],
+  "in_flight_landscape": {
+    "factory-missions-architecture-alignment": "51/53 tasks, ~landing — vocabulary + validator-consensus work, not directly UX",
+    "add-coordinator-task-status-renderer": "0/40 tasks, planned 2026-05-14 — direct fit for stated focus",
+    "harness-engineering-features": "0/21 tasks, drafted 2026-04-08 — features 2/4/7 are UX, but stalled for 5+ weeks",
+    "codeviz (roadmap)": "in active proposal-iteration loop, no implementation started"
   },
   "items": [
     {
-      "id": "add-agent-state-stream",
-      "title": "Add coordinator SSE feed aggregating agent, lock, work, worktree, and approval state",
-      "problem_statement": "Coordinator has ~40 HTTP routes exposing agents (discovery.py), locks, work queue, audit, handoffs, approvals — but every consumer must poll. There is no push feed. Worktree registry (.git-worktrees/.registry.json) is file-local per repo and invisible to central views. A single Server-Sent Events endpoint (/events/stream) that multiplexes registration, heartbeat, lock acquire/release, work claim/complete, approval pending, and guardrail block events would unlock every downstream UI — TUI, web dashboard, Tauri shell, menu bar — without bespoke backends.",
+      "id": "execute-add-coordinator-task-status-renderer",
+      "title": "Execute the already-planned task-status renderer (no new proposal needed)",
+      "problem_statement": "Markdown checkboxes in openspec/changes/<change-id>/tasks.md drift from coordinator state because agents complete work but forget to tick boxes. Humans reading PRs see stale state and lose trust in the artifact. The change was planned 2026-05-14 with 40 tasks and an S-sized implementation (~250 LOC); it now needs an implementer.",
+      "hmw_reframe": "How might we make tasks.md reflect reality without requiring agents to remember to tick boxes?",
+      "lenses_applied": ["inversion", "simplification"],
       "impact": "high",
       "strategic_fit": "high",
       "effort": "S",
       "risk": "low",
-      "score": 3.00,
+      "focus_match": 3,
+      "localized_focus_alignment": "Direct hit. New user-facing UX capability (status display in PR-facing markdown). The pain was named and specced literally one day before this exploration ran — the freshest possible 'concrete recent pain' signal.",
+      "score": 3.30,
       "bucket": "quick-win",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-agent-state-stream",
+      "suggested_change_prefix": "(existing)",
+      "change_id_hint": "add-coordinator-task-status-renderer",
       "blocked_by": [],
-      "recommended_action": "/plan-feature 'Add coordinator SSE event stream aggregating agent/lock/work/approval state for live observers'",
-      "why_now": "Prerequisite for any visualization surface. Event bus infrastructure (event_bus.py) already exists. Enables TUI and dashboard work to proceed in parallel after landing.",
-      "parallel_feasibility": "N/A",
-      "notes": "Complements harness-engineering-features Feature 7 (throughput dashboard), which is currently report-only."
+      "recommended_action": "/implement-feature add-coordinator-task-status-renderer",
+      "why_now": "Specced 1 day before this exploration ran. Implementation cost is S (~250 LOC, two reusable patterns: managed-block from plan-roadmap renderer, coordination_bridge.try_issue_list for read path). Pre-merge.githooks/post-merge are currently no-op placeholders so the hook insertions are clean. Defers no decision; closes a freshly-named pain.",
+      "parallel_feasibility": "N/A — single in-flight change, no resource enumeration available",
+      "notes": "Scored as a candidate even though it is not a new proposal, because the skill's job is to recommend the highest-leverage next move — which here is execution, not invention."
     },
     {
-      "id": "add-worktree-registry-aggregator",
-      "title": "Aggregate per-repo worktree registries into a coordinator-side index",
-      "problem_statement": "Each repo keeps its own .git-worktrees/.registry.json with owner/branch/heartbeat/pin. Running multiple repos (your workflow) means the operator cannot see all active worktrees in one place. A lightweight agent-side reporter that POSTs registry deltas to the coordinator on heartbeat would create a single queryable index of 'where is every worktree in every repo right now?'",
-      "impact": "med",
-      "strategic_fit": "high",
-      "effort": "S",
-      "risk": "low",
-      "score": 2.60,
-      "bucket": "quick-win",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-worktree-registry-aggregator",
-      "blocked_by": [],
-      "recommended_action": "Combine with add-agent-state-stream into one change",
-      "why_now": "Your multi-repo workflow needs cross-repo visibility. worktree.py already writes the registry; teaching it to mirror to the coordinator is a ~50-line addition.",
-      "parallel_feasibility": "N/A"
-    },
-    {
-      "id": "add-agent-state-tui",
-      "title": "Textual-based TUI showing global agent, lock, work, and worktree state",
-      "problem_statement": "Given your ghostty workflow (window-per-repo, tabs-per-agent), a TUI that you launch in its own tab or window gives a global view that is native to the terminal and requires zero installation beyond 'uv run'. Python/Textual matches the existing skills stack. Panels: active agents with heartbeat, current locks with holders, pending approvals, work queue depth, merge-train status, per-repo worktree list. Subscribes to the SSE stream for live updates.",
+      "id": "add-why-am-i-blocked-skill",
+      "title": "Add /why-am-i-blocked <change-id> — single-question feature-stall observability",
+      "problem_statement": "When an in-flight change stalls, the operator currently has to inspect locks (check_locks), the work queue (list_issues), pending approvals (list_pending_approvals), missing OpenSpec artifacts (openspec list), and worktree registry separately. No single tool answers 'why is this feature stuck right now?' The answer requires fanning out across 4–5 sources and reconciling. This is the operator-side analog of the just-planned task-status-renderer (which is reviewer-side legibility).",
+      "hmw_reframe": "How might we answer 'why is this feature stuck?' in one command instead of five?",
+      "lenses_applied": ["inversion", "audience-shift", "combination"],
       "impact": "high",
       "strategic_fit": "high",
       "effort": "S",
       "risk": "low",
-      "score": 3.00,
+      "focus_match": 3,
+      "localized_focus_alignment": "New user-facing UX capability (a new slash command); addresses chronic operator pain that surfaces every time a change stalls. Not as freshly-named as task-status drift, but felt every cycle.",
+      "score": 3.10,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
-      "change_id_hint": "add-agent-state-tui",
-      "blocked_by": ["add-agent-state-stream"],
-      "recommended_action": "/plan-feature 'Add Textual TUI for global agent state observation' after stream lands",
-      "why_now": "Fits your existing ghostty workflow perfectly: it's just another tab. No new language stack. No packaging. Python-native so skills/.venv hosts it. Proves the data model and usage patterns cheaply before any desktop/web app investment.",
+      "change_id_hint": "add-why-am-i-blocked-skill",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature 'Add /why-am-i-blocked skill that explains in one command why an in-flight change is not advancing — aggregates locks, work-queue, approvals, artifacts, dependencies, worktree state'",
+      "why_now": "The factory-missions-architecture-alignment work codified the attention-bottleneck framing ('the bottleneck is human attention, not model intelligence'). A one-command stall explainer is the most direct application of that framing on the operator side. Inverts the 'one big dashboard for everything' pattern (currently deferred for 6 weeks) into 'one targeted answer to one question.'",
       "parallel_feasibility": "N/A"
     },
     {
-      "id": "add-coordinator-web-dashboard",
-      "title": "Coordinator-hosted web dashboard (HTML+JS served by FastAPI)",
-      "problem_statement": "A browser-based dashboard at coord.rotkohl.ai/dashboard that shows the same views as the TUI but with richer charts (lock contention over time, task throughput, review convergence timelines) by pulling from OTEL/Prometheus via the existing langfuse_middleware/telemetry modules. Zero new runtimes: served as static files by the existing FastAPI app. Benefits: pin-able tab, shareable URLs to specific views, works on mobile when you want a glance from phone.",
+      "id": "add-coordinator-glance-page",
+      "title": "Add minimal coordinator glance-page — one HTML page, no charts, SSE-live",
+      "problem_statement": "The April opportunities recommended a 3-step stack (SSE stream → Textual TUI → web dashboard → optional Tauri shell). Six weeks in, nothing has shipped from that stack. The bottleneck is scope: each step requires the previous one. A stripped-down glance-page — one HTML file served by the existing FastAPI app at /dashboard, polling /agents/list + /locks/status + /issues/list every 2s (no SSE, no charts) — collapses the stack into a single S-M change. Once live, it can graduate to SSE or get replaced by a TUI; or it can stay as the entire UX surface if the operator finds it sufficient.",
+      "hmw_reframe": "How might we give the operator one-glance situational awareness without building a TUI AND a dashboard AND a Tauri shell?",
+      "lenses_applied": ["10x", "simplification", "constraint-removal"],
       "impact": "high",
       "strategic_fit": "med",
       "effort": "M",
       "risk": "low",
+      "focus_match": 2,
+      "localized_focus_alignment": "New user-facing UX. Addresses the April-stated pain ('no global view across ghostty windows') which the user has now waited 6 weeks for. 'Carried-forward unaddressed for 6 weeks' is itself a pain signal even though it is not 'recent' in the same way as the 2026-05-14 task-status drift.",
+      "score": 2.75,
+      "bucket": "quick-win",
+      "suggested_change_prefix": "add-",
+      "change_id_hint": "add-coordinator-glance-page",
+      "blocked_by": [],
+      "recommended_action": "/plan-feature 'Add minimal coordinator glance-page served by FastAPI at /dashboard — single HTML, polling, no charts, no auth (behind tunnel)' — defer until execute-add-coordinator-task-status-renderer ships",
+      "why_now": "The April recommendation of an SSE stream + TUI + web dashboard + Tauri shell has been deferred 2 cycles in a row, suggesting the staged-rollout plan is the obstacle, not the value. A single page that polls 3 endpoints is buildable in one session and immediately replaces zero tab-hopping.",
+      "parallel_feasibility": "N/A",
+      "notes": "Supersedes add-agent-state-stream + add-agent-state-tui + add-coordinator-web-dashboard as a near-term move. Those remain valid follow-ons if/when polling proves insufficient."
+    },
+    {
+      "id": "add-skill-palette-tui",
+      "title": "Add /find-skill — fuzzy-search skill catalog with description previews",
+      "problem_statement": "The skills directory now ships 80+ skills loaded into context at session start. Operator and new contributors cannot reasonably memorize the catalog; docs/skills-catalogue.md helps but is static. A short Python TUI (or even just an interactive grep wrapper) that lets the operator type a fragment of intent ('triage prs', 'security check', 'plan a roadmap'), shows matching skills with their descriptions and trigger phrases, and offers to execute the chosen one (via shell-out to the slash-command resolver) closes the discoverability gap.",
+      "hmw_reframe": "How might we surface the right skill at the right moment without making the operator memorize 80+ slash commands?",
+      "lenses_applied": ["audience-shift", "simplification", "adjacent"],
+      "impact": "med",
+      "strategic_fit": "med",
+      "effort": "S",
+      "risk": "low",
+      "focus_match": 2,
+      "localized_focus_alignment": "New user-facing UX capability addressing chronic discoverability pain. Not tied to a single recent commit, but the skill catalog has grown 30+% since the catalog doc was last refreshed, so the pain is monotonically increasing.",
       "score": 2.55,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
-      "change_id_hint": "add-coordinator-web-dashboard",
-      "blocked_by": ["add-agent-state-stream"],
-      "recommended_action": "defer until TUI validates the data model and the most-used views",
-      "why_now": "Natural follow-on to the SSE stream. Benefits from your Cloudflare tunnel work (access from anywhere). Can be iterated cheaply once TUI proves which panels matter.",
+      "change_id_hint": "add-find-skill-palette",
+      "blocked_by": [],
+      "recommended_action": "Defer to second-tier — execute-add-coordinator-task-status-renderer and /why-am-i-blocked are higher-leverage first moves.",
+      "why_now": "Skill count crossed a memorability threshold this quarter; the existing skills-catalogue.md is read-only and not refreshed by writes to skills/. A live tool stays current automatically.",
       "parallel_feasibility": "N/A"
     },
     {
-      "id": "add-grafana-dashboards",
-      "title": "Provisioned Grafana dashboards over existing OTEL/Prometheus metrics",
-      "problem_statement": "The coordinator already emits lock.contention, queue.wait_time_ms, queue.task.duration_ms, and policy metrics. Grafana dashboards against these give you historical analytics (throughput, contention hotspots, per-agent-type failure rates) for effectively zero code — just provisioning YAML. Fills the 'trends and post-mortem' view that real-time UIs (TUI/web) don't serve well.",
+      "id": "add-handoff-summary-skill",
+      "title": "Add /handoff-summary — narrative pre-compact handoff renderer with structured 'what changed, what's next, what to watch'",
+      "problem_statement": "Recent commits (2026-05-08 to 2026-05-12) show active iteration on auto-compact + pre-compact handoff in session-bootstrap. The handoff CONTENT is the cross-session UX surface — what the next session sees on resume. Today it's a coarse compact-summary; a structured renderer that emits 'changes made / didn't touch / concerns' (matching the PR description template) gives the next session a daily-standup-quality starting point. Composes with the just-planned task-status-renderer (one renders status into tasks.md, the other renders narrative into the session bootstrap).",
+      "hmw_reframe": "How might we make pre-compact handoffs as legible as a daily standup note?",
+      "lenses_applied": ["audience-shift", "adjacent"],
       "impact": "med",
       "strategic_fit": "med",
       "effort": "S",
       "risk": "low",
-      "score": 2.35,
+      "focus_match": 2,
+      "localized_focus_alignment": "New user-facing UX (cross-session continuity surface). Pain area was being actively worked 5/8–5/12; this proposal extends rather than competes with that work.",
+      "score": 2.55,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
-      "change_id_hint": "add-grafana-dashboards",
+      "change_id_hint": "add-handoff-summary-skill",
       "blocked_by": [],
-      "recommended_action": "Can proceed independently; great as a parallel package once Prometheus exporter is wired up",
-      "why_now": "Highest leverage-per-line-of-code. OTEL is already there; Grafana just renders it. Complements (does not compete with) TUI/web dashboard — different time horizons.",
+      "recommended_action": "Defer — only promote if /why-am-i-blocked and execute-add-coordinator-task-status-renderer both ship and the auto-compact churn re-emerges.",
+      "why_now": "Session-bootstrap is the active UX surface; layering a structured-output renderer on top is incremental and low-risk.",
       "parallel_feasibility": "N/A"
-    },
-    {
-      "id": "evaluate-tauri-desktop-shell",
-      "title": "Tauri desktop shell wrapping the web dashboard with tray/notifications",
-      "problem_statement": "A Tauri (Rust+JS) app that embeds the web dashboard gives system-tray presence, native notifications for 'approval pending' or 'lock contended', and a persistent window decoupled from browser tab management. The user's question was specifically about this form factor (or Swift). Concrete advantages over the web dashboard: a) survives browser restart, b) native OS notifications without Notification API permissions, c) menu-bar/tray icon showing badge count for things needing attention.",
-      "impact": "med",
-      "strategic_fit": "med",
-      "effort": "L",
-      "risk": "med",
-      "score": 1.80,
-      "bucket": "big-bet",
-      "suggested_change_prefix": "evaluate-",
-      "change_id_hint": "evaluate-tauri-desktop-shell",
-      "blocked_by": ["add-coordinator-web-dashboard"],
-      "recommended_action": "defer — revisit only if web dashboard proves insufficient on its own",
-      "why_now": "Introduces a Rust/JS toolchain that nothing else in this repo uses. Maintenance cost for a single operator is high. Better to prove value via TUI/web first; Tauri shell is a thin wrapper once the web app exists."
-    },
-    {
-      "id": "evaluate-native-macos-menu-bar",
-      "title": "Native Swift menu-bar status item (macOS only)",
-      "problem_statement": "Swift MenuBarExtra app showing a compact status indicator: count of agents needing input, current open locks, work queue depth. Clicking reveals a popover. Best possible UX for passive glances, but platform-locked (macOS) and introduces a Swift/Xcode stack with zero reuse elsewhere in the repo.",
-      "impact": "med",
-      "strategic_fit": "low",
-      "effort": "M",
-      "risk": "med",
-      "score": 1.75,
-      "bucket": "big-bet",
-      "suggested_change_prefix": "evaluate-",
-      "change_id_hint": "evaluate-native-macos-menu-bar",
-      "blocked_by": ["add-agent-state-stream"],
-      "recommended_action": "defer — reconsider only if macOS remains the single target and passive-glance UX becomes a repeated ask",
-      "why_now": "High UX ceiling but worst strategic fit: platform-locked, new toolchain, no reuse. A Tauri tray icon covers 80% of the value cross-platform."
     }
   ],
-  "top_recommendation": "add-agent-state-stream",
-  "combined_recommendation": "Ship add-agent-state-stream + add-worktree-registry-aggregator + add-agent-state-tui as a single change 'add-agent-state-observability'. This delivers a working global view in your existing ghostty workflow with zero new language stacks, and leaves the web/Tauri/Swift form-factor decisions as reversible follow-ups.",
-  "alternative_framing": "The user's Tauri-vs-Swift question frames the problem as 'which shell?' The bigger decision is 'what data feed and which views matter?' Answer that with the TUI first; shell choice becomes a 1-2 week follow-up, not a 4-6 week commitment.",
-  "completed_since_last": []
+  "not_doing": [
+    {
+      "alternative": "Resume the full April visualization stack (SSE stream → TUI → web dashboard → Tauri shell)",
+      "rationale": "Carried forward and deferred for 6 weeks. The staged-rollout requirement is the obstacle, not the value — collapsing it into add-coordinator-glance-page captures 80% of the value at 30% of the effort. The constituent items remain valid as follow-ons but not as the next move."
+    },
+    {
+      "alternative": "Native Swift menu-bar app (carried forward from April)",
+      "rationale": "Platform-locked to macOS, introduces a Swift/Xcode stack with zero repo reuse, and a Tauri tray icon (or even just a browser tab on the glance-page) covers most of the same passive-glance UX cross-platform. April rationale unchanged."
+    },
+    {
+      "alternative": "Tauri desktop shell (carried forward from April)",
+      "rationale": "Introduces Rust/JS toolchain with no other consumer in the repo. Worth revisiting only if the glance-page proves insufficient over multiple weeks of use, not before."
+    },
+    {
+      "alternative": "Provisioned Grafana dashboards (carried forward from April)",
+      "rationale": "Orthogonal to the stated focus — Grafana is analytics/historical, the stated focus is 'user-facing UX driven by recent pain' which lives in the real-time / glance surface. Re-rank if focus shifts to 'observability for post-mortem.'"
+    },
+    {
+      "alternative": "Implement harness-engineering-features Feature 7 (Agent Throughput Dashboard) right now",
+      "rationale": "Overlaps Grafana. Report-only, not interactive UX. Sitting at 0/21 since April suggests the proposal scope is the obstacle; carving Feature 7 out as its own change would help, but is not the most-leveraged move while the freshly-planned task-status-renderer sits unimplemented."
+    },
+    {
+      "alternative": "Generate a fresh codeviz prototype variant",
+      "rationale": "The codeviz proposal is in active design iteration with cross-vendor feedback (ChatGPT Pro / Codex / Gemini) and the right place to push that work is /prototype-feature, not /explore-feature. Inverting into 'just ship one variant' is tempting but bypasses the deliberate convergence loop the operator has set up there."
+    }
+  ],
+  "carried_forward_summary": {
+    "april_top_pick_status": "add-agent-state-stream: deferred — partially superseded by add-coordinator-glance-page which can poll instead of stream. Re-rank to high again if glance-page polling proves too chatty.",
+    "still_deferred": ["add-cloudflare-tunnel", "add-cloudflare-access", "add-multi-env-dns", "add-webhook-domain", "add-coordination-api-hardening", "implement-gen-eval-testing", "add-grafana-dashboards", "evaluate-tauri-desktop-shell", "evaluate-native-macos-menu-bar"],
+    "completed_since_last_cycle": [],
+    "promoted_this_cycle": ["execute-add-coordinator-task-status-renderer (new — was not on April list because the proposal did not exist yet)"]
+  },
+  "top_recommendation": "execute-add-coordinator-task-status-renderer",
+  "alternative_framing": "If the user's read of 'recent pain' is broader than the 2026-05-14 task-status drift (e.g., 'long-running pain about not knowing global agent state'), promote add-coordinator-glance-page to the top slot instead. Both candidates address user-facing UX with a new capability; the choice depends on which pain the user had in mind.",
+  "second_recommendation": "add-why-am-i-blocked-skill"
 }
