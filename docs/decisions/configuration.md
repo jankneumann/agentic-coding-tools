@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-05-16 — vendor-neutral-autopilot
+
+### Phase: Implementation
+
+**Use local agents.yaml fallback before provider-native config** — Codex and Gemini-only environments should discover repo-local dispatch config without requiring ~/.claude.json.
+
+- Status: `active`
+- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D3)
+
+---
+
 ## 2026-04-04 — 2026-04-22-cloudflare-domain-setup
 
 ### Phase: Plan
