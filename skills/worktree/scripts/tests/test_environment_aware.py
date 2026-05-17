@@ -107,6 +107,68 @@ class TestSetupShortCircuit:
         assert "WORKTREE_BRANCH=claude/some-fix-branch" in out.out
         assert not (git_repo / ".git-worktrees").exists()
 
+    def test_cloud_agent_setup_adopts_feature_parent_branch(
+        self,
+        git_repo: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Harness-created worktrees may start on main.
+
+        Agent-scoped setup must still move the isolated checkout onto a child
+        branch of the feature parent, otherwise integrating the agent branch can
+        pull unrelated main-only changes into the feature branch.
+        """
+        subprocess.run(
+            ["git", "checkout", "-b", "claude/feature"],
+            cwd=str(git_repo),
+            check=True,
+            capture_output=True,
+        )
+        (git_repo / "feature-only.txt").write_text("feature\n")
+        subprocess.run(["git", "add", "feature-only.txt"], cwd=str(git_repo), check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "feature work"],
+            cwd=str(git_repo),
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "checkout", "main"],
+            cwd=str(git_repo),
+            check=True,
+            capture_output=True,
+        )
+        (git_repo / "main-only.txt").write_text("main\n")
+        subprocess.run(["git", "add", "main-only.txt"], cwd=str(git_repo), check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "main work"],
+            cwd=str(git_repo),
+            check=True,
+            capture_output=True,
+        )
+
+        monkeypatch.chdir(git_repo)
+        monkeypatch.setenv("AGENT_EXECUTION_ENV", "cloud")
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/feature")
+
+        ns = worktree.argparse.Namespace(
+            change_id="feature",
+            agent_id="wp-backend",
+            branch=None,
+            prefix=None,
+            branch_prefix=None,
+        )
+        rc = worktree.cmd_setup(ns)
+        assert rc == 0
+
+        out = capsys.readouterr()
+        assert "WORKTREE_BRANCH=claude/feature--wp-backend" in out.out
+        assert "BRANCH_ADOPTED_FROM=parent:claude/feature" in out.err
+        assert (git_repo / "feature-only.txt").is_file()
+        assert not (git_repo / "main-only.txt").exists()
+        assert not (git_repo / ".git-worktrees").exists()
+
 
 class TestWriteOpsShortCircuit:
     """teardown, heartbeat, pin, unpin, gc are no-ops under cloud mode."""

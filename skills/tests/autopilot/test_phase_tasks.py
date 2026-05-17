@@ -51,6 +51,7 @@ def test_phase_task_instructions_returns_string_for_active_phase() -> None:
     text = phase_agent._phase_task_instructions("IMPLEMENT")
     assert isinstance(text, str)
     assert "implement" in text.lower() or "tasks.md" in text.lower()
+    assert "do not merge the feature branch" in text.lower()
 
 
 def test_phase_task_instructions_unknown_phase_falls_back() -> None:

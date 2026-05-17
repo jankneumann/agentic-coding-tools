@@ -101,6 +101,143 @@ def run_git(*args: str, cwd: str | None = None, check: bool = True) -> str:
     return result.stdout.strip()
 
 
+def _git_ref_exists(main_repo: Path, ref: str) -> bool:
+    """Return true when a git ref exists in the repository."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", ref],
+        cwd=str(main_repo),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _local_branch_exists(main_repo: Path, branch: str) -> bool:
+    return _git_ref_exists(main_repo, f"refs/heads/{branch}")
+
+
+def _remote_branch_exists(main_repo: Path, branch: str) -> bool:
+    return _git_ref_exists(main_repo, f"refs/remotes/origin/{branch}")
+
+
+def _existing_branch_start_point(main_repo: Path, branch: str) -> str | None:
+    """Return the best existing start point for a branch name."""
+    if _local_branch_exists(main_repo, branch):
+        return branch
+    if _remote_branch_exists(main_repo, branch):
+        return f"origin/{branch}"
+    return None
+
+
+def _branch_creation_start_point(
+    main_repo: Path,
+    change_id: str,
+    branch: str,
+    agent_id: str | None = None,
+    prefix: str | None = None,
+    explicit: str | None = None,
+    branch_prefix: str | None = None,
+) -> tuple[str, str]:
+    """Choose the start point for a newly-created worktree branch.
+
+    Agent branches are integration children, so when the parent feature/session
+    branch already exists locally or on origin, the child must start there. This
+    prevents merging an agent branch back into the feature branch from dragging
+    unrelated commits from main into the feature.
+    """
+    explicit_branch = (explicit or "").strip()
+
+    existing_same_name = _existing_branch_start_point(main_repo, branch)
+    if existing_same_name:
+        return existing_same_name, "remote" if existing_same_name.startswith("origin/") else "local"
+
+    if agent_id and branch_prefix != PROTOTYPE_BRANCH_PREFIX:
+        parent = resolve_parent_branch(change_id, prefix=prefix)
+        parent_start = _existing_branch_start_point(main_repo, parent)
+        if parent_start:
+            return parent_start, "parent"
+
+        if not explicit_branch:
+            run_git("branch", parent, "main", cwd=str(main_repo))
+            print(f"PARENT_BRANCH_CREATED={parent}", file=sys.stderr)
+            return parent, "parent-created"
+
+    return "main", "main"
+
+
+def _adopt_branch_in_isolated_checkout(args: argparse.Namespace, cwd: str) -> tuple[str, str] | None:
+    """Move a harness-provided checkout onto the branch setup would have made.
+
+    Cloud/harness worktrees are already filesystem-isolated, so we do not create
+    nested ``.git-worktrees``. Some harnesses, however, create that isolated
+    checkout from ``main``. For agent-scoped implementation work, that is not a
+    valid base: the child branch must start at the feature/session parent.
+    """
+    main_repo = resolve_main_repo(cwd)
+    change_id: str = args.change_id
+    agent_id: str | None = getattr(args, "agent_id", None)
+    prefix: str | None = getattr(args, "prefix", None)
+    branch_prefix: str | None = getattr(args, "branch_prefix", None)
+    explicit: str | None = getattr(args, "branch", None)
+    branch = resolve_branch(
+        change_id,
+        agent_id,
+        prefix,
+        explicit=explicit,
+        branch_prefix=branch_prefix,
+    )
+    current_branch = run_git("branch", "--show-current", cwd=cwd)
+    override = os.environ.get("OPENSPEC_BRANCH_OVERRIDE", "").strip()
+    explicit_branch = (explicit or "").strip()
+
+    if not agent_id and not explicit_branch and not override and branch_prefix is None:
+        return current_branch, None
+
+    if current_branch == branch:
+        return branch, None
+
+    start_point = _existing_branch_start_point(main_repo, branch)
+    if start_point:
+        run_git("checkout", "-B", branch, start_point, cwd=cwd)
+        return branch, f"existing:{start_point}"
+
+    if agent_id and branch_prefix != PROTOTYPE_BRANCH_PREFIX:
+        parent = resolve_parent_branch(change_id, prefix=prefix)
+        parent_start = _existing_branch_start_point(main_repo, parent)
+        if parent_start is None:
+            if explicit_branch:
+                # Explicit branch workflows outside OpenSpec feature branches
+                # may not have a resolvable parent; keep backward-compatible
+                # behavior and create from the current checkout below.
+                pass
+            else:
+                print(
+                    f"ERROR: isolated checkout is on '{current_branch}', but agent branch "
+                    f"'{branch}' must start from parent feature branch '{parent}', which "
+                    "does not exist locally or at origin.",
+                    file=sys.stderr,
+                )
+                print(
+                    "Hint: push/fetch the feature branch before dispatching sub-agents, "
+                    "or set OPENSPEC_BRANCH_OVERRIDE to the actual feature branch.",
+                    file=sys.stderr,
+                )
+                return None
+        else:
+            if _local_branch_exists(main_repo, branch):
+                run_git("checkout", branch, cwd=cwd)
+                return branch, "existing-agent"
+            run_git("checkout", "-B", branch, parent_start, cwd=cwd)
+            return branch, f"parent:{parent_start}"
+
+    if current_branch:
+        run_git("checkout", "-B", branch, cwd=cwd)
+        return branch, "current"
+
+    return current_branch, None
+
+
 def resolve_main_repo(cwd: str | None = None) -> Path:
     """Resolve the main repository path, even from inside a worktree."""
     git_common = run_git("rev-parse", "--git-common-dir", cwd=cwd)
@@ -387,13 +524,18 @@ def cmd_setup(args: argparse.Namespace) -> int:
     """
     if _short_circuit_if_isolated("setup", agent_id=getattr(args, "agent_id", None)):
         # Emit the in-place checkout values so downstream `eval` + `cd` is a
-        # no-op. Branch override is preserved: if OPENSPEC_BRANCH_OVERRIDE
-        # is set, the harness is expected to have already checked it out.
+        # no-op. If the harness created this checkout from main, move it onto
+        # the branch setup would have created locally before returning.
         cwd = os.getcwd()
         toplevel = run_git("rev-parse", "--show-toplevel", cwd=cwd)
-        current_branch = run_git("branch", "--show-current", cwd=cwd)
+        adopted = _adopt_branch_in_isolated_checkout(args, cwd)
+        if adopted is None:
+            return 1
+        current_branch, adopted_source = adopted
         print(f"WORKTREE_PATH={toplevel}")
         print(f"WORKTREE_BRANCH={current_branch}")
+        if adopted_source:
+            print(f"BRANCH_ADOPTED_FROM={adopted_source}", file=sys.stderr)
         print("ISOLATION_PROVIDED=true", file=sys.stderr)
         return 0
 
@@ -441,15 +583,22 @@ def cmd_setup(args: argparse.Namespace) -> int:
     # Ensure we have latest main
     run_git("fetch", "origin", "main", cwd=str(main_repo), check=False)
 
-    # Create branch if it doesn't exist
-    try:
-        run_git(
-            "show-ref", "--verify", "--quiet", f"refs/heads/{branch}",
-            cwd=str(main_repo),
+    # Create branch if it doesn't exist. Agent-scoped branches are created from
+    # their parent feature branch when available, not from main.
+    if not _local_branch_exists(main_repo, branch):
+        start_point, start_source = _branch_creation_start_point(
+            main_repo,
+            change_id,
+            branch,
+            agent_id=agent_id,
+            prefix=prefix,
+            explicit=args.branch,
+            branch_prefix=branch_prefix,
         )
-    except subprocess.CalledProcessError:
-        run_git("branch", branch, "main", cwd=str(main_repo))
+        run_git("branch", branch, start_point, cwd=str(main_repo))
         print(f"BRANCH_CREATED={branch}", file=sys.stderr)
+        print(f"BRANCH_START_POINT={start_point}", file=sys.stderr)
+        print(f"BRANCH_START_SOURCE={start_source}", file=sys.stderr)
 
     # Prune stale worktree entries (e.g., directory was deleted but git still tracks it)
     run_git("worktree", "prune", cwd=str(main_repo), check=False)

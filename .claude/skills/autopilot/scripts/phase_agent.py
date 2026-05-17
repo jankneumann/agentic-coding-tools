@@ -415,8 +415,11 @@ _PHASE_TASKS: dict[str, str | None] = {
     ),
     "IMPLEMENT": (
         "Implement the next slice of work per tasks.md. Commit per task.\n"
-        "Push commits to the feature branch. Return outcome 'complete' on\n"
-        "success, 'failed' on unrecoverable error."
+        "Start by running /implement-feature so worktree.py can adopt the\n"
+        "resolved feature parent branch. Do not merge the feature branch into\n"
+        "a harness/default-branch checkout to get context; abort if branch\n"
+        "adoption fails. Push commits to the feature branch. Return outcome\n"
+        "'complete' on success, 'failed' on unrecoverable error."
     ),
     "IMPL_ITERATE": (
         "Run /iterate-on-implementation for state.change_id. Refine the\n"

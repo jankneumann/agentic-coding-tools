@@ -423,6 +423,33 @@ class TestCmdSetup:
         assert parent_entry is not None
         assert parent_entry["branch"] == "claude/op-session-9P9o1"
 
+    def test_agent_branch_starts_from_existing_parent_branch(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: agent branches must start from the feature branch.
+
+        If the agent branch is created from main instead, merging it back into
+        the feature branch can pull unrelated main-only commits into the PR.
+        """
+        _commit_file(git_repo, "feature-only.txt", "feature\n", branch="claude/feature")
+        subprocess.run(
+            ["git", "checkout", "main"],
+            cwd=str(git_repo),
+            check=True,
+            capture_output=True,
+        )
+        _commit_file(git_repo, "main-only.txt", "main\n")
+
+        monkeypatch.setenv("OPENSPEC_BRANCH_OVERRIDE", "claude/feature")
+        args = _make_args("setup", change_id="feat", agent_id="wp-backend")
+        with _chdir(git_repo):
+            result = worktree.cmd_setup(args)
+        assert result == 0
+
+        wt_path = git_repo / ".git-worktrees" / "feat" / "wp-backend"
+        assert (wt_path / "feature-only.txt").is_file()
+        assert not (wt_path / "main-only.txt").exists()
+
     def test_explicit_branch_wins_over_env_override(
         self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -930,3 +957,28 @@ def _make_args(command: str, **kwargs: object) -> argparse.Namespace:
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
+
+
+def _commit_file(
+    repo: Path,
+    relative_path: str,
+    content: str,
+    branch: str | None = None,
+) -> None:
+    if branch is not None:
+        subprocess.run(
+            ["git", "checkout", "-B", branch],
+            cwd=str(repo),
+            check=True,
+            capture_output=True,
+        )
+    path = repo / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content)
+    subprocess.run(["git", "add", relative_path], cwd=str(repo), check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "--no-gpg-sign", "-m", f"add {relative_path}"],
+        cwd=str(repo),
+        check=True,
+        capture_output=True,
+    )

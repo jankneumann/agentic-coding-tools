@@ -438,10 +438,22 @@ git pull origin main
 
 This ensures subsequent staleness checks and merges operate on the current main.
 
-For **OpenSpec PRs**: After merge, note the change-id and recommend:
+For **OpenSpec PRs**: After a successful merge, record the PR number, head branch, and change-id for the final post-merge cleanup approval step. Do not run `/cleanup-feature` immediately inside the per-PR merge loop.
+
+Example record shape:
+
+```json
+{
+  "pr_number": 42,
+  "origin": "openspec",
+  "change_id": "add-user-export",
+  "branch": "openspec/add-user-export",
+  "success": true,
+  "status": "merged"
+}
 ```
-Run /cleanup-feature <change-id> to archive the OpenSpec proposal.
-```
+
+Keep these records scoped to PRs merged during this invocation only. They are the input to Step 11.5.
 
 #### Re-run Failed CI Checks
 
@@ -483,6 +495,49 @@ For PRs with unresolved comments:
 5. Return to main: `git checkout main`
 6. Return to the PR review workflow
 
+### 11.5. Post-Merge OpenSpec Cleanup Approval
+
+After the PR review loop completes, prepare a single post-merge cleanup prompt for any **local OpenSpec** PRs merged during this invocation.
+
+**Do not run this step in `--dry-run` mode.** In dry-run mode, report which cleanup commands would be offered for approval.
+
+Use the merged PR records collected during Step 11:
+
+```bash
+python3 <agent-skills-dir>/merge-pull-requests/scripts/post_merge_cleanup.py \
+  --merged-json <merged_prs_this_pass.json>
+```
+
+The helper is non-mutating. It filters to merged OpenSpec PRs whose `openspec/changes/<change-id>/` directory exists locally, checks local worktree registry and branch remnants, and renders an approval prompt like:
+
+```text
+Merged local OpenSpec PRs eligible for post-merge cleanup:
+
+| PR | Change ID | Branch | Local remnants | Command |
+|----|-----------|--------|----------------|---------|
+| #42 | add-user-export | openspec/add-user-export | 2 worktree registry entries, 3 local branches | `/cleanup-feature add-user-export --post-merge --pr 42` |
+
+Ask the operator: Proceed with post-merge cleanup for these changes?
+Only run the listed cleanup commands after explicit approval.
+```
+
+If the operator approves, run the listed cleanup commands sequentially:
+
+```bash
+/cleanup-feature <change-id> --post-merge --pr <pr_number>
+```
+
+The `--post-merge` cleanup mode must:
+- Confirm the PR is already merged.
+- Skip the PR merge and pre-merge validation stages.
+- Archive the OpenSpec change, sync specs, validate, commit, and push.
+- Remove local worktrees and local branches for that change.
+- Treat dirty worktrees or branch deletion failures as operator-attention items, not silent force deletions.
+
+If the operator declines, do not clean up local remnants. Record the declined cleanup commands in the summary and merge log.
+
+If a post-merge cleanup command fails, stop the cleanup pass, preserve the error output in the summary, and do not proceed to the next cleanup command until the operator decides how to continue.
+
 ### 12. Summary
 
 After processing all PRs, present a summary:
@@ -497,7 +552,8 @@ After processing all PRs, present a summary:
 - Skipped (auto-merge): #41
 - CI re-run: #39
 - Comments addressed: #38
-- OpenSpec cleanup needed: /cleanup-feature add-user-export
+- Post-merge OpenSpec cleanup: #38 add-user-export (approved, completed)
+- Post-merge OpenSpec cleanup declined: #44 improve-validation-flow
 - Merge-time validation: #38 (deploy: pass, smoke: pass, security: skip, e2e: skip)
 ```
 
@@ -530,6 +586,9 @@ touch docs/merge-logs/.gitkeep
 
 ### User Decisions
 - <User steering decisions captured during the session>
+
+### Post-Merge Cleanup
+- <OpenSpec cleanup approvals/declines/failures and commands run>
 
 ### Observations
 - <Cross-PR patterns, recurring issues, notable observations>
@@ -564,6 +623,7 @@ python3 <agent-skills-dir>/merge-pull-requests/scripts/discover_prs.py --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/check_staleness.py <pr> --origin <type> --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/analyze_comments.py <pr> --dry-run
 python3 <agent-skills-dir>/merge-pull-requests/scripts/vendor_review.py <pr> --origin <type> --dry-run
+python3 <agent-skills-dir>/merge-pull-requests/scripts/post_merge_cleanup.py --merged-json <merged_prs_this_pass.json>
 ```
 
 Output a full report:
@@ -586,7 +646,8 @@ Output a full report:
 - PRs merged, closed, or skipped with reasons
 - PRs added to merge queue (for repos that use it)
 - Obsolete PRs batch-closed with explanatory comments
-- OpenSpec change-ids flagged for `/cleanup-feature`
+- OpenSpec change-ids offered for post-merge `/cleanup-feature --post-merge` approval
+- Post-merge cleanup approvals, declines, completions, and failures
 - Draft PRs flagged (not processed)
 - Fork PRs handled (no branch deletion)
 - Auto-merge PRs noted (recommended to skip)
@@ -607,6 +668,8 @@ Output a full report:
 - **CI checks failed**: Show failing checks, offer to re-run failed workflow runs
 - **Merge queue required**: Automatically retry with `--merge-queue` when direct merge is rejected
 - **Branch deletion failure**: Detect and report as warning (merge still succeeded)
+- **Post-merge cleanup declined**: Leave local OpenSpec worktrees/branches intact and record the declined cleanup command in the merge log
+- **Post-merge cleanup failure**: Stop the cleanup pass and surface the failure; do not continue deleting local remnants for later changes without operator direction
 - **Fork PRs**: Automatically skip `--delete-branch` (no push access to fork remote)
 - **Stale approvals**: Warn when commits were pushed after the last review approval
 - **Pending reviewers (CODEOWNERS)**: Surface pending reviewer requests even when `reviewDecision` shows APPROVED
@@ -640,5 +703,4 @@ Output a full report:
 3. No commit on `main` has a message starting with `wip:` after this skill ran (`git log main --since=<start-time> --pretty=%s | grep -i ^wip:` returns empty).
 4. Stale-base CI failures were resolved with `refresh-branch`, not repeated `rerun-checks` (the merge log records which strategy was used and why).
 5. Obsolete PRs were closed with the explanatory comment (not silently), and the close reason is recorded in the merge log.
-
-
+6. For every local OpenSpec PR merged during the pass, the summary and merge log record whether post-merge cleanup was approved, declined, skipped, or failed.

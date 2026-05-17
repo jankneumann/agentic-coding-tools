@@ -297,6 +297,15 @@ Implement the next slice of work per `tasks.md`. The IMPLEMENT phase is
 the only phase that runs with `isolation="worktree"` — sub-agent commits
 land on a sibling worktree branch and merge back at completion.
 
+**Claude harness worktree caveat**: Claude Code's `Agent(isolation="worktree")`
+may create the harness worktree from the default branch (`main`), not from the
+orchestrator's current feature branch. The sub-agent MUST run `/implement-feature
+<change-id>` as its first write-capable step so `worktree.py setup` can adopt
+the resolved feature parent branch and create/check out the agent child branch.
+Do not merge the feature branch into a main-rooted harness checkout to get
+context; if branch adoption fails, return `"failed"` and let the orchestrator
+fix the branch/override state.
+
 Dispatch protocol (3 steps):
 
 1. Build kwargs:
