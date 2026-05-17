@@ -23,6 +23,10 @@ Merge an approved PR, migrate any open tasks to coordinator issues or a follow-u
 
 `$ARGUMENTS` - OpenSpec change-id (optional, will detect from current branch or open PR)
 
+Optional flags:
+- `--post-merge` - PR was already merged by `/merge-pull-requests`; skip PR merge and pre-merge validation stages, then archive/spec-sync/cleanup local remnants.
+- `--pr <number>` - PR number to verify when using `--post-merge`.
+
 ## Prerequisites
 
 - PR has been approved
@@ -94,6 +98,23 @@ CLEANUP_BRANCH="$WORKTREE_BRANCH"
 eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
 FEATURE_BRANCH="$BRANCH"
 ```
+
+### 1.5. Post-Merge Mode
+
+If `--post-merge` is present, this skill is being called by `/merge-pull-requests` after that skill already merged the PR and pulled latest `main`.
+
+In post-merge mode:
+- Require `--pr <number>` unless the merged PR can be resolved unambiguously from the change-id.
+- Verify the PR is merged before touching archives or local remnants:
+
+```bash
+gh pr view "$PR_NUMBER" --json number,state,mergedAt,headRefName,baseRefName
+```
+
+- Continue only when `state` is `MERGED`.
+- Skip Step 2, Step 2.5, Step 2.5a, Step 2.5b, Step 2.6, Step 3, and Step 3.5.
+- Continue at Step 4 to fetch latest main, then archive, validate, commit, push, and remove local branches/worktrees.
+- Treat local branch/worktree deletion as approval-scoped: remove only remnants for this `CHANGE_ID`; do not force-delete dirty worktrees or unmerged local branches unless the operator explicitly approves that separate action.
 
 ### 2. Verify PR is Approved
 
@@ -524,6 +545,7 @@ If `CAN_FEATURE_REGISTRY=true`, re-analyze conflicts for active features. Featur
 /implement-feature <change-id>  # Build + PR → review gate
 /validate-feature <change-id>   # Deploy + test → validation gate (optional)
 /cleanup-feature <change-id>    # Merge + archive → done
+/cleanup-feature <change-id> --post-merge --pr <number>  # Archive after /merge-pull-requests already merged
 ```
 
 ## Common Rationalizations
