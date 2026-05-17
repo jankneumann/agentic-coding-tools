@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kanban-viz.local/schemas/events/snapshot.json",
+  "type": "object",
+  "required": ["work_queue", "active_agents", "subscribed_change_ids"],
+  "properties": {
+    "work_queue": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "active_agents": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "subscribed_change_ids": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

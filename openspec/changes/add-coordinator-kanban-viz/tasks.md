@@ -4,36 +4,36 @@
 
 ## Phase 1 — Contracts (wp-contracts)
 
-- [ ] 1.1 Document the three new HTTP endpoints (`/sync-points/status`, `/worktrees/active`, `/events/work`) in `contracts/README.md`
+- [x] 1.1 Document the three new HTTP endpoints (`/sync-points/status`, `/worktrees/active`, `/events/work`) in `contracts/README.md`
   **Spec scenarios**: coordinator-kanban-viz "New Coordinator Endpoint — Sync-Point Status", "...Worktree Active Projection", "...Work Event Stream (SSE)"
   **Design decisions**: D2 (SSE), D5 (sync-point reuses shared)
   **Dependencies**: None
   **Size**: M
 
-- [ ] 1.2 Author SSE event JSON schemas under `contracts/schemas/events/` (`transition.json`, `audit.json`, `snapshot.json`)
+- [x] 1.2 Author SSE event JSON schemas under `contracts/schemas/events/` (`transition.json`, `audit.json`, `snapshot.json`)
   **Spec scenarios**: "Live Update via SSE with Polling Fallback" (transition propagation, snapshot on reconnect)
   **Design decisions**: D2
   **Dependencies**: 1.1
   **Size**: S
 
-- [ ] 1.3 Author saved-view JSON schema under `contracts/schemas/saved-view.json`
+- [x] 1.3 Author saved-view JSON schema under `contracts/schemas/saved-view.json`
   **Spec scenarios**: "Saved Views with Mandatory Artifact Header"
   **Design decisions**: D7 (saved-view format)
   **Dependencies**: 1.1
   **Size**: S
 
-- [ ] 1.4 Author audit-event JSON schema under `contracts/schemas/audit-event.json`
+- [x] 1.4 Author audit-event JSON schema under `contracts/schemas/audit-event.json`
   **Spec scenarios**: "Reversibility-Classified UI Actions" (save-view audit, force-release consent)
   **Design decisions**: D8 (reversibility table)
   **Dependencies**: 1.1
   **Size**: S
 
-- [ ] 1.5 Author FalkorDB reservation linkage doc at `docs/kanban-viz/falkordb-reservation.md` mirroring the contracts/README.md reservation table
+- [x] 1.5 Author FalkorDB reservation linkage doc at `docs/kanban-viz/falkordb-reservation.md` mirroring the contracts/README.md reservation table
   **Design decisions**: D6 (FalkorDB reservation, no implementation)
   **Dependencies**: 1.1
   **Size**: XS
 
-- [ ] 1.6 Checkpoint: run `openspec validate add-coordinator-kanban-viz --strict`; review contracts/README.md against spec scenarios
+- [x] 1.6 Checkpoint: run `openspec validate add-coordinator-kanban-viz --strict`; review contracts/README.md against spec scenarios
   **Dependencies**: 1.1, 1.2, 1.3, 1.4, 1.5
 
 ## Phase 2 — Coordinator endpoints (wp-coord-endpoints)

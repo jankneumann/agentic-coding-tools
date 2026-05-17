@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kanban-viz.local/schemas/audit-event.json",
+  "type": "object",
+  "required": [
+    "schema_version", "generated_at", "git_sha", "generator",
+    "run_id", "event_kind", "action", "class", "outcome"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "generator": {"type": "string"},
+    "run_id": {"type": "string"},
+    "event_kind": {"type": "string", "const": "kanban-viz.ui-action"},
+    "action": {
+      "type": "string",
+      "enum": ["save-view", "drag-to-ready", "force-release-lock", "kick-agent"]
+    },
+    "class": {
+      "type": "string",
+      "enum": ["read", "reversible-write", "destructive-write"]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["confirmed", "declined", "auto-allowed", "failed"]
+    },
+    "args": {"type": "object"},
+    "operator": {"type": "string"},
+    "previous_git_sha_of_target": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}

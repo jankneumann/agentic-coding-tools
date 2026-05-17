@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kanban-viz.local/schemas/events/transition.json",
+  "type": "object",
+  "required": ["work_queue_id", "from", "to", "ts"],
+  "properties": {
+    "work_queue_id": {"type": "string", "format": "uuid"},
+    "from": {
+      "type": "string",
+      "enum": ["pending", "claimed", "running", "completed", "failed", "cancelled"]
+    },
+    "to": {
+      "type": "string",
+      "enum": ["pending", "claimed", "running", "completed", "failed", "cancelled"]
+    },
+    "agent_id": {"type": ["string", "null"]},
+    "ts": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
