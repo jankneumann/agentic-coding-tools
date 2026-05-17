@@ -206,7 +206,7 @@ The coordinator SHALL expose `GET /sync-points/status` returning the blocker sta
 
 The response SHALL be a JSON array with one object per sync-point skill, each containing: `skill` (string, one of `cleanup-feature`, `merge-pull-requests`, `update-specs`), `blocked` (boolean), `blockers` (array of `{agent_id, last_heartbeat_iso}`), and `suggested_actions` (array of strings, e.g., `["wait", "kick:wp-backend"]`).
 
-The endpoint SHALL reuse `shared.check_no_active_agents()` for blocker detection — the logic MUST NOT be duplicated.
+The endpoint SHALL reuse `skills.shared.active_agents.check_no_active_agents()` (file: `skills/shared/active_agents.py`) for blocker detection — the logic MUST NOT be duplicated, and the coordinator MUST NOT vendor or copy the function.
 
 #### Scenario: Endpoint returns one row per sync-point
 
@@ -246,7 +246,7 @@ This endpoint exists so the frontend never reads the registry file directly — 
 
 The coordinator SHALL expose `GET /events/work?change_ids=<csv>` as a Server-Sent Events endpoint emitting `transition` and `audit` events filtered to the supplied change-ids.
 
-The endpoint SHALL bind to Postgres `LISTEN` channels (`work_queue_change`, `audit_log_append`) and SHALL filter payloads server-side against the subscription's change-id set.
+The endpoint SHALL subscribe to the existing `agent-coordinator/src/event_bus.py` multi-channel LISTEN/NOTIFY bus (channel `coordinator_task` for work-queue transitions; a new channel `coordinator_audit`, added by this change, for `audit_log` appends). The endpoint SHALL filter payloads server-side against the subscription's change-id set after the bus dispatches each event.
 
 The endpoint SHALL emit an initial `event: snapshot` on connection.
 
@@ -256,11 +256,44 @@ The endpoint SHALL emit an initial `event: snapshot` on connection.
 **THEN** the client SHALL NOT receive an event for the `add-baz` transition
 **AND** server-side filter logging SHALL record the suppression for observability
 
-#### Scenario: NOTIFY emission is wired into existing transaction paths
+#### Scenario: NOTIFY emission flows through the existing event bus
 
-**WHEN** `IssueService.update_status` commits a transaction
-**THEN** a `work_queue_change` NOTIFY SHALL fire as part of the same transaction
-**AND** the SSE handler SHALL receive the payload via its `LISTEN` subscription
+**WHEN** `IssueService.update` commits a transaction that mutates a `work_queue` row
+**THEN** the existing `coordinator_task` NOTIFY trigger on `work_queue` SHALL fire as part of the same transaction
+**AND** `EventBusService` SHALL dispatch the payload to the SSE handler's subscribed callback
+
+#### Scenario: New coordinator_audit channel is wired into AuditService.append
+
+**WHEN** `AuditService.append` commits a row to `audit_log`
+**THEN** a `coordinator_audit` NOTIFY SHALL fire as part of the same transaction
+**AND** `EventBusService` SHALL dispatch the payload to the SSE handler's subscribed callback
+
+---
+
+### Requirement: New Coordinator Write Endpoints for UI Actions
+
+The coordinator SHALL expose three write endpoints required by v1 UI actions: `PATCH /issues/{id}/labels`, `DELETE /locks/{file_path:path}`, and `POST /agents/{agent_id}/kick`. Each endpoint SHALL reuse an existing service module and SHALL emit an `audit_log` row for each call.
+
+#### Scenario: PATCH /issues/{id}/labels adds and removes labels
+
+**WHEN** a client calls `PATCH /issues/{id}/labels` with body `{"add": ["pending-approval"], "remove": []}` against a valid `work_queue` row
+**THEN** the row's `labels` array SHALL contain `pending-approval`
+**AND** the response status SHALL be 200
+**AND** an `audit_log` row SHALL be appended capturing the action
+
+#### Scenario: DELETE /locks/{file_path} force-releases a stale lock
+
+**WHEN** a client calls `DELETE /locks/{file_path}` for an existing lock held by a different agent
+**THEN** the lock SHALL be removed
+**AND** an `audit_log` row SHALL be appended capturing the prior holder
+**AND** the response SHALL include `prior_holder_agent_id` for forensics
+
+#### Scenario: POST /agents/{agent_id}/kick marks heartbeat as dead
+
+**WHEN** a client calls `POST /agents/{agent_id}/kick` against an agent whose heartbeat is currently fresh
+**THEN** the agent SHALL be marked with `last_heartbeat = epoch` in `agent_discovery`
+**AND** subsequent calls to `check_no_active_agents()` SHALL NOT consider the agent active
+**AND** an `audit_log` row SHALL be appended capturing the kick action
 
 ---
 

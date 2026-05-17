@@ -22,19 +22,29 @@
                          │ HTTPS / SSE
                          ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│ agent-coordinator FastAPI (existing, two new endpoints)               │
+│ agent-coordinator FastAPI (existing, six new endpoints)               │
 │                                                                        │
 │  Existing (consumed unchanged):                                       │
-│   GET /issues?labels=change:<id>          (issue list)                │
-│   GET /audit/recent?change_id=<id>&n=N   (last-N audit rows)         │
-│   GET /agents/active                       (heartbeat-fresh agents)   │
+│   POST /issues/list                        (issue list with labels    │
+│                                             filter — coordinator uses │
+│                                             POST-with-body, not       │
+│                                             GET-with-query)           │
+│   GET /audit                               (audit rows; query-string  │
+│                                             scoped via existing       │
+│                                             AuditService.query)       │
+│   GET /discovery/agents                    (active agents per         │
+│                                             heartbeat-recency)        │
 │   POST /work/submit                        (existing — used for       │
 │                                             pending-approval flag)    │
 │                                                                        │
 │  New (added in this change):                                          │
-│   GET /events/work?change_ids=<csv>       (SSE: transition, audit)   │
+│   POST /events/auth                        (mint short-lived JWT)     │
+│   GET /events/work?change_ids=<csv>&token=…(SSE: transition, audit)  │
 │   GET /sync-points/status                  (banner blockers)          │
 │   GET /worktrees/active                    (registry projection)      │
+│   PATCH /issues/{id}/labels                (drag-to-Ready writes)     │
+│   DELETE /locks/{file_path:path}           (force-release lock)       │
+│   POST /agents/{agent_id}/kick             (sync-point banner kick)   │
 └────────────────────────┬─────────────────────────────────────────────┘
                          ▼
                    Postgres (work_queue, audit_log, file_locks,
@@ -84,15 +94,23 @@ The temptation is to maintain a `docs/kanban-viz/state.json` that mirrors curren
 
 The only on-disk artifacts the Kanban writes are **saved views** (small, diffable, user-curated → git-committed under `docs/kanban-viz/saved-views/`) and **audit events** (event-class, dated paths under `docs/kanban-viz/audit/<YYYY-MM-DD>/`). Both carry the codeviz mandatory artifact header; both are properly classified per the codeviz storage-tier policy.
 
-### D4: Vendor swimlanes derived from `audit_log.agent_id` + `agent_profiles.metadata.vendor`
+### D4: Vendor swimlanes derived from `audit_log.agent_id` + agent-id suffix (with `agent_profiles.metadata.vendor` as preferred source)
 
-A work-package in vendor-diverse parallel-review mode forks N agents (`wp-review--claude`, `wp-review--gemini`, `wp-review--codex`). The coordinator's `agent_profiles.metadata.vendor` field already records the vendor for each. The swimlane component groups `audit_log` rows by `vendor` and renders the most-recent-row's `args_summary` as a one-line "what is this vendor doing now" string.
+A work-package in vendor-diverse parallel-review mode forks N agents whose `agent_id`s follow the established `<wp>--<vendor>` convention (`wp-review--claude`, `wp-review--gemini`, `wp-review--codex` per CLAUDE.md "branch naming" rule).
 
-When a card's underlying work-package is *not* in vendor-diverse mode (single-agent run), the swimlanes collapse to a single lane labeled with the lone vendor.
+**Vendor-extraction precedence (specified to avoid runtime ambiguity):**
+1. **Preferred:** `agent_profiles.metadata.vendor` if present. Populating this field is a verification step in `wp-coord-endpoints` (test 2.0a below) — if the column is absent or unpopulated for review agents, that work-package's first task is a minimal extension to `agent_profiles` write paths so the field is populated for new rows. This avoids designing the UI on top of unverified data.
+2. **Fallback:** parse the suffix after `--` from `agent_id` and validate against the closed set `{claude, codex, gemini, chatgpt-pro}`. Unmatched suffixes render under a generic `other` lane rather than a crash.
 
-### D5: Sync-point banner reuses `shared.check_no_active_agents()`
+The swimlane component groups `audit_log` rows by extracted vendor and renders the most-recent-row's `args_summary` as a one-line "what is this vendor doing now" string. When a card's underlying work-package is *not* in vendor-diverse mode (single-agent run), the swimlanes collapse to a single lane labeled with the lone vendor.
 
-The active-agent guard for `/cleanup-feature`, `/merge-pull-requests`, and `/update-specs` is centralized in `skills/shared/check_no_active_agents.py` (per CLAUDE.md). The new `/sync-points/status` endpoint imports the same function — no logic duplication. The endpoint enumerates the three sync-point skills and returns a list of `{skill, blocked, blockers, suggested_actions}`.
+**New test added to wp-coord-endpoints (2.0a):** assert that `agent_profiles.metadata.vendor` is populated for any agent whose `agent_id` matches `<wp>--<vendor>` where `<vendor>` is in the closed set above; back-fill missing values with a one-shot migration script. If the verification reveals the field genuinely cannot be populated reliably, the UI falls back to suffix parsing and the design-decision is downgraded to "suffix-parsed only" with a follow-up filed against the coordinator.
+
+### D5: Sync-point banner reuses `skills.shared.active_agents.check_no_active_agents()`
+
+The active-agent guard for `/cleanup-feature`, `/merge-pull-requests`, and `/update-specs` is centralized in `skills/shared/active_agents.py` (per CLAUDE.md; the canonical filename is `active_agents.py`, the function inside it is `check_no_active_agents()`). The new `/sync-points/status` endpoint imports the same function — no logic duplication. The endpoint enumerates the three sync-point skills and returns a list of `{skill, blocked, blockers, suggested_actions}`.
+
+**Import path from the coordinator.** The coordinator is a Python package living next to `skills/`; the new endpoint resolves `skills/shared/active_agents.py` via a sys.path-anchored helper introduced by this change (mirroring how `worktree.py` is imported from coordinator-side scripts). The endpoint MUST NOT vendor or copy the function, and MUST NOT depend on a separate worktree path — the import is by relative module path under the shared-skills installation.
 
 `suggested_actions` is opinionated: when blockers exist, the endpoint returns `["wait", "kick:<agent_id>"]`. The frontend renders these as buttons. `kick` is destructive-write; clicking it surfaces a per-operation consent prompt before issuing `POST /agents/<id>/kick` (existing endpoint).
 
@@ -160,9 +178,19 @@ Audit emission goes to `docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json` (event
 
 The classifier is **not duplicated**; the frontend imports a small TypeScript translation of the centralized `skills/shared/op_reversibility.py` rules (reservation in codeviz). For v1, the classification table above is hard-coded in `apps/kanban-viz/src/lib/reversibility.ts` with a comment pointing to the shared module so the duplication is intentional and easy to converge once codeviz ships the shared classifier.
 
+### D9: Three new coordinator write endpoints required by v1 UI actions
+
+The previous revision of this design treated `PATCH /issues/{id}/labels`, `DELETE /locks/{file_path}`, and `POST /agents/{agent_id}/kick` as if they were existing endpoints. They are not — `coordination_api.py` does not currently define them. They are introduced here, in this change, alongside the read endpoints, because:
+
+- **`PATCH /issues/{id}/labels`** — adds/removes labels on a `work_queue` row. Wraps `IssueService.update` (existing) with a label-only update path. Reuses the existing labels JSONB column. Reversibility: reversible-write.
+- **`DELETE /locks/{file_path:path}`** — force-releases a stale lock entry. Wraps `locks.release_lock()` (existing in `agent-coordinator/src/locks.py`) with an explicit `force=True` parameter bypassing the holder check, and emits an `audit_log` row capturing the prior holder for forensics. Reversibility: destructive-write.
+- **`POST /agents/{agent_id}/kick`** — marks an agent's heartbeat dead so sync-point gates clear. Implementation: write a sentinel row to `agent_discovery` setting `last_heartbeat = epoch` (so the existing `check_no_active_agents()` filter no longer considers the agent active), and emits an `audit_log` row. The existing discovery GC will reap the entry on its next cycle. Reversibility: destructive-write.
+
+Each endpoint reuses an existing service module; no duplicated transaction logic is introduced. The endpoints are added to `wp-coord-endpoints` (Phase 2) rather than scoped to a separate work-package because they share the same locks (coord-endpoints file set) and the same reviewer.
+
 ## Storage alignment with codeviz tier policy
 
-Per `openspec/roadmaps/codeviz/proposal.md` lines 49–56:
+Per `openspec/roadmaps/codeviz/proposal.md` "Mandatory artifact header" (proposal lines 88 and 109; the previous reference to "lines 49–56" was incorrect — those lines describe a different topic):
 
 | Artifact | Tier | Path | Diffable? |
 |---|---|---|---|
@@ -177,7 +205,12 @@ CI lint (codeviz Phase 0 `artifact-classification` capability) will refuse PRs t
 
 ## Live update protocol details
 
-**Subscription model.** The client opens one SSE connection with `change_ids=<csv>` query string. The server-side handler binds to a Postgres `LISTEN` channel (`work_queue_change`, `audit_log_append`) and filters payloads against the subscribed change-ids. NOTIFY emission is added to the existing transaction paths in `IssueService.update_status` and `AuditService.append`.
+**Subscription model.** The client opens one SSE connection with `change_ids=<csv>` query string. The server-side handler subscribes to the existing `agent-coordinator/src/event_bus.py` multi-channel LISTEN/NOTIFY bus via `EventBusService.subscribe(channel, callback)`:
+
+- The **existing `coordinator_task` channel** carries `work_queue` mutations (this change does not need to add a new channel for transitions — the bus already covers it; the SSE handler just translates `CoordinatorEvent` payloads into the `event: transition` SSE wire format).
+- A **new `coordinator_audit` channel** is added by this change for `audit_log` appends. This is a small extension: append `"coordinator_audit"` to `event_bus.CHANNELS`, add the matching trigger on `audit_log` mirroring the existing `work_queue` trigger pattern, and add a one-line NOTIFY call in `AuditService.append` so the bus stays the single emission point.
+
+The SSE handler is a thin per-connection filter/serializer in front of the bus, not a parallel LISTEN/NOTIFY implementation. Server-side filtering against `change_ids` happens in the SSE handler after the bus dispatches the event to its callback.
 
 **Reconnection.** EventSource auto-reconnects on disconnect. The server emits an initial `event: snapshot` with the current state of all subscribed change-ids on each (re)connection so the client can reconcile without polling.
 

@@ -126,24 +126,39 @@ packages:
   # ───────────────────────────────────────────────────────────────────
 
   - package_id: wp-coord-endpoints
-    title: "Implement /sync-points/status, /worktrees/active, and /events/work SSE on coordinator"
+    title: "Implement /sync-points/status, /worktrees/active, /events/work SSE, and three UI-action write endpoints on coordinator"
     task_type: implement
     description: |
-      Adds four new endpoints to agent-coordinator/src/coordination_api.py:
-        - GET /sync-points/status (reuses shared.check_no_active_agents)
+      Adds seven new endpoints to agent-coordinator/src/coordination_api.py:
+        - GET /sync-points/status (reuses skills.shared.active_agents.check_no_active_agents)
         - GET /worktrees/active (projects .git-worktrees/.registry.json)
         - POST /events/auth (mints short-lived single-use JWT for SSE)
-        - GET /events/work (SSE; sse-starlette; binds to Postgres LISTEN;
-          validates JWT from query string, redacts token= from access logs)
-      Adds NOTIFY emission to IssueService.update_status and
-      AuditService.append. Adds backpressure coalescing to SSE handler.
+        - GET /events/work (SSE; sse-starlette; subscribes to existing
+          EventBusService for coordinator_task and new coordinator_audit
+          channels; validates JWT from query string, redacts token= from
+          access logs)
+        - PATCH /issues/{id}/labels (drag-to-Ready label mutation; wraps
+          IssueService.update)
+        - DELETE /locks/{file_path:path} (force-release lock; wraps
+          locks.release_lock with force=True)
+        - POST /agents/{agent_id}/kick (writes last_heartbeat=epoch to
+          agent_discovery; existing GC reaps)
+      Extends agent-coordinator/src/event_bus.py CHANNELS with a new
+      coordinator_audit channel, installs the matching Postgres trigger on
+      audit_log, and wires AuditService.append to emit through the bus —
+      NOT a parallel NOTIFY pathway. Adds backpressure coalescing to SSE
+      handler. Verifies / back-fills agent_profiles.metadata.vendor for
+      review agents.
       Tests under skills/tests/agent-coordinator/.
-      Covers tasks 2.1–2.15.
+      Covers tasks 2.0a, 2.1–2.15 (incl. 2.7c, 2.7d, 2.7e, 2.7f, 2.13a,
+      2.13b, 2.13c).
       Spec scenarios: "New Coordinator Endpoint — Sync-Point Status" (all),
                        "...Worktree Active Projection" (all),
                        "...Work Event Stream (SSE)" (all),
+                       "New Coordinator Write Endpoints for UI Actions" (all),
                        "Backpressure coalesces excessive events"
-      Design decisions: D2 (SSE), D5 (sync-point reuse)
+      Design decisions: D2 (SSE via event_bus), D5 (sync-point reuse),
+                        D4 (vendor source-of-truth), D9 (write endpoints)
     role: python-engineer
     priority: 2
     depends_on:
@@ -155,26 +170,33 @@ packages:
       files:
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/issue_service.py"
-        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/event_bus.py"
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/src/discovery.py"
         - "agent-coordinator/src/sync_points.py"
       keys:
         - "feature:add-coordinator-kanban-viz:endpoints"
       ttl_minutes: 300
-      reason: "Implementing new coordinator endpoints + NOTIFY wiring"
+      reason: "Implementing new coordinator endpoints + event_bus channel extension"
     scope:
       write_allow:
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/issue_service.py"
-        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/event_bus.py"
+        - "agent-coordinator/src/locks.py"
+        - "agent-coordinator/src/discovery.py"
         - "agent-coordinator/src/sync_points.py"
         - "agent-coordinator/src/worktrees_view.py"
         - "agent-coordinator/src/event_stream.py"
+        - "agent-coordinator/migrations/**"
         - "agent-coordinator/pyproject.toml"
         - "skills/tests/agent-coordinator/**"
       read_allow:
         - "agent-coordinator/**"
         - "openspec/changes/add-coordinator-kanban-viz/**"
-        - "skills/shared/check_no_active_agents.py"
+        - "skills/shared/active_agents.py"
         - "skills/worktree/scripts/worktree.py"
     worktree:
       name: "wp-coord-endpoints"
@@ -184,7 +206,7 @@ packages:
       steps:
         - name: "run-unit-tests"
           kind: "command"
-          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/ -v -k 'sync_points or worktrees_active or events_work or notify'"
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/ -v -k 'sync_points or worktrees_active or events_work or events_auth or coordinator_audit or kick_agent or release_lock or patch_labels or vendor_metadata'"
           expect_exit_code: 0
           evidence:
             artifacts: []

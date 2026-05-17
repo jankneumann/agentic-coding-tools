@@ -60,7 +60,7 @@ No query parameters in v1. (A future `?skills=<csv>` filter is reserved.)
 
 **Reversibility.** `read`. Auto-allowed.
 
-**Implementation note.** Server handler imports `shared.check_no_active_agents()` and iterates the three sync-point skills. The function MUST NOT be reimplemented.
+**Implementation note.** Server handler imports `check_no_active_agents()` from `skills/shared/active_agents.py` and iterates the three sync-point skills. The function MUST NOT be reimplemented, and the file MUST NOT be vendored into `agent-coordinator/`.
 
 ---
 
@@ -150,6 +150,76 @@ data: {"audit_id": "...", "agent_id": "wp-backend", "operation": "edit_file",
 **Reversibility.** `read`. Auto-allowed. Audit emission optional (per codeviz reversibility taxonomy for read events).
 
 **Failure mode.** If the underlying Postgres `LISTEN` connection drops, the server closes the SSE stream with a final `event: error data: {"reason": "listen_dropped"}`. The client reconnects and receives a fresh snapshot.
+
+**Event-bus reuse.** Implementation MUST subscribe to the existing `agent-coordinator/src/event_bus.py` `EventBusService` for both `coordinator_task` (existing channel covering `work_queue` mutations) and `coordinator_audit` (new channel added by this change covering `audit_log` appends). The SSE endpoint MUST NOT open its own raw `LISTEN` connection — that would duplicate the bus and bypass its payload-size and dispatch guarantees.
+
+---
+
+## HTTP Endpoint Additions — UI Action Writes
+
+These three endpoints did not exist on the coordinator prior to this change and are added here because the UI's v1 write actions depend on them.
+
+### `PATCH /issues/{id}/labels`
+
+**Purpose.** Add or remove labels on a `work_queue` row. Used by the drag-to-Ready interaction.
+
+**Request:**
+
+```
+PATCH /issues/{id}/labels
+Authorization: Bearer <coordinator-api-key>
+Content-Type: application/json
+
+{"add": ["pending-approval"], "remove": []}
+```
+
+**Response (200 OK):** the updated issue object including the new labels array.
+
+**Reversibility.** `reversible-write`. Auto-allowed; audit emitted.
+
+**Implementation note.** Wraps `IssueService.update` (existing) with a labels-only mutation path.
+
+### `DELETE /locks/{file_path:path}`
+
+**Purpose.** Force-release a lock entry. Used by the force-release-lock action.
+
+**Request:**
+
+```
+DELETE /locks/{file_path:path}
+Authorization: Bearer <coordinator-api-key>
+```
+
+**Response (200 OK):**
+
+```json
+{"released": true, "prior_holder_agent_id": "wp-backend", "prior_acquired_at": "2026-05-15T10:30:13Z"}
+```
+
+**Reversibility.** `destructive-write`. Per-action consent prompt required; audit emitted regardless of consent outcome.
+
+**Implementation note.** Wraps `locks.release_lock()` (existing) with an explicit `force=True` parameter bypassing the holder check.
+
+### `POST /agents/{agent_id}/kick`
+
+**Purpose.** Mark an agent's heartbeat as dead so sync-point gates clear. Used by the sync-point banner kick action.
+
+**Request:**
+
+```
+POST /agents/{agent_id}/kick
+Authorization: Bearer <coordinator-api-key>
+```
+
+**Response (200 OK):**
+
+```json
+{"kicked": true, "agent_id": "wp-backend", "last_heartbeat_was": "2026-05-15T10:40:13Z"}
+```
+
+**Reversibility.** `destructive-write`. Per-action consent prompt required; audit emitted regardless of consent outcome.
+
+**Implementation note.** Writes a sentinel row to `agent_discovery` with `last_heartbeat = epoch`. The existing discovery GC reaps the entry on the next cycle.
 
 ---
 
@@ -352,12 +422,10 @@ This reservation is duplicated in `docs/kanban-viz/falkordb-reservation.md` as a
 
 | Surface | Defined in | Used by |
 |---|---|---|
-| `GET /issues?labels=<csv>` | `openspec/specs/agent-coordinator/` | Initial board fetch + polling fallback |
-| `GET /audit/recent?...` | `openspec/specs/agent-coordinator/` | Polling fallback for swimlanes |
-| `POST /agents/<id>/kick` | `openspec/specs/agent-coordinator/` | Sync-point banner kick action |
-| `PATCH /issues/<id>/labels` | `openspec/specs/agent-coordinator/` | Drag-to-Ready action |
-| `DELETE /locks/<file_path>` | `openspec/specs/agent-coordinator/` | Force-release-lock action |
-| `shared.check_no_active_agents()` | `skills/shared/check_no_active_agents.py` | `/sync-points/status` endpoint |
+| `POST /issues/list` (with `labels` filter in body) | existing — `agent-coordinator/src/coordination_api.py` | Initial board fetch + polling fallback (coordinator uses POST-with-body, not GET-with-query) |
+| `GET /audit` | existing — `agent-coordinator/src/coordination_api.py` | Polling fallback for swimlanes (scoped via query string per existing `AuditService.query`) |
+| `EventBusService` (channels: `coordinator_task`, plus new `coordinator_audit`) | existing — `agent-coordinator/src/event_bus.py` | SSE subscription source for transitions and audits |
+| `check_no_active_agents()` | `skills/shared/active_agents.py` (existing) | `/sync-points/status` endpoint |
 | `coordination_bridge.try_issue_list()` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Compatible read path used by the renderer (this change reuses the underlying `GET /issues?...`) |
 | `add-coordinator-task-status-renderer` data contract | `openspec/changes/add-coordinator-task-status-renderer/contracts/README.md` | Issue shape (`metadata.task_key`, `metadata.change_id`, status enum) consumed by frontend types — same contract |
 | Mandatory artifact header | `docs/codeviz/artifact-header.md` (codeviz Phase 0) | Saved-view + audit-event files |

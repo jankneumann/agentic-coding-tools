@@ -1,6 +1,6 @@
 # Tasks — add-coordinator-kanban-viz
 
-> **Bootstrap note:** This change depends on `add-coordinator-task-status-renderer` having merged so the renderer's data contract is the canonical issue shape consumed by the frontend's generated types. If the renderer change is not yet merged at implementation start, `wp-contracts` SHALL stub the issue type from a pinned snapshot and `wp-frontend-skeleton` SHALL re-pin once the renderer lands.
+> **Bootstrap note:** This change builds on `add-coordinator-task-status-renderer` (archived `2026-05-16-add-coordinator-task-status-renderer`). The renderer's data contract — issue rows with `metadata.task_key`, `metadata.change_id`, `assignee`, `status` — is the canonical issue shape consumed by the frontend's generated types. The archive path is `openspec/changes/archive/2026-05-16-add-coordinator-task-status-renderer/contracts/README.md`.
 
 ## Phase 1 — Contracts (wp-contracts)
 
@@ -70,8 +70,37 @@
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7 Write test: NOTIFY emission wired into `IssueService.update_status` transaction path
-  **Spec scenarios**: "NOTIFY emission is wired into existing transaction paths"
+- [ ] 2.0a Write test: `agent_profiles.metadata.vendor` is populated for every agent whose `agent_id` matches `<wp>--<vendor>` with `<vendor> ∈ {claude,codex,gemini,chatgpt-pro}`; back-fill missing values with a one-shot migration script
+  **Spec scenarios**: "Vendor Swimlanes on In-Flight Cards" (vendor source-of-truth verification)
+  **Design decisions**: D4
+  **Dependencies**: 1.6
+  **Size**: S
+
+- [ ] 2.7 Write test: SSE handler subscribes to existing `EventBusService` channel `coordinator_task` and dispatches a `transition` SSE event when `IssueService.update` commits a `work_queue` mutation
+  **Spec scenarios**: "NOTIFY emission flows through the existing event bus"
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.7c Write test: new channel `coordinator_audit` is registered on `event_bus.CHANNELS`, its trigger fires on `audit_log` inserts, and SSE handler dispatches a corresponding `audit` SSE event
+  **Spec scenarios**: "New coordinator_audit channel is wired into AuditService.append"
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.7d Write test: `PATCH /issues/{id}/labels` adds and removes labels, returns 200 with updated row, emits an `audit_log` entry
+  **Spec scenarios**: "PATCH /issues/{id}/labels adds and removes labels"
+  **Design decisions**: D9
+  **Dependencies**: 1.6
+  **Size**: S
+
+- [ ] 2.7e Write test: `DELETE /locks/{file_path}` force-releases lock held by a different agent, returns `prior_holder_agent_id`, emits an `audit_log` entry
+  **Spec scenarios**: "DELETE /locks/{file_path} force-releases a stale lock"
+  **Design decisions**: D9
+  **Dependencies**: 1.6
+  **Size**: S
+
+- [ ] 2.7f Write test: `POST /agents/{agent_id}/kick` writes `last_heartbeat = epoch` to `agent_discovery`, returns 200, emits an `audit_log` entry, and a subsequent `check_no_active_agents()` call returns the agent as not-active
+  **Spec scenarios**: "POST /agents/{agent_id}/kick marks heartbeat as dead"
+  **Design decisions**: D9
   **Dependencies**: 1.6
   **Size**: M
 
@@ -85,10 +114,10 @@
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.8 Checkpoint: confirm tests 2.1–2.7b RED
-  **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b
+- [ ] 2.8 Checkpoint: confirm tests 2.0a, 2.1–2.7f RED
+  **Dependencies**: 2.0a, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b, 2.7c, 2.7d, 2.7e, 2.7f
 
-- [ ] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` reusing `shared.check_no_active_agents()`
+- [ ] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` importing `check_no_active_agents` from `skills/shared/active_agents.py` (canonical filename — NOT `check_no_active_agents.py`)
   **Spec scenarios**: "...Sync-Point Status" (all)
   **Design decisions**: D5
   **Dependencies**: 2.8
@@ -111,18 +140,36 @@
   **Dependencies**: 2.8, 2.11
   **Size**: L
 
-- [ ] 2.13 Add NOTIFY emission to `IssueService.update_status` and `AuditService.append`
-  **Spec scenarios**: "NOTIFY emission is wired into existing transaction paths"
+- [ ] 2.13 Add a new `coordinator_audit` LISTEN/NOTIFY channel to `event_bus.CHANNELS`, install the matching Postgres trigger on `audit_log`, and wire `AuditService.append` to emit through the bus. Do NOT add a parallel NOTIFY pathway; the existing `coordinator_task` channel already covers `work_queue` mutations.
+  **Spec scenarios**: "NOTIFY emission flows through the existing event bus", "New coordinator_audit channel is wired into AuditService.append"
   **Dependencies**: 2.8
   **Size**: M
+
+- [ ] 2.13a Implement `PATCH /issues/{id}/labels` in `coordination_api.py`, wrapping `IssueService.update` with a labels-only update path
+  **Spec scenarios**: "PATCH /issues/{id}/labels adds and removes labels"
+  **Design decisions**: D9
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13b Implement `DELETE /locks/{file_path:path}` in `coordination_api.py`, calling `locks.release_lock(..., force=True)` and emitting an audit row capturing the prior holder
+  **Spec scenarios**: "DELETE /locks/{file_path} force-releases a stale lock"
+  **Design decisions**: D9
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`, writing `last_heartbeat = epoch` to `agent_discovery` and emitting an audit row
+  **Spec scenarios**: "POST /agents/{agent_id}/kick marks heartbeat as dead"
+  **Design decisions**: D9
+  **Dependencies**: 2.8
+  **Size**: S
 
 - [ ] 2.14 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
   **Spec scenarios**: "Backpressure coalesces excessive events"
   **Dependencies**: 2.12
   **Size**: M
 
-- [ ] 2.15 Confirm tests 2.1–2.7 GREEN
-  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.14
+- [ ] 2.15 Confirm tests 2.0a, 2.1–2.7f GREEN
+  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.13a, 2.13b, 2.13c, 2.14
   **Size**: XS
 
 ## Phase 3 — Frontend skeleton (wp-frontend-skeleton)
