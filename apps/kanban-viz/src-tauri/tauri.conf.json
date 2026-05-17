@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Kanban Viz",
+        "width": 1200,
+        "height": 800
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "identifier": "ai.fission.kanban-viz",
+    "icon": []
+  },
+  "plugins": {
+    "http": {
+      "allowlist": {
+        "request": true,
+        "downloadFile": false,
+        "fetch": false
+      }
+    }
+  }
+}
