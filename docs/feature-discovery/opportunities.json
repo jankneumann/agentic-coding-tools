@@ -1,7 +1,8 @@
 {
-  "generated_at": "2026-05-15T00:00:00Z",
+  "generated_at": "2026-05-16T00:00:00Z",
   "focus_area": "user-facing-ux-recent-pain-new-capability",
   "history_adjustment_applied": true,
+  "regenerated_reason": "2026-05-15 ranking was authored against state captured at conversation start. By report time, add-coordinator-task-status-renderer had been archived (commit 40a6bcc, 2026-05-16) and add-coordinator-kanban-viz had been planned (0/71 tasks, ~7h before this regeneration). Both items materially change the ranking; this file replaces the 2026-05-15 version.",
   "weights": {
     "impact": 0.4,
     "strategic_fit": 0.25,
@@ -28,89 +29,73 @@
     },
     "derived_focus_string": "Add a new user-facing UX capability (CLI / slash command / output / docs / status rendering / dashboards) driven by a concrete recent pain. Refactors, optimizations, and infra-only work are out of scope."
   },
-  "recent_pain_signals_inferred": [
-    "2026-05-14: add-coordinator-task-status-renderer planned (e0995bd) — display drift between coordinator state and tasks.md checkboxes named explicitly as the pain.",
-    "2026-05-13: PR #140 conflict resolution + cleanup-feature test fixes — multi-PR triage friction.",
-    "2026-05-12: check_compact widened boundary window (1b4c830) — auto-compact behavior needed tuning.",
-    "2026-05-12: codeviz proposal iterating with feedback from ChatGPT Pro / Codex / Gemini — codebase-comprehension surface still pre-implementation after >2 days of refinement.",
-    "2026-05-08: session-bootstrap rich pre-compact handoff + auto-compact (multiple commits) — long-session continuity actively being iterated."
-  ],
-  "in_flight_landscape": {
-    "factory-missions-architecture-alignment": "51/53 tasks, ~landing — vocabulary + validator-consensus work, not directly UX",
-    "add-coordinator-task-status-renderer": "0/40 tasks, planned 2026-05-14 — direct fit for stated focus",
-    "harness-engineering-features": "0/21 tasks, drafted 2026-04-08 — features 2/4/7 are UX, but stalled for 5+ weeks",
-    "codeviz (roadmap)": "in active proposal-iteration loop, no implementation started"
+  "verified_in_flight_landscape_2026_05_16": {
+    "factory-missions-architecture-alignment": "51/53 tasks — near-landing, validator-consensus work (not UX)",
+    "add-coordinator-kanban-viz": "0/71 tasks — planned ~7h before this regeneration. Vite+React+TS SPA + SSE + new coordinator endpoints + Tauri scaffold. Explicitly composes with the just-shipped renderer and with the codeviz roadmap.",
+    "harness-engineering-features": "0/21 tasks — drafted 4/10, stalled 5+ weeks. Includes UX features (2/4/7) but proposal scope is the obstacle.",
+    "add-engineering-methodology-skills": "Complete (still listed in active until archived)"
   },
+  "completed_since_last": [
+    {
+      "id": "add-coordinator-task-status-renderer",
+      "archived_as": "2026-05-16-add-coordinator-task-status-renderer",
+      "commit": "40a6bcc",
+      "note": "Shipped the full pipeline (planning → reviews → implement → cleanup → archive) in one day. Renderer skill 'coordinator-task-status-renderer' is now in the skill catalog. Unblocks kanban-viz's data-contract dependency."
+    },
+    {
+      "id": "vendor-neutral-autopilot",
+      "archived_as": "2026-05-16-vendor-neutral-autopilot",
+      "commit": "feb8686",
+      "note": "Not on prior opportunity list; surfaced via git log."
+    }
+  ],
   "items": [
     {
-      "id": "execute-add-coordinator-task-status-renderer",
-      "title": "Execute the already-planned task-status renderer (no new proposal needed)",
-      "problem_statement": "Markdown checkboxes in openspec/changes/<change-id>/tasks.md drift from coordinator state because agents complete work but forget to tick boxes. Humans reading PRs see stale state and lose trust in the artifact. The change was planned 2026-05-14 with 40 tasks and an S-sized implementation (~250 LOC); it now needs an implementer.",
-      "hmw_reframe": "How might we make tasks.md reflect reality without requiring agents to remember to tick boxes?",
-      "lenses_applied": ["inversion", "simplification"],
+      "id": "execute-add-coordinator-kanban-viz",
+      "title": "Implement the freshly-planned kanban visualization SPA (no new proposal needed)",
+      "problem_statement": "Operators reason about live multi-agent execution by tailing logs, reading tasks.md, and grepping .git-worktrees/.registry.json. Cognitive load grows superlinearly with parallelism — by the time three vendor-diverse reviewers are running across two work packages with overlapping file locks and a sync-point gate is silently blocked by a stale heartbeat, the operator has lost the plot. add-coordinator-kanban-viz proposes a 3-column Kanban (Backlog / In Flight / Done), vendor swimlanes on in-flight cards, and a sync-point gate banner — the three views that only make sense on this substrate.",
+      "hmw_reframe": "How might we visualize multi-agent execution state without forcing operators to tail logs and grep registries?",
+      "lenses_applied": ["combination", "audience-shift", "constraint-removal"],
       "impact": "high",
       "strategic_fit": "high",
-      "effort": "S",
-      "risk": "low",
+      "effort": "M",
+      "risk": "med",
       "focus_match": 3,
-      "localized_focus_alignment": "Direct hit. New user-facing UX capability (status display in PR-facing markdown). The pain was named and specced literally one day before this exploration ran — the freshest possible 'concrete recent pain' signal.",
-      "score": 3.30,
+      "localized_focus_alignment": "Direct hit. New user-facing UX capability (a web SPA + native scaffold). Addresses chronic-multi-cycle pain (no global view, surfaced in April + multiple deferrals) AND fresh pain (planned within ~7 hours of this exploration; renderer dependency just landed). The proposal is already through Gate 1 with discovery decisions baked in.",
+      "score": 3.025,
       "bucket": "quick-win",
       "suggested_change_prefix": "(existing)",
-      "change_id_hint": "add-coordinator-task-status-renderer",
+      "change_id_hint": "add-coordinator-kanban-viz",
       "blocked_by": [],
-      "recommended_action": "/implement-feature add-coordinator-task-status-renderer",
-      "why_now": "Specced 1 day before this exploration ran. Implementation cost is S (~250 LOC, two reusable patterns: managed-block from plan-roadmap renderer, coordination_bridge.try_issue_list for read path). Pre-merge.githooks/post-merge are currently no-op placeholders so the hook insertions are clean. Defers no decision; closes a freshly-named pain.",
-      "parallel_feasibility": "N/A — single in-flight change, no resource enumeration available",
-      "notes": "Scored as a candidate even though it is not a new proposal, because the skill's job is to recommend the highest-leverage next move — which here is execution, not invention."
+      "recommended_action": "/implement-feature add-coordinator-kanban-viz",
+      "why_now": "Three signals align: (a) proposal is freshly planned with 71 tasks and Gate 1 approved; (b) its data-contract dependency (add-coordinator-task-status-renderer) shipped earlier today; (c) the alternative — replanning a smaller scope — would re-litigate decisions already made through review rounds. The MVP scope is deliberately narrow (3 columns + swimlanes + sync-point banner), with everything else (DAG view, time-slider, lock heatmap) explicitly deferred. Risk is medium not low because of (i) new Node toolchain in a Python repo and (ii) SSE auth handshake complexity, both bounded by scope.",
+      "parallel_feasibility": "N/A — coordinator state not enumerated this run"
     },
     {
       "id": "add-why-am-i-blocked-skill",
-      "title": "Add /why-am-i-blocked <change-id> — single-question feature-stall observability",
-      "problem_statement": "When an in-flight change stalls, the operator currently has to inspect locks (check_locks), the work queue (list_issues), pending approvals (list_pending_approvals), missing OpenSpec artifacts (openspec list), and worktree registry separately. No single tool answers 'why is this feature stuck right now?' The answer requires fanning out across 4–5 sources and reconciling. This is the operator-side analog of the just-planned task-status-renderer (which is reviewer-side legibility).",
-      "hmw_reframe": "How might we answer 'why is this feature stuck?' in one command instead of five?",
+      "title": "Add /why-am-i-blocked <change-id> — one-command feature-stall explainer",
+      "problem_statement": "Kanban-viz answers 'what is the state of all in-flight work?' on a board. It does NOT answer 'why is THIS specific change not advancing right now?' Today that requires fanning out across locks (check_locks), the work queue (list_issues), pending approvals (list_pending_approvals), missing OpenSpec artifacts (openspec list), worktree registry (worktree.py list), and the kanban-viz sync-point endpoint to assemble the answer. A single skill that takes a change-id and returns 'blocked by: <agent X holds lock on file Y since Tm ago | T2 awaiting approval N | tasks.md missing N1 → N2 dependency' closes a different gap from the board view: targeted diagnostic vs. ambient awareness.",
+      "hmw_reframe": "How might we answer 'why is this feature stuck?' in one command instead of five sources?",
       "lenses_applied": ["inversion", "audience-shift", "combination"],
       "impact": "high",
       "strategic_fit": "high",
       "effort": "S",
       "risk": "low",
       "focus_match": 3,
-      "localized_focus_alignment": "New user-facing UX capability (a new slash command); addresses chronic operator pain that surfaces every time a change stalls. Not as freshly-named as task-status drift, but felt every cycle.",
+      "localized_focus_alignment": "New user-facing UX capability (slash command). Composes with kanban-viz (board surfaces 'something is blocked'; skill answers 'why' for that one card). Aligns with the attention-bottleneck framing the factory-missions work codified.",
       "score": 3.10,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
       "change_id_hint": "add-why-am-i-blocked-skill",
       "blocked_by": [],
-      "recommended_action": "/plan-feature 'Add /why-am-i-blocked skill that explains in one command why an in-flight change is not advancing — aggregates locks, work-queue, approvals, artifacts, dependencies, worktree state'",
-      "why_now": "The factory-missions-architecture-alignment work codified the attention-bottleneck framing ('the bottleneck is human attention, not model intelligence'). A one-command stall explainer is the most direct application of that framing on the operator side. Inverts the 'one big dashboard for everything' pattern (currently deferred for 6 weeks) into 'one targeted answer to one question.'",
+      "recommended_action": "/plan-feature 'Add /why-am-i-blocked <change-id> skill that aggregates locks, work-queue state, pending approvals, missing artifacts, dependencies, and worktree heartbeat into a single answer to: why is this change not advancing right now?'",
+      "why_now": "The numerical formula puts this candidate at 3.10 vs. kanban-viz at 3.025 — the effort discount (S vs M) pulls it ahead. Strategically the two are complementary, not competing: kanban-viz can be implemented while /why-am-i-blocked is being planned in parallel. The skill is small enough (~200 LOC: a CLI wrapper that calls existing coordinator endpoints and worktree.py and formats a structured answer) that it could ship in a single afternoon while kanban-viz implementation is underway.",
       "parallel_feasibility": "N/A"
     },
     {
-      "id": "add-coordinator-glance-page",
-      "title": "Add minimal coordinator glance-page — one HTML page, no charts, SSE-live",
-      "problem_statement": "The April opportunities recommended a 3-step stack (SSE stream → Textual TUI → web dashboard → optional Tauri shell). Six weeks in, nothing has shipped from that stack. The bottleneck is scope: each step requires the previous one. A stripped-down glance-page — one HTML file served by the existing FastAPI app at /dashboard, polling /agents/list + /locks/status + /issues/list every 2s (no SSE, no charts) — collapses the stack into a single S-M change. Once live, it can graduate to SSE or get replaced by a TUI; or it can stay as the entire UX surface if the operator finds it sufficient.",
-      "hmw_reframe": "How might we give the operator one-glance situational awareness without building a TUI AND a dashboard AND a Tauri shell?",
-      "lenses_applied": ["10x", "simplification", "constraint-removal"],
-      "impact": "high",
-      "strategic_fit": "med",
-      "effort": "M",
-      "risk": "low",
-      "focus_match": 2,
-      "localized_focus_alignment": "New user-facing UX. Addresses the April-stated pain ('no global view across ghostty windows') which the user has now waited 6 weeks for. 'Carried-forward unaddressed for 6 weeks' is itself a pain signal even though it is not 'recent' in the same way as the 2026-05-14 task-status drift.",
-      "score": 2.75,
-      "bucket": "quick-win",
-      "suggested_change_prefix": "add-",
-      "change_id_hint": "add-coordinator-glance-page",
-      "blocked_by": [],
-      "recommended_action": "/plan-feature 'Add minimal coordinator glance-page served by FastAPI at /dashboard — single HTML, polling, no charts, no auth (behind tunnel)' — defer until execute-add-coordinator-task-status-renderer ships",
-      "why_now": "The April recommendation of an SSE stream + TUI + web dashboard + Tauri shell has been deferred 2 cycles in a row, suggesting the staged-rollout plan is the obstacle, not the value. A single page that polls 3 endpoints is buildable in one session and immediately replaces zero tab-hopping.",
-      "parallel_feasibility": "N/A",
-      "notes": "Supersedes add-agent-state-stream + add-agent-state-tui + add-coordinator-web-dashboard as a near-term move. Those remain valid follow-ons if/when polling proves insufficient."
-    },
-    {
-      "id": "add-skill-palette-tui",
-      "title": "Add /find-skill — fuzzy-search skill catalog with description previews",
-      "problem_statement": "The skills directory now ships 80+ skills loaded into context at session start. Operator and new contributors cannot reasonably memorize the catalog; docs/skills-catalogue.md helps but is static. A short Python TUI (or even just an interactive grep wrapper) that lets the operator type a fragment of intent ('triage prs', 'security check', 'plan a roadmap'), shows matching skills with their descriptions and trigger phrases, and offers to execute the chosen one (via shell-out to the slash-command resolver) closes the discoverability gap.",
+      "id": "add-find-skill-palette",
+      "title": "Add /find-skill — fuzzy-search across the 80+ skill catalog with description previews",
+      "problem_statement": "The skills directory now ships ~80 skills loaded into context at session start. Operator and new contributors cannot reasonably memorize the catalog; docs/skills-catalogue.md helps but is static and rots between updates. A short TUI (or even an interactive grep wrapper) that lets the operator type a fragment of intent ('triage prs', 'security check', 'plan a roadmap'), shows matching skills with their descriptions and trigger phrases, and offers to execute the chosen one closes the discoverability gap.",
       "hmw_reframe": "How might we surface the right skill at the right moment without making the operator memorize 80+ slash commands?",
       "lenses_applied": ["audience-shift", "simplification", "adjacent"],
       "impact": "med",
@@ -118,20 +103,20 @@
       "effort": "S",
       "risk": "low",
       "focus_match": 2,
-      "localized_focus_alignment": "New user-facing UX capability addressing chronic discoverability pain. Not tied to a single recent commit, but the skill catalog has grown 30+% since the catalog doc was last refreshed, so the pain is monotonically increasing.",
+      "localized_focus_alignment": "New user-facing UX capability addressing chronic discoverability pain. Orthogonal to kanban-viz and /why-am-i-blocked — different question, different surface. Not tied to a single recent commit, but the catalog has grown 30+% since skills-catalogue.md was last refreshed, so the pain is monotonically increasing.",
       "score": 2.55,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
       "change_id_hint": "add-find-skill-palette",
       "blocked_by": [],
-      "recommended_action": "Defer to second-tier — execute-add-coordinator-task-status-renderer and /why-am-i-blocked are higher-leverage first moves.",
-      "why_now": "Skill count crossed a memorability threshold this quarter; the existing skills-catalogue.md is read-only and not refreshed by writes to skills/. A live tool stays current automatically.",
+      "recommended_action": "Defer to third-tier — execute-add-coordinator-kanban-viz and add-why-am-i-blocked-skill are higher-leverage first moves.",
+      "why_now": "Skill count crossed a memorability threshold this quarter. Static skills-catalogue.md is not refreshed by writes to skills/. A live tool stays current automatically.",
       "parallel_feasibility": "N/A"
     },
     {
       "id": "add-handoff-summary-skill",
-      "title": "Add /handoff-summary — narrative pre-compact handoff renderer with structured 'what changed, what's next, what to watch'",
-      "problem_statement": "Recent commits (2026-05-08 to 2026-05-12) show active iteration on auto-compact + pre-compact handoff in session-bootstrap. The handoff CONTENT is the cross-session UX surface — what the next session sees on resume. Today it's a coarse compact-summary; a structured renderer that emits 'changes made / didn't touch / concerns' (matching the PR description template) gives the next session a daily-standup-quality starting point. Composes with the just-planned task-status-renderer (one renders status into tasks.md, the other renders narrative into the session bootstrap).",
+      "title": "Add /handoff-summary — structured pre-compact handoff renderer ('changes made / didn't touch / concerns')",
+      "problem_statement": "Recent commits (2026-05-08 to 2026-05-12) show active iteration on auto-compact + pre-compact handoff in session-bootstrap. The handoff CONTENT is the cross-session UX surface — what the next session sees on resume. Today it's a coarse compact-summary; a structured renderer that emits 'changes made / didn't touch / concerns' (matching the PR description template the project already uses) gives the next session a daily-standup-quality starting point.",
       "hmw_reframe": "How might we make pre-compact handoffs as legible as a daily standup note?",
       "lenses_applied": ["audience-shift", "adjacent"],
       "impact": "med",
@@ -139,50 +124,51 @@
       "effort": "S",
       "risk": "low",
       "focus_match": 2,
-      "localized_focus_alignment": "New user-facing UX (cross-session continuity surface). Pain area was being actively worked 5/8–5/12; this proposal extends rather than competes with that work.",
+      "localized_focus_alignment": "New user-facing UX (cross-session continuity surface). Pain area was being actively worked 5/8–5/12; this proposal extends rather than competes with that work. Orthogonal to kanban-viz and /why-am-i-blocked.",
       "score": 2.55,
       "bucket": "quick-win",
       "suggested_change_prefix": "add-",
       "change_id_hint": "add-handoff-summary-skill",
       "blocked_by": [],
-      "recommended_action": "Defer — only promote if /why-am-i-blocked and execute-add-coordinator-task-status-renderer both ship and the auto-compact churn re-emerges.",
+      "recommended_action": "Defer — promote only if compact-quality pain re-emerges after kanban-viz and /why-am-i-blocked ship.",
       "why_now": "Session-bootstrap is the active UX surface; layering a structured-output renderer on top is incremental and low-risk.",
       "parallel_feasibility": "N/A"
     }
   ],
   "not_doing": [
     {
-      "alternative": "Resume the full April visualization stack (SSE stream → TUI → web dashboard → Tauri shell)",
-      "rationale": "Carried forward and deferred for 6 weeks. The staged-rollout requirement is the obstacle, not the value — collapsing it into add-coordinator-glance-page captures 80% of the value at 30% of the effort. The constituent items remain valid as follow-ons but not as the next move."
+      "alternative": "Propose a smaller 'glance-page' instead of executing add-coordinator-kanban-viz",
+      "rationale": "Yesterday's regeneration proposed exactly this (`add-coordinator-glance-page`). It was a hand-waved 'minimal version' of the same idea. kanban-viz is the comprehensive version, already through Gate 1 with 71 tasks. Replanning would re-litigate decisions already made through review rounds and discard the value of having shipped the renderer specifically to be its data contract."
+    },
+    {
+      "alternative": "Build any of the kanban-viz Out-of-Scope items now (DAG view, time slider, lock heatmap, cross-repo board, autopilot lane, WebSocket transport, multi-user auth, FalkorDB ingestion, write actions beyond drag-to-approve)",
+      "rationale": "Every one of these is explicitly deferred by the kanban-viz proposal's Out of Scope section, with documented reasons. Promoting one of them now competes with the MVP discipline and front-runs decisions the operator deliberately deferred."
     },
     {
       "alternative": "Native Swift menu-bar app (carried forward from April)",
-      "rationale": "Platform-locked to macOS, introduces a Swift/Xcode stack with zero repo reuse, and a Tauri tray icon (or even just a browser tab on the glance-page) covers most of the same passive-glance UX cross-platform. April rationale unchanged."
+      "rationale": "Platform-locked to macOS, introduces a Swift/Xcode stack with zero repo reuse. The kanban-viz Tauri scaffold already provides a native-readiness path that works cross-platform and shares a codebase with the SPA."
     },
     {
-      "alternative": "Tauri desktop shell (carried forward from April)",
-      "rationale": "Introduces Rust/JS toolchain with no other consumer in the repo. Worth revisiting only if the glance-page proves insufficient over multiple weeks of use, not before."
-    },
-    {
-      "alternative": "Provisioned Grafana dashboards (carried forward from April)",
-      "rationale": "Orthogonal to the stated focus — Grafana is analytics/historical, the stated focus is 'user-facing UX driven by recent pain' which lives in the real-time / glance surface. Re-rank if focus shifts to 'observability for post-mortem.'"
+      "alternative": "Standalone Grafana dashboards (carried forward from April)",
+      "rationale": "Orthogonal to the stated focus — Grafana is analytics/historical; the stated focus is 'real-time user-facing UX driven by recent pain.' Re-rank only if focus shifts to post-mortem analytics."
     },
     {
       "alternative": "Implement harness-engineering-features Feature 7 (Agent Throughput Dashboard) right now",
-      "rationale": "Overlaps Grafana. Report-only, not interactive UX. Sitting at 0/21 since April suggests the proposal scope is the obstacle; carving Feature 7 out as its own change would help, but is not the most-leveraged move while the freshly-planned task-status-renderer sits unimplemented."
+      "rationale": "Overlaps Grafana. Report-only, not interactive. The 5-week stall at 0/21 suggests the parent proposal's scope is the obstacle. If Feature 7 specifically matters, carving it out as its own change would be the move — but kanban-viz already covers the real-time half of throughput visibility."
     },
     {
-      "alternative": "Generate a fresh codeviz prototype variant",
-      "rationale": "The codeviz proposal is in active design iteration with cross-vendor feedback (ChatGPT Pro / Codex / Gemini) and the right place to push that work is /prototype-feature, not /explore-feature. Inverting into 'just ship one variant' is tempting but bypasses the deliberate convergence loop the operator has set up there."
+      "alternative": "Generate a fresh codeviz prototype variant via this skill",
+      "rationale": "codeviz is in active design iteration with cross-vendor feedback (ChatGPT Pro / Codex / Gemini). The right place to push that work is /prototype-feature on the existing roadmap, not /explore-feature. Inverting into 'just ship one variant' bypasses the deliberate convergence loop the operator set up there."
     }
   ],
   "carried_forward_summary": {
-    "april_top_pick_status": "add-agent-state-stream: deferred — partially superseded by add-coordinator-glance-page which can poll instead of stream. Re-rank to high again if glance-page polling proves too chatty.",
+    "april_top_pick_status": "add-agent-state-stream: superseded — kanban-viz includes a new /events/work SSE endpoint that satisfies the original 'aggregate event stream' goal at greater specificity (per-change-id scoping, snapshot-on-reconnect, NOTIFY-wired transitions).",
     "still_deferred": ["add-cloudflare-tunnel", "add-cloudflare-access", "add-multi-env-dns", "add-webhook-domain", "add-coordination-api-hardening", "implement-gen-eval-testing", "add-grafana-dashboards", "evaluate-tauri-desktop-shell", "evaluate-native-macos-menu-bar"],
-    "completed_since_last_cycle": [],
-    "promoted_this_cycle": ["execute-add-coordinator-task-status-renderer (new — was not on April list because the proposal did not exist yet)"]
+    "completed_since_last_cycle": ["add-coordinator-task-status-renderer (archived 2026-05-16)", "vendor-neutral-autopilot (archived 2026-05-16)"],
+    "promoted_this_cycle": ["execute-add-coordinator-kanban-viz (new — the proposal did not exist on April 14)"],
+    "superseded_this_cycle": ["add-coordinator-glance-page (yesterday's hand-waved candidate) — superseded by the actually-specced add-coordinator-kanban-viz", "add-agent-state-stream + add-agent-state-tui + add-coordinator-web-dashboard — superseded by add-coordinator-kanban-viz which is one SPA covering the three"]
   },
-  "top_recommendation": "execute-add-coordinator-task-status-renderer",
-  "alternative_framing": "If the user's read of 'recent pain' is broader than the 2026-05-14 task-status drift (e.g., 'long-running pain about not knowing global agent state'), promote add-coordinator-glance-page to the top slot instead. Both candidates address user-facing UX with a new capability; the choice depends on which pain the user had in mind.",
+  "top_recommendation": "execute-add-coordinator-kanban-viz",
+  "alternative_framing": "The numerical formula puts add-why-am-i-blocked-skill at 3.10 (slightly above execute-add-coordinator-kanban-viz at 3.025) because S effort discounts more than M. If the operator has limited capacity this week, /plan-feature for /why-am-i-blocked is a faster win. If the operator can dedicate one session to implementation, execute kanban-viz first since the proposal is already through Gate 1 and the renderer dependency just landed. Best path if both are possible: implement kanban-viz on the main thread while /plan-feature /why-am-i-blocked runs in parallel.",
   "second_recommendation": "add-why-am-i-blocked-skill"
 }

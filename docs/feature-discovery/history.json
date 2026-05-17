@@ -1,41 +1,52 @@
 {
-  "updated_at": "2026-05-15T00:00:00Z",
+  "updated_at": "2026-05-16T00:00:00Z",
+  "regeneration_note": "2026-05-15 entries were authored against state captured at conversation start. By report time, add-coordinator-task-status-renderer had been archived AND add-coordinator-kanban-viz had been planned. The 2026-05-16 entries below reflect that corrected reality; the 2026-05-15 entries are retained for audit but their statuses are updated.",
   "recommendations": [
     {
-      "opportunity_id": "execute-add-coordinator-task-status-renderer",
-      "recommended_at": "2026-05-15T00:00:00Z",
+      "opportunity_id": "execute-add-coordinator-kanban-viz",
+      "recommended_at": "2026-05-16T00:00:00Z",
       "status": "recommended",
-      "reason": "TOP PICK. Proposal planned 2026-05-14 (one day before this exploration). Pain ('tasks.md checkbox drift, lost reviewer trust') is the freshest, most concrete user-facing UX pain in the signal field. S effort, all infra exists, ~250 LOC. Recommend execution rather than inventing a new proposal."
+      "reason": "TOP PICK. Proposal planned within ~7h of this regeneration (0/71 tasks, Gate 1 approved). Vite+React+TS SPA + SSE + new coordinator endpoints + Tauri scaffold. Composes with the just-shipped renderer (data contract) and the codeviz roadmap (toolchain + conventions). Addresses the chronic multi-cycle 'no global view' pain AND the fresh-today 'specced but unimplemented' pain."
     },
     {
       "opportunity_id": "add-why-am-i-blocked-skill",
-      "recommended_at": "2026-05-15T00:00:00Z",
+      "recommended_at": "2026-05-16T00:00:00Z",
       "status": "recommended",
-      "reason": "Operator-side complement to task-status-renderer. One-command 'why is this feature stuck?' that aggregates locks + work-queue + approvals + artifacts + worktree state. Directly applies the attention-bottleneck framing the factory-missions work just codified."
+      "reason": "Complementary to kanban-viz, not competing. Board answers 'what is the state across all agents?'; skill answers 'why is THIS one change stuck?' Scores 3.10 vs kanban-viz's 3.025 on the formula due to S-vs-M effort discount. Best as parallel /plan-feature track while kanban-viz implementation runs."
+    },
+    {
+      "opportunity_id": "add-find-skill-palette",
+      "recommended_at": "2026-05-16T00:00:00Z",
+      "status": "deferred",
+      "reason": "Orthogonal to viz work. Worth doing but lower urgency than the two top picks."
+    },
+    {
+      "opportunity_id": "add-handoff-summary-skill",
+      "recommended_at": "2026-05-16T00:00:00Z",
+      "status": "deferred",
+      "reason": "Orthogonal to viz work. Promote only if compact-quality pain re-emerges after kanban-viz and /why-am-i-blocked ship."
+    },
+    {
+      "opportunity_id": "execute-add-coordinator-task-status-renderer",
+      "recommended_at": "2026-05-15T00:00:00Z",
+      "status": "completed",
+      "completed_at": "2026-05-16T00:00:00Z",
+      "completion_commit": "40a6bcc",
+      "reason": "Archived as 2026-05-16-add-coordinator-task-status-renderer earlier today. Renderer skill 'coordinator-task-status-renderer' now in catalog. This was the prior cycle's top recommendation and shipped end-to-end (plan → reviews → implement → cleanup → archive) in one day. Now serves as kanban-viz's data-contract dependency."
     },
     {
       "opportunity_id": "add-coordinator-glance-page",
       "recommended_at": "2026-05-15T00:00:00Z",
-      "status": "promoted",
-      "reason": "Collapses the April 3-step visualization stack (SSE + TUI + web dashboard + Tauri) into one minimal HTML page served by FastAPI. Strategically supersedes add-agent-state-stream + add-agent-state-tui + add-coordinator-web-dashboard as a NEAR-TERM move; those remain follow-ons."
-    },
-    {
-      "opportunity_id": "add-find-skill-palette",
-      "recommended_at": "2026-05-15T00:00:00Z",
-      "status": "deferred",
-      "reason": "New /find-skill fuzzy-search across the 80+ skill catalog. Worth doing but lower urgency than the two top picks."
-    },
-    {
-      "opportunity_id": "add-handoff-summary-skill",
-      "recommended_at": "2026-05-15T00:00:00Z",
-      "status": "deferred",
-      "reason": "Structured pre-compact handoff renderer. Composes with session-bootstrap (actively iterated). Promote only if /why-am-i-blocked ships and compact-quality pain re-emerges."
+      "status": "superseded",
+      "superseded_by": "add-coordinator-kanban-viz",
+      "reason": "Yesterday's hand-waved 'minimal HTML page' candidate is fully subsumed by the actually-specced kanban-viz (~1500 LOC SPA covering the same surface plus vendor swimlanes, sync-point banner, and saved views). Replanning to a smaller scope would re-litigate decisions already through Gate 1."
     },
     {
       "opportunity_id": "add-agent-state-stream",
       "recommended_at": "2026-04-14T00:00:00Z",
       "status": "superseded",
-      "reason": "Superseded as a near-term move by add-coordinator-glance-page (polling instead of streaming). Re-rank to recommended if glance-page polling proves too chatty."
+      "superseded_by": "add-coordinator-kanban-viz",
+      "reason": "kanban-viz includes a new /events/work SSE endpoint that satisfies the original April goal at greater specificity (per-change-id scoping, snapshot-on-reconnect, NOTIFY-wired transitions)."
     },
     {
       "opportunity_id": "add-worktree-registry-aggregator",
