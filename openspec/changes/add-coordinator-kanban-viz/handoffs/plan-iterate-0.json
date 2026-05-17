@@ -1,0 +1,54 @@
+{
+  "handoff_id": "plan-iterate-0--20260517T012710Z",
+  "phase": "PLAN_ITERATE",
+  "iteration": 0,
+  "change_id": "add-coordinator-kanban-viz",
+  "agent_name": "autopilot/PLAN_ITERATE (architect)",
+  "generated_at": "2026-05-17T01:27:10Z",
+  "summary": "PLAN_ITERATE for add-coordinator-kanban-viz: applied 8 load-bearing refinements correcting feasibility/consistency gaps. The plan had factual errors about the existing coordinator surface (wrong module paths, wrong method names, references to endpoints that don't exist, and reinvention of an existing LISTEN/NOTIFY bus). All artifacts now reflect the actual coordinator code shape; openspec validate --strict passes; refinements committed as 76663fb. Coordinator write_handoff returned 403 with local-profile API key (per MEMORY.md feedback_coordinator_api_key_permissions); fell back to on-disk handoff.",
+  "completed_work": [
+    "Verified openspec validate --strict passes (baseline + post-refinement)",
+    "Audited load-bearing claims in proposal/design/spec/contracts against agent-coordinator/src code",
+    "Corrected sync-point helper path: skills/shared/active_agents.py (not check_no_active_agents.py)",
+    "Corrected IssueService.update_status -> IssueService.update across all artifacts",
+    "Redirected SSE design to subscribe to existing EventBusService rather than open a parallel LISTEN; added new coordinator_audit channel for audit_log",
+    "Added decision D9 + spec requirements + RED tests (2.7d-f) + impl tasks (2.13a-c) for three coordinator write endpoints that v1 UI requires but didn't exist: PATCH /issues/{id}/labels, DELETE /locks/{file_path:path}, POST /agents/{agent_id}/kick",
+    "Made D4 vendor source-of-truth explicit: agent_profiles.metadata.vendor preferred, agent_id suffix fallback; added verification/back-fill test 2.0a",
+    "Fixed architecture diagram to use real coordinator endpoints (POST /issues/list, GET /audit, GET /discovery/agents) instead of imaginary GET-with-query variants",
+    "Updated renderer change reference from in-flight to archived 2026-05-16-add-coordinator-task-status-renderer",
+    "Extended wp-coord-endpoints write_allow/locks to cover event_bus.py, locks.py, discovery.py, and migrations dir; corrected audit_service.py -> audit.py",
+    "Committed refinements as 76663fb"
+  ],
+  "in_progress": [],
+  "decisions": [
+    "Three new coordinator write endpoints (PATCH labels, DELETE locks, POST kick) belong in this change under D9 rather than being deferred -- UI scenarios already depend on them and each reuses existing service code",
+    "SSE handler subscribes to EventBusService rather than running parallel LISTEN -- preserves single emission point, payload-size guarantees, and dispatch fairness",
+    "Vendor extraction uses metadata.vendor with agent_id-suffix fallback; test 2.0a back-fills the column rather than designing UI on unverified data",
+    "Reaffirmed scope guardrails: no DAG view, no time-slider, no FalkorDB ingestion in v1; reservation block only",
+    "Tauri scaffold ships, production build does not; CI does not sign/notarize"
+  ],
+  "next_steps": [
+    "PLAN_REVIEW: dispatch multi-vendor (claude, codex, gemini) plan review",
+    "Reviewers should pay attention to: (1) whether POST /agents/{id}/kick semantics (writing last_heartbeat=epoch) are the right primitive vs a status flag, (2) whether D9's three new write endpoints belong in v1 scope or should be deferred to a v1.1 with read-only banner first, (3) whether agent_profiles.metadata.vendor is the right column or whether a dedicated agents.vendor column is preferable",
+    "Implementation note: wp-coord-endpoints now needs to touch six service files (coordination_api, issue_service, audit, event_bus, locks, discovery) plus possibly a migration for the audit_log NOTIFY trigger -- verify scope/locks remain non-overlapping with concurrent work"
+  ],
+  "relevant_files": [
+    "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+    "openspec/changes/add-coordinator-kanban-viz/design.md",
+    "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+    "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+    "openspec/changes/add-coordinator-kanban-viz/tasks.md",
+    "openspec/changes/add-coordinator-kanban-viz/work-packages.yaml",
+    "agent-coordinator/src/event_bus.py",
+    "agent-coordinator/src/issue_service.py",
+    "agent-coordinator/src/audit.py",
+    "agent-coordinator/src/locks.py",
+    "agent-coordinator/src/discovery.py",
+    "agent-coordinator/src/coordination_api.py",
+    "skills/shared/active_agents.py"
+  ],
+  "validation": {
+    "openspec_validate_strict": "pass"
+  },
+  "fallback_reason": "Coordinator MCP write_handoff returned http_403 'API key is not permitted to act as requested agent_id' (known local-profile permission gap per MEMORY.md feedback_coordinator_api_key_permissions); wrote handoff to disk under handoffs/."
+}
