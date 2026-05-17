@@ -21,6 +21,7 @@ A discoverable index of every skill in this repo, grouped by purpose. For *how* 
 | [PR triage & ad-hoc tasks](#pr-triage--ad-hoc-tasks) | Cross-source PR merge + small one-off work | 4 |
 | [Vendor & service skills](#vendor--service-skills) | External-service authority docs (Postgres, observability, infra) | 5 |
 | [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 12 |
+| [Frontends](#frontends) | Standalone web apps: observability surfaces for the coordinator | 1 |
 
 **52 skills total.** **43 user-invocable**, 9 orchestrator-only.
 
@@ -128,6 +129,14 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
 | ★ `session-log` | Structured decision records for session logs and merge logs at phase boundaries | `/session-log` |
 | ★ `roadmap-runtime` | Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization | `/roadmap-runtime` |
 | ★ `openspec-coordinator-worktree` | Coordinate OpenSpec proposals with coordinator issue tracking and isolated git worktree execution | `/openspec-coordinator-worktree` |
+
+## Frontends
+
+Standalone web applications in `apps/` that provide observability surfaces for the coordinator.
+
+| App | Summary | Entry point |
+|---|---|---|
+| `kanban-viz` | Real-time Kanban board for coordinator work-queue state. SSE live updates, vendor swimlanes, sync-point gate banner, saved views, reversibility-classified actions. | `apps/kanban-viz/` — see [`docs/kanban-viz/README.md`](kanban-viz/README.md) |
 
 ## Shared references library
 

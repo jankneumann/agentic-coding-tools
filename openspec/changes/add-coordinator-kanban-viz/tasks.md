@@ -462,26 +462,26 @@
 
 ## Phase 8 — Integration, docs, and validation (wp-integration)
 
-- [ ] 8.1 End-to-end test: launch coordinator + kanban-viz, seed fixture issues across statuses, drive a transition, assert UI updates within 200ms
+- [x] 8.1 End-to-end test: launch coordinator + kanban-viz, seed fixture issues across statuses, drive a transition, assert UI updates within 200ms
   **Spec scenarios**: composite (board, swimlane update, sync-point banner, save-view audit)
   **Dependencies**: 2.15, 3.11, 4.8, 5.8, 6.10, 7.5
   **Size**: L
 
-- [ ] 8.2 Confirm e2e test GREEN
+- [x] 8.2 Confirm e2e test GREEN
   **Dependencies**: 8.1
   **Size**: XS
 
-- [ ] 8.3 Update `docs/skills-catalogue.md` if the Kanban viz is to be discoverable from the skills index (probably listed under "frontends")
+- [x] 8.3 Update `docs/skills-catalogue.md` if the Kanban viz is to be discoverable from the skills index (probably listed under "frontends")
   **Dependencies**: 8.2
   **Size**: XS
 
-- [ ] 8.4 Add `docs/kanban-viz/README.md` with dev-server instructions, coordinator URL config, Tauri scaffold disclaimer
+- [x] 8.4 Add `docs/kanban-viz/README.md` with dev-server instructions, coordinator URL config, Tauri scaffold disclaimer
   **Dependencies**: 8.2
   **Size**: S
 
-- [ ] 8.5 Add a brief note to `CLAUDE.md` "Workflow" section if appropriate (the Kanban is an observability surface, not a skill)
+- [x] 8.5 Add a brief note to `CLAUDE.md` "Workflow" section if appropriate (the Kanban is an observability surface, not a skill)
   **Dependencies**: 8.2
   **Size**: XS
 
-- [ ] 8.6 Final checkpoint: run `openspec validate add-coordinator-kanban-viz --strict`; run `python3 skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-coordinator-kanban-viz/work-packages.yaml`; run frontend test suite + coordinator endpoint tests
+- [x] 8.6 Final checkpoint: run `openspec validate add-coordinator-kanban-viz --strict`; run `python3 skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-coordinator-kanban-viz/work-packages.yaml`; run frontend test suite + coordinator endpoint tests
   **Dependencies**: 8.3, 8.4, 8.5

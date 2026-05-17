@@ -43,6 +43,10 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 
 See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the full implementation reference.
 
+### Observability Frontends
+
+- **`apps/kanban-viz`** — Real-time Kanban board for coordinator work-queue state. Connects to the coordinator API via SSE for live updates; shows vendor swimlanes, sync-point gate banner, and saved views. This is an observability surface, not a skill — it lives in `apps/` not `skills/`. Dev server: `cd apps/kanban-viz && npm run dev`. See [`docs/kanban-viz/README.md`](docs/kanban-viz/README.md).
+
 ## Python Environment
 
 - **uv for all Python environments**: Use `uv` (not pip, pipenv, or poetry) for dependency management and virtual environments across all Python projects. CI uses `astral-sh/setup-uv@v5`.
