@@ -82,7 +82,7 @@
   **Size**: M
 
 - [ ] 2.7c Write test: new channel `coordinator_audit` is registered on `event_bus.CHANNELS`, its trigger fires on `audit_log` inserts, and SSE handler dispatches a corresponding `audit` SSE event
-  **Spec scenarios**: "New coordinator_audit channel is wired into AuditService.append"
+  **Spec scenarios**: "New coordinator_audit channel is wired into AuditService.log_operation"
   **Dependencies**: 1.6
   **Size**: M
 
@@ -164,8 +164,8 @@
   **Dependencies**: 2.8, 2.11
   **Size**: L
 
-- [ ] 2.13 Add a new `coordinator_audit` LISTEN/NOTIFY channel to `event_bus.CHANNELS`, install the matching Postgres trigger on `audit_log`, and wire `AuditService.append` to emit through the bus. Do NOT add a parallel NOTIFY pathway; the existing `coordinator_task` channel already covers `work_queue` mutations.
-  **Spec scenarios**: "NOTIFY emission flows through the existing event bus", "New coordinator_audit channel is wired into AuditService.append"
+- [ ] 2.13 Add a new `coordinator_audit` LISTEN/NOTIFY channel to `event_bus.CHANNELS`, install the matching Postgres trigger on `audit_log`, and wire `AuditService.log_operation` (the public method in `agent-coordinator/src/audit.py` that delegates to `_insert_audit_entry`) to emit through the bus. Do NOT add a parallel NOTIFY pathway; the existing `coordinator_task` channel already covers `work_queue` mutations.
+  **Spec scenarios**: "NOTIFY emission flows through the existing event bus", "New coordinator_audit channel is wired into AuditService.log_operation"
   **Dependencies**: 2.8
   **Size**: M
 
@@ -231,7 +231,7 @@
   **Dependencies**: 2.8, 2.13d0
   **Size**: M
 
-- [ ] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, Content-Type]`; `allow_credentials=False`; `max_age=600`.
+- [ ] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, X-API-Key, Content-Type]` (legacy `X-API-Key` retained for backward compatibility per 2.13z); `allow_credentials=False`; `max_age=600`.
   **Spec scenarios**: "Allowed origin receives CORS headers", "Disallowed origin is blocked client-side"
   **Design decisions**: D12
   **Dependencies**: 2.8

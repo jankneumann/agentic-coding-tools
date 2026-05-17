@@ -164,8 +164,10 @@ packages:
       coordinator_audit channel, installs the matching Postgres trigger on
       audit_log via a small additive SQL migration (next sequential number
       under agent-coordinator/database/migrations/), and wires
-      AuditService.append (which lives in audit.py, not audit_service.py)
-      to emit through the bus — NOT a parallel NOTIFY pathway. Adds
+      AuditService.log_operation (the public method in audit.py that
+      delegates to _insert_audit_entry — earlier revisions used the name
+      AuditService.append in error) to emit through the bus — NOT a
+      parallel NOTIFY pathway. Adds
       backpressure coalescing to SSE handler.
       Vendor swimlane data source: extracted from agent_id suffix
       (canonical) with agent_sessions.agent_type as secondary cross-check

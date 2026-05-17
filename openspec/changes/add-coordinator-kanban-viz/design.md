@@ -22,7 +22,7 @@
                          │ HTTPS / SSE
                          ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│ agent-coordinator FastAPI (existing, six new endpoints)               │
+│ agent-coordinator FastAPI (existing, nine new endpoints — see D9+D10) │
 │                                                                        │
 │  Existing (consumed unchanged):                                       │
 │   POST /issues/list                        (issue list with labels    │
@@ -197,7 +197,7 @@ The previous revision of this design treated `PATCH /issues/{id}/labels`, `DELET
   1. There is no `agent_discovery` table. Coordinator discovery rows live in `agent_sessions` (extended by `database/migrations/003_agent_discovery.sql`), keyed by `id`/`agent_id` with `last_heartbeat`/`status` columns.
   2. `skills.shared.active_agents.check_no_active_agents()` does NOT read coordinator tables. It reads `.git-worktrees/.registry.json` (see `skills/shared/active_agents.py`, `REGISTRY_RELATIVE_PATH`). Writing to `agent_sessions` would therefore have zero effect on the sync-point banner.
 
-  **Corrected implementation.** The endpoint clears the agent's entry from `.git-worktrees/.registry.json` by shelling out to `python3 skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (or equivalently invoking its `teardown` library function in-process if the coordinator and worktree scripts share an interpreter). It additionally updates `agent_sessions.status = 'disconnected'` and `last_heartbeat = epoch` so the coordinator's own discovery view also stops listing the agent as active. The endpoint emits an `audit_log` row capturing both side effects, and the response body includes `{"registry_cleared": bool, "agent_sessions_updated": bool}` so the UI can surface partial-failure cases. Reversibility: destructive-write.
+  **Corrected implementation.** The endpoint request body MUST include `change_id` (registry is keyed by `(change_id, agent_id)`; reject with 422 if absent). It then clears the agent's entry from `.git-worktrees/.registry.json` by shelling out to `python3 skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (or equivalently invoking its `teardown` library function in-process if the coordinator and worktree scripts share an interpreter). The `--force` flag on `teardown` does not exist today and is added as a precursor task (2.13c0 in tasks.md) to this endpoint. It additionally updates `agent_sessions.status = 'disconnected'` and `last_heartbeat = epoch` so the coordinator's own discovery view also stops listing the agent as active. The endpoint emits an `audit_log` row capturing both side effects, and the response body includes `{"registry_cleared": bool, "agent_sessions_updated": bool, "held_locks": list[str]}` so the UI can surface partial-failure cases and locks still held. Reversibility: destructive-write.
 
   **Cleanup contract.** Force-kicking does NOT release file locks held by the kicked agent; the operator must additionally force-release each lock through `DELETE /locks/{file_path:path}` or accept that the locks expire on the normal TTL. The endpoint's response includes `held_locks: list[str]` so the UI can surface the locks-still-held case and prompt for follow-up.
 
@@ -223,7 +223,7 @@ CI lint (codeviz Phase 0 `artifact-classification` capability) will refuse PRs t
 **Subscription model.** The client opens one SSE connection with `change_ids=<csv>` query string. The server-side handler registers callbacks on the existing `agent-coordinator/src/event_bus.py` multi-channel LISTEN/NOTIFY bus via `EventBusService.on_event(channel, callback)` (the canonical API surface — there is no `subscribe()` method; do not invent one):
 
 - The **existing `coordinator_task` channel** carries `work_queue` mutations (this change does not need to add a new channel for transitions — the bus already covers it; the SSE handler just translates `CoordinatorEvent` payloads into the `event: transition` SSE wire format).
-- A **new `coordinator_audit` channel** is added by this change for `audit_log` appends. This is a small extension: append `"coordinator_audit"` to `event_bus.CHANNELS`, add the matching trigger on `audit_log` mirroring the existing `work_queue` trigger pattern, and add a one-line NOTIFY call in `AuditService.append` so the bus stays the single emission point.
+- A **new `coordinator_audit` channel** is added by this change for `audit_log` appends. This is a small extension: append `"coordinator_audit"` to `event_bus.CHANNELS`, add the matching trigger on `audit_log` mirroring the existing `work_queue` trigger pattern, and add a one-line NOTIFY call in `AuditService.log_operation` (the public method that delegates to `_insert_audit_entry`; there is no `AuditService.append` — earlier revisions used that name in error) so the bus stays the single emission point.
 
 The SSE handler is a thin per-connection filter/serializer in front of the bus, not a parallel LISTEN/NOTIFY implementation. Server-side filtering against `change_ids` happens in the SSE handler after the bus dispatches the event to its callback.
 
@@ -309,7 +309,7 @@ Both endpoints:
 - Reject when the resolved directory escapes `COORDINATOR_WORKDIR_ROOT` (400 with diagnostic message). `COORDINATOR_WORKDIR_ROOT` itself defaults to the source-tree repo root and can be overridden by env var; it is NOT a pre-existing setting and is added by this change (see config.py addition in 2.13d/2.13e dependencies).
 - Emit an `audit_log` row capturing the operation and the resulting file path.
 
-This adds two endpoints to the change scope (now eight new endpoints total: see D9 + D10), but each is a thin wrapper around `pathlib` plus the existing audit-log machinery. The alternative — a separate "kanban-viz local CLI helper" — is more code and only works on the operator's local machine, defeating the cloud-harness use case.
+This adds two endpoints to the change scope (now nine new endpoints total — 4 read in D2/D9 surrounding context: `GET /sync-points/status`, `GET /worktrees/active`, `GET /events/work` (SSE), `POST /events/auth`; 3 write in D9: `PATCH /issues/{id}/labels`, `DELETE /locks/{file_path}`, `POST /agents/{agent_id}/kick`; 2 file-write in D10: `PUT /kanban-viz/saved-views/{slug}`, `POST /kanban-viz/audit`), but each is a thin wrapper around `pathlib` plus the existing audit-log machinery. The alternative — a separate "kanban-viz local CLI helper" — is more code and only works on the operator's local machine, defeating the cloud-harness use case.
 
 **Tauri path.** When running under Tauri, the frontend can short-circuit these two endpoints and use Tauri's `fs.writeTextFile` directly. The runtime feature-detect chooses between the two paths. The on-disk format is identical, so saved views authored in either path are interoperable.
 
@@ -346,7 +346,7 @@ The existing FastAPI app has no CORS middleware wired in; this change adds one w
 
 - `Access-Control-Allow-Origin`: `http://localhost:5173` (dev) + the values of a new `COORDINATOR_CORS_ALLOWED_ORIGINS` env var (CSV) so cloud deployments configure their own origin.
 - `Access-Control-Allow-Methods`: `GET, POST, PATCH, DELETE, OPTIONS` (covers the existing read endpoints plus D9 write endpoints).
-- `Access-Control-Allow-Headers`: `Authorization, X-Coordinator-API-Key, Content-Type`.
+- `Access-Control-Allow-Headers`: `Authorization, X-Coordinator-API-Key, X-API-Key, Content-Type` (the legacy `X-API-Key` header stays in the allow-list because `verify_api_key` keeps accepting it for backward compatibility per task 2.13z).
 - `Access-Control-Allow-Credentials`: `false` (the API key travels in a header, not a cookie; no credentials to share).
 - `Access-Control-Max-Age`: `600` (preflight cache).
 - The SSE endpoint (`GET /events/work`) requires no special CORS handling beyond the above because `EventSource` does not preflight; the `change_ids` and `token` query params are part of the URL.

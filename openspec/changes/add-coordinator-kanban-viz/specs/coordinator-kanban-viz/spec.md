@@ -262,9 +262,9 @@ The endpoint SHALL emit an initial `event: snapshot` on connection.
 **THEN** the existing `coordinator_task` NOTIFY trigger on `work_queue` SHALL fire as part of the same transaction
 **AND** `EventBusService` SHALL dispatch the payload to the SSE handler's subscribed callback
 
-#### Scenario: New coordinator_audit channel is wired into AuditService.append
+#### Scenario: New coordinator_audit channel is wired into AuditService.log_operation
 
-**WHEN** `AuditService.append` commits a row to `audit_log`
+**WHEN** `AuditService.log_operation` commits a row to `audit_log`
 **THEN** a `coordinator_audit` NOTIFY SHALL fire as part of the same transaction
 **AND** `EventBusService` SHALL dispatch the payload to the SSE handler's subscribed callback
 
@@ -396,7 +396,7 @@ The coordinator SHALL configure FastAPI's CORS middleware to allow requests from
 
 - `Access-Control-Allow-Origin`: the union of `http://localhost:5173` (Vite dev) AND the values of the new `COORDINATOR_CORS_ALLOWED_ORIGINS` env var (CSV) supplied by the deploy.
 - `Access-Control-Allow-Methods`: `GET, POST, PATCH, DELETE, OPTIONS`.
-- `Access-Control-Allow-Headers`: `Authorization, X-Coordinator-API-Key, Content-Type`.
+- `Access-Control-Allow-Headers`: `Authorization, X-Coordinator-API-Key, X-API-Key, Content-Type` (the legacy `X-API-Key` header is included so backward-compatible callers can keep using it; see task 2.13z).
 - `Access-Control-Allow-Credentials`: `false`.
 - `Access-Control-Max-Age`: `600`.
 
