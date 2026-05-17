@@ -36,7 +36,7 @@ Each card SHALL display: task title (`work_queue.title` or `metadata.task_key + 
 
 ### Requirement: Vendor Swimlanes on In-Flight Cards
 
-When an `In Flight` card represents a work-package whose children include multiple agents with distinct `agent_profiles.metadata.vendor` values, the card SHALL render mini-lanes — one per distinct vendor — showing the most recent `audit_log` row for that vendor's agent.
+When an `In Flight` card represents a work-package whose children include multiple agents with distinct vendor values (extracted per design.md D4: canonical source is the `agent_id` suffix after `--`; secondary cross-check is `agent_sessions.agent_type`), the card SHALL render mini-lanes — one per distinct vendor — showing the most recent `audit_log` row for that vendor's agent.
 
 Each mini-lane SHALL display: the vendor name and color, a one-line summary of the latest operation (`audit_log.args_summary` truncated to one line), and a relative timestamp (`<n>s ago`, `<n>m ago`).
 
@@ -102,7 +102,7 @@ When at least one sync-point is blocked, the banner SHALL expand to one row per 
 
 The frontend SHALL receive live coordinator state updates via Server-Sent Events from a new endpoint `GET /events/work?change_ids=<csv>`.
 
-When `EventSource` cannot establish a connection (browser restriction, proxy stripping `Connection: keep-alive`, Tauri webview limitation), the frontend SHALL transparently fall back to polling `GET /issues?labels=...` and `GET /audit/recent?...` at 5-second intervals.
+When `EventSource` cannot establish a connection (browser restriction, proxy stripping `Connection: keep-alive`, Tauri webview limitation), the frontend SHALL transparently fall back to polling the existing coordinator read endpoints `POST /issues/list` (labels-filtered list — coordinator uses POST-with-body, not GET-with-query) and `GET /audit` (with `since`, `change_id`, and `limit` query params via `AuditService.query`) at 5-second intervals.
 
 The SSE endpoint SHALL emit two event kinds:
 
@@ -126,7 +126,7 @@ On (re)connection, the server SHALL emit a single `event: snapshot` containing t
 #### Scenario: Polling fallback engages on EventSource failure
 
 **WHEN** `EventSource` raises an error indicating the SSE connection cannot be established
-**THEN** the client SHALL transparently fall back to polling `GET /issues?labels=...` at 5-second intervals
+**THEN** the client SHALL transparently fall back to polling `POST /issues/list` (with `labels` filter in the request body) at 5-second intervals
 **AND** the polling fallback SHALL engage without surfacing an error to the user
 
 #### Scenario: Backpressure coalesces excessive events
@@ -288,12 +288,132 @@ The coordinator SHALL expose three write endpoints required by v1 UI actions: `P
 **AND** an `audit_log` row SHALL be appended capturing the prior holder
 **AND** the response SHALL include `prior_holder_agent_id` for forensics
 
-#### Scenario: POST /agents/{agent_id}/kick marks heartbeat as dead
+#### Scenario: POST /agents/{agent_id}/kick clears worktree registry and updates session
 
-**WHEN** a client calls `POST /agents/{agent_id}/kick` against an agent whose heartbeat is currently fresh
-**THEN** the agent SHALL be marked with `last_heartbeat = epoch` in `agent_discovery`
+**WHEN** a client calls `POST /agents/{agent_id}/kick` against an agent whose `.git-worktrees/.registry.json` entry exists and whose `agent_sessions` row is currently `status='active'`
+**THEN** the agent's entry SHALL be removed from `.git-worktrees/.registry.json` (via `skills/worktree/scripts/worktree.py teardown --agent-id <id> --force` semantics, since `check_no_active_agents()` reads only the on-disk registry, NOT a database table)
+**AND** the agent's `agent_sessions` row SHALL be updated with `status='disconnected'` and `last_heartbeat=epoch` so coordinator-side discovery views also stop listing the agent
 **AND** subsequent calls to `check_no_active_agents()` SHALL NOT consider the agent active
-**AND** an `audit_log` row SHALL be appended capturing the kick action
+**AND** the response body SHALL include `{registry_cleared: bool, agent_sessions_updated: bool, held_locks: list[str]}` so the UI can surface partial-failure and locks-still-held cases
+**AND** an `audit_log` row SHALL be appended capturing both side effects
+
+#### Scenario: POST /agents/{agent_id}/kick does NOT auto-release file locks
+
+**WHEN** the kicked agent currently holds entries in `file_locks`
+**THEN** the kick endpoint SHALL leave those `file_locks` rows in place (cleanup is the operator's responsibility via `DELETE /locks/{file_path:path}` or the existing TTL)
+**AND** the response's `held_locks` array SHALL enumerate the file paths still locked
+
+---
+
+### Requirement: New Coordinator File-Write Endpoints for UI Persistence
+
+The coordinator SHALL expose two file-write endpoints required by the v1 UI's saved-views and audit-emission features: `PUT /kanban-viz/saved-views/{slug}` and `POST /kanban-viz/audit`. These exist because the v1 UI is a browser app (with optional Tauri shell) that cannot itself write repo files; the coordinator owns the disk writes to preserve the "frontend never bypasses the coordinator" invariant (design.md D10).
+
+Both endpoints SHALL:
+
+- Require authentication via the existing `X-Coordinator-API-Key` / `Authorization: Bearer` header.
+- Stamp the codeviz mandatory artifact header (`schema_version`, `generated_at`, `git_sha`, `generator: kanban-viz@<version>`) server-side; client-supplied header values SHALL be ignored.
+- Validate the body against the corresponding JSON schema (saved-view schema for `PUT /kanban-viz/saved-views/{slug}`, audit-event schema for `POST /kanban-viz/audit`), declared in `contracts/README.md`.
+- Reject `slug` / `run-id` values that do not match `^[a-z0-9][a-z0-9-]{0,63}$` (anti path-traversal).
+- Resolve the on-disk path relative to a configured `WORKDIR_ROOT`; refuse if the resolved path escapes the configured root.
+- Write atomically via `tmp-file + rename`.
+- Append a row to `audit_log` capturing the operation, the resolved file path, and the `slug`/`run-id`.
+
+#### Scenario: PUT /kanban-viz/saved-views/{slug} writes a saved view
+
+**WHEN** a client calls `PUT /kanban-viz/saved-views/active-reviews-security` with a body matching the saved-view JSON schema
+**THEN** the coordinator SHALL write the file to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/active-reviews-security.json`
+**AND** the file SHALL carry the codeviz mandatory artifact header stamped server-side
+**AND** the response SHALL include the resolved repo-relative path
+**AND** an `audit_log` row SHALL capture `operation='kanban_viz.save_view'`, the slug, and the resolved path
+
+#### Scenario: POST /kanban-viz/audit appends a UI audit event
+
+**WHEN** a client calls `POST /kanban-viz/audit` with a body matching the audit-event JSON schema, including a `run_id`
+**THEN** the coordinator SHALL append the file to `<WORKDIR_ROOT>/docs/kanban-viz/audit/<YYYY-MM-DD>/<run_id>.json` (date derived server-side from `generated_at`)
+**AND** the file SHALL carry the codeviz mandatory artifact header stamped server-side
+**AND** an `audit_log` row SHALL capture `operation='kanban_viz.audit'`, the `run_id`, and the resolved path
+
+#### Scenario: Slug with directory traversal is rejected
+
+**WHEN** a client calls `PUT /kanban-viz/saved-views/..%2Fpwned` or `PUT /kanban-viz/saved-views/foo/bar`
+**THEN** the response SHALL be 400 Bad Request
+**AND** no file SHALL be written
+**AND** no `audit_log` row SHALL be appended
+
+#### Scenario: Tauri frontend bypasses coordinator file-write endpoints
+
+**WHEN** the frontend is running under a Tauri shell that has been granted filesystem capabilities
+**THEN** the saved-view and audit-event files MAY be written directly via Tauri's `fs.writeTextFile` instead of the coordinator endpoints
+**AND** the on-disk format SHALL be identical
+**AND** the runtime feature-detect SHALL choose between paths based on the presence of the Tauri API
+
+---
+
+### Requirement: Authentication Posture for Kanban UI
+
+The Kanban UI SHALL authenticate against the coordinator using the existing API-key model (`X-Coordinator-API-Key` / `Authorization: Bearer` header) on every HTTP call. No JWTs SHALL be introduced except for the SSE handshake (design.md D2 / D11). No per-operator identity, OAuth, or SSO SHALL be introduced in v1.
+
+The frontend SHALL obtain its API key from one of three sources:
+
+- Local dev: `VITE_COORDINATOR_API_KEY` baked at build time from a gitignored `.env.local`.
+- Cloud-harness browser: manually pasted by the operator into a `localStorage` slot at first use (the harness's network-level auth wall is the primary defense; per-operator identity is deferred).
+- Tauri shell: read from the OS keychain via a Tauri command.
+
+The SSE handshake (`POST /events/auth` → short-lived JWT) SHALL use the API-key bearer header on the mint call. The minted JWT SHALL:
+
+- Carry `aud=events`, `exp ≤ 300s`, a fresh single-use `nonce` stored server-side, and the requested `change_ids` bound into the payload.
+- Be passed as the `?token=<jwt>` query parameter on the `EventSource` URL (browser `EventSource` cannot attach headers).
+- Be validated on every received event; mismatches on aud/exp/nonce/change_ids SHALL reject the stream.
+- Be redacted from coordinator access logs as `token=<redacted>`.
+
+The JWT signing key SHALL be sourced from the `COORDINATOR_SSE_SIGNING_KEY` environment variable in v1; integration with OpenBao is a follow-up.
+
+#### Scenario: Frontend reads API key from VITE env at build time
+
+**WHEN** the frontend is built locally with `VITE_COORDINATOR_API_KEY=dev-key-001` in `.env.local`
+**THEN** the built bundle SHALL include the key as a build-time constant
+**AND** all coordinator calls (except `EventSource` URLs) SHALL include `Authorization: Bearer dev-key-001`
+
+#### Scenario: SSE token signing key absent fails closed
+
+**WHEN** the coordinator boots with `COORDINATOR_SSE_SIGNING_KEY` unset
+**THEN** `POST /events/auth` SHALL respond 503 Service Unavailable with a clear error message
+**AND** no JWT SHALL be minted
+**AND** the `GET /events/work` endpoint SHALL also respond 503 on every request
+
+#### Scenario: Audit identity in v1 is the API-key identity
+
+**WHEN** the operator triggers a UI write action (drag-to-Ready, save-view, force-release lock, kick agent)
+**THEN** the resulting `audit_log.agent_id` SHALL be the identity bound to the API key per `COORDINATION_API_KEY_IDENTITIES`
+**AND** there SHALL be no per-human identity captured (deferred to a follow-up)
+
+---
+
+### Requirement: CORS Allow-List for Kanban Origins
+
+The coordinator SHALL configure FastAPI's CORS middleware to allow requests from the Kanban frontend origins:
+
+- `Access-Control-Allow-Origin`: the union of `http://localhost:5173` (Vite dev) AND the values of the new `COORDINATOR_CORS_ALLOWED_ORIGINS` env var (CSV) supplied by the deploy.
+- `Access-Control-Allow-Methods`: `GET, POST, PATCH, DELETE, OPTIONS`.
+- `Access-Control-Allow-Headers`: `Authorization, X-Coordinator-API-Key, Content-Type`.
+- `Access-Control-Allow-Credentials`: `false`.
+- `Access-Control-Max-Age`: `600`.
+
+Origins not in the allow-list SHALL receive responses without CORS headers (browser SHALL block on its side).
+
+#### Scenario: Allowed origin receives CORS headers
+
+**WHEN** a browser at `http://localhost:5173` issues a `PATCH /issues/{id}/labels` preflight `OPTIONS` request
+**THEN** the response SHALL include `Access-Control-Allow-Origin: http://localhost:5173`
+**AND** the response SHALL include `Access-Control-Allow-Methods` covering `PATCH`
+**AND** the actual `PATCH` SHALL succeed when the API key is valid
+
+#### Scenario: Disallowed origin is blocked client-side
+
+**WHEN** a browser at `http://evil.example/` issues a `PATCH /issues/{id}/labels` preflight `OPTIONS` request
+**THEN** the response SHALL NOT include `Access-Control-Allow-Origin: http://evil.example/`
+**AND** the browser SHALL block the actual `PATCH` (the coordinator does not need to additionally reject — CORS is enforced client-side)
 
 ---
 

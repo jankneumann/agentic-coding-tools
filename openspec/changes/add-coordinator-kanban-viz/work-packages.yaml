@@ -80,9 +80,9 @@ packages:
         - "openspec/**"
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/issue_service.py"
-        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/audit.py"
         - "agent-coordinator/src/work_queue.py"
-        - "skills/shared/check_no_active_agents.py"
+        - "skills/shared/active_agents.py"
         - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "openspec/roadmaps/codeviz/proposal.md"
     worktree:
@@ -126,39 +126,65 @@ packages:
   # ───────────────────────────────────────────────────────────────────
 
   - package_id: wp-coord-endpoints
-    title: "Implement /sync-points/status, /worktrees/active, /events/work SSE, and three UI-action write endpoints on coordinator"
+    title: "Implement coordinator endpoints (read + write + file-write), event bus channel, NOTIFY trigger migration, CORS, and SSE fail-closed"
     task_type: implement
     description: |
-      Adds seven new endpoints to agent-coordinator/src/coordination_api.py:
+      Adds nine new endpoints to agent-coordinator/src/coordination_api.py:
         - GET /sync-points/status (reuses skills.shared.active_agents.check_no_active_agents)
         - GET /worktrees/active (projects .git-worktrees/.registry.json)
-        - POST /events/auth (mints short-lived single-use JWT for SSE)
-        - GET /events/work (SSE; sse-starlette; subscribes to existing
-          EventBusService for coordinator_task and new coordinator_audit
-          channels; validates JWT from query string, redacts token= from
-          access logs)
+        - POST /events/auth (mints short-lived single-use JWT for SSE,
+          fails closed when COORDINATOR_SSE_SIGNING_KEY is unset)
+        - GET /events/work (SSE; sse-starlette; registers callbacks on
+          existing EventBusService via on_event() for coordinator_task
+          and the new coordinator_audit channel — do NOT open a parallel
+          Postgres LISTEN; validates JWT from query string, redacts token=
+          from access logs)
         - PATCH /issues/{id}/labels (drag-to-Ready label mutation; wraps
           IssueService.update)
-        - DELETE /locks/{file_path:path} (force-release lock; wraps
-          locks.release_lock with force=True)
-        - POST /agents/{agent_id}/kick (writes last_heartbeat=epoch to
-          agent_discovery; existing GC reaps)
+        - DELETE /locks/{file_path:path} (force-release lock; service-layer
+          path executes a direct parameterized DELETE FROM file_locks when
+          force=True, bypassing the holder-only release_lock SQL function)
+        - POST /agents/{agent_id}/kick (clears the agent's entry from
+          .git-worktrees/.registry.json via the worktree teardown helper
+          AND updates agent_sessions.status='disconnected' and
+          last_heartbeat=epoch; returns {registry_cleared,
+          agent_sessions_updated, held_locks}; emits audit. There is no
+          agent_discovery table — earlier drafts that referenced it were
+          wrong; check_no_active_agents() reads the on-disk registry)
+        - PUT /kanban-viz/saved-views/{slug} (coordinator-owned file write
+          for browser persistence; slug validated against
+          ^[a-z0-9][a-z0-9-]{0,63}$; resolved under WORKDIR_ROOT;
+          server-stamps mandatory artifact header; atomic write)
+        - POST /kanban-viz/audit (coordinator-owned file write for UI
+          audit events; same validation/header-stamping/atomic-write rules;
+          date subdirectory derived server-side from generated_at)
+      Adds the FastAPI CORSMiddleware with the D12 allow-list
+      (http://localhost:5173 plus COORDINATOR_CORS_ALLOWED_ORIGINS CSV).
       Extends agent-coordinator/src/event_bus.py CHANNELS with a new
       coordinator_audit channel, installs the matching Postgres trigger on
-      audit_log, and wires AuditService.append to emit through the bus —
-      NOT a parallel NOTIFY pathway. Adds backpressure coalescing to SSE
-      handler. Verifies / back-fills agent_profiles.metadata.vendor for
-      review agents.
+      audit_log via a small additive SQL migration (next sequential number
+      under agent-coordinator/database/migrations/), and wires
+      AuditService.append (which lives in audit.py, not audit_service.py)
+      to emit through the bus — NOT a parallel NOTIFY pathway. Adds
+      backpressure coalescing to SSE handler.
+      Vendor swimlane data source: extracted from agent_id suffix
+      (canonical) with agent_sessions.agent_type as secondary cross-check
+      per D4. The previous design's per-agent agent_profiles.metadata.vendor
+      column does not exist; no back-fill or column write is needed.
       Tests under skills/tests/agent-coordinator/.
-      Covers tasks 2.0a, 2.1–2.15 (incl. 2.7c, 2.7d, 2.7e, 2.7f, 2.13a,
-      2.13b, 2.13c).
+      Covers tasks 2.0a, 2.1–2.15 (incl. 2.7c–j, 2.13a–h).
       Spec scenarios: "New Coordinator Endpoint — Sync-Point Status" (all),
                        "...Worktree Active Projection" (all),
                        "...Work Event Stream (SSE)" (all),
                        "New Coordinator Write Endpoints for UI Actions" (all),
+                       "New Coordinator File-Write Endpoints for UI Persistence" (all),
+                       "Authentication Posture for Kanban UI" (fail-closed),
+                       "CORS Allow-List for Kanban Origins" (all),
                        "Backpressure coalesces excessive events"
-      Design decisions: D2 (SSE via event_bus), D5 (sync-point reuse),
-                        D4 (vendor source-of-truth), D9 (write endpoints)
+      Design decisions: D2 (SSE via event_bus.on_event), D5 (sync-point
+                        reuse), D4 (vendor source-of-truth correction),
+                        D9 (write endpoints), D10 (file-write endpoints),
+                        D11 (auth), D12 (CORS)
     role: python-engineer
     priority: 2
     depends_on:
@@ -190,7 +216,8 @@ packages:
         - "agent-coordinator/src/sync_points.py"
         - "agent-coordinator/src/worktrees_view.py"
         - "agent-coordinator/src/event_stream.py"
-        - "agent-coordinator/migrations/**"
+        - "agent-coordinator/src/kanban_viz_files.py"
+        - "agent-coordinator/database/migrations/**"
         - "agent-coordinator/pyproject.toml"
         - "skills/tests/agent-coordinator/**"
       read_allow:
@@ -206,7 +233,7 @@ packages:
       steps:
         - name: "run-unit-tests"
           kind: "command"
-          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/ -v -k 'sync_points or worktrees_active or events_work or events_auth or coordinator_audit or kick_agent or release_lock or patch_labels or vendor_metadata'"
+          command: "agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/ -v -k 'sync_points or worktrees_active or events_work or events_auth or coordinator_audit or kick_agent or release_lock or patch_labels or vendor_source or saved_views or kanban_viz_audit or cors or sse_fail_closed or audit_notify_trigger'"
           expect_exit_code: 0
           evidence:
             artifacts: []
@@ -278,7 +305,7 @@ packages:
         - "openspec/changes/add-coordinator-kanban-viz/**"
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/issue_service.py"
-        - "agent-coordinator/src/audit_service.py"
+        - "agent-coordinator/src/audit.py"
         - "openspec/changes/add-coordinator-task-status-renderer/contracts/README.md"
     worktree:
       name: "wp-frontend-skeleton"
@@ -315,8 +342,10 @@ packages:
     title: "Implement vendor swimlanes on In-Flight cards with consensus collapse"
     task_type: implement
     description: |
-      Adds VendorSwimlanes component sourcing children from
-      agent_profiles.metadata.vendor and most-recent audit_log row per
+      Adds VendorSwimlanes component extracting per-child vendor from the
+      agent_id suffix after `--` (canonical per design D4 — the previous
+      agent_profiles.metadata.vendor source-of-truth was based on a
+      non-existent per-agent column) and the most-recent audit_log row per
       vendor. Implements consensus collapse on completed work-package using
       parallel-infrastructure consensus synthesizer output. Lane updates
       route through useCoordinator's audit event stream.
@@ -347,8 +376,8 @@ packages:
         - "apps/kanban-viz/src/__tests__/swimlanes/**"
       read_allow:
         - "apps/kanban-viz/**"
-        - "agent-coordinator/src/audit_service.py"
-        - "agent-coordinator/src/agent_profiles.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/profiles.py"
         - "skills/parallel-infrastructure/**"
     worktree:
       name: "wp-frontend-swimlanes"
@@ -435,17 +464,22 @@ packages:
     title: "Implement saved views, audit emission, and reversibility classifier"
     task_type: implement
     description: |
-      Adds saveView() persisting to docs/kanban-viz/saved-views/<slug>.json
-      with mandatory artifact header. Adds SavedViewsDrawer UI for
-      list/save/load. Implements drag-to-Ready interaction emitting
-      reversible-write audit events. Adds reversibility classifier
-      (apps/kanban-viz/src/lib/reversibility.ts) per design D8 with
-      comment pointing to the codeviz reservation in
+      Adds saveView() that POSTs to PUT /kanban-viz/saved-views/{slug} on
+      the browser path (coordinator owns the on-disk write per D10) and
+      falls back to Tauri fs.writeTextFile on the Tauri path. The
+      coordinator stamps the mandatory artifact header server-side; the
+      frontend ships only the operator-authored payload. Adds
+      SavedViewsDrawer UI for list/save/load. Implements drag-to-Ready
+      interaction emitting reversible-write audit events via
+      POST /kanban-viz/audit (browser) / Tauri fs (Tauri). Adds
+      reversibility classifier (apps/kanban-viz/src/lib/reversibility.ts)
+      per design D8 with comment pointing to the codeviz reservation in
       skills/shared/op_reversibility.py.
       Covers tasks 6.1–6.10.
       Spec scenarios: "Saved Views with Mandatory Artifact Header" (all),
-                       "Reversibility-Classified UI Actions" (all)
-      Design decisions: D7, D8
+                       "Reversibility-Classified UI Actions" (all),
+                       "Tauri frontend bypasses coordinator file-write endpoints"
+      Design decisions: D7, D8, D10
     role: frontend-engineer
     priority: 6
     depends_on:

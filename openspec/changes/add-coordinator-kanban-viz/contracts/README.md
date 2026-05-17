@@ -4,8 +4,8 @@
 
 | Sub-type | Applicable? | Why |
 |---|---|---|
-| OpenAPI (HTTP API) | **Yes** | Three new endpoints on the coordinator (`/sync-points/status`, `/worktrees/active`, `/events/work`) MUST be documented as additions to `openspec/specs/agent-coordinator/openapi.yaml` (or whichever path the existing API spec lives at). The renderer change established that existing `GET /issues?...` and `POST /work/submit` are pre-existing and NOT redocumented here. |
-| Database schema | No | No migrations. The two new endpoints read existing columns. The `LISTEN/NOTIFY` channels (`work_queue_change`, `audit_log_append`) are runtime artifacts of triggers added to existing transaction paths in service code, not schema changes. |
+| OpenAPI (HTTP API) | **Yes** | Eight new endpoints on the coordinator MUST be documented as additions to `openspec/specs/agent-coordinator/openapi.yaml` (or whichever path the existing API spec lives at): read endpoints `GET /sync-points/status`, `GET /worktrees/active`, `GET /events/work` (SSE) and `POST /events/auth` (JWT mint for SSE handshake); write endpoints `PATCH /issues/{id}/labels`, `DELETE /locks/{file_path:path}`, `POST /agents/{agent_id}/kick`; and file-write endpoints for UI persistence `PUT /kanban-viz/saved-views/{slug}` and `POST /kanban-viz/audit`. Each new endpoint is contract-documented in this README (request / response / error / auth posture). The renderer change established that existing `POST /issues/list`, `GET /audit`, `POST /work/submit`, `POST /agents/{id}/status` are pre-existing and NOT redocumented here. |
+| Database schema | **Yes** (one additive migration) | One additive migration adds a NOTIFY trigger on the existing `audit_log` table emitting to the new `coordinator_audit` channel, mirroring the existing `trg_work_queue_notify` pattern in `database/migrations/015_notification_triggers.sql`. No tables are created or altered; no columns change. The `DELETE /locks/{file_path:path}` force-release semantics are implemented at the **service layer** with a direct parameterized `DELETE` (bypassing the holder-only `release_lock()` SQL function), so no SQL function change is required. |
 | Event payloads | **Yes** | The SSE `transition` and `audit` event payload schemas MUST be documented as machine-checkable JSON schemas. The frontend's TypeScript types are generated from these schemas. |
 | Type generation | **Yes** | Frontend TypeScript types for issue/worktree/audit/sync-point shapes are generated from coordinator Pydantic models (existing `pydantic-to-typescript` pattern, or a small custom transform). Generation is wired into the frontend build so schema drift is a build failure. |
 | File-format JSON Schema | **Yes** | The `saved-views` JSON schema is checked-in and validated at write time AND at git pre-commit (via the existing JSON-schema lint step in codeviz Phase 0 if present, otherwise a small standalone check). |
@@ -155,9 +155,13 @@ data: {"audit_id": "...", "agent_id": "wp-backend", "operation": "edit_file",
 
 ---
 
-## HTTP Endpoint Additions — UI Action Writes
+## HTTP Endpoint Additions — UI Action Writes, SSE Handshake, and File-Writes
 
-These three endpoints did not exist on the coordinator prior to this change and are added here because the UI's v1 write actions depend on them.
+These six endpoints did not exist on the coordinator prior to this change:
+
+- `PATCH /issues/{id}/labels`, `DELETE /locks/{file_path:path}`, `POST /agents/{agent_id}/kick` — work_queue / locks / agents writes the UI invokes for operator actions.
+- `POST /events/auth` — read-class JWT mint required for the SSE handshake (browsers' `EventSource` cannot attach `Authorization` headers, so an API-key → token-in-URL exchange is the only available bridge).
+- `PUT /kanban-viz/saved-views/{slug}`, `POST /kanban-viz/audit` — coordinator-owned file-writes that browser code cannot perform itself (see design.md D10 for the persistence-boundary rationale).
 
 ### `PATCH /issues/{id}/labels`
 
@@ -202,7 +206,9 @@ Authorization: Bearer <coordinator-api-key>
 
 ### `POST /agents/{agent_id}/kick`
 
-**Purpose.** Mark an agent's heartbeat as dead so sync-point gates clear. Used by the sync-point banner kick action.
+**Purpose.** Clear a stale agent's worktree-registry entry so the sync-point gates (`/cleanup-feature`, `/merge-pull-requests`, `/update-specs`) stop blocking on it, and update the agent's `agent_sessions` row so coordinator-side discovery views agree. Used by the sync-point banner kick action.
+
+**Semantics correction (versus earlier revisions).** This endpoint MUST clear the agent from `.git-worktrees/.registry.json` because `skills/shared/active_agents.check_no_active_agents()` reads only the on-disk registry — NOT `agent_sessions` or any other coordinator table. Setting `last_heartbeat = epoch` on a database row alone does NOT clear the sync-point gate (which was the broken claim in the previous revision). The endpoint additionally updates `agent_sessions.status='disconnected'` and `agent_sessions.last_heartbeat=epoch` for coordinator-side discovery agreement, but the load-bearing side effect is the registry clear.
 
 **Request:**
 
@@ -214,12 +220,163 @@ Authorization: Bearer <coordinator-api-key>
 **Response (200 OK):**
 
 ```json
-{"kicked": true, "agent_id": "wp-backend", "last_heartbeat_was": "2026-05-15T10:40:13Z"}
+{
+  "kicked": true,
+  "agent_id": "wp-backend",
+  "registry_cleared": true,
+  "agent_sessions_updated": true,
+  "held_locks": ["src/foo.py", "src/bar.py"]
+}
 ```
+
+**Partial-failure response (200 OK with success flags false):**
+
+```json
+{
+  "kicked": false,
+  "agent_id": "wp-backend",
+  "registry_cleared": false,
+  "agent_sessions_updated": true,
+  "held_locks": [],
+  "errors": ["registry: worktree teardown failed: <stderr>"]
+}
+```
+
+**Cleanup contract.** Force-kicking does NOT auto-release file locks held by the kicked agent — those expire on the normal TTL or must be force-released via `DELETE /locks/{file_path:path}`. The `held_locks` array enumerates the file paths still locked so the UI can surface a follow-up prompt.
 
 **Reversibility.** `destructive-write`. Per-action consent prompt required; audit emitted regardless of consent outcome.
 
-**Implementation note.** Writes a sentinel row to `agent_discovery` with `last_heartbeat = epoch`. The existing discovery GC reaps the entry on the next cycle.
+**Implementation note.** Invokes `python3 skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (or the in-process equivalent) to clear the registry entry, then `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1`. Both side effects are audit-logged. There is no `agent_discovery` table — that name was a typo in earlier drafts.
+
+### `POST /events/auth`
+
+**Purpose.** Mint a short-lived JWT bound to a specific `change_ids` set so the browser can pass it as a query parameter on the `EventSource(GET /events/work?token=...)` URL. Browsers' `EventSource` cannot attach `Authorization` headers, so this exchange (API key in header → JWT in URL) is the only bridge available.
+
+**Request:**
+
+```
+POST /events/auth
+Authorization: Bearer <coordinator-api-key>
+Content-Type: application/json
+
+{"change_ids": ["add-coordinator-kanban-viz", "fix-X"]}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "token": "<jwt>",
+  "expires_at": "2026-05-15T10:47:13Z",
+  "aud": "events",
+  "change_ids": ["add-coordinator-kanban-viz", "fix-X"]
+}
+```
+
+**JWT claims (HS256 by default; key from `COORDINATOR_SSE_SIGNING_KEY` env var, ≥ 32 bytes):**
+
+| Claim | Value |
+|---|---|
+| `aud` | `events` (constant) |
+| `exp` | now + 300s (configurable, max 600s) |
+| `iat` | now |
+| `nonce` | UUIDv4, persisted server-side in a single-use store for replay rejection |
+| `change_ids` | the exact set from the request body; the SSE endpoint rejects mismatches |
+| `key_id` | identity bound to the API key per `COORDINATION_API_KEY_IDENTITIES` |
+
+**Error responses:**
+
+| Status | Cause |
+|---|---|
+| 401 | Missing / invalid API key |
+| 400 | `change_ids` missing or empty |
+| 503 | `COORDINATOR_SSE_SIGNING_KEY` env var unset (fail-closed) |
+
+**Auth posture.** Same `X-Coordinator-API-Key` / `Authorization: Bearer` posture as every other write endpoint. The mint operation itself is read-class (no state mutation outside the per-nonce store), but it MUST require auth because the resulting token is a bearer credential.
+
+**Reversibility.** `read` (the nonce row is created but is single-use and expires; no operator-meaningful state change).
+
+### `PUT /kanban-viz/saved-views/{slug}`
+
+**Purpose.** Persist a saved view to `docs/kanban-viz/saved-views/{slug}.json` from the browser. The frontend cannot write repo files directly; this endpoint owns the disk write to preserve the "frontend never bypasses the coordinator" invariant (design.md D10).
+
+**Request:**
+
+```
+PUT /kanban-viz/saved-views/active-reviews-security
+Authorization: Bearer <coordinator-api-key>
+Content-Type: application/json
+
+{
+  "view": {
+    "name": "Active reviews — security",
+    "columns": {"Backlog": {...}, "In Flight": {...}, "Done": {...}},
+    "filters": {"change_ids": [...], "vendors": ["claude", "gemini"]},
+    "grouping": "vendor",
+    "sort": {"key": "claimed_at", "dir": "desc"}
+  }
+}
+```
+
+The coordinator stamps the mandatory artifact header server-side (`schema_version`, `generated_at`, `git_sha`, `generator: kanban-viz@<version>`); client-supplied header values are ignored.
+
+**Response (200 OK):**
+
+```json
+{
+  "saved": true,
+  "path": "docs/kanban-viz/saved-views/active-reviews-security.json",
+  "git_sha": "<sha at write time>"
+}
+```
+
+**Slug validation.** Must match `^[a-z0-9][a-z0-9-]{0,63}$`. Slugs containing `..`, `/`, `\`, leading hyphen, uppercase letters, or non-alphanumeric chars are rejected with 400. The on-disk path is resolved relative to `WORKDIR_ROOT`; resolved paths escaping the root are rejected with 400.
+
+**Write semantics.** Atomic via tmp-file + rename. Existing files are overwritten in place (prior content is in git). An `audit_log` row is appended capturing `operation='kanban_viz.save_view'`, the slug, and the resolved path.
+
+**Reversibility.** `reversible-write` (the prior file content is in git history).
+
+**Tauri bypass.** Tauri shells with granted filesystem capabilities MAY write the file directly via `fs.writeTextFile` instead. The on-disk format is identical, so files authored on either path are interoperable.
+
+### `POST /kanban-viz/audit`
+
+**Purpose.** Append a UI-emitted audit event to `docs/kanban-viz/audit/<YYYY-MM-DD>/<run_id>.json` from the browser. Same persistence-boundary rationale as `PUT /kanban-viz/saved-views/{slug}`.
+
+**Request:**
+
+```
+POST /kanban-viz/audit
+Authorization: Bearer <coordinator-api-key>
+Content-Type: application/json
+
+{
+  "run_id": "drag-to-ready-20260515104213-abc",
+  "event": {
+    "action": "drag-to-ready",
+    "class": "reversible-write",
+    "target_issue_id": "...",
+    "operator_confirmed": true,
+    "context": { ... }
+  }
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "appended": true,
+  "path": "docs/kanban-viz/audit/2026-05-15/drag-to-ready-20260515104213-abc.json"
+}
+```
+
+**Run-id validation.** Same constraints as the saved-view slug (`^[a-z0-9][a-z0-9-]{0,63}$`, anti-traversal).
+
+**Date directory.** Derived server-side from the stamped `generated_at` (UTC). Client-supplied date hints are ignored.
+
+**Write semantics.** Atomic; same anti-traversal and `WORKDIR_ROOT` resolution as the saved-views endpoint. An `audit_log` row is appended capturing `operation='kanban_viz.audit'`, the `run_id`, and the resolved path.
+
+**Reversibility.** Event-class artifact (write-once, retention bounded by codeviz storage-tier policy).
 
 ---
 
@@ -426,7 +583,7 @@ This reservation is duplicated in `docs/kanban-viz/falkordb-reservation.md` as a
 | `GET /audit` | existing — `agent-coordinator/src/coordination_api.py` | Polling fallback for swimlanes (scoped via query string per existing `AuditService.query`) |
 | `EventBusService` (channels: `coordinator_task`, plus new `coordinator_audit`) | existing — `agent-coordinator/src/event_bus.py` | SSE subscription source for transitions and audits |
 | `check_no_active_agents()` | `skills/shared/active_agents.py` (existing) | `/sync-points/status` endpoint |
-| `coordination_bridge.try_issue_list()` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Compatible read path used by the renderer (this change reuses the underlying `GET /issues?...`) |
+| `coordination_bridge.try_issue_list()` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Compatible read path used by the renderer (this change reuses the same underlying `POST /issues/list` surface) |
 | `add-coordinator-task-status-renderer` data contract | `openspec/changes/add-coordinator-task-status-renderer/contracts/README.md` | Issue shape (`metadata.task_key`, `metadata.change_id`, status enum) consumed by frontend types — same contract |
 | Mandatory artifact header | `docs/codeviz/artifact-header.md` (codeviz Phase 0) | Saved-view + audit-event files |
 | Operation reversibility taxonomy | `openspec/roadmaps/codeviz/proposal.md` lines 69–82 | UI action gating |

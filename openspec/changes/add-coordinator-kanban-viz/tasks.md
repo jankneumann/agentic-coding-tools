@@ -70,7 +70,7 @@
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.0a Write test: `agent_profiles.metadata.vendor` is populated for every agent whose `agent_id` matches `<wp>--<vendor>` with `<vendor> ∈ {claude,codex,gemini,chatgpt-pro}`; back-fill missing values with a one-shot migration script
+- [ ] 2.0a Write test: vendor extraction from real data: for every `audit_log.agent_id` in the last 24h matching `<wp>--<vendor>` with `<vendor> ∈ {claude,codex,gemini,chatgpt-pro}`, the suffix-parsed vendor is in-set AND (when an `agent_sessions` row exists for that `agent_id`) `agent_sessions.agent_type` maps to the same vendor per the D4 table (`claude_code → claude`, `codex → codex`, `gemini → gemini`, `claude_api → chatgpt-pro` only if so configured). The previous formulation of this test referenced `agent_profiles.metadata.vendor`, which does not exist as a per-agent column — see D4 for the schema reality check.
   **Spec scenarios**: "Vendor Swimlanes on In-Flight Cards" (vendor source-of-truth verification)
   **Design decisions**: D4
   **Dependencies**: 1.6
@@ -98,8 +98,8 @@
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.7f Write test: `POST /agents/{agent_id}/kick` writes `last_heartbeat = epoch` to `agent_discovery`, returns 200, emits an `audit_log` entry, and a subsequent `check_no_active_agents()` call returns the agent as not-active
-  **Spec scenarios**: "POST /agents/{agent_id}/kick marks heartbeat as dead"
+- [ ] 2.7f Write test: `POST /agents/{agent_id}/kick` clears the agent's entry from `.git-worktrees/.registry.json` (via the worktree teardown helper) AND updates `agent_sessions.status='disconnected'` and `last_heartbeat=epoch`; returns 200 with body `{registry_cleared, agent_sessions_updated, held_locks}`; emits an `audit_log` entry; and a subsequent `check_no_active_agents()` call returns the agent as not-active. Add a second test scenario asserting that file_locks held by the kicked agent are NOT auto-released and ARE surfaced in `held_locks`.
+  **Spec scenarios**: "POST /agents/{agent_id}/kick clears worktree registry and updates session", "POST /agents/{agent_id}/kick does NOT auto-release file locks"
   **Design decisions**: D9
   **Dependencies**: 1.6
   **Size**: M
@@ -114,8 +114,32 @@
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.8 Checkpoint: confirm tests 2.0a, 2.1–2.7f RED
-  **Dependencies**: 2.0a, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b, 2.7c, 2.7d, 2.7e, 2.7f
+- [ ] 2.7g Write test: `PUT /kanban-viz/saved-views/{slug}` writes a saved view to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/{slug}.json` with server-stamped mandatory artifact header; rejects slugs not matching `^[a-z0-9][a-z0-9-]{0,63}$` with 400; rejects resolved paths escaping `WORKDIR_ROOT` with 400; emits an `audit_log` row.
+  **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view", "Slug with directory traversal is rejected"
+  **Design decisions**: D10
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.7h Write test: `POST /kanban-viz/audit` appends a UI audit event under `<WORKDIR_ROOT>/docs/kanban-viz/audit/<YYYY-MM-DD>/<run_id>.json`; date directory derived server-side from `generated_at` (UTC); same anti-traversal validation as saved-views; emits an `audit_log` row.
+  **Spec scenarios**: "POST /kanban-viz/audit appends a UI audit event"
+  **Design decisions**: D10
+  **Dependencies**: 1.6
+  **Size**: M
+
+- [ ] 2.7i Write test: CORS preflight for `PATCH /issues/{id}/labels` from `http://localhost:5173` succeeds with the expected `Access-Control-*` headers (origin, methods include PATCH, headers include `Authorization, X-Coordinator-API-Key, Content-Type`, max-age=600, credentials=false). Preflight from `http://evil.example/` returns response WITHOUT `Access-Control-Allow-Origin` for that origin (browser blocks; server need not additionally reject).
+  **Spec scenarios**: "Allowed origin receives CORS headers", "Disallowed origin is blocked client-side"
+  **Design decisions**: D12
+  **Dependencies**: 1.6
+  **Size**: S
+
+- [ ] 2.7j Write test (fail-closed): coordinator booted with `COORDINATOR_SSE_SIGNING_KEY` unset MUST 503 every `POST /events/auth` and `GET /events/work` request; no JWT is minted; the SSE handler refuses to open the stream. Test by spinning up the API with the env var explicitly stripped.
+  **Spec scenarios**: "SSE token signing key absent fails closed"
+  **Design decisions**: D11
+  **Dependencies**: 1.6
+  **Size**: S
+
+- [ ] 2.8 Checkpoint: confirm tests 2.0a, 2.1–2.7j RED
+  **Dependencies**: 2.0a, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b, 2.7c, 2.7d, 2.7e, 2.7f, 2.7g, 2.7h, 2.7i, 2.7j
 
 - [ ] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` importing `check_no_active_agents` from `skills/shared/active_agents.py` (canonical filename — NOT `check_no_active_agents.py`)
   **Spec scenarios**: "...Sync-Point Status" (all)
@@ -134,9 +158,9 @@
   **Dependencies**: 2.8
   **Size**: M
 
-- [ ] 2.12 Implement `GET /events/work` SSE handler with Postgres `LISTEN` binding (use `sse-starlette` or equivalent); validate JWT from query string, redact `token=` from access logs, reject on signature/nonce/exp/aud mismatch
+- [ ] 2.12 Implement `GET /events/work` SSE handler by registering callbacks on the existing `EventBusService` via `event_bus.on_event(channel="coordinator_task", callback=...)` and `event_bus.on_event(channel="coordinator_audit", callback=...)` — do NOT open a parallel Postgres `LISTEN` connection (the contract forbids it and the bus is the single emission point). Use `sse-starlette` or equivalent for the streaming response. Validate JWT from the query string, redact `token=` from access logs, reject on signature/nonce/exp/aud/change_ids mismatch.
   **Spec scenarios**: "...Work Event Stream (SSE)" (all)
-  **Design decisions**: D2
+  **Design decisions**: D2, "Live update protocol details"
   **Dependencies**: 2.8, 2.11
   **Size**: L
 
@@ -157,19 +181,49 @@
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`, writing `last_heartbeat = epoch` to `agent_discovery` and emitting an audit row
-  **Spec scenarios**: "POST /agents/{agent_id}/kick marks heartbeat as dead"
+- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`: (a) invoke `skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <id> --force` (or in-process equivalent) to remove the agent's `.git-worktrees/.registry.json` entry — this is the only path that affects `check_no_active_agents()` since the guard reads the on-disk registry, NOT a database table; (b) `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1` for coordinator-side discovery; (c) return `{registry_cleared, agent_sessions_updated, held_locks}` so the UI can surface partial failures and locks still held; (d) emit an audit row capturing both side effects.
+  **Spec scenarios**: "POST /agents/{agent_id}/kick clears worktree registry and updates session", "POST /agents/{agent_id}/kick does NOT auto-release file locks"
   **Design decisions**: D9
   **Dependencies**: 2.8
   **Size**: S
+
+- [ ] 2.13d Implement `PUT /kanban-viz/saved-views/{slug}` in `coordination_api.py`: validate slug against `^[a-z0-9][a-z0-9-]{0,63}$`; resolve path under the configured `WORKDIR_ROOT`; reject paths escaping the root; stamp the mandatory artifact header server-side; write atomically via tmp-file + rename; emit an `audit_log` row.
+  **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view"
+  **Design decisions**: D10
+  **Dependencies**: 2.8
+  **Size**: M
+
+- [ ] 2.13e Implement `POST /kanban-viz/audit` in `coordination_api.py`: same slug/run-id validation, same `WORKDIR_ROOT` resolution, same atomic-write semantics; derive the date subdirectory server-side from the stamped `generated_at`; emit an `audit_log` row.
+  **Spec scenarios**: "POST /kanban-viz/audit appends a UI audit event"
+  **Design decisions**: D10
+  **Dependencies**: 2.8
+  **Size**: M
+
+- [ ] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, Content-Type]`; `allow_credentials=False`; `max_age=600`.
+  **Spec scenarios**: "Allowed origin receives CORS headers", "Disallowed origin is blocked client-side"
+  **Design decisions**: D12
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13g Add a SQL migration under `agent-coordinator/database/migrations/` (next sequential number) installing a NOTIFY trigger on `audit_log` that emits to the new `coordinator_audit` channel. Mirror the existing `trg_work_queue_notify` pattern in `015_notification_triggers.sql`; respect the `app.coordinator_internal = 'true'` skip flag for the same reason existing triggers do (avoids re-emitting during coordinator-driven inserts).
+  **Spec scenarios**: contracts/README.md ("Database schema" sub-type, "One additive migration")
+  **Design decisions**: design.md "Live update protocol details"
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13h Add fail-closed startup check for `COORDINATOR_SSE_SIGNING_KEY`: if unset, both `POST /events/auth` and `GET /events/work` return 503 from a small dependency wired at startup. The check MUST short-circuit before any JWT decode runs.
+  **Spec scenarios**: "SSE token signing key absent fails closed"
+  **Design decisions**: D11
+  **Dependencies**: 2.8
+  **Size**: XS
 
 - [ ] 2.14 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
   **Spec scenarios**: "Backpressure coalesces excessive events"
   **Dependencies**: 2.12
   **Size**: M
 
-- [ ] 2.15 Confirm tests 2.0a, 2.1–2.7f GREEN
-  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.13a, 2.13b, 2.13c, 2.14
+- [ ] 2.15 Confirm tests 2.0a, 2.1–2.7j GREEN
+  **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.13a, 2.13b, 2.13c, 2.13d, 2.13e, 2.13f, 2.13g, 2.13h, 2.14
   **Size**: XS
 
 ## Phase 3 — Frontend skeleton (wp-frontend-skeleton)
@@ -212,7 +266,7 @@
   **Dependencies**: 3.7
   **Size**: M
 
-- [ ] 3.9 Implement `useCoordinator()` hook that fetches `GET /issues?labels=...`, mints an SSE token via `POST /events/auth`, and subscribes to `GET /events/work?token=...`
+- [ ] 3.9 Implement `useCoordinator()` hook that fetches `POST /issues/list` (body: `{labels: [...]}` — coordinator uses POST-with-body), mints an SSE token via `POST /events/auth` (sending `Authorization: Bearer <api-key>`), and subscribes to `GET /events/work?token=...`
   **Spec scenarios**: "Status transition propagates within 200ms", "Polling fallback engages on EventSource failure"
   **Design decisions**: D2
   **Dependencies**: 3.8, 2.15
@@ -252,7 +306,7 @@
 - [ ] 4.5 Checkpoint: confirm tests 4.1–4.4 RED
   **Dependencies**: 4.1, 4.2, 4.3, 4.4
 
-- [ ] 4.6 Implement `<VendorSwimlanes>` component sourcing children from `agent_profiles.metadata.vendor` and most-recent `audit_log` row per vendor
+- [ ] 4.6 Implement `<VendorSwimlanes>` component extracting per-child vendor from the `agent_id` suffix (canonical per D4) and grouping the most-recent `audit_log` row per vendor; agent type comes from `agent_sessions.agent_type` for the secondary cross-check
   **Spec scenarios**: "Vendor Swimlanes on In-Flight Cards" (all)
   **Design decisions**: D4 (swimlane derivation)
   **Dependencies**: 4.5
@@ -304,17 +358,17 @@
 
 ## Phase 6 — Saved views and audit emission (wp-saved-views)
 
-- [ ] 6.1 Write test: saved view validates against `contracts/schemas/saved-view.json` and is written to `docs/kanban-viz/saved-views/<slug>.json`
-  **Spec scenarios**: "Saved view is valid against the JSON schema", "Saved view file path is git-relative"
+- [ ] 6.1 Write test: saved view validates against `contracts/schemas/saved-view.json` and the round-trip (frontend POSTs to `PUT /kanban-viz/saved-views/<slug>`, coordinator writes to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/<slug>.json`) yields a file containing the server-stamped mandatory header and the operator's view payload
+  **Spec scenarios**: "Saved view is valid against the JSON schema", "Saved view file path is git-relative", "PUT /kanban-viz/saved-views/{slug} writes a saved view"
   **Dependencies**: 1.6
 
 - [ ] 6.2 Write test: re-save under same slug overwrites and audit event records prior + new git_sha
   **Spec scenarios**: "Re-save under same name overwrites with audit trail"
   **Dependencies**: 1.6
 
-- [ ] 6.3 Write test: save-view emits audit event under `docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json` with mandatory header and `class: reversible-write`
-  **Spec scenarios**: "Save-view emits an audit event"
-  **Design decisions**: D8
+- [ ] 6.3 Write test: save-view emits a UI audit event via `POST /kanban-viz/audit` (browser path) or Tauri `fs.writeTextFile` (Tauri path); the resulting file under `docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json` has the server-stamped mandatory header and `class: reversible-write`
+  **Spec scenarios**: "Save-view emits an audit event", "POST /kanban-viz/audit appends a UI audit event"
+  **Design decisions**: D8, D10
   **Dependencies**: 1.6
 
 - [ ] 6.4 Write test: drag-to-Ready calls `PATCH /issues/<id>/labels` with `pending-approval` and emits reversible-write audit event
@@ -324,10 +378,10 @@
 - [ ] 6.5 Checkpoint: confirm tests 6.1–6.4 RED
   **Dependencies**: 6.1, 6.2, 6.3, 6.4
 
-- [ ] 6.6 Implement `saveView()` function that writes the file and emits the audit event
-  **Spec scenarios**: "Saved Views with Mandatory Artifact Header" (all)
-  **Design decisions**: D7
-  **Dependencies**: 6.5
+- [ ] 6.6 Implement `saveView()` function that POSTs to `PUT /kanban-viz/saved-views/{slug}` (browser path) and falls back to Tauri `fs.writeTextFile` (Tauri path); the coordinator endpoint owns the on-disk write so the function does NOT manipulate the filesystem from the browser
+  **Spec scenarios**: "Saved Views with Mandatory Artifact Header" (all), "Tauri frontend bypasses coordinator file-write endpoints"
+  **Design decisions**: D7, D10
+  **Dependencies**: 6.5, 2.15
   **Size**: M
 
 - [ ] 6.7 Implement `<SavedViewsDrawer>` UI for list/save/load
