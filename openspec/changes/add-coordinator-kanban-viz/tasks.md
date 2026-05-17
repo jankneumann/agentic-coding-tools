@@ -169,34 +169,66 @@
   **Dependencies**: 2.8
   **Size**: M
 
+- [ ] 2.13z Extend `verify_api_key` in `coordination_api.py:350` to additionally accept `Authorization: Bearer <key>` and `X-Coordinator-API-Key` headers in parallel with the existing `X-API-Key` header. The Kanban UI standardizes on `Authorization: Bearer` (so the same header works for the `POST /events/auth` JWT mint flow and CORS-preflight `Access-Control-Allow-Headers` whitelist matches design.md D12). Existing callers using `X-API-Key` MUST keep working unchanged (backward compatibility). Order of precedence on a single request: `Authorization: Bearer` > `X-Coordinator-API-Key` > `X-API-Key`. Add tests for each header and the precedence rule.
+  **Spec scenarios**: "Coordinator accepts Authorization: Bearer for write endpoints", "Coordinator preserves X-API-Key backward compatibility"
+  **Design decisions**: D11, D12
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13y Extend the `Issue` dataclass in `agent-coordinator/src/issue_service.py` (fields, `from_row`, `to_dict`) to expose `claimed_by: str | None` and `claimed_at: datetime | None` from the underlying `work_queue` row. The Kanban board contract (spec.md scenarios "Board renders cards bucketed by status", "Card shows minimum required fields") requires these fields so the card can show the assignee's `agent_id` and the relative timestamp. Existing fields stay unchanged; this is an additive surface change. `from_row` reads `row.get("claimed_by")` and `parse_dt(row.get("claimed_at"))`; `to_dict` adds the two keys. Update the issue list/show/comment endpoint contract docs in `openspec/changes/add-coordinator-kanban-viz/contracts/README.md` to reflect the additive fields.
+  **Spec scenarios**: "Card shows minimum required fields", "Board renders cards bucketed by status"
+  **Design decisions**: D9 (data shape)
+  **Dependencies**: 2.8
+  **Size**: S
+
 - [ ] 2.13a Implement `PATCH /issues/{id}/labels` in `coordination_api.py`, wrapping `IssueService.update` with a labels-only update path
   **Spec scenarios**: "PATCH /issues/{id}/labels adds and removes labels"
   **Design decisions**: D9
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13b Implement `DELETE /locks/{file_path:path}` in `coordination_api.py`, calling `locks.release_lock(..., force=True)` and emitting an audit row capturing the prior holder
+- [ ] 2.13b0 Add `LockService.force_release(file_path) -> dict` to `agent-coordinator/src/locks.py` (precursor to 2.13b). The existing `LockService.release(file_path)` delegates to the Postgres `release_lock(...)` RPC, which enforces holder-only semantics. `force_release` runs an inline parameterized `DELETE FROM file_locks WHERE file_path=$1` via `self.db.execute(...)`, captures the prior holder via a `SELECT ... RETURNING` (or a pre-DELETE lookup), and returns `{released: bool, prior_holder: dict | None}`. This keeps the holder-only check intact in the normal release path; force-release is a separate, audited method.
+
+- [ ] 2.13b1 Add optional `since` and `change_id` filters to `GET /audit` (`coordination_api.py:1146`) and `AuditService.query`. Backward-compatible: all new params optional with no-filter defaults. The `change_id` filter joins to `work_queue` via the audit row's `parameters` JSONB column, or falls back to the `agent_id` → `agent_sessions.change_id` mapping. The `since` filter is a `created_at >= $N` predicate (parse ISO-8601). Add tests for both filters and a combined-filter case.
+  **Spec scenarios**: "GET /audit accepts since and change_id query parameters"
+  **Design decisions**: design.md "Polling fallback"
+  **Dependencies**: 2.8
+  **Size**: S
+
+- [ ] 2.13b Implement `DELETE /locks/{file_path:path}` in `coordination_api.py`, calling `locks.force_release(file_path)` (added in 2.13b0) and emitting an audit row capturing the prior holder from the returned dict.
   **Spec scenarios**: "DELETE /locks/{file_path} force-releases a stale lock"
   **Design decisions**: D9
-  **Dependencies**: 2.8
+  **Dependencies**: 2.8, 2.13b0
   **Size**: S
 
-- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`: (a) invoke `skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <id> --force` (or in-process equivalent) to remove the agent's `.git-worktrees/.registry.json` entry — this is the only path that affects `check_no_active_agents()` since the guard reads the on-disk registry, NOT a database table; (b) `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1` for coordinator-side discovery; (c) return `{registry_cleared, agent_sessions_updated, held_locks}` so the UI can surface partial failures and locks still held; (d) emit an audit row capturing both side effects.
+- [ ] 2.13c0 Add `--force` flag to the `teardown` subcommand of `skills/worktree/scripts/worktree.py` (precursor to 2.13c). When set, teardown removes the registry entry and best-effort `git worktree remove` even if the worktree path is dirty, missing, or already deleted. This flag does not exist today (only the `gc` subcommand has `--force`); 2.13c depends on it.
+  **Spec scenarios**: covered by 2.13c tests
+  **Design decisions**: D9 (precursor)
+  **Dependencies**: (none — `skills/worktree/scripts/worktree.py` is the implementation target)
+  **Size**: S
+
+- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`: (a) request body MUST include `change_id` (registry is keyed by `(change_id, agent_id)`); reject with 422 if absent; (b) invoke `skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (depends on 2.13c0) to remove the agent's `.git-worktrees/.registry.json` entry — this is the only path that affects `check_no_active_agents()` since the guard reads the on-disk registry, NOT a database table; (c) `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1` for coordinator-side discovery; (d) return `{registry_cleared, agent_sessions_updated, held_locks}` so the UI can surface partial failures and locks still held; (e) emit an audit row capturing both side effects.
   **Spec scenarios**: "POST /agents/{agent_id}/kick clears worktree registry and updates session", "POST /agents/{agent_id}/kick does NOT auto-release file locks"
   **Design decisions**: D9
-  **Dependencies**: 2.8
+  **Dependencies**: 2.8, 2.13c0
   **Size**: S
 
-- [ ] 2.13d Implement `PUT /kanban-viz/saved-views/{slug}` in `coordination_api.py`: validate slug against `^[a-z0-9][a-z0-9-]{0,63}$`; resolve path under the configured `WORKDIR_ROOT`; reject paths escaping the root; stamp the mandatory artifact header server-side; write atomically via tmp-file + rename; emit an `audit_log` row.
-  **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view"
+- [ ] 2.13d0 Add `COORDINATOR_WORKDIR_ROOT` to `agent-coordinator/src/config.py` (precursor to 2.13d and 2.13e). Default: `Path(__file__).resolve().parents[2]` (the repo root when running from the source tree). Override via `COORDINATOR_WORKDIR_ROOT` env var (resolved to an absolute path at startup). Document in the env-vars section of `agent-coordinator/CLAUDE.md`. Add a `resolve_workdir_path(*parts)` helper that joins parts to the configured root, resolves with `strict=False`, and asserts the resolved path is within the root (raises ValueError otherwise) so 2.13d and 2.13e share the same path-safety implementation.
+  **Spec scenarios**: covered by 2.13d/2.13e path-traversal tests
+  **Design decisions**: D10 (precursor)
+  **Dependencies**: (none — `agent-coordinator/src/config.py` is the implementation target)
+  **Size**: S
+
+- [ ] 2.13d Implement `PUT /kanban-viz/saved-views/{slug}` in `coordination_api.py`: validate slug against `^[a-z0-9][a-z0-9-]{0,63}$`; resolve path via the new `resolve_workdir_path("docs", "kanban-viz", "saved-views", f"{slug}.json")` helper (2.13d0); reject paths escaping the root (helper raises); stamp the mandatory artifact header server-side; write atomically via tmp-file + rename; emit an `audit_log` row.
+  **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view", "PUT /kanban-viz/saved-views/{slug} rejects path-traversal slugs"
   **Design decisions**: D10
-  **Dependencies**: 2.8
+  **Dependencies**: 2.8, 2.13d0
   **Size**: M
 
-- [ ] 2.13e Implement `POST /kanban-viz/audit` in `coordination_api.py`: same slug/run-id validation, same `WORKDIR_ROOT` resolution, same atomic-write semantics; derive the date subdirectory server-side from the stamped `generated_at`; emit an `audit_log` row.
+- [ ] 2.13e Implement `POST /kanban-viz/audit` in `coordination_api.py`: same slug/run-id validation, same `resolve_workdir_path(...)` resolution (2.13d0), same atomic-write semantics; derive the date subdirectory server-side from the stamped `generated_at`; emit an `audit_log` row.
   **Spec scenarios**: "POST /kanban-viz/audit appends a UI audit event"
   **Design decisions**: D10
-  **Dependencies**: 2.8
+  **Dependencies**: 2.8, 2.13d0
   **Size**: M
 
 - [ ] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, Content-Type]`; `allow_credentials=False`; `max_age=600`.

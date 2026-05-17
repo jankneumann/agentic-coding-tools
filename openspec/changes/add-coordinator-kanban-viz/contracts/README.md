@@ -580,11 +580,11 @@ This reservation is duplicated in `docs/kanban-viz/falkordb-reservation.md` as a
 | Surface | Defined in | Used by |
 |---|---|---|
 | `POST /issues/list` (with `labels` filter in body) | existing — `agent-coordinator/src/coordination_api.py` | Initial board fetch + polling fallback (coordinator uses POST-with-body, not GET-with-query) |
-| `GET /audit` | existing — `agent-coordinator/src/coordination_api.py` | Polling fallback for swimlanes (scoped via query string per existing `AuditService.query`) |
+| `GET /audit` | existing — `agent-coordinator/src/coordination_api.py:1146` (extended in scope of THIS change) | Polling fallback for swimlanes. The existing handler accepts only `agent_id`, `operation`, `limit`. This change extends it (and `AuditService.query`) with optional `since=<iso>` and `change_id=<id>` filters so the SSE polling fallback can scope by both — see task 2.13b0. Existing callers are unaffected (new params are optional with no-filter defaults). |
 | `EventBusService` (channels: `coordinator_task`, plus new `coordinator_audit`) | existing — `agent-coordinator/src/event_bus.py` | SSE subscription source for transitions and audits |
 | `check_no_active_agents()` | `skills/shared/active_agents.py` (existing) | `/sync-points/status` endpoint |
 | `coordination_bridge.try_issue_list()` | `skills/coordination-bridge/scripts/coordination_bridge.py` | Compatible read path used by the renderer (this change reuses the same underlying `POST /issues/list` surface) |
 | `add-coordinator-task-status-renderer` data contract | `openspec/changes/add-coordinator-task-status-renderer/contracts/README.md` | Issue shape (`metadata.task_key`, `metadata.change_id`, status enum) consumed by frontend types — same contract |
 | Mandatory artifact header | `docs/codeviz/artifact-header.md` (codeviz Phase 0) | Saved-view + audit-event files |
-| Operation reversibility taxonomy | `openspec/roadmaps/codeviz/proposal.md` lines 69–82 | UI action gating |
-| Codeviz storage-tier policy | `openspec/roadmaps/codeviz/proposal.md` lines 49–56 | Saved-view (git) and audit-event (event-artifact) placement |
+| Operation reversibility taxonomy | `openspec/roadmaps/codeviz/proposal.md` § "Operation reversibility taxonomy" (~lines 69–82; line numbers may drift, anchor on the heading) | UI action gating |
+| Codeviz storage-tier policy | `openspec/roadmaps/codeviz/proposal.md` § "Storage tier policy" (~lines 48–56; line numbers may drift, anchor on the heading) | Saved-view (git) and audit-event (event-artifact) placement |
