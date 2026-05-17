@@ -28,8 +28,6 @@ def _api_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch config so the API accepts our test key."""
     from src.config import reset_config
 
-    reset_config()
-
     monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
     monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
@@ -545,5 +543,51 @@ def test_acquire_lock_rejects_identity_spoofing(
     )
     assert response.status_code == 403
     assert "agent_id" in response.json()["detail"]
+
+    reset_config()
+
+
+def test_discovery_register_uses_api_key_identity_when_body_omits_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bound API key can register without client-supplied agent_id."""
+    from src.config import reset_config
+    from src.discovery import RegisterResult
+
+    reset_config()
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
+    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        '{"' + _TEST_KEY + '": {"agent_id": "bound-agent", "agent_type": "codex"}}',
+    )
+    reset_config()
+
+    mock_service = AsyncMock()
+    mock_service.register.return_value = RegisterResult(
+        success=True,
+        session_id="session-1",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+
+    import src.discovery
+
+    monkeypatch.setattr(src.discovery, "_discovery_service", mock_service)
+
+    app = create_coordination_api()
+    test_client = TestClient(app)
+
+    response = test_client.post(
+        "/discovery/register",
+        headers=_auth_headers(),
+        json={"capabilities": ["coding"], "current_task": "testing"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    mock_service.register.assert_awaited_once()
+    assert mock_service.register.await_args.kwargs["agent_id"] == "bound-agent"
+    assert mock_service.register.await_args.kwargs["agent_type"] == "codex"
 
     reset_config()

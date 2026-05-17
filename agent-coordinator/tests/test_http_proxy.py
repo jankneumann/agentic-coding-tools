@@ -113,7 +113,26 @@ def test_config_from_env_loads_all_fields(
     assert config.api_key == "test-key-123"
     assert config.agent_id == "test-agent"
     assert config.agent_type == "claude_code"
+    assert config.agent_id_explicit is True
+    assert config.agent_type_explicit is True
     assert config.timeout == 10.0
+
+
+def test_config_from_env_tracks_implicit_identity_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("COORDINATION_API_URL", "http://localhost:8081")
+    monkeypatch.setenv("COORDINATION_API_KEY", "test-key-123")
+    monkeypatch.delenv("AGENT_ID", raising=False)
+    monkeypatch.delenv("AGENT_TYPE", raising=False)
+
+    config = HttpProxyConfig.from_env()
+
+    assert config is not None
+    assert config.agent_id == "claude-code-1"
+    assert config.agent_type == "claude_code"
+    assert config.agent_id_explicit is False
+    assert config.agent_type_explicit is False
 
 
 def test_config_strips_trailing_slash(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -419,6 +438,24 @@ def test_agent_identity_returns_config_values(_reset_client: None) -> None:
     assert identity == {"agent_id": "my-agent", "agent_type": "claude_code"}
 
 
+def test_agent_identity_can_omit_implicit_defaults_for_bound_key(
+    _reset_client: None,
+) -> None:
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key="test-key",
+        agent_id="claude-code-1",
+        agent_type="claude_code",
+        agent_id_explicit=False,
+        agent_type_explicit=False,
+    )
+    http_proxy.init_client(config)
+
+    identity = http_proxy._agent_identity(explicit_only_when_key_bound=True)
+
+    assert identity == {}
+
+
 # =============================================================================
 # Proxy function integration (PROXY-1)
 # =============================================================================
@@ -465,6 +502,121 @@ async def test_proxy_acquire_lock_routes_to_http(_reset_client: None) -> None:
     assert captured["json"]["ttl_minutes"] == 30
     assert captured["json"]["agent_id"] == "my-agent"
     assert captured["json"]["agent_type"] == "claude_code"
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_proxy_register_session_omits_implicit_identity_for_bound_key(
+    _reset_client: None,
+) -> None:
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key="test-key",
+        agent_id="claude-code-1",
+        agent_type="claude_code",
+        agent_id_explicit=False,
+        agent_type_explicit=False,
+    )
+    http_proxy.init_client(config)
+
+    captured: dict[str, Any] = {}
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"success": true, "session_id": "s-1"}'
+
+        def json(self) -> dict[str, Any]:
+            return {"success": True, "session_id": "s-1"}
+
+    async def _capture(method: str, url: str, **kw: Any) -> _MockResponse:
+        captured["method"] = method
+        captured["url"] = url
+        captured["json"] = kw.get("json")
+        return _MockResponse()
+
+    http_proxy.get_client().request = _capture  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_register_session(capabilities=["coding"])
+
+    assert captured["method"] == "POST"
+    assert captured["url"] == "/discovery/register"
+    assert "agent_id" not in captured["json"]
+    assert "agent_type" not in captured["json"]
+    assert captured["json"]["capabilities"] == ["coding"]
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_proxy_register_session_keeps_explicit_identity(
+    _reset_client: None,
+) -> None:
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key="test-key",
+        agent_id="configured-agent",
+        agent_type="codex",
+        agent_id_explicit=True,
+        agent_type_explicit=True,
+    )
+    http_proxy.init_client(config)
+
+    captured: dict[str, Any] = {}
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"success": true, "session_id": "s-1"}'
+
+        def json(self) -> dict[str, Any]:
+            return {"success": True, "session_id": "s-1"}
+
+    async def _capture(method: str, url: str, **kw: Any) -> _MockResponse:
+        captured["json"] = kw.get("json")
+        return _MockResponse()
+
+    http_proxy.get_client().request = _capture  # type: ignore[method-assign]
+
+    await http_proxy.proxy_register_session()
+
+    assert captured["json"]["agent_id"] == "configured-agent"
+    assert captured["json"]["agent_type"] == "codex"
+
+
+@pytest.mark.asyncio
+async def test_proxy_heartbeat_omits_implicit_identity_for_bound_key(
+    _reset_client: None,
+) -> None:
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key="test-key",
+        agent_id="claude-code-1",
+        agent_type="claude_code",
+        agent_id_explicit=False,
+        agent_type_explicit=False,
+    )
+    http_proxy.init_client(config)
+
+    captured: dict[str, Any] = {}
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"success": true, "session_id": "s-1"}'
+
+        def json(self) -> dict[str, Any]:
+            return {"success": True, "session_id": "s-1"}
+
+    async def _capture(method: str, url: str, **kw: Any) -> _MockResponse:
+        captured["method"] = method
+        captured["url"] = url
+        captured["json"] = kw.get("json")
+        return _MockResponse()
+
+    http_proxy.get_client().request = _capture  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_heartbeat()
+
+    assert captured["method"] == "POST"
+    assert captured["url"] == "/discovery/heartbeat"
+    assert captured["json"] == {}
     assert result["success"] is True
 
 

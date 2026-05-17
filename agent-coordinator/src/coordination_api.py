@@ -258,8 +258,8 @@ class MergeQueueEnqueueRequest(BaseModel):
 
 
 class DiscoveryRegisterRequest(BaseModel):
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     session_id: str | None = None
     capabilities: list[str] | None = None
     current_task: str | None = None
@@ -268,8 +268,8 @@ class DiscoveryRegisterRequest(BaseModel):
 
 
 class DiscoveryHeartbeatRequest(BaseModel):
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     session_id: str | None = None
 
 

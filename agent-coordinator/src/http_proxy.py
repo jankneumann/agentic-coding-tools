@@ -96,6 +96,8 @@ class HttpProxyConfig:
     api_key: str | None
     agent_id: str
     agent_type: str
+    agent_id_explicit: bool = True
+    agent_type_explicit: bool = True
     timeout: float = 5.0
 
     @classmethod
@@ -117,11 +119,16 @@ class HttpProxyConfig:
             )
             return None
 
+        agent_id = os.environ.get("AGENT_ID")
+        agent_type = os.environ.get("AGENT_TYPE")
+
         return cls(
             base_url=validated.rstrip("/"),
             api_key=os.environ.get("COORDINATION_API_KEY") or None,
-            agent_id=os.environ.get("AGENT_ID", "claude-code-1"),
-            agent_type=os.environ.get("AGENT_TYPE", "claude_code"),
+            agent_id=agent_id or "claude-code-1",
+            agent_type=agent_type or "claude_code",
+            agent_id_explicit=agent_id is not None,
+            agent_type_explicit=agent_type is not None,
             timeout=float(os.environ.get("COORDINATION_HTTP_TIMEOUT", "5.0")),
         )
 
@@ -322,9 +329,16 @@ async def _request(
         return _error_response("invalid_json_response", detail=str(exc))
 
 
-def _agent_identity() -> dict[str, str]:
+def _agent_identity(*, explicit_only_when_key_bound: bool = False) -> dict[str, str]:
     """Return agent identity fields to inject into HTTP request bodies."""
     cfg = get_config()
+    if explicit_only_when_key_bound and cfg.api_key:
+        identity: dict[str, str] = {}
+        if cfg.agent_id_explicit:
+            identity["agent_id"] = cfg.agent_id
+        if cfg.agent_type_explicit:
+            identity["agent_type"] = cfg.agent_type
+        return identity
     return {"agent_id": cfg.agent_id, "agent_type": cfg.agent_type}
 
 
@@ -655,7 +669,7 @@ async def proxy_register_session(
 ) -> dict[str, Any]:
     """Proxy register_session to POST /discovery/register."""
     body = {
-        **_agent_identity(),
+        **_agent_identity(explicit_only_when_key_bound=True),
         "capabilities": capabilities,
         "current_task": current_task,
         "delegated_from": delegated_from,
@@ -678,7 +692,7 @@ async def proxy_discover_agents(
 
 async def proxy_heartbeat() -> dict[str, Any]:
     """Proxy heartbeat to POST /discovery/heartbeat."""
-    body = {**_agent_identity()}
+    body = {**_agent_identity(explicit_only_when_key_bound=True)}
     return await _request("POST", "/discovery/heartbeat", json_body=body)
 
 
