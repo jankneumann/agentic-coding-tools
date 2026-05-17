@@ -1,0 +1,264 @@
+schema_version: 1
+
+feature:
+  id: enforce-local-worktree-invariant
+  title: "Enforce local CLI worktree mutation boundary"
+  plan_revision: 1
+  created_by: codex
+  created_at: "2026-05-17T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/enforce-local-worktree-invariant/contracts/README.md"
+    files:
+      - "openspec/changes/enforce-local-worktree-invariant/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-policy-helper
+    title: "Shared checkout policy helper"
+    task_type: implement
+    description: |
+      Implement the reusable checkout mutation policy helper and tests. This
+      package owns the shared runtime API and CLI that other skills consume.
+      Covers tasks 1.1-1.4.
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/shared/checkout_policy.py"
+        - "skills/shared/tests/test_checkout_policy.py"
+      keys:
+        - "feature:enforce-local-worktree-invariant:checkoutpolicy"
+      ttl_minutes: 120
+      reason: "Shared mutation policy API and tests."
+    scope:
+      write_allow:
+        - "skills/shared/checkout_policy.py"
+        - "skills/shared/tests/test_checkout_policy.py"
+      read_allow:
+        - "skills/shared/**"
+        - "skills/worktree/scripts/**"
+        - "openspec/changes/enforce-local-worktree-invariant/**"
+    worktree:
+      name: wp-policy-helper
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "shared checkout policy tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests -v"
+          evidence:
+            artifacts:
+              - "skills/shared/checkout_policy.py"
+              - "skills/shared/tests/test_checkout_policy.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-skill-wiring
+    title: "Mutating skill worktree contracts"
+    task_type: implement
+    description: |
+      Update mutating skill instructions and invariant tests so planning,
+      exploration, autopilot, roadmap, quick-task, validation, and artifact
+      generator workflows cannot advertise local shared-checkout writes.
+      Covers tasks 2.1-2.3 and 3.2.
+    role: workflow-engineer
+    priority: 2
+    depends_on:
+      - wp-policy-helper
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/explore-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/quick-task/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/refresh-architecture/SKILL.md"
+        - "skills/changelog-version/SKILL.md"
+        - "skills/archive-roadmap/SKILL.md"
+      keys:
+        - "feature:enforce-local-worktree-invariant:skillwiring"
+        - "feature:enforce-local-worktree-invariant:autopilotisolation"
+      ttl_minutes: 120
+      reason: "Skill instruction updates and autopilot phase isolation metadata."
+    scope:
+      write_allow:
+        - "skills/explore-feature/**"
+        - "skills/iterate-on-plan/**"
+        - "skills/plan-roadmap/**"
+        - "skills/autopilot-roadmap/**"
+        - "skills/autopilot/**"
+        - "skills/quick-task/**"
+        - "skills/validate-feature/**"
+        - "skills/refresh-architecture/**"
+        - "skills/changelog-version/**"
+        - "skills/archive-roadmap/**"
+        - "skills/tests/**"
+      read_allow:
+        - "skills/**"
+        - "docs/**"
+        - "AGENTS.md"
+        - "openspec/changes/enforce-local-worktree-invariant/**"
+      deny:
+        - "skills/shared/checkout_policy.py"
+        - "skills/shared/tests/test_checkout_policy.py"
+    worktree:
+      name: wp-skill-wiring
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "skill wiring tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot skills/tests/explore-feature skills/tests/iterate-on-plan skills/tests/quick-task -v"
+          evidence:
+            artifacts:
+              - "skills/autopilot/scripts/phase_agent.py"
+              - "skills/quick-task/SKILL.md"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+
+  - package_id: wp-docs-runtime-sync
+    title: "Operator docs and runtime skill sync"
+    task_type: implement
+    description: |
+      Update operator-facing documentation and synchronize canonical skills to
+      runtime copies after canonical skill edits. Covers tasks 3.1 and 3.3.
+    role: documentation-engineer
+    priority: 3
+    depends_on:
+      - wp-skill-wiring
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "AGENTS.md"
+        - "docs/cloud-vs-local-execution.md"
+        - "docs/lessons-learned.md"
+        - ".agents/skills"
+        - ".claude/skills"
+      keys:
+        - "feature:enforce-local-worktree-invariant:operatordocs"
+        - "feature:enforce-local-worktree-invariant:runtimeskillsync"
+      ttl_minutes: 120
+      reason: "Operator docs and generated runtime skill copies."
+    scope:
+      write_allow:
+        - "AGENTS.md"
+        - "docs/cloud-vs-local-execution.md"
+        - "docs/lessons-learned.md"
+        - ".agents/skills/**"
+        - ".claude/skills/**"
+      read_allow:
+        - "skills/**"
+        - "docs/**"
+        - "AGENTS.md"
+        - "openspec/changes/enforce-local-worktree-invariant/**"
+    worktree:
+      name: wp-docs-runtime-sync
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "runtime skill sync"
+          kind: command
+          command: "bash skills/install.sh --mode rsync --deps none --python-tools none"
+          evidence:
+            artifacts:
+              - ".agents/skills"
+              - ".claude/skills"
+            result_keys:
+              - "install_exit_code"
+              - "synced_skill_count"
+    outputs:
+      result_keys:
+        - "install_exit_code"
+        - "synced_skill_count"
+
+  - package_id: wp-integration
+    title: "Validation and PR readiness"
+    task_type: verify
+    description: |
+      Run focused tests, package validation, OpenSpec validation, and prepare
+      PR review notes. Covers tasks 4.1-4.3.
+    role: integrator
+    priority: 4
+    depends_on:
+      - wp-policy-helper
+      - wp-skill-wiring
+      - wp-docs-runtime-sync
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "openspec/changes/enforce-local-worktree-invariant"
+      keys:
+        - "feature:enforce-local-worktree-invariant:integration"
+      ttl_minutes: 120
+      reason: "Final validation and PR readiness."
+    scope:
+      write_allow:
+        - "openspec/changes/enforce-local-worktree-invariant/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "focused test suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/autopilot skills/tests/explore-feature skills/tests/iterate-on-plan skills/tests/quick-task -v"
+          evidence:
+            artifacts:
+              - "skills/shared/tests"
+              - "skills/tests/autopilot"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate enforce-local-worktree-invariant --strict"
+          evidence:
+            artifacts:
+              - "openspec/changes/enforce-local-worktree-invariant/proposal.md"
+              - "openspec/changes/enforce-local-worktree-invariant/tasks.md"
+            result_keys:
+              - "openspec_validate_exit_code"
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "openspec_validate_exit_code"
