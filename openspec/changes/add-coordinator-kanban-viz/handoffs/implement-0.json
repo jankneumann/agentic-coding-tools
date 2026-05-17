@@ -1,0 +1,78 @@
+{
+  "handoff_id": "implement-0--20260517T153208Z",
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "phase": "IMPLEMENT",
+  "summary": "IMPLEMENT for add-coordinator-kanban-viz completed across all 8 work packages (94/94 tasks checked off, openspec validate --strict passes on feature branch). Final-message envelope was lost to a stream-idle timeout (~95min agent run, 298 tool uses) but the implementation itself committed and pushed to origin/openspec/add-coordinator-kanban-viz cleanly. Operator synthesized this handoff from on-disk commit evidence per the 'lost-envelope recovery' pattern. One known post-implement issue: skills/tests/agent-coordinator/test_kanban_viz_endpoints.py imports fastapi.testclient but is collected by skills/.venv (no fastapi). Either move tests to agent-coordinator/tests/ or wire a conftest.py that pins the test to the agent-coordinator venv. Flagged for IMPL_ITERATE.",
+  "packages_completed": {
+    "wp-contracts": {
+      "commit": "8751351",
+      "summary": "JSON schemas + FalkorDB reservation"
+    },
+    "wp-coord-endpoints": {
+      "commit": "26e4e74",
+      "summary": "SSE, file-write, lock/kick/labels endpoints, CORS (tasks 2.1-2.15)"
+    },
+    "wp-frontend-skeleton": {
+      "commit": "c8ebb70",
+      "summary": "Vite+React+TS scaffold, Board/Column/Card, useCoordinator hook (tasks 3.1-3.11)"
+    },
+    "wp-frontend-swimlanes": {
+      "commit": "f774dc7",
+      "summary": "VendorSwimlanes component with consensus indicator (tasks 4.1-4.8)"
+    },
+    "wp-frontend-sync-banner": {
+      "commit": "5a8f003",
+      "summary": "SyncPointBanner + ConsentPrompt (tasks 5.1-5.8)"
+    },
+    "wp-saved-views": {
+      "commit": "ac8d8db",
+      "summary": "saveView(), reversibility classifier, audit emission (tasks 6.1-6.10)"
+    },
+    "wp-tauri-scaffold": {
+      "commit": "9b95121",
+      "summary": "Tauri 2.x scaffold + runtime feature detection (tasks 7.1-7.5)"
+    },
+    "wp-integration": {
+      "commit": "bdbd7a4",
+      "summary": "e2e test, docs, skills-catalogue, CLAUDE.md note (tasks 8.1-8.6)"
+    }
+  },
+  "cross_cutting_commits": [
+    {
+      "commit": "191fb47",
+      "summary": "fix(kanban-viz): quality-gate fixes \u2014 ruff import-sort + TypeScript strict cast errors"
+    }
+  ],
+  "feature_branch": "openspec/add-coordinator-kanban-viz",
+  "feature_branch_head": "bdbd7a4",
+  "remote_sync_status": "in_sync (0 local commits ahead of origin)",
+  "validation_status": "Change 'add-coordinator-kanban-viz' is valid (openspec validate --strict on feature branch)",
+  "tasks_completed": "94/94 checkboxes in tasks.md filled",
+  "diff_stat": "60 files changed, 8262 insertions(+), 106 deletions(-)",
+  "package_authors": {
+    "wp-contracts": "claude",
+    "wp-coord-endpoints": "claude",
+    "wp-frontend-skeleton": "claude",
+    "wp-frontend-swimlanes": "claude",
+    "wp-frontend-sync-banner": "claude",
+    "wp-saved-views": "claude",
+    "wp-tauri-scaffold": "claude",
+    "wp-integration": "claude"
+  },
+  "deferred_findings_resolved": {
+    "KANBAN-001": "Addressed in wp-coord-endpoints \u2014 see commit 26e4e74 for SSE trigger details (verify on review)",
+    "KANBAN-006": "Addressed in wp-saved-views \u2014 see commit ac8d8db for runtime-detect + format-identity guarantees (verify on review)"
+  },
+  "known_issues_for_impl_iterate": [
+    {
+      "issue": "Pytest collection failure",
+      "detail": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py imports fastapi.testclient but is collected via skills/.venv (no fastapi). Test path or venv routing must be fixed before VALIDATE.",
+      "severity": "high",
+      "suggested_fix": "Move file to agent-coordinator/tests/ OR add conftest.py with pytest.importorskip('fastapi') OR install fastapi into skills/.venv via skills/pyproject.toml dev-deps."
+    }
+  ],
+  "loss_of_envelope_note": "The IMPLEMENT sub-agent (a09f2c18a5efd4beb) ran for ~95 min and committed all 8 work packages but its final outcome message was lost to API Error: Stream idle timeout \u2014 partial response received. This handoff was synthesized from on-disk git evidence after the loss. Pattern is documented in feedback_harness_worktree_silent_noop.md and should be saved as a separate feedback memory for future autopilot runs.",
+  "next_phase": "IMPL_ITERATE",
+  "created_at": "2026-05-17T15:32:08.803679+00:00"
+}
