@@ -260,56 +260,56 @@
 
 ## Phase 3 — Frontend skeleton (wp-frontend-skeleton)
 
-- [ ] 3.1 Scaffold `apps/kanban-viz/` with Vite + React + TypeScript; pin Node version in `.nvmrc`
+- [x] 3.1 Scaffold `apps/kanban-viz/` with Vite + React + TypeScript; pin Node version in `.nvmrc`
   **Spec scenarios**: "Frontend Packaging" (structure)
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 3.2 Add `apps/kanban-viz/.gitignore` excluding `dist/`, `node_modules/`, `src-tauri/target/`
+- [x] 3.2 Add `apps/kanban-viz/.gitignore` excluding `dist/`, `node_modules/`, `src-tauri/target/`
   **Spec scenarios**: "Frontend Packaging"
   **Dependencies**: 3.1
   **Size**: XS
 
-- [ ] 3.3 Wire TypeScript type generation from coordinator Pydantic models into the build (build fails on stale types)
+- [x] 3.3 Wire TypeScript type generation from coordinator Pydantic models into the build (build fails on stale types)
   **Contracts**: contracts/README.md (Frontend ↔ Coordinator Type Generation)
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 3.4 Write test (vitest): empty board renders the three-column structure with explicit empty-state copy in each
+- [x] 3.4 Write test (vitest): empty board renders the three-column structure with explicit empty-state copy in each
   **Spec scenarios**: "Empty column renders an explicit empty state"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 3.5 Write test: card renders with title, change-id, assignee, relative timestamp from a fixture issue
+- [x] 3.5 Write test: card renders with title, change-id, assignee, relative timestamp from a fixture issue
   **Spec scenarios**: "Card shows minimum required fields"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 3.6 Write test: status-to-column mapping bucketing (pending → Backlog, claimed/running → In Flight, completed-within-24h → Done)
+- [x] 3.6 Write test: status-to-column mapping bucketing (pending → Backlog, claimed/running → In Flight, completed-within-24h → Done)
   **Spec scenarios**: "Board renders cards bucketed by status"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 3.7 Checkpoint: confirm tests 3.4–3.6 RED
+- [x] 3.7 Checkpoint: confirm tests 3.4–3.6 RED
   **Dependencies**: 3.4, 3.5, 3.6
 
-- [ ] 3.8 Implement `Board`, `Column`, `Card` components against fixture data
+- [x] 3.8 Implement `Board`, `Column`, `Card` components against fixture data
   **Spec scenarios**: "Three-Column Kanban Board" (all)
   **Dependencies**: 3.7
   **Size**: M
 
-- [ ] 3.9 Implement `useCoordinator()` hook that fetches `POST /issues/list` (body: `{labels: [...]}` — coordinator uses POST-with-body), mints an SSE token via `POST /events/auth` (sending `Authorization: Bearer <api-key>`), and subscribes to `GET /events/work?token=...`
+- [x] 3.9 Implement `useCoordinator()` hook that fetches `POST /issues/list` (body: `{labels: [...]}` — coordinator uses POST-with-body), mints an SSE token via `POST /events/auth` (sending `Authorization: Bearer <api-key>`), and subscribes to `GET /events/work?token=...`
   **Spec scenarios**: "Status transition propagates within 200ms", "Polling fallback engages on EventSource failure"
   **Design decisions**: D2
   **Dependencies**: 3.8, 2.15
   **Size**: M
 
-- [ ] 3.10 Implement polling fallback inside `useCoordinator()` that engages on `EventSource` error
+- [x] 3.10 Implement polling fallback inside `useCoordinator()` that engages on `EventSource` error
   **Spec scenarios**: "Polling fallback engages on EventSource failure"
   **Dependencies**: 3.9
   **Size**: S
 
-- [ ] 3.11 Confirm tests 3.4–3.6 GREEN; add integration test wiring `useCoordinator()` against a mock SSE server
+- [x] 3.11 Confirm tests 3.4–3.6 GREEN; add integration test wiring `useCoordinator()` against a mock SSE server
   **Dependencies**: 3.10
   **Size**: M
 

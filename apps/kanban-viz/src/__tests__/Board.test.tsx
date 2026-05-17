@@ -1,0 +1,161 @@
+/**
+ * Tests for Board, Column, and Card components.
+ * Covers tasks 3.4, 3.5, 3.6.
+ */
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { Board } from "../components/Board";
+import {
+  pendingIssue,
+  claimedIssue,
+  runningIssue,
+  completedRecentIssue,
+  completedOldIssue,
+  blockedIssue,
+} from "./fixtures";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3.4: Empty board renders three columns with explicit empty-state copy
+
+describe("Board — empty state", () => {
+  it("renders three columns even when no issues are provided", () => {
+    render(<Board issues={[]} />);
+    expect(screen.getByTestId("column-backlog")).toBeInTheDocument();
+    expect(screen.getByTestId("column-in-flight")).toBeInTheDocument();
+    expect(screen.getByTestId("column-done")).toBeInTheDocument();
+  });
+
+  it("each empty column shows explicit empty-state copy", () => {
+    render(<Board issues={[]} />);
+    expect(screen.getByTestId("column-empty-state-backlog")).toBeInTheDocument();
+    expect(screen.getByTestId("column-empty-state-in-flight")).toBeInTheDocument();
+    expect(screen.getByTestId("column-empty-state-done")).toBeInTheDocument();
+  });
+
+  it("backlog empty state mentions pending work", () => {
+    render(<Board issues={[]} />);
+    expect(screen.getByTestId("column-empty-state-backlog")).toHaveTextContent(
+      /pending/i,
+    );
+  });
+
+  it("in-flight empty state mentions agents", () => {
+    render(<Board issues={[]} />);
+    expect(screen.getByTestId("column-empty-state-in-flight")).toHaveTextContent(
+      /agent/i,
+    );
+  });
+
+  it("done empty state mentions completed/tasks", () => {
+    render(<Board issues={[]} />);
+    expect(screen.getByTestId("column-empty-state-done")).toHaveTextContent(
+      /completed|task/i,
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3.5: Card renders with title, change-id, assignee, relative timestamp
+
+describe("Card fields", () => {
+  it("renders card title", () => {
+    render(<Board issues={[claimedIssue]} />);
+    expect(screen.getByTestId("card-title")).toHaveTextContent(claimedIssue.title);
+  });
+
+  it("renders change-id when present", () => {
+    render(<Board issues={[claimedIssue]} />);
+    expect(screen.getByTestId("card-change-id")).toHaveTextContent(
+      claimedIssue.change_id!,
+    );
+  });
+
+  it("renders assignee (claimed_by takes precedence)", () => {
+    render(<Board issues={[claimedIssue]} />);
+    expect(screen.getByTestId("card-assignee")).toHaveTextContent(
+      claimedIssue.claimed_by!,
+    );
+  });
+
+  it("renders relative timestamp from claimed_at", () => {
+    render(<Board issues={[claimedIssue]} />);
+    const el = screen.getByTestId("card-timestamp");
+    // Should show a relative string (min, h, d) or "just now"
+    expect(el).toBeInTheDocument();
+    expect(el.textContent).toMatch(/just now|m ago|h ago|d ago/i);
+  });
+
+  it("falls back to assignee field when claimed_by is null", () => {
+    render(<Board issues={[{ ...claimedIssue, claimed_by: null }]} />);
+    expect(screen.getByTestId("card-assignee")).toHaveTextContent(
+      claimedIssue.assignee!,
+    );
+  });
+
+  it("does not render assignee row when both claimed_by and assignee are null", () => {
+    render(<Board issues={[pendingIssue]} />);
+    expect(screen.queryByTestId("card-assignee")).not.toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3.6: Status-to-column mapping
+
+describe("Board — column bucketing", () => {
+  const allIssues = [
+    pendingIssue,       // pending → backlog
+    blockedIssue,       // blocked → backlog
+    claimedIssue,       // claimed → in-flight
+    runningIssue,       // running → in-flight
+    completedRecentIssue, // completed (< 24h) → done
+    completedOldIssue,  // completed (> 24h) → NOT shown
+  ];
+
+  it("pending issues go to backlog", () => {
+    render(<Board issues={allIssues} />);
+    const backlog = screen.getByTestId("column-backlog");
+    expect(backlog).toHaveTextContent(pendingIssue.title);
+  });
+
+  it("blocked issues go to backlog", () => {
+    render(<Board issues={allIssues} />);
+    const backlog = screen.getByTestId("column-backlog");
+    expect(backlog).toHaveTextContent(blockedIssue.title);
+  });
+
+  it("claimed issues go to in-flight", () => {
+    render(<Board issues={allIssues} />);
+    const inFlight = screen.getByTestId("column-in-flight");
+    expect(inFlight).toHaveTextContent(claimedIssue.title);
+  });
+
+  it("running issues go to in-flight", () => {
+    render(<Board issues={allIssues} />);
+    const inFlight = screen.getByTestId("column-in-flight");
+    expect(inFlight).toHaveTextContent(runningIssue.title);
+  });
+
+  it("completed-within-24h issues go to done", () => {
+    render(<Board issues={allIssues} />);
+    const done = screen.getByTestId("column-done");
+    expect(done).toHaveTextContent(completedRecentIssue.title);
+  });
+
+  it("completed-older-than-24h issues are NOT shown in done", () => {
+    render(<Board issues={allIssues} />);
+    const done = screen.getByTestId("column-done");
+    expect(done).not.toHaveTextContent(completedOldIssue.title);
+  });
+
+  it("backlog does NOT contain in-flight issues", () => {
+    render(<Board issues={allIssues} />);
+    const backlog = screen.getByTestId("column-backlog");
+    expect(backlog).not.toHaveTextContent(claimedIssue.title);
+  });
+
+  it("in-flight does NOT contain pending issues", () => {
+    render(<Board issues={allIssues} />);
+    const inFlight = screen.getByTestId("column-in-flight");
+    expect(inFlight).not.toHaveTextContent(pendingIssue.title);
+  });
+});
