@@ -38,223 +38,223 @@
 
 ## Phase 2 — Coordinator endpoints (wp-coord-endpoints)
 
-- [ ] 2.1 Write test: `GET /sync-points/status` returns three rows alphabetical by skill
+- [x] 2.1 Write test: `GET /sync-points/status` returns three rows alphabetical by skill
   **Spec scenarios**: "...Sync-Point Status — Endpoint returns one row per sync-point"
   **Contracts**: contracts/README.md (`/sync-points/status` payload)
   **Design decisions**: D5
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.2 Write test: `/sync-points/status` blocker rows include `kick:<agent_id>` suggested actions
+- [x] 2.2 Write test: `/sync-points/status` blocker rows include `kick:<agent_id>` suggested actions
   **Spec scenarios**: "Suggested actions match blocker count"
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.3 Write test: `GET /worktrees/active` filters stale entries (heartbeat > 1h) but preserves pinned
+- [x] 2.3 Write test: `GET /worktrees/active` filters stale entries (heartbeat > 1h) but preserves pinned
   **Spec scenarios**: "Endpoint omits stale worktrees", "Pinned worktrees are not filtered as stale"
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.4 Write test: `GET /events/work` rejects empty `change_ids` with 400
+- [x] 2.4 Write test: `GET /events/work` rejects empty `change_ids` with 400
   **Spec scenarios**: SSE subscription scoping (contracts/README.md)
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.5 Write test: `GET /events/work` emits `event: snapshot` on connection
+- [x] 2.5 Write test: `GET /events/work` emits `event: snapshot` on connection
   **Spec scenarios**: "Reconnection emits a snapshot"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.6 Write test: `GET /events/work` filters by subscribed change-ids server-side
+- [x] 2.6 Write test: `GET /events/work` filters by subscribed change-ids server-side
   **Spec scenarios**: "Subscription filters server-side by change-id"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.0a Write test: vendor extraction from real data: for every `audit_log.agent_id` in the last 24h matching `<wp>--<vendor>` with `<vendor> ∈ {claude,codex,gemini,chatgpt-pro}`, the suffix-parsed vendor is in-set AND (when an `agent_sessions` row exists for that `agent_id`) `agent_sessions.agent_type` maps to the same vendor per the D4 table (`claude_code → claude`, `codex → codex`, `gemini → gemini`, `claude_api → chatgpt-pro` only if so configured). The previous formulation of this test referenced `agent_profiles.metadata.vendor`, which does not exist as a per-agent column — see D4 for the schema reality check.
+- [x] 2.0a Write test: vendor extraction from real data: for every `audit_log.agent_id` in the last 24h matching `<wp>--<vendor>` with `<vendor> ∈ {claude,codex,gemini,chatgpt-pro}`, the suffix-parsed vendor is in-set AND (when an `agent_sessions` row exists for that `agent_id`) `agent_sessions.agent_type` maps to the same vendor per the D4 table (`claude_code → claude`, `codex → codex`, `gemini → gemini`, `claude_api → chatgpt-pro` only if so configured). The previous formulation of this test referenced `agent_profiles.metadata.vendor`, which does not exist as a per-agent column — see D4 for the schema reality check.
   **Spec scenarios**: "Vendor Swimlanes on In-Flight Cards" (vendor source-of-truth verification)
   **Design decisions**: D4
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.7 Write test: SSE handler subscribes to existing `EventBusService` channel `coordinator_task` and dispatches a `transition` SSE event when `IssueService.update` commits a `work_queue` mutation
+- [x] 2.7 Write test: SSE handler subscribes to existing `EventBusService` channel `coordinator_task` and dispatches a `transition` SSE event when `IssueService.update` commits a `work_queue` mutation
   **Spec scenarios**: "NOTIFY emission flows through the existing event bus"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7c Write test: new channel `coordinator_audit` is registered on `event_bus.CHANNELS`, its trigger fires on `audit_log` inserts, and SSE handler dispatches a corresponding `audit` SSE event
+- [x] 2.7c Write test: new channel `coordinator_audit` is registered on `event_bus.CHANNELS`, its trigger fires on `audit_log` inserts, and SSE handler dispatches a corresponding `audit` SSE event
   **Spec scenarios**: "New coordinator_audit channel is wired into AuditService.log_operation"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7d Write test: `PATCH /issues/{id}/labels` adds and removes labels, returns 200 with updated row, emits an `audit_log` entry
+- [x] 2.7d Write test: `PATCH /issues/{id}/labels` adds and removes labels, returns 200 with updated row, emits an `audit_log` entry
   **Spec scenarios**: "PATCH /issues/{id}/labels adds and removes labels"
   **Design decisions**: D9
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.7e Write test: `DELETE /locks/{file_path}` force-releases lock held by a different agent, returns `prior_holder_agent_id`, emits an `audit_log` entry
+- [x] 2.7e Write test: `DELETE /locks/{file_path}` force-releases lock held by a different agent, returns `prior_holder_agent_id`, emits an `audit_log` entry
   **Spec scenarios**: "DELETE /locks/{file_path} force-releases a stale lock"
   **Design decisions**: D9
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.7f Write test: `POST /agents/{agent_id}/kick` clears the agent's entry from `.git-worktrees/.registry.json` (via the worktree teardown helper) AND updates `agent_sessions.status='disconnected'` and `last_heartbeat=epoch`; returns 200 with body `{registry_cleared, agent_sessions_updated, held_locks}`; emits an `audit_log` entry; and a subsequent `check_no_active_agents()` call returns the agent as not-active. Add a second test scenario asserting that file_locks held by the kicked agent are NOT auto-released and ARE surfaced in `held_locks`.
+- [x] 2.7f Write test: `POST /agents/{agent_id}/kick` clears the agent's entry from `.git-worktrees/.registry.json` (via the worktree teardown helper) AND updates `agent_sessions.status='disconnected'` and `last_heartbeat=epoch`; returns 200 with body `{registry_cleared, agent_sessions_updated, held_locks}`; emits an `audit_log` entry; and a subsequent `check_no_active_agents()` call returns the agent as not-active. Add a second test scenario asserting that file_locks held by the kicked agent are NOT auto-released and ARE surfaced in `held_locks`.
   **Spec scenarios**: "POST /agents/{agent_id}/kick clears worktree registry and updates session", "POST /agents/{agent_id}/kick does NOT auto-release file locks"
   **Design decisions**: D9
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7a Write test: `POST /events/auth` mints a JWT with `aud=events`, `exp` within `ttl=300s`, fresh `nonce`, requires `Authorization: Bearer` header
+- [x] 2.7a Write test: `POST /events/auth` mints a JWT with `aud=events`, `exp` within `ttl=300s`, fresh `nonce`, requires `Authorization: Bearer` header
   **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7b Write test: `GET /events/work` rejects requests with missing / expired / wrong-aud / replayed-nonce / change_ids-mismatched JWT (401, stream not opened); access log captures the request line with `token=` redacted
+- [x] 2.7b Write test: `GET /events/work` rejects requests with missing / expired / wrong-aud / replayed-nonce / change_ids-mismatched JWT (401, stream not opened); access log captures the request line with `token=` redacted
   **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake", "Token-in-URL mitigations"
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7g Write test: `PUT /kanban-viz/saved-views/{slug}` writes a saved view to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/{slug}.json` with server-stamped mandatory artifact header; rejects slugs not matching `^[a-z0-9][a-z0-9-]{0,63}$` with 400; rejects resolved paths escaping `WORKDIR_ROOT` with 400; emits an `audit_log` row.
+- [x] 2.7g Write test: `PUT /kanban-viz/saved-views/{slug}` writes a saved view to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/{slug}.json` with server-stamped mandatory artifact header; rejects slugs not matching `^[a-z0-9][a-z0-9-]{0,63}$` with 400; rejects resolved paths escaping `WORKDIR_ROOT` with 400; emits an `audit_log` row.
   **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view", "Slug with directory traversal is rejected"
   **Design decisions**: D10
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7h Write test: `POST /kanban-viz/audit` appends a UI audit event under `<WORKDIR_ROOT>/docs/kanban-viz/audit/<YYYY-MM-DD>/<run_id>.json`; date directory derived server-side from `generated_at` (UTC); same anti-traversal validation as saved-views; emits an `audit_log` row.
+- [x] 2.7h Write test: `POST /kanban-viz/audit` appends a UI audit event under `<WORKDIR_ROOT>/docs/kanban-viz/audit/<YYYY-MM-DD>/<run_id>.json`; date directory derived server-side from `generated_at` (UTC); same anti-traversal validation as saved-views; emits an `audit_log` row.
   **Spec scenarios**: "POST /kanban-viz/audit appends a UI audit event"
   **Design decisions**: D10
   **Dependencies**: 1.6
   **Size**: M
 
-- [ ] 2.7i Write test: CORS preflight for `PATCH /issues/{id}/labels` from `http://localhost:5173` succeeds with the expected `Access-Control-*` headers (origin, methods include PATCH, headers include `Authorization, X-Coordinator-API-Key, Content-Type`, max-age=600, credentials=false). Preflight from `http://evil.example/` returns response WITHOUT `Access-Control-Allow-Origin` for that origin (browser blocks; server need not additionally reject).
+- [x] 2.7i Write test: CORS preflight for `PATCH /issues/{id}/labels` from `http://localhost:5173` succeeds with the expected `Access-Control-*` headers (origin, methods include PATCH, headers include `Authorization, X-Coordinator-API-Key, Content-Type`, max-age=600, credentials=false). Preflight from `http://evil.example/` returns response WITHOUT `Access-Control-Allow-Origin` for that origin (browser blocks; server need not additionally reject).
   **Spec scenarios**: "Allowed origin receives CORS headers", "Disallowed origin is blocked client-side"
   **Design decisions**: D12
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.7j Write test (fail-closed): coordinator booted with `COORDINATOR_SSE_SIGNING_KEY` unset MUST 503 every `POST /events/auth` and `GET /events/work` request; no JWT is minted; the SSE handler refuses to open the stream. Test by spinning up the API with the env var explicitly stripped.
+- [x] 2.7j Write test (fail-closed): coordinator booted with `COORDINATOR_SSE_SIGNING_KEY` unset MUST 503 every `POST /events/auth` and `GET /events/work` request; no JWT is minted; the SSE handler refuses to open the stream. Test by spinning up the API with the env var explicitly stripped.
   **Spec scenarios**: "SSE token signing key absent fails closed"
   **Design decisions**: D11
   **Dependencies**: 1.6
   **Size**: S
 
-- [ ] 2.8 Checkpoint: confirm tests 2.0a, 2.1–2.7j RED
+- [x] 2.8 Checkpoint: confirm tests 2.0a, 2.1–2.7j RED
   **Dependencies**: 2.0a, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.7a, 2.7b, 2.7c, 2.7d, 2.7e, 2.7f, 2.7g, 2.7h, 2.7i, 2.7j
 
-- [ ] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` importing `check_no_active_agents` from `skills/shared/active_agents.py` (canonical filename — NOT `check_no_active_agents.py`)
+- [x] 2.9 Implement `GET /sync-points/status` in `agent-coordinator/src/coordination_api.py` importing `check_no_active_agents` from `skills/shared/active_agents.py` (canonical filename — NOT `check_no_active_agents.py`)
   **Spec scenarios**: "...Sync-Point Status" (all)
   **Design decisions**: D5
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.10 Implement `GET /worktrees/active` in `coordination_api.py` reading the registry via existing `worktree.py list` JSON output
+- [x] 2.10 Implement `GET /worktrees/active` in `coordination_api.py` reading the registry via existing `worktree.py list` JSON output
   **Spec scenarios**: "...Worktree Active Projection" (all)
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.11 Implement `POST /events/auth` JWT-mint endpoint (header-authenticated; short-lived single-use token bound to `aud=events`, `change_ids`, server-stored `nonce`)
+- [x] 2.11 Implement `POST /events/auth` JWT-mint endpoint (header-authenticated; short-lived single-use token bound to `aud=events`, `change_ids`, server-stored `nonce`)
   **Spec scenarios**: contracts/README.md — `GET /events/work` "Auth handshake"
   **Design decisions**: D2
   **Dependencies**: 2.8
   **Size**: M
 
-- [ ] 2.12 Implement `GET /events/work` SSE handler by registering callbacks on the existing `EventBusService` via `event_bus.on_event(channel="coordinator_task", callback=...)` and `event_bus.on_event(channel="coordinator_audit", callback=...)` — do NOT open a parallel Postgres `LISTEN` connection (the contract forbids it and the bus is the single emission point). Use `sse-starlette` or equivalent for the streaming response. Validate JWT from the query string, redact `token=` from access logs, reject on signature/nonce/exp/aud/change_ids mismatch.
+- [x] 2.12 Implement `GET /events/work` SSE handler by registering callbacks on the existing `EventBusService` via `event_bus.on_event(channel="coordinator_task", callback=...)` and `event_bus.on_event(channel="coordinator_audit", callback=...)` — do NOT open a parallel Postgres `LISTEN` connection (the contract forbids it and the bus is the single emission point). Use `sse-starlette` or equivalent for the streaming response. Validate JWT from the query string, redact `token=` from access logs, reject on signature/nonce/exp/aud/change_ids mismatch.
   **Spec scenarios**: "...Work Event Stream (SSE)" (all)
   **Design decisions**: D2, "Live update protocol details"
   **Dependencies**: 2.8, 2.11
   **Size**: L
 
-- [ ] 2.13 Add a new `coordinator_audit` LISTEN/NOTIFY channel to `event_bus.CHANNELS`, install the matching Postgres trigger on `audit_log`, and wire `AuditService.log_operation` (the public method in `agent-coordinator/src/audit.py` that delegates to `_insert_audit_entry`) to emit through the bus. Do NOT add a parallel NOTIFY pathway; the existing `coordinator_task` channel already covers `work_queue` mutations.
+- [x] 2.13 Add a new `coordinator_audit` LISTEN/NOTIFY channel to `event_bus.CHANNELS`, install the matching Postgres trigger on `audit_log`, and wire `AuditService.log_operation` (the public method in `agent-coordinator/src/audit.py` that delegates to `_insert_audit_entry`) to emit through the bus. Do NOT add a parallel NOTIFY pathway; the existing `coordinator_task` channel already covers `work_queue` mutations.
   **Spec scenarios**: "NOTIFY emission flows through the existing event bus", "New coordinator_audit channel is wired into AuditService.log_operation"
   **Dependencies**: 2.8
   **Size**: M
 
-- [ ] 2.13z Extend `verify_api_key` in `coordination_api.py:350` to additionally accept `Authorization: Bearer <key>` and `X-Coordinator-API-Key` headers in parallel with the existing `X-API-Key` header. The Kanban UI standardizes on `Authorization: Bearer` (so the same header works for the `POST /events/auth` JWT mint flow and CORS-preflight `Access-Control-Allow-Headers` whitelist matches design.md D12). Existing callers using `X-API-Key` MUST keep working unchanged (backward compatibility). Order of precedence on a single request: `Authorization: Bearer` > `X-Coordinator-API-Key` > `X-API-Key`. Add tests for each header and the precedence rule.
+- [x] 2.13z Extend `verify_api_key` in `coordination_api.py:350` to additionally accept `Authorization: Bearer <key>` and `X-Coordinator-API-Key` headers in parallel with the existing `X-API-Key` header. The Kanban UI standardizes on `Authorization: Bearer` (so the same header works for the `POST /events/auth` JWT mint flow and CORS-preflight `Access-Control-Allow-Headers` whitelist matches design.md D12). Existing callers using `X-API-Key` MUST keep working unchanged (backward compatibility). Order of precedence on a single request: `Authorization: Bearer` > `X-Coordinator-API-Key` > `X-API-Key`. Add tests for each header and the precedence rule.
   **Spec scenarios**: "Coordinator accepts Authorization: Bearer for write endpoints", "Coordinator preserves X-API-Key backward compatibility"
   **Design decisions**: D11, D12
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13y Extend the `Issue` dataclass in `agent-coordinator/src/issue_service.py` (fields, `from_row`, `to_dict`) to expose `claimed_by: str | None` and `claimed_at: datetime | None` from the underlying `work_queue` row. The Kanban board contract (spec.md scenarios "Board renders cards bucketed by status", "Card shows minimum required fields") requires these fields so the card can show the assignee's `agent_id` and the relative timestamp. Existing fields stay unchanged; this is an additive surface change. `from_row` reads `row.get("claimed_by")` and `parse_dt(row.get("claimed_at"))`; `to_dict` adds the two keys. Update the issue list/show/comment endpoint contract docs in `openspec/changes/add-coordinator-kanban-viz/contracts/README.md` to reflect the additive fields.
+- [x] 2.13y Extend the `Issue` dataclass in `agent-coordinator/src/issue_service.py` (fields, `from_row`, `to_dict`) to expose `claimed_by: str | None` and `claimed_at: datetime | None` from the underlying `work_queue` row. The Kanban board contract (spec.md scenarios "Board renders cards bucketed by status", "Card shows minimum required fields") requires these fields so the card can show the assignee's `agent_id` and the relative timestamp. Existing fields stay unchanged; this is an additive surface change. `from_row` reads `row.get("claimed_by")` and `parse_dt(row.get("claimed_at"))`; `to_dict` adds the two keys. Update the issue list/show/comment endpoint contract docs in `openspec/changes/add-coordinator-kanban-viz/contracts/README.md` to reflect the additive fields.
   **Spec scenarios**: "Card shows minimum required fields", "Board renders cards bucketed by status"
   **Design decisions**: D9 (data shape)
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13a Implement `PATCH /issues/{id}/labels` in `coordination_api.py`, wrapping `IssueService.update` with a labels-only update path
+- [x] 2.13a Implement `PATCH /issues/{id}/labels` in `coordination_api.py`, wrapping `IssueService.update` with a labels-only update path
   **Spec scenarios**: "PATCH /issues/{id}/labels adds and removes labels"
   **Design decisions**: D9
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13b0 Add `LockService.force_release(file_path) -> dict` to `agent-coordinator/src/locks.py` (precursor to 2.13b). The existing `LockService.release(file_path)` delegates to the Postgres `release_lock(...)` RPC, which enforces holder-only semantics. `force_release` runs an inline parameterized `DELETE FROM file_locks WHERE file_path=$1` via `self.db.execute(...)`, captures the prior holder via a `SELECT ... RETURNING` (or a pre-DELETE lookup), and returns `{released: bool, prior_holder: dict | None}`. This keeps the holder-only check intact in the normal release path; force-release is a separate, audited method.
+- [x] 2.13b0 Add `LockService.force_release(file_path) -> dict` to `agent-coordinator/src/locks.py` (precursor to 2.13b). The existing `LockService.release(file_path)` delegates to the Postgres `release_lock(...)` RPC, which enforces holder-only semantics. `force_release` runs an inline parameterized `DELETE FROM file_locks WHERE file_path=$1` via `self.db.execute(...)`, captures the prior holder via a `SELECT ... RETURNING` (or a pre-DELETE lookup), and returns `{released: bool, prior_holder: dict | None}`. This keeps the holder-only check intact in the normal release path; force-release is a separate, audited method.
 
-- [ ] 2.13b1 Add optional `since` and `change_id` filters to `GET /audit` (`coordination_api.py:1146`) and `AuditService.query`. Backward-compatible: all new params optional with no-filter defaults. The `change_id` filter joins to `work_queue` via the audit row's `parameters` JSONB column, or falls back to the `agent_id` → `agent_sessions.change_id` mapping. The `since` filter is a `created_at >= $N` predicate (parse ISO-8601). Add tests for both filters and a combined-filter case.
+- [x] 2.13b1 Add optional `since` and `change_id` filters to `GET /audit` (`coordination_api.py:1146`) and `AuditService.query`. Backward-compatible: all new params optional with no-filter defaults. The `change_id` filter joins to `work_queue` via the audit row's `parameters` JSONB column, or falls back to the `agent_id` → `agent_sessions.change_id` mapping. The `since` filter is a `created_at >= $N` predicate (parse ISO-8601). Add tests for both filters and a combined-filter case.
   **Spec scenarios**: "GET /audit accepts since and change_id query parameters"
   **Design decisions**: design.md "Polling fallback"
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13b Implement `DELETE /locks/{file_path:path}` in `coordination_api.py`, calling `locks.force_release(file_path)` (added in 2.13b0) and emitting an audit row capturing the prior holder from the returned dict.
+- [x] 2.13b Implement `DELETE /locks/{file_path:path}` in `coordination_api.py`, calling `locks.force_release(file_path)` (added in 2.13b0) and emitting an audit row capturing the prior holder from the returned dict.
   **Spec scenarios**: "DELETE /locks/{file_path} force-releases a stale lock"
   **Design decisions**: D9
   **Dependencies**: 2.8, 2.13b0
   **Size**: S
 
-- [ ] 2.13c0 Add `--force` flag to the `teardown` subcommand of `skills/worktree/scripts/worktree.py` (precursor to 2.13c). When set, teardown removes the registry entry and best-effort `git worktree remove` even if the worktree path is dirty, missing, or already deleted. This flag does not exist today (only the `gc` subcommand has `--force`); 2.13c depends on it.
+- [x] 2.13c0 Add `--force` flag to the `teardown` subcommand of `skills/worktree/scripts/worktree.py` (precursor to 2.13c). When set, teardown removes the registry entry and best-effort `git worktree remove` even if the worktree path is dirty, missing, or already deleted. This flag does not exist today (only the `gc` subcommand has `--force`); 2.13c depends on it.
   **Spec scenarios**: covered by 2.13c tests
   **Design decisions**: D9 (precursor)
   **Dependencies**: (none — `skills/worktree/scripts/worktree.py` is the implementation target)
   **Size**: S
 
-- [ ] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`: (a) request body MUST include `change_id` (registry is keyed by `(change_id, agent_id)`); reject with 422 if absent; (b) invoke `skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (depends on 2.13c0) to remove the agent's `.git-worktrees/.registry.json` entry — this is the only path that affects `check_no_active_agents()` since the guard reads the on-disk registry, NOT a database table; (c) `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1` for coordinator-side discovery; (d) return `{registry_cleared, agent_sessions_updated, held_locks}` so the UI can surface partial failures and locks still held; (e) emit an audit row capturing both side effects.
+- [x] 2.13c Implement `POST /agents/{agent_id}/kick` in `coordination_api.py`: (a) request body MUST include `change_id` (registry is keyed by `(change_id, agent_id)`); reject with 422 if absent; (b) invoke `skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <agent_id> --force` (depends on 2.13c0) to remove the agent's `.git-worktrees/.registry.json` entry — this is the only path that affects `check_no_active_agents()` since the guard reads the on-disk registry, NOT a database table; (c) `UPDATE agent_sessions SET status='disconnected', last_heartbeat='epoch' WHERE agent_id=$1` for coordinator-side discovery; (d) return `{registry_cleared, agent_sessions_updated, held_locks}` so the UI can surface partial failures and locks still held; (e) emit an audit row capturing both side effects.
   **Spec scenarios**: "POST /agents/{agent_id}/kick clears worktree registry and updates session", "POST /agents/{agent_id}/kick does NOT auto-release file locks"
   **Design decisions**: D9
   **Dependencies**: 2.8, 2.13c0
   **Size**: S
 
-- [ ] 2.13d0 Add `COORDINATOR_WORKDIR_ROOT` to `agent-coordinator/src/config.py` (precursor to 2.13d and 2.13e). Default: `Path(__file__).resolve().parents[2]` (the repo root when running from the source tree). Override via `COORDINATOR_WORKDIR_ROOT` env var (resolved to an absolute path at startup). Document in the env-vars section of `agent-coordinator/CLAUDE.md`. Add a `resolve_workdir_path(*parts)` helper that joins parts to the configured root, resolves with `strict=False`, and asserts the resolved path is within the root (raises ValueError otherwise) so 2.13d and 2.13e share the same path-safety implementation.
+- [x] 2.13d0 Add `COORDINATOR_WORKDIR_ROOT` to `agent-coordinator/src/config.py` (precursor to 2.13d and 2.13e). Default: `Path(__file__).resolve().parents[2]` (the repo root when running from the source tree). Override via `COORDINATOR_WORKDIR_ROOT` env var (resolved to an absolute path at startup). Document in the env-vars section of `agent-coordinator/CLAUDE.md`. Add a `resolve_workdir_path(*parts)` helper that joins parts to the configured root, resolves with `strict=False`, and asserts the resolved path is within the root (raises ValueError otherwise) so 2.13d and 2.13e share the same path-safety implementation.
   **Spec scenarios**: covered by 2.13d/2.13e path-traversal tests
   **Design decisions**: D10 (precursor)
   **Dependencies**: (none — `agent-coordinator/src/config.py` is the implementation target)
   **Size**: S
 
-- [ ] 2.13d Implement `PUT /kanban-viz/saved-views/{slug}` in `coordination_api.py`: validate slug against `^[a-z0-9][a-z0-9-]{0,63}$`; resolve path via the new `resolve_workdir_path("docs", "kanban-viz", "saved-views", f"{slug}.json")` helper (2.13d0); reject paths escaping the root (helper raises); stamp the mandatory artifact header server-side; write atomically via tmp-file + rename; emit an `audit_log` row.
+- [x] 2.13d Implement `PUT /kanban-viz/saved-views/{slug}` in `coordination_api.py`: validate slug against `^[a-z0-9][a-z0-9-]{0,63}$`; resolve path via the new `resolve_workdir_path("docs", "kanban-viz", "saved-views", f"{slug}.json")` helper (2.13d0); reject paths escaping the root (helper raises); stamp the mandatory artifact header server-side; write atomically via tmp-file + rename; emit an `audit_log` row.
   **Spec scenarios**: "PUT /kanban-viz/saved-views/{slug} writes a saved view", "PUT /kanban-viz/saved-views/{slug} rejects path-traversal slugs"
   **Design decisions**: D10
   **Dependencies**: 2.8, 2.13d0
   **Size**: M
 
-- [ ] 2.13e Implement `POST /kanban-viz/audit` in `coordination_api.py`: same slug/run-id validation, same `resolve_workdir_path(...)` resolution (2.13d0), same atomic-write semantics; derive the date subdirectory server-side from the stamped `generated_at`; emit an `audit_log` row.
+- [x] 2.13e Implement `POST /kanban-viz/audit` in `coordination_api.py`: same slug/run-id validation, same `resolve_workdir_path(...)` resolution (2.13d0), same atomic-write semantics; derive the date subdirectory server-side from the stamped `generated_at`; emit an `audit_log` row.
   **Spec scenarios**: "POST /kanban-viz/audit appends a UI audit event"
   **Design decisions**: D10
   **Dependencies**: 2.8, 2.13d0
   **Size**: M
 
-- [ ] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, X-API-Key, Content-Type]` (legacy `X-API-Key` retained for backward compatibility per 2.13z); `allow_credentials=False`; `max_age=600`.
+- [x] 2.13f Wire FastAPI CORS middleware in `coordination_api.py` with the D12 configuration: `allow_origins` = union of `http://localhost:5173` and `COORDINATOR_CORS_ALLOWED_ORIGINS` env CSV; `allow_methods=[GET, POST, PATCH, DELETE, OPTIONS]`; `allow_headers=[Authorization, X-Coordinator-API-Key, X-API-Key, Content-Type]` (legacy `X-API-Key` retained for backward compatibility per 2.13z); `allow_credentials=False`; `max_age=600`.
   **Spec scenarios**: "Allowed origin receives CORS headers", "Disallowed origin is blocked client-side"
   **Design decisions**: D12
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13g Add a SQL migration under `agent-coordinator/database/migrations/` (next sequential number) installing a NOTIFY trigger on `audit_log` that emits to the new `coordinator_audit` channel. Mirror the existing `trg_work_queue_notify` pattern in `015_notification_triggers.sql`; respect the `app.coordinator_internal = 'true'` skip flag for the same reason existing triggers do (avoids re-emitting during coordinator-driven inserts).
+- [x] 2.13g Add a SQL migration under `agent-coordinator/database/migrations/` (next sequential number) installing a NOTIFY trigger on `audit_log` that emits to the new `coordinator_audit` channel. Mirror the existing `trg_work_queue_notify` pattern in `015_notification_triggers.sql`; respect the `app.coordinator_internal = 'true'` skip flag for the same reason existing triggers do (avoids re-emitting during coordinator-driven inserts).
   **Spec scenarios**: contracts/README.md ("Database schema" sub-type, "One additive migration")
   **Design decisions**: design.md "Live update protocol details"
   **Dependencies**: 2.8
   **Size**: S
 
-- [ ] 2.13h Add fail-closed startup check for `COORDINATOR_SSE_SIGNING_KEY`: if unset, both `POST /events/auth` and `GET /events/work` return 503 from a small dependency wired at startup. The check MUST short-circuit before any JWT decode runs.
+- [x] 2.13h Add fail-closed startup check for `COORDINATOR_SSE_SIGNING_KEY`: if unset, both `POST /events/auth` and `GET /events/work` return 503 from a small dependency wired at startup. The check MUST short-circuit before any JWT decode runs.
   **Spec scenarios**: "SSE token signing key absent fails closed"
   **Design decisions**: D11
   **Dependencies**: 2.8
   **Size**: XS
 
-- [ ] 2.14 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
+- [x] 2.14 Add backpressure coalescing (cap 100 events/sec/connection → snapshot) to SSE handler
   **Spec scenarios**: "Backpressure coalesces excessive events"
   **Dependencies**: 2.12
   **Size**: M
 
-- [ ] 2.15 Confirm tests 2.0a, 2.1–2.7j GREEN
+- [x] 2.15 Confirm tests 2.0a, 2.1–2.7j GREEN
   **Dependencies**: 2.9, 2.10, 2.11, 2.12, 2.13, 2.13a, 2.13b, 2.13c, 2.13d, 2.13e, 2.13f, 2.13g, 2.13h, 2.14
   **Size**: XS
 

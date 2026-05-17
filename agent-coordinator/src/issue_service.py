@@ -64,6 +64,9 @@ class Issue:
     metadata: dict[str, Any] = field(default_factory=dict)
     children: list[dict[str, Any]] | None = None
     comments: list[dict[str, Any]] | None = None
+    # Additive fields for Kanban board (contract: "Card shows minimum required fields")
+    claimed_by: str | None = None
+    claimed_at: datetime | None = None
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> Issue:
@@ -98,6 +101,8 @@ class Issue:
             closed_at=parse_dt(row.get("closed_at")),
             close_reason=row.get("close_reason"),
             metadata=metadata,
+            claimed_by=row.get("claimed_by"),
+            claimed_at=parse_dt(row.get("claimed_at")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -119,6 +124,8 @@ class Issue:
             "metadata": self.metadata,
             "children": self.children,
             "comments": self.comments,
+            "claimed_by": self.claimed_by,
+            "claimed_at": self.claimed_at.isoformat() if self.claimed_at else None,
         }
 
 

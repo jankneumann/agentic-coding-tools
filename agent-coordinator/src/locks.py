@@ -401,6 +401,62 @@ class LockService:
         locks = await self.check([file_path])
         return locks[0] if locks else None
 
+    async def force_release(
+        self,
+        file_path: str,
+        agent_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Force-release a lock regardless of who holds it.
+
+        Unlike ``release()``, which delegates to the ``release_lock`` Postgres
+        RPC (holder-only semantics), this method runs a direct parameterized
+        ``DELETE FROM file_locks WHERE file_path=$1``. It is intended for
+        operator-initiated force-release actions via the Kanban UI
+        (``DELETE /locks/{file_path}``).
+
+        Returns:
+            dict with keys ``released: bool`` and ``prior_holder: dict | None``
+            containing the prior lock row, or ``None`` when no lock existed.
+        """
+        config = get_config()
+        caller_id = agent_id or config.agent.agent_id
+
+        # Read current lock for the audit row before deleting
+        existing = await self.is_locked(file_path)
+        if existing is None:
+            return {"released": False, "prior_holder": None}
+
+        prior_holder: dict[str, Any] = {
+            "agent_id": existing.locked_by,
+            "agent_type": existing.agent_type,
+            "locked_at": existing.locked_at.isoformat(),
+            "expires_at": existing.expires_at.isoformat(),
+            "reason": existing.reason,
+        }
+
+        try:
+            await self.db.delete("file_locks", {"file_path": file_path})
+        except Exception as exc:
+            logger.error("force_release failed for %s: %s", file_path, exc)
+            return {"released": False, "prior_holder": prior_holder}
+
+        try:
+            from .audit import get_audit_service
+
+            await get_audit_service().log_operation(
+                agent_id=caller_id,
+                operation="force_release_lock",
+                parameters={
+                    "file_path": file_path,
+                    "prior_holder": prior_holder,
+                },
+                success=True,
+            )
+        except Exception:
+            logger.warning("Audit log failed for force_release_lock", exc_info=True)
+
+        return {"released": True, "prior_holder": prior_holder}
+
 
 # Global service instance
 _lock_service: LockService | None = None

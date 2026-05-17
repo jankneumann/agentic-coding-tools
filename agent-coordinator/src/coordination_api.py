@@ -342,19 +342,69 @@ class AffectedTestsRequest(BaseModel):
     changed_files: list[str]
 
 
+# ── Kanban-viz request models ──────────────────────────────────────────────
+
+class EventsAuthRequest(BaseModel):
+    change_ids: list[str] = Field(min_length=1, description="change-ids to scope the token")
+    ttl: int = Field(default=300, ge=1, le=600, description="Token TTL in seconds")
+
+
+class PatchLabelsRequest(BaseModel):
+    add: list[str] = Field(default_factory=list)
+    remove: list[str] = Field(default_factory=list)
+
+
+class KickAgentRequest(BaseModel):
+    change_id: str = Field(description="Registry key alongside agent_id")
+
+
+class SavedViewRequest(BaseModel):
+    view: dict[str, Any]
+
+
+class KanbanAuditRequest(BaseModel):
+    run_id: str
+    event: dict[str, Any]
+
+
 # =============================================================================
 # Auth helpers
 # =============================================================================
 
 
-async def verify_api_key(x_api_key: str | None = Header(None)) -> dict[str, Any]:
-    """Verify the API key for write operations."""
+async def verify_api_key(
+    x_api_key: str | None = Header(None),
+    authorization: str | None = Header(None),
+    x_coordinator_api_key: str | None = Header(None),
+) -> dict[str, Any]:
+    """Verify the API key for write operations.
+
+    Accepts keys from three headers (precedence order):
+      1. ``Authorization: Bearer <key>`` — preferred by the Kanban UI and
+         required by the ``POST /events/auth`` JWT-mint flow.
+      2. ``X-Coordinator-API-Key`` — secondary alias added for CORS allow-list
+         symmetry; avoids reusing the legacy header name.
+      3. ``X-API-Key`` — legacy header retained for backward compatibility.
+
+    Existing callers using only ``X-API-Key`` are unaffected.
+    """
+    # Resolve effective key by precedence
+    resolved_key: str | None = None
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token.strip():
+            resolved_key = token.strip()
+    if resolved_key is None and x_coordinator_api_key:
+        resolved_key = x_coordinator_api_key.strip() or None
+    if resolved_key is None and x_api_key:
+        resolved_key = x_api_key.strip() or None
+
     config = get_config()
-    if not x_api_key or x_api_key not in config.api.api_keys:
+    if not resolved_key or resolved_key not in config.api.api_keys:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    identity = config.api.api_key_identities.get(x_api_key, {})
+    identity = config.api.api_key_identities.get(resolved_key, {})
     return {
-        "api_key": x_api_key,
+        "api_key": resolved_key,
         "agent_id": identity.get("agent_id"),
         "agent_type": identity.get("agent_type"),
     }
@@ -539,6 +589,32 @@ def create_coordination_api() -> FastAPI:
         description="Write operations for multi-agent coordination",
         version="0.2.0",
         lifespan=lifespan,
+    )
+
+    # CORS middleware — design decision D12.
+    # Allows http://localhost:5173 (Vite dev) plus additional origins from
+    # COORDINATOR_CORS_ALLOWED_ORIGINS CSV.  Credentials=False; the API key
+    # travels in headers, not cookies.
+    import os as _os
+    from fastapi.middleware.cors import CORSMiddleware
+
+    _cors_origins = ["http://localhost:5173"]
+    _extra_origins = _os.environ.get("COORDINATOR_CORS_ALLOWED_ORIGINS", "").strip()
+    if _extra_origins:
+        _cors_origins.extend(o.strip() for o in _extra_origins.split(",") if o.strip())
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "X-Coordinator-API-Key",
+            "X-API-Key",
+            "Content-Type",
+        ],
+        allow_credentials=False,
+        max_age=600,
     )
 
     # Mount Prometheus /metrics endpoint if enabled
@@ -2568,6 +2644,435 @@ def create_coordination_api() -> FastAPI:
                 "hint": "GET /help for an overview of all topics",
             },
         )
+
+    # -------------------------------------------------------------------- #
+    # KANBAN-VIZ — sync-point status, worktrees, SSE, write/file-write    #
+    # -------------------------------------------------------------------- #
+
+    @app.get("/sync-points/status")
+    async def get_sync_points_status(
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> list[dict[str, Any]]:
+        """Return the blocker state of the three sync-point skills.
+
+        Alphabetical by skill; reuses check_no_active_agents() from
+        skills/shared/active_agents.py (design D5).
+        """
+        from .sync_points import get_sync_points_status as _get
+
+        return _get()
+
+    @app.get("/worktrees/active")
+    async def get_active_worktrees(
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> list[dict[str, Any]]:
+        """Return active worktree entries from .git-worktrees/.registry.json.
+
+        Omits stale entries (heartbeat > 1h); pinned entries always included.
+        """
+        from .worktrees_view import get_active_worktrees as _get
+
+        return _get()
+
+    @app.post("/events/auth")
+    async def mint_events_token(
+        request: EventsAuthRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> Any:
+        """Mint a short-lived JWT for the SSE auth handshake.
+
+        Fails closed (503) when COORDINATOR_SSE_SIGNING_KEY is unset.
+        """
+        from fastapi.responses import JSONResponse
+
+        from .event_stream import mint_events_token as _mint, _get_signing_key
+
+        if _get_signing_key() is None:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "SSE signing key not configured (fail-closed)"},
+            )
+
+        if not request.change_ids:
+            raise HTTPException(status_code=400, detail="change_ids must be non-empty")
+
+        try:
+            result = _mint(
+                change_ids=request.change_ids,
+                key_id=principal.get("agent_id"),
+                ttl=request.ttl,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        return result
+
+    @app.get("/events/work")
+    async def stream_work_events(
+        change_ids: str = "",
+        token: str = "",
+    ) -> Any:
+        """SSE stream of work-queue transitions and audit events.
+
+        Auth: JWT in ``?token=<jwt>`` minted by POST /events/auth.
+        change_ids: comma-separated list (required; rejected with 400 if empty).
+        Fails closed (503) when COORDINATOR_SSE_SIGNING_KEY is unset.
+        """
+        from fastapi.responses import JSONResponse, Response
+
+        from .event_stream import _get_signing_key, sse_event_generator, validate_events_token
+
+        if _get_signing_key() is None:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "SSE signing key not configured (fail-closed)"},
+            )
+
+        if not change_ids.strip():
+            return JSONResponse(status_code=400, content={"error": "change_ids required"})
+
+        ids = [c.strip() for c in change_ids.split(",") if c.strip()]
+        if not ids:
+            return JSONResponse(status_code=400, content={"error": "change_ids required"})
+
+        if not token.strip():
+            return JSONResponse(status_code=401, content={"error": "token required"})
+
+        try:
+            validate_events_token(token.strip(), ids)
+        except Exception as exc:
+            logger.info("SSE token validation failed: %s", exc)
+            return JSONResponse(status_code=401, content={"error": "invalid token"})
+
+        try:
+            from sse_starlette.sse import EventSourceResponse
+
+            from .event_bus import get_event_bus
+
+            event_bus = get_event_bus()
+            generator = sse_event_generator(ids, event_bus)
+            return EventSourceResponse(generator)
+        except Exception as exc:
+            logger.error("SSE stream setup failed: %s", exc)
+            return JSONResponse(
+                status_code=500, content={"error": "stream setup failed"}
+            )
+
+    @app.patch("/issues/{issue_id}/labels")
+    async def patch_issue_labels(
+        issue_id: str,
+        request: PatchLabelsRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Add or remove labels on a work_queue row (drag-to-Ready interaction).
+
+        Wraps IssueService.update with a labels-only mutation path.
+        Reversibility: reversible-write; audit emitted.
+        """
+        from uuid import UUID
+
+        from .audit import get_audit_service
+        from .issue_service import IssueService
+
+        service = IssueService()
+        try:
+            issue = await service.show(UUID(issue_id))
+        except Exception:
+            raise HTTPException(status_code=404, detail=f"Issue {issue_id!r} not found")
+        if issue is None:
+            raise HTTPException(status_code=404, detail=f"Issue {issue_id!r} not found")
+
+        current_labels = set(issue.labels)
+        current_labels.update(request.add)
+        current_labels.difference_update(request.remove)
+
+        updated = await service.update(
+            issue_id=UUID(issue_id),
+            labels=list(current_labels),
+        )
+        if updated is None:
+            raise HTTPException(status_code=404, detail=f"Issue {issue_id!r} not found")
+
+        agent_id = principal.get("agent_id") or get_config().agent.agent_id
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                operation="patch_issue_labels",
+                parameters={
+                    "issue_id": issue_id,
+                    "add": request.add,
+                    "remove": request.remove,
+                },
+                success=True,
+            )
+        except Exception:
+            pass
+
+        return updated.to_dict()
+
+    @app.delete("/locks/{file_path:path}")
+    async def force_release_lock(
+        file_path: str,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Force-release a lock regardless of holder (destructive-write).
+
+        Invokes LockService.force_release (new method, design D9).
+        Audit emitted regardless of outcome.
+        """
+        from .audit import get_audit_service
+        from .locks import get_lock_service
+
+        agent_id = principal.get("agent_id") or get_config().agent.agent_id
+        result = await get_lock_service().force_release(file_path, agent_id=agent_id)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                operation="force_release_lock",
+                parameters={
+                    "file_path": file_path,
+                    "prior_holder": result.get("prior_holder"),
+                },
+                success=result.get("released", False),
+            )
+        except Exception:
+            pass
+
+        prior = result.get("prior_holder") or {}
+        return {
+            "released": result.get("released", False),
+            "prior_holder_agent_id": prior.get("agent_id"),
+            "prior_acquired_at": prior.get("locked_at"),
+        }
+
+    @app.post("/agents/{agent_id}/kick")
+    async def kick_agent(
+        agent_id: str,
+        request: KickAgentRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Clear a stale agent's worktree-registry entry and mark session disconnected.
+
+        Body must include ``change_id`` (registry is keyed by change_id + agent_id).
+        The load-bearing side effect is the registry clear (check_no_active_agents
+        reads the registry, NOT agent_sessions).
+        Reversibility: destructive-write.
+        """
+        import subprocess as _sp
+        import sys
+        from pathlib import Path
+
+        from .audit import get_audit_service
+
+        if not request.change_id:
+            raise HTTPException(status_code=422, detail="change_id is required in request body")
+
+        caller_id = principal.get("agent_id") or get_config().agent.agent_id
+        registry_cleared = False
+        agent_sessions_updated = False
+        errors: list[str] = []
+
+        # 1. Clear registry via worktree.py teardown --force
+        repo_root = Path(__file__).resolve().parents[2]
+        worktree_script = repo_root / "skills" / "worktree" / "scripts" / "worktree.py"
+        try:
+            proc = _sp.run(
+                [
+                    sys.executable,
+                    str(worktree_script),
+                    "teardown",
+                    request.change_id,
+                    "--agent-id", agent_id,
+                    "--force",
+                ],
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if "REMOVED=true" in proc.stdout or "REMOVED=skipped" in proc.stdout:
+                registry_cleared = True
+            else:
+                errors.append(f"registry: worktree teardown failed: {proc.stderr.strip()}")
+        except Exception as exc:
+            errors.append(f"registry: {exc}")
+
+        # 2. Update agent_sessions
+        try:
+            from .db import get_db
+            db = get_db()
+            await db.update(
+                "agent_sessions",
+                match={"agent_id": agent_id},
+                data={"status": "disconnected", "last_heartbeat": "1970-01-01T00:00:00+00:00"},
+                return_data=False,
+            )
+            agent_sessions_updated = True
+        except Exception as exc:
+            errors.append(f"agent_sessions: {exc}")
+
+        # 3. Collect held locks
+        held_locks: list[str] = []
+        try:
+            from .locks import get_lock_service
+            locks = await get_lock_service().check(locked_by=agent_id)
+            held_locks = [lk.file_path for lk in locks]
+        except Exception:
+            pass
+
+        # 4. Audit
+        try:
+            await get_audit_service().log_operation(
+                agent_id=caller_id,
+                operation="kick_agent",
+                parameters={
+                    "target_agent_id": agent_id,
+                    "change_id": request.change_id,
+                    "registry_cleared": registry_cleared,
+                    "agent_sessions_updated": agent_sessions_updated,
+                    "held_locks": held_locks,
+                },
+                success=registry_cleared,
+            )
+        except Exception:
+            pass
+
+        kicked = registry_cleared
+        return {
+            "kicked": kicked,
+            "agent_id": agent_id,
+            "registry_cleared": registry_cleared,
+            "agent_sessions_updated": agent_sessions_updated,
+            "held_locks": held_locks,
+            **({"errors": errors} if errors else {}),
+        }
+
+    @app.put("/kanban-viz/saved-views/{slug}")
+    async def put_saved_view(
+        slug: str,
+        request: SavedViewRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Write a saved-view JSON file (coordinator-owned, design D10).
+
+        Validates slug, resolves path within WORKDIR_ROOT, stamps mandatory
+        artifact header, writes atomically.
+        Reversibility: reversible-write.
+        """
+        from .audit import get_audit_service
+        from .kanban_viz_files import write_saved_view
+
+        agent_id = principal.get("agent_id") or get_config().agent.agent_id
+
+        try:
+            result = write_saved_view(slug=slug, view_payload=request.view)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("put_saved_view failed: %s", exc)
+            raise HTTPException(status_code=500, detail="write failed")
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                operation="kanban_viz.save_view",
+                parameters={"slug": slug, "path": result.get("path")},
+                success=result.get("saved", False),
+            )
+        except Exception:
+            pass
+
+        return result
+
+    @app.post("/kanban-viz/audit")
+    async def post_kanban_audit(
+        request: KanbanAuditRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Append a UI audit event (coordinator-owned, design D10).
+
+        Same path-safety and atomic-write semantics as PUT /kanban-viz/saved-views.
+        Date subdirectory derived server-side.
+        Reversibility: event-class artifact.
+        """
+        from .audit import get_audit_service
+        from .kanban_viz_files import write_audit_event
+
+        agent_id = principal.get("agent_id") or get_config().agent.agent_id
+
+        try:
+            result = write_audit_event(run_id=request.run_id, event_payload=request.event)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except Exception as exc:
+            logger.error("post_kanban_audit failed: %s", exc)
+            raise HTTPException(status_code=500, detail="write failed")
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=agent_id,
+                operation="kanban_viz.audit",
+                parameters={"run_id": request.run_id, "path": result.get("path")},
+                success=result.get("appended", False),
+            )
+        except Exception:
+            pass
+
+        return result
+
+    # Also extend GET /audit with since and change_id query params
+    # The existing handler at /audit is replaced below by patching its
+    # query forwarding to include the new filters.
+    # NOTE: the existing /audit endpoint already exists — we add the extended
+    # version as a new handler; FastAPI uses the last-defined matching route.
+    @app.get("/audit/v2")
+    async def query_audit_v2(
+        agent_id: str | None = None,
+        operation: str | None = None,
+        since: str | None = None,
+        change_id: str | None = None,
+        limit: int = 20,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        """Extended audit query with ``since`` and ``change_id`` filters.
+
+        Additive, backward-compatible (all new params optional).
+        The original ``GET /audit`` endpoint is unchanged.
+        """
+        from datetime import datetime
+
+        from .audit import get_audit_service
+
+        since_dt = None
+        if since:
+            try:
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid since format; use ISO-8601")
+
+        entries = await get_audit_service().query(
+            agent_id=agent_id,
+            operation=operation,
+            since=since_dt,
+            change_id=change_id,
+            limit=limit,
+        )
+        return {
+            "entries": [
+                {
+                    "id": e.id,
+                    "agent_id": e.agent_id,
+                    "agent_type": e.agent_type,
+                    "operation": e.operation,
+                    "parameters": e.parameters,
+                    "result": e.result,
+                    "duration_ms": e.duration_ms,
+                    "success": e.success,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                }
+                for e in entries
+            ],
+        }
 
     @app.get("/live")
     async def live() -> dict[str, str]:

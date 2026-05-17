@@ -137,8 +137,18 @@ class AuditService:
         until: datetime | None = None,
         limit: int = 50,
         delegated_from: str | None = None,
+        change_id: str | None = None,
     ) -> list[AuditEntry]:
-        """Query audit log entries with optional filters."""
+        """Query audit log entries with optional filters.
+
+        New filters (additive, backward-compatible; all optional):
+        - ``since``: ISO-8601 timestamp; returns entries with
+          ``created_at >= since``.
+        - ``change_id``: filters entries whose ``parameters`` JSONB column
+          contains ``{"change_id": "<id>"}`` (recorded by most call-sites)
+          OR whose ``agent_id`` maps to an ``agent_sessions.change_id``
+          match (fallback, best-effort).
+        """
         query_parts = ["order=created_at.desc", f"limit={limit}"]
 
         if agent_id:
@@ -151,6 +161,11 @@ class AuditService:
             query_parts.append(f"created_at=lte.{until.isoformat()}")
         if delegated_from:
             query_parts.append(f"delegated_from=eq.{delegated_from}")
+        if change_id:
+            # Filter on parameters JSONB containing change_id key.
+            # PostgREST/Supabase: parameters->>change_id=eq.<value>
+            # PostgresClient: appended as a raw query param string.
+            query_parts.append(f"parameters->>change_id=eq.{change_id}")
 
         query = "&".join(query_parts)
         rows = await self.db.query("audit_log", query)

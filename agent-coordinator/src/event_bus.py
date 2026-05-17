@@ -24,6 +24,9 @@ CHANNELS = (
     "coordinator_task",
     "coordinator_agent",
     "coordinator_status",
+    # New channel for audit_log NOTIFY (added by add-coordinator-kanban-viz).
+    # The SSE /events/work handler subscribes to this alongside coordinator_task.
+    "coordinator_audit",
 )
 
 # Max NOTIFY payload ~8KB; we leave 1KB margin
