@@ -315,149 +315,149 @@
 
 ## Phase 4 — Vendor swimlanes (wp-frontend-swimlanes)
 
-- [ ] 4.1 Write test: card with one child agent collapses to a single lane labeled with that vendor
+- [x] 4.1 Write test: card with one child agent collapses to a single lane labeled with that vendor
   **Spec scenarios**: "Single-vendor card collapses swimlanes"
   **Dependencies**: 3.11
   **Size**: S
 
-- [ ] 4.2 Write test: card with three vendor-diverse child agents renders three lanes sorted alphabetically
+- [x] 4.2 Write test: card with three vendor-diverse child agents renders three lanes sorted alphabetically
   **Spec scenarios**: "Vendor-diverse card renders one lane per vendor"
   **Dependencies**: 3.11
   **Size**: S
 
-- [ ] 4.3 Write test: incoming `event: audit` for a swimlane-rendered agent updates only that lane within 200ms
+- [x] 4.3 Write test: incoming `event: audit` for a swimlane-rendered agent updates only that lane within 200ms
   **Spec scenarios**: "Lane shows live activity update on SSE event"
   **Dependencies**: 3.11
   **Size**: M
 
-- [ ] 4.4 Write test: completed vendor-diverse work-package collapses to consensus indicator (✓ or ✗)
+- [x] 4.4 Write test: completed vendor-diverse work-package collapses to consensus indicator (✓ or ✗)
   **Spec scenarios**: "Completed work-package collapses swimlanes to consensus indicator"
   **Dependencies**: 3.11
   **Size**: S
 
-- [ ] 4.5 Checkpoint: confirm tests 4.1–4.4 RED
+- [x] 4.5 Checkpoint: confirm tests 4.1–4.4 RED
   **Dependencies**: 4.1, 4.2, 4.3, 4.4
 
-- [ ] 4.6 Implement `<VendorSwimlanes>` component extracting per-child vendor from the `agent_id` suffix (canonical per D4) and grouping the most-recent `audit_log` row per vendor; agent type comes from `agent_sessions.agent_type` for the secondary cross-check
+- [x] 4.6 Implement `<VendorSwimlanes>` component extracting per-child vendor from the `agent_id` suffix (canonical per D4) and grouping the most-recent `audit_log` row per vendor; agent type comes from `agent_sessions.agent_type` for the secondary cross-check
   **Spec scenarios**: "Vendor Swimlanes on In-Flight Cards" (all)
   **Design decisions**: D4 (swimlane derivation)
   **Dependencies**: 4.5
   **Size**: M
 
-- [ ] 4.7 Implement consensus-indicator collapse using `parallel-infrastructure` consensus synthesizer output
+- [x] 4.7 Implement consensus-indicator collapse using `parallel-infrastructure` consensus synthesizer output
   **Spec scenarios**: "Completed work-package collapses swimlanes to consensus indicator"
   **Dependencies**: 4.6
   **Size**: S
 
-- [ ] 4.8 Confirm tests 4.1–4.4 GREEN
+- [x] 4.8 Confirm tests 4.1–4.4 GREEN
   **Dependencies**: 4.6, 4.7
 
 ## Phase 5 — Sync-point gate banner (wp-frontend-sync-banner)
 
-- [ ] 5.1 Write test: banner collapses to single-line green status when all sync-points clear
+- [x] 5.1 Write test: banner collapses to single-line green status when all sync-points clear
   **Spec scenarios**: "All sync-points clear"
   **Dependencies**: 3.11
 
-- [ ] 5.2 Write test: banner expands to one row per blocked sync-point with skill, blocker count, heartbeat age, action buttons
+- [x] 5.2 Write test: banner expands to one row per blocked sync-point with skill, blocker count, heartbeat age, action buttons
   **Spec scenarios**: "Single sync-point blocked by one agent"
   **Dependencies**: 3.11
 
-- [ ] 5.3 Write test: clicking `Kick <agent_id>` surfaces consent prompt and only fires `POST /agents/<id>/kick` after confirm
+- [x] 5.3 Write test: clicking `Kick <agent_id>` surfaces consent prompt and only fires `POST /agents/<id>/kick` after confirm
   **Spec scenarios**: "Kick action requires consent"
   **Dependencies**: 3.11
 
-- [ ] 5.4 Write test: kick action emits audit event regardless of confirm/decline outcome
+- [x] 5.4 Write test: kick action emits audit event regardless of confirm/decline outcome
   **Spec scenarios**: "Kick action requires consent" (audit emission)
   **Dependencies**: 3.11
 
-- [ ] 5.5 Checkpoint: confirm tests 5.1–5.4 RED
+- [x] 5.5 Checkpoint: confirm tests 5.1–5.4 RED
   **Dependencies**: 5.1, 5.2, 5.3, 5.4
 
-- [ ] 5.6 Implement `<SyncPointBanner>` component polling `/sync-points/status` every 5s and updating on relevant SSE events
+- [x] 5.6 Implement `<SyncPointBanner>` component polling `/sync-points/status` every 5s and updating on relevant SSE events
   **Spec scenarios**: "Sync-Point Gate Banner" (all)
   **Design decisions**: D5
   **Dependencies**: 5.5
   **Size**: M
 
-- [ ] 5.7 Implement `<ConsentPrompt>` component invoked by destructive-write actions
+- [x] 5.7 Implement `<ConsentPrompt>` component invoked by destructive-write actions
   **Spec scenarios**: "Kick action requires consent", "Force-release lock requires consent"
   **Design decisions**: D8
   **Dependencies**: 5.5
   **Size**: S
 
-- [ ] 5.8 Confirm tests 5.1–5.4 GREEN
+- [x] 5.8 Confirm tests 5.1–5.4 GREEN
   **Dependencies**: 5.6, 5.7
 
 ## Phase 6 — Saved views and audit emission (wp-saved-views)
 
-- [ ] 6.1 Write test: saved view validates against `contracts/schemas/saved-view.json` and the round-trip (frontend POSTs to `PUT /kanban-viz/saved-views/<slug>`, coordinator writes to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/<slug>.json`) yields a file containing the server-stamped mandatory header and the operator's view payload
+- [x] 6.1 Write test: saved view validates against `contracts/schemas/saved-view.json` and the round-trip (frontend POSTs to `PUT /kanban-viz/saved-views/<slug>`, coordinator writes to `<WORKDIR_ROOT>/docs/kanban-viz/saved-views/<slug>.json`) yields a file containing the server-stamped mandatory header and the operator's view payload
   **Spec scenarios**: "Saved view is valid against the JSON schema", "Saved view file path is git-relative", "PUT /kanban-viz/saved-views/{slug} writes a saved view"
   **Dependencies**: 1.6
 
-- [ ] 6.2 Write test: re-save under same slug overwrites and audit event records prior + new git_sha
+- [x] 6.2 Write test: re-save under same slug overwrites and audit event records prior + new git_sha
   **Spec scenarios**: "Re-save under same name overwrites with audit trail"
   **Dependencies**: 1.6
 
-- [ ] 6.3 Write test: save-view emits a UI audit event via `POST /kanban-viz/audit` (browser path) or Tauri `fs.writeTextFile` (Tauri path); the resulting file under `docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json` has the server-stamped mandatory header and `class: reversible-write`
+- [x] 6.3 Write test: save-view emits a UI audit event via `POST /kanban-viz/audit` (browser path) or Tauri `fs.writeTextFile` (Tauri path); the resulting file under `docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json` has the server-stamped mandatory header and `class: reversible-write`
   **Spec scenarios**: "Save-view emits an audit event", "POST /kanban-viz/audit appends a UI audit event"
   **Design decisions**: D8, D10
   **Dependencies**: 1.6
 
-- [ ] 6.4 Write test: drag-to-Ready calls `PATCH /issues/<id>/labels` with `pending-approval` and emits reversible-write audit event
+- [x] 6.4 Write test: drag-to-Ready calls `PATCH /issues/<id>/labels` with `pending-approval` and emits reversible-write audit event
   **Spec scenarios**: "Drag-to-Ready sets pending-approval label"
   **Dependencies**: 1.6
 
-- [ ] 6.5 Checkpoint: confirm tests 6.1–6.4 RED
+- [x] 6.5 Checkpoint: confirm tests 6.1–6.4 RED
   **Dependencies**: 6.1, 6.2, 6.3, 6.4
 
-- [ ] 6.6 Implement `saveView()` function that POSTs to `PUT /kanban-viz/saved-views/{slug}` (browser path) and falls back to Tauri `fs.writeTextFile` (Tauri path); the coordinator endpoint owns the on-disk write so the function does NOT manipulate the filesystem from the browser
+- [x] 6.6 Implement `saveView()` function that POSTs to `PUT /kanban-viz/saved-views/{slug}` (browser path) and falls back to Tauri `fs.writeTextFile` (Tauri path); the coordinator endpoint owns the on-disk write so the function does NOT manipulate the filesystem from the browser
   **Spec scenarios**: "Saved Views with Mandatory Artifact Header" (all), "Tauri frontend bypasses coordinator file-write endpoints"
   **Design decisions**: D7, D10
   **Dependencies**: 6.5, 2.15
   **Size**: M
 
-- [ ] 6.7 Implement `<SavedViewsDrawer>` UI for list/save/load
+- [x] 6.7 Implement `<SavedViewsDrawer>` UI for list/save/load
   **Dependencies**: 6.6
   **Size**: M
 
-- [ ] 6.8 Implement drag-to-Ready interaction with reversible-write audit emission
+- [x] 6.8 Implement drag-to-Ready interaction with reversible-write audit emission
   **Spec scenarios**: "Drag-to-Ready sets pending-approval label"
   **Dependencies**: 6.5
   **Size**: M
 
-- [ ] 6.9 Implement reversibility classifier `apps/kanban-viz/src/lib/reversibility.ts` with the D8 table; comment pointing to `skills/shared/op_reversibility.py` (codeviz reservation)
+- [x] 6.9 Implement reversibility classifier `apps/kanban-viz/src/lib/reversibility.ts` with the D8 table; comment pointing to `skills/shared/op_reversibility.py` (codeviz reservation)
   **Spec scenarios**: "Reversibility-Classified UI Actions"
   **Design decisions**: D8
   **Dependencies**: 6.5
   **Size**: S
 
-- [ ] 6.10 Confirm tests 6.1–6.4 GREEN
+- [x] 6.10 Confirm tests 6.1–6.4 GREEN
   **Dependencies**: 6.6, 6.7, 6.8, 6.9
 
 ## Phase 7 — Tauri scaffold (wp-tauri-scaffold)
 
-- [ ] 7.1 Scaffold `apps/kanban-viz/src-tauri/` with Tauri 2.x `Cargo.toml`, `tauri.conf.json` (allowlist `http.request` only, deny everything else), minimal `main.rs`, and `.gitignore` for `target/`
+- [x] 7.1 Scaffold `apps/kanban-viz/src-tauri/` with Tauri 2.x `Cargo.toml`, `tauri.conf.json` (allowlist `http.request` only, deny everything else), minimal `main.rs`, and `.gitignore` for `target/`
   **Spec scenarios**: "Frontend Packaging" (Tauri scaffold), "Tauri scaffold passes cargo check"
   **Design decisions**: design.md "Tauri-readiness checklist"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 7.2 Write test: `cargo check` succeeds in `apps/kanban-viz/src-tauri/`
+- [x] 7.2 Write test: `cargo check` succeeds in `apps/kanban-viz/src-tauri/`
   **Spec scenarios**: "Tauri scaffold passes cargo check"
   **Dependencies**: 7.1
   **Size**: S
 
-- [ ] 7.3 Add runtime feature-detect for Tauri APIs in `apps/kanban-viz/src/lib/runtime.ts`
+- [x] 7.3 Add runtime feature-detect for Tauri APIs in `apps/kanban-viz/src/lib/runtime.ts`
   **Spec scenarios**: "Browser code paths run without Tauri APIs"
   **Dependencies**: 3.1
   **Size**: S
 
-- [ ] 7.4 Write test: browser path of every UI surface (board, swimlanes, banner, save-view) functions without `@tauri-apps/api` import being evaluated
+- [x] 7.4 Write test: browser path of every UI surface (board, swimlanes, banner, save-view) functions without `@tauri-apps/api` import being evaluated
   **Spec scenarios**: "Browser code paths run without Tauri APIs"
   **Dependencies**: 7.3
   **Size**: M
 
-- [ ] 7.5 Confirm tests 7.2 and 7.4 GREEN
+- [x] 7.5 Confirm tests 7.2 and 7.4 GREEN
   **Dependencies**: 7.2, 7.4
 
 ## Phase 8 — Integration, docs, and validation (wp-integration)
