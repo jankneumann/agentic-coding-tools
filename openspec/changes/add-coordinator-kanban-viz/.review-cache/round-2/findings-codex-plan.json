@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "auth-header-contract-mismatch",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The plan standardizes new browser calls on `Authorization: Bearer` and `X-Coordinator-API-Key`, but the current coordinator auth helper only accepts `X-API-Key` via `x_api_key: Header(None)`. The CORS allow-list also omits `X-API-Key`, so existing authenticated browser calls would fail unless the auth helper is explicitly extended.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 23,
+        "end": 28
+      }
+    },
+    {
+      "id": "kick-agent-missing-change-id",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "`POST /agents/{agent_id}/kick` is specified without a `change_id`, but the required registry mutation shells out to `worktree.py teardown <change_id> --agent-id <id> --force`. The registry is keyed by change_id plus agent_id, so an agent-only route cannot reliably identify or remove the right entry, especially if an agent id appears in multiple changes.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 213,
+        "end": 249
+      }
+    },
+    {
+      "id": "destructive-consent-not-enforced-server-side",
+      "type": "security",
+      "criticality": "high",
+      "description": "Destructive actions are gated only by frontend consent prompts. The `DELETE /locks/{file_path}` and `POST /agents/{agent_id}/kick` contracts accept bare authenticated requests, so scripts or agents with an API key can bypass consent entirely. This violates the codeviz reversibility rule that destructive writes require explicit per-operation consent across API surfaces.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 140,
+        "end": 147
+      }
+    },
+    {
+      "id": "audit-fallback-uses-unsupported-filters",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The polling fallback depends on `GET /audit?since=<iso>&change_id=<id>&limit=<n>`, but the current HTTP endpoint only accepts `agent_id`, `operation`, and `limit`; even `AuditService.query` has no `change_id` filter. Without adding these filters or a new scoped audit endpoint, swimlane polling cannot be correctly scoped to a change.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 101,
+        "end": 106
+      }
+    },
+    {
+      "id": "issue-response-missing-required-card-fields",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The board requires `work_queue.title`, `claimed_by`, and `claimed_at`, but existing issue responses expose `title` from `work_queue.description`, `assignee`, `created_at`, and `completed_at`; they do not include `claimed_by` or `claimed_at`. The artifacts need either a response-shape extension and tests, or the card requirement should be rewritten to use fields actually returned by `POST /issues/list`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 13
+      }
+    },
+    {
+      "id": "board-fetch-can-silently-truncate",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The MVP relies on one `POST /issues/list` round trip, but `IssueService.list_issues` caps results at 100 and post-filters labels after fetching. This can silently omit active cards or recent completed cards once the coordinator has more than 100 issues. The renderer plan already treated this as a correctness ceiling; the Kanban needs pagination/server-side label filtering or an explicit cap-overrun guard.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 352,
+        "end": 355
+      }
+    },
+    {
+      "id": "audit-event-source-references-nonexistent-append",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The SSE/audit requirements and tasks refer to `AuditService.append`, but the current service exposes `log_operation()` and `_insert_audit_entry()`, not `append()`. The tasks also say to install an audit_log trigger and wire the service to emit through the bus while forbidding a parallel NOTIFY pathway, which is internally ambiguous and risks either duplicate events or an impossible implementation.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/tasks.md",
+      "line_range": {
+        "start": 167,
+        "end": 168
+      }
+    },
+    {
+      "id": "worktrees-active-depends-on-nonexistent-json-output",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Task 2.10 says `GET /worktrees/active` should read the registry via existing `worktree.py list` JSON output, but `worktree.py list` currently prints only a human table and has no JSON flag. Specify direct registry parsing through shared code, add a JSON mode to `worktree.py list`, or reuse `skills.shared.active_agents` for the projection.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/tasks.md",
+      "line_range": {
+        "start": 150,
+        "end": 153
+      }
+    }
+  ]
+}

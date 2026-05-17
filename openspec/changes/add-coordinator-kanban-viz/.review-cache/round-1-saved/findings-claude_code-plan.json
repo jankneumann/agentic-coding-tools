@@ -1,0 +1,118 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "truncation-proposal",
+      "type": "completeness",
+      "criticality": "critical",
+      "description": "Proposal 'What Changes' ends mid-sentence at '{ skill, blo'. Item #4 (sync-points/status endpoint contract) is incomplete, and the design references several scope items not present in the proposal at all (SSE event stream, approval-staging UX, saved-views drawer, audit drawer, force-release-lock, force-kick-agent). Without complete What-Changes text, scope cannot be validated and the proposal cannot be approved.",
+      "disposition": "regenerate",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md"
+    },
+    {
+      "id": "truncation-design",
+      "type": "completeness",
+      "criticality": "critical",
+      "description": "Design ends mid-sentence at 'The boundary'. Missing: data model for vendor swimlanes, error/timeout semantics, SSE reconnect/heartbeat strategy, testing strategy, migration/rollback story, and the rationale for the six new endpoints. Architecture diagram is visible; the prose that anchors it to the implementation is not.",
+      "disposition": "regenerate",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md"
+    },
+    {
+      "id": "endpoint-divergence-proposal-design",
+      "type": "consistency",
+      "criticality": "high",
+      "description": "Proposal introduces exactly one new endpoint (GET /sync-points/status). Design adds six: POST /events/auth, GET /events/work (SSE), GET /sync-points/status, GET /worktrees/active, PATCH /issues/{id}/labels, DELETE /locks/{file_path:path}, POST /agents/{agent_id}/kick. The design has effectively expanded MVP scope ~6x relative to the approved proposal surface. Either expand proposal to cover all six (with rationale and risk per endpoint), or trim design to a single endpoint and defer the rest. Reviewers and operators can only sign off on what the proposal commits to.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md"
+    },
+    {
+      "id": "destructive-writes-exceed-mvp-scope",
+      "type": "scope",
+      "criticality": "high",
+      "description": "Proposal Why-section explicitly defers 'write actions beyond approval-staging' to follow-up. Design contradicts this by introducing DELETE /locks/{file_path:path} (force-release a lock that another agent may be holding) and POST /agents/{agent_id}/kick (force-terminate an agent). Both are destructive multi-agent shared-state mutations that per CLAUDE.md require operator confirmation, identity-bound audit entries, and reversibility classification. If these stay in MVP, the proposal must justify them and the design must specify (a) actor identity capture, (b) audit_log entry shape, (c) confirmation UX, (d) idempotency on retry. Recommended: defer both to a follow-up change and keep MVP to the single drag-to-Ready PATCH plus approval-staging.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md"
+    },
+    {
+      "id": "auth-model-unspecified",
+      "type": "security",
+      "criticality": "high",
+      "description": "Design introduces POST /events/auth minting a 'short-lived JWT' but specifies nothing about: how the operator obtains it (browser flow? CLI exchange of API key for JWT?), the JWT signing-key source and rotation, how identity is bound for audit (current coordinator uses static X-Coordinator-API-Key \u2014 there is no per-operator identity), token revocation, or why JWT rather than continuing the existing API-key model. Adding JWT alongside without unifying creates two parallel auth surfaces. For the destructive endpoints in particular, audit_log entries must record an authenticated actor \u2014 the current scheme cannot, since the API key is shared.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md"
+    },
+    {
+      "id": "cors-not-addressed",
+      "type": "feasibility",
+      "criticality": "medium",
+      "description": "A browser app at apps/kanban-viz/ hitting agent-coordinator on a different origin (Vite dev: localhost:5173; coordinator: localhost:8765 or coord.rotkohl.ai in cloud) requires explicit CORS allow-list configuration on the FastAPI side. Not mentioned in proposal or visible design. Required: state the dev-origin and prod-origin set, whether credentials are sent, preflight handling for PATCH/DELETE, and whether the existing CORSMiddleware (if any) covers the SSE endpoint.",
+      "disposition": "fix"
+    },
+    {
+      "id": "sse-polling-mixed-strategy",
+      "type": "design",
+      "criticality": "medium",
+      "description": "Design uses SSE (GET /events/work) for transition+audit events but the sync-point banner polls GET /sync-points/status every 5s. Two transport models for closely related state risks drift (SSE shows agent completed, banner still says blocked for up to 5s). Either fold sync-point state into the SSE stream as a separate event type, or document why the split is intentional (e.g., banner must work pre-auth, before the SSE token is minted).",
+      "disposition": "fix"
+    },
+    {
+      "id": "vendor-swimlane-data-shape-missing",
+      "type": "completeness",
+      "criticality": "medium",
+      "description": "Vendor swimlanes promise a (change_id, agent_id, vendor) triple, but neither artifact specifies where 'vendor' comes from. Candidates: agents.agent_type, agent_profiles.metadata.vendor, work_queue.metadata.vendor (set by parallel-review-* dispatchers), or parsed from agent_id naming convention. Each has different freshness, write paths, and missing-data behavior. Without locking this down, the UI cannot be built and the renderer skill's data contract may not actually carry the field.",
+      "disposition": "fix"
+    },
+    {
+      "id": "done-column-window-hardcoded",
+      "type": "design",
+      "criticality": "medium",
+      "description": "'Done' column filters status=completed within last 24h. Hardcoded in the frontend means an operator investigating yesterday's merges or a slow review cycle that completed >24h ago loses visibility. Either parametrize via saved-view filter / URL param, or justify 24h as the right default with a rationale (e.g., 'beyond 24h, use git log + audit query directly').",
+      "disposition": "fix"
+    },
+    {
+      "id": "codeviz-dependency-not-landed",
+      "type": "feasibility",
+      "criticality": "medium",
+      "description": "Proposal commits to adopting codeviz Phase 0 conventions (mandatory artifact header, storage-tier policy, reversibility taxonomy) for saved views and audit artifacts. Codeviz is PR #156 \u2014 not yet merged. If this change ships first, what is the source of truth for those conventions? Options: (a) declare a hard dependency and block on codeviz landing, (b) inline the minimal conventions needed in this change and document the migration when codeviz lands, (c) skip the disk artifacts in MVP. Currently the proposal asserts composition without specifying ordering.",
+      "disposition": "escalate"
+    },
+    {
+      "id": "apps-directory-new-top-level",
+      "type": "consistency",
+      "criticality": "low",
+      "description": "Proposal places the app at apps/kanban-viz/. The repo currently has agent-coordinator/, skills/, docs/, openspec/ \u2014 no apps/ top-level. Either justify the new top-level directory (and any tooling implications: tsconfig roots, CI workflows, install.sh scope), or place under an existing layout (e.g., agent-coordinator/web/, or tools/kanban-viz/).",
+      "disposition": "fix"
+    },
+    {
+      "id": "tauri-shell-design-only",
+      "type": "scope",
+      "criticality": "medium",
+      "description": "Design architecture diagram says 'Browser (or Tauri shell \u2014 same React app)'. Proposal does not mention desktop packaging at all. If Tauri is a real near-term goal it changes the auth model (localhost-only origin?), distribution channel, and CI. If aspirational, remove from MVP diagram to avoid scope creep. Currently it is design-only inflation of the surface area.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md"
+    },
+    {
+      "id": "testing-strategy-absent",
+      "type": "testability",
+      "criticality": "medium",
+      "description": "Neither artifact (in visible portion) describes how this UI is tested. Suggested baseline: (1) coordinator endpoint contracts covered by pytest against ephemeral Postgres with seeded work_queue rows, (2) frontend unit tests for SSE reconnect/backoff, (3) at least one Playwright happy-path that renders three columns from a fixture and asserts the sync-point banner appears when an active agent exists. Tagging in case the testing section is in the truncated tail; if not, add it before implementation.",
+      "disposition": "fix"
+    },
+    {
+      "id": "a11y-keyboard-not-addressed",
+      "type": "completeness",
+      "criticality": "low",
+      "description": "Kanban implies drag-and-drop for the one approved write action (Backlog -> Ready). Per frontend-ui-engineering / WCAG 2.1 AA standards, drag actions require keyboard-equivalent affordances. Not addressed in visible content. Specify: keyboard alternative (e.g., focus card + Enter to open quick-action menu), focus management on column transitions, screen-reader announcements for live banner updates.",
+      "disposition": "fix"
+    },
+    {
+      "id": "sync-point-status-endpoint-reuse",
+      "type": "design",
+      "criticality": "low",
+      "description": "Design says GET /sync-points/status reuses skills.shared.active_agents.check_no_active_agents(). That helper currently reads .git-worktrees/.registry.json from the filesystem of the host running it. The coordinator process may run in a different filesystem (cloud deploy at coord.rotkohl.ai). Either (a) move the registry to coordinator-owned storage, (b) have the endpoint receive the registry projection from the client, or (c) restrict /sync-points/status to local-profile coordinators. Confirm which path is intended.",
+      "disposition": "fix"
+    }
+  ]
+}

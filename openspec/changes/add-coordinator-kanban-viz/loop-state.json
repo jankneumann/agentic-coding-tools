@@ -1,0 +1,35 @@
+{
+  "schema_version": 3,
+  "change_id": "add-coordinator-kanban-viz",
+  "current_phase": "IMPLEMENT",
+  "iteration": 0,
+  "total_iterations": 4,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    0
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "claude": true,
+    "codex": true,
+    "gemini": true,
+    "jules": false
+  },
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "plan-iterate-0--20260517T012710Z",
+    "plan-review-0--20260517T133333Z"
+  ],
+  "last_handoff_id": "plan-review-0--20260517T133333Z",
+  "started_at": "2026-05-17T01:18:06.125055+00:00",
+  "phase_started_at": "2026-05-17T13:36:05.017831+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "reviewer"
+}

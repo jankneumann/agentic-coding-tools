@@ -1,0 +1,91 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "F-001",
+      "type": "completeness",
+      "criticality": "high",
+      "description": "The contract/task plan says only three new HTTP endpoints need OpenAPI documentation, but the change also adds POST /events/auth plus three write endpoints: PATCH /issues/{id}/labels, DELETE /locks/{file_path:path}, and POST /agents/{agent_id}/kick. Those are security-sensitive/write surfaces and must be included in the machine-checkable contract and Phase 1 contract tasks, not only described later in prose.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 5,
+        "end": 8
+      }
+    },
+    {
+      "id": "F-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The artifacts drift between the existing coordinator issue/audit endpoints. The architecture correctly says existing issue listing is POST /issues/list, but D2, the spec, and task 3.9 require GET /issues?labels=... and GET /audit/recent?..., which do not exist in coordination_api.py. Implementing from these tasks will produce a frontend whose initial fetch and polling fallback 404 instead of using POST /issues/list and GET /audit.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 87,
+        "end": 90
+      }
+    },
+    {
+      "id": "F-003",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "POST /agents/{agent_id}/kick is specified to write last_heartbeat=epoch to agent_discovery and then expects check_no_active_agents() to stop reporting the agent. That cannot work: check_no_active_agents() reads .git-worktrees/.registry.json, not coordinator discovery tables, and the persistent discovery table in the migrations is agent_sessions, not agent_discovery. The endpoint must either operate on the worktree registry through the worktree API/registry helper, or the banner must not claim it clears sync-point blockers.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 181,
+        "end": 187
+      }
+    },
+    {
+      "id": "F-004",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Saved views and UI audit artifacts are specified as files written under docs/kanban-viz by the frontend, while the design also says the frontend never bypasses the coordinator. A browser-based Vite app cannot write arbitrary repo files, and no coordinator endpoint or local helper is specified to perform these writes. The plan needs an explicit persistence boundary: coordinator file-write endpoints, a local CLI helper, Tauri-only file APIs with browser fallback, or a reduced v1 storage model.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 54,
+        "end": 61
+      }
+    },
+    {
+      "id": "F-005",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The artifacts say there are no database migrations, but the proposed implementation adds an audit_log NOTIFY trigger/channel and force-release semantics for locks. The existing release_lock SQL function only accepts p_file_path and p_agent_id and deletes only when locked_by matches the caller, so a service-level force=True parameter cannot bypass ownership without SQL changes or a separate privileged delete path. The database contract must be marked applicable and migration tasks/tests added.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+      "line_range": {
+        "start": 31,
+        "end": 33
+      }
+    },
+    {
+      "id": "F-006",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Vendor swimlanes use agent_profiles.metadata.vendor as the preferred per-agent source and the data-flow diagram shows one agent_profiles row per running agent. In the current schema, agent_profiles is a profile-template table keyed by profile name/type, with agent_profile_assignments mapping agents to profiles; active agent rows live in agent_sessions/discovery. This source model will not reliably produce one vendor lane per child agent. The design should source vendor from agent_id suffix, agent_sessions metadata, or a new explicit per-agent field/assignment contract.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 97,
+        "end": 107
+      }
+    },
+    {
+      "id": "F-007",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The SSE implementation guidance contradicts the existing EventBusService API and itself. The design says to call EventBusService.subscribe(...), but the service exposes on_event(...). The tasks also say to implement the SSE handler with a Postgres LISTEN binding, while the contract explicitly forbids opening a raw LISTEN connection and requires going through EventBusService. Align these instructions so implementation does not fork the event bus path.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 206,
+        "end": 213
+      }
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": "KANBAN-001",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The SSE design assumes the existing `coordinator_task` trigger covers all work-queue transitions and can produce `from/to` transition events, but the current migration only emits for `completed`, `failed`, and `claimed`, not `running`, and the payload does not include old/new status or change_id. The required claimed\u2192running scenario would not fire.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 221,
+        "end": 228
+      }
+    },
+    {
+      "id": "KANBAN-002",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The audit stream contract references `AuditService.append`, but the live service exposes `log_operation` / `_insert_audit_entry`, not `append`. The design also calls for both an audit_log trigger and a service-level NOTIFY, which risks either implementation failure or duplicate events. Specify one real emission path, preferably the audit_log trigger fed by existing inserts.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 265,
+        "end": 269
+      }
+    },
+    {
+      "id": "KANBAN-003",
+      "type": "contract_consistency",
+      "criticality": "high",
+      "description": "`POST /agents/{agent_id}/kick` requires `change_id` to identify the registry entry, and tasks.md says to reject missing `change_id` with 422, but the spec and contracts document no request body. Implementers following the contract cannot correctly call `worktree.py teardown <change_id> --agent-id <agent_id>`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 213,
+        "end": 249
+      }
+    },
+    {
+      "id": "KANBAN-004",
+      "type": "contract_consistency",
+      "criticality": "medium",
+      "description": "Endpoint counts are stale and inconsistent: the architecture diagram says six new endpoints, contracts say eight, but the listed surface is nine endpoints (`events/auth`, `events/work`, `sync-points/status`, `worktrees/active`, three UI write endpoints, and two file-write endpoints). This should be normalized so work-package scope and OpenAPI coverage are unambiguous.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 7,
+        "end": 7
+      }
+    },
+    {
+      "id": "KANBAN-005",
+      "type": "contract_consistency",
+      "criticality": "medium",
+      "description": "The force-release lock contract says to wrap existing `locks.release_lock()` with `force=True`, while proposal/design/tasks specify a new `LockService.force_release()` direct DELETE path that bypasses the holder-only RPC. The contract should align with the latter; otherwise implementation may mutate the normal release API/RPC semantics.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": {
+        "start": 186,
+        "end": 205
+      }
+    },
+    {
+      "id": "KANBAN-006",
+      "type": "architecture_consistency",
+      "criticality": "medium",
+      "description": "D10 says the coordinator owns saved-view/audit file writes to preserve the frontend boundary, but then allows Tauri to bypass the coordinator and write files directly. That bypass loses server-side header stamping and `audit_log` emission unless extra requirements are added. Remove the bypass for v1 or require Tauri to call the same coordinator endpoints.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": {
+        "start": 300,
+        "end": 314
+      }
+    },
+    {
+      "id": "KANBAN-007",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "CORS allowed headers omit the coordinator's current `X-API-Key` header, even though backward compatibility is called out in tasks and current `verify_api_key` only accepts `X-API-Key`. Browser callers using the existing header would fail preflight. Include `X-API-Key` in the allow-list or explicitly drop browser compatibility for that header.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/specs/coordinator-kanban-viz/spec.md",
+      "line_range": {
+        "start": 397,
+        "end": 400
+      }
+    },
+    {
+      "id": "KANBAN-008",
+      "type": "scope_consistency",
+      "criticality": "medium",
+      "description": "The proposal's Out of Scope section says kick-agent writes are deferred, while the design/spec include `Kick a stale agent` and `POST /agents/{agent_id}/kick` as v1 UI behavior. Decide whether kick is in v1; current artifacts say both, which can split implementation and review expectations.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+      "line_range": {
+        "start": 116,
+        "end": 124
+      }
+    }
+  ]
+}

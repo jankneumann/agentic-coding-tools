@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The proposal and design documents are truncated, missing full endpoint specifications for the new coordinator endpoints and the complete implementation plan (ends at 'blo' and 're').",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The interaction model for 'drag-to-Ready' via PATCH /issues/{id}/labels is ambiguous. If this is intended to transition tasks to the 'In Flight' column, it should trigger a formal state transition (e.g., 'claim') rather than just a metadata update.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "high",
+      "description": "Destructive operations like DELETE /locks and POST /agents/{id}/kick lack a defined authorization model beyond 'short-lived JWT'. The source of truth for operator identity and permission levels must be specified.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The 'Done' column filter is hardcoded to 'last 24h'. While acceptable for MVP, it lacks a mechanism for viewing older history or pagination, which may lead to operator confusion about 'missing' completed tasks.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The design specifies POST /issues/list for resource retrieval. Using POST for read-only listing deviates from standard REST patterns and may prevent browser-level optimizations (caching, prefetching) or simple bookmarking.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional"
+    }
+  ]
+}

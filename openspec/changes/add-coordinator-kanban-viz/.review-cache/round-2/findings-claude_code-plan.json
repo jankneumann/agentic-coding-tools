@@ -1,0 +1,139 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": "PLAN_REVIEW_R1_001",
+      "type": "factual_error",
+      "criticality": "critical",
+      "description": "Proposal item 5a, design D9, and task 2.13c all instruct the kick endpoint to invoke `python3 skills/worktree/scripts/worktree.py teardown <change_id> --agent-id <id> --force`. The `--force` flag does NOT exist on the `teardown` subcommand of `worktree.py` \u2014 it exists only on the `gc` subcommand. As written, the implementation guidance will fail at runtime (argparse error) or be silently ignored. Either (a) add a `--force` flag to `teardown` as a precursor scope item, (b) switch to in-process invocation of the teardown library function with an explicit override parameter, or (c) drop the `--force` token from the command string and rely on the existing teardown semantics (after confirming they actually clear a stale entry without the live process running).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": [
+        194,
+        201
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_002",
+      "type": "factual_error",
+      "criticality": "critical",
+      "description": "Design D10 and tasks 2.13d/2.13e claim `WORKDIR_ROOT` is a coordinator config setting `already used by other file-touching endpoints`. No such config setting exists in `agent-coordinator/src/config.py` (or elsewhere). The two new file-write endpoints (`PUT /kanban-viz/saved-views/{slug}`, `POST /kanban-viz/audit`) depend on this resolution to prevent path traversal \u2014 implementers will either invent an ad-hoc setting (with no test coverage of the boundary) or block on missing config. Decision required in the plan: (a) introduce `COORDINATOR_WORKDIR_ROOT` (or similar) as a NEW config addition in scope of this change, with default = git repo root resolved at startup, and document it in `config.py` + an env-vars table in design.md/contracts; or (b) reuse an existing path-resolution helper if one exists, naming it specifically. Either way, the 'already used' claim must be removed.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": [
+        296,
+        312
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_003",
+      "type": "inconsistency",
+      "criticality": "high",
+      "description": "design.md was already corrected to reference `openspec/roadmaps/codeviz/proposal.md` 'Mandatory artifact header' at proposal lines 88 and 109 (design.md line 206 explicitly notes the previous 'lines 49\u201356' reference was wrong). But contracts/README.md was NOT updated in the same pass \u2014 lines 589\u2013590 still cite 'lines 69\u201382' for the Operation Reversibility Taxonomy and 'lines 49\u201356' for the storage-tier policy. Both references inside the same change are stale and disagree with the corrected design.md. Update contracts/README.md to match the design's corrected line citations (verify against the current state of `openspec/roadmaps/codeviz/proposal.md` before committing \u2014 the canonical line numbers may have drifted again as codeviz iterates).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": [
+        589,
+        590
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_004",
+      "type": "inconsistency",
+      "criticality": "high",
+      "description": "Proposal \u00a75a says `DELETE /locks/{file_path:path}` executes a 'direct parameterized DELETE FROM file_locks WHERE file_path=$1 when force=True, bypassing the holder-only release_lock() SQL function'. Design D9 says the endpoint 'Wraps `locks.release_lock()` (existing in `agent-coordinator/src/locks.py`) with an explicit `force=True` parameter bypassing the holder check'. These describe two materially different implementations: (a) inline SQL DELETE at the service layer vs. (b) extending `release_lock()` (Postgres RPC) with a force parameter. Actual code: `locks.py:276-339` defines `LockService.release()` as a Python method that calls `self.db.rpc('release_lock', ...)`. The Python method has no holder-only check itself \u2014 the check lives in the Postgres function. Pick one of: (a) extend the Postgres `release_lock(...)` function with `force BOOLEAN` (additive migration); (b) add a second `release_lock_force(...)` Postgres function; (c) add a `LockService.force_release()` Python method that runs the inline DELETE and bypasses the RPC entirely. Whichever is chosen, align proposal \u00a75a, design D9, work-packages.yaml description, and task 2.13b's implementation note.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+      "line_range": [
+        25,
+        25
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_005",
+      "type": "factual_error",
+      "criticality": "high",
+      "description": "design.md line 91 (polling-fallback section under D2) and the contracts/README.md `GET /audit` reference assume the existing endpoint supports `change_id` as a query parameter: 'GET /audit?since=<iso>&change_id=<id>&limit=<n>'. The actual endpoint at `agent-coordinator/src/coordination_api.py:1146` only accepts `agent_id`, `operation`, and `limit` \u2014 no `since`, no `change_id`. Two paths forward: (a) extend `GET /audit` (or add a sibling `GET /audit/recent`) with `since` and `change_id` filters as part of this change's scope; (b) change the polling-fallback design to use the labels filter on `POST /issues/list` and accept that vendor-swimlane live activity is missing in fallback mode. Whichever is chosen, the polling-fallback contract has to be authored to match real code, and the spec scenario 'Polling fallback engages on EventSource failure' must specify which endpoints it actually hits.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": [
+        91,
+        91
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_006",
+      "type": "missing_artifact",
+      "criticality": "medium",
+      "description": "The SSE `snapshot` event payload schema in contracts/README.md (lines 425\u2013437) uses `\"$ref\": \"issue.json\"` and `\"$ref\": \"agent.json\"`, but neither schema is listed as a deliverable in work-packages.yaml `wp-contracts.contracts.openapi.files` (which enumerates `transition.json`, `audit.json`, `snapshot.json`, `saved-view.json`, `audit-event.json` only). At validation time those `$ref`s will dangle. Either (a) add `contracts/schemas/issue.json` and `contracts/schemas/agent.json` to wp-contracts scope and task 1.2, with the same Pydantic-source-of-truth contract as the generated TS types, or (b) inline the issue/agent shapes into the snapshot schema and drop the `$ref`s, or (c) rewrite the snapshot schema to reference the OpenAPI components by URI (e.g. `https://coord/openapi.json#/components/schemas/Issue`) and ensure the validator handles that form.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": [
+        425,
+        437
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_007",
+      "type": "factual_error",
+      "criticality": "medium",
+      "description": "Proposal 'Selected Approach' Pros bullet (line 55) cites 'existing `agent-coordinator/scripts/generate_typescript.py` pattern, if present, otherwise straight Pydantic \u2192 `pydantic-to-typescript`'. No such script exists in the repo; no pre-existing TS-from-Pydantic generation pipeline is in place. The 'if present' hedge is honest, but task 3.3 ('Wire TypeScript type generation from coordinator Pydantic models into the build (build fails on stale types)') and contracts/README.md \u00a7'Frontend \u2194 Coordinator Type Generation' both speak as if the pipeline is straightforward. Be explicit: this change introduces the generation pipeline from scratch. Specify in design.md (a) the generator (e.g. `pydantic-to-typescript` from npm, or `datamodel-code-generator`), (b) the model-discovery allowlist, and (c) the staleness check (likely a CI step that re-runs the generator and `git diff --exit-code`s on the generated file).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+      "line_range": [
+        55,
+        55
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_008",
+      "type": "scope_drift",
+      "criticality": "medium",
+      "description": "Proposal \u00a74 says `GET /sync-points/status` reuses `skills.shared.active_agents.check_no_active_agents()`. Verified: the function reads `.git-worktrees/.registry.json` from disk (skills/shared/active_agents.py). The coordinator process \u2014 especially when deployed as a remote service (per the startup-hook output, the API URL is `https://coord.rotkohl.ai`) \u2014 will NOT see the operator's local `.git-worktrees/.registry.json`. Either (a) the sync-point banner is documented as 'local-coordinator only' in v1 and explicitly degraded on remote deployments, or (b) the design specifies which path on the coordinator host the registry is read from (a shared volume? the same git repo checked out coordinator-side?). Currently neither design.md D5 nor contracts/README.md addresses this \u2014 the implementation will silently return 'no blockers' against remote coordinators, which is the WORST failure mode for a guard that's supposed to surface blockers. Add an explicit decision and a degraded-mode test.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": [
+        116,
+        122
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_009",
+      "type": "factual_error",
+      "criticality": "low",
+      "description": "design.md line 286 says 'This mirrors the `agentic-content-analyzer` Tauri integration (referenced in `proposal.md`\\'s \"What Changes\" section #8)'. Proposal \u00a78 (Tauri scaffold, lines 34) does not in fact reference `agentic-content-analyzer`. Either drop the cross-reference or add the actual reference to proposal \u00a78 so the two artifacts agree. Low-criticality (cosmetic), but it's a broken pointer a reviewer or implementer will chase.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/design.md",
+      "line_range": [
+        286,
+        286
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_010",
+      "type": "consistency_check",
+      "criticality": "low",
+      "description": "work-packages.yaml `wp-coord-endpoints.title` says 'Implement coordinator endpoints' and `description` lists nine new endpoints (correct). The contracts/README.md table in \u00a7'Contract sub-types evaluated' says 'Eight new endpoints' (line 7). The proposal \u00a7'What Changes' enumerates eight (5, 5a\u00d73 = 4 sub-items, 5b\u00d72, 5c, 5d, but 5d is a CORS middleware not an endpoint). Doing the actual count: read endpoints (3: sync-points, worktrees-active, events-work) + JWT-mint (1) + write endpoints (3: PATCH labels, DELETE locks, POST kick) + file-write endpoints (2: PUT saved-views, POST audit) = NINE endpoints. The contracts/README's 'eight' is off-by-one. Fix the contract surface count for consistency.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/contracts/README.md",
+      "line_range": [
+        7,
+        7
+      ]
+    },
+    {
+      "id": "PLAN_REVIEW_R1_011",
+      "type": "missing_artifact",
+      "criticality": "low",
+      "description": "Task 2.7f asserts a kick endpoint test scenario 'a subsequent `check_no_active_agents()` call returns the agent as not-active'. For this test to run from the coordinator-side test harness (`skills/tests/agent-coordinator/`), the test must either (a) have the `skills/shared/active_agents.py` module on its import path AND a working `.git-worktrees/.registry.json` at a test-controlled path, or (b) the kick endpoint must expose a side-effect verification surface that doesn't require re-invoking the function. The verification step `agent-coordinator/.venv/bin/python -m pytest skills/tests/agent-coordinator/...` does not currently activate the `skills` venv where `active_agents.py` lives. Either consolidate the import path (sys-path-anchor pattern noted in design D5) and document it in test setup, or split the test so the registry-clear half lives in `skills/tests/worktree/`. Currently the test will fail with ImportError or path-resolution.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/tasks.md",
+      "line_range": [
+        101,
+        105
+      ]
+    }
+  ]
+}

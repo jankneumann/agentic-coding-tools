@@ -1,0 +1,56 @@
+{
+  "review_type": "plan",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": "truncation-incomplete-specs",
+      "type": "completeness",
+      "criticality": "critical",
+      "description": "Both the Proposal and Design documents are truncated. The Proposal ends abruptly at the 'GET /sync-points/status' return type, and the Design ends mid-sentence at 'The boundary'. This leaves critical endpoint contracts and architectural boundaries undefined.",
+      "disposition": "regenerate"
+    },
+    {
+      "id": "directory-structure-mismatch",
+      "type": "consistency",
+      "criticality": "medium",
+      "description": "The proposal introduces a new top-level 'apps/' directory for 'apps/kanban-viz/'. Existing patterns in this repository place backend logic in 'agent-coordinator/', standalone logic in 'scripts/', and extension logic in 'skills/'. Introducing 'apps/' requires architectural justification or realignment with existing project structure.",
+      "disposition": "fix"
+    },
+    {
+      "id": "auth-jwt-implementation",
+      "type": "security",
+      "criticality": "high",
+      "description": "The design introduces 'POST /events/auth' to 'mint short-lived JWT' for SSE, but does not define the initial authentication mechanism (e.g., API keys, OIDC, or session cookies) that the frontend uses to acquire this token. Given the 'kick agent' and 'release lock' capabilities, the auth bootstrap is a high-risk omission.",
+      "disposition": "fix"
+    },
+    {
+      "id": "kick-agent-integrity",
+      "type": "stability",
+      "criticality": "high",
+      "description": "The 'POST /agents/{agent_id}/kick' endpoint provides a 'Force' button for sync-points. There is no specification for how this endpoint handles cleanup of stale file locks, git worktrees, or partial state in the work_queue. Forcing a kick without a defined 'rollback' or 'cleanup' protocol risks repository corruption.",
+      "disposition": "fix"
+    },
+    {
+      "id": "frontend-persistence-pattern",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "The design suggests the frontend writes artifacts (saved views, audit events) to 'docs/kanban-viz/' via a 'tiny static-file endpoint' or 'git-committed directly'. Browser-based React apps cannot commit to git directly, and 'writing' to a static-file endpoint implies a PUT/POST capability on the file server that is not defined in the coordinator's API surface.",
+      "disposition": "fix"
+    },
+    {
+      "id": "sync-point-status-contract",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The 'GET /sync-points/status' endpoint is intended to reuse 'active_agents.check_no_active_agents()'. This logic is primarily heartbeat-based. The contract needs to explicitly handle the distinction between 'active' (heartbeat received) and 'claimed but stalled' (no heartbeat) to ensure the UI doesn't display false negatives for blockers.",
+      "disposition": "fix"
+    },
+    {
+      "id": "audit-log-parsing-brittleness",
+      "type": "maintainability",
+      "criticality": "low",
+      "description": "Vendor swimlanes are intended to show 'live activity' strings from the audit_log. If these strings are unstructured human-readable text, the UI may become brittle or inconsistent as different agents/skills update their logging formats. A structured 'current_step' field in the audit log would be more robust.",
+      "disposition": "accept"
+    }
+  ]
+}
