@@ -17,10 +17,12 @@ import yaml
 DEFAULT_MAX_LOC = 500
 DEFAULT_MAX_PACKAGES = 4
 DEFAULT_MAX_EXTERNAL_DEPS = 2
+DEFAULT_MAX_ROADMAP_PACKAGES = 12
 
 # Signal keywords
 DB_MIGRATION_SIGNALS = {"migration", "db:"}
 SECURITY_SIGNALS = {"auth", "crypto", "secret", "token"}
+BROAD_WRITE_SCOPES = {"**", "**/*", "*", ".", "./"}
 
 
 @dataclass
@@ -40,7 +42,7 @@ def _load_work_packages(work_packages_path: Path) -> dict[str, Any]:
         return yaml.safe_load(f) or {}
 
 
-def _get_thresholds(data: dict[str, Any]) -> tuple[int, int, int]:
+def _get_thresholds(data: dict[str, Any]) -> tuple[int, int, int, int]:
     """Extract thresholds from work-packages.yaml defaults or use built-ins."""
     defaults = data.get("defaults", {})
     auto_loop = defaults.get("auto_loop", {}) if isinstance(defaults, dict) else {}
@@ -50,8 +52,16 @@ def _get_thresholds(data: dict[str, Any]) -> tuple[int, int, int]:
     max_loc = auto_loop.get("max_loc", DEFAULT_MAX_LOC)
     max_packages = auto_loop.get("max_packages", DEFAULT_MAX_PACKAGES)
     max_external_deps = auto_loop.get("max_external_deps", DEFAULT_MAX_EXTERNAL_DEPS)
+    max_roadmap_packages = auto_loop.get(
+        "max_roadmap_packages", DEFAULT_MAX_ROADMAP_PACKAGES
+    )
 
-    return int(max_loc), int(max_packages), int(max_external_deps)
+    return (
+        int(max_loc),
+        int(max_packages),
+        int(max_external_deps),
+        int(max_roadmap_packages),
+    )
 
 
 def _get_packages(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -131,6 +141,27 @@ def _check_signals(
     return False
 
 
+def _has_broad_write_scope(packages: list[dict[str, Any]]) -> bool:
+    """Return True when any package can write the whole repository."""
+    for pkg in packages:
+        scope = pkg.get("scope", {})
+        if not isinstance(scope, dict):
+            continue
+        write_allow = scope.get("write_allow", [])
+        if not isinstance(write_allow, list):
+            continue
+        for path in write_allow:
+            if isinstance(path, str) and path.strip() in BROAD_WRITE_SCOPES:
+                return True
+    return False
+
+
+def _add_checkpoint(result: GateResult, checkpoint: str) -> None:
+    """Append checkpoint once while preserving insertion order."""
+    if checkpoint not in result.checkpoints:
+        result.checkpoints.append(checkpoint)
+
+
 def assess_complexity(
     work_packages_path: Path,
     proposal_path: Path | None = None,
@@ -147,7 +178,12 @@ def assess_complexity(
         GateResult with automation decision, warnings, and checkpoints.
     """
     data = _load_work_packages(work_packages_path)
-    max_loc, max_packages, max_external_deps = _get_thresholds(data)
+    (
+        max_loc,
+        max_packages,
+        max_external_deps,
+        max_roadmap_packages,
+    ) = _get_thresholds(data)
     packages = _get_packages(data)
 
     result = GateResult()
@@ -160,13 +196,24 @@ def assess_complexity(
             f"Total LOC estimate ({total_loc}) exceeds threshold ({max_loc})"
         )
 
-    # 2. Package count check
+    # 2. Package count is a scheduling signal, not a hard blocker. A higher
+    # count often means the work was decomposed well; only an extreme count
+    # requires force because roadmap decomposition is probably more suitable.
     impl_count = _count_impl_packages(packages)
     if impl_count > max_packages:
-        result.force_required = True
         result.warnings.append(
-            f"Package count ({impl_count}) exceeds threshold ({max_packages})"
+            f"Package count ({impl_count}) exceeds soft threshold ({max_packages})"
         )
+        _add_checkpoint(result, "wave-validation")
+        if impl_count > max_packages * 2:
+            _add_checkpoint(result, "limit-concurrency")
+        if impl_count > max_roadmap_packages:
+            result.force_required = True
+            result.warnings.append(
+                f"Package count ({impl_count}) exceeds roadmap threshold "
+                f"({max_roadmap_packages}); consider /plan-roadmap"
+            )
+            _add_checkpoint(result, "roadmap-decomposition")
 
     # 3. External dependencies check
     ext_deps = _count_external_deps(packages)
@@ -174,16 +221,23 @@ def assess_complexity(
         result.warnings.append(
             f"External dependencies ({ext_deps}) exceeds threshold ({max_external_deps})"
         )
+        _add_checkpoint(result, "dependency-review")
 
-    # 4. DB migration signals
+    # 4. Hard risk signals
     if _check_signals(packages, DB_MIGRATION_SIGNALS):
+        result.force_required = True
+        result.warnings.append("Database migration signal detected; require --force")
         result.val_review_enabled = True
-        result.checkpoints.append("db-migration-review")
+        _add_checkpoint(result, "db-migration-review")
 
-    # 5. Security signals
+    if _has_broad_write_scope(packages):
+        result.force_required = True
+        result.warnings.append("Broad write scope detected; require --force")
+
+    # 5. Security-sensitive work should continue, but with validation review.
     if _check_signals(packages, SECURITY_SIGNALS):
         result.val_review_enabled = True
-        result.checkpoints.append("security-review")
+        _add_checkpoint(result, "security-review")
 
     # Final decision
     if result.force_required and not force:

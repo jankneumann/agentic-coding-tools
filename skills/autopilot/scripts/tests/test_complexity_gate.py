@@ -86,18 +86,20 @@ class TestLOCThreshold:
 
 class TestPackageThreshold:
     def test_packages_exceed_threshold(self, tmp_path: Path) -> None:
-        """6 packages -> force_required=True, warning."""
+        """6 packages -> warning and wave checkpoint, not a hard block."""
         packages = _make_packages(6, loc_each=50)
         wp_path = _write_yaml(tmp_path, {"packages": packages})
 
         result = assess_complexity(wp_path)
 
-        assert result.force_required is True
+        assert result.allowed is True
+        assert result.force_required is False
         assert any("Package count" in w and "6" in w for w in result.warnings)
+        assert "wave-validation" in result.checkpoints
 
     def test_integration_package_excluded_from_count(self, tmp_path: Path) -> None:
         """wp-integration not counted in package count."""
-        # 5 regular packages + 1 integration = 5 impl (exceeds default 4)
+        # 5 regular packages + 1 integration = 5 impl (soft exceeds default 4)
         packages = _make_packages(
             6,
             loc_each=50,
@@ -107,7 +109,8 @@ class TestPackageThreshold:
 
         result = assess_complexity(wp_path)
 
-        assert result.force_required is True
+        assert result.allowed is True
+        assert result.force_required is False
         assert any("Package count (5)" in w for w in result.warnings)
 
         # Now with 4 regular + 1 integration = 4 impl (within threshold)
@@ -121,6 +124,18 @@ class TestPackageThreshold:
         result2 = assess_complexity(wp_path2)
 
         assert not any("Package count" in w for w in result2.warnings)
+
+    def test_extreme_package_count_requires_force(self, tmp_path: Path) -> None:
+        """13 packages -> suggest roadmap decomposition and require force."""
+        packages = _make_packages(13, loc_each=20)
+        wp_path = _write_yaml(tmp_path, {"packages": packages})
+
+        result = assess_complexity(wp_path)
+
+        assert result.allowed is False
+        assert result.force_required is True
+        assert any("roadmap threshold" in w and "13" in w for w in result.warnings)
+        assert "roadmap-decomposition" in result.checkpoints
 
 
 class TestForceFlag:
@@ -148,7 +163,7 @@ class TestForceFlag:
 
 class TestSignalDetection:
     def test_db_migration_enables_val_review(self, tmp_path: Path) -> None:
-        """Package with 'migration' in description -> val_review_enabled=True."""
+        """Package with 'migration' in description -> force + val review."""
         packages = _make_packages(
             2, loc_each=100, descriptions=["Add database migration", "Update API"]
         )
@@ -156,11 +171,13 @@ class TestSignalDetection:
 
         result = assess_complexity(wp_path)
 
+        assert result.allowed is False
+        assert result.force_required is True
         assert result.val_review_enabled is True
         assert "db-migration-review" in result.checkpoints
 
     def test_security_path_enables_val_review(self, tmp_path: Path) -> None:
-        """Package with 'auth' in description -> val_review_enabled=True."""
+        """Package with 'auth' in description -> val review, not force."""
         packages = _make_packages(
             2, loc_each=100, descriptions=["Implement auth flow", "Update UI"]
         )
@@ -168,6 +185,8 @@ class TestSignalDetection:
 
         result = assess_complexity(wp_path)
 
+        assert result.allowed is True
+        assert result.force_required is False
         assert result.val_review_enabled is True
         assert "security-review" in result.checkpoints
 
@@ -191,7 +210,7 @@ class TestCustomThresholds:
 
 class TestCombined:
     def test_combined_thresholds(self, tmp_path: Path) -> None:
-        """LOC + packages + db migration -> all warnings present."""
+        """LOC + packages + db migration -> hard risk plus scheduling checkpoints."""
         packages = _make_packages(
             6,
             loc_each=200,
@@ -213,3 +232,43 @@ class TestCombined:
         assert any("LOC" in w for w in result.warnings)
         assert any("Package count" in w for w in result.warnings)
         assert "db-migration-review" in result.checkpoints
+        assert "wave-validation" in result.checkpoints
+
+
+class TestRiskSignals:
+    def test_broad_write_scope_requires_force(self, tmp_path: Path) -> None:
+        """Broad write scopes are high-risk enough to block autopilot by default."""
+        packages = _make_packages(1, loc_each=50)
+        packages[0]["scope"] = {"write_allow": ["**"]}
+        wp_path = _write_yaml(tmp_path, {"packages": packages})
+
+        result = assess_complexity(wp_path)
+
+        assert result.allowed is False
+        assert result.force_required is True
+        assert any("Broad write scope" in w for w in result.warnings)
+
+    def test_package_count_with_security_matches_kanban_shape(self, tmp_path: Path) -> None:
+        """A decomposed security-sensitive feature continues with checkpoints."""
+        packages = _make_packages(
+            7,
+            loc_each=50,
+            descriptions=[
+                "Contracts",
+                "Token auth endpoint",
+                "Frontend skeleton",
+                "Swimlanes",
+                "Sync banner",
+                "Saved views",
+                "Tauri scaffold",
+            ],
+        )
+        wp_path = _write_yaml(tmp_path, {"packages": packages})
+
+        result = assess_complexity(wp_path)
+
+        assert result.allowed is True
+        assert result.force_required is False
+        assert result.val_review_enabled is True
+        assert "security-review" in result.checkpoints
+        assert "wave-validation" in result.checkpoints

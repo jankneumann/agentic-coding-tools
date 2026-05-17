@@ -99,6 +99,17 @@ result = assess_complexity(work_packages_path, proposal_path, force=<--force fla
 - If `result.warnings`: report them but continue
 - If `result.checkpoints`: log injected checkpoints
 
+Gate policy:
+- Package count above `defaults.auto_loop.max_packages` is a soft scheduling
+  signal. It emits `wave-validation` and, at higher counts, `limit-concurrency`;
+  it does not require `--force` unless it exceeds
+  `defaults.auto_loop.max_roadmap_packages` (default: 12).
+- Security-sensitive signals (`auth`, `crypto`, `secret`, `token`) enable
+  validation review and `security-review` without blocking automation.
+- High-confidence risk signals still require `--force`: LOC above
+  `max_loc`, database migration signals, broad repository write scopes such as
+  `**`, and package counts above the roadmap threshold.
+
 **Record INIT phase archetype** (state-only resolver — D9). After loop-state.json
 is written, shell out to record `phase_archetype` for INIT so observability
 covers all 13 non-terminal phases, not just the 7 dispatching phases:
