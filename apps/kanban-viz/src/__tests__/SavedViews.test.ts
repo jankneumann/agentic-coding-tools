@@ -22,7 +22,7 @@ beforeEach(() => {
   (globalThis as Record<string, unknown>).fetch = fetchMock;
   // Ensure window.__TAURI__ is not set (browser path)
   if (typeof window !== "undefined") {
-    delete (window as Record<string, unknown>).__TAURI__;
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
   }
 });
 
@@ -74,8 +74,9 @@ describe("saveView — re-save", () => {
     await saveView("same-slug", view, "http://localhost:8081", "key");
     await saveView("same-slug", view, "http://localhost:8081", "key");
 
-    const calls = fetchMock.mock.calls.filter(([url]: [string]) =>
-      String(url).includes("same-slug"),
+    type FetchCall = [string, ...unknown[]];
+    const calls = (fetchMock.mock.calls as unknown as FetchCall[]).filter(
+      ([url]) => String(url).includes("same-slug"),
     );
     expect(calls.length).toBe(2);
   });

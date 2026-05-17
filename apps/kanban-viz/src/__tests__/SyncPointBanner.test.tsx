@@ -166,16 +166,17 @@ describe("SyncPointBanner — kick with consent", () => {
 
     await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
     // Kick API not called yet
-    const kickCallsBefore = fetchMock.mock.calls.filter(([url]: [string]) =>
-      String(url).includes("/agents/"),
+    type FetchCall = [string, ...unknown[]];
+    const kickCallsBefore = (fetchMock.mock.calls as unknown as FetchCall[]).filter(
+      ([url]) => String(url).includes("/agents/"),
     ).length;
     expect(kickCallsBefore).toBe(0);
 
     await user.click(screen.getByTestId("consent-confirm"));
     // Kick API called after confirm
     await waitFor(() => {
-      const kickCalls = fetchMock.mock.calls.filter(([url]: [string]) =>
-        String(url).includes("/agents/agent-42/kick"),
+      const kickCalls = (fetchMock.mock.calls as unknown as FetchCall[]).filter(
+        ([url]) => String(url).includes("/agents/agent-42/kick"),
       );
       expect(kickCalls.length).toBeGreaterThan(0);
     });
@@ -192,8 +193,9 @@ describe("SyncPointBanner — kick with consent", () => {
     await user.click(screen.getByTestId("consent-decline"));
 
     // No kick API calls
-    const kickCalls = fetchMock.mock.calls.filter(([url]: [string]) =>
-      String(url).includes("/agents/"),
+    type FetchCall2 = [string, ...unknown[]];
+    const kickCalls = (fetchMock.mock.calls as unknown as FetchCall2[]).filter(
+      ([url]) => String(url).includes("/agents/"),
     );
     expect(kickCalls.length).toBe(0);
 

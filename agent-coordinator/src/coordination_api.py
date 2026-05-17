@@ -596,6 +596,7 @@ def create_coordination_api() -> FastAPI:
     # COORDINATOR_CORS_ALLOWED_ORIGINS CSV.  Credentials=False; the API key
     # travels in headers, not cookies.
     import os as _os
+
     from fastapi.middleware.cors import CORSMiddleware
 
     _cors_origins = ["http://localhost:5173"]
@@ -2685,7 +2686,8 @@ def create_coordination_api() -> FastAPI:
         """
         from fastapi.responses import JSONResponse
 
-        from .event_stream import mint_events_token as _mint, _get_signing_key
+        from .event_stream import _get_signing_key
+        from .event_stream import mint_events_token as _mint
 
         if _get_signing_key() is None:
             return JSONResponse(
@@ -2717,7 +2719,7 @@ def create_coordination_api() -> FastAPI:
         change_ids: comma-separated list (required; rejected with 400 if empty).
         Fails closed (503) when COORDINATOR_SSE_SIGNING_KEY is unset.
         """
-        from fastapi.responses import JSONResponse, Response
+        from fastapi.responses import JSONResponse
 
         from .event_stream import _get_signing_key, sse_event_generator, validate_events_token
 

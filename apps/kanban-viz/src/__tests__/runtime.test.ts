@@ -7,7 +7,7 @@ import { isTauri, isBrowser } from "../lib/runtime";
 
 describe("runtime feature detection", () => {
   afterEach(() => {
-    delete (window as Record<string, unknown>).__TAURI__;
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
   });
 
   it("isTauri() returns false in jsdom (browser environment)", () => {
@@ -19,12 +19,12 @@ describe("runtime feature detection", () => {
   });
 
   it("isTauri() returns true when window.__TAURI__ is set", () => {
-    (window as Record<string, unknown>).__TAURI__ = {};
+    (window as unknown as Record<string, unknown>).__TAURI__ = {};
     expect(isTauri()).toBe(true);
   });
 
   it("isBrowser() returns false when window.__TAURI__ is set", () => {
-    (window as Record<string, unknown>).__TAURI__ = {};
+    (window as unknown as Record<string, unknown>).__TAURI__ = {};
     expect(isBrowser()).toBe(false);
   });
 });
@@ -33,7 +33,7 @@ describe("runtime feature detection", () => {
 
 describe("browser code paths run without Tauri APIs", () => {
   beforeEach(() => {
-    delete (window as Record<string, unknown>).__TAURI__;
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
   });
 
   it("can import saveView module without @tauri-apps/api being called at module-load", async () => {
