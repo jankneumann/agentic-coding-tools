@@ -78,11 +78,15 @@ THEN it SHALL use the shared episodic-memory tag schema: failure_type (enum: sco
 WHEN an agent encounters a task failure and invokes the `remember` MCP tool with capability-gap metadata
 THEN the entry SHALL be recorded with `source:self-reported`
 
-#### Scenario: Coordinator auto-emits capability gaps from audit patterns
-WHEN the coordinator's audit pattern matcher detects a struggle-shaped pattern (retry storm on the same operation, two consecutive failed verify operations on the same work package, a guardrails scope-violation result, or lock contention exceeding lock TTL on the same key)
-THEN it SHALL emit a memory entry under the shared tag schema with `source:coordinator-emitted`
+#### Scenario: Coordinator auto-emits capability gaps via LLM classifier
+WHEN the coordinator's audit-triage background task drains a batch of audit entries from its in-memory ring buffer
+THEN it SHALL resolve the classifier model via the archetype system in `agent-coordinator/archetypes.yaml` (default archetype `analyst`, default provider `claude_code`, both configurable) using `agents_config.resolve_model()`
+AND it SHALL compose the classifier system prompt via `agents_config.compose_prompt(archetype, task_prompt)` so the archetype's base prompt is preserved
+AND it SHALL invoke the classifier with strict output-schema enforcement so emitted findings always parse (invalid responses dropped with a warning, never written to memory)
+AND for each capability gap the classifier identifies, the coordinator SHALL emit a memory entry under the shared tag schema with `source:coordinator-emitted` plus a `prompt_version:N` tag
 AND it SHALL NOT require any agent involvement
-AND patterns and thresholds SHALL be configurable via `config.yaml: audit.capability_gap_patterns`
+AND the classifier archetype, provider, batch size, batch interval, and prompt version SHALL be configurable via `agent-coordinator/config.yaml: audit.capability_gap_triage.*`
+AND the hot path (`AuditService.log_operation`) SHALL NOT block on LLM calls — only ring-buffer push happens synchronously
 
 #### Scenario: Session-log captures agent-observed gaps at phase boundaries
 WHEN an agent writes a session-log phase entry via the `session-log` skill
@@ -184,13 +188,15 @@ AND the sanitizer SHALL be the one used by the `session-log` skill, extended as 
 
 #### Scenario: Triage scores every ingested session
 WHEN normalized transcripts are written
-THEN a triage pass SHALL run a configurable cheap model (default `claude-haiku-4-5`) over each session
+THEN a triage pass SHALL resolve its model via the archetype system (default archetype `analyst`, configurable via `skills/collect-transcripts/config.yaml: triage.archetype` and `provider`)
+AND run the resolved model over each session
 AND produce a score covering: retry_count, tool_error_count, scope_violation_count, user_correction_count, and a single-shot struggle classification
 AND persist the score under the session id alongside the normalized transcript
 
-#### Scenario: Deep analysis runs on flagged sessions only
+#### Scenario: Deep analysis runs on flagged sessions
 WHEN a session triage score exceeds the configured struggle threshold
-THEN a deep-read analysis SHALL run a stronger model over the normalized transcript
+THEN a deep-read analysis SHALL resolve its model via the archetype system (default archetype `reviewer`, configurable via `skills/collect-transcripts/config.yaml: deep_analysis.archetype` and `provider`)
+AND run the resolved model over the normalized transcript
 AND emit findings using the failure-recording tag schema (`failure_type:*`, `capability_gap:*`, `affected_skill:*`, `severity:*`) from the Capability Gap Detection requirement
 AND write the findings to episodic memory via the `remember` MCP tool with `source:transcript-mined` as an additional tag
 

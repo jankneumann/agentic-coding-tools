@@ -52,13 +52,14 @@
   **Files**: `agent-coordinator/src/guardrails.py`, `agent-coordinator/src/session_grants.py`, `agent-coordinator/src/work_queue.py`
   **Dependencies**: 2.3
 
-- [ ] 2.5 Write tests for coordinator-side capability-gap auto-emission — fixture-driven tests for each v1 pattern (retry storm, repeated verify failure, scope violation, lock contention exceeding TTL); verify emitted memory entry carries `source:coordinator-emitted` tag and the D4 schema; verify pattern thresholds are config-driven
-  **Spec scenarios**: harness-engineering.4 (coordinator auto-emits capability gaps from audit patterns)
-  **Design decisions**: D9 (coordinator-side automatic capability-gap emission)
+- [ ] 2.5 Write tests for coordinator-side audit-triage LLM classifier — fixture-driven tests with mocked LLM responses covering (i) ring-buffer push from `log_operation` adds zero latency on the hot path, (ii) background task drains the buffer on cadence (mocked clock), (iii) classifier model is resolved via `agents_config.resolve_model(archetype, package_metadata={}, provider=...)` using the configured archetype/provider, (iv) system prompt is composed via `agents_config.compose_prompt(archetype, task_prompt)`, (v) classifier output with valid schema produces memory entries with `source:coordinator-emitted` + `prompt_version:N`, (vi) classifier output with invalid schema is dropped with a warning and NOT written to memory, (vii) archetype defaults to `analyst` and provider defaults to `claude_code`, both overridable via config. Use a stub LLM client that returns canned responses — no real API calls in CI.
+  **Spec scenarios**: harness-engineering.4 (coordinator auto-emits capability gaps via LLM classifier)
+  **Design decisions**: D9 (coordinator-side automatic capability-gap emission via LLM classifier)
   **Dependencies**: 1.4
 
-- [ ] 2.6 Implement coordinator-side capability-gap pattern matcher — extend `AuditService.log_operation` with a hook that observes audit entries and, on matching a struggle pattern, calls into the memory service to emit a tagged entry. Patterns: (a) same `(agent_id, operation)` pair retried N+ times in a session, (b) two consecutive failed `verify` ops on same WP, (c) any `guardrails.check` returning a scope violation, (d) lock contention exceeding lock TTL on same key. Thresholds in `config.yaml: audit.capability_gap_patterns`; emission is async/non-blocking via memory service batch.
-  **Files**: `agent-coordinator/src/audit.py`, `agent-coordinator/src/memory.py`, `agent-coordinator/config.yaml.example`, `agent-coordinator/tests/test_audit_capability_gaps.py`
+- [ ] 2.6 Implement coordinator-side audit-triage LLM classifier — extend `AuditService.log_operation` to push each audit entry into an in-memory ring buffer keyed by `(agent_id, session_id)` (hot path, no LLM); create `agent-coordinator/src/audit_triage.py` background task that drains the buffer on configurable cadence; resolve the classifier model via `agents_config.resolve_model()` against the configured archetype (default `analyst`) + provider (default `claude_code`); compose the prompt via `agents_config.compose_prompt(archetype, task_prompt)` where `task_prompt` is loaded from `agent-coordinator/src/audit_triage_prompts/v1.md` (versioned, code-reviewed); invoke with strict output-schema enforcement; valid findings get emitted to memory with `source:coordinator-emitted` + `prompt_version:1`; invalid responses are dropped with a warning. The LLM client SHALL dispatch to the provider matching the resolved archetype provider (claude_code → anthropic SDK, codex → openai SDK, gemini → google-genai SDK) — no hardcoded vendor lock-in. Config knobs in `config.yaml: audit.capability_gap_triage.*` (`enabled`, `archetype`, `provider`, `batch_size`, `batch_interval_minutes`, `prompt_version`). Default-off in CI, default-on in production.
+  **Files**: `agent-coordinator/src/audit.py`, `agent-coordinator/src/audit_triage.py`, `agent-coordinator/src/audit_triage_prompts/v1.md`, `agent-coordinator/src/memory.py`, `agent-coordinator/config.yaml.example`, `agent-coordinator/pyproject.toml`, `agent-coordinator/tests/test_audit_capability_gaps.py`
+  **Notes**: Reuses the existing archetype infrastructure in `agent-coordinator/src/agents_config.py` and `agent-coordinator/archetypes.yaml` — do NOT introduce a parallel model-selection path.
   **Dependencies**: 1.4, 2.5
 
 ## Phase 3: Review Loop Enhancement
@@ -182,14 +183,14 @@
   **Dependencies**: 6.2
 
 - [ ] 6.9 Implement triage pass with dry-run mode
-  **Files**: `skills/collect-transcripts/scripts/triage.py`, `skills/collect-transcripts/tests/test_triage.py`
-  **Notes**: Cheap-model scoring with configurable model (default `claude-haiku-4-5`) and configurable struggle threshold. `--dry-run` mode prints planned per-session and total cost without making any API calls. Default-off in CI.
+  **Files**: `skills/collect-transcripts/scripts/triage.py`, `skills/collect-transcripts/tests/test_triage.py`, `skills/collect-transcripts/config.yaml.example`
+  **Notes**: Triage model is resolved via the archetype system — default `archetype: analyst`, default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: triage.{archetype, provider}`. Resolution uses `agents_config.resolve_model()` from the coordinator (skills can import directly OR call coordinator HTTP `/archetypes/resolve_for_phase` — pick whichever fits the skill's runtime). System prompt composed via `agents_config.compose_prompt(archetype, task_prompt)` where `task_prompt` is the transcript-triage scoring instructions. Configurable struggle threshold. `--dry-run` mode prints planned per-session and total estimated operation count without making any API calls. Default-off in CI.
   **Spec scenarios**: harness-engineering.8 (triage scores every ingested session), harness-engineering.8 (mining is opt-in)
   **Dependencies**: 6.2, 6.8
 
 - [ ] 6.10 Implement deep-analysis writer
   **Files**: `skills/collect-transcripts/scripts/deep_analyze.py`, `skills/collect-transcripts/tests/test_deep_analyze.py`
-  **Notes**: Emits findings under the D4 tag schema with an additional `source:transcript-mined` tag. Uses the coordinator's `remember` MCP tool.
+  **Notes**: Deep-analysis model resolved via archetype system — default `archetype: reviewer` (premium tier), default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: deep_analysis.{archetype, provider}`. Same `agents_config.resolve_model()` + `compose_prompt()` pattern as the triage task. Emits findings under the D4 tag schema with `source:transcript-mined`. Uses the coordinator's `remember` MCP tool.
   **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions only)
   **Dependencies**: 1.4, 6.9
 
