@@ -98,11 +98,71 @@
   **Files**: `skills/agent-metrics/SKILL.md`, `skills/agent-metrics/scripts/query_metrics.py`, `skills/agent-metrics/scripts/generate_dashboard.py`
   **Dependencies**: 5.3
 
-## Phase 6: Integration & Documentation
+## Phase 6: Session Transcript Mining
 
-- [ ] 6.1 Update docs and run skills install — sync new skills to runtime copies, update docs/lessons-learned.md with harness engineering patterns
+- [ ] 6.1 Write tests for normalized event schema and adapter base class — fixture-based round-trip tests per adapter (fixtures live under `skills/collect-transcripts/tests/fixtures/<harness>/`)
+  **Spec scenarios**: harness-engineering.8 (adapter discovers and normalizes)
+  **Design decisions**: D8 (transcript ingestion via adapter-based skill)
+  **Dependencies**: 1.4 (memory tag conventions)
+
+- [ ] 6.2 Define normalized event schema + adapter base class
+  **Files**: `skills/collect-transcripts/SKILL.md`, `skills/collect-transcripts/references/event-schema.md`, `skills/collect-transcripts/scripts/adapters/base.py`, `skills/collect-transcripts/scripts/normalize.py`
+  **Dependencies**: 6.1
+
+- [ ] 6.3 Implement Claude Code CLI adapter
+  **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_cli.py`, `skills/collect-transcripts/tests/test_claude_code_cli.py`
+  **Notes**: Reads `~/.claude/projects/<urlencoded-cwd>/<session-id>.jsonl`. Reuse the path-discovery pattern from `skills/session-bootstrap/scripts/calibrate_token_proxy.py::_discover_newest_transcript` (path verified — already used in token calibration).
+  **Dependencies**: 6.2
+
+- [ ] 6.4 Implement Claude Code web adapter
+  **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_web.py`, `skills/collect-transcripts/tests/test_claude_code_web.py`
+  **Notes**: Fetches sessions via the Anthropic Claude Code web API. Endpoint surface must be verified against current API docs before locking the contract. Must fail soft on auth missing or endpoint absent (spec: "Adapter fails soft on source unavailability").
+  **Dependencies**: 6.2
+
+- [ ] 6.5 Implement Codex CLI adapter
+  **Files**: `skills/collect-transcripts/scripts/adapters/codex_cli.py`, `skills/collect-transcripts/tests/test_codex_cli.py`
+  **Notes**: Reads from `~/.codex/sessions/` (verify path on current Codex CLI version before implementation). Tool calls use OpenAI `function_call`/`function_response` blocks — normalize to the common event schema's `tool_use` / `tool_result` events.
+  **Dependencies**: 6.2
+
+- [ ] 6.6 Implement Codex web adapter (best-effort)
+  **Files**: `skills/collect-transcripts/scripts/adapters/codex_web.py`, `skills/collect-transcripts/tests/test_codex_web.py`
+  **Notes**: Investigate availability of an OpenAI Codex web transcript-fetch endpoint. If no stable endpoint exists at v1 ship time, ship as a stub that fails soft with a documented fallback (CLI export → process via `codex_cli` adapter). Decision must be captured in the adapter's docstring.
+  **Dependencies**: 6.2
+
+- [ ] 6.7 Implement Gemini CLI adapter
+  **Files**: `skills/collect-transcripts/scripts/adapters/gemini_cli.py`, `skills/collect-transcripts/tests/test_gemini_cli.py`
+  **Notes**: Reads Gemini CLI session history (verify path on current version — has changed across Gemini CLI releases). Normalize Gemini `parts` array format to the common event schema.
+  **Dependencies**: 6.2
+
+- [ ] 6.8 Extend sanitizer for transcript-specific structures
+  **Files**: `skills/session-log/scripts/sanitize_session_log.py`, `skills/collect-transcripts/scripts/sanitize_events.py`, `skills/session-log/tests/test_sanitize_session_log.py`
+  **Notes**: Add coverage for tool-call argument blobs and tool-result outputs — common accidental-leak sites that the existing session-log sanitizer doesn't target. Existing redaction rules (secrets, high-entropy strings, env paths) must continue passing.
+  **Spec scenarios**: harness-engineering.8 (sanitization precedes any LLM analysis)
+  **Dependencies**: 6.2
+
+- [ ] 6.9 Implement triage pass with dry-run mode
+  **Files**: `skills/collect-transcripts/scripts/triage.py`, `skills/collect-transcripts/tests/test_triage.py`
+  **Notes**: Cheap-model scoring with configurable model (default `claude-haiku-4-5`) and configurable struggle threshold. `--dry-run` mode prints planned per-session and total cost without making any API calls. Default-off in CI.
+  **Spec scenarios**: harness-engineering.8 (triage scores every ingested session), harness-engineering.8 (mining is opt-in)
+  **Dependencies**: 6.2, 6.8
+
+- [ ] 6.10 Implement deep-analysis writer
+  **Files**: `skills/collect-transcripts/scripts/deep_analyze.py`, `skills/collect-transcripts/tests/test_deep_analyze.py`
+  **Notes**: Emits findings under the D4 tag schema with an additional `source:transcript-mined` tag. Uses the coordinator's `remember` MCP tool.
+  **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions only)
+  **Dependencies**: 1.4, 6.9
+
+- [ ] 6.11 Wire `/improve-harness` to surface transcript-sourced findings
+  **Files**: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`, `skills/improve-harness/tests/`
+  **Notes**: Add a "Source" column (self-reported / coordinator-emitted / transcript-mined) to the report and a summary of the share each source contributed, so operators can see which signals dominate.
+  **Spec scenarios**: harness-engineering.8 (improve-harness surfaces transcript-sourced findings)
+  **Dependencies**: 5.2, 6.10
+
+## Phase 7: Integration & Documentation
+
+- [ ] 7.1 Update docs and run skills install — sync new skills to runtime copies, update docs/lessons-learned.md with harness engineering patterns including transcript-mining design notes
   **Files**: `docs/lessons-learned.md`, `docs/parallel-agentic-development.md`
   **Dependencies**: All previous tasks
 
-- [ ] 6.2 Run full validation — `openspec validate`, test suite, linter checks on all modified files
-  **Dependencies**: 6.1
+- [ ] 7.2 Run full validation — `openspec validate`, test suite, linter checks on all modified files
+  **Dependencies**: 7.1

@@ -61,6 +61,18 @@
 
 **Trade-offs**: No real-time dashboard — reports are point-in-time snapshots. Accepted because the primary use case is periodic review, not continuous monitoring.
 
+### D8: Session transcript mining via adapter-based skill
+
+**Decision**: Implement a new `/collect-transcripts` skill containing per-harness adapters that normalize raw session transcripts into a common event schema. v1 adapters: Claude Code CLI, Claude Code on the web, Codex CLI, Codex on the web (best-effort — adapter ships as a stub with documented fallback if no stable transcript endpoint exists at v1 ship time), and Gemini CLI. Raw normalized events are written to disk under `docs/transcripts/<date>/<session-id>.jsonl` (filesystem-as-memory). A cheap-model triage pass (default `claude-haiku-4-5`) scores every session on retry_count, tool_error_count, scope_violation_count, user_correction_count, and a single-shot struggle classification. Sessions above the configurable threshold get a deep read by a stronger model; deep-read findings use D4's tag schema (`failure_type:*`, `capability_gap:*`, `affected_skill:*`, `severity:*`) and are written to episodic memory via the `remember` MCP tool. `/improve-harness` mines the resulting memory entries with no changes to its existing analysis path — transcript mining adds a signal source, not a new consumer.
+
+**Rationale**: D4's tag-based recording depends on agents stopping mid-session to introspect, which is exactly what struggling agents don't do. Coordinator-emitted signals (telemetry/audit) cover patterns visible at the MCP/HTTP boundary but miss everything that happens inside the agent's own tool loop. Raw transcripts are the only source that carries the full unsummarized signal: every retry, every tool error, every user correction, every aborted plan. Mining them with a cheaper triage model keeps the cost shape sane — triage runs on every session, deep analysis runs only on flagged outliers. The two-tier storage (raw on disk, structured findings in DB) mirrors OpenAI's "filesystem as memory" principle: the DB stays small and queryable, while the raw transcripts remain available for re-analysis when the analysis prompt or model improves.
+
+**Trade-offs**:
+- (a) Adapter coupling — each new harness version may change its on-disk format or API and require adapter maintenance. Accepted because the common event schema isolates the rest of the pipeline; only the adapter changes when a vendor updates its format.
+- (b) Privacy surface — transcripts contain everything including secrets, PII, and customer code. Mitigated by reusing the `session-log` skill's sanitizer (extended to cover tool-call argument blobs and tool-result outputs, which are common accidental-leak sites) before any normalized event leaves the adapter and before any LLM sees the content.
+- (c) Cost — cheap-model triage is ~$0.01–0.05 per session at current Haiku 4.5 pricing; deep analysis is ~$0.30–1.00 per flagged session. Mining is default-off in CI; the operator opts in via flag, and a `--dry-run` mode prints the planned cost without making any API calls.
+- (d) Cloud-harness API uncertainty — Claude Code web has session APIs but they evolve; Codex web may not expose a stable transcript endpoint at v1 ship time. Adapters MUST fail soft (log a structured warning and skip) when their source isn't available, never block the rest of the pipeline. Best-effort adapters can ship as stubs.
+
 ## Component Interaction
 
 ```
@@ -73,9 +85,21 @@ Implementation ──→ Review Dispatch ──→ Consensus ──→ Convergen
      │                              ┌────────────────────────┘
      ▼                              ▼
   Failures ──→ Episodic Memory ──→ /improve-harness (reports)
+                    ▲                    │
+                    │                    ▼
+                    │              /agent-metrics
                     │                    │
-                    ▼                    ▼
-              /agent-metrics      OpenSpec proposals (human-guided)
+                    │                    ▼
+                    │              OpenSpec proposals (human-guided)
+                    │
+  Harness Transcripts ──→ /collect-transcripts
+  (Claude CLI/web,             │
+   Codex CLI/web,              ├─→ Sanitize ──→ docs/transcripts/<date>/<id>.jsonl (raw)
+   Gemini CLI)                 │
+                               ├─→ Triage (cheap model) ──→ score per session
+                               │
+                               └─→ Deep analyze (flagged sessions) ──→ findings ──┘
+                                       (D4 tag schema)
 
 Validation ──→ --phase=architecture ──→ Structural Linters ──→ Findings
 ```
