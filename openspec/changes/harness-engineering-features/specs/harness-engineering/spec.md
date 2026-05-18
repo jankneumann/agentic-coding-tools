@@ -137,3 +137,46 @@ WHEN `/agent-metrics --gaps` is invoked
 THEN it SHALL query episodic memory for capability_gap entries
 AND rank gaps by frequency
 AND cross-reference with `/improve-harness` reports if available
+
+### Requirement: Session Transcript Mining
+
+The system SHALL ingest raw session transcripts from supported coding-agent harnesses via vendor-specific adapters, normalize them to a common event schema, triage them with a cheap model, and write structured findings to episodic memory for consumption by `/improve-harness`.
+
+#### Scenario: Adapter discovers and normalizes transcripts
+WHEN the `/collect-transcripts` skill is invoked with a harness adapter selected
+THEN the adapter SHALL enumerate available sessions from its source (filesystem path or harness API)
+AND emit a sequence of normalized events per session conforming to `skills/collect-transcripts/references/event-schema.md`
+AND write the normalized event stream to `docs/transcripts/<date>/<session-id>.jsonl`
+
+#### Scenario: Adapter fails soft on source unavailability
+WHEN a transcript source is unavailable (path missing, API endpoint absent, authentication missing, harness not installed)
+THEN the adapter SHALL log a structured warning identifying the harness and the reason
+AND exit with a non-fatal status that does not block other adapters or the downstream analysis pipeline
+
+#### Scenario: Sanitization precedes any LLM analysis
+WHEN normalized events are produced
+THEN the sanitizer SHALL redact secrets, high-entropy strings, and environment-specific paths from event payloads (including tool-call arguments and tool-result outputs) BEFORE the events are passed to triage or deep-analysis models
+AND the sanitizer SHALL be the one used by the `session-log` skill, extended as needed for transcript-specific structures
+
+#### Scenario: Triage scores every ingested session
+WHEN normalized transcripts are written
+THEN a triage pass SHALL run a configurable cheap model (default `claude-haiku-4-5`) over each session
+AND produce a score covering: retry_count, tool_error_count, scope_violation_count, user_correction_count, and a single-shot struggle classification
+AND persist the score under the session id alongside the normalized transcript
+
+#### Scenario: Deep analysis runs on flagged sessions only
+WHEN a session triage score exceeds the configured struggle threshold
+THEN a deep-read analysis SHALL run a stronger model over the normalized transcript
+AND emit findings using the failure-recording tag schema (`failure_type:*`, `capability_gap:*`, `affected_skill:*`, `severity:*`) from the Capability Gap Detection requirement
+AND write the findings to episodic memory via the `remember` MCP tool with `source:transcript-mined` as an additional tag
+
+#### Scenario: Mining is opt-in
+WHEN the skill runs in a CI context or without an explicit `--enable` flag
+THEN no LLM API calls SHALL be made and no episodic memory entries SHALL be written
+AND the skill SHALL print a dry-run plan (per-adapter session counts, estimated triage cost, estimated deep-analysis cost given the configured threshold) and exit zero
+
+#### Scenario: Improve-harness surfaces transcript-sourced findings
+WHEN `/improve-harness` generates a report
+AND episodic memory contains entries tagged `source:transcript-mined`
+THEN the report SHALL include a "Source" column or annotation per finding distinguishing self-reported, coordinator-emitted, and transcript-mined signals
+AND the report SHALL summarize the share of findings each source contributed

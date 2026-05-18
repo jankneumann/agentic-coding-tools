@@ -52,6 +52,11 @@ Add throughput tracking using the existing audit trail and telemetry: PRs opened
 
 **Existing foundations**: `agent-coordinator/src/telemetry.py` (OpenTelemetry/Prometheus), `agent-coordinator/src/audit.py`, `agent-coordinator/evaluation/reports/generator.py`
 
+### Feature 8: Session Transcript Mining
+A new `/collect-transcripts` skill ingests raw session transcripts from each supported coding-agent harness via vendor-specific adapters that normalize to a common event schema. v1 adapters: Claude Code CLI, Claude Code on the web, Codex CLI, Codex on the web (best-effort — included if a stable transcript endpoint exists at ship time, otherwise stubbed with a documented fallback), and Gemini CLI. Raw normalized events land on disk under `docs/transcripts/<date>/<session-id>.jsonl` (filesystem-as-memory). A cheap-model triage pass scores every session; only flagged outliers get a deep read whose structured findings are written to episodic memory using Feature 4's `capability_gap:*` tag schema. `/improve-harness` consumes the resulting memory entries unchanged — transcript mining is a new *signal source*, not a new analysis path. This captures the un-summarized struggle signal (retry counts, tool-error sequences, user corrections, scope-violation attempts) that agent self-reports systematically under-report.
+
+**Existing foundations**: `skills/session-bootstrap/scripts/calibrate_token_proxy.py` (already reads `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`), `skills/session-log/scripts/sanitize_session_log.py` (secret/path redaction reused for transcript sanitization), Feature 4's `/improve-harness` skill (downstream consumer), `agent-coordinator/src/memory.py` (D4 tag schema is the integration point).
+
 ## Approaches Considered
 
 ### Approach A: Incremental Extension (Recommended)
@@ -122,6 +127,7 @@ Add throughput tracking using the existing audit trail and telemetry: PRs opened
 6. Evaluator agent profile exists with read-only permissions and work-queue role separation
 7. Session scope enforcement blocks out-of-scope file modifications via guardrails
 8. `/agent-metrics` skill generates throughput reports from audit data
+9. `/collect-transcripts` skill ingests at least Claude Code CLI plus one cloud harness, runs cheap-model triage over every session, and writes structured findings to episodic memory for sessions above the configurable struggle threshold; `/improve-harness` reports show which signal source each finding came from
 
 ## References
 

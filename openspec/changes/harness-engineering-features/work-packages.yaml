@@ -330,6 +330,103 @@ packages:
         - "skills/improve-harness/SKILL.md"
         - "skills/agent-metrics/SKILL.md"
 
+  - package_id: wp-transcript-mining
+    title: "Session Transcript Mining — Adapters, Sanitizer, Triage, Deep Analysis"
+    task_type: implementation
+    description: "Implement /collect-transcripts skill with vendor adapters (Claude Code CLI/web, Codex CLI/web best-effort, Gemini CLI), common normalized event schema, transcript-aware sanitizer extension, cheap-model triage pass with dry-run mode, deep-analysis writer that emits findings under D4 tag schema, and /improve-harness extension that surfaces transcript-sourced findings with source attribution."
+    role: backend-implementer
+    priority: 5
+    depends_on:
+      - wp-context-architecture
+      - wp-new-skills
+    locks:
+      files:
+        - "skills/improve-harness/scripts/analyze_failures.py"
+        - "skills/improve-harness/scripts/generate_report.py"
+        - "skills/session-log/scripts/sanitize_session_log.py"
+      keys:
+        - "feature:collect-transcripts"
+        - "feature:improve-harness-mining-sources"
+        - "feature:session-log-sanitizer"
+      ttl_minutes: 180
+      reason: "New transcript mining skill with vendor adapter surface and shared sanitizer extension"
+    scope:
+      write_allow:
+        - "skills/collect-transcripts/**"
+        - "skills/improve-harness/scripts/analyze_failures.py"
+        - "skills/improve-harness/scripts/generate_report.py"
+        - "skills/improve-harness/tests/**"
+        - "skills/session-log/scripts/sanitize_session_log.py"
+        - "skills/session-log/tests/**"
+      read_allow:
+        - "skills/**"
+        - "agent-coordinator/src/**"
+        - "openspec/schemas/**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/database/**"
+        - "CLAUDE.md"
+        - "docs/transcripts/**"
+    worktree:
+      name: harness-engineering-features
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Adapter and normalize unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/collect-transcripts/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "collect_transcripts_tests_passed"
+        - name: "Sanitizer regression + transcript extensions"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/session-log/tests/test_sanitize_session_log.py skills/collect-transcripts/tests/test_sanitize_events.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "sanitizer_tests_passed"
+        - name: "Dry-run triage over fixture transcripts (no API calls)"
+          kind: command
+          command: "skills/.venv/bin/python skills/collect-transcripts/scripts/triage.py --dry-run --fixtures skills/collect-transcripts/tests/fixtures/"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "triage_dry_run_ok"
+        - name: "improve-harness source-attribution tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/improve-harness/tests/ -v -k source"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "improve_harness_source_attribution_ok"
+    metadata:
+      loc_estimate: 1400
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "transcript_adapters_implemented"
+        - "triage_pass_implemented"
+        - "deep_analysis_writer_implemented"
+        - "improve_harness_extended"
+      artifacts:
+        - "skills/collect-transcripts/SKILL.md"
+        - "skills/collect-transcripts/scripts/adapters/"
+        - "skills/collect-transcripts/references/event-schema.md"
+
   - package_id: wp-integration
     title: "Integration & Documentation"
     task_type: integration
@@ -342,6 +439,7 @@ packages:
       - wp-review-loops
       - wp-architecture-linters
       - wp-new-skills
+      - wp-transcript-mining
     locks:
       files: []
       keys:
