@@ -20,9 +20,9 @@ A discoverable index of every skill in this repo, grouped by purpose. For *how* 
 | [Orchestrator-loaded methodology](#orchestrator-loaded-methodology) | Knowledge skills loaded automatically by orchestrators | 3 |
 | [PR triage & ad-hoc tasks](#pr-triage--ad-hoc-tasks) | Cross-source PR merge + small one-off work | 4 |
 | [Vendor & service skills](#vendor--service-skills) | External-service authority docs (Postgres, observability, infra) | 5 |
-| [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 12 |
+| [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 11 |
 
-**52 skills total.** **43 user-invocable**, 9 orchestrator-only.
+**51 skills total.** **42 user-invocable**, 9 orchestrator-only.
 
 ---
 
@@ -127,7 +127,12 @@ Internal machinery used by workflow and methodology skills. Most are `user_invoc
 | ★ `session-bootstrap` | Cloud environment bootstrap (setup script + verify hook) and coordinator lifecycle hooks | `/session-bootstrap` |
 | ★ `session-log` | Structured decision records for session logs and merge logs at phase boundaries | `/session-log` |
 | ★ `roadmap-runtime` | Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization | `/roadmap-runtime` |
-| ★ `openspec-coordinator-worktree` | Coordinate OpenSpec proposals with coordinator issue tracking and isolated git worktree execution | `/openspec-coordinator-worktree` |
+
+### Removed / deprecated skills
+
+| Skill | Status | Replacement |
+|---|---|---|
+| `openspec-beads-worktree` (a.k.a. `openspec-coordinator-worktree`) | **Removed** in [`docs/decisions/agent-coordinator.md` § 2026-05-18](decisions/agent-coordinator.md). Originally integrated [Beads](https://github.com/cdunlap/beads) for issue tracking; Beads was deprecated by [`2026-04-22-replace-beads-with-builtin-tracker`](../openspec/changes/archive/2026-04-22-replace-beads-with-builtin-tracker/) and the wrapping skill's residual functionality was folded into the canonical flow. | `/plan-feature` (seeds coordinator issues at Gate 2), `/implement-feature` (worktree dispatch via `skills/worktree/scripts/worktree.py`), `parallel-infrastructure` (DAG scheduling) |
 
 ## Shared references library
 

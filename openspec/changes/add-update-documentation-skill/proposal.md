@@ -15,7 +15,7 @@ An audit conducted on branch `claude/update-readme-docs-9cpTs` found severe drif
 - README still described skills as "Claude Code slash commands" even though `skills/install.sh` syncs to `.claude/`, `.agents/` (Codex), `.codex/`, and `.gemini/`
 - README's Agent Coordinator section omitted worktree isolation entirely — the central mechanism that makes parallel multi-agent work safe
 - CLAUDE.md's "Documentation" section listed **7 of 30+ docs**, omitting foundational references like `docs/parallel-agentic-development.md` (44KB) and `docs/mental-models.md` (40KB)
-- `docs/skills-catalogue.md` had renamed `openspec-beads-worktree` → `openspec-coordinator-worktree` in frontmatter but the README still referenced the old name and the directory hadn't been moved
+- `docs/skills-catalogue.md` listed `openspec-coordinator-worktree` (renamed from `openspec-beads-worktree`) but neither the directory nor the README had caught up — eventually removed entirely once Beads was dropped from the project
 
 Pass A (companion commit on this branch) hand-fixes the visible drift. But hand-fixing doesn't solve the underlying problem: there's no skill that owns documentation sync, so every new skill, spec, or doc file adds drift unless a contributor remembers to update three Markdown files in three places.
 
@@ -68,7 +68,7 @@ Adds a new requirement to `skill-workflow` spec: **Documentation Sync Skill**. T
 - Auto-rendering the `related:` skill graph as a visualisation (deferred from D4 of `add-engineering-methodology-skills`).
 - Multi-language documentation (English only for now).
 - Sync of skill READMEs inside individual `skills/<name>/` directories — that's per-skill maintenance.
-- Migration of the still-named-`openspec-beads-worktree` directory to `openspec-coordinator-worktree`. That rename is tracked separately; this skill will surface the inconsistency in its report.
+- Re-introduction of the `openspec-beads-worktree` / `openspec-coordinator-worktree` skill (removed 2026-05-18, see `docs/decisions/agent-coordinator.md`). The skill stays gone; its functionality lives in `/plan-feature`, `/implement-feature`, and `parallel-infrastructure`.
 
 ## Success Criteria
 

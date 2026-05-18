@@ -4,7 +4,7 @@ The bottleneck in software engineering is no longer model intelligence — it's 
 
 Three roles do the work: **Orchestrators** plan and define correctness, **Workers** implement against clean context, **Validators** verify adversarially. Features run with **scope-isolated parallelism** (one agent, one worktree, one branch) to avoid stepping on each other; reads, research, and reviews always run in parallel. State survives long pauses through **structured handoffs** at milestone boundaries.
 
-The skills here are **harness-agnostic**: they install into Claude Code (`.claude/skills/`), Codex (`.agents/skills/`), Gemini (`.gemini/`), and any other harness that can discover Markdown-based skill definitions. The same `SKILL.md` file drives the same workflow regardless of which assistant invokes it.
+The skills here are **harness-agnostic**: they install into Claude Code (`.claude/skills/`), Codex (`.agents/skills/`), Gemini (`.gemini/`), and any other harness that can discover Markdown-based skill definitions. The same `SKILL.md` file drives the same workflow regardless of which assistant invokes it. Repo-level guidance is similarly cross-harness: [`AGENTS.md`](AGENTS.md) is a symlink to [`CLAUDE.md`](CLAUDE.md), so Codex (which looks for `AGENTS.md`) and Claude Code (which looks for `CLAUDE.md`) read the same canonical contract.
 
 ## Three Roles
 

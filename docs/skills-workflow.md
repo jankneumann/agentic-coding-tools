@@ -378,7 +378,7 @@ Security scanning is also available inline as a phase within `/validate-feature`
 
 ### `/cleanup-feature`
 
-Merges the approved PR, migrates any open tasks (to Beads issues or a follow-up OpenSpec proposal), archives the proposal via runtime-native archive guidance or CLI fallback, and cleans up branches.
+Merges the approved PR, migrates any open tasks (to coordinator issues or a follow-up OpenSpec proposal), archives the proposal via runtime-native archive guidance or CLI fallback, and cleans up branches.
 
 **Produces**: Merged PR, archived proposal in `openspec/changes/archive/<change-id>/`, updated specs in `openspec/specs/`.
 
@@ -414,9 +414,15 @@ Analyzes all active OpenSpec proposals against recent commit history. Produces a
 
 Updates OpenSpec spec files to reflect what was actually built. Used after implementation work where debugging, testing, code review, or interactive refinements revealed differences between the original spec and the final implementation.
 
-### `/openspec-beads-worktree`
+### `/openspec-beads-worktree` — DEPRECATED (removed)
 
-Coordinates OpenSpec proposals with coordinator issue tracking and isolated git worktree execution. Implements systematic spec-driven development with parallel agent coordination. (Formerly used Beads — now uses coordinator's built-in issue tracker.)
+This skill has been **removed**. It originally integrated OpenSpec proposals with [Beads](https://github.com/cdunlap/beads) for issue tracking and a worktree-per-task execution model. After the `2026-04-22-replace-beads-with-builtin-tracker` change, issue tracking moved to the `agent-coordinator`'s built-in tracker, and the orchestration responsibilities were folded into other skills:
+
+- **Issue seeding from OpenSpec tasks** → handled by `/plan-feature` Gate 2 (see `coordinator-task-status-renderer` in CLAUDE.md)
+- **Worktree-per-task dispatch** → handled by `/implement-feature` via `skills/worktree/scripts/worktree.py`
+- **Parallel agent coordination** → handled by `parallel-infrastructure` (DAG scheduler) and the coordinator's lease/heartbeat system
+
+If you have legacy references to `/openspec-beads-worktree`, replace them with the appropriate skill from the list above. The deprecation decision is recorded in [`docs/decisions/agent-coordinator.md`](decisions/agent-coordinator.md).
 
 ### `/bug-scrub`
 

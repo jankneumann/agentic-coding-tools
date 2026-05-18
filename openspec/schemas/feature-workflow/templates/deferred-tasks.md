@@ -2,7 +2,7 @@
 
 <!-- Migration Date: YYYY-MM-DD
      Original Change: <change-id>
-     Migration Target: Beads issues labeled openspec:<change-id> | Follow-up proposal followup-<change-id> -->
+     Migration Target: coordinator issues labeled openspec:<change-id> | Follow-up proposal followup-<change-id> -->
 
 ## Tasks
 

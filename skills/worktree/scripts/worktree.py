@@ -340,9 +340,9 @@ def resolve_branch(
 
     1. **Explicit override** (highest precedence):
        - ``explicit`` — if passed, used verbatim as the final branch and returned
-         immediately, even when ``branch_prefix`` is also set. This preserves
-         backward compatibility with callers like ``openspec-beads-worktree``
-         that pre-compose their own fully-qualified task branches.
+         immediately, even when ``branch_prefix`` is also set. Useful for callers
+         that pre-compose their own fully-qualified task branches and need them
+         passed through untouched.
 
     2. **Branch-prefix scheme** (for prototype variants):
        - When ``branch_prefix='prototype'``, the result is

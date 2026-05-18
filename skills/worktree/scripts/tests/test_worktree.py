@@ -181,8 +181,8 @@ class TestResolveBranch:
     def test_explicit_wins_over_env_and_is_verbatim(self) -> None:
         """Explicit --branch is used verbatim; agent-id suffix is NOT applied.
 
-        This preserves backward compat with callers like openspec-beads-worktree
-        that pre-compose fully-qualified task branches and pass them via --branch.
+        Lets callers that pre-compose fully-qualified task branches pass them
+        through via --branch without further transformation.
         """
         env = {"OPENSPEC_BRANCH_OVERRIDE": "operator/branch"}
         assert resolve_branch("change", explicit="explicit/branch", env=env) == "explicit/branch"
