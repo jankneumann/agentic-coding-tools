@@ -109,6 +109,16 @@ Raw normalized events are written to disk under `docs/transcripts/<date>/<sessio
 - (b) Round-trip parsing (markdown ↔ dataclass) must handle the new section. Accepted; the existing `_parse_*` dispatchers in `phase_record.py` use section-headed lookup (`sections.get("Trade-offs", [])` etc.), so adding `sections.get("Capability Gaps Observed", [])` follows the established pattern.
 - (c) Duplicate emission risk: an agent might both call `remember` and then list the same gap in the session-log section. Mitigated by `/improve-harness` deduplication keyed on `(capability_gap, affected_skill, session_id)`; the source tag is preserved as a multi-source list when the same gap appears under multiple sources (which is itself useful signal — see D4 rationale).
 
+### D11: Separate classifier prompts for audit-triage and transcript-triage
+
+**Decision**: Maintain separate classifier prompt files for the audit-triage subsystem (`agent-coordinator/src/audit_triage_prompts/v<N>.md`) and the transcript-mining triage + deep-analysis (`skills/collect-transcripts/prompts/triage_v<N>.md`, `skills/collect-transcripts/prompts/deep_analysis_v<N>.md`), even though all of them resolve their model through the same archetype (`analyst` for triage, `reviewer` for deep-analysis).
+
+**Rationale**: The input shapes differ substantially. Audit triage sees structured coordinator operation records (`operation`, `parameters`, `result`, `duration_ms`, `success`, `error_message`) — the prompt needs to know about `acquire_lock`, `claim_work`, `verify`, `guardrails.check`, etc. and what struggle looks like for each. Transcript triage sees raw agent/tool turn sequences from a harness — the prompt needs to know about retry loops, user corrections, tool-error sequences, scope-violation attempts inside the agent's tool loop. A unified prompt would either dilute domain-specific guidance with universal hedges, or accumulate conditional branches per source — both worse than two focused prompts. The cross-cutting consistency that matters (model tier, base system prompt, output schema, `prompt_version:N` tagging) is already shared via the archetype layer; sharing the task prompt would not add value.
+
+**Trade-offs**:
+- (a) Two prompt files to maintain and evolve independently. Accepted because both are versioned (`v1`, `v2`, ...) and code-reviewed on change, and both emit `prompt_version:N` tags so `/improve-harness` can A/B compare across versions even on the same source.
+- (b) If we later discover the prompts converge naturally, unifying is a refactor — not a redesign — and the `prompt_version` tag preserves the historical signal.
+
 ## Component Interaction
 
 ```
