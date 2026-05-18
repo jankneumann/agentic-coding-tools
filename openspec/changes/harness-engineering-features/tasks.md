@@ -19,9 +19,18 @@
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: None
 
-- [ ] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, affected_skill, severity tag prefixes to memory service documentation and validation
+- [ ] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, affected_skill, severity, AND source tag prefixes to memory service documentation and validation. Document the source vocabulary: `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`.
   **Files**: `agent-coordinator/src/memory.py`, `docs/guides/memory-conventions.md`
   **Dependencies**: 1.3
+
+- [ ] 1.5 Write tests for session-log Capability Gaps section — verify PhaseRecord round-trip (markdown ↔ dataclass), section appears between Trade-offs and Relevant Files, empty section parses to empty list, memory emission on `write_both()`
+  **Spec scenarios**: harness-engineering.4 (session-log Capability Gaps Observed section)
+  **Design decisions**: D10 (session-log Capability Gaps section)
+  **Dependencies**: 1.3
+
+- [ ] 1.6 Extend session-log PhaseRecord with Capability Gaps section — add `CapabilityGap` dataclass and `capability_gaps: list[CapabilityGap]` field to `PhaseRecord`; extend renderer to emit `### Capability Gaps Observed` between Trade-offs and Relevant Files; extend `_parse_*` dispatchers to extract it; on `write_both()`, emit one memory entry per gap with `source:session-log` tag
+  **Files**: `skills/session-log/scripts/phase_record.py`, `skills/session-log/scripts/extract_session_log.py`, `skills/session-log/SKILL.md`
+  **Dependencies**: 1.4, 1.5
 
 ## Phase 2: Coordinator Extensions — Profiles, Scope, Work Queue
 
@@ -42,6 +51,15 @@
 - [ ] 2.4 Implement session scope enforcement — extend guardrails to check file paths against session grants, connect work queue claim to session grant creation
   **Files**: `agent-coordinator/src/guardrails.py`, `agent-coordinator/src/session_grants.py`, `agent-coordinator/src/work_queue.py`
   **Dependencies**: 2.3
+
+- [ ] 2.5 Write tests for coordinator-side capability-gap auto-emission — fixture-driven tests for each v1 pattern (retry storm, repeated verify failure, scope violation, lock contention exceeding TTL); verify emitted memory entry carries `source:coordinator-emitted` tag and the D4 schema; verify pattern thresholds are config-driven
+  **Spec scenarios**: harness-engineering.4 (coordinator auto-emits capability gaps from audit patterns)
+  **Design decisions**: D9 (coordinator-side automatic capability-gap emission)
+  **Dependencies**: 1.4
+
+- [ ] 2.6 Implement coordinator-side capability-gap pattern matcher — extend `AuditService.log_operation` with a hook that observes audit entries and, on matching a struggle pattern, calls into the memory service to emit a tagged entry. Patterns: (a) same `(agent_id, operation)` pair retried N+ times in a session, (b) two consecutive failed `verify` ops on same WP, (c) any `guardrails.check` returning a scope violation, (d) lock contention exceeding lock TTL on same key. Thresholds in `config.yaml: audit.capability_gap_patterns`; emission is async/non-blocking via memory service batch.
+  **Files**: `agent-coordinator/src/audit.py`, `agent-coordinator/src/memory.py`, `agent-coordinator/config.yaml.example`, `agent-coordinator/tests/test_audit_capability_gaps.py`
+  **Dependencies**: 1.4, 2.5
 
 ## Phase 3: Review Loop Enhancement
 
@@ -98,6 +116,15 @@
   **Files**: `skills/agent-metrics/SKILL.md`, `skills/agent-metrics/scripts/query_metrics.py`, `skills/agent-metrics/scripts/generate_dashboard.py`
   **Dependencies**: 5.3
 
+- [ ] 5.5 Write tests for multi-source mining and source attribution in /improve-harness — verify reader pulls from BOTH episodic memory (all `source:*` values) AND `session-log.md` "Capability Gaps Observed" sections under `openspec/changes/*/session-log.md`; verify dedup on `(capability_gap, affected_skill, session_id)` keeps a multi-source list; verify report includes per-finding source attribution and a summary line (e.g. "23% of findings surfaced in 2+ sources")
+  **Spec scenarios**: harness-engineering.4 (/improve-harness multi-source mining), harness-engineering.4 (source attribution in report)
+  **Design decisions**: D4 (shared tag schema with `source:*`), D10 (session-log as source)
+  **Dependencies**: 5.1
+
+- [ ] 5.6 Extend /improve-harness for multi-source mining and source attribution — `analyze_failures.py` reads memory entries AND scans `openspec/changes/**/session-log.md` for Capability Gaps Observed sections; dedupes findings keyed on `(capability_gap, affected_skill, session_id)` keeping a multi-source list; `generate_report.py` adds a Source column (and a cross-source-agreement summary). This is the shared machinery that Phase 6 transcript mining and D9 coordinator emission both plug into.
+  **Files**: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`, `skills/improve-harness/SKILL.md`
+  **Dependencies**: 5.2, 5.5, 1.6, 2.6
+
 ## Phase 6: Session Transcript Mining
 
 - [ ] 6.1 Write tests for normalized event schema and adapter base class — fixture-based round-trip tests per adapter (fixtures live under `skills/collect-transcripts/tests/fixtures/<harness>/`)
@@ -111,27 +138,41 @@
 
 - [ ] 6.3 Implement Claude Code CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_cli.py`, `skills/collect-transcripts/tests/test_claude_code_cli.py`
-  **Notes**: Reads `~/.claude/projects/<urlencoded-cwd>/<session-id>.jsonl`. Reuse the path-discovery pattern from `skills/session-bootstrap/scripts/calibrate_token_proxy.py::_discover_newest_transcript` (path verified — already used in token calibration).
+  **Path**: `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` — `<encoded-cwd>` is the absolute cwd with every non-alphanumeric char replaced by `-` (e.g. `/Users/me/proj` → `-Users-me-proj`). Verified — already used in `skills/session-bootstrap/scripts/calibrate_token_proxy.py::_discover_newest_transcript`.
+  **Schema**: JSONL one event per line; top-level `type`, `uuid`, `parentUuid`, `timestamp`, `sessionId`, `cwd`, `gitBranch`, `version`. Message events nest content blocks under `message.content[]` with `type` ∈ `text` | `thinking` | `tool_use` (`id`, `name`, `input`) | `tool_result` (`tool_use_id`). User vs assistant distinguished by top-level `type`. Token usage at `message.usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}`.
+  **Preferred API**: Use `@anthropic-ai/claude-agent-sdk`'s `listSessions()` / `getSessionMessages()` (and Python equivalents) over hand-parsing the JSONL — Anthropic owns version drift then. Hand-parsing is the fallback only.
+  **Citation**: https://code.claude.com/docs/en/agent-sdk/sessions
   **Dependencies**: 6.2
 
-- [ ] 6.4 Implement Claude Code web adapter
+- [ ] 6.4 Implement Claude Code web adapter (CLI bridge)
   **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_web.py`, `skills/collect-transcripts/tests/test_claude_code_web.py`
-  **Notes**: Fetches sessions via the Anthropic Claude Code web API. Endpoint surface must be verified against current API docs before locking the contract. Must fail soft on auth missing or endpoint absent (spec: "Adapter fails soft on source unavailability").
-  **Dependencies**: 6.2
+  **Approach**: NOT a direct web-API client. Implementation invokes `claude --teleport <session-id>` to pull the cloud session onto local disk, then delegates to the `claude_code_cli` adapter. The Anthropic `/v1/sessions` endpoint on `api.anthropic.com` belongs to the *separate* Managed Agents product, not Claude Code web; reverse-engineering claude.ai's private endpoints is explicitly out of scope (third-party tools doing this have repeatedly broken on unannounced API changes — see https://github.com/simonw/claude-code-transcripts).
+  **Discovery**: Session ID is available in `CLAUDE_CODE_REMOTE_SESSION_ID` env var (with `cse_` prefix; URL form uses `session_` prefix).
+  **Fail-soft**: skip with warning if `claude` CLI not on PATH, if `--teleport` exits non-zero, or if no session ID is supplied.
+  **Citation**: https://code.claude.com/docs/en/claude-code-on-the-web
+  **Dependencies**: 6.2, 6.3
 
 - [ ] 6.5 Implement Codex CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/codex_cli.py`, `skills/collect-transcripts/tests/test_codex_cli.py`
-  **Notes**: Reads from `~/.codex/sessions/` (verify path on current Codex CLI version before implementation). Tool calls use OpenAI `function_call`/`function_response` blocks — normalize to the common event schema's `tool_use` / `tool_result` events.
+  **Path**: `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl` (default `$CODEX_HOME` = `~/.codex`). Note: `~/.codex/history.jsonl` is command history only — NOT the rollout transcript.
+  **Schema**: JSONL, one `RolloutLine` per line. Each line is a `RolloutItem` enum variant: `SessionMeta` (header — `session_id`, `source`, `timestamp`, `model_provider`), `EventMsg` (UI replay events incl. `UserMessage`), `ResponseItem` (the full Responses-API turn — `message`, `function_call` with `name`/`arguments`/`call_id`, `function_call_output` matching `call_id`, `reasoning`). Distinguish: user msg = `EventMsg::UserMessage` OR `ResponseItem::message` with `role:"user"`; assistant text = `ResponseItem::message` with `role:"assistant"`; tool call = `ResponseItem::function_call`; tool result = `ResponseItem::function_call_output`.
+  **Schema versioning**: Pin to a specific `RolloutLine.json` schema version, validate on load. Schema is emitted by `codex app-server generate-internal-json-schema`; re-validate on minor Codex CLI bumps.
+  **Citations**: https://github.com/openai/codex/discussions/3827 ; https://github.com/openai/codex/pull/3380 ; https://github.com/openai/codex/pull/14434
   **Dependencies**: 6.2
 
-- [ ] 6.6 Implement Codex web adapter (best-effort)
+- [ ] 6.6 Implement Codex web adapter (CLI bridge)
   **Files**: `skills/collect-transcripts/scripts/adapters/codex_web.py`, `skills/collect-transcripts/tests/test_codex_web.py`
-  **Notes**: Investigate availability of an OpenAI Codex web transcript-fetch endpoint. If no stable endpoint exists at v1 ship time, ship as a stub that fails soft with a documented fallback (CLI export → process via `codex_cli` adapter). Decision must be captured in the adapter's docstring.
-  **Dependencies**: 6.2
+  **Approach**: NOT a direct web-API client. The `chatgpt.com/backend-api/codex/*` endpoints are undocumented and ChatGPT-cookie-authed. Implementation invokes `codex cloud` to pull cloud-task transcripts onto local disk (where they land as standard rollout JSONL) and then delegates to the `codex_cli` adapter. Mirrors the `claude_code_web` pattern exactly.
+  **Fail-soft**: skip with warning if `codex` CLI not on PATH, if not authenticated, or if `codex cloud` returns no sessions.
+  **Citations**: https://developers.openai.com/codex/cloud ; https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan
+  **Dependencies**: 6.2, 6.5
 
 - [ ] 6.7 Implement Gemini CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/gemini_cli.py`, `skills/collect-transcripts/tests/test_gemini_cli.py`
-  **Notes**: Reads Gemini CLI session history (verify path on current version — has changed across Gemini CLI releases). Normalize Gemini `parts` array format to the common event schema.
+  **Path**: `~/.gemini/tmp/<project_hash>/chats/session-YYYY-MM-DDTHH-mm-<short_id>.json` (JSONL despite the `.json` extension). `<project_hash>` derived from project root path. Related sibling paths: `~/.gemini/tmp/<project_hash>/checkpoints/` (checkpoint conversation data), `~/.gemini/history/<project_hash>/` (shadow git of file state).
+  **Schema**: Initial metadata record: `{sessionId, projectHash, startTime, lastUpdated, summary?, directories?, kind?:'main'|'subagent', messages:[]}`. Per-message: `MessageRecord {id, timestamp, type:'user'|'gemini', content:PartListUnion, displayContent?, toolCalls?:ToolCallRecord[], thoughts?, tokens?, model?}`. Updates appear as `{$set:{...}}`, branches as `{$rewindTo:messageId}`. `content` follows Google GenAI `Part` union (`text`, `functionCall`, `functionResponse`, `inlineData`). Tool calls in `toolCalls[]` with `displayName`, `description`, args, result.
+  **Schema versioning**: Pin to a `chatRecordingService.ts` commit SHA; version-detect via the metadata header. Path moved from `~/.gemini/sessions/` to `~/.gemini/tmp/<hash>/chats/` during 2025 — assume further moves and guard with path-discovery logic.
+  **Citations**: https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/session-management.md ; https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/services/chatRecordingService.ts
   **Dependencies**: 6.2
 
 - [ ] 6.8 Extend sanitizer for transcript-specific structures
@@ -152,11 +193,11 @@
   **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions only)
   **Dependencies**: 1.4, 6.9
 
-- [ ] 6.11 Wire `/improve-harness` to surface transcript-sourced findings
-  **Files**: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`, `skills/improve-harness/tests/`
-  **Notes**: Add a "Source" column (self-reported / coordinator-emitted / transcript-mined) to the report and a summary of the share each source contributed, so operators can see which signals dominate.
+- [ ] 6.11 Verify `/improve-harness` surfaces transcript-sourced findings end-to-end
+  **Files**: `skills/improve-harness/tests/test_transcript_source.py`, `skills/collect-transcripts/tests/test_end_to_end.py`
+  **Notes**: The source-attribution and multi-source-mining machinery was already built in Task 5.6. This task is the *end-to-end verification* that transcript-mined findings flow through unchanged: feed a fixture transcript through triage + deep-analyze, then run `/improve-harness` and assert the resulting report contains the finding with `source:transcript-mined` in its source list.
   **Spec scenarios**: harness-engineering.8 (improve-harness surfaces transcript-sourced findings)
-  **Dependencies**: 5.2, 6.10
+  **Dependencies**: 5.6, 6.10
 
 ## Phase 7: Integration & Documentation
 
