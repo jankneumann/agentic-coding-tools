@@ -68,23 +68,47 @@ AND findings SHALL be formatted as review-findings compatible with the consensus
 
 ### Requirement: Capability Gap Detection
 
-The coordinator's episodic memory SHALL support structured failure pattern recording with capability gap metadata, enabling systematic harness improvement.
+The system SHALL record capability-gap signals from four sources — agent self-report, coordinator-emitted patterns, session-log structured sections, and transcript mining — into a shared tag schema in episodic memory, and the `/improve-harness` skill SHALL consume the union of all sources with deduplication and source attribution.
 
-#### Scenario: Structured failure recording
-WHEN an agent encounters a task failure
-THEN the failure SHALL be recorded in episodic memory with structured metadata: failure_type (enum: scope_violation, verification_failed, lock_unavailable, timeout, convergence_failed, context_exhaustion), capability_gap (free text describing what was missing), suggested_improvement (free text), affected_skill (skill name), and severity (low/medium/high/critical)
+#### Scenario: Structured failure recording schema
+WHEN any emitter records a capability-gap signal
+THEN it SHALL use the shared episodic-memory tag schema: failure_type (enum: scope_violation, verification_failed, lock_unavailable, timeout, convergence_failed, context_exhaustion), capability_gap (free text describing what was missing), suggested_improvement (free text), affected_skill (skill name), severity (low/medium/high/critical), AND source (enum: self-reported, coordinator-emitted, session-log, transcript-mined)
 
-#### Scenario: Failure pattern analysis
-WHEN the `/improve-harness` skill is invoked
-THEN it SHALL query episodic memory for failure patterns within a configurable time window (default: 30 days)
-AND group failures by capability_gap
+#### Scenario: Agent self-reports a capability gap
+WHEN an agent encounters a task failure and invokes the `remember` MCP tool with capability-gap metadata
+THEN the entry SHALL be recorded with `source:self-reported`
+
+#### Scenario: Coordinator auto-emits capability gaps from audit patterns
+WHEN the coordinator's audit pattern matcher detects a struggle-shaped pattern (retry storm on the same operation, two consecutive failed verify operations on the same work package, a guardrails scope-violation result, or lock contention exceeding lock TTL on the same key)
+THEN it SHALL emit a memory entry under the shared tag schema with `source:coordinator-emitted`
+AND it SHALL NOT require any agent involvement
+AND patterns and thresholds SHALL be configurable via `config.yaml: audit.capability_gap_patterns`
+
+#### Scenario: Session-log captures agent-observed gaps at phase boundaries
+WHEN an agent writes a session-log phase entry via the `session-log` skill
+AND the entry contains a `### Capability Gaps Observed` section with one or more gaps listed
+THEN the skill SHALL emit one memory entry per gap with `source:session-log`
+AND the markdown section SHALL be preserved in `openspec/changes/<change-id>/session-log.md` as human-readable record
+AND an empty `### Capability Gaps Observed` section SHALL be a valid no-op (no memory entries emitted)
+
+#### Scenario: /improve-harness consumes all sources with deduplication
+WHEN `/improve-harness` is invoked
+THEN it SHALL query episodic memory for capability_gap entries across ALL source values within a configurable time window (default: 30 days)
+AND it SHALL ALSO scan `openspec/changes/**/session-log.md` for `### Capability Gaps Observed` sections (covering gaps not yet mirrored to memory)
+AND it SHALL deduplicate findings on (capability_gap, affected_skill, session_id), preserving the set of sources that surfaced each finding
+AND group by capability_gap
 AND rank by frequency and severity
 AND generate a structured report with recommendations
+
+#### Scenario: Report includes source attribution
+WHEN `/improve-harness` generates a report
+THEN each finding SHALL be annotated with the set of sources that surfaced it (one or more of: self-reported, coordinator-emitted, session-log, transcript-mined)
+AND the report SHALL include a summary line stating what fraction of findings surfaced in 2 or more sources (cross-source agreement is the strongest signal)
 
 #### Scenario: Report-to-feature pipeline
 WHEN an improvement report identifies a high-priority capability gap
 THEN the user SHALL be able to invoke a skill that takes the report finding and creates an OpenSpec change proposal from it
-AND the skill SHALL pre-populate the proposal with context from the failure patterns, affected skills, and suggested improvements
+AND the skill SHALL pre-populate the proposal with context from the failure patterns, affected skills, suggested improvements, AND the set of sources that surfaced the gap
 
 ### Requirement: Generation-Evaluation Separation
 
@@ -178,5 +202,13 @@ AND the skill SHALL print a dry-run plan (per-adapter session counts, estimated 
 #### Scenario: Improve-harness surfaces transcript-sourced findings
 WHEN `/improve-harness` generates a report
 AND episodic memory contains entries tagged `source:transcript-mined`
-THEN the report SHALL include a "Source" column or annotation per finding distinguishing self-reported, coordinator-emitted, and transcript-mined signals
-AND the report SHALL summarize the share of findings each source contributed
+THEN the entries SHALL flow through the unified multi-source pipeline defined in the Capability Gap Detection requirement
+AND each transcript-mined finding SHALL appear in the report with `transcript-mined` in its source set
+AND findings that also appear via other sources for the same `(capability_gap, affected_skill, session_id)` SHALL be reported once with the multi-source list (counting toward the cross-source agreement summary)
+
+#### Scenario: Web adapter routes through vendor CLI bridge
+WHEN the `claude_code_web` or `codex_web` adapter is invoked
+THEN it SHALL invoke the vendor's documented CLI bridge command (`claude --teleport` or `codex cloud`) to materialize the cloud session as local JSONL
+AND it SHALL delegate parsing to the corresponding CLI adapter (`claude_code_cli` or `codex_cli`)
+AND it SHALL NOT make direct HTTP requests to undocumented vendor backend endpoints
+AND it SHALL fail soft (log a structured warning identifying the missing dependency and skip) if the vendor CLI is not installed or not authenticated

@@ -23,25 +23,31 @@ defaults:
 
 packages:
   - package_id: wp-context-architecture
-    title: "Progressive Context Architecture"
+    title: "Progressive Context Architecture + Shared Tag Schema + Session-Log Capability Gaps"
     task_type: refactor
-    description: "Restructure CLAUDE.md into a ~100 line table-of-contents that points to topic-specific docs under docs/guides/, and extend memory tag conventions with failure_type/capability_gap/affected_skill/severity prefixes."
+    description: "Restructure CLAUDE.md into a ~100 line table-of-contents that points to topic-specific docs under docs/guides/, extend memory tag conventions with failure_type/capability_gap/affected_skill/severity/source prefixes (D4), and extend the session-log PhaseRecord with a Capability Gaps Observed section (D10) that mirrors entries to memory with source:session-log."
     role: backend-implementer
     priority: 1
     depends_on: []
     locks:
       files:
         - "CLAUDE.md"
+        - "skills/session-log/scripts/phase_record.py"
       keys:
         - "feature:claude-md"
         - "feature:docs-guides"
+        - "feature:session-log-capability-gaps"
       ttl_minutes: 120
-      reason: "CLAUDE.md restructuring and memory convention docs"
+      reason: "CLAUDE.md restructuring, memory convention docs, session-log Capability Gaps section"
     scope:
       write_allow:
         - "CLAUDE.md"
         - "docs/guides/**"
         - "agent-coordinator/src/memory.py"
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/session-log/scripts/extract_session_log.py"
+        - "skills/session-log/SKILL.md"
+        - "skills/session-log/tests/**"
       read_allow:
         - "**"
       deny:
@@ -73,6 +79,15 @@ packages:
             artifacts: []
             result_keys:
               - "claude_md_length_ok"
+        - name: "Session-log Capability Gaps round-trip and emission tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/session-log/tests/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "session_log_capability_gaps_tests_passed"
     metadata:
       loc_estimate: 600
       package_kind: config
@@ -87,30 +102,36 @@ packages:
         - "docs/guides/"
 
   - package_id: wp-coordinator-extensions
-    title: "Coordinator Extensions — Profiles & Scope Enforcement"
+    title: "Coordinator Extensions — Profiles, Scope Enforcement, Capability-Gap Auto-Emission"
     task_type: implementation
-    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, and enforce scope locks on work_queue task claims."
+    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, enforce scope locks on work_queue task claims, AND extend audit.AuditService.log_operation with a pattern matcher that auto-emits capability-gap memory entries with source:coordinator-emitted (D9) when struggle-shaped patterns are detected (retry storm, repeated verify failure, scope violation, lock contention)."
     role: backend-implementer
     priority: 2
-    depends_on: []
+    depends_on:
+      - wp-context-architecture
     locks:
       files:
         - "agent-coordinator/src/guardrails.py"
         - "agent-coordinator/src/profiles.py"
         - "agent-coordinator/src/work_queue.py"
         - "agent-coordinator/src/session_grants.py"
+        - "agent-coordinator/src/audit.py"
       keys:
         - "db:schema:agent_profiles"
         - "api:guardrails"
         - "api:work_queue"
-      ttl_minutes: 120
-      reason: "Evaluator profile migration and guardrail scope enforcement"
+        - "api:audit:capability-gap-emitter"
+      ttl_minutes: 150
+      reason: "Evaluator profile migration, guardrail scope enforcement, audit-side capability-gap pattern matcher"
     scope:
       write_allow:
         - "agent-coordinator/src/profiles.py"
         - "agent-coordinator/src/work_queue.py"
         - "agent-coordinator/src/guardrails.py"
         - "agent-coordinator/src/session_grants.py"
+        - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/memory.py"
+        - "agent-coordinator/config.yaml.example"
         - "agent-coordinator/database/migrations/**"
         - "agent-coordinator/tests/**"
       read_allow:
@@ -136,6 +157,15 @@ packages:
             artifacts: []
             result_keys:
               - "coordinator_tests_passed"
+        - name: "Audit capability-gap auto-emitter tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_audit_capability_gaps.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "audit_capability_gap_tests_passed"
     metadata:
       loc_estimate: 900
       package_kind: integration
@@ -274,13 +304,14 @@ packages:
         - "skills/validate-feature/scripts/architecture_linters.py"
 
   - package_id: wp-new-skills
-    title: "New Skills — improve-harness & agent-metrics"
+    title: "New Skills — improve-harness (multi-source) & agent-metrics"
     task_type: implementation
-    description: "Create /improve-harness and /agent-metrics skills with analysis scripts that query episodic memory and audit data to produce structured reports."
+    description: "Create /improve-harness and /agent-metrics skills. /improve-harness reads from ALL capability-gap sources (memory entries with any source:* tag plus session-log files for the Capability Gaps Observed section), deduplicates on (capability_gap, affected_skill, session_id), and emits reports with per-finding source attribution and a cross-source agreement summary."
     role: backend-implementer
     priority: 4
     depends_on:
       - wp-context-architecture
+      - wp-coordinator-extensions
     locks:
       files: []
       keys:
