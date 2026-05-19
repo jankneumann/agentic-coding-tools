@@ -221,7 +221,12 @@ describe("SyncPointBanner — audit emission", () => {
     });
   });
 
-  it("emits audit event when Kick is clicked (before consent)", async () => {
+  it("does NOT emit a pre-consent audit event (schema requires one row per action)", async () => {
+    // IMPL_REVIEW claude#11: the audit-event JSON schema requires
+    // action/class/outcome and additionalProperties=false. Emitting a
+    // pre-consent "initiated" event would either be a no-op (schema rejects
+    // it) or a contract violation. So the banner now waits for the
+    // confirm/decline transition before emitting.
     const user = userEvent.setup();
     const auditEvents: Record<string, unknown>[] = [];
     render(
@@ -235,11 +240,9 @@ describe("SyncPointBanner — audit emission", () => {
     });
 
     await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
-    expect(auditEvents.length).toBeGreaterThan(0);
-    expect(auditEvents[0]).toMatchObject({
-      action: expect.stringContaining("kick"),
-      agent_id: "agent-42",
-    });
+    // Pre-consent: NO audit emission. Consent prompt is now visible.
+    expect(auditEvents).toHaveLength(0);
+    expect(screen.getByTestId("consent-prompt")).toBeInTheDocument();
   });
 
   // ───────────────────────────────────────────────────────────────────────
@@ -332,8 +335,8 @@ describe("SyncPointBanner — audit emission", () => {
     });
 
     await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
-    // Drop the "kick-agent-initiated" audit so we can isolate the result.
-    auditEvents.length = 0;
+    // No pre-consent emit (schema-compliant single-event model per claude#11).
+    expect(auditEvents).toHaveLength(0);
     await user.click(screen.getByTestId("consent-confirm"));
 
     await waitFor(() => {
@@ -341,8 +344,13 @@ describe("SyncPointBanner — audit emission", () => {
     });
     const outcomeEvent = auditEvents.find((e) => e.action === "kick-agent");
     expect(outcomeEvent).toBeTruthy();
-    expect(outcomeEvent?.outcome).toBe("failure");
-    expect(outcomeEvent?.failure_reason).toBeTruthy();
+    // Schema outcome enum: confirmed/declined/auto-allowed/failed. Backend
+    // returned kicked=false → outcome="failed".
+    expect(outcomeEvent?.outcome).toBe("failed");
+    expect(outcomeEvent?.class).toBe("destructive-write");
+    // failure_reason is now nested inside `args`.
+    const args = outcomeEvent?.args as Record<string, unknown> | undefined;
+    expect(args?.failure_reason).toBeTruthy();
   });
 
   it("sends skip_agent_id=true for single-agent worktree blockers (agent_id=null)", async () => {
@@ -423,12 +431,16 @@ describe("SyncPointBanner — audit emission", () => {
     });
 
     await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
-    auditEvents.length = 0; // clear initiation event
+    // No pre-consent emit (claude#11 schema-compliant single-event model).
+    expect(auditEvents).toHaveLength(0);
     await user.click(screen.getByTestId("consent-decline"));
 
     expect(auditEvents.length).toBeGreaterThan(0);
+    // Schema outcome enum: declined for cancel
     expect(auditEvents[0]).toMatchObject({
-      outcome: "cancelled",
+      action: "kick-agent",
+      class: "destructive-write",
+      outcome: "declined",
     });
   });
 });

@@ -89,14 +89,10 @@ export function SyncPointBanner({
     // actionable and the button should be disabled (handled in render below).
     if (!changeId) return;
     setPendingKick({ agentId, changeId, skill });
-    // Emit audit regardless of outcome (decline = audit.outcome=cancelled)
-    onAuditEmit?.({
-      action: "kick-agent-initiated",
-      agent_id: agentId,
-      change_id: changeId,
-      skill,
-      outcome: "pending",
-    });
+    // IMPL_REVIEW claude#11: do NOT emit a separate "kick-agent-initiated"
+    // audit event here — the schema (contracts/schemas/audit-event.json)
+    // requires exactly ONE audit row per UI action with action/class/outcome
+    // in fixed enums. The post-consent emission below covers the lifecycle.
   };
 
   const handleConfirm = async () => {
@@ -143,15 +139,21 @@ export function SyncPointBanner({
     } catch (e) {
       failureReason = String(e);
     }
+    // IMPL_REVIEW claude#11: emit a schema-valid audit row.
+    // action: enum from audit-event.json — "kick-agent"
+    // class: "destructive-write" per D8 reversibility table
+    // outcome: enum {confirmed, declined, auto-allowed, failed} —
+    //   success → confirmed; failure → failed
     onAuditEmit?.({
       action: "kick-agent",
-      agent_id: agentId,
-      change_id: changeId,
-      skill,
-      outcome,
-      ...(failureReason && outcome === "failure"
-        ? { failure_reason: failureReason }
-        : {}),
+      class: "destructive-write",
+      outcome: outcome === "success" ? "confirmed" : "failed",
+      args: {
+        agent_id: agentId,
+        change_id: changeId,
+        skill,
+        ...(failureReason ? { failure_reason: failureReason } : {}),
+      },
     });
     setPendingKick(null);
     void refresh();
@@ -159,11 +161,16 @@ export function SyncPointBanner({
 
   const handleDecline = () => {
     if (pendingKick) {
+      // IMPL_REVIEW claude#11: schema-valid declined-kick audit row.
       onAuditEmit?.({
-        action: "kick-agent-declined",
-        agent_id: pendingKick.agentId,
-        skill: pendingKick.skill,
-        outcome: "cancelled",
+        action: "kick-agent",
+        class: "destructive-write",
+        outcome: "declined",
+        args: {
+          agent_id: pendingKick.agentId,
+          change_id: pendingKick.changeId,
+          skill: pendingKick.skill,
+        },
       });
     }
     setPendingKick(null);

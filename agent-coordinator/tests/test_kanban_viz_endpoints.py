@@ -1040,11 +1040,17 @@ def test_post_kanban_audit_writes_and_returns_appended(
         fake_audit.log_operation = AsyncMock()
         monkeypatch.setattr(audit_mod, "get_audit_service", lambda: fake_audit)
 
+        # IMPL_REVIEW claude#11: action/class/outcome MUST match the schema
+        # enums in contracts/schemas/audit-event.json.
         resp = client.post(
             "/kanban-viz/audit",
             json={
                 "run_id": "run-001",
-                "event": {"action": "card-moved", "class": "ui-action", "outcome": "success"},
+                "event": {
+                    "action": "kick-agent",
+                    "class": "destructive-write",
+                    "outcome": "confirmed",
+                },
             },
             headers=_auth_headers(),
         )
@@ -1062,6 +1068,113 @@ def test_post_kanban_audit_writes_and_returns_appended(
         assert doc["run_id"] == "run-001"
         assert doc["event_kind"] == "kanban-viz.ui-action"
         assert "generated_at" in doc
+        # Schema-required fields present
+        assert doc["action"] == "kick-agent"
+        assert doc["class"] == "destructive-write"
+        assert doc["outcome"] == "confirmed"
+
+
+def test_post_kanban_audit_rejects_schema_invalid_event(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW claude#11: audit-event payloads failing the JSON schema
+    are rejected with 400 BEFORE any file is written. Prevents malformed
+    audit rows from landing under docs/kanban-viz/audit/.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("COORDINATOR_WORKDIR_ROOT", tmpdir)
+        from src.config import reset_config
+        reset_config()
+
+        from src import audit as audit_mod
+        monkeypatch.setattr(
+            audit_mod, "get_audit_service",
+            lambda: AsyncMock(log_operation=AsyncMock()),
+        )
+
+        # Action not in enum (audit-event.json enum: save-view, drag-to-ready,
+        # force-release-lock, kick-agent).
+        resp = client.post(
+            "/kanban-viz/audit",
+            json={
+                "run_id": "run-002",
+                "event": {
+                    "action": "card-moved",
+                    "class": "destructive-write",
+                    "outcome": "confirmed",
+                },
+            },
+            headers=_auth_headers(),
+        )
+        assert resp.status_code == 400, resp.text
+        assert "validation failed" in resp.json()["detail"].lower()
+
+        # File MUST NOT exist — validation happens before atomic_write.
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
+        written_file = Path(tmpdir) / "docs" / "kanban-viz" / "audit" / today / "run-002.json"
+        assert not written_file.exists(), (
+            f"Schema-invalid payload landed on disk at {written_file}"
+        )
+
+
+def test_post_kanban_audit_rejects_missing_required_fields(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """audit-event schema requires action, class, outcome — omitting any
+    of those fails validation."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("COORDINATOR_WORKDIR_ROOT", tmpdir)
+        from src.config import reset_config
+        reset_config()
+
+        from src import audit as audit_mod
+        monkeypatch.setattr(
+            audit_mod, "get_audit_service",
+            lambda: AsyncMock(log_operation=AsyncMock()),
+        )
+
+        # Empty event (missing all required fields)
+        resp = client.post(
+            "/kanban-viz/audit",
+            json={"run_id": "run-003", "event": {}},
+            headers=_auth_headers(),
+        )
+        assert resp.status_code == 400
+
+
+def test_put_saved_view_rejects_schema_invalid_view(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW claude#11: saved-view payload must conform to
+    contracts/schemas/saved-view.json — name + filters required, name
+    must be 1-80 chars, etc.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("COORDINATOR_WORKDIR_ROOT", tmpdir)
+        from src.config import reset_config
+        reset_config()
+
+        from src import audit as audit_mod
+        monkeypatch.setattr(
+            audit_mod, "get_audit_service",
+            lambda: AsyncMock(log_operation=AsyncMock()),
+        )
+
+        # Missing required `name` field on view
+        resp = client.put(
+            "/kanban-viz/saved-views/my-view",
+            json={"view": {"filters": {}}},  # missing name
+            headers=_auth_headers(),
+        )
+        assert resp.status_code == 400
+        assert "validation failed" in resp.json()["detail"].lower()
+
+        # Saved file MUST NOT exist
+        written = Path(tmpdir) / "docs" / "kanban-viz" / "saved-views" / "my-view.json"
+        assert not written.exists()
 
 
 def test_post_kanban_audit_rejects_invalid_run_id(
