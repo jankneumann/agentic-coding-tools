@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-05-16 — vendor-neutral-autopilot
+## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation
 
 **Use local agents.yaml fallback before provider-native config** — Codex and Gemini-only environments should discover repo-local dispatch config without requiring ~/.claude.json.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D3)
 
 ---
 
