@@ -110,6 +110,11 @@ class Issue:
             "id": str(self.id),
             "title": self.title,
             "description": self.description,
+            # IMPL_REVIEW codex#6: the Kanban frontend Issue type expects a
+            # top-level `body` field (coordinator-types.ts line 23). Emit it
+            # as an alias of description for contract parity. Backward
+            # compatible — existing callers still see `description`.
+            "body": self.description,
             "status": self.status,
             "priority": self.priority,
             "issue_type": self.issue_type,
