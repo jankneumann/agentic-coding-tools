@@ -16,7 +16,7 @@
 | skill-workflow.3 | specs/skill-workflow/spec.md / Artifact-Producing Exploration Uses Worktrees | explore-feature distinguishes read-only chat output from artifact-producing workflows that require worktree isolation. | --- | D4, D6 | skills/explore-feature/SKILL.md; skills/tests/explore-feature/test_skill_md.py | skills/tests/explore-feature/test_skill_md.py | --- |
 | skill-workflow.4 | specs/skill-workflow/spec.md / Autopilot Write-Capable Phases Use Worktree Isolation | Autopilot dispatch metadata isolates every write-capable phase, including planning, implementation, validation, and fix phases. | --- | D5 | skills/autopilot/SKILL.md; skills/autopilot/scripts/phase_agent.py; skills/tests/autopilot/test_build_phase_dispatch_kwargs.py | skills/tests/autopilot/test_build_phase_dispatch_kwargs.py | --- |
 | skill-workflow.5 | specs/skill-workflow/spec.md / Quick Tasks Are Read-Only Unless Isolated | quick-task is read-only from shared checkout unless it first enters a managed worktree for write mode. | --- | D4 | skills/quick-task/SKILL.md; skills/tests/quick-task/test_skill_md.py | skills/tests/quick-task/test_skill_md.py | --- |
-| skill-workflow.6 | specs/skill-workflow/spec.md / Main Receives Work Through PR Sync Points | Completed local CLI work reaches main only through PR review and explicit sync-point operations with clean-tree and active-agent guards. | --- | D3 | --- | docs and skill invariant tests planned | --- |
+| skill-workflow.6 | specs/skill-workflow/spec.md / Main Receives Work Through PR Sync Points | Completed local CLI work reaches main only through PR review and explicit sync-point operations with clean-tree and active-agent guards. | --- | D3 | CLAUDE.md; docs/cloud-vs-local-execution.md; docs/lessons-learned.md; .agents/skills/*; .claude/skills/* | docs and skill invariant tests | --- |
 
 ## Design Decision Trace
 
@@ -37,7 +37,7 @@
 ## Coverage Summary
 
 - **Requirements traced**: 7/7
-- **Tests mapped**: 6 requirements have at least one implemented test; 1 requirement has planned tests
+- **Tests mapped**: 7 requirements have at least one implemented test or documentation verification path
 - **Evidence collected**: 0/7 requirements have pass/fail evidence
-- **Gaps identified**: Operator docs remain planned after skill wiring.
+- **Gaps identified**: Final integration verification remains.
 - **Deferred items**: ---

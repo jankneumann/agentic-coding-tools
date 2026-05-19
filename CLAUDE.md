@@ -57,7 +57,7 @@ See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the
 - **Commit quality**: Agent-authored PRs use rebase-merge (commits appear individually on main). Write logical, conventional commits — one per task, no WIP fragments. Use `feat(scope):`, `fix(scope):`, `test(scope):`, `docs(scope):` prefixes.
 - **Merge strategy (hybrid)**: Strategy varies by PR origin. Agent PRs (`openspec`, `codex`) default to **rebase-merge** to preserve granular history. Dependency updates (`dependabot`, `renovate`) and automation PRs (`sentinel`, `bolt`, `palette`) default to **squash-merge**. Manual PRs default to squash. Operator can override per-PR via `--strategy` flag.
 - **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
-- **Push plan refinement commits promptly**: `/iterate-on-plan` commits to local main. Push these to remote before other PRs merge, or they cause divergence during `/cleanup-feature`. Alternatively, make plan refinements on the feature branch.
+- **Plan refinement branches**: `/iterate-on-plan` commits to the proposal/feature branch from a managed worktree. Planning artifacts land on main only through PR review and a sync-point merge.
 - **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
 
 ### Save Point Pattern and Change Summary template
@@ -83,7 +83,7 @@ For the full pattern, see `skills/merge-pull-requests/SKILL.md`.
 
 ## Worktree Management
 
-- **Launcher invariant**: The shared checkout is **read-only** in local multi-agent execution. Every skill that modifies git state (plan, implement, cleanup) MUST work in a worktree, never the shared checkout. This prevents conflicts when multiple agents run from the same directory. In cloud-harness environments (each agent gets its own ephemeral container), this invariant is provided by the container itself — see **Execution-environment detection** below; worktree write ops become no-ops and skills operate directly on the harness-provided checkout.
+- **Launcher invariant**: In local CLI execution, the shared checkout is an orchestration surface, not a work surface. Every skill that creates, modifies, deletes, formats, commits, pushes, or otherwise mutates repository files or git state MUST work in a managed worktree, never the shared checkout, unless it is an explicit sync-point skill. In cloud-harness environments (each agent gets its own ephemeral container), this invariant is provided by the container itself — see **Execution-environment detection** below; worktree write ops become no-ops and skills operate directly on the harness-provided checkout.
 - **Location**: `.git-worktrees/<change-id>/` for single-agent, `.git-worktrees/<change-id>/<agent-id>/` for parallel
 - **Registry**: `.git-worktrees/.registry.json` tracks owner, branch, heartbeat, pin status
 - **Commands**: `python3 skills/worktree/scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
@@ -103,6 +103,7 @@ For the full pattern, see `skills/merge-pull-requests/SKILL.md`.
     In single-agent mode they're equal; in parallel mode they differ.
   - **Branch resolution sharing**: `merge_worktrees.py` imports `resolve_branch`/`resolve_parent_branch` from `worktree.py` so both scripts always agree on what branch a given `(change-id, agent-id)` pair resolves to. Don't introduce a third copy of this logic elsewhere — call into `worktree.py` or use the `resolve-branch` CLI subcommand.
 - **Execution-environment detection**: `skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with `isolation_provided: bool`. When true (cloud harness, Codespaces, K8s pod), every `worktree.py` write command (`setup|teardown|pin|unpin|heartbeat|gc`) and `merge_worktrees.py` short-circuit to a silent success. Read-only commands (`list|status|resolve-branch`) are unchanged. Detection precedence: `AGENT_EXECUTION_ENV` (cloud|local) → coordinator `GET /agents/<id>` → `/.dockerenv`/`KUBERNETES_SERVICE_HOST`/`CODESPACES` heuristic → default false. Set `WORKTREE_DEBUG=1` to see the decision layer. Full operator guide: [docs/cloud-vs-local-execution.md](docs/cloud-vs-local-execution.md). `OPENSPEC_BRANCH_OVERRIDE` remains orthogonal — it controls branch naming, not whether worktrees are created.
+- **Mutation guard**: Mutating skills SHOULD call `skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation` after `worktree.py setup` and before their first write. The guard allows isolated harnesses, managed local worktrees, and explicit sync-point operations; it rejects local shared-checkout mutation.
 
 ### Sync-Point Skills
 

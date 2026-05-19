@@ -27,6 +27,24 @@ Optional flags:
 - Shared runtime at `skills/roadmap-runtime/scripts/` (models, checkpoint, learning, context)
 - At least one vendor CLI available for `/implement-feature` invocation
 
+## Local CLI Mutation Boundary
+
+`autopilot-roadmap` writes checkpoint, roadmap status, learning entries, and may
+invoke implementation/validation skills for roadmap items. In local CLI
+execution, every mutating run MUST start from a managed worktree unless
+`--dry-run` is set.
+
+Before loading or updating the roadmap workspace, run:
+
+```bash
+CHANGE_ID="roadmap-<workspace-name>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+`--dry-run` remains read-only and may run from the shared checkout.
+
 ## Input
 
 A roadmap workspace path containing:

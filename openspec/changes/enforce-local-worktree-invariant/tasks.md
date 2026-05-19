@@ -51,22 +51,22 @@ the implementation tasks they verify.
 
 ## Phase 3 - Docs and Remaining Mutating Skills
 
-- [ ] 3.1 Update operator documentation for the local CLI invariant (S)
+- [x] 3.1 Update operator documentation for the local CLI invariant (S)
   - **Spec scenarios**: `skill-workflow.main-receives-work-through-pr-sync-points`
   - **Dependencies**: 1.4
-  - Update `AGENTS.md`, `docs/cloud-vs-local-execution.md`, and relevant lessons/decision docs. Remove the `/iterate-on-plan` commits-to-local-main language.
+  - Update `CLAUDE.md`, `docs/cloud-vs-local-execution.md`, and relevant lessons/decision docs. Remove the `/iterate-on-plan` commits-to-local-main language.
 
 - [x] 3.2 Update quick-task plus artifact generator instructions (M)
   - **Spec scenarios**: `skill-workflow.quick-tasks-are-read-only-unless-isolated`, `skill-workflow.local-cli-mutations-require-worktree-isolation`
   - **Dependencies**: 2.1
   - Update `skills/quick-task/SKILL.md`, `skills/validate-feature/SKILL.md`, `skills/refresh-architecture/SKILL.md`, `skills/changelog-version/SKILL.md`, and `skills/archive-roadmap/SKILL.md` where they write artifacts.
 
-- [ ] 3.3 Sync canonical skills to runtime copies (S)
+- [x] 3.3 Sync canonical skills to runtime copies (S)
   - **Spec scenarios**: `skill-workflow.local-cli-mutations-require-worktree-isolation`
   - **Dependencies**: 2.2, 2.3, 3.2
   - Run `bash skills/install.sh --mode rsync --deps none --python-tools none` so `.agents/skills/` and `.claude/skills/` reflect canonical skill changes.
 
-- [ ] Checkpoint: run skill tests, OpenSpec validation, review diff, verify scope
+- [x] Checkpoint: run skill tests, OpenSpec validation, review diff, verify scope
 
 ## Phase 4 - Integration
 

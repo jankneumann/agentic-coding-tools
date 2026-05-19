@@ -2,7 +2,7 @@
 
 OpenSpec skills use git worktrees (`.git-worktrees/<change-id>/`) to isolate concurrent agent work on a single filesystem. Cloud execution environments (Claude Code on the web, Codespaces, ephemeral Kubernetes pods) already provide that isolation at the container level — running `git worktree add` there either fails outright (when the harness has already checked out a branch) or creates redundant state that the container will destroy anyway.
 
-The `skills/worktree/scripts/worktree.py` helper detects this at runtime and turns every mutating subcommand into a silent no-op when the caller already has isolation. Nothing in the SKILL.md files changes.
+The `skills/worktree/scripts/worktree.py` helper detects this at runtime and turns every mutating subcommand into a silent no-op when the caller already has isolation. Mutating skills also use `skills/shared/checkout_policy.py` to reject local shared-checkout writes before they create artifacts.
 
 ## The signal: `EnvironmentProfile.detect()`
 
@@ -17,6 +17,29 @@ EnvironmentProfile(
 ```
 
 `isolation_provided=True` means "this environment already isolates agents, skip worktree creation." It is consumed by `worktree.py` (setup/teardown/pin/unpin/heartbeat/gc) and `merge_worktrees.py` (full short-circuit with PR-guidance).
+
+## Local CLI mutation policy
+
+When `isolation_provided=false`, the shared checkout is read-only except for
+explicit sync-point skills. Any skill that creates, modifies, deletes, formats,
+commits, pushes, or writes generated artifacts must first enter a managed
+worktree and then verify the context:
+
+```bash
+eval "$(python3 skills/worktree/scripts/worktree.py setup <change-id>)"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+The guard allows:
+
+- `isolated_harness` — cloud/container isolation is already provided.
+- `managed_worktree` — local checkout is under `.git-worktrees/`.
+- `approved_sync_point` — caller explicitly passed `--sync-point`.
+
+It rejects `shared_checkout_blocked`, which means a local CLI caller is trying
+to mutate the shared checkout. Sync-point skills still need their own clean-tree
+and active-agent checks after passing `--sync-point`.
 
 ## Detection precedence
 
@@ -84,6 +107,7 @@ The `/.dockerenv` heuristic means the fix works for vanilla Docker containers ev
 ## See also
 
 - `skills/shared/environment_profile.py` — the detector
+- `skills/shared/checkout_policy.py` — the mutation guard
 - `skills/worktree/scripts/worktree.py` — the write-op short-circuits
 - `skills/worktree/scripts/merge_worktrees.py` — the merge short-circuit
 - `openspec/changes/conditional-worktree-generation/` — the full design and task history
