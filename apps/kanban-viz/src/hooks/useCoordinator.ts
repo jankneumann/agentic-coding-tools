@@ -5,7 +5,7 @@
  *
  * Design D2: SSE primary, polling fallback.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Issue,
   SnapshotPayload,
@@ -30,6 +30,12 @@ export interface UseCoordinatorResult {
   error: string | null;
   /** True while using SSE; false = polling fallback is active */
   streamConnected: boolean;
+  /**
+   * Recent audit events (most-recent-first, capped at 20). Surfaced from the
+   * SSE 'audit' stream so consumers can display an audit feed without
+   * re-fetching from /audit. Empty array when SSE is not connected.
+   */
+  recentAuditEvents: AuditPayload[];
 }
 
 interface EventsAuthResponse {
@@ -39,23 +45,45 @@ interface EventsAuthResponse {
   change_ids: string[];
 }
 
-async function fetchIssues(
+async function fetchIssuesForSingleChange(
   apiUrl: string,
   apiKey: string,
-  changeIds: string[],
+  changeId: string,
 ): Promise<Issue[]> {
-  const labels = changeIds.map((id) => `change:${id}`);
   const res = await fetch(`${apiUrl}/issues/list`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ labels }),
+    body: JSON.stringify({ labels: [`change:${changeId}`] }),
   });
   if (!res.ok) throw new Error(`fetchIssues: ${res.status}`);
   const data = (await res.json()) as { issues?: Issue[]; items?: Issue[] };
   return data.issues ?? data.items ?? [];
+}
+
+async function fetchIssues(
+  apiUrl: string,
+  apiKey: string,
+  changeIds: string[],
+): Promise<Issue[]> {
+  // Multi-change boards require UNION semantics, but POST /issues/list applies
+  // AND across labels (issue_service.py:277-280). A single call with
+  // labels=[change:a, change:b] would return the intersection — empty for any
+  // issue labelled with only one change_id, which is the typical case.
+  // Iterate per-change-id, run in parallel, dedupe by id.
+  if (changeIds.length === 0) return [];
+  const perChange = await Promise.all(
+    changeIds.map((id) => fetchIssuesForSingleChange(apiUrl, apiKey, id)),
+  );
+  const merged = new Map<string, Issue>();
+  for (const batch of perChange) {
+    for (const issue of batch) {
+      if (!merged.has(issue.id)) merged.set(issue.id, issue);
+    }
+  }
+  return Array.from(merged.values());
 }
 
 async function mintEventsToken(
@@ -82,10 +110,24 @@ export function useCoordinator({
   changeIds,
   pollIntervalMs = 5000,
 }: UseCoordinatorOptions): UseCoordinatorResult {
+  // Stabilize changeIds by content so consumers passing inline arrays
+  // (`changeIds={["a","b"]}`) don't trigger token re-mint + re-fetch on every
+  // parent render. Without this, useCallback deps churn drives an infinite
+  // useEffect re-run loop in the polling-fallback path.
+  const changeIdsKey = useMemo(
+    () => [...changeIds].sort().join(","),
+    [changeIds],
+  );
+  const stableChangeIds = useMemo(
+    () => (changeIdsKey ? changeIdsKey.split(",") : []),
+    [changeIdsKey],
+  );
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streamConnected, setStreamConnected] = useState(false);
+  const [recentAuditEvents, setRecentAuditEvents] = useState<AuditPayload[]>([]);
 
   const esRef = useRef<EventSource | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -98,27 +140,13 @@ export function useCoordinator({
     }
   }, []);
 
-  const applyTransition = useCallback(
-    (payload: TransitionPayload, currentIssues: Issue[]) => {
-      if (!mountedRef.current) return;
-      setIssues(
-        currentIssues.map((iss) =>
-          iss.id === payload.work_queue_id
-            ? { ...iss, status: payload.to as Issue["status"] }
-            : iss,
-        ),
-      );
-    },
-    [],
-  );
-
   const startPolling = useCallback(() => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     setStreamConnected(false);
 
     const poll = async () => {
       try {
-        const fetched = await fetchIssues(apiUrl, apiKey, changeIds);
+        const fetched = await fetchIssues(apiUrl, apiKey, stableChangeIds);
         if (mountedRef.current) {
           setIssues(fetched);
           setLoading(false);
@@ -131,12 +159,12 @@ export function useCoordinator({
 
     void poll();
     pollTimerRef.current = setInterval(() => void poll(), pollIntervalMs);
-  }, [apiUrl, apiKey, changeIds, pollIntervalMs]);
+  }, [apiUrl, apiKey, stableChangeIds, pollIntervalMs]);
 
   const startSSE = useCallback(
     async (token: string) => {
       const url = new URL(`${apiUrl}/events/work`);
-      url.searchParams.set("change_ids", changeIds.join(","));
+      url.searchParams.set("change_ids", stableChangeIds.join(","));
       url.searchParams.set("token", token);
 
       const es = new EventSource(url.toString());
@@ -160,23 +188,37 @@ export function useCoordinator({
       es.addEventListener("transition", (e) => {
         try {
           const payload = JSON.parse(e.data) as TransitionPayload;
-          setIssues((current) => {
-            applyTransition(payload, current);
-            return current.map((iss) =>
+          // IMPL_REVIEW claude#4/gemini#1: the prior implementation called
+          // applyTransition(payload, current) — itself a setIssues — INSIDE
+          // another setIssues functional update. That triggered two state
+          // updates and could read stale state. Single functional update is
+          // the canonical React pattern.
+          setIssues((current) =>
+            current.map((iss) =>
               iss.id === payload.work_queue_id
                 ? { ...iss, status: payload.to as Issue["status"] }
                 : iss,
-            );
-          });
+            ),
+          );
         } catch {
           // ignore parse errors
         }
       });
 
-      es.addEventListener("audit", (_e: MessageEvent<string>) => {
-        // audit events are informational; no state update needed in base hook
-        const _payload = JSON.parse(_e.data) as AuditPayload;
-        void _payload;
+      es.addEventListener("audit", (e: MessageEvent<string>) => {
+        // IMPL_REVIEW claude#13: prior code parsed then discarded the payload
+        // with `void _payload`. Audit events are informational but useful for
+        // operator visibility — buffer the most-recent 20 events and surface
+        // them through UseCoordinatorResult so consumers can render an audit
+        // feed without re-fetching /audit.
+        try {
+          const payload = JSON.parse(e.data) as AuditPayload;
+          if (mountedRef.current) {
+            setRecentAuditEvents((prev) => [payload, ...prev].slice(0, 20));
+          }
+        } catch {
+          // ignore parse errors — audit events are non-critical
+        }
       });
 
       es.onerror = () => {
@@ -187,7 +229,7 @@ export function useCoordinator({
         startPolling();
       };
     },
-    [apiUrl, changeIds, applySnapshot, applyTransition, startPolling],
+    [apiUrl, stableChangeIds, applySnapshot, startPolling],
   );
 
   useEffect(() => {
@@ -195,7 +237,7 @@ export function useCoordinator({
 
     const init = async () => {
       try {
-        const token = await mintEventsToken(apiUrl, apiKey, changeIds);
+        const token = await mintEventsToken(apiUrl, apiKey, stableChangeIds);
         await startSSE(token);
       } catch {
         // SSE unavailable (key not configured, network error): fall back
@@ -212,7 +254,7 @@ export function useCoordinator({
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     };
-  }, [apiUrl, apiKey, changeIds, startSSE, startPolling]);
+  }, [apiUrl, apiKey, stableChangeIds, startSSE, startPolling]);
 
-  return { issues, loading, error, streamConnected };
+  return { issues, loading, error, streamConnected, recentAuditEvents };
 }
