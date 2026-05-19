@@ -49,7 +49,8 @@ export function SyncPointBanner({
   const [statuses, setStatuses] = useState<SyncPointStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pendingKick, setPendingKick] = useState<{
-    agentId: string;
+    /** May be null for single-agent worktrees keyed only on change_id. */
+    agentId: string | null;
     changeId: string;
     skill: string;
   } | null>(null);
@@ -79,15 +80,20 @@ export function SyncPointBanner({
   }, [lastUpdateAt, refresh]);
 
   const handleKickClick = (
-    agentId: string,
-    changeId: string,
+    agentId: string | null,
+    changeId: string | null,
     skill: string,
   ) => {
+    // IMPL_REVIEW F5: changeId must NEVER be the literal "unknown" (prior bug).
+    // If the blocker row genuinely has no change_id, the kick action is not
+    // actionable and the button should be disabled (handled in render below).
+    if (!changeId) return;
     setPendingKick({ agentId, changeId, skill });
     // Emit audit regardless of outcome (decline = audit.outcome=cancelled)
     onAuditEmit?.({
       action: "kick-agent-initiated",
       agent_id: agentId,
+      change_id: changeId,
       skill,
       outcome: "pending",
     });
@@ -96,32 +102,59 @@ export function SyncPointBanner({
   const handleConfirm = async () => {
     if (!pendingKick) return;
     const { agentId, changeId, skill } = pendingKick;
+    // IMPL_REVIEW claude#16: when the registry entry has no agent_id
+    // (single-agent worktree), the kick endpoint must omit --agent-id from
+    // the worktree.py teardown invocation. Signal that via skip_agent_id.
+    const skipAgentId = !agentId;
+    // URL path requires SOMETHING for agent_id; the backend ignores it when
+    // skip_agent_id is true. Convention: "_none".
+    const urlAgentId = agentId ?? "_none";
+    let outcome: "success" | "failure" = "failure";
+    let failureReason: string | undefined;
     try {
-      await fetch(`${apiUrl}/agents/${agentId}/kick`, {
+      const res = await fetch(`${apiUrl}/agents/${urlAgentId}/kick`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ change_id: changeId }),
+        body: JSON.stringify({
+          change_id: changeId,
+          ...(skipAgentId ? { skip_agent_id: true } : {}),
+        }),
       });
-      onAuditEmit?.({
-        action: "kick-agent",
-        agent_id: agentId,
-        skill,
-        outcome: "success",
-      });
-    } catch {
-      onAuditEmit?.({
-        action: "kick-agent",
-        agent_id: agentId,
-        skill,
-        outcome: "failure",
-      });
-    } finally {
-      setPendingKick(null);
-      void refresh();
+      // IMPL_REVIEW claude#6 (high): the prior implementation treated any
+      // awaited fetch as success — never inspecting res.ok or the response
+      // body's `kicked` field. Now we validate both.
+      if (!res.ok) {
+        failureReason = `HTTP ${res.status}`;
+      } else {
+        const body = (await res.json().catch(() => ({}))) as {
+          kicked?: boolean;
+          registry_cleared?: boolean;
+          errors?: string[];
+        };
+        if (body.kicked === true || body.registry_cleared === true) {
+          outcome = "success";
+        } else {
+          failureReason = body.errors?.join("; ") ?? "kicked=false";
+        }
+      }
+    } catch (e) {
+      failureReason = String(e);
     }
+    onAuditEmit?.({
+      action: "kick-agent",
+      agent_id: agentId,
+      change_id: changeId,
+      skill,
+      outcome,
+      ...(failureReason && outcome === "failure"
+        ? { failure_reason: failureReason }
+        : {}),
+    });
+    setPendingKick(null);
+    void refresh();
   };
 
   const handleDecline = () => {
@@ -194,33 +227,53 @@ export function SyncPointBanner({
                     {s.blockers.length} blocker
                     {s.blockers.length !== 1 ? "s" : ""}
                   </span>
-                  {s.blockers.map((b) => (
-                    <div key={b.agent_id} style={{ display: "flex", gap: 6 }}>
-                      <span
-                        data-testid={`sync-banner-heartbeat-${b.agent_id}`}
-                        style={{ color: "#999", fontSize: 11 }}
-                      >
-                        {relativeTime(b.last_heartbeat_iso)}
-                      </span>
-                      <button
-                        data-testid={`sync-banner-kick-${b.agent_id}`}
-                        onClick={() =>
-                          handleKickClick(b.agent_id, "unknown", s.skill)
-                        }
-                        style={{
-                          fontSize: 11,
-                          padding: "1px 8px",
-                          background: "#de350b",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 3,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Kick {b.agent_id}
-                      </button>
-                    </div>
-                  ))}
+                  {s.blockers.map((b) => {
+                    // IMPL_REVIEW F5: render uses the blocker's real change_id
+                    // and agent_id (no more 'unknown' literal). Stable react
+                    // key prefers change_id (always populated in active
+                    // worktrees) and falls back to agent_id; both may not be
+                    // simultaneously null in a real registry entry.
+                    const reactKey = b.change_id ?? b.agent_id ?? "blocker";
+                    const buttonLabel = b.agent_id
+                      ? `Kick ${b.agent_id}`
+                      : `Kick worktree ${b.change_id ?? ""}`.trim();
+                    // testid: agent_id when present, else change_id-prefixed.
+                    const testIdSuffix = b.agent_id ?? `change-${b.change_id}`;
+                    const canKick = Boolean(b.change_id);
+                    return (
+                      <div key={reactKey} style={{ display: "flex", gap: 6 }}>
+                        <span
+                          data-testid={`sync-banner-heartbeat-${testIdSuffix}`}
+                          style={{ color: "#999", fontSize: 11 }}
+                        >
+                          {relativeTime(b.last_heartbeat_iso)}
+                        </span>
+                        <button
+                          data-testid={`sync-banner-kick-${testIdSuffix}`}
+                          disabled={!canKick}
+                          title={
+                            canKick
+                              ? undefined
+                              : "Cannot kick: blocker missing change_id"
+                          }
+                          onClick={() =>
+                            handleKickClick(b.agent_id, b.change_id, s.skill)
+                          }
+                          style={{
+                            fontSize: 11,
+                            padding: "1px 8px",
+                            background: canKick ? "#de350b" : "#999",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 3,
+                            cursor: canKick ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          {buttonLabel}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
           </div>
@@ -228,7 +281,11 @@ export function SyncPointBanner({
       </div>
       {pendingKick && (
         <ConsentPrompt
-          message={`Are you sure you want to kick agent "${pendingKick.agentId}" blocking ${pendingKick.skill}?`}
+          message={
+            pendingKick.agentId
+              ? `Are you sure you want to kick agent "${pendingKick.agentId}" (change ${pendingKick.changeId}) blocking ${pendingKick.skill}?`
+              : `Are you sure you want to tear down worktree "${pendingKick.changeId}" blocking ${pendingKick.skill}?`
+          }
           onConfirm={() => void handleConfirm()}
           onDecline={handleDecline}
         />

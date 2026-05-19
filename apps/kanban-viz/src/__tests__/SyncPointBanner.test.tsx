@@ -21,6 +21,7 @@ const blockedStatuses: SyncPointStatus[] = [
     blockers: [
       {
         agent_id: "agent-42",
+        change_id: "feat-real",
         last_heartbeat_iso: new Date(Date.now() - 5 * 60_000).toISOString(),
       },
     ],
@@ -238,6 +239,173 @@ describe("SyncPointBanner — audit emission", () => {
     expect(auditEvents[0]).toMatchObject({
       action: expect.stringContaining("kick"),
       agent_id: "agent-42",
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // IMPL_REVIEW F5 + claude#6 + claude#16: real change_id, response checks,
+  // null-agent_id handling.
+
+  it("kicks with REAL change_id from blocker payload (not literal 'unknown')", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/sync-points/status")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(blockedStatuses),
+        });
+      }
+      if (String(url).includes("/agents/") && String(url).endsWith("/kick")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              kicked: true,
+              registry_cleared: true,
+              agent_sessions_updated: true,
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(<SyncPointBanner apiKey="test" />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sync-banner-kick-agent-42")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
+    await user.click(screen.getByTestId("consent-confirm"));
+
+    await waitFor(() => {
+      type FetchCall = [string, RequestInit?];
+      const kickCalls = (fetchMock.mock.calls as unknown as FetchCall[]).filter(
+        ([url]) => String(url).includes("/agents/agent-42/kick"),
+      );
+      expect(kickCalls.length).toBeGreaterThan(0);
+      const [, init] = kickCalls[0];
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        change_id: string;
+        skip_agent_id?: boolean;
+      };
+      // The load-bearing assertion: change_id is the REAL blocker change_id,
+      // not the literal 'unknown' that the prior bug sent.
+      expect(body.change_id).toBe("feat-real");
+      // Parallel-agent case → no skip_agent_id flag.
+      expect(body.skip_agent_id).toBeUndefined();
+    });
+  });
+
+  it("emits audit outcome=failure when backend returns kicked=false", async () => {
+    const user = userEvent.setup();
+    const auditEvents: Record<string, unknown>[] = [];
+
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/sync-points/status")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(blockedStatuses),
+        });
+      }
+      if (String(url).includes("/kick")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              kicked: false,
+              registry_cleared: false,
+              errors: ["registry: worktree teardown failed: not found"],
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <SyncPointBanner
+        apiKey="test"
+        onAuditEmit={(e) => auditEvents.push(e)}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("sync-banner-kick-agent-42")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("sync-banner-kick-agent-42"));
+    // Drop the "kick-agent-initiated" audit so we can isolate the result.
+    auditEvents.length = 0;
+    await user.click(screen.getByTestId("consent-confirm"));
+
+    await waitFor(() => {
+      expect(auditEvents.length).toBeGreaterThan(0);
+    });
+    const outcomeEvent = auditEvents.find((e) => e.action === "kick-agent");
+    expect(outcomeEvent).toBeTruthy();
+    expect(outcomeEvent?.outcome).toBe("failure");
+    expect(outcomeEvent?.failure_reason).toBeTruthy();
+  });
+
+  it("sends skip_agent_id=true for single-agent worktree blockers (agent_id=null)", async () => {
+    const user = userEvent.setup();
+    const singleAgentBlockedStatuses: SyncPointStatus[] = [
+      {
+        skill: "cleanup-feature",
+        blocked: true,
+        blockers: [
+          {
+            agent_id: null,
+            change_id: "feat-solo",
+            last_heartbeat_iso: new Date().toISOString(),
+          },
+        ],
+        suggested_actions: ["wait", "kick:feat-solo"],
+      },
+      { skill: "merge-pull-requests", blocked: false, blockers: [], suggested_actions: [] },
+      { skill: "update-specs", blocked: false, blockers: [], suggested_actions: [] },
+    ];
+
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/sync-points/status")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(singleAgentBlockedStatuses),
+        });
+      }
+      if (String(url).includes("/kick")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ kicked: true, registry_cleared: true }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(<SyncPointBanner apiKey="test" />);
+    await waitFor(() => {
+      // testid for null agent_id falls back to change-<change_id>
+      expect(
+        screen.getByTestId("sync-banner-kick-change-feat-solo"),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("sync-banner-kick-change-feat-solo"));
+    await user.click(screen.getByTestId("consent-confirm"));
+
+    await waitFor(() => {
+      type FetchCall = [string, RequestInit?];
+      const kickCalls = (fetchMock.mock.calls as unknown as FetchCall[]).filter(
+        ([url]) => String(url).includes("/kick"),
+      );
+      expect(kickCalls.length).toBeGreaterThan(0);
+      const [url, init] = kickCalls[0];
+      // URL path uses the "_none" sentinel when agent_id is null
+      expect(String(url)).toContain("/agents/_none/kick");
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        change_id: string;
+        skip_agent_id?: boolean;
+      };
+      expect(body.change_id).toBe("feat-solo");
+      expect(body.skip_agent_id).toBe(true);
     });
   });
 

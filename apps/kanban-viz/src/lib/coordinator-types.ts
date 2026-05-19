@@ -55,7 +55,10 @@ export function statusToColumn(status: IssueStatus): ColumnId {
 
 /** Active worktree entry shape from GET /worktrees/active. */
 export interface ActiveWorktree {
-  agent_id: string;
+  /** Null for single-agent worktrees keyed on change_id alone. */
+  agent_id: string | null;
+  /** Registry key separate from agent_id (IMPL_REVIEW F5 / gemini#3). */
+  change_id: string | null;
   branch: string;
   worktree_path: string;
   last_heartbeat_iso: string;
@@ -63,11 +66,25 @@ export interface ActiveWorktree {
   owner_session: string | null;
 }
 
+/** A single blocker row inside a SyncPointStatus.
+ *
+ * IMPL_REVIEW F5 / gemini#6: agent_id and change_id are surfaced SEPARATELY
+ * (no fallback chaining). The kick action requires change_id to match the
+ * registry; agent_id distinguishes parallel-agent worktrees from
+ * single-agent worktrees (where agent_id=null and skip_agent_id must be
+ * set on the kick request).
+ */
+export interface SyncPointBlocker {
+  agent_id: string | null;
+  change_id: string | null;
+  last_heartbeat_iso: string;
+}
+
 /** Sync-point status row from GET /sync-points/status. */
 export interface SyncPointStatus {
   skill: string;
   blocked: boolean;
-  blockers: Array<{ agent_id: string; last_heartbeat_iso: string }>;
+  blockers: SyncPointBlocker[];
   suggested_actions: string[];
 }
 
