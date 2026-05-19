@@ -7,6 +7,12 @@ interface Props {
   issues: Issue[];
   /** Per-issue agent activity (IMPL_REVIEW F2). Threaded through to Cards. */
   agentsByIssueId?: Map<string, AgentActivity[]>;
+  /** Coordinator API base URL (task 6.8). */
+  apiUrl?: string;
+  /** Bearer-style API key (task 6.8). */
+  apiKey?: string;
+  /** Audit emitter (task 6.8). */
+  onAuditEmit?: (eventData: Record<string, unknown>) => void;
 }
 
 const COLUMNS: Array<{ id: ColumnId; title: string }> = [
@@ -15,7 +21,13 @@ const COLUMNS: Array<{ id: ColumnId; title: string }> = [
   { id: "done", title: "Done" },
 ];
 
-export function Board({ issues, agentsByIssueId }: Props) {
+export function Board({
+  issues,
+  agentsByIssueId,
+  apiUrl,
+  apiKey,
+  onAuditEmit,
+}: Props) {
   // Bucket issues by column; "done" column shows only last 24h completed
   const now = Date.now();
   const MS_24H = 24 * 60 * 60 * 1000;
@@ -59,6 +71,9 @@ export function Board({ issues, agentsByIssueId }: Props) {
           title={title}
           issues={byColumn[id]}
           agentsByIssueId={agentsByIssueId}
+          apiUrl={apiUrl}
+          apiKey={apiKey}
+          onAuditEmit={onAuditEmit}
         />
       ))}
     </div>

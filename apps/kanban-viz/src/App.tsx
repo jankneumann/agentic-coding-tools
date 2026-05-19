@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { Board } from "./components/Board";
+import { SaveViewButton } from "./components/SaveViewButton";
 import { SyncPointBanner } from "./components/SyncPointBanner";
 import { useCoordinator } from "./hooks/useCoordinator";
 
@@ -56,6 +57,24 @@ export default function App() {
         apiKey={API_KEY}
         onAuditEmit={emitAudit}
       />
+      {/* Toolbar — task 6.7 SaveViewButton (reduced scope: save-only). */}
+      <div
+        data-testid="app-toolbar"
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          padding: "6px 16px",
+          borderBottom: "1px solid #eee",
+          background: "#fafbfc",
+        }}
+      >
+        <SaveViewButton
+          apiUrl={API_URL}
+          apiKey={API_KEY}
+          currentFilters={{ change_ids: CHANGE_IDS }}
+          onAuditEmit={emitAudit}
+        />
+      </div>
       {loading ? (
         <div role="status" data-testid="app-loading">
           Loading board…
@@ -65,7 +84,13 @@ export default function App() {
           Error: {error}
         </div>
       ) : (
-        <Board issues={issues} agentsByIssueId={agentsByIssueId} />
+        <Board
+          issues={issues}
+          agentsByIssueId={agentsByIssueId}
+          apiUrl={API_URL}
+          apiKey={API_KEY}
+          onAuditEmit={emitAudit}
+        />
       )}
     </div>
   );

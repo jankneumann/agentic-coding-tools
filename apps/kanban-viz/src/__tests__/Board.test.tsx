@@ -2,8 +2,9 @@
  * Tests for Board, Column, and Card components.
  * Covers tasks 3.4, 3.5, 3.6.
  */
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi } from "vitest";
 import { Board } from "../components/Board";
 import {
   pendingIssue,
@@ -204,6 +205,141 @@ describe("Card — VendorSwimlanes integration (IMPL_REVIEW F2)", () => {
     ]);
     render(<Board issues={[pendingIssue]} agentsByIssueId={agentsMap} />);
     expect(screen.queryByTestId("vendor-swimlanes")).not.toBeInTheDocument();
+  });
+
+  it("renders Mark Ready button for in-flight cards when apiUrl/apiKey supplied", () => {
+    // Task 6.8: in-flight cards expose a Mark Ready action that adds the
+    // pending-approval label and emits a reversible-write audit row.
+    render(
+      <Board
+        issues={[claimedIssue]}
+        apiUrl="http://localhost:8081"
+        apiKey="test"
+      />,
+    );
+    expect(
+      screen.getByTestId(`card-ready-${claimedIssue.id}`),
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT render Mark Ready button when apiUrl/apiKey are absent", () => {
+    render(<Board issues={[claimedIssue]} />);
+    expect(
+      screen.queryByTestId(`card-ready-${claimedIssue.id}`),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT render Mark Ready button for non-in-flight cards", () => {
+    render(
+      <Board
+        issues={[pendingIssue, completedRecentIssue]}
+        apiUrl="http://localhost:8081"
+        apiKey="test"
+      />,
+    );
+    expect(
+      screen.queryByTestId(`card-ready-${pendingIssue.id}`),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId(`card-ready-${completedRecentIssue.id}`),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Mark Ready click PATCHes labels and emits drag-to-ready audit", async () => {
+    // Task 6.8: clicking Mark Ready issues PATCH /issues/{id}/labels with
+    // add=["pending-approval"] and emits a schema-valid audit row
+    // (action=drag-to-ready, class=reversible-write, outcome=confirmed).
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ updated: true }),
+    });
+    (globalThis as Record<string, unknown>).fetch = fetchMock;
+
+    const audits: Record<string, unknown>[] = [];
+    render(
+      <Board
+        issues={[claimedIssue]}
+        apiUrl="http://localhost:8081"
+        apiKey="test"
+        onAuditEmit={(e) => audits.push(e)}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId(`card-ready-${claimedIssue.id}`));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(String(url)).toContain(`/issues/${claimedIssue.id}/labels`);
+    expect(init.method).toBe("PATCH");
+    const body = JSON.parse(String(init.body ?? "{}")) as {
+      add: string[];
+      remove: string[];
+    };
+    expect(body.add).toContain("pending-approval");
+    expect(body.remove).toEqual([]);
+
+    await waitFor(() => {
+      expect(audits.length).toBeGreaterThan(0);
+    });
+    expect(audits[0]).toMatchObject({
+      action: "drag-to-ready",
+      class: "reversible-write",
+      outcome: "confirmed",
+    });
+    const args = audits[0].args as Record<string, unknown>;
+    expect(args.issue_id).toBe(claimedIssue.id);
+    expect(args.added_label).toBe("pending-approval");
+  });
+
+  it("Mark Ready emits outcome=failed when PATCH returns !ok", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+    (globalThis as Record<string, unknown>).fetch = fetchMock;
+
+    const audits: Record<string, unknown>[] = [];
+    render(
+      <Board
+        issues={[claimedIssue]}
+        apiUrl="http://localhost:8081"
+        apiKey="test"
+        onAuditEmit={(e) => audits.push(e)}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId(`card-ready-${claimedIssue.id}`));
+
+    await waitFor(() => {
+      expect(audits.length).toBeGreaterThan(0);
+    });
+    expect(audits[0]).toMatchObject({
+      action: "drag-to-ready",
+      class: "reversible-write",
+      outcome: "failed",
+    });
+    const args = audits[0].args as Record<string, unknown>;
+    expect(args.failure_reason).toBeTruthy();
+  });
+
+  it("hides Mark Ready and shows pending-approval badge when label is already set", () => {
+    const readyIssue = {
+      ...claimedIssue,
+      id: "iss-ready",
+      labels: [...claimedIssue.labels, "pending-approval"],
+    };
+    render(
+      <Board
+        issues={[readyIssue]}
+        apiUrl="http://localhost:8081"
+        apiKey="test"
+      />,
+    );
+    expect(screen.queryByTestId(`card-ready-${readyIssue.id}`)).not.toBeInTheDocument();
+    expect(screen.getByTestId(`card-ready-badge-${readyIssue.id}`)).toBeInTheDocument();
   });
 
   it("renders consensus indicator (not swimlanes) for completed cards with agents", () => {

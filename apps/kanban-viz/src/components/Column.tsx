@@ -8,6 +8,12 @@ interface Props {
   issues: Issue[];
   /** Per-issue agent activity (IMPL_REVIEW F2). Passed through to each Card. */
   agentsByIssueId?: Map<string, AgentActivity[]>;
+  /** Coordinator API base URL (task 6.8 — Mark Ready button on cards). */
+  apiUrl?: string;
+  /** Bearer-style API key (task 6.8). */
+  apiKey?: string;
+  /** Audit emitter (task 6.8). */
+  onAuditEmit?: (eventData: Record<string, unknown>) => void;
 }
 
 const EMPTY_STATE_COPY: Record<ColumnId, string> = {
@@ -16,7 +22,15 @@ const EMPTY_STATE_COPY: Record<ColumnId, string> = {
   done: "No completed tasks in the last 24 hours.",
 };
 
-export function Column({ columnId, title, issues, agentsByIssueId }: Props) {
+export function Column({
+  columnId,
+  title,
+  issues,
+  agentsByIssueId,
+  apiUrl,
+  apiKey,
+  onAuditEmit,
+}: Props) {
   return (
     <div
       data-testid={`column-${columnId}`}
@@ -45,6 +59,9 @@ export function Column({ columnId, title, issues, agentsByIssueId }: Props) {
             key={issue.id}
             issue={issue}
             agents={agentsByIssueId?.get(issue.id) ?? []}
+            apiUrl={apiUrl}
+            apiKey={apiKey}
+            onAuditEmit={onAuditEmit}
           />
         ))
       )}
