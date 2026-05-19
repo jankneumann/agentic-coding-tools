@@ -173,6 +173,62 @@ class TestEventBusService:
         assert cb1 not in bus._callbacks["coordinator_task"]
         assert cb2 in bus._callbacks["coordinator_task"]
 
+
+# --- Migration 025: NOTIFY payload enrichment (codex#4 + claude_code#8) ---
+
+
+class TestNotifyPayloadEnrichment:
+    """Verifies CoordinatorEvent.from_json correctly parses the enriched
+    payload shape that migration 025 emits.
+    """
+
+    def test_parses_work_queue_payload_with_change_id_and_status_context(self) -> None:
+        """IMPL_REVIEW codex#4: work_queue trigger now emits change_id
+        (from labels) and {from_status, to_status} in context.
+        """
+        payload = (
+            '{"event_type": "task.running", "channel": "coordinator_task",'
+            ' "entity_id": "wq-uuid", "agent_id": "agent-1",'
+            ' "urgency": "low", "summary": "Task running: …",'
+            ' "timestamp": "2026-05-19T10:00:00Z",'
+            ' "change_id": "add-foo",'
+            ' "context": {"from_status": "claimed", "to_status": "running"}}'
+        )
+        evt = CoordinatorEvent.from_json(payload)
+        assert evt.change_id == "add-foo"
+        assert evt.context["from_status"] == "claimed"
+        assert evt.context["to_status"] == "running"
+
+    def test_parses_audit_payload_with_change_id_extracted_from_params(self) -> None:
+        """IMPL_REVIEW codex#4: audit_log trigger extracts change_id from
+        parameters JSONB and emits it as a top-level field.
+        """
+        payload = (
+            '{"event_type": "audit.logged", "channel": "coordinator_audit",'
+            ' "entity_id": "audit-uuid", "agent_id": "agent-2",'
+            ' "urgency": "low", "summary": "kick_agent",'
+            ' "timestamp": "2026-05-19T10:00:00Z",'
+            ' "change_id": "add-bar",'
+            ' "context": {"operation": "kick_agent",'
+            ' "args_summary": "{\\"target_agent_id\\": \\"x\\"}"}}'
+        )
+        evt = CoordinatorEvent.from_json(payload)
+        assert evt.change_id == "add-bar"
+        assert evt.context["operation"] == "kick_agent"
+
+    def test_parses_legacy_payload_without_change_id(self) -> None:
+        """Backward compat: payloads from triggers that don't emit change_id
+        (other channels, older migrations) parse with change_id=None.
+        """
+        payload = (
+            '{"event_type": "approval.submitted", "channel": "coordinator_approval",'
+            ' "entity_id": "req-1", "agent_id": "x",'
+            ' "urgency": "high", "summary": "Test"}'
+        )
+        evt = CoordinatorEvent.from_json(payload)
+        assert evt.change_id is None
+        assert evt.context == {}
+
     @pytest.mark.asyncio
     async def test_dispatch_calls_channel_callbacks(self) -> None:
         bus = EventBusService(dsn="postgresql://test")

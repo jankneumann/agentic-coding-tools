@@ -572,6 +572,206 @@ def test_delete_lock_emits_audit(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# IMPL_REVIEW codex#4 + claude#8 — _make_transition enum normalization + SSE
+# filter accepting enriched payload from migration 025
+
+
+def test_sse_filter_accepts_event_with_change_id_from_trigger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW codex#4 (high behavioral_failure): migration 025 enriches
+    NOTIFY payloads with change_id. The SSE filter (_on_task_event) MUST
+    deliver events whose change_id matches the subscription; the prior
+    NOTIFY payloads had change_id=None for every event, so the filter
+    dropped everything.
+
+    Exercises the runtime filter path with a CoordinatorEvent shaped like
+    what migration 025 emits.
+    """
+    import asyncio
+
+    from src.event_bus import CoordinatorEvent
+    from src.event_stream import sse_event_generator
+
+    delivered: list[dict[str, Any]] = []
+
+    class FakeBus:
+        def __init__(self) -> None:
+            self.task_cb: Any = None
+
+        def on_event(self, channel: str, cb: Any) -> None:
+            if channel == "coordinator_task":
+                self.task_cb = cb
+
+        def off_event(self, channel: str, cb: Any) -> bool:
+            return True
+
+    bus = FakeBus()
+
+    async def fake_snapshot(_ids: list[str]) -> str:
+        return '{"work_queue": [], "active_agents": [], "subscribed_change_ids": ["my-change"]}'
+
+    import src.event_stream as es_mod
+    monkeypatch.setattr(es_mod, "_build_snapshot", fake_snapshot)
+
+    async def drive() -> None:
+        gen = sse_event_generator(change_ids=["my-change"], event_bus=bus)
+        # Pull the initial snapshot so the generator registers its callbacks.
+        first = await gen.__anext__()
+        assert first["event"] == "snapshot"
+        # Now simulate a NOTIFY-trigger-shaped event hitting the bus.
+        evt = CoordinatorEvent(
+            event_type="task.running",
+            channel="coordinator_task",
+            entity_id="wq-id",
+            agent_id="agent-x",
+            urgency="low",
+            summary="Task running",
+            change_id="my-change",
+            context={"from_status": "claimed", "to_status": "running"},
+        )
+        await bus.task_cb(evt)
+        # The generator should now have queued one transition event.
+        second = await gen.__anext__()
+        delivered.append(second)
+        await gen.aclose()
+
+    asyncio.run(drive())
+
+    assert len(delivered) == 1
+    assert delivered[0]["event"] == "transition"
+    body = json.loads(delivered[0]["data"])
+    # IMPL_REVIEW claude#8: from/to are normalized to the IssueStatus enum.
+    assert body["from"] == "claimed"
+    assert body["to"] == "running"
+    assert body["work_queue_id"] == "wq-id"
+
+
+def test_sse_filter_drops_event_without_matching_change_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Subscriber to change_id=A receives events tagged change_id=A only;
+    events tagged change_id=B never reach the queue."""
+    import asyncio
+
+    from src.event_bus import CoordinatorEvent
+    from src.event_stream import sse_event_generator
+
+    class FakeBus:
+        def __init__(self) -> None:
+            self.task_cb: Any = None
+
+        def on_event(self, channel: str, cb: Any) -> None:
+            if channel == "coordinator_task":
+                self.task_cb = cb
+
+        def off_event(self, channel: str, cb: Any) -> bool:
+            return True
+
+    bus = FakeBus()
+    async def fake_snapshot(_ids: list[str]) -> str:
+        return '{"work_queue": [], "active_agents": [], "subscribed_change_ids": ["A"]}'
+
+    import src.event_stream as es_mod
+    monkeypatch.setattr(es_mod, "_build_snapshot", fake_snapshot)
+
+    async def drive() -> dict[str, Any]:
+        gen = sse_event_generator(change_ids=["A"], event_bus=bus)
+        await gen.__anext__()  # snapshot
+        # Off-target event
+        await bus.task_cb(CoordinatorEvent(
+            event_type="task.completed",
+            channel="coordinator_task",
+            entity_id="wq-other",
+            agent_id="x",
+            urgency="low",
+            summary="",
+            change_id="B",
+            context={"from_status": "running", "to_status": "completed"},
+        ))
+        # Wait briefly; the off-target event should be filtered. We expect
+        # either nothing (timeout cancels the pending get) or a keepalive
+        # ping — never a transition. The cancellation that wait_for triggers
+        # will close the generator's body cleanly via its own CancelledError
+        # handler + finally; we re-open by collecting the StopAsyncIteration.
+        next_evt: dict[str, Any] = {"event": "no-event"}
+        try:
+            next_evt = await asyncio.wait_for(gen.__anext__(), timeout=0.3)
+        except (TimeoutError, StopAsyncIteration):
+            pass
+        try:
+            await gen.aclose()
+        except Exception:
+            pass
+        return next_evt
+
+    next_evt = asyncio.run(drive())
+    # Filter dropped the off-target event; we either see no-event or a
+    # ping — never a transition.
+    assert next_evt.get("event") in ("no-event", "ping"), (
+        f"Off-target event leaked through filter: {next_evt}"
+    )
+
+
+def test_make_transition_normalizes_garbage_status_to_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW claude#8: when the upstream NOTIFY payload omits
+    from_status/to_status (legacy triggers, third-party emissions), the
+    SSE transition emits null for the out-of-enum value rather than the
+    empty-string-or-arbitrary suffix the prior implementation produced.
+    """
+    import asyncio
+
+    from src.event_bus import CoordinatorEvent
+    from src.event_stream import sse_event_generator
+
+    class FakeBus:
+        def __init__(self) -> None:
+            self.task_cb: Any = None
+
+        def on_event(self, channel: str, cb: Any) -> None:
+            if channel == "coordinator_task":
+                self.task_cb = cb
+
+        def off_event(self, channel: str, cb: Any) -> bool:
+            return True
+
+    bus = FakeBus()
+    async def fake_snapshot(_ids: list[str]) -> str:
+        return '{"work_queue": [], "active_agents": [], "subscribed_change_ids": ["c"]}'
+
+    import src.event_stream as es_mod
+    monkeypatch.setattr(es_mod, "_build_snapshot", fake_snapshot)
+
+    async def drive() -> dict[str, Any]:
+        gen = sse_event_generator(change_ids=["c"], event_bus=bus)
+        await gen.__anext__()
+        # Garbage event_type that the old code would have split on .
+        await bus.task_cb(CoordinatorEvent(
+            event_type="some.weird.thing",  # to fallback would yield "thing"
+            channel="coordinator_task",
+            entity_id="wq",
+            agent_id="x",
+            urgency="low",
+            summary="",
+            change_id="c",
+            context={},  # no from/to status
+        ))
+        second = await gen.__anext__()
+        await gen.aclose()
+        return second  # type: ignore[no-any-return]
+
+    second = asyncio.run(drive())
+    assert second["event"] == "transition"
+    body = json.loads(second["data"])
+    # Both null because nothing in the enum, and the event_type suffix
+    # 'thing' isn't a valid IssueStatus either.
+    assert body["from"] is None
+    assert body["to"] is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # IMPL_REVIEW R2-id=4 — SSE generator unregisters event_bus callbacks
 
 

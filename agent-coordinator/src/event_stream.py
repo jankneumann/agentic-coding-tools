@@ -217,14 +217,39 @@ async def sse_event_generator(
 
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
 
+    # IMPL_REVIEW claude_code#8 (high contract_mismatch): the SSE transition
+    # payload's `from`/`to` fields must come from the enum
+    # {pending, claimed, running, completed, failed, blocked}. Migration 025
+    # enriches the NOTIFY context with explicit `from_status`/`to_status`;
+    # this normalizer validates the enum and falls back conservatively if
+    # the trigger omitted either field. Out-of-enum values become None so
+    # the frontend's discriminated-union handler can ignore the event
+    # rather than render a garbage status.
+    valid_states: set[str] = {
+        "pending", "claimed", "running", "completed", "failed", "blocked",
+    }
+
+    def _normalize_status(value: Any) -> str | None:
+        if isinstance(value, str) and value in valid_states:
+            return value
+        return None
+
     def _make_transition(evt: CoordinatorEvent) -> dict[str, Any]:
         ctx = evt.context or {}
+        from_status = _normalize_status(
+            ctx.get("from_status") or ctx.get("from")
+        )
+        to_status = _normalize_status(
+            ctx.get("to_status")
+            or ctx.get("to")
+            or evt.event_type.split(".")[-1]
+        )
         return {
             "event": "transition",
             "data": json.dumps({
                 "work_queue_id": evt.entity_id,
-                "from": ctx.get("from_status") or ctx.get("from", ""),
-                "to": ctx.get("to_status") or ctx.get("to", evt.event_type.split(".")[-1]),
+                "from": from_status,
+                "to": to_status,
                 "agent_id": evt.agent_id,
                 "ts": evt.timestamp,
             }),
