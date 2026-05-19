@@ -133,6 +133,46 @@ class TestEventBusService:
         bus.on_event(None, cb)
         assert cb in bus._global_callbacks
 
+    def test_off_event_unregisters_channel_callback(self) -> None:
+        """IMPL_REVIEW R2-id=4: short-lived consumers must be able to
+        unregister callbacks to avoid leaking closures into the bus.
+        """
+        bus = EventBusService(dsn="postgresql://test")
+        cb = AsyncMock()
+        bus.on_event("coordinator_task", cb)
+        assert cb in bus._callbacks["coordinator_task"]
+        removed = bus.off_event("coordinator_task", cb)
+        assert removed is True
+        assert cb not in bus._callbacks["coordinator_task"]
+
+    def test_off_event_unregisters_global_callback(self) -> None:
+        bus = EventBusService(dsn="postgresql://test")
+        cb = AsyncMock()
+        bus.on_event(None, cb)
+        assert cb in bus._global_callbacks
+        removed = bus.off_event(None, cb)
+        assert removed is True
+        assert cb not in bus._global_callbacks
+
+    def test_off_event_unknown_callback_returns_false(self) -> None:
+        """off_event for a never-registered callback is a no-op, not an error."""
+        bus = EventBusService(dsn="postgresql://test")
+        cb = AsyncMock()
+        assert bus.off_event("coordinator_task", cb) is False
+        assert bus.off_event(None, cb) is False
+
+    def test_off_event_only_removes_exact_callback(self) -> None:
+        """Identity-based removal — duplicate registrations of the same callback
+        and other callbacks remain."""
+        bus = EventBusService(dsn="postgresql://test")
+        cb1 = AsyncMock()
+        cb2 = AsyncMock()
+        bus.on_event("coordinator_task", cb1)
+        bus.on_event("coordinator_task", cb2)
+        bus.off_event("coordinator_task", cb1)
+        assert cb1 not in bus._callbacks["coordinator_task"]
+        assert cb2 in bus._callbacks["coordinator_task"]
+
     @pytest.mark.asyncio
     async def test_dispatch_calls_channel_callbacks(self) -> None:
         bus = EventBusService(dsn="postgresql://test")

@@ -572,6 +572,76 @@ def test_delete_lock_emits_audit(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# IMPL_REVIEW R2-id=4 — SSE generator unregisters event_bus callbacks
+
+
+def test_sse_event_generator_unregisters_callbacks_on_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW R2-id=4 (high resilience, cross-vendor confirmed): the SSE
+    generator must call event_bus.off_event for each registered callback on
+    EVERY termination path (normal close, cancellation, exception). The prior
+    implementation registered both callbacks but never unregistered, leaking
+    the closure + captured queue into the bus's internal callback list.
+    """
+    import asyncio
+
+    from src.event_stream import sse_event_generator
+
+    class FakeBus:
+        def __init__(self) -> None:
+            self.on_calls: list[tuple[str, Any]] = []
+            self.off_calls: list[tuple[str, Any]] = []
+
+        def on_event(self, channel: str, cb: Any) -> None:
+            self.on_calls.append((channel, cb))
+
+        def off_event(self, channel: str, cb: Any) -> bool:
+            self.off_calls.append((channel, cb))
+            return True
+
+    bus = FakeBus()
+
+    # Stub _build_snapshot so the generator can yield the initial snapshot
+    # without touching the issue service / DB.
+    async def fake_snapshot(_change_ids: list[str]) -> str:
+        return '{"work_queue": [], "active_agents": [], "subscribed_change_ids": ["abc"]}'
+
+    import src.event_stream as es_mod
+    monkeypatch.setattr(es_mod, "_build_snapshot", fake_snapshot)
+
+    async def consume_and_close() -> None:
+        gen = sse_event_generator(change_ids=["abc"], event_bus=bus)
+        # Advance once so the generator's body executes through the
+        # on_event registrations and yields the initial snapshot.
+        first = await gen.__anext__()
+        assert first["event"] == "snapshot"
+        # Now close the generator — the finally block must call off_event
+        # for both registered callbacks.
+        await gen.aclose()
+
+    asyncio.run(consume_and_close())
+
+    # Two on_event registrations expected (coordinator_task + coordinator_audit)
+    on_channels = sorted(ch for ch, _ in bus.on_calls)
+    assert on_channels == ["coordinator_audit", "coordinator_task"], (
+        f"Expected both registrations, got: {on_channels}"
+    )
+    # Two matching off_event calls expected — identity preserved (same callback objs).
+    off_channels = sorted(ch for ch, _ in bus.off_calls)
+    assert off_channels == ["coordinator_audit", "coordinator_task"], (
+        f"Expected both unregistrations, got: {off_channels}"
+    )
+    # The exact callback identities passed to off_event must match those
+    # registered (protects against future refactors that recompute the
+    # closure between on/off).
+    on_by_channel = dict(bus.on_calls)
+    off_by_channel = dict(bus.off_calls)
+    assert on_by_channel["coordinator_task"] is off_by_channel["coordinator_task"]
+    assert on_by_channel["coordinator_audit"] is off_by_channel["coordinator_audit"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # IMPL_REVIEW F3 — _build_snapshot multi-change OR semantics
 
 

@@ -256,41 +256,59 @@ async def sse_event_generator(
     event_bus.on_event("coordinator_task", _on_task_event)
     event_bus.on_event("coordinator_audit", _on_audit_event)
 
-    # Initial snapshot
-    snapshot_data = await _build_snapshot(change_ids)
-    yield {"event": "snapshot", "data": snapshot_data}
-
-    # Emit events; track backpressure
-    window_start = asyncio.get_event_loop().time()
-    window_count = 0
-
+    # IMPL_REVIEW R2-id=4 (high resilience, cross-vendor confirmed): the SSE
+    # generator MUST unregister its callbacks on every termination path. Prior
+    # implementation registered callbacks above but never called off_event,
+    # so a closed connection leaked the callback closure + its captured queue
+    # reference into the bus's internal callback list forever. Memory growth
+    # was linear in connect/disconnect count.
+    #
+    # The try/finally below covers all exit paths:
+    #   - normal generator close (consumer stops iterating)
+    #   - task cancellation (CancelledError path)
+    #   - any unexpected exception inside the body
     try:
-        while True:
-            try:
-                item = await asyncio.wait_for(queue.get(), timeout=30.0)
-            except TimeoutError:
-                # Heartbeat keep-alive
-                yield {"event": "ping", "data": "{}"}
-                continue
+        # Initial snapshot
+        snapshot_data = await _build_snapshot(change_ids)
+        yield {"event": "snapshot", "data": snapshot_data}
 
-            now = asyncio.get_event_loop().time()
-            if now - window_start > 1.0:
-                window_start = now
-                window_count = 0
+        # Emit events; track backpressure
+        window_start = asyncio.get_event_loop().time()
+        window_count = 0
 
-            window_count += 1
-            if window_count > _BACKPRESSURE_LIMIT:
-                # Coalesce: drain queue and emit a single snapshot
-                while not queue.empty():
-                    try:
-                        queue.get_nowait()
-                    except asyncio.QueueEmpty:
-                        break
-                snapshot_data = await _build_snapshot(change_ids)
-                yield {"event": "snapshot", "data": snapshot_data}
-                window_count = 0
-                continue
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=30.0)
+                except TimeoutError:
+                    # Heartbeat keep-alive
+                    yield {"event": "ping", "data": "{}"}
+                    continue
 
-            yield item
-    except asyncio.CancelledError:
-        pass
+                now = asyncio.get_event_loop().time()
+                if now - window_start > 1.0:
+                    window_start = now
+                    window_count = 0
+
+                window_count += 1
+                if window_count > _BACKPRESSURE_LIMIT:
+                    # Coalesce: drain queue and emit a single snapshot
+                    while not queue.empty():
+                        try:
+                            queue.get_nowait()
+                        except asyncio.QueueEmpty:
+                            break
+                    snapshot_data = await _build_snapshot(change_ids)
+                    yield {"event": "snapshot", "data": snapshot_data}
+                    window_count = 0
+                    continue
+
+                yield item
+        except asyncio.CancelledError:
+            pass
+    finally:
+        # Unregister the bus callbacks no matter how we exit. Identity-based
+        # removal — these are the exact closure objects passed to on_event
+        # above, so the bus's bookkeeping list shrinks by exactly two.
+        event_bus.off_event("coordinator_task", _on_task_event)
+        event_bus.off_event("coordinator_audit", _on_audit_event)
