@@ -5,29 +5,29 @@ the implementation tasks they verify.
 
 ## Phase 1 - Policy Helper
 
-- [ ] 1.1 Write tests for checkout mutation policy classification (S)
+- [x] 1.1 Write tests for checkout mutation policy classification (S)
   - **Spec scenarios**: `worktree.local-shared-checkout-requires-worktree`, `worktree.local-managed-worktree-allows-mutation`, `worktree.cloud-or-harness-isolation-allows-in-place-mutation`, `worktree.sync-point-allowance-is-explicit`
   - **Design decisions**: D1, D3
   - **Dependencies**: None
   - Add tests under `skills/shared/tests/` covering shared checkout block, managed worktree allow, isolated harness allow, sync-point allow, and user-facing messages.
 
-- [ ] 1.2 Implement `skills/shared/checkout_policy.py` (M)
+- [x] 1.2 Implement `skills/shared/checkout_policy.py` (M)
   - **Spec scenarios**: Same as 1.1
   - **Dependencies**: 1.1
   - Add the `CheckoutPolicy` dataclass, `classify_checkout()`, `require_mutation_allowed()`, and CLI entrypoint. Reuse `EnvironmentProfile.detect()` rather than duplicating cloud/local detection.
 
-- [ ] 1.3 Write tests for CLI exit behavior (S)
+- [x] 1.3 Write tests for CLI exit behavior (S)
   - **Spec scenarios**: `worktree.local-shared-checkout-requires-worktree`, `worktree.local-managed-worktree-allows-mutation`
   - **Design decisions**: D2
   - **Dependencies**: 1.2
   - Verify `require-mutation --json` returns structured success in a managed worktree and exits non-zero with a clear message from the shared checkout.
 
-- [ ] 1.4 Add shared checkout policy CLI wiring (S)
+- [x] 1.4 Add shared checkout policy CLI wiring (S)
   - **Spec scenarios**: Same as 1.3
   - **Dependencies**: 1.3
-  - Make the module invokable through `skills/.venv/bin/python -m shared.checkout_policy require-mutation`.
+  - Make the module invokable through `skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation`.
 
-- [ ] Checkpoint: run shared tests, review diff, verify scope
+- [x] Checkpoint: run shared tests, review diff, verify scope
 
 ## Phase 2 - Skill Contracts
 

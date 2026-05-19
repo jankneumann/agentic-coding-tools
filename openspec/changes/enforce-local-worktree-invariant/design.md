@@ -45,7 +45,7 @@ caller declares `sync_point=true`.
 Expose:
 
 ```bash
-skills/.venv/bin/python -m shared.checkout_policy require-mutation \
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation \
   [--sync-point] [--agent-id <id>] [--json]
 ```
 
