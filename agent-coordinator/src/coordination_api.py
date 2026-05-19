@@ -2916,31 +2916,48 @@ def create_coordination_api() -> FastAPI:
         errors: list[str] = []
 
         # 1. Clear registry via worktree.py teardown --force
+        #
+        # IMPL_REVIEW gemini#2 (high architecture): in Docker/cloud
+        # environments, skills/worktree/scripts/worktree.py is NOT copied
+        # into the deployed image (skills/ is local-only tooling). Worktree
+        # registry isolation is also not needed there — each agent runs in
+        # its own container, so there's no registry to clear. Detect the
+        # script's existence and skip gracefully when absent.
         repo_root = Path(__file__).resolve().parents[2]
         worktree_script = repo_root / "skills" / "worktree" / "scripts" / "worktree.py"
-        teardown_cmd: list[str] = [
-            sys.executable,
-            str(worktree_script),
-            "teardown",
-            request.change_id,
-        ]
-        if not request.skip_agent_id:
-            teardown_cmd.extend(["--agent-id", agent_id])
-        teardown_cmd.append("--force")
-        try:
-            proc = _sp.run(
-                teardown_cmd,
-                cwd=str(repo_root),
-                capture_output=True,
-                text=True,
-                timeout=30,
+        if not worktree_script.is_file():
+            # Docker/cloud path: registry isolation is provided by the
+            # container, so registry teardown is vacuously complete.
+            logger.debug(
+                "kick_agent: worktree.py not present at %s — skipping registry "
+                "teardown (cloud/Docker environment provides isolation).",
+                worktree_script,
             )
-            if "REMOVED=true" in proc.stdout or "REMOVED=skipped" in proc.stdout:
-                registry_cleared = True
-            else:
-                errors.append(f"registry: worktree teardown failed: {proc.stderr.strip()}")
-        except Exception as exc:
-            errors.append(f"registry: {exc}")
+            registry_cleared = True
+        else:
+            teardown_cmd: list[str] = [
+                sys.executable,
+                str(worktree_script),
+                "teardown",
+                request.change_id,
+            ]
+            if not request.skip_agent_id:
+                teardown_cmd.extend(["--agent-id", agent_id])
+            teardown_cmd.append("--force")
+            try:
+                proc = _sp.run(
+                    teardown_cmd,
+                    cwd=str(repo_root),
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if "REMOVED=true" in proc.stdout or "REMOVED=skipped" in proc.stdout:
+                    registry_cleared = True
+                else:
+                    errors.append(f"registry: worktree teardown failed: {proc.stderr.strip()}")
+            except Exception as exc:
+                errors.append(f"registry: {exc}")
 
         # 2. Update agent_sessions
         try:

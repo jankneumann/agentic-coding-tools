@@ -885,6 +885,71 @@ def test_kick_agent_forwards_real_change_id_to_teardown(
     assert argv[argv.index("--agent-id") + 1] == "wp-backend"
 
 
+def test_kick_agent_handles_docker_when_worktree_script_absent(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW gemini#2 (high architecture): in Docker/cloud environments
+    skills/worktree/scripts/worktree.py is not present. The kick endpoint
+    must NOT try to spawn the missing subprocess; instead it should treat
+    registry_cleared as vacuously True (container isolation, no registry to
+    clear) and continue with agent_sessions update + audit emission.
+    """
+    import subprocess
+    from pathlib import Path as _Path
+
+    from src import audit as audit_mod
+    from src import db as db_mod
+    from src import locks as locks_mod
+
+    captured_argv: list[list[str]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> Any:
+        captured_argv.append(list(args[0]))
+        # If reached, the test failed: kick should not spawn subprocess when
+        # the script is absent.
+        proc = MagicMock()
+        proc.stdout = "REMOVED=true\n"
+        proc.stderr = ""
+        return proc
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(db_mod, "get_db", lambda: AsyncMock(update=AsyncMock()))
+    monkeypatch.setattr(locks_mod, "get_lock_service",
+                        lambda: AsyncMock(check=AsyncMock(return_value=[])))
+    monkeypatch.setattr(audit_mod, "get_audit_service",
+                        lambda: AsyncMock(log_operation=AsyncMock()))
+
+    # Force the "script absent" path by stubbing Path.is_file at the call site.
+    # The kick endpoint computes the script path then checks .is_file();
+    # monkeypatch is_file on the Path class to return False for any path
+    # ending in worktree.py.
+    real_is_file = _Path.is_file
+
+    def fake_is_file(self: _Path) -> bool:
+        if self.name == "worktree.py":
+            return False
+        return real_is_file(self)
+
+    monkeypatch.setattr(_Path, "is_file", fake_is_file)
+
+    resp = client.post(
+        "/agents/wp-backend/kick",
+        json={"change_id": "feat-docker"},
+        headers=_auth_headers(),
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # Vacuously cleared — there's no registry in Docker.
+    assert body["registry_cleared"] is True
+    assert body["kicked"] is True
+    # No subprocess.run invocation was made.
+    assert captured_argv == [], (
+        f"kick should not spawn subprocess when worktree.py is absent; "
+        f"got argv: {captured_argv}"
+    )
+
+
 def test_kick_agent_skip_agent_id_omits_flag(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
