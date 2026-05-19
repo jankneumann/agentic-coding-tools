@@ -46,12 +46,12 @@ def test_build_options_sets_isolation_for_implement(
     assert options.get("isolation") == "worktree"
 
 
-def test_build_options_no_isolation_for_validate(
+def test_build_options_sets_isolation_for_validate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
     options = phase_agent._build_options("VALIDATE", {})
-    assert "isolation" not in options
+    assert options.get("isolation") == "worktree"
 
 
 def test_build_options_archetype_path_sets_model_and_prompt(
