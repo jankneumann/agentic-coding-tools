@@ -55,6 +55,25 @@ Use `docs/coordination-detection-template.md` as the shared detection preamble.
 - Execute hooks only when the matching `CAN_*` flag is `true`
 - If coordinator is unavailable, continue with standalone behavior
 
+## Local CLI Mutation Boundary
+
+Plan iteration writes proposal, design, task, spec, findings, and session-log
+artifacts. In local CLI execution, those writes MUST run in a managed worktree
+and MUST NOT commit directly to local main.
+
+After parsing `CHANGE_ID`, enter or verify the feature worktree before baseline
+validation, findings generation, or edits:
+
+```bash
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
+FEATURE_BRANCH="$BRANCH"
+```
+
+All commits from this skill land on `$FEATURE_BRANCH` for PR review.
+
 ## Steps
 
 ### 0. Detect Coordinator, Read Handoff, Recall Memory
@@ -100,6 +119,19 @@ if [[ "$ARGUMENTS" == *"--vendor-review"* ]] || [[ "$COORDINATOR_AVAILABLE" == "
   VENDOR_REVIEW=true
 fi
 ```
+
+### 1.5. Enter Planning Worktree
+
+```bash
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" resolve-branch "$CHANGE_ID" --parent)"
+FEATURE_BRANCH="$BRANCH"
+```
+
+All subsequent steps run inside the worktree. Do not switch back to the shared
+checkout for file writes, validation artifacts, or commits.
 
 ### 2. Verify Proposal Exists
 

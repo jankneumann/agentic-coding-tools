@@ -27,7 +27,7 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **File scope isolation**: For parallel implementation tasks, each agent's prompt must explicitly list which files it may modify. Tasks with overlapping file scope must run sequentially, not in parallel.
 
-- **No worktrees needed**: Task() agents are orchestrator-coordinated. The old worktree pattern was needed because external `claude -p` processes had no coordination. With Task(), logical file scoping via prompts replaces physical isolation via worktrees.
+- **Task() does not replace local worktree isolation**: Task() agents are orchestrator-coordinated, but local CLI filesystem writes still need physical isolation. Read-only Task(Explore) work can share the checkout; mutating Task() work must happen inside managed worktrees or an isolated harness checkout.
 
 ### Parallel Worktree Best Practices
 - One agent, one worktree, one branch — never share checkouts
@@ -40,7 +40,7 @@ Accumulated patterns and conventions from building and operating this project.
 
 ### Sync-Point vs. Worktree Isolation
 
-- **Two strategies for concurrent safety**: Worktrees provide **isolation** (each actor gets its own copy), while sync-point skills use **serialization** (only one actor at a time on main). Use worktrees for "fan-out" phases (plan, implement) and main-branch access for "fan-in" phases (merge, spec update).
+- **Two strategies for concurrent safety**: Worktrees provide **isolation** (each actor gets its own copy), while sync-point skills use **serialization** (only one actor at a time on main). Use worktrees for local CLI write-capable phases (explore artifacts, plan, implement, validation evidence, fixes) and main-branch access for explicit sync-point phases (merge, spec update).
 
 - **Sync-point skills need an active-agent guard**: Skills that operate on the shared checkout (`/merge-pull-requests`, `/update-specs`) must check `check_no_active_agents()` before proceeding. This reads the worktree registry for non-stale heartbeats and aborts if other agents are actively working. The `--force` flag overrides the guard for stale/crashed agent entries.
 
