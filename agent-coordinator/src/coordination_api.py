@@ -501,10 +501,17 @@ def create_coordination_api() -> FastAPI:
     logger = logging.getLogger(__name__)
 
     from .langfuse_tracing import init_langfuse, shutdown_langfuse
+    from .sse_log_redaction import install_token_redaction_filter
     from .telemetry import get_prometheus_app, init_telemetry
 
     init_telemetry()
     init_langfuse()
+    # IMPL_REVIEW R2-id=13 (security, cross-vendor confirmed): mask token=
+    # in uvicorn's access log so the SSE auth JWT in the /events/work query
+    # string never reaches stdout or downstream log aggregators. Idempotent
+    # (the module tracks an installed flag), so calling from both main()
+    # and the factory is safe.
+    install_token_redaction_filter("uvicorn.access")
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -3093,6 +3100,12 @@ def create_coordination_api() -> FastAPI:
 def main() -> None:
     """Entry point for the HTTP API server."""
     import uvicorn
+
+    # IMPL_REVIEW R2-id=13 (security): mask token= in uvicorn access log
+    # BEFORE uvicorn writes its first line. The filter is idempotent.
+    from .sse_log_redaction import install_token_redaction_filter
+
+    install_token_redaction_filter("uvicorn.access")
 
     config = get_config()
     host = config.api.host
