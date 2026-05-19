@@ -1,0 +1,44 @@
+{
+  "handoff_id": "submit-pr-0--20260519T141500Z",
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "phase": "SUBMIT_PR",
+  "outcome": "created",
+  "summary": "PR #178 created and awaiting human approval for merge. Per the autopilot SUBMIT_PR contract, the pipeline STOPS here — merge is operator-driven via /cleanup-feature add-coordinator-kanban-viz.",
+  "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/178",
+  "pr_title": "feat(kanban-viz): Kanban-style visualization MVP over the coordinator",
+  "branch": "openspec/add-coordinator-kanban-viz",
+  "commits_ahead_of_main": 34,
+  "total_convergence_rounds": 9,
+  "convergence_breakdown": {
+    "plan-review-0": 3,
+    "impl-review-0": 3,
+    "impl-review-1": 3
+  },
+  "vendor_effectiveness_total": {
+    "claude_code": {
+      "rounds_attempted": 9,
+      "rounds_successful": 7,
+      "notes": "Highest recall (most findings raised); R3 of impl-review-1 failed with Unknown error after 3.2s + impl-review-0 R1 timed out at 300s"
+    },
+    "codex": {
+      "rounds_attempted": 9,
+      "rounds_successful": 8,
+      "notes": "Highest precision (lowest false-positive rate); R3 of impl-review-1 stdin stuck"
+    },
+    "gemini": {
+      "rounds_attempted": 9,
+      "rounds_successful": 9,
+      "notes": "Most reliable (zero failures across all 9 rounds); fastest (~75-110s/round vs ~200-300s for the others)"
+    }
+  },
+  "final_test_counts": {
+    "backend_full_minus_docker_manager": 2211,
+    "kanban_viz_endpoints_focused": 52,
+    "frontend_vitest": 91,
+    "frontend_skipped": 5
+  },
+  "next_phase": "DONE",
+  "operator_next_action": "Review PR #178. If approved, run /cleanup-feature add-coordinator-kanban-viz to merge. The two live-smoke fixes (cd28c19) should be re-verified against a freshly-rebuilt Docker image once docker-hub network is back; the code-level correctness has been confirmed by inspection. The pipeline guarantees the merged feature branch on main matches what was validated, modulo the Docker rebuild verification — that's the only outstanding gate.",
+  "created_at": "2026-05-19T14:15:00.000000+00:00"
+}
