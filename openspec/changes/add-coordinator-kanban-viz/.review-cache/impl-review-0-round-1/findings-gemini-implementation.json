@@ -1,0 +1,81 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The 'Kick Agent' functionality is broken for both agent-scoped and change-scoped worktrees. 1) Agent-scoped: 'GET /sync-points/status' (sync_points.py) omits the 'change_id' field, causing the frontend to pass 'unknown' to the kick API, which then fails in worktree.py. 2) Change-scoped: The kick endpoint incorrectly passes '--agent-id <change_id>' to worktree.py, which fails to match registry entries where agent_id is null.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 81,
+        "end": 120
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "useCoordinator.ts contains a React state update bug: the 'transition' SSE handler calls 'setIssues' with a reducer that itself invokes 'applyTransition', which triggers another nested 'setIssues' call. This anti-pattern causes redundant renders and potential race conditions when processing rapid events.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 147,
+        "end": 160
+      },
+      "package_id": "kanban-viz"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Missing dependencies: 'sse-starlette' and 'PyJWT' (runtime use) are present in uv.lock but missing from 'pyproject.toml' optional-dependencies [api]. This will cause 'ImportError' in environments installed via 'pip install .[api]' or similar, as event_stream.py depends on these libraries.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "agent-coordinator/pyproject.toml",
+      "line_range": {
+        "start": 21,
+        "end": 24
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "description": "Misleading dead code: 'skills/tests/agent-coordinator/test_kanban_viz_endpoints.py' is a redundant copy of the test suite located in 'agent-coordinator/tests/'. It is not in the project's standard test path and should be removed to prevent confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 100
+      }
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Documentation mismatch: 'coordination_api.py' docstring for '/sync-points/status' claims to reuse 'active_agents.py', but the implementation correctly duplicates the logic in 'sync_points.py' to satisfy Docker isolation constraints (D5). The docstring should be updated for accuracy.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2654,
+        "end": 2658
+      },
+      "package_id": "agent-coordinator"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "change_id": "add-coordinator-kanban-viz",
   "review_type": "implementation",
-  "created_at": "2026-05-19T02:23:43Z",
+  "created_at": "2026-05-19T03:40:08Z",
   "target": "add-coordinator-kanban-viz",
   "dispatches": [
     {
@@ -12,7 +12,7 @@
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 196.92540091695264,
+      "elapsed_seconds": 271.9966070000082,
       "error": null,
       "error_class": null
     },
@@ -23,7 +23,7 @@
       "models_attempted": [
         "gpt-5.5"
       ],
-      "elapsed_seconds": 299.0289986249991,
+      "elapsed_seconds": 215.23037770797964,
       "error": null,
       "error_class": null
     },
@@ -34,7 +34,7 @@
       "models_attempted": [
         "gemini-3-flash-preview"
       ],
-      "elapsed_seconds": 44.54994179203641,
+      "elapsed_seconds": 172.39176970894914,
       "error": null,
       "error_class": null
     }
@@ -45,17 +45,17 @@
     {
       "name": "claude_code",
       "findings_path": "findings-claude_code-implementation.json",
-      "finding_count": 15
+      "finding_count": 12
     },
     {
       "name": "codex",
       "findings_path": "findings-codex-implementation.json",
-      "finding_count": 9
+      "finding_count": 7
     },
     {
       "name": "gemini",
       "findings_path": "findings-gemini-implementation.json",
-      "finding_count": 5
+      "finding_count": 7
     }
   ]
 }

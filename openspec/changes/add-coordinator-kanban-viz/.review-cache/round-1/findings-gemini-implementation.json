@@ -5,77 +5,78 @@
   "findings": [
     {
       "id": 1,
-      "type": "correctness",
-      "criticality": "high",
-      "description": "The 'Kick Agent' functionality is broken for both agent-scoped and change-scoped worktrees. 1) Agent-scoped: 'GET /sync-points/status' (sync_points.py) omits the 'change_id' field, causing the frontend to pass 'unknown' to the kick API, which then fails in worktree.py. 2) Change-scoped: The kick endpoint incorrectly passes '--agent-id <change_id>' to worktree.py, which fails to match registry entries where agent_id is null.",
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "The POST /agents/{agent_id}/kick endpoint (coordination_api.py:2905-2947) depends on skills/worktree/scripts/worktree.py, but the skills/ directory is not copied into the agent-coordinator Docker image. This endpoint will fail with a FileNotFoundError in Docker/Cloud environments (e.g., Railway). The Dockerfile should be updated to include necessary skill scripts or the logic should be moved into the coordinator package.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "architecture",
       "severity": "critical",
-      "file_path": "agent-coordinator/src/sync_points.py",
+      "file_path": "agent-coordinator/src/coordination_api.py",
       "line_range": {
-        "start": 81,
-        "end": 120
+        "start": 2915,
+        "end": 2920
       },
       "package_id": "agent-coordinator"
     },
     {
       "id": 2,
-      "type": "correctness",
-      "criticality": "medium",
-      "description": "useCoordinator.ts contains a React state update bug: the 'transition' SSE handler calls 'setIssues' with a reducer that itself invokes 'applyTransition', which triggers another nested 'setIssues' call. This anti-pattern causes redundant renders and potential race conditions when processing rapid events.",
+      "type": "security",
+      "criticality": "high",
+      "description": "Token-in-URL hardening required by design D2 and tasks 2.7b/2.12 is incomplete. GET /events/work (coordination_api.py:2711-2746) passes the JWT as a query parameter but lacks access-log redaction, meaning Uvicorn will log sensitive tokens. Additionally, the SSE response lacks 'Referrer-Policy: no-referrer' and 'Cache-Control: no-store' headers required to prevent token leakage via Referer headers or intermediate caches.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "security",
       "severity": "critical",
-      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "file_path": "agent-coordinator/src/coordination_api.py",
       "line_range": {
-        "start": 147,
-        "end": 160
+        "start": 2711,
+        "end": 2746
       },
-      "package_id": "kanban-viz"
+      "package_id": "agent-coordinator"
     },
     {
       "id": 3,
-      "type": "architecture",
-      "criticality": "medium",
-      "description": "Missing dependencies: 'sse-starlette' and 'PyJWT' (runtime use) are present in uv.lock but missing from 'pyproject.toml' optional-dependencies [api]. This will cause 'ImportError' in environments installed via 'pip install .[api]' or similar, as event_stream.py depends on these libraries.",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The file-write helpers write_saved_view and write_audit_event (kanban_viz_files.py:77-151) stamp headers but fail to validate the payload against the JSON schemas defined in contracts/schemas/. This allows malformed UI state to be persisted to the repository, violating the contract-first design. jsonschema.validate() should be added to these helpers.",
       "disposition": "fix",
-      "axis": "architecture",
+      "axis": "correctness",
       "severity": "critical",
-      "file_path": "agent-coordinator/pyproject.toml",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py",
       "line_range": {
-        "start": 21,
-        "end": 24
+        "start": 77,
+        "end": 151
       },
       "package_id": "agent-coordinator"
     },
     {
       "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "Several features marked as complete in tasks.md are not wired into the UI. App.tsx and its subcomponents lack the Saved-view UI surface, drag-to-Ready handlers (PATCH /issues/{id}/labels), and the force-release-lock action (DELETE /locks/{file_path}). Library functions (saveView.ts) and backend endpoints exist, but the user cannot access them from the board.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 12,
+        "end": 35
+      },
+      "package_id": "kanban-viz"
+    },
+    {
+      "id": 5,
       "type": "style",
       "criticality": "low",
-      "description": "Misleading dead code: 'skills/tests/agent-coordinator/test_kanban_viz_endpoints.py' is a redundant copy of the test suite located in 'agent-coordinator/tests/'. It is not in the project's standard test path and should be removed to prevent confusion.",
+      "description": "Duplicate/dead test file: skills/tests/agent-coordinator/test_kanban_viz_endpoints.py. This file is a smaller, stale version of agent-coordinator/tests/test_kanban_viz_endpoints.py and is not included in the standard pytest path. It should be removed to avoid confusion.",
       "disposition": "fix",
       "axis": "readability",
       "severity": "nit",
       "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
       "line_range": {
         "start": 1,
-        "end": 100
-      }
-    },
-    {
-      "id": 5,
-      "type": "style",
-      "criticality": "low",
-      "description": "Documentation mismatch: 'coordination_api.py' docstring for '/sync-points/status' claims to reuse 'active_agents.py', but the implementation correctly duplicates the logic in 'sync_points.py' to satisfy Docker isolation constraints (D5). The docstring should be updated for accuracy.",
-      "disposition": "fix",
-      "axis": "readability",
-      "severity": "nit",
-      "file_path": "agent-coordinator/src/coordination_api.py",
-      "line_range": {
-        "start": 2654,
-        "end": 2658
+        "end": 1
       },
-      "package_id": "agent-coordinator"
+      "package_id": "skills"
     }
   ]
 }

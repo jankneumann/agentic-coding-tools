@@ -5,93 +5,45 @@
   "findings": [
     {
       "id": 1,
-      "type": "correctness",
+      "type": "spec_gap",
       "criticality": "medium",
-      "description": "Redundant and potentially incorrect state updates in useCoordinator.ts. The 'transition' SSE listener calls applyTransition (which invokes setIssues) inside another setIssues functional update, which is an anti-pattern and causes redundant renders.",
+      "description": "The proposal.md and design.md artifacts still list 'drag-to-Ready', 'force-release-lock', and 'Saved-Views UI' as part of the v1 MVP, but these have been explicitly deferred in tasks.md and are missing from the implemented UI (App.tsx and Board.tsx). Documentation should be updated to reflect the narrower MVP scope to avoid user confusion.",
       "disposition": "fix",
-      "axis": "correctness",
+      "axis": "architecture",
       "severity": "nit",
-      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
       "line_range": {
-        "start": 128,
-        "end": 139
-      },
-      "package_id": "kanban-viz"
+        "start": 123,
+        "end": 126
+      }
     },
     {
       "id": 2,
-      "type": "architecture",
-      "criticality": "high",
-      "description": "The POST /agents/{agent_id}/kick endpoint fails in Docker/Cloud environments because it depends on skills/worktree/scripts/worktree.py, which is not copied into the agent-coordinator Docker image.",
-      "disposition": "fix",
-      "axis": "architecture",
-      "severity": "critical",
-      "file_path": "agent-coordinator/src/coordination_api.py",
-      "line_range": {
-        "start": 2866,
-        "end": 2883
-      },
-      "package_id": "agent-coordinator"
-    },
-    {
-      "id": 3,
-      "type": "contract_mismatch",
-      "criticality": "high",
-      "description": "Missing change_id in SyncPointStatus and ActiveWorktree contracts. The kick action requires change_id to uniquely identify registry entries, but it is not surfaced by the read endpoints, preventing the UI from providing the correct identifier.",
-      "disposition": "fix",
-      "axis": "correctness",
-      "severity": "critical",
-      "file_path": "apps/kanban-viz/src/lib/coordinator-types.ts",
-      "line_range": {
-        "start": 54,
-        "end": 64
-      },
-      "package_id": "kanban-viz"
-    },
-    {
-      "id": 4,
-      "type": "correctness",
-      "criticality": "high",
-      "description": "SyncPointBanner.tsx passes 'unknown' as change_id to the kick endpoint. This will cause the backend's worktree teardown command to fail to locate and clear the stale agent entry from the registry.",
-      "disposition": "fix",
-      "axis": "correctness",
-      "severity": "critical",
-      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
-      "line_range": {
-        "start": 152,
-        "end": 154
-      },
-      "package_id": "kanban-viz"
-    },
-    {
-      "id": 5,
       "type": "style",
       "criticality": "low",
-      "description": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py is dead code and a misleading duplicate of the active test file in agent-coordinator/tests/.",
+      "description": "Redundant and misplaced test file 'skills/tests/agent-coordinator/test_kanban_viz_endpoints.py' exists alongside 'agent-coordinator/tests/test_kanban_viz_endpoints.py'. The latter is more up-to-date and correctly located within the agent-coordinator package. The redundant file in skills/tests should be removed to prevent confusion.",
       "disposition": "fix",
       "axis": "readability",
       "severity": "nit",
       "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
       "line_range": {
         "start": 1,
-        "end": 10
-      },
-      "package_id": "agent-coordinator"
+        "end": 100
+      }
     },
     {
-      "id": 6,
+      "id": 3,
       "type": "correctness",
-      "criticality": "medium",
-      "description": "Ambiguous identifier mapping in get_sync_points_status. The agent_id field conflates agent_id and change_id from the registry, which can cause identification failures when they differ.",
-      "disposition": "fix",
+      "criticality": "low",
+      "description": "Pre-existing test failure in 'agent-coordinator/tests/test_docker_manager.py::test_auto_falls_back_to_podman' persists on this branch. While unrelated to the Kanban visualization changes, it remains an outstanding issue in the test suite.",
+      "disposition": "accept",
       "axis": "correctness",
-      "severity": "optional",
-      "file_path": "agent-coordinator/src/sync_points.py",
+      "severity": "none",
+      "file_path": "agent-coordinator/tests/test_docker_manager.py",
       "line_range": {
-        "start": 113,
-        "end": 118
-      },
-      "package_id": "agent-coordinator"
+        "start": 1,
+        "end": 50
+      }
     }
   ]
 }
