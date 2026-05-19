@@ -356,6 +356,16 @@ class PatchLabelsRequest(BaseModel):
 
 class KickAgentRequest(BaseModel):
     change_id: str = Field(description="Registry key alongside agent_id")
+    skip_agent_id: bool = Field(
+        default=False,
+        description=(
+            "Set true when the registry entry being kicked has no agent_id "
+            "(single-agent worktree keyed on change_id alone). When true, "
+            "the teardown subprocess omits --agent-id and matches purely on "
+            "change_id. Defaults false for backward compatibility with the "
+            "parallel-agent kick flow."
+        ),
+    )
 
 
 class SavedViewRequest(BaseModel):
@@ -2877,16 +2887,18 @@ def create_coordination_api() -> FastAPI:
         # 1. Clear registry via worktree.py teardown --force
         repo_root = Path(__file__).resolve().parents[2]
         worktree_script = repo_root / "skills" / "worktree" / "scripts" / "worktree.py"
+        teardown_cmd: list[str] = [
+            sys.executable,
+            str(worktree_script),
+            "teardown",
+            request.change_id,
+        ]
+        if not request.skip_agent_id:
+            teardown_cmd.extend(["--agent-id", agent_id])
+        teardown_cmd.append("--force")
         try:
             proc = _sp.run(
-                [
-                    sys.executable,
-                    str(worktree_script),
-                    "teardown",
-                    request.change_id,
-                    "--agent-id", agent_id,
-                    "--force",
-                ],
+                teardown_cmd,
                 cwd=str(repo_root),
                 capture_output=True,
                 text=True,

@@ -124,13 +124,17 @@ def test_sync_points_status_blockers_include_kick_suggestions(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """2.2: Blocker rows include 'kick:<agent_id>' in suggested_actions."""
+    """2.2: Blocker rows include change_id, agent_id, and 'kick:<key>' in suggested_actions."""
     fake_status = [
         {
             "skill": "cleanup-feature",
             "blocked": True,
             "blockers": [
-                {"agent_id": "agent-42", "last_heartbeat_iso": "2026-01-01T00:00:00+00:00"},
+                {
+                    "agent_id": "agent-42",
+                    "change_id": "my-feature",
+                    "last_heartbeat_iso": "2026-01-01T00:00:00+00:00",
+                },
             ],
             "suggested_actions": ["wait", "kick:agent-42"],
         },
@@ -148,6 +152,62 @@ def test_sync_points_status_blockers_include_kick_suggestions(
     assert blocked["blocked"] is True
     assert "kick:agent-42" in blocked["suggested_actions"]
     assert "wait" in blocked["suggested_actions"]
+    # IMPL_REVIEW F5 + gemini#6: blocker rows must surface change_id separately
+    # from agent_id (kick endpoint needs change_id to match registry).
+    blocker = blocked["blockers"][0]
+    assert blocker["agent_id"] == "agent-42"
+    assert blocker["change_id"] == "my-feature"
+
+
+def test_sync_points_status_blockers_separates_change_id_from_agent_id(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """IMPL_REVIEW F5: registry entries with agent_id=None still emit change_id.
+
+    Drives the real sync_points.get_sync_points_status against a temp registry
+    to verify the function emits change_id and agent_id as separate fields and
+    does not fall back agent_id→change_id (the prior conflation bug).
+    """
+    import src.sync_points as sp_mod
+
+    # Build a registry with one parallel-agent entry and one single-agent entry.
+    registry = {
+        "entries": [
+            {
+                "agent_id": "wp-backend",
+                "change_id": "feat-a",
+                "last_heartbeat": datetime.now(UTC).isoformat(),
+                "pinned": False,
+            },
+            {
+                # Single-agent worktree: no agent_id in registry.
+                "agent_id": None,
+                "change_id": "feat-b",
+                "last_heartbeat": datetime.now(UTC).isoformat(),
+                "pinned": False,
+            },
+        ]
+    }
+    repo_root = tmp_path
+    (repo_root / ".git-worktrees").mkdir()
+    (repo_root / ".git-worktrees" / ".registry.json").write_text(json.dumps(registry))
+
+    status = sp_mod.get_sync_points_status(repo_root=repo_root)
+    blocked_rows = [r for r in status if r["blocked"]]
+    assert blocked_rows, "Expected at least one blocked skill row"
+    blockers = blocked_rows[0]["blockers"]
+    by_change = {b["change_id"]: b for b in blockers}
+    # Parallel-agent entry has both fields populated.
+    assert by_change["feat-a"]["agent_id"] == "wp-backend"
+    # Single-agent entry has agent_id=None (no conflation with change_id).
+    assert by_change["feat-b"]["agent_id"] is None
+    # Suggested actions: parallel-agent kick uses agent_id; single-agent falls
+    # back to change_id as the kick key.
+    suggestions = blocked_rows[0]["suggested_actions"]
+    assert "kick:wp-backend" in suggestions
+    assert "kick:feat-b" in suggestions
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -623,6 +683,105 @@ def test_kick_agent_requires_auth(client: TestClient) -> None:
     """2.7f: POST /agents/{id}/kick requires auth."""
     resp = client.post("/agents/foo/kick", json={"change_id": "ch"})
     assert resp.status_code == 401
+
+
+def test_kick_agent_forwards_real_change_id_to_teardown(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW F5: change_id from request body lands as positional arg in
+    worktree.py teardown — NOT the literal 'unknown' the buggy frontend used to send.
+    """
+    import subprocess
+
+    from src import audit as audit_mod
+    from src import db as db_mod
+    from src import locks as locks_mod
+
+    captured_argv: list[list[str]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> Any:
+        captured_argv.append(list(args[0]))
+        proc = MagicMock()
+        proc.stdout = "REMOVED=true\n"
+        proc.stderr = ""
+        proc.returncode = 0
+        return proc
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    fake_db = AsyncMock()
+    fake_db.update = AsyncMock()
+    monkeypatch.setattr(db_mod, "get_db", lambda: fake_db)
+    fake_lock_service = AsyncMock()
+    fake_lock_service.check = AsyncMock(return_value=[])
+    monkeypatch.setattr(locks_mod, "get_lock_service", lambda: fake_lock_service)
+    fake_audit = AsyncMock()
+    fake_audit.log_operation = AsyncMock()
+    monkeypatch.setattr(audit_mod, "get_audit_service", lambda: fake_audit)
+
+    resp = client.post(
+        "/agents/wp-backend/kick",
+        json={"change_id": "feat-real-change"},
+        headers=_auth_headers(),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["registry_cleared"] is True
+    # The positional arg following 'teardown' must be the real change_id.
+    assert len(captured_argv) == 1
+    argv = captured_argv[0]
+    teardown_idx = argv.index("teardown")
+    assert argv[teardown_idx + 1] == "feat-real-change"
+    # And --agent-id <agent_id> must follow for the parallel-agent case.
+    assert "--agent-id" in argv
+    assert argv[argv.index("--agent-id") + 1] == "wp-backend"
+
+
+def test_kick_agent_skip_agent_id_omits_flag(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW claude#16: skip_agent_id=True (single-agent registry entry) →
+    teardown omits --agent-id so the change_id-only registry key matches.
+    """
+    import subprocess
+
+    from src import audit as audit_mod
+    from src import db as db_mod
+    from src import locks as locks_mod
+
+    captured_argv: list[list[str]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> Any:
+        captured_argv.append(list(args[0]))
+        proc = MagicMock()
+        proc.stdout = "REMOVED=true\n"
+        proc.stderr = ""
+        return proc
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(db_mod, "get_db", lambda: AsyncMock(update=AsyncMock()))
+    monkeypatch.setattr(locks_mod, "get_lock_service",
+                        lambda: AsyncMock(check=AsyncMock(return_value=[])))
+    monkeypatch.setattr(audit_mod, "get_audit_service",
+                        lambda: AsyncMock(log_operation=AsyncMock()))
+
+    # The agent_id in the path is required by FastAPI but is a placeholder
+    # ('_none' is the convention for "no agent_id in registry"); the actual
+    # teardown match relies on change_id alone.
+    resp = client.post(
+        "/agents/_none/kick",
+        json={"change_id": "single-agent-feature", "skip_agent_id": True},
+        headers=_auth_headers(),
+    )
+    assert resp.status_code == 200
+    argv = captured_argv[0]
+    assert "--agent-id" not in argv, (
+        f"skip_agent_id=True should omit --agent-id; got argv={argv}"
+    )
+    # change_id is still passed positionally.
+    teardown_idx = argv.index("teardown")
+    assert argv[teardown_idx + 1] == "single-agent-feature"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

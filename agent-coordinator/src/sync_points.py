@@ -103,21 +103,29 @@ def get_sync_points_status(repo_root: Path | None = None) -> list[dict[str, Any]
         clear = True
         active_list = []
 
-    blockers = [
-        {
-            "agent_id": str(a.get("agent_id") or a.get("change_id") or ""),
+    # Emit agent_id and change_id as SEPARATE fields. Single-agent worktrees
+    # have agent_id=None (only change_id is keyed); parallel agents have both.
+    # The frontend kick action needs change_id; conflating with agent_id would
+    # break end-to-end (worktree.py teardown looks them up independently).
+    blockers: list[dict[str, Any]] = []
+    for a in active_list:
+        raw_agent_id = a.get("agent_id")
+        raw_change_id = a.get("change_id")
+        blockers.append({
+            "agent_id": str(raw_agent_id) if raw_agent_id else None,
+            "change_id": str(raw_change_id) if raw_change_id else None,
             "last_heartbeat_iso": str(a.get("last_heartbeat", "")),
-        }
-        for a in active_list
-    ]
+        })
 
     suggested_actions: list[str] = []
     if not clear:
         suggested_actions.append("wait")
         for b in blockers:
-            aid = b["agent_id"]
-            if aid:
-                suggested_actions.append(f"kick:{aid}")
+            # Prefer agent_id (parallel-agent kick); fall back to change_id
+            # (single-agent worktree kick — handled via skip_agent_id body flag).
+            kick_key = b["agent_id"] or b["change_id"]
+            if kick_key:
+                suggested_actions.append(f"kick:{kick_key}")
 
     status_row: dict[str, Any] = {
         "blocked": not clear,
