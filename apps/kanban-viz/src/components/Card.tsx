@@ -1,7 +1,15 @@
 import type { Issue } from "../lib/coordinator-types";
+import { VendorSwimlanes } from "./VendorSwimlanes";
+import type { AgentActivity } from "./VendorSwimlanes";
 
 interface Props {
   issue: Issue;
+  /**
+   * Per-issue agent activity (IMPL_REVIEW F2). Rendered as VendorSwimlanes
+   * when the issue is in-flight (status ∈ {claimed, running}) and at least
+   * one agent is provided. Defaults to empty (no swimlanes).
+   */
+  agents?: AgentActivity[];
 }
 
 /** Format a relative timestamp from an ISO string. */
@@ -18,9 +26,11 @@ function relativeTime(isoStr: string | null): string {
   return `${Math.floor(diffH / 24)}d ago`;
 }
 
-export function Card({ issue }: Props) {
+export function Card({ issue, agents = [] }: Props) {
   const assignee = issue.claimed_by ?? issue.assignee;
   const ts = issue.claimed_at ?? issue.created_at;
+  const isInFlight = issue.status === "claimed" || issue.status === "running";
+  const isCompleted = issue.status === "completed" || issue.status === "failed";
 
   return (
     <div
@@ -62,6 +72,15 @@ export function Card({ issue }: Props) {
         >
           {relativeTime(ts)}
         </div>
+      )}
+      {/*
+       * IMPL_REVIEW F2 (critical, claude+codex confirmed): render
+       * VendorSwimlanes for in-flight cards or a consensus indicator for
+       * completed cards. Previously the component existed with tests but was
+       * unreachable from the rendered Card — MVP surface #2 per proposal §3.
+       */}
+      {(isInFlight || isCompleted) && agents.length > 0 && (
+        <VendorSwimlanes agents={agents} completed={isCompleted} />
       )}
     </div>
   );

@@ -334,6 +334,111 @@ describe("useCoordinator — IMPL_REVIEW claude#4/gemini#1 transition single sta
   });
 });
 
+describe("useCoordinator — IMPL_REVIEW F2 per-issue agent activity projection", () => {
+  it("projects agentsByIssueId for in-flight issues whose claimed_by matches an active worktree", async () => {
+    const inflightIssue = {
+      ...claimedIssue,
+      id: "iss-inflight",
+      status: "running" as const,
+      claimed_by: "wp-backend--claude",
+    };
+    const pendingIssueNoMatch = {
+      ...pendingIssue,
+      id: "iss-pending",
+      claimed_by: null,
+    };
+    const snapshot: SnapshotPayload = {
+      work_queue: [inflightIssue, pendingIssueNoMatch],
+      active_agents: [
+        {
+          agent_id: "wp-backend--claude",
+          change_id: "feat-a",
+          branch: "openspec/feat-a--wp-backend",
+          worktree_path: "/tmp/wt",
+          last_heartbeat_iso: new Date(Date.now() - 60_000).toISOString(),
+          pinned: false,
+          owner_session: null,
+        },
+      ],
+      subscribed_change_ids: ["abc"],
+    };
+
+    const { result, unmount } = renderHook(() =>
+      useCoordinator({ apiKey: "test-key", changeIds: ["abc"] }),
+    );
+
+    await waitFor(() => {
+      expect(
+        (globalThis as Record<string, unknown>).__lastMockEventSource,
+      ).toBeTruthy();
+    });
+
+    const es = (
+      globalThis as Record<string, unknown>
+    ).__lastMockEventSource as MockEventSource;
+    es.emitSnapshot(snapshot);
+
+    await waitFor(() => {
+      expect(result.current.agentsByIssueId.size).toBe(1);
+    });
+
+    const inflightAgents = result.current.agentsByIssueId.get("iss-inflight");
+    expect(inflightAgents).toBeTruthy();
+    expect(inflightAgents).toHaveLength(1);
+    expect(inflightAgents![0].agent_id).toBe("wp-backend--claude");
+    expect(inflightAgents![0].last_event_at).toBeTruthy();
+    expect(inflightAgents![0].outcome).toBeNull();
+
+    // Pending issue (no claimed_by) is not in the map
+    expect(result.current.agentsByIssueId.has("iss-pending")).toBe(false);
+
+    // activeAgents is also surfaced for consumers that want the raw list
+    expect(result.current.activeAgents).toHaveLength(1);
+
+    unmount();
+  });
+
+  it("omits in-flight issues whose claimed_by has no matching active worktree", async () => {
+    const inflightOrphan = {
+      ...claimedIssue,
+      id: "iss-orphan",
+      status: "claimed" as const,
+      claimed_by: "wp-frontend--codex", // not in active_agents
+    };
+    const snapshot: SnapshotPayload = {
+      work_queue: [inflightOrphan],
+      active_agents: [], // no worktrees
+      subscribed_change_ids: ["abc"],
+    };
+
+    const { result, unmount } = renderHook(() =>
+      useCoordinator({ apiKey: "test-key", changeIds: ["abc"] }),
+    );
+
+    await waitFor(() => {
+      expect(
+        (globalThis as Record<string, unknown>).__lastMockEventSource,
+      ).toBeTruthy();
+    });
+    const es = (
+      globalThis as Record<string, unknown>
+    ).__lastMockEventSource as MockEventSource;
+    es.emitSnapshot(snapshot);
+
+    await waitFor(() => {
+      expect(result.current.issues).toHaveLength(1);
+    });
+    // Orphan issue still has a projection (agent_id from claimed_by) but
+    // last_event_at is null because no worktree matches.
+    const projected = result.current.agentsByIssueId.get("iss-orphan");
+    expect(projected).toBeTruthy();
+    expect(projected![0].agent_id).toBe("wp-frontend--codex");
+    expect(projected![0].last_event_at).toBeNull();
+
+    unmount();
+  });
+});
+
 describe("useCoordinator — polling fallback", () => {
   it("falls back to polling when SSE token mint fails", async () => {
     fetchMock.mockImplementation((url: string) => {

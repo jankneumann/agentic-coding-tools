@@ -1,9 +1,12 @@
 import type { Issue, ColumnId } from "../lib/coordinator-types";
 import { statusToColumn } from "../lib/coordinator-types";
 import { Column } from "./Column";
+import type { AgentActivity } from "./VendorSwimlanes";
 
 interface Props {
   issues: Issue[];
+  /** Per-issue agent activity (IMPL_REVIEW F2). Threaded through to Cards. */
+  agentsByIssueId?: Map<string, AgentActivity[]>;
 }
 
 const COLUMNS: Array<{ id: ColumnId; title: string }> = [
@@ -12,7 +15,7 @@ const COLUMNS: Array<{ id: ColumnId; title: string }> = [
   { id: "done", title: "Done" },
 ];
 
-export function Board({ issues }: Props) {
+export function Board({ issues, agentsByIssueId }: Props) {
   // Bucket issues by column; "done" column shows only last 24h completed
   const now = Date.now();
   const MS_24H = 24 * 60 * 60 * 1000;
@@ -47,6 +50,7 @@ export function Board({ issues }: Props) {
           columnId={id}
           title={title}
           issues={byColumn[id]}
+          agentsByIssueId={agentsByIssueId}
         />
       ))}
     </div>

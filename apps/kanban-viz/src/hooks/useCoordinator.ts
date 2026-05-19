@@ -7,11 +7,13 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  ActiveWorktree,
   Issue,
   SnapshotPayload,
   TransitionPayload,
   AuditPayload,
 } from "../lib/coordinator-types";
+import type { AgentActivity } from "../components/VendorSwimlanes";
 
 export interface UseCoordinatorOptions {
   /** API base URL, defaults to http://localhost:8081 */
@@ -36,6 +38,18 @@ export interface UseCoordinatorResult {
    * re-fetching from /audit. Empty array when SSE is not connected.
    */
   recentAuditEvents: AuditPayload[];
+  /**
+   * Active worktree registry projected from the snapshot. Empty when not
+   * connected or no active agents.
+   */
+  activeAgents: ActiveWorktree[];
+  /**
+   * Per-issue agent activity projection (IMPL_REVIEW F2): for each in-flight
+   * issue with a `claimed_by` value, the matching active worktree's heartbeat
+   * is exposed so VendorSwimlanes can render per-vendor lanes without each
+   * consumer re-deriving the projection.
+   */
+  agentsByIssueId: Map<string, AgentActivity[]>;
 }
 
 interface EventsAuthResponse {
@@ -128,6 +142,7 @@ export function useCoordinator({
   const [error, setError] = useState<string | null>(null);
   const [streamConnected, setStreamConnected] = useState(false);
   const [recentAuditEvents, setRecentAuditEvents] = useState<AuditPayload[]>([]);
+  const [activeAgents, setActiveAgents] = useState<ActiveWorktree[]>([]);
 
   const esRef = useRef<EventSource | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -136,9 +151,36 @@ export function useCoordinator({
   const applySnapshot = useCallback((payload: SnapshotPayload) => {
     if (mountedRef.current) {
       setIssues(payload.work_queue);
+      setActiveAgents(payload.active_agents);
       setLoading(false);
     }
   }, []);
+
+  // IMPL_REVIEW F2: project per-issue agent activity. For each in-flight
+  // issue with claimed_by, find the matching active worktree and surface
+  // its heartbeat + agent_id. Empty for non-in-flight issues or issues
+  // whose claimed_by has no active worktree.
+  const agentsByIssueId = useMemo(() => {
+    const map = new Map<string, AgentActivity[]>();
+    const worktreesByAgent = new Map<string, ActiveWorktree>();
+    for (const wt of activeAgents) {
+      if (wt.agent_id) worktreesByAgent.set(wt.agent_id, wt);
+    }
+    for (const issue of issues) {
+      const isInFlight =
+        issue.status === "claimed" || issue.status === "running";
+      if (!isInFlight || !issue.claimed_by) continue;
+      const wt = worktreesByAgent.get(issue.claimed_by);
+      map.set(issue.id, [
+        {
+          agent_id: issue.claimed_by,
+          last_event_at: wt?.last_heartbeat_iso ?? null,
+          outcome: null,
+        },
+      ]);
+    }
+    return map;
+  }, [issues, activeAgents]);
 
   const startPolling = useCallback(() => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -256,5 +298,13 @@ export function useCoordinator({
     };
   }, [apiUrl, apiKey, stableChangeIds, startSSE, startPolling]);
 
-  return { issues, loading, error, streamConnected, recentAuditEvents };
+  return {
+    issues,
+    loading,
+    error,
+    streamConnected,
+    recentAuditEvents,
+    activeAgents,
+    agentsByIssueId,
+  };
 }

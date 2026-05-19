@@ -1,10 +1,13 @@
 import type { Issue, ColumnId } from "../lib/coordinator-types";
 import { Card } from "./Card";
+import type { AgentActivity } from "./VendorSwimlanes";
 
 interface Props {
   columnId: ColumnId;
   title: string;
   issues: Issue[];
+  /** Per-issue agent activity (IMPL_REVIEW F2). Passed through to each Card. */
+  agentsByIssueId?: Map<string, AgentActivity[]>;
 }
 
 const EMPTY_STATE_COPY: Record<ColumnId, string> = {
@@ -13,7 +16,7 @@ const EMPTY_STATE_COPY: Record<ColumnId, string> = {
   done: "No completed tasks in the last 24 hours.",
 };
 
-export function Column({ columnId, title, issues }: Props) {
+export function Column({ columnId, title, issues, agentsByIssueId }: Props) {
   return (
     <div
       data-testid={`column-${columnId}`}
@@ -37,7 +40,13 @@ export function Column({ columnId, title, issues }: Props) {
           {EMPTY_STATE_COPY[columnId]}
         </div>
       ) : (
-        issues.map((issue) => <Card key={issue.id} issue={issue} />)
+        issues.map((issue) => (
+          <Card
+            key={issue.id}
+            issue={issue}
+            agents={agentsByIssueId?.get(issue.id) ?? []}
+          />
+        ))
       )}
     </div>
   );

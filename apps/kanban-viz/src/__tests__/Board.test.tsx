@@ -159,3 +159,78 @@ describe("Board — column bucketing", () => {
     expect(inFlight).not.toHaveTextContent(pendingIssue.title);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPL_REVIEW F2 — Card renders VendorSwimlanes when in-flight; consensus when completed
+
+describe("Card — VendorSwimlanes integration (IMPL_REVIEW F2)", () => {
+  const inFlightAgents = new Map([
+    [
+      claimedIssue.id,
+      [
+        {
+          agent_id: "wp-backend--claude",
+          last_event_at: new Date(Date.now() - 30_000).toISOString(),
+          outcome: null,
+        },
+      ],
+    ],
+  ]);
+
+  it("renders vendor-swimlanes for claimed (in-flight) cards when agents present", () => {
+    render(<Board issues={[claimedIssue]} agentsByIssueId={inFlightAgents} />);
+    expect(screen.getByTestId("vendor-swimlanes")).toBeInTheDocument();
+    expect(screen.getByTestId("swimlane-claude")).toBeInTheDocument();
+  });
+
+  it("does NOT render swimlanes when no agents are provided for the issue", () => {
+    render(<Board issues={[claimedIssue]} />);
+    expect(screen.queryByTestId("vendor-swimlanes")).not.toBeInTheDocument();
+  });
+
+  it("does NOT render swimlanes for non-in-flight, non-completed statuses", () => {
+    // Map has agents for pendingIssue, but pending is not in-flight.
+    const agentsMap = new Map([
+      [
+        pendingIssue.id,
+        [
+          {
+            agent_id: "wp-backend--claude",
+            last_event_at: new Date().toISOString(),
+            outcome: null,
+          },
+        ],
+      ],
+    ]);
+    render(<Board issues={[pendingIssue]} agentsByIssueId={agentsMap} />);
+    expect(screen.queryByTestId("vendor-swimlanes")).not.toBeInTheDocument();
+  });
+
+  it("renders consensus indicator (not swimlanes) for completed cards with agents", () => {
+    const completedAgents = new Map([
+      [
+        completedRecentIssue.id,
+        [
+          {
+            agent_id: "wp-backend--claude",
+            last_event_at: new Date().toISOString(),
+            outcome: "success" as const,
+          },
+          {
+            agent_id: "wp-backend--codex",
+            last_event_at: new Date().toISOString(),
+            outcome: "success" as const,
+          },
+        ],
+      ],
+    ]);
+    render(
+      <Board issues={[completedRecentIssue]} agentsByIssueId={completedAgents} />,
+    );
+    expect(screen.getByTestId("consensus-indicator")).toBeInTheDocument();
+    expect(screen.getByTestId("consensus-indicator")).toHaveAttribute(
+      "data-consensus",
+      "pass",
+    );
+  });
+});
