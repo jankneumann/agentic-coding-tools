@@ -1,0 +1,97 @@
+{
+  "handoff_id": "impl-iterate-0--20260517T164500Z",
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "phase": "IMPL_ITERATE",
+  "summary": "IMPL_ITERATE for add-coordinator-kanban-viz completed. Three refinements applied in one commit (0491427) on the feature branch. Quality gates: backend 40/40 pass, frontend 65/70 pass (5 expected skips), openspec validate --strict passes.",
+  "refinements_applied": [
+    {
+      "id": "R1-test-placement",
+      "severity": "high",
+      "description": "Moved test_kanban_viz_endpoints.py from skills/tests/agent-coordinator/ to agent-coordinator/tests/. The old location was collected by skills/.venv (no fastapi) causing ModuleNotFoundError on collection. New location is collected by agent-coordinator/.venv which has fastapi. Removed sys.path manipulation block. Updated parents[3]→parents[1] for migration file path assertion. Removed unused imports (patch), unused variables (stale_entry, lock_paths). Fixed ruff: E501 long lines, F841 unused vars, I001 import sort.",
+      "files_changed": [
+        "agent-coordinator/tests/test_kanban_viz_endpoints.py (NEW)"
+      ]
+    },
+    {
+      "id": "R2-docker-import-isolation",
+      "severity": "high",
+      "description": "Fixed sync_points.py: replaced dynamic sys.path import of skills.shared.active_agents with self-contained registry reading logic. The original code used Path(__file__).resolve().parents[2] to reach the repo root and import active_agents from skills/shared/. This works locally but breaks in Docker (skills/ not in the deployed image). check_docker_imports.py confirmed the breakage. The fix inlines the minimal registry-reading and active-entry-classification logic directly, mirroring check_no_active_agents() semantics without the cross-package dependency.",
+      "files_changed": [
+        "agent-coordinator/src/sync_points.py (MODIFIED)"
+      ]
+    },
+    {
+      "id": "R3-deferred-findings-verification",
+      "severity": "medium",
+      "description": "Verified KANBAN-001 and KANBAN-006 are genuinely resolved. KANBAN-001 (SSE-trigger payload shape): event_stream.py _make_transition() extracts from→to from evt.context using ctx.get('from_status') or ctx.get('from') and ctx.get('to_status') or ctx.get('to'). App-layer augmentation, not DB trigger — consistent with the design. KANBAN-006 (Tauri-bypass runtime feature-detect + format-identity): runtime.ts uses window.__TAURI__ presence check; saveView.ts isTauri() guards the Tauri path; the Tauri JSON document uses schema_version=1 + generated_at + git_sha + generator + view — identical schema to the browser/coordinator path."
+    }
+  ],
+  "quality_gate_results": {
+    "backend_tests": {
+      "pass": true,
+      "command": "cd agent-coordinator && agent-coordinator/.venv/bin/python -m pytest tests/test_kanban_viz_endpoints.py -x",
+      "output": "40 passed in 1.97s"
+    },
+    "backend_suite_no_regression": {
+      "pass": true,
+      "command": "cd agent-coordinator && agent-coordinator/.venv/bin/python -m pytest tests/ -m 'not e2e and not integration' --ignore=tests/test_docker_manager.py",
+      "output": "2185 passed, 98 deselected, 25 warnings in 32.02s",
+      "note": "test_docker_manager.py::test_auto_falls_back_to_podman is pre-existing failure on main (docker is installed on this machine, mocking doesn't suppress it). Confirmed identical failure on main branch outside worktree."
+    },
+    "frontend_typecheck": {
+      "pass": true,
+      "command": "cd apps/kanban-viz && npm run typecheck",
+      "output": "tsc --noEmit (0 errors)"
+    },
+    "frontend_tests": {
+      "pass": true,
+      "command": "cd apps/kanban-viz && npm run test:run",
+      "output": "7 test files, 65 passed, 5 skipped (70 total)"
+    },
+    "docker_imports": {
+      "pass": true,
+      "command": "cd agent-coordinator && agent-coordinator/.venv/bin/python scripts/check_docker_imports.py --data-dir cedar --data-dir profiles",
+      "output": "OK: every local package imported by src/ has a matching COPY in the Dockerfile"
+    },
+    "openspec_validate": {
+      "pass": true,
+      "command": "openspec validate add-coordinator-kanban-viz --strict",
+      "output": "Change 'add-coordinator-kanban-viz' is valid"
+    },
+    "ruff": {
+      "pass": true,
+      "command": "ruff check src/sync_points.py tests/test_kanban_viz_endpoints.py",
+      "output": "All checks passed!"
+    }
+  },
+  "commits": [
+    {
+      "sha": "0491427",
+      "message": "refine(kanban-viz): IMPL_ITERATE — fix test placement and Docker import isolation",
+      "files": [
+        "agent-coordinator/src/sync_points.py",
+        "agent-coordinator/tests/test_kanban_viz_endpoints.py"
+      ]
+    }
+  ],
+  "outstanding_concerns": [
+    {
+      "id": "OC-1",
+      "description": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py still exists with the original sys.path-based code. It is NOT collected by skills pytest (not in pyproject.toml testpaths) so it does not cause CI failures, but it is misleading dead code. The original file should be removed in a follow-up commit or during cleanup.",
+      "severity": "low",
+      "action": "Remove skills/tests/agent-coordinator/test_kanban_viz_endpoints.py in cleanup-feature or a follow-up."
+    },
+    {
+      "id": "OC-2",
+      "description": "test_docker_manager.py::test_auto_falls_back_to_podman is a pre-existing failure on main (not introduced by this change). It fails because docker is actually installed on the developer machine so the subprocess mock doesn't suppress it. Not a regression from this feature.",
+      "severity": "low",
+      "action": "Pre-existing issue; not in scope for this feature."
+    }
+  ],
+  "feature_branch": "openspec/add-coordinator-kanban-viz",
+  "feature_branch_head": "0491427",
+  "remote_sync_status": "in_sync (pushed to origin/openspec/add-coordinator-kanban-viz)",
+  "next_phase": "IMPL_REVIEW",
+  "created_at": "2026-05-17T16:45:00.000000+00:00"
+}
