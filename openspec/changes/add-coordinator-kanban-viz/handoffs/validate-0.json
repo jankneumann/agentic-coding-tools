@@ -99,15 +99,35 @@
   ],
   "phases_pending": [
     {
-      "name": "smoke (re-validation against rebuilt image)",
-      "blocker": "docker hub network timeout (DeadlineExceeded on python:3.14-slim metadata pull)",
-      "expected_outcome": "smoke should now PASS — schema files present, workdir env var set, both findings addressed in code"
-    },
-    {
       "name": "e2e (playwright)",
       "blocker": "Deferred — the Kanban app's e2e tests would require both the rebuilt coordinator + running the Vite dev server. Not gating since UI behavior is well-covered by 91 vitest/RTL tests."
     }
   ],
+  "smoke_revalidation_after_cd28c19_fix": {
+    "outcome": "PASS",
+    "container_state": {
+      "schemas_at_bundled_path": true,
+      "workdir_present_and_writable": true,
+      "coordinator_workdir_root_env_set": "/app/workdir",
+      "schema_not_found_warning_in_startup_logs": false
+    },
+    "smoke_results_table": {
+      "GET /health": "200 db=connected",
+      "GET /sync-points/status": "200 (3 rows, all clear)",
+      "POST /kanban-viz/audit schema-valid": "200 {appended: True, path: docs/kanban-viz/audit/2026-05-19/smoke-rebuilt-001.json}",
+      "POST /kanban-viz/audit invalid action": "400 'validation failed at /action: card-moved is not one of [...]'",
+      "POST /kanban-viz/audit missing required": "400 'validation failed at /: action is a required property'",
+      "PUT /kanban-viz/saved-views schema-valid": "200 {saved: True, path, git_sha}",
+      "PUT /kanban-viz/saved-views missing name": "400 'validation failed at /view: name is a required property'"
+    },
+    "load_bearing_observation": "The 4 negative-path tests prove claude#11's schema gate is ACTIVE in production. Pre-fix, these would have returned 200 (silent garbage) or 500 (write failed before validation).",
+    "artifacts_on_disk_in_container": [
+      "/app/workdir/docs/kanban-viz/saved-views/smoke-rebuilt.json",
+      "/app/workdir/docs/kanban-viz/audit/2026-05-19/smoke-rebuilt-001.json"
+    ],
+    "migration_025_relisten_test": "LISTEN coordinator_task + UPDATE work_queue (labels=['change:rebuilt-feature']) → NOTIFY payload had change_id='rebuilt-feature' + context={from_status: pending, to_status: running}. Both coordinator_notify signatures coexist.",
+    "pr_comment_posted": "https://github.com/jankneumann/agentic-coding-tools/pull/178#issuecomment-4488653045"
+  },
   "test_counts": {
     "backend_full_suite_minus_docker_manager": 2211,
     "kanban_viz_endpoints_focused": 52,
