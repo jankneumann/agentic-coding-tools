@@ -572,6 +572,84 @@ def test_delete_lock_emits_audit(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# IMPL_REVIEW F3 — _build_snapshot multi-change OR semantics
+
+
+def test_build_snapshot_multi_change_union_not_intersection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """IMPL_REVIEW F3 (critical, claude+codex confirmed): multi-change boards
+    must return the UNION of per-change-id issue sets, not the INTERSECTION.
+
+    The prior bug called list_issues(labels=[change:a, change:b]) once.
+    IssueService.list_issues applies AND across labels (issue_service.py:277-280),
+    so the result was the intersection — empty for any issue labelled with only
+    one of the change_ids, which is the normal case.
+    """
+    import asyncio
+    from uuid import uuid4
+
+    from src import event_stream as es_mod
+
+    issue_a = MagicMock()
+    issue_a.id = uuid4()
+    issue_a.to_dict = lambda: {"id": str(issue_a.id), "title": "A", "labels": ["change:a"]}
+    issue_b = MagicMock()
+    issue_b.id = uuid4()
+    issue_b.to_dict = lambda: {"id": str(issue_b.id), "title": "B", "labels": ["change:b"]}
+    # Issue shared between both changes — should appear only once in the union.
+    issue_both = MagicMock()
+    issue_both.id = uuid4()
+    issue_both.to_dict = lambda: {
+        "id": str(issue_both.id),
+        "title": "BOTH",
+        "labels": ["change:a", "change:b"],
+    }
+
+    captured_calls: list[list[str]] = []
+
+    class FakeIssueService:
+        async def list_issues(
+            self, labels: list[str] | None = None, **kwargs: Any
+        ) -> list[Any]:
+            captured_calls.append(list(labels or []))
+            # Simulate the real AND-filter semantics: return issues whose
+            # labels list is a superset of the requested labels.
+            pool = [issue_a, issue_b, issue_both]
+            requested = set(labels or [])
+            return [
+                i for i in pool
+                if requested.issubset(set(i.to_dict()["labels"]))
+            ]
+
+    # _build_snapshot imports IssueService inside the function, so monkeypatch
+    # the source module (src.issue_service), not src.event_stream.
+    import src.issue_service as is_mod
+    monkeypatch.setattr(is_mod, "IssueService", FakeIssueService)
+    # Suppress event_stream's reference: it imports IssueService from the
+    # source module at call time, so the patch above is sufficient.
+    _ = es_mod
+    monkeypatch.setattr(
+        "src.worktrees_view.get_active_worktrees",
+        lambda **kw: [],
+    )
+
+    payload_str = asyncio.run(es_mod._build_snapshot(["a", "b"]))
+    payload = json.loads(payload_str)
+
+    # OR semantics: union should contain all three issues (a, b, both).
+    titles = sorted([row["title"] for row in payload["work_queue"]])
+    assert titles == ["A", "B", "BOTH"], (
+        f"Expected union of per-change-id issues, got: {titles}"
+    )
+
+    # The fix must call list_issues per-change-id (not once with the combined
+    # label list), so two calls each with exactly one label.
+    assert len(captured_calls) == 2
+    assert sorted([labels[0] for labels in captured_calls]) == ["change:a", "change:b"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 2.7f — POST /agents/{agent_id}/kick
 
 

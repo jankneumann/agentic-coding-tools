@@ -161,14 +161,27 @@ def _prune_nonces() -> None:
 # ─── SSE event generator ─────────────────────────────────────────────────────
 
 async def _build_snapshot(change_ids: list[str]) -> str:
-    """Build a snapshot payload for the given change_ids."""
+    """Build a snapshot payload for the given change_ids.
+
+    Multi-change subscriptions require UNION semantics: an issue belongs in
+    the snapshot if it has ANY of the subscribed change-id labels. The
+    underlying ``IssueService.list_issues`` applies AND semantics on its
+    ``labels`` argument (all labels must match), so a single call with
+    ``labels=[change:a, change:b]`` returns the intersection — empty for
+    issues only labelled with one of them. Iterate per-change-id and
+    dedupe by issue id instead.
+    """
     try:
         from .issue_service import IssueService
         from .worktrees_view import get_active_worktrees
 
         service = IssueService()
-        issues = await service.list_issues(labels=[f"change:{cid}" for cid in change_ids])
-        work_queue = [i.to_dict() for i in issues]
+        merged: dict[Any, dict[str, Any]] = {}
+        for cid in change_ids:
+            issues_for_cid = await service.list_issues(labels=[f"change:{cid}"])
+            for issue in issues_for_cid:
+                merged.setdefault(issue.id, issue.to_dict())
+        work_queue = list(merged.values())
     except Exception as exc:
         logger.warning("snapshot: issue query failed: %s", exc)
         work_queue = []
