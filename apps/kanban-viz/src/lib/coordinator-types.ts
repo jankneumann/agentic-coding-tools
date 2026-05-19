@@ -29,6 +29,12 @@ export interface Issue {
   claimed_by: string | null;
   /** ISO-8601 string, populated from work_queue.claimed_at. */
   claimed_at: string | null;
+  /**
+   * ISO-8601 string, populated from work_queue.completed_at. Used by the Done
+   * column 24-hour filter (IMPL_REVIEW R2-id=15) — proposal §3 specifies
+   * `completed_at >= now() - 24h`, not the previous `updated_at` fallback.
+   */
+  completed_at: string | null;
   created_at: string;
   updated_at: string | null;
   change_id: string | null;

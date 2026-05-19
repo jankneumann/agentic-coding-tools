@@ -29,9 +29,17 @@ export function Board({ issues, agentsByIssueId }: Props) {
   for (const issue of issues) {
     const col = statusToColumn(issue.status);
     if (col === "done") {
-      // Only show completed within 24h
-      const updatedAt = issue.updated_at ?? issue.created_at;
-      if (now - new Date(updatedAt).getTime() <= MS_24H) {
+      // IMPL_REVIEW R2-id=15: proposal §3 specifies the Done column shows
+      // `completed_at >= now() - 24h` for completed cards. The prior
+      // `updated_at ?? created_at` fallback returned cards that weren't
+      // genuinely completed within the window. We additionally exclude
+      // `failed` from the 24h filter — failed cards go to Done immediately
+      // and stay there until completed_at-equivalent (close_at) is set,
+      // so use completed_at-or-closed_at semantics, falling back to
+      // updated_at only when neither is present (transitional rows).
+      const referenceTs =
+        issue.completed_at ?? issue.updated_at ?? issue.created_at;
+      if (now - new Date(referenceTs).getTime() <= MS_24H) {
         byColumn.done.push(issue);
       }
     } else {
