@@ -70,17 +70,17 @@ the implementation tasks they verify.
 
 ## Phase 4 - Integration
 
-- [ ] 4.1 Run focused verification (S)
+- [x] 4.1 Run focused verification (S)
   - **Spec scenarios**: all scenarios in this change
   - **Dependencies**: 1.4, 2.3, 3.3
   - Run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/autopilot skills/tests/explore-feature skills/tests/iterate-on-plan skills/tests/quick-task` where directories exist.
 
-- [ ] 4.2 Run full OpenSpec validation (S)
+- [x] 4.2 Run full OpenSpec validation (S)
   - **Spec scenarios**: all scenarios in this change
   - **Dependencies**: 4.1
   - Run `openspec validate enforce-local-worktree-invariant --strict`.
 
-- [ ] 4.3 Prepare PR summary (S)
+- [x] 4.3 Prepare PR summary (S)
   - **Spec scenarios**: `skill-workflow.main-receives-work-through-pr-sync-points`
   - **Dependencies**: 4.2
   - Summarize `CHANGES MADE`, `DIDN'T TOUCH`, and `CONCERNS` for the PR.
