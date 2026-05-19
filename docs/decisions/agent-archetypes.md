@@ -5,36 +5,36 @@
 
 ---
 
-## 2026-05-16 — vendor-neutral-autopilot
+## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation
 
 **Resolve archetype models through provider maps** — This preserves legacy Claude aliases while preventing opus/sonnet/haiku from being dispatched to Codex or Gemini.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D1)
 
 ---
 
-## 2026-05-15 — vendor-neutral-autopilot
+## 2026-05-15 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Plan
 
 **Resolve archetypes to provider-specific model IDs** — Logical archetypes remain stable, but concrete model names must be selected per provider to avoid passing Claude aliases to Codex or Gemini.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D2)
 
 ---
 
-## 2026-05-15 — vendor-neutral-autopilot
+## 2026-05-15 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Plan Approval
 
 **Preserve latest Gemini API model names** — The operator updated Gemini model names in the design to match the latest models available via the API; implementation should preserve those configured model IDs unless a later source check proves they changed again.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D2)
 
 ---
 
