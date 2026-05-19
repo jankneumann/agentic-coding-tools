@@ -123,7 +123,7 @@ def test_build_phase_dispatch_kwargs_implement_sets_worktree_isolation(
     assert result["archetype"] == "implementer"
 
 
-def test_build_phase_dispatch_kwargs_non_worktree_phase_isolation_is_none(
+def test_build_phase_dispatch_kwargs_plan_iterate_sets_worktree_isolation(
     chdir_tmp: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -132,10 +132,38 @@ def test_build_phase_dispatch_kwargs_non_worktree_phase_isolation_is_none(
 
     result = phase_agent.build_phase_dispatch_kwargs("PLAN_ITERATE", "demo-change")
 
-    # PLAN_ITERATE is NOT in _WORKTREE_PHASES — isolation should be None (not "worktree").
-    assert result["isolation"] is None
+    assert result["isolation"] == "worktree"
     assert result["model"] == "opus"
     assert result["archetype"] == "architect"
+
+
+@pytest.mark.parametrize(
+    "phase",
+    [
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+    ],
+)
+def test_build_phase_dispatch_kwargs_write_capable_phases_use_worktree(
+    chdir_tmp: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    phase: str,
+) -> None:
+    _stub_bridge(monkeypatch, _RESOLVED_ARCHITECT)
+    _seed_loop_state(chdir_tmp, "demo-change", current_phase=phase)
+
+    result = phase_agent.build_phase_dispatch_kwargs(phase, "demo-change")
+
+    assert result["isolation"] == "worktree"
 
 
 # ---------------------------------------------------------------------------

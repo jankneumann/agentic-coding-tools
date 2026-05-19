@@ -10,9 +10,9 @@ Per design D6:
   - The next phase reads the structured PhaseRecord via ``read_handoff()``
     or the local fallback file.
 
-Per design D7:
-  - ``isolation="worktree"`` is set ONLY when phase == "IMPLEMENT".
-  - IMPL_REVIEW and VALIDATE run in the shared checkout.
+Per local CLI mutation-boundary policy:
+  - ``isolation="worktree"`` is set for every write-capable phase.
+  - INIT and SUBMIT_PR remain state-only and do not dispatch sub-agents.
 
 Per design D8:
   - On runner failure or malformed output, retry up to 3 times with the
@@ -54,8 +54,23 @@ from phase_record import PhaseRecord  # noqa: E402
 # Per-phase runtime config
 # ---------------------------------------------------------------------------
 
-# Phases that run in their own worktree (D7).
-_WORKTREE_PHASES: set[str] = {"IMPLEMENT"}
+# Phases that can write files, generated artifacts, review checkpoints,
+# validation evidence, or fixes. In local CLI execution these must not run in
+# the shared checkout; cloud harnesses may short-circuit worktree setup via
+# EnvironmentProfile.detect().
+_WORKTREE_PHASES: set[str] = {
+    "PLAN",
+    "PLAN_ITERATE",
+    "PLAN_REVIEW",
+    "PLAN_FIX",
+    "IMPLEMENT",
+    "IMPL_ITERATE",
+    "IMPL_REVIEW",
+    "IMPL_FIX",
+    "VALIDATE",
+    "VAL_REVIEW",
+    "VAL_FIX",
+}
 
 # Crash-recovery cap (D8).
 _MAX_ATTEMPTS = 3

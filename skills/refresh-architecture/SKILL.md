@@ -35,6 +35,21 @@ Regenerate, validate, or inspect the `docs/architecture-analysis/` artifacts tha
 - For TypeScript analysis: `npm` with `ts-morph` installed (`make architecture-setup`)
 - For full pipeline: the source directories (`agent-coordinator/src`, `web/`, `agent-coordinator/database/migrations`) should exist
 
+## Local CLI Mutation Boundary
+
+Modes that regenerate, rewrite, or clean `docs/architecture-analysis/` artifacts
+MUST run in a managed worktree in local CLI execution:
+
+```bash
+CHANGE_ID="refresh-architecture-<short-slug>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+Pure read-only inspection modes may run from the shared checkout when they do
+not write files.
+
 ## Architecture Overview
 
 The analysis pipeline has 3 layers:

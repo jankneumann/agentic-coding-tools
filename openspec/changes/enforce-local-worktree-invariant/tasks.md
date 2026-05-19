@@ -31,23 +31,23 @@ the implementation tasks they verify.
 
 ## Phase 2 - Skill Contracts
 
-- [ ] 2.1 Write skill invariant tests for mutating worktree requirements (M)
+- [x] 2.1 Write skill invariant tests for mutating worktree requirements (M)
   - **Spec scenarios**: `skill-workflow.local-cli-mutations-require-worktree-isolation`, `skill-workflow.quick-tasks-are-read-only-unless-isolated`, `skill-workflow.autopilot-write-capable-phases-use-worktree-isolation`
   - **Design decisions**: D4, D5, D6
   - **Dependencies**: 1.4
   - Add or extend tests under `skills/tests/` to verify high-risk mutating skills mention worktree setup or checkout policy guard and do not advertise read-write shared-checkout execution.
 
-- [ ] 2.2 Update planning skill instructions for exploration flows (M)
+- [x] 2.2 Update planning skill instructions for exploration flows (M)
   - **Spec scenarios**: `skill-workflow.artifact-producing-exploration-uses-worktrees`, `skill-workflow.plan-refinement-completes`
   - **Dependencies**: 2.1
   - Update canonical `skills/explore-feature/SKILL.md`, `skills/iterate-on-plan/SKILL.md`, `skills/plan-roadmap/SKILL.md`, and `skills/autopilot-roadmap/SKILL.md` to enter or verify worktrees before artifact writes.
 
-- [ ] 2.3 Update autopilot phase isolation metadata (M)
+- [x] 2.3 Update autopilot phase isolation metadata (M)
   - **Spec scenarios**: `skill-workflow.autopilot-write-capable-phases-use-worktree-isolation`
   - **Dependencies**: 2.1
   - Update `skills/autopilot/SKILL.md`, `skills/autopilot/scripts/phase_agent.py`, and the autopilot dispatch tests so write-capable phases report worktree isolation.
 
-- [ ] Checkpoint: run affected skill invariant tests, review diff, verify scope
+- [x] Checkpoint: run affected skill invariant tests, review diff, verify scope
 
 ## Phase 3 - Docs and Remaining Mutating Skills
 
@@ -56,7 +56,7 @@ the implementation tasks they verify.
   - **Dependencies**: 1.4
   - Update `AGENTS.md`, `docs/cloud-vs-local-execution.md`, and relevant lessons/decision docs. Remove the `/iterate-on-plan` commits-to-local-main language.
 
-- [ ] 3.2 Update quick-task plus artifact generator instructions (M)
+- [x] 3.2 Update quick-task plus artifact generator instructions (M)
   - **Spec scenarios**: `skill-workflow.quick-tasks-are-read-only-unless-isolated`, `skill-workflow.local-cli-mutations-require-worktree-isolation`
   - **Dependencies**: 2.1
   - Update `skills/quick-task/SKILL.md`, `skills/validate-feature/SKILL.md`, `skills/refresh-architecture/SKILL.md`, `skills/changelog-version/SKILL.md`, and `skills/archive-roadmap/SKILL.md` where they write artifacts.
