@@ -47,6 +47,13 @@ COPY teams.yaml /app/teams.yaml
 # loads. Same Dockerfile contract as agents.yaml/teams.yaml above.
 COPY archetypes.yaml /app/archetypes.yaml
 
+# IMPL_REVIEW live-smoke Finding B: pre-create a writable workdir that
+# COORDINATOR_WORKDIR_ROOT points at. Without this, the kanban-viz
+# saved-view and audit endpoints try to write under /docs/... (the
+# fallback when WORKDIR_ROOT is unset OR when it's set but the parent
+# doesn't exist with write permissions for the unprivileged user).
+RUN mkdir -p /app/workdir/docs/kanban-viz
+
 # Create non-root user and switch to it
 RUN groupadd --system appuser && \
     useradd --system --gid appuser --no-create-home appuser && \

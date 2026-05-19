@@ -39,45 +39,65 @@ KANBAN_SCHEMA_VERSION = 1
 # Slug/run-id must match: start with alnum, then alphanums and hyphens, 1-64 chars.
 SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
-# IMPL_REVIEW claude#11 (high contract_mismatch): the file-write helpers must
-# validate the supplied payload against the checked-in JSON schemas before
-# writing, otherwise arbitrary malformed artifacts can land under
-# docs/kanban-viz/. Schemas live in the change directory; we cache them at
-# module load so each write is a single jsonschema.validate call.
-_SCHEMA_ROOT = (
+# IMPL_REVIEW claude#11 (high contract_mismatch) + live-smoke Finding A:
+# the file-write helpers must validate the supplied payload against the
+# checked-in JSON schemas before writing. Schemas have two valid homes:
+#
+#   1. agent-coordinator/src/schemas/kanban_viz/ — bundled with the
+#      Python package, available at runtime in Docker (the COPY src/ in
+#      the Dockerfile picks them up automatically as a side effect).
+#   2. openspec/changes/add-coordinator-kanban-viz/contracts/schemas/ —
+#      the canonical home in the spec repo (dev tree only; openspec/ is
+#      not COPY'd into Docker).
+#
+# We look in the package-bundled location first (so Docker hits the same
+# schema), then fall back to the openspec/ canonical for completeness in
+# any setup where the bundle is stale or absent. The bundled copies are
+# kept in sync by the precommit hook (TODO if drift becomes an issue;
+# for now, a quick manual diff before merge is sufficient).
+_SCHEMA_ROOTS: list[Path] = [
+    Path(__file__).resolve().parent / "schemas" / "kanban_viz",
     Path(__file__).resolve().parents[2]
     / "openspec"
     / "changes"
     / "add-coordinator-kanban-viz"
     / "contracts"
-    / "schemas"
-)
+    / "schemas",
+]
 
 
 def _load_schema(name: str) -> dict[str, Any]:
-    """Load a schema file by name (e.g. ``saved-view.json``) from the change
-    directory. Returns an empty schema (no constraints) if the file is missing
-    — defensive default so a misconfigured deploy doesn't reject all writes.
-    The empty-fallback is logged so misconfiguration is visible.
+    """Load a schema file by name (e.g. ``saved-view.json``).
+
+    Tries each root in ``_SCHEMA_ROOTS`` in order and returns the first
+    that loads cleanly. If none can be loaded, returns an empty schema
+    (no constraints) so a misconfigured deploy doesn't reject all writes —
+    the fallback is logged WARNING-level so the gap is observable.
     """
-    schema_path = _SCHEMA_ROOT / name
-    if not schema_path.is_file():
-        logger.warning(
-            "kanban_viz_files: schema %s not found at %s — proceeding without validation",
-            name,
-            schema_path,
-        )
-        return {}
-    try:
-        with open(schema_path, encoding="utf-8") as fh:
-            return json.load(fh)  # type: ignore[no-any-return]
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(
-            "kanban_viz_files: failed to load schema %s (%s) — proceeding without validation",
-            name,
-            exc,
-        )
-        return {}
+    last_path: Path | None = None
+    for root in _SCHEMA_ROOTS:
+        schema_path = root / name
+        last_path = schema_path
+        if not schema_path.is_file():
+            continue
+        try:
+            with open(schema_path, encoding="utf-8") as fh:
+                return json.load(fh)  # type: ignore[no-any-return]
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning(
+                "kanban_viz_files: failed to load schema %s (%s) — trying next root",
+                schema_path,
+                exc,
+            )
+            continue
+    logger.warning(
+        "kanban_viz_files: schema %s not found in any of %s "
+        "(last tried: %s) — proceeding without validation",
+        name,
+        [str(r) for r in _SCHEMA_ROOTS],
+        last_path,
+    )
+    return {}
 
 
 _SAVED_VIEW_SCHEMA = _load_schema("saved-view.json")

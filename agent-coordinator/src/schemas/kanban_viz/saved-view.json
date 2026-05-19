@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kanban-viz.local/schemas/saved-view.json",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "git_sha", "generator", "view"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "git_sha": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+    "generator": {"type": "string"},
+    "view": {
+      "type": "object",
+      "required": ["name", "filters"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "columns": {
+          "type": "object",
+          "properties": {
+            "Backlog": {"type": "object"},
+            "In Flight": {"type": "object"},
+            "Done": {"type": "object"}
+          }
+        },
+        "filters": {
+          "type": "object",
+          "properties": {
+            "change_ids": {"type": "array", "items": {"type": "string"}},
+            "vendors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["claude", "codex", "gemini", "chatgpt-pro"]
+              }
+            }
+          }
+        },
+        "grouping": {
+          "type": "string",
+          "enum": ["none", "vendor", "change_id"]
+        },
+        "sort": {
+          "type": "object",
+          "properties": {
+            "key": {"type": "string"},
+            "dir": {"type": "string", "enum": ["asc", "desc"]}
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
