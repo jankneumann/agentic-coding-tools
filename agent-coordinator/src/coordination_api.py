@@ -1234,15 +1234,39 @@ def create_coordination_api() -> FastAPI:
     async def query_audit(
         agent_id: str | None = None,
         operation: str | None = None,
+        since: str | None = None,
+        change_id: str | None = None,
         limit: int = 20,
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
-        """Query audit trail entries."""
+        """Query audit trail entries.
+
+        IMPL_REVIEW claude_code#9 (high contract_mismatch): extended (was
+        previously forked into a parallel ``/audit/v2`` route, contradicting
+        design.md §"GET /audit?since=<iso>&change_id=<id>&limit=<n>"). The
+        ``since`` and ``change_id`` filters are additive and optional, so
+        existing callers (passing only agent_id/operation/limit) are
+        unaffected.
+        """
+        from datetime import datetime
+
         from .audit import get_audit_service
+
+        since_dt = None
+        if since:
+            try:
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid since format; use ISO-8601",
+                )
 
         entries = await get_audit_service().query(
             agent_id=agent_id,
             operation=operation,
+            since=since_dt,
+            change_id=change_id,
             limit=limit,
         )
         return {
@@ -3033,60 +3057,6 @@ def create_coordination_api() -> FastAPI:
             pass
 
         return result
-
-    # Also extend GET /audit with since and change_id query params
-    # The existing handler at /audit is replaced below by patching its
-    # query forwarding to include the new filters.
-    # NOTE: the existing /audit endpoint already exists — we add the extended
-    # version as a new handler; FastAPI uses the last-defined matching route.
-    @app.get("/audit/v2")
-    async def query_audit_v2(
-        agent_id: str | None = None,
-        operation: str | None = None,
-        since: str | None = None,
-        change_id: str | None = None,
-        limit: int = 20,
-        principal: dict[str, Any] = Depends(verify_api_key),
-    ) -> dict[str, Any]:
-        """Extended audit query with ``since`` and ``change_id`` filters.
-
-        Additive, backward-compatible (all new params optional).
-        The original ``GET /audit`` endpoint is unchanged.
-        """
-        from datetime import datetime
-
-        from .audit import get_audit_service
-
-        since_dt = None
-        if since:
-            try:
-                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid since format; use ISO-8601")
-
-        entries = await get_audit_service().query(
-            agent_id=agent_id,
-            operation=operation,
-            since=since_dt,
-            change_id=change_id,
-            limit=limit,
-        )
-        return {
-            "entries": [
-                {
-                    "id": e.id,
-                    "agent_id": e.agent_id,
-                    "agent_type": e.agent_type,
-                    "operation": e.operation,
-                    "parameters": e.parameters,
-                    "result": e.result,
-                    "duration_ms": e.duration_ms,
-                    "success": e.success,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                }
-                for e in entries
-            ],
-        }
 
     @app.get("/live")
     async def live() -> dict[str, str]:

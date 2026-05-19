@@ -22,6 +22,14 @@ dependencies = [
 api = [
     "fastapi>=0.136.1",
     "uvicorn>=0.32.0",
+    # IMPL_REVIEW claude_code#12: sse-starlette is imported at runtime in
+    # coordination_api.py:2759 (EventSourceResponse) for the /events/work SSE
+    # endpoint. PyJWT is imported in event_stream.py for mint/verify of the
+    # short-lived SSE auth token. Both were transitively present in uv.lock
+    # but absent from [api] — any environment installed via `pip install
+    # .[api]` would fail at runtime.
+    "sse-starlette>=2.1.0",
+    "PyJWT>=2.8.0",
 ]
 postgres = [
     "asyncpg>=0.30.0",

@@ -1299,10 +1299,16 @@ def test_all_kanban_viz_routes_registered(_base_config: None) -> None:
         "/agents/{agent_id}/kick",
         "/kanban-viz/saved-views/{slug}",
         "/kanban-viz/audit",
-        "/audit/v2",
+        # IMPL_REVIEW claude_code#9: /audit/v2 was a spec-violating fork; the
+        # since/change_id filters now live on /audit (the spec-canonical path).
+        "/audit",
     }
     missing = expected_paths - paths
     assert not missing, f"Missing Kanban-viz routes: {missing}"
+    # Guard against re-introduction of the /audit/v2 fork.
+    assert "/audit/v2" not in paths, (
+        "/audit/v2 must not exist — filters belong on /audit per design.md"
+    )
 
     # FastAPI registers DELETE /locks as /locks/{file_path} or /locks/{file_path:path}
     assert any("locks" in p for p in paths), "Expected /locks DELETE route to be registered"

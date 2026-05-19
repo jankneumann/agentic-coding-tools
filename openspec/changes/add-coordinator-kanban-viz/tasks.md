@@ -416,14 +416,21 @@
   **Dependencies**: 6.5, 2.15
   **Size**: M
 
-- [x] 6.7 Implement `<SavedViewsDrawer>` UI for list/save/load
+- [ ] 6.7 Implement `<SavedViewsDrawer>` UI for list/save/load
   **Dependencies**: 6.6
   **Size**: M
+  **Status (IMPL_REVIEW)**: Library function `saveView()` ships with tests
+  (task 6.6 ✓), but the interactive drawer UI was NOT shipped — App.tsx
+  has no Save-Views surface. Deferred to follow-up.
 
-- [x] 6.8 Implement drag-to-Ready interaction with reversible-write audit emission
+- [ ] 6.8 Implement drag-to-Ready interaction with reversible-write audit emission
   **Spec scenarios**: "Drag-to-Ready sets pending-approval label"
   **Dependencies**: 6.5
   **Size**: M
+  **Status (IMPL_REVIEW)**: Reversibility classifier ships with tests
+  (task 6.9 ✓), but the drag-and-drop interaction in Column.tsx that would
+  invoke it was NOT shipped — claude_code#14 caught this gap. Deferred to
+  follow-up.
 
 - [x] 6.9 Implement reversibility classifier `apps/kanban-viz/src/lib/reversibility.ts` with the D8 table; comment pointing to `skills/shared/op_reversibility.py` (codeviz reservation)
   **Spec scenarios**: "Reversibility-Classified UI Actions"
