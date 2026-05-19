@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "review_type": "implementation",
+  "created_at": "2026-05-19T02:33:02Z",
+  "target": "add-coordinator-kanban-viz",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 236.79703949997202,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 240.82001275010407,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "gemini",
+      "success": true,
+      "model_used": "gemini-3-flash-preview",
+      "models_attempted": [
+        "gemini-3-flash-preview"
+      ],
+      "elapsed_seconds": 81.38886225002352,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 20
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 6
+    },
+    {
+      "name": "gemini",
+      "findings_path": "findings-gemini-implementation.json",
+      "finding_count": 6
+    }
+  ]
+}

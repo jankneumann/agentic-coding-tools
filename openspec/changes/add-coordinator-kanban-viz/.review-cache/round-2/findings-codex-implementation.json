@@ -1,0 +1,142 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: the shipped app never renders the sync-point gate banner. `App` returns only `<Board issues={issues} />`, so the required pinned banner, 5s polling, clear/blocked state, and kick entry point are absent from the actual UI despite `SyncPointBanner` existing in isolation.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 26,
+        "end": 26
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: vendor swimlanes are not integrated into cards. `Card` renders only title/change/assignee/timestamp and never imports or receives `VendorSwimlanes` data; `useCoordinator` also drops audit events instead of storing latest activity, so in-flight cards cannot show per-vendor lanes or live audit summaries.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/Card.tsx",
+      "line_range": {
+        "start": 21,
+        "end": 67
+      },
+      "package_id": "wp-frontend-swimlanes"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: SSE live transition/audit events are effectively filtered out. `sse_event_generator` drops any event without `evt.change_id`, but the existing `coordinator_notify` payloads and the new audit trigger do not populate `change_id`, so database NOTIFY events from real work_queue/audit_log changes will never reach subscribed clients.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 233,
+        "end": 241
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: multi-change subscriptions fetch the intersection of change labels, not the union. Both `fetchIssues()` and `_build_snapshot()` pass all `change:<id>` labels in one `POST /issues/list`/`IssueService.list_issues` call, but `IssueService` documents and implements label filtering as 'must contain ALL specified', so subscribing to `change_ids=a,b` hides normal issues that belong to only one change.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 47,
+        "end": 58
+      },
+      "package_id": "wp-frontend-core"
+    },
+    {
+      "id": 5,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: the banner kick action cannot clear a real registry entry. The UI hard-codes `changeId` to `\"unknown\"` when opening the consent prompt, while the backend kick endpoint requires the real change_id to run `worktree.py teardown <change_id> --agent-id ...`; the confirm handler also treats any HTTP response as success without checking `res.ok` or `kicked`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 100,
+        "end": 113
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Critical: the requested additive audit filters were implemented on `/audit/v2`, while the existing `GET /audit` route still accepts only `agent_id`, `operation`, and `limit`. The spec and polling-fallback contract call for `GET /audit?since=...&change_id=...`, so clients following the contract will not get scoped audit activity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1223,
+        "end": 1237
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: saved-view, drag-to-Ready, and force-release-lock UI surfaces are marked complete in tasks but are not present in the app. `saveView()` and the reversibility table exist as library functions, but there is no `SavedViewsDrawer`, no drag handler calling `PATCH /issues/{id}/labels`, and no force-release flow wired into the rendered UI.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 11,
+        "end": 26
+      },
+      "package_id": "wp-saved-views"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: the token-in-URL mitigation is incomplete. The contracts require access logs to redact `token=`, but the `/events/work` handler accepts the JWT as a query parameter and there is no redaction middleware/logger configuration in this change, so enabling coordinator access logs can leak short-lived SSE JWTs.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2711,
+        "end": 2746
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: the stale duplicate `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` from OC-1 still exists with old sys.path manipulation. It is misleading dead code beside the real `agent-coordinator/tests/test_kanban_viz_endpoints.py` and should be removed to avoid future collection/import confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 41
+      },
+      "package_id": "wp-integration"
+    }
+  ]
+}

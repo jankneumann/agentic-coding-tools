@@ -1,0 +1,82 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "The `GET /sync-points/status` endpoint omits `change_id` in the `blockers` list, but `POST /agents/{agent_id}/kick` requires it. The frontend `SyncPointBanner.tsx` hardcodes `change_id: \"unknown\"`, which will cause `worktree.py teardown` to fail to clear the registry entry.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 80,
+        "end": 85
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The `useCoordinator` hook in `apps/kanban-viz` performs a double state update for `transition` events. It calls `setIssues` inside another `setIssues` functional update, which is confusing and can lead to race conditions or unnecessary re-renders.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 128,
+        "end": 138
+      },
+      "package_id": "apps/kanban-viz"
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "description": "Redundant dead code: `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` is a duplicate of the canonical test file in `agent-coordinator/tests/` and uses fragile `sys.path` manipulation. It should be removed to avoid confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "optional",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 444
+      },
+      "package_id": "skills"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Audit event outcome mismatch: `SyncPointBanner.tsx` uses `outcome: \"cancelled\"` when a kick is declined, but the `audit-event.json` schema only permits `confirmed`, `declined`, `auto-allowed`, or `failed`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 124,
+        "end": 129
+      },
+      "package_id": "apps/kanban-viz"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "In `SyncPointBanner.tsx`, `handleKickClick` passes `\"unknown\"` as the `changeId` to `setPendingKick`, which is then used in the `fetch` call to the kick endpoint. This should be updated to use a real `change_id` once added to the `SyncPointStatus` contract.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 139,
+        "end": 141
+      },
+      "package_id": "apps/kanban-viz"
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: The shipped app mounts only `<Board issues={issues} />`, so the sync-point gate banner is never pinned to the top of the board. This misses one of the three MVP surfaces and means operators cannot see why `/cleanup-feature`, `/merge-pull-requests`, or `/update-specs` are blocked from the actual app. Wire `SyncPointBanner` into `App` above `Board`, pass the configured API URL/key, and connect its audit emission path.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 11,
+        "end": 26
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: `VendorSwimlanes` is implemented and tested in isolation but never rendered by `Card` or `Column`, and `Card` has no child-agent or audit-activity data path. The In Flight cards therefore do not show vendor swimlanes or live activity, which is an explicit MVP requirement. Integrate swimlane data into the card model and render `VendorSwimlanes` for in-flight cards.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/Card.tsx",
+      "line_range": {
+        "start": 21,
+        "end": 67
+      },
+      "package_id": "wp-frontend-swimlanes"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "Critical: `coordinator_audit` SSE events are effectively dropped. The new audit trigger emits through `coordinator_notify`, whose payload has no `change_id`, while the SSE audit callback immediately returns when `evt.change_id` is missing. As a result, vendor swimlanes cannot receive live audit activity. Include change-id/context in audit notifications or derive it before filtering.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 238,
+        "end": 241
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: Transition events cannot satisfy the SSE contract. `_make_transition` expects `from_status`/`to_status` context but the database notification payload does not include prior status, so `from` can be emitted as an empty string, which violates the schema enum. The existing work-queue trigger also emits only `completed`, `failed`, and `claimed`, so the required `claimed -> running` live update scenario never fires. Update the trigger/event payload to include old/new status and cover `running`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 207,
+        "end": 218
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Multi-change views use an ALL-label filter instead of OR semantics. `fetchIssues()` sends `labels: ['change:a','change:b']`, and `IssueService.list_issues` requires every label to be present, so a board subscribed to multiple change IDs returns only issues labeled with all changes, usually none. The backend SSE snapshot has the same pattern. Fetch per change and merge, or add an explicit OR-capable coordinator query.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 42,
+        "end": 58
+      },
+      "package_id": "wp-frontend-skeleton"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The banner's Kick action sends `change_id: 'unknown'`, but the backend kick endpoint uses `change_id` as the registry key for `worktree.py teardown`. Confirming Kick therefore cannot clear the real `.git-worktrees/.registry.json` entry. Return/pass the blocker change_id from `/sync-points/status` or otherwise resolve it before calling the kick endpoint.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 197,
+        "end": 209
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The coordinator file-write helpers stamp and write saved-view/audit JSON but do not validate the supplied payloads against the declared JSON schemas. This allows invalid artifacts to be committed; the endpoint tests already post an audit event with values outside the schema enums. Validate after stamping and before atomic write, returning 400 on schema failures.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py",
+      "line_range": {
+        "start": 140,
+        "end": 149
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The spec requires the existing `GET /audit` endpoint to accept `since` and `change_id` for polling fallback, but the implementation leaves `/audit` unchanged and adds `/audit/v2` instead. `useCoordinator` also never polls audit rows, so swimlanes cannot update in fallback mode. Extend `/audit` compatibly and have the frontend poll it when SSE is unavailable.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1223,
+        "end": 1237
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The SSE endpoint accepts bearer JWTs in the `token` query parameter, but the required token-in-URL mitigations are not implemented here: no access-log redaction is wired around `/events/work`, and the frontend HTML has no Referrer-Policy protection. Add server log redaction for `token=` and set `Referrer-Policy: no-referrer` for the dashboard response/static host.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2711,
+        "end": 2746
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` remains as duplicate dead test code outside the normal coordinator pytest path, matching OC-1 from the handoff. Remove it or move the canonical tests to the actual executed location so future reviewers do not mistake it for coverage.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 41
+      },
+      "package_id": "wp-coord-endpoints"
+    }
+  ]
+}
