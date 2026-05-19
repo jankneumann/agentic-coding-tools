@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
   "change_id": "add-coordinator-kanban-viz",
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 9,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -41,14 +41,15 @@
     "implement-0--20260517T153208Z",
     "impl-iterate-0--20260517T164500Z",
     "impl-review-0--20260519T023302Z",
-    "impl-review-1--20260519T034130Z"
+    "impl-review-1--20260519T034130Z",
+    "validate-0--20260519T140000Z"
   ],
-  "last_handoff_id": "impl-review-1--20260519T034130Z",
+  "last_handoff_id": "validate-0--20260519T140000Z",
   "started_at": "2026-05-17T01:18:06.125055+00:00",
-  "phase_started_at": "2026-05-19T12:49:40.132447+00:00",
-  "previous_phase": "IMPL_REVIEW",
+  "phase_started_at": "2026-05-19T14:05:52.627309+00:00",
+  "previous_phase": "VALIDATE",
   "escalation_reason": null,
-  "val_review_enabled": true,
+  "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
   "phase_archetype": null
