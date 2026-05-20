@@ -31,6 +31,19 @@ Generate changelog entries from git history and suggest semantic version bumps b
 - `VERSION` file in project root (created automatically if missing)
 - `CHANGELOG.md` in project root (created automatically if missing)
 
+## Local CLI Mutation Boundary
+
+Default analysis and `--dry-run` are read-only. Any invocation that applies a
+version bump or writes `VERSION` / `CHANGELOG.md` MUST first enter a managed
+worktree in local CLI execution:
+
+```bash
+CHANGE_ID="changelog-version-<version-or-date>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
 ## Version Bump Rules
 
 The script analyzes commits since the last version tag or changelog entry and suggests a bump level:

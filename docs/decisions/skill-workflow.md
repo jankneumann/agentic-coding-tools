@@ -5,47 +5,80 @@
 
 ---
 
-## 2026-05-16 — vendor-neutral-autopilot
+## 2026-05-19 — 2026-05-20-enforce-local-worktree-invariant
+
+### Phase: Implement
+
+**Treat validation evidence as write-capable autopilot work** — Validation phases can emit artifacts and fixes, so autopilot now requests worktree isolation for validate and validation-review phases.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md](/openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md) (D2)
+
+---
+
+## 2026-05-17 — 2026-05-20-enforce-local-worktree-invariant
+
+### Phase: Plan
+
+**Use a shared checkout policy helper** — A single helper makes the worktree invariant executable and reusable across Python scripts and SKILL.md shell steps.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md](/openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md) (D1)
+
+---
+
+## 2026-05-17 — 2026-05-20-enforce-local-worktree-invariant
+
+### Phase: Plan
+
+**Keep sync-point exceptions explicit** — Merge and post-merge operations still need shared-checkout access, but only with clean-tree and active-agent guards.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md](/openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md) (D2)
+
+---
+
+## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation
 
 **Keep adapter boundary small** — The provider dispatch module normalizes payload/result contracts and lets each runtime supply its own runner without rewriting autopilot state management.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D2)
 
 ---
 
-## 2026-05-15 — vendor-neutral-autopilot
+## 2026-05-15 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Plan
 
 **Use provider-neutral dispatch adapters** — The operator selected Approach 2 so phase dispatch becomes a runtime contract shared by Claude Code, Codex, and Gemini/Jules instead of a Claude-only Agent surface.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D1)
 
 ---
 
-## 2026-05-15 — vendor-neutral-autopilot
+## 2026-05-15 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Plan Approval
 
 **Gate 2 approved** — The operator selected approval option 1, so the plan is ready for `/implement-feature vendor-neutral-autopilot`.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D1)
 
 ---
 
-## 2026-05-15 — vendor-neutral-autopilot
+## 2026-05-15 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Plan
 
 **Require manual provider smoke coverage** — The success bar includes an end-to-end smoke path that can be manually triggered from a chosen CLI provider, so static validation alone is insufficient.
 
 - Status: `active`
-- Source: [openspec/changes/vendor-neutral-autopilot/session-log.md](/openspec/changes/vendor-neutral-autopilot/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md](/openspec/changes/archive/2026-05-16-vendor-neutral-autopilot/session-log.md) (D3)
 
 ---
 

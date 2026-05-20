@@ -16,7 +16,10 @@ requires:
 
 # Quick Task
 
-Delegate a small ad-hoc task (bug investigation, quick fix, code explanation, small refactor) directly to any configured vendor. Bypasses OpenSpec entirely — no change-id, no proposal, no worktree.
+Delegate a small ad-hoc task (bug investigation, code explanation, small
+read-only review, or explicitly isolated quick fix) directly to any configured
+vendor. Bypasses OpenSpec planning, but does not bypass the local CLI mutation
+boundary.
 
 Inspired by the `/codex:rescue` command from [codex-plugin-cc](https://github.com/openai/codex-plugin-cc).
 
@@ -27,6 +30,9 @@ Inspired by the `/codex:rescue` command from [codex-plugin-cc](https://github.co
 Optional flags:
 - `--vendor <name>` — Dispatch to a specific vendor (e.g., `codex`, `claude`, `gemini`). Default: first available.
 - `--timeout <seconds>` — Override default timeout (default: 300s / 5 minutes)
+- `--write <slug>` — Allow file writes by first creating/entering a managed
+  worktree named `quick-<slug>`. Without this flag, quick-task is read-only by
+  default.
 
 ## Prerequisites
 
@@ -37,7 +43,30 @@ Optional flags:
 
 ### 1. Parse Arguments
 
-Extract the task prompt, optional `--vendor` flag, and optional `--timeout` flag from arguments.
+Extract the task prompt, optional `--vendor`, `--timeout`, and `--write <slug>`
+flags from arguments.
+
+### 1.5. Enforce Read-Only or Isolated Write Mode
+
+Quick-task is read-only by default in local CLI execution. In default mode, add
+this instruction to the vendor prompt:
+
+```
+This quick task is read-only. Do not create, modify, delete, format, commit, or
+push files. Return findings and suggested patches in text only.
+```
+
+If `--write <slug>` is supplied, enter a managed worktree before dispatch:
+
+```bash
+CHANGE_ID="quick-<slug>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+Write-mode quick tasks must push their branch and use PR review before any work
+reaches main.
 
 ### 2. Complexity Check
 
@@ -83,12 +112,15 @@ If the vendor returned non-zero exit code, display error and stderr.
 
 ## Output
 
-- Vendor stdout displayed inline (no files created)
-- No OpenSpec artifacts created
-- No git commits or worktree changes
+- Vendor stdout displayed inline.
+- Default mode: no files created, no commits, no worktree changes.
+- `--write` mode: changes occur only inside `quick-<slug>` worktree and branch.
+- No OpenSpec artifacts created unless the prompt explicitly asks for planning,
+  in which case use `/plan-feature` instead.
 
 ## Design Notes
 
-- Uses `quick` dispatch mode (read-write, no worktree isolation) — see Design Decision D3
+- Default dispatch is read-only by default; write mode requires `worktree.py`
+  setup and `checkout_policy.py require-mutation` before vendor execution.
 - Returns freeform text, not structured JSON — see Design Decision D4
 - This skill is intentionally minimal: prompt in → result out

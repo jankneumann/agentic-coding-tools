@@ -59,6 +59,21 @@ Use `docs/coordination-detection-template.md` as the shared detection preamble.
 - Execute hooks only when the matching `CAN_*` flag is `true`
 - If coordinator is unavailable, continue with standalone behavior
 
+## Local CLI Mutation Boundary
+
+Validation writes reports, evidence, logs, and sometimes follow-up artifacts. In
+local CLI execution, validation MUST run inside the feature worktree or another
+managed worktree before the first write:
+
+```bash
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+Read-only CI status checks may inspect from the shared checkout, but any report
+or evidence file must be written in a worktree so it lands on the PR branch.
+
 ## Steps
 
 ### 0. Detect Coordinator and Recall Memory

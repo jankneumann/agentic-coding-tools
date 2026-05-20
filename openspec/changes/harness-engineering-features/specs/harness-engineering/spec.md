@@ -68,23 +68,51 @@ AND findings SHALL be formatted as review-findings compatible with the consensus
 
 ### Requirement: Capability Gap Detection
 
-The coordinator's episodic memory SHALL support structured failure pattern recording with capability gap metadata, enabling systematic harness improvement.
+The system SHALL record capability-gap signals from four sources — agent self-report, coordinator-emitted patterns, session-log structured sections, and transcript mining — into a shared tag schema in episodic memory, and the `/improve-harness` skill SHALL consume the union of all sources with deduplication and source attribution.
 
-#### Scenario: Structured failure recording
-WHEN an agent encounters a task failure
-THEN the failure SHALL be recorded in episodic memory with structured metadata: failure_type (enum: scope_violation, verification_failed, lock_unavailable, timeout, convergence_failed, context_exhaustion), capability_gap (free text describing what was missing), suggested_improvement (free text), affected_skill (skill name), and severity (low/medium/high/critical)
+#### Scenario: Structured failure recording schema
+WHEN any emitter records a capability-gap signal
+THEN it SHALL use the shared episodic-memory tag schema: failure_type (enum: scope_violation, verification_failed, lock_unavailable, timeout, convergence_failed, context_exhaustion), capability_gap (free text describing what was missing), suggested_improvement (free text), affected_skill (skill name), severity (low/medium/high/critical), AND source (enum: self-reported, coordinator-emitted, session-log, transcript-mined)
 
-#### Scenario: Failure pattern analysis
-WHEN the `/improve-harness` skill is invoked
-THEN it SHALL query episodic memory for failure patterns within a configurable time window (default: 30 days)
-AND group failures by capability_gap
+#### Scenario: Agent self-reports a capability gap
+WHEN an agent encounters a task failure and invokes the `remember` MCP tool with capability-gap metadata
+THEN the entry SHALL be recorded with `source:self-reported`
+
+#### Scenario: Coordinator auto-emits capability gaps via LLM classifier
+WHEN the coordinator's audit-triage background task drains a batch of audit entries from its in-memory ring buffer
+THEN it SHALL resolve the classifier model via the archetype system in `agent-coordinator/archetypes.yaml` (default archetype `analyst`, default provider `claude_code`, both configurable) using `agents_config.resolve_model()`
+AND it SHALL compose the classifier system prompt via `agents_config.compose_prompt(archetype, task_prompt)` so the archetype's base prompt is preserved
+AND it SHALL invoke the classifier with strict output-schema enforcement so emitted findings always parse (invalid responses dropped with a warning, never written to memory)
+AND for each capability gap the classifier identifies, the coordinator SHALL emit a memory entry under the shared tag schema with `source:coordinator-emitted` plus a `prompt_version:N` tag
+AND it SHALL NOT require any agent involvement
+AND the classifier archetype, provider, batch size, batch interval, and prompt version SHALL be configurable via `agent-coordinator/config.yaml: audit.capability_gap_triage.*`
+AND the hot path (`AuditService.log_operation`) SHALL NOT block on LLM calls — only ring-buffer push happens synchronously
+
+#### Scenario: Session-log captures agent-observed gaps at phase boundaries
+WHEN an agent writes a session-log phase entry via the `session-log` skill
+AND the entry contains a `### Capability Gaps Observed` section with one or more gaps listed
+THEN the skill SHALL emit one memory entry per gap with `source:session-log`
+AND the markdown section SHALL be preserved in `openspec/changes/<change-id>/session-log.md` as human-readable record
+AND an empty `### Capability Gaps Observed` section SHALL be a valid no-op (no memory entries emitted)
+
+#### Scenario: /improve-harness consumes all sources with deduplication
+WHEN `/improve-harness` is invoked
+THEN it SHALL query episodic memory for capability_gap entries across ALL source values within a configurable time window (default: 30 days)
+AND it SHALL ALSO scan `openspec/changes/**/session-log.md` for `### Capability Gaps Observed` sections (covering gaps not yet mirrored to memory)
+AND it SHALL deduplicate findings on (capability_gap, affected_skill, session_id), preserving the set of sources that surfaced each finding
+AND group by capability_gap
 AND rank by frequency and severity
 AND generate a structured report with recommendations
+
+#### Scenario: Report includes source attribution
+WHEN `/improve-harness` generates a report
+THEN each finding SHALL be annotated with the set of sources that surfaced it (one or more of: self-reported, coordinator-emitted, session-log, transcript-mined)
+AND the report SHALL include a summary line stating what fraction of findings surfaced in 2 or more sources (cross-source agreement is the strongest signal)
 
 #### Scenario: Report-to-feature pipeline
 WHEN an improvement report identifies a high-priority capability gap
 THEN the user SHALL be able to invoke a skill that takes the report finding and creates an OpenSpec change proposal from it
-AND the skill SHALL pre-populate the proposal with context from the failure patterns, affected skills, and suggested improvements
+AND the skill SHALL pre-populate the proposal with context from the failure patterns, affected skills, suggested improvements, AND the set of sources that surfaced the gap
 
 ### Requirement: Generation-Evaluation Separation
 
@@ -137,3 +165,56 @@ WHEN `/agent-metrics --gaps` is invoked
 THEN it SHALL query episodic memory for capability_gap entries
 AND rank gaps by frequency
 AND cross-reference with `/improve-harness` reports if available
+
+### Requirement: Session Transcript Mining
+
+The system SHALL ingest raw session transcripts from supported coding-agent harnesses via vendor-specific adapters, normalize them to a common event schema, triage them with a cheap model, and write structured findings to episodic memory for consumption by `/improve-harness`.
+
+#### Scenario: Adapter discovers and normalizes transcripts
+WHEN the `/collect-transcripts` skill is invoked with a harness adapter selected
+THEN the adapter SHALL enumerate available sessions from its source (filesystem path or harness API)
+AND emit a sequence of normalized events per session conforming to `skills/collect-transcripts/references/event-schema.md`
+AND write the normalized event stream to `docs/transcripts/<date>/<session-id>.jsonl`
+
+#### Scenario: Adapter fails soft on source unavailability
+WHEN a transcript source is unavailable (path missing, API endpoint absent, authentication missing, harness not installed)
+THEN the adapter SHALL log a structured warning identifying the harness and the reason
+AND exit with a non-fatal status that does not block other adapters or the downstream analysis pipeline
+
+#### Scenario: Sanitization precedes any LLM analysis
+WHEN normalized events are produced
+THEN the sanitizer SHALL redact secrets, high-entropy strings, and environment-specific paths from event payloads (including tool-call arguments and tool-result outputs) BEFORE the events are passed to triage or deep-analysis models
+AND the sanitizer SHALL be the one used by the `session-log` skill, extended as needed for transcript-specific structures
+
+#### Scenario: Triage scores every ingested session
+WHEN normalized transcripts are written
+THEN a triage pass SHALL resolve its model via the archetype system (default archetype `analyst`, configurable via `skills/collect-transcripts/config.yaml: triage.archetype` and `provider`)
+AND run the resolved model over each session
+AND produce a score covering: retry_count, tool_error_count, scope_violation_count, user_correction_count, and a single-shot struggle classification
+AND persist the score under the session id alongside the normalized transcript
+
+#### Scenario: Deep analysis runs on flagged sessions
+WHEN a session triage score exceeds the configured struggle threshold
+THEN a deep-read analysis SHALL resolve its model via the archetype system (default archetype `reviewer`, configurable via `skills/collect-transcripts/config.yaml: deep_analysis.archetype` and `provider`)
+AND run the resolved model over the normalized transcript
+AND emit findings using the failure-recording tag schema (`failure_type:*`, `capability_gap:*`, `affected_skill:*`, `severity:*`) from the Capability Gap Detection requirement
+AND write the findings to episodic memory via the `remember` MCP tool with `source:transcript-mined` as an additional tag
+
+#### Scenario: Mining is opt-in
+WHEN the skill runs in a CI context or without an explicit `--enable` flag
+THEN no LLM API calls SHALL be made and no episodic memory entries SHALL be written
+AND the skill SHALL print a dry-run plan (per-adapter session counts, estimated triage cost, estimated deep-analysis cost given the configured threshold) and exit zero
+
+#### Scenario: Improve-harness surfaces transcript-sourced findings
+WHEN `/improve-harness` generates a report
+AND episodic memory contains entries tagged `source:transcript-mined`
+THEN the entries SHALL flow through the unified multi-source pipeline defined in the Capability Gap Detection requirement
+AND each transcript-mined finding SHALL appear in the report with `transcript-mined` in its source set
+AND findings that also appear via other sources for the same `(capability_gap, affected_skill, session_id)` SHALL be reported once with the multi-source list (counting toward the cross-source agreement summary)
+
+#### Scenario: Web adapter routes through vendor CLI bridge
+WHEN the `claude_code_web` or `codex_web` adapter is invoked
+THEN it SHALL invoke the vendor's documented CLI bridge command (`claude --teleport` or `codex cloud`) to materialize the cloud session as local JSONL
+AND it SHALL delegate parsing to the corresponding CLI adapter (`claude_code_cli` or `codex_cli`)
+AND it SHALL NOT make direct HTTP requests to undocumented vendor backend endpoints
+AND it SHALL fail soft (log a structured warning identifying the missing dependency and skip) if the vendor CLI is not installed or not authenticated

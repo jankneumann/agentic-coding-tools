@@ -97,7 +97,7 @@ rules:
 
   deferred-tasks:
     - Reference original change-id and task number for traceability
-    - Include migration target (Beads issue ID or follow-up proposal change-id)
+    - Include migration target (coordinator issue ID or follow-up proposal change-id)
     - Preserve original file scope and dependency context from tasks.md
     - Record migration date and reason for deferral
 

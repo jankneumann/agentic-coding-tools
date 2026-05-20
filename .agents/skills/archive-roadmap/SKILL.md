@@ -25,6 +25,18 @@ Optional flags:
 - A roadmap workspace at `openspec/roadmaps/<roadmap-id>/` containing at least `roadmap.yaml`.
 - Shared runtime at `skills/roadmap-runtime/scripts/`.
 
+## Local CLI Mutation Boundary
+
+Archiving moves roadmap directories and therefore mutates repository files. In
+local CLI execution, run inside a managed worktree before moving the workspace:
+
+```bash
+CHANGE_ID="archive-roadmap-<roadmap-id>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
 ## Steps
 
 ### 1. Resolve workspace and load roadmap

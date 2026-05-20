@@ -175,7 +175,7 @@ artifacts:
     description: Open tasks migrated to follow-up proposals or issue trackers
     instruction: >
       List each unchecked task from tasks.md with its original context, file scope,
-      dependencies, migration target (Beads issue or follow-up proposal), and reason
+      dependencies, migration target (coordinator issue or follow-up proposal), and reason
       for deferral. Preserve traceability to the original change-id.
     requires: [tasks]
 

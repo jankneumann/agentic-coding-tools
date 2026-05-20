@@ -38,6 +38,27 @@ Use `docs/coordination-detection-template.md` as the shared detection preamble.
 - Execute hooks only when the matching `CAN_*` flag is `true`
 - If coordinator is unavailable, continue with standalone behavior
 
+## Local CLI Mutation Boundary
+
+Read-only exploration may run from the shared checkout when it only returns a
+recommendation in chat. Artifact-producing exploration MUST use a managed
+worktree in local CLI execution before any write, including refreshing
+architecture artifacts, writing `docs/feature-discovery/opportunities.json`,
+creating OpenSpec changes, updating docs, seeding coordinator issues, or
+changing issue state.
+
+For artifact-producing mode, run this before the first write:
+
+```bash
+CHANGE_ID="explore-<short-focus-slug>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+All artifact-producing steps below happen inside that worktree and are committed
+to the resolved branch. The shared checkout remains read-only.
+
 ## Steps
 
 ### 0. Detect Coordinator and Recall Memory
@@ -94,6 +115,13 @@ If `NEEDS_INTERVIEW=true`, ask 2-4 questions in a **single batch** via AskUserQu
 Capture the answers as `LOCALIZED_FOCUS` -- a short string (e.g., `"runtime latency in agent dispatch loop, triggered by 8s p95 in last week's traces"`) used in Step 3 scoring and Step 5 artifact persistence.
 
 If `NEEDS_INTERVIEW=false`, skip this step entirely and set `LOCALIZED_FOCUS="$ARGUMENTS"`.
+
+### 0.75. Enter Worktree for Artifact-Producing Mode
+
+Skip this step only when this invocation is strictly read-only and returns
+results in chat. If any later step will write files or refresh generated
+artifacts, enter the worktree and run `checkout_policy.py` as described in the
+Local CLI Mutation Boundary section.
 
 ### 1. Gather Current State
 
@@ -310,4 +338,3 @@ Rules:
 3. At least 3 of the 8 ideation lenses appear at least once across the candidate set (`opportunities.json | jq '[.[] | .lenses_applied[]] | unique | length'` returns ≥3).
 4. The recommended next action cites the candidate's `focus_match` score and `localized_focus_alignment` note — not just the raw ranking.
 5. If `$ARGUMENTS` matched a broad bucket, the focus interview ran and `localized_focus` is populated with the interview output (not the raw bucket name).
-

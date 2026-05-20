@@ -36,3 +36,10 @@ def test_explore_feature_has_how_might_we():
     text = (SKILL_DIR / "SKILL.md").read_text()
     assert "How Might We" in text or "how might we" in text.lower()
     assert "NOT DOING" in text, "explore-feature must reference NOT DOING list"
+
+
+def test_artifact_producing_exploration_requires_worktree():
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert "artifact-producing" in text.lower()
+    assert "worktree.py" in text
+    assert "checkout_policy.py" in text

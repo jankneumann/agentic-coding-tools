@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-19T01:23:14.581514+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the local CLI worktree mutation invariant in a managed worktree, including the reusable checkout policy guard, skill workflow updates, runtime skill sync, operator documentation, and verification evidence.",
+    "completed_work": [
+      "Added skills/shared/checkout_policy.py with tests for shared checkout blocking, worktree allow, harness allow, and explicit sync-point allow.",
+      "Updated mutating skill instructions and autopilot phase metadata so planning, exploration artifacts, validation evidence, fixes, and quick-task write mode run in managed worktrees.",
+      "Synced canonical skills into .agents/skills and .claude/skills.",
+      "Updated operator docs to remove local-main planning language and document PR/sync-point convergence.",
+      "Verified with focused pytest, coordinator-backed integration tests, OpenSpec strict validation, and work-package validators."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use checkout policy as executable guard",
+        "rationale": "A shared helper lets mutating skills reject local shared-checkout writes consistently while preserving isolated harness and explicit sync-point workflows.",
+        "capability": "worktree",
+        "supersedes": null
+      },
+      {
+        "title": "Treat validation evidence as write-capable autopilot work",
+        "rationale": "Validation phases can emit artifacts and fixes, so autopilot now requests worktree isolation for validate and validation-review phases.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Open the feature PR and route it through review before any main-branch sync point."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/shared/checkout_policy.py",
+        "description": "checkout mutation policy helper"
+      },
+      {
+        "path": "skills/autopilot/scripts/phase_agent.py",
+        "description": "write-capable phase isolation metadata"
+      },
+      {
+        "path": "CLAUDE.md",
+        "description": "operator worktree invariant"
+      },
+      {
+        "path": "docs/cloud-vs-local-execution.md",
+        "description": "local CLI mutation policy guide"
+      },
+      {
+        "path": "openspec/changes/enforce-local-worktree-invariant/change-context.md",
+        "description": "evidence matrix"
+      }
+    ]
+  }
+}

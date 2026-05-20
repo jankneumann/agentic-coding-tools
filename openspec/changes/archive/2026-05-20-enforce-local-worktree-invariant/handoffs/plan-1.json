@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-17T14:05:53.059362+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Planned enforcement of the local CLI mutation boundary so shared checkout files remain read-only outside explicit sync-point operations. The selected approach adds a reusable checkout policy helper, wires mutating skills to worktree guards, and updates operator documentation plus invariant tests.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use a shared checkout policy helper",
+        "rationale": "A single helper makes the worktree invariant executable and reusable across Python scripts and SKILL.md shell steps.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Keep sync-point exceptions explicit",
+        "rationale": "Merge and post-merge operations still need shared-checkout access, but only with clean-tree and active-agent guards.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement skills/shared/checkout_policy.py and its tests first.",
+      "Update mutating skill instructions and autopilot phase isolation metadata.",
+      "Sync canonical skills to runtime copies after canonical SKILL.md edits."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/enforce-local-worktree-invariant/proposal.md",
+        "description": "proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/enforce-local-worktree-invariant/design.md",
+        "description": "design decisions for the policy guard"
+      },
+      {
+        "path": "openspec/changes/enforce-local-worktree-invariant/work-packages.yaml",
+        "description": "implementation package DAG"
+      }
+    ]
+  }
+}

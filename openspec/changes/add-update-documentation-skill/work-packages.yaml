@@ -1,0 +1,40 @@
+version: 1
+change_id: add-update-documentation-skill
+
+packages:
+  - id: wp-docs-sync
+    description: |
+      Single-package change: implement the `/update-documentation` skill (scanners,
+      marker engine, renderers, link checker, CLI, report writer), wire integration
+      points (.githooks, /cleanup-feature, /validate-feature), and apply the first
+      sync against the live repo.
+    tier: sequential
+    write_allow:
+      - skills/update-documentation/**
+      - skills/shared/markers.py
+      - skills/tests/update-documentation/**
+      - skills/cleanup-feature/SKILL.md
+      - skills/validate-feature/SKILL.md
+      - .githooks/pre-commit
+      - .githooks/post-merge
+      - README.md
+      - CLAUDE.md
+      - docs/skills-catalogue.md
+      - docs/architecture-analysis/documentation-sync-report.json
+    write_deny:
+      - openspec/specs/**
+      - openspec/changes/**
+      - agent-coordinator/**
+      - skills/*/SKILL.md  # except the two listed in write_allow
+    read_allow:
+      - "**/*"
+    test_command: |
+      cd skills && .venv/bin/python -m pytest tests/update-documentation/ -v
+    acceptance:
+      - Skill scanners enumerate the live repo's skills/, openspec/specs/, and docs/ correctly
+      - Marker engine round-trips: idempotent re-run produces zero diff
+      - Hand-authored prose preserved byte-for-byte after first sync
+      - Pre-commit hook blocks a staged `skills/foo/SKILL.md` without running sync
+      - /cleanup-feature pre-merge gate fails when drift is present
+      - JSON report at docs/architecture-analysis/documentation-sync-report.json
+        validates against the documented schema

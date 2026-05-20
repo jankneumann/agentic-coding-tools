@@ -38,6 +38,23 @@ This skill runs inside Claude Code, which already has direct access to a model. 
 
 The legacy `semantic_decomposer.py` and `llm_client.py` modules date from the external-API era and are pending removal. New work should follow the agent-as-LLM pattern documented in the steps below.
 
+## Local CLI Mutation Boundary
+
+`plan-roadmap` writes roadmap workspaces and may scaffold OpenSpec change
+directories. In local CLI execution, those writes MUST happen inside a managed
+worktree. For `--new <slug>` and decomposition modes, set up the roadmap
+worktree before writing:
+
+```bash
+CHANGE_ID="roadmap-<slug>"
+eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup "$CHANGE_ID")"
+cd "$WORKTREE_PATH"
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
+If the invocation only reads a proposal and returns advice in chat, no worktree
+is required.
+
 ## Output
 
 - `openspec/roadmaps/<roadmap_id>/roadmap.yaml` conforming to the roadmap schema

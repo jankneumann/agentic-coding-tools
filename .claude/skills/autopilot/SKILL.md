@@ -291,10 +291,30 @@ PLAN_REVIEW — convergence_loop never overwrites the field.
 
 Synthesis failures will continue to surface to the autopilot caller. The value of this contract is durability for postmortem and manual recovery, not automatic recovery — see [docs/parallel-agentic-development.md](../../docs/parallel-agentic-development.md) Section 8 for the manual-invocation procedure.
 
+### 3.5. Write-Capable Phase Isolation
+
+In local CLI execution, the shared checkout is read-only. Every autopilot phase
+that may create, modify, delete, format, commit, push, or persist artifacts runs
+with `isolation="worktree"` from `runner.py build-dispatch`.
+
+Write-capable phases are `PLAN`, `PLAN_ITERATE`, checkpoint-writing
+`PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`,
+checkpoint-writing `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, artifact-writing
+`VAL_REVIEW`, and `VAL_FIX`. `INIT` and `SUBMIT_PR` are state-only transitions.
+
+Sub-agents still invoke the phase skill (`/plan-feature`, `/iterate-on-plan`,
+`/implement-feature`, `/validate-feature`, etc.) as their first write-capable
+step so the skill can call `worktree.py setup` and then verify the resulting
+checkout with:
+
+```bash
+skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation
+```
+
 ### 4. IMPLEMENT Phase
 
-Implement the next slice of work per `tasks.md`. The IMPLEMENT phase is
-the only phase that runs with `isolation="worktree"` — sub-agent commits
+Implement the next slice of work per `tasks.md`. IMPLEMENT is one of the
+write-capable phases that runs with `isolation="worktree"` — sub-agent commits
 land on a sibling worktree branch and merge back at completion.
 
 **Claude harness worktree caveat**: Claude Code's `Agent(isolation="worktree")`
