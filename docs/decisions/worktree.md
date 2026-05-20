@@ -5,11 +5,11 @@
 
 ---
 
-## 2026-05-19 — enforce-local-worktree-invariant
+## 2026-05-19 — 2026-05-20-enforce-local-worktree-invariant
 
 ### Phase: Implement
 
 **Use checkout policy as executable guard** — A shared helper lets mutating skills reject local shared-checkout writes consistently while preserving isolated harness and explicit sync-point workflows.
 
 - Status: `active`
-- Source: [openspec/changes/enforce-local-worktree-invariant/session-log.md](/openspec/changes/enforce-local-worktree-invariant/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md](/openspec/changes/archive/2026-05-20-enforce-local-worktree-invariant/session-log.md) (D1)
