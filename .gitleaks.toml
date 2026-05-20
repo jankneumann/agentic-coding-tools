@@ -1,30 +1,28 @@
 # gitleaks configuration — extends the default ruleset with an allowlist for
-# files that intentionally contain fake secret-shaped strings as test fixtures.
+# files that intentionally contain fake secret-shaped strings as test fixtures
+# AND for known-fake fixture values that show up in historical commits.
 #
-# Convention: only files whose PURPOSE is secret-detection testing belong here.
-# If a file ends up on this list, its contents should be 100% test inputs, so
-# that an accidentally-committed real secret wouldn't have meaningful cover.
+# Convention: only files whose PURPOSE is secret-detection testing belong on
+# the `paths` list; if a file ends up there, its contents should be 100% test
+# inputs, so that an accidentally-committed real secret wouldn't have
+# meaningful cover. The `commits` list is for specific historical commits
+# whose introducing finding was a known-fake fixture that's since been
+# anonymized at HEAD — future commits in those same files are still scanned.
 
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Files that contain fake secret-shaped fixtures for testing the sanitizer itself."
+[allowlist]
+description = "Test fixture files (paths) + historical anonymized SSE-key fixture commits."
 paths = [
     '''skills/session-log/scripts/test_sanitize_session_log\.py''',
     '''\.claude/skills/session-log/scripts/test_sanitize_session_log\.py''',
     '''\.agents/skills/session-log/scripts/test_sanitize_session_log\.py''',
 ]
-
-[[allowlists]]
-# Two historical commits that introduced a fake SSE-signing-key test fixture
-# (entropy 3.92, tripped the default generic-api-key rule). Value was
-# anonymized at HEAD via the kanban-viz PR, but the commits remain in PR
-# history. Allowlisting by COMMIT SHA rather than by file/path so any future
-# real secret in those test files (or any other file in those two commits'
-# trees) would still be detected on subsequent scans — gitleaks only ignores
-# findings whose introducing commit matches one of these SHAs.
-description = "Anonymized historical SSE-signing-key test fixture (commit-scoped)"
+# Anonymized at HEAD by the kanban-viz PR (commit 9275908). Both fingerprints
+# below are the test fixture string "s3cr3t-32-byte-signing-key-abcdef", which
+# tripped gitleaks generic-api-key (entropy 3.92). Squash-rewriting the agent
+# PR history would be heavier than allowlisting these specific commit SHAs.
 commits = [
     "0491427e75d41e48c36183d09f1e81f532ae6c2a",
     "26e4e7448129853036997bdc3fc6aaabf5ccad3a",
