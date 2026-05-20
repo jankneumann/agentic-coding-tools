@@ -104,7 +104,7 @@ packages:
   - package_id: wp-coordinator-extensions
     title: "Coordinator Extensions — Profiles, Scope Enforcement, Capability-Gap Auto-Emission"
     task_type: implementation
-    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, enforce scope locks on work_queue task claims, AND extend audit.AuditService.log_operation with a pattern matcher that auto-emits capability-gap memory entries with source:coordinator-emitted (D9) when struggle-shaped patterns are detected (retry storm, repeated verify failure, scope violation, lock contention)."
+    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, enforce scope locks on work_queue task claims, AND extend audit.AuditService.log_operation with a ring-buffer push (hot path, no LLM) feeding a background audit-triage LLM classifier (see agent-coordinator/src/audit_triage.py) that auto-emits capability-gap memory entries with source:coordinator-emitted + prompt_version:N (D9). The classifier resolves its model via agents_config.resolve_model(archetype, package_metadata={}, provider=…) — default archetype `analyst`, default provider `claude_code` — and composes its prompt via agents_config.compose_prompt(archetype, task_prompt). Output is strict-schema-enforced; invalid responses are dropped with a warning. Regex/threshold pattern matching is explicitly OUT of scope — see D9 rationale on discovering unnamed struggle patterns."
     role: backend-implementer
     priority: 2
     depends_on:
@@ -122,7 +122,7 @@ packages:
         - "api:work_queue"
         - "api:audit:capability-gap-emitter"
       ttl_minutes: 150
-      reason: "Evaluator profile migration, guardrail scope enforcement, audit-side capability-gap pattern matcher"
+      reason: "Evaluator profile migration, guardrail scope enforcement, audit-side capability-gap LLM classifier (D9)"
     scope:
       write_allow:
         - "agent-coordinator/src/profiles.py"

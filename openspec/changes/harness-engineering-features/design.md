@@ -148,8 +148,8 @@ Implementation ──→ Review Dispatch ──→ Consensus ──→ Convergen
                                      └─→ Deep analyze (flagged sessions) ──→ findings ──┘
                                              (D4 tag schema, source:transcript-mined)
 
-Coordinator audit ──→ pattern matcher ──→ findings ──┘
-(D9: source:coordinator-emitted)
+Coordinator audit ──→ ring buffer ──→ LLM classifier (analyst archetype) ──→ findings ──┘
+(D9: source:coordinator-emitted, prompt_version:N)
 
 session-log "Capability Gaps Observed" section ──→ findings ──┘
 (D10: source:session-log)
