@@ -533,6 +533,41 @@ class TestIssueModel:
         assert d["title"] == "Test"
         assert d["labels"] == ["api"]
 
+    def test_to_dict_derives_change_id_from_label(self):
+        """IMPL_REVIEW codex#7: Issue.to_dict derives change_id from
+        'change:<id>' label and task_key from metadata, satisfying the
+        coordinator-types.ts Issue contract for Kanban Card rendering."""
+        issue = Issue(
+            id=uuid4(),
+            title="Implement endpoint",
+            description=None,
+            status="pending",
+            priority=3,
+            issue_type="task",
+            labels=["change:add-coordinator-kanban-viz", "wp-backend"],
+            metadata={"task_key": "2.7"},
+        )
+        d = issue.to_dict()
+
+        assert d["change_id"] == "add-coordinator-kanban-viz"
+        assert d["task_key"] == "2.7"
+
+    def test_to_dict_returns_null_when_change_label_and_task_key_absent(self):
+        """No 'change:*' label and no metadata.task_key → both fields null."""
+        issue = Issue(
+            id=uuid4(),
+            title="Stray task",
+            description=None,
+            status="pending",
+            priority=5,
+            issue_type="task",
+            labels=["api"],
+        )
+        d = issue.to_dict()
+
+        assert d["change_id"] is None
+        assert d["task_key"] is None
+
     def test_comment_from_row(self):
         """Comment.from_row correctly maps columns."""
         row = {

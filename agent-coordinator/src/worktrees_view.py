@@ -81,7 +81,8 @@ def get_active_worktrees(
         hb = _parse_dt(hb_str)
         if pinned or (hb is not None and now - hb <= threshold):
             active.append({
-                "agent_id": entry.get("agent_id") or entry.get("change_id", ""),
+                "agent_id": entry.get("agent_id"),
+                "change_id": entry.get("change_id"),
                 "branch": entry.get("branch", ""),
                 "worktree_path": entry.get("worktree_path", ""),
                 "last_heartbeat_iso": hb_str,

@@ -106,6 +106,20 @@ class Issue:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        # IMPL_REVIEW codex#7: derive change_id from a `change:<id>` label and
+        # task_key from metadata. coordinator-types.ts Issue requires both as
+        # top-level fields; without them the Kanban Card cannot render the
+        # change/task identifiers even when present in labels/metadata.
+        change_id: str | None = None
+        for label in self.labels:
+            if isinstance(label, str) and label.startswith("change:"):
+                change_id = label.split(":", 1)[1] or None
+                break
+        task_key_val = self.metadata.get("task_key") if self.metadata else None
+        task_key: str | None = (
+            task_key_val if isinstance(task_key_val, str) and task_key_val else None
+        )
+
         return {
             "id": str(self.id),
             "title": self.title,
@@ -131,6 +145,8 @@ class Issue:
             "comments": self.comments,
             "claimed_by": self.claimed_by,
             "claimed_at": self.claimed_at.isoformat() if self.claimed_at else None,
+            "change_id": change_id,
+            "task_key": task_key,
         }
 
 

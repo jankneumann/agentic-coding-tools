@@ -155,8 +155,19 @@ class DirectPostgresClient:
                     limit_clause = f" LIMIT {int(part[6:])}"
                 elif "=eq." in part:
                     col, val = part.split("=eq.", 1)
-                    _validate_identifier(col, allow_qualified=True)
-                    where_clauses.append(f"{col} = ${param_idx}")
+                    # Accept PostgREST-style JSONB text extraction:
+                    #   parameters->>change_id=eq.<value>
+                    # becomes: parameters->>'change_id' = $N
+                    if "->>" in col:
+                        jsonb_col, jsonb_key = col.split("->>", 1)
+                        _validate_identifier(jsonb_col, allow_qualified=True)
+                        _validate_identifier(jsonb_key)
+                        where_clauses.append(
+                            f"{jsonb_col}->>'{jsonb_key}' = ${param_idx}"
+                        )
+                    else:
+                        _validate_identifier(col, allow_qualified=True)
+                        where_clauses.append(f"{col} = ${param_idx}")
                     values.append(_coerce_filter_value(val))
                     param_idx += 1
                 elif "=gt." in part:

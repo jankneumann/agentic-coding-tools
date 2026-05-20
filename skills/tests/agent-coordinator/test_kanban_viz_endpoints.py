@@ -84,7 +84,7 @@ def client(_base_config: None) -> TestClient:
 @pytest.fixture()
 def _sse_key_set(monkeypatch: pytest.MonkeyPatch, _base_config: None) -> None:
     """Make POST /events/auth and GET /events/work operational (key configured)."""
-    monkeypatch.setenv("COORDINATOR_SSE_SIGNING_KEY", "s3cr3t-32-byte-signing-key-abcdef")
+    monkeypatch.setenv("COORDINATOR_SSE_SIGNING_KEY", "GITLEAKS_TEST_FIXTURE_NOT_A_REAL_KEY")
     yield
     monkeypatch.delenv("COORDINATOR_SSE_SIGNING_KEY", raising=False)
 
@@ -320,7 +320,7 @@ def test_events_work_rejects_expired_token(_sse_key_set: None, _base_config: Non
     client = TestClient(app, raise_server_exceptions=False)
 
     # Craft an already-expired token
-    key = os.environ.get("COORDINATOR_SSE_SIGNING_KEY", "s3cr3t-32-byte-signing-key-abcdef")
+    key = os.environ.get("COORDINATOR_SSE_SIGNING_KEY", "GITLEAKS_TEST_FIXTURE_NOT_A_REAL_KEY")
     payload = {
         "aud": "events",
         "exp": datetime.now(UTC) - timedelta(seconds=1),
@@ -341,7 +341,7 @@ def test_events_work_rejects_wrong_audience(_sse_key_set: None, _base_config: No
     app = create_coordination_api()
     client = TestClient(app, raise_server_exceptions=False)
 
-    key = os.environ.get("COORDINATOR_SSE_SIGNING_KEY", "s3cr3t-32-byte-signing-key-abcdef")
+    key = os.environ.get("COORDINATOR_SSE_SIGNING_KEY", "GITLEAKS_TEST_FIXTURE_NOT_A_REAL_KEY")
     payload = {
         "aud": "not-events",
         "exp": datetime.now(UTC) + timedelta(minutes=5),
