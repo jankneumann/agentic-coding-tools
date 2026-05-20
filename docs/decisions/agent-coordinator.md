@@ -38,23 +38,6 @@
 
 ---
 
-## 2026-05-18 — remove-openspec-beads-worktree-skill
-
-### Phase: Cleanup
-
-**Remove the `openspec-beads-worktree` / `openspec-coordinator-worktree` skill** — Now that Beads is fully removed from the project (see 2026-04-22 entry below) and the coordinator's built-in tracker is the only issue surface, the standalone orchestration skill has no remaining unique responsibility. Its functionality has been redistributed:
-
-- Issue seeding from OpenSpec tasks → `/plan-feature` Gate 2 (uses `coordinator-task-status-renderer` to seed coordinator issues from `tasks.md` checkboxes)
-- Worktree-per-task dispatch → `/implement-feature` via `skills/worktree/scripts/worktree.py`
-- Parallel DAG coordination → `parallel-infrastructure` (DAG scheduler) + coordinator lease/heartbeat
-
-Also removed: `scripts/migrate_beads_to_coordinator.py` (one-time migration tool; no longer needed since no agentic-coding-tools deployment still runs Beads). Active references to "Beads" in `openspec/config.yaml`, `openspec/schemas/feature-workflow/`, `skills/iterate-on-plan/SKILL.md`, and `docs/skills-workflow.md` have been updated to refer to the coordinator's issue tracker instead. Historical mentions in archived OpenSpec changes (`openspec/changes/archive/`) are preserved as record.
-
-- Status: `active`
-- Source: this commit (branch `claude/update-readme-docs-9cpTs`)
-
----
-
 ## 2026-04-06 — 2026-04-22-replace-beads-with-builtin-tracker
 
 ### Phase: Plan
