@@ -17,15 +17,15 @@ paths = [
 ]
 
 [[allowlists]]
-# Historical SSE-signing-key test fixture (entropy 3.92) that tripped the
-# default generic-api-key rule in agent-coordinator/tests/test_kanban_viz_endpoints.py
-# and its skills/tests/ mirror. Anonymized at HEAD by the kanban-viz PR
-# (s/s3cr3t-32-byte-signing-key-abcdef/GITLEAKS_TEST_FIXTURE_NOT_A_REAL_KEY/)
-# but the original value remains in commit history; squash-rewriting agent PRs
-# to scrub history is heavier than allowlisting one well-known fake string.
-# Listed by exact stopword (not file/path) so any FUTURE real secret in those
-# same test files is still detected.
-description = "Anonymized historical SSE-signing-key test fixture"
-stopwords = [
-    "s3cr3t-32-byte-signing-key-abcdef",
+# Two historical commits that introduced a fake SSE-signing-key test fixture
+# (entropy 3.92, tripped the default generic-api-key rule). Value was
+# anonymized at HEAD via the kanban-viz PR, but the commits remain in PR
+# history. Allowlisting by COMMIT SHA rather than by file/path so any future
+# real secret in those test files (or any other file in those two commits'
+# trees) would still be detected on subsequent scans — gitleaks only ignores
+# findings whose introducing commit matches one of these SHAs.
+description = "Anonymized historical SSE-signing-key test fixture (commit-scoped)"
+commits = [
+    "0491427e75d41e48c36183d09f1e81f532ae6c2a",
+    "26e4e7448129853036997bdc3fc6aaabf5ccad3a",
 ]
