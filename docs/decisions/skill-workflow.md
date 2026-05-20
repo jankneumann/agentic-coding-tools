@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-05-19 — enforce-local-worktree-invariant
+
+### Phase: Implement
+
+**Treat validation evidence as write-capable autopilot work** — Validation phases can emit artifacts and fixes, so autopilot now requests worktree isolation for validate and validation-review phases.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-local-worktree-invariant/session-log.md](/openspec/changes/enforce-local-worktree-invariant/session-log.md) (D2)
+
+---
+
+## 2026-05-17 — enforce-local-worktree-invariant
+
+### Phase: Plan
+
+**Use a shared checkout policy helper** — A single helper makes the worktree invariant executable and reusable across Python scripts and SKILL.md shell steps.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-local-worktree-invariant/session-log.md](/openspec/changes/enforce-local-worktree-invariant/session-log.md) (D1)
+
+---
+
+## 2026-05-17 — enforce-local-worktree-invariant
+
+### Phase: Plan
+
+**Keep sync-point exceptions explicit** — Merge and post-merge operations still need shared-checkout access, but only with clean-tree and active-agent guards.
+
+- Status: `active`
+- Source: [openspec/changes/enforce-local-worktree-invariant/session-log.md](/openspec/changes/enforce-local-worktree-invariant/session-log.md) (D2)
+
+---
+
 ## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation
