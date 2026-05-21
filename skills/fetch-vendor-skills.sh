@@ -51,6 +51,11 @@ VENDORS=(
   "https://github.com/railwayapp/railway-skills  | plugins/railway/skills/use-railway                | use-railway"
   "https://github.com/supabase/agent-skills      | skills/supabase-postgres-best-practices           | supabase-postgres-best-practices"
   "https://github.com/langfuse/skills            | skills/langfuse                                   | langfuse"
+  "https://github.com/kepano/obsidian-skills     | skills/obsidian-markdown                          | obsidian-markdown"
+  "https://github.com/kepano/obsidian-skills     | skills/obsidian-bases                             | obsidian-bases"
+  "https://github.com/kepano/obsidian-skills     | skills/json-canvas                                | json-canvas"
+  "https://github.com/kepano/obsidian-skills     | skills/obsidian-cli                               | obsidian-cli"
+  "https://github.com/kepano/obsidian-skills     | skills/defuddle                                   | defuddle"
 )
 
 # ── Helpers ────────────────────────────────────────────────────────────────

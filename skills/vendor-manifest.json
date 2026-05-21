@@ -33,6 +33,18 @@
       "paths": [
         "skills/langfuse"
       ]
+    },
+    "kepano/obsidian-skills": {
+      "commit": "ac9398734fe719565809f7a6048b05c36b1ca38f",
+      "fetched": "2026-05-21",
+      "repo": "https://github.com/kepano/obsidian-skills",
+      "paths": [
+        "skills/obsidian-markdown",
+        "skills/obsidian-bases",
+        "skills/json-canvas",
+        "skills/obsidian-cli",
+        "skills/defuddle"
+      ]
     }
   }
 }
