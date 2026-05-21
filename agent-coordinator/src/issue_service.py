@@ -64,6 +64,9 @@ class Issue:
     metadata: dict[str, Any] = field(default_factory=dict)
     children: list[dict[str, Any]] | None = None
     comments: list[dict[str, Any]] | None = None
+    # Additive fields for Kanban board (contract: "Card shows minimum required fields")
+    claimed_by: str | None = None
+    claimed_at: datetime | None = None
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> Issue:
@@ -98,13 +101,34 @@ class Issue:
             closed_at=parse_dt(row.get("closed_at")),
             close_reason=row.get("close_reason"),
             metadata=metadata,
+            claimed_by=row.get("claimed_by"),
+            claimed_at=parse_dt(row.get("claimed_at")),
         )
 
     def to_dict(self) -> dict[str, Any]:
+        # IMPL_REVIEW codex#7: derive change_id from a `change:<id>` label and
+        # task_key from metadata. coordinator-types.ts Issue requires both as
+        # top-level fields; without them the Kanban Card cannot render the
+        # change/task identifiers even when present in labels/metadata.
+        change_id: str | None = None
+        for label in self.labels:
+            if isinstance(label, str) and label.startswith("change:"):
+                change_id = label.split(":", 1)[1] or None
+                break
+        task_key_val = self.metadata.get("task_key") if self.metadata else None
+        task_key: str | None = (
+            task_key_val if isinstance(task_key_val, str) and task_key_val else None
+        )
+
         return {
             "id": str(self.id),
             "title": self.title,
             "description": self.description,
+            # IMPL_REVIEW codex#6: the Kanban frontend Issue type expects a
+            # top-level `body` field (coordinator-types.ts line 23). Emit it
+            # as an alias of description for contract parity. Backward
+            # compatible — existing callers still see `description`.
+            "body": self.description,
             "status": self.status,
             "priority": self.priority,
             "issue_type": self.issue_type,
@@ -119,6 +143,10 @@ class Issue:
             "metadata": self.metadata,
             "children": self.children,
             "comments": self.comments,
+            "claimed_by": self.claimed_by,
+            "claimed_at": self.claimed_at.isoformat() if self.claimed_at else None,
+            "change_id": change_id,
+            "task_key": task_key,
         }
 
 

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kanban-viz.local/schemas/events/audit.json",
+  "type": "object",
+  "required": ["audit_id", "agent_id", "operation", "ts"],
+  "properties": {
+    "audit_id": {"type": "string", "format": "uuid"},
+    "agent_id": {"type": "string"},
+    "operation": {"type": "string"},
+    "args_summary": {"type": "string"},
+    "ts": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

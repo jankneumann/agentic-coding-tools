@@ -1,0 +1,156 @@
+{
+  "handoff_id": "impl-review-1--20260519T034130Z",
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "phase": "IMPL_REVIEW",
+  "outcome": "substantively_converged",
+  "summary": "IMPL_REVIEW confirmation round (impl-review-1) ran after operator applied the 7-commit fix batch addressing the 4 original critical blockers (F1/F2/F3/F5) plus the medium unconfirmed findings. The 4 confirmed cross-vendor critical blockers from impl-review-0 NONE reappear in any of the 3 rounds — fixes landed cleanly. Round 3 quorum_lost (claude_code + codex CLI errors) prevented consensus synthesis, so the result file shows blocking_count=0 procedurally. Round 2 (full 3/3 quorum, the reliable signal) surfaced 2 NEW cross-vendor-confirmed high-severity issues that were NOT present in impl-review-0 — both relating to SSE infrastructure that this round did not touch. Two trivial id=15/id=16 follow-ups applied in a final commit.",
+  "rounds": [
+    {
+      "round": 1,
+      "started_at": "2026-05-19T03:19:19Z",
+      "ended_at": "2026-05-19T03:29:09Z",
+      "elapsed_seconds": 589,
+      "vendor_participation": {
+        "claude_code": "timeout (300s)",
+        "codex": "success",
+        "gemini": "success"
+      },
+      "quorum_received": 2,
+      "findings_count": 10,
+      "blockers_after_synthesis": 10,
+      "notes": "claude_code timed out at 300s. codex 6 findings, gemini 4. All 10 surviving blockers were UNCONFIRMED (single-vendor)."
+    },
+    {
+      "round": 2,
+      "started_at": "2026-05-19T03:29:09Z",
+      "ended_at": "2026-05-19T03:40:08Z",
+      "elapsed_seconds": 659,
+      "vendor_participation": {
+        "claude_code": "success (12 findings, 272s)",
+        "codex": "success (6 findings, 215s)",
+        "gemini": "success (?, 172s)"
+      },
+      "quorum_received": 3,
+      "findings_count": 18,
+      "blockers_after_synthesis": 18,
+      "confirmed_blockers": 2,
+      "confirmed_blocker_ids": [
+        "R2-id=4 (SSE callback leak, high resilience)",
+        "R2-id=13 (SSE token-in-URL redaction, high security)"
+      ],
+      "notes": "FULL 3/3 quorum — the reliable signal of this confirmation run. 2 NEW confirmed cross-vendor blockers surface; none of the 4 original F1-F5 blockers reappear."
+    },
+    {
+      "round": 3,
+      "started_at": "2026-05-19T03:40:08Z",
+      "ended_at": "2026-05-19T03:41:29Z",
+      "elapsed_seconds": 81,
+      "vendor_participation": {
+        "claude_code": "FAILED (Unknown error after 3.2s)",
+        "codex": "FAILED (stdin stuck, 1.9s)",
+        "gemini": "success (3 findings, 75s)"
+      },
+      "quorum_received": 1,
+      "findings_count": 3,
+      "blockers_after_synthesis": null,
+      "notes": "quorum_lost (1/3 < 2). Consensus synthesizer did not run; the convergence_loop's reported blocking_count=0 is procedural, not substantive. Treat R2's 18 findings + 2 confirmed blockers as the authoritative signal."
+    }
+  ],
+  "findings_trend": [10, 18, 3],
+  "convergence_result_file": "impl-review-convergence-result.json",
+  "original_impl_review_0_blockers_status": {
+    "F1_App_mounts_SyncPointBanner": "RESOLVED (commit e24e0c1 + 80608b5)",
+    "F2_Card_renders_VendorSwimlanes": "RESOLVED (commit 21ccaff)",
+    "F3_multi_change_OR_semantics": "RESOLVED (commits ff7d121 + df6d69c)",
+    "F5_kick_flow_change_id": "RESOLVED (commits 79a4d7b + 21189f3)"
+  },
+  "new_confirmed_blockers_from_impl_review_1": [
+    {
+      "id": "R2-id=4",
+      "type": "resilience",
+      "criticality": "high",
+      "status": "confirmed",
+      "files": ["agent-coordinator/src/event_stream.py:256-257"],
+      "description": "SSE generator leaks EventBusService callbacks on every disconnect. event_bus.on_event('coordinator_task', _on_task_event) and event_bus.on_event('coordinator_audit', _on_audit_event) register callbacks but never unregister them when the client disconnects. Closed connections leave callback closures and queue references in the bus.",
+      "recommended_fix": "Wrap the generator body in try/finally that calls event_bus.off_event(...) for both registered callbacks; also clear the queue and break out of the while loop on disconnect.",
+      "estimated_effort": "30-60 min",
+      "status_in_this_round": "DEFERRED — out of scope per user's 'critical confirmed + medium unconfirmed' instruction (this is high-severity newly-surfaced)."
+    },
+    {
+      "id": "R2-id=13 / R2-id=20",
+      "type": "security",
+      "criticality": "high",
+      "status": "confirmed",
+      "files": ["agent-coordinator/src/coordination_api.py:2711-2746"],
+      "description": "GET /events/work accepts the SSE JWT in the URL (?token=) without the contracted token-in-URL mitigations: (a) no access-log redaction of the token query parameter; (b) the EventSourceResponse is returned without overriding the default uvicorn access logger to mask the token. The JWT lands in standard access logs.",
+      "recommended_fix": "Add a Starlette middleware that rewrites query strings in access logs for /events/work to replace token=<value> with token=<redacted>. Alternative: switch from query-string token to a cookie or POST-mint-then-Authorization-header pattern.",
+      "estimated_effort": "1-2h",
+      "status_in_this_round": "DEFERRED — out of scope per user's instruction. Pre-existing finding from impl-review-0 claude_code#10."
+    }
+  ],
+  "fixes_applied_in_impl_review_1_round": [
+    {
+      "id": "R2-id=16",
+      "type": "observability",
+      "criticality": "high",
+      "status": "unconfirmed",
+      "description": "App.tsx mounted SyncPointBanner in commit e24e0c1 but didn't thread onAuditEmit, so destructive-write kicks emitted to nowhere — violating proposal §3 audit contract.",
+      "fix_commit": "80608b5",
+      "fix_description": "App.tsx defines emitAudit useCallback POSTing to /kanban-viz/audit; threaded to SyncPointBanner."
+    },
+    {
+      "id": "R2-id=15",
+      "type": "correctness",
+      "criticality": "medium",
+      "status": "unconfirmed",
+      "description": "Done column 24h filter used updated_at ?? created_at instead of completed_at per proposal §3.",
+      "fix_commit": "80608b5",
+      "fix_description": "Added completed_at to Issue TS type (backend already emits via Issue.to_dict); Board.tsx uses completed_at-first fallback chain; fixtures updated."
+    }
+  ],
+  "other_unconfirmed_findings_logged_for_followup": [
+    "R2-id=1 (high spec_gap): vendor swimlanes don't surface audit_log live activity per vendor — AgentActivity needs richer projection from audit-event stream",
+    "R2-id=2 (high contract_mismatch): frontend Issue TS type drift vs coordinator runtime shape — change_id/updated_at/task_key declared required but may not be populated",
+    "R2-id=3 (high spec_gap): saved-view path doesn't emit UI audit event file per task 6.3",
+    "R2-id=5/6 (medium compatibility/contract_mismatch): skills/tests/agent-coordinator/test_kanban_viz_endpoints.py dead-code dupe still exists (OC-1); sync_points.py reimplements check_no_active_agents",
+    "R2-id=7 (medium correctness): POST /agents/{agent_id}/kick reports kicked=true for REMOVED=skipped no-ops",
+    "R2-id=8 (medium architecture): sync_points.py materializes one status_row 3x — per-skill state conflated",
+    "R2-id=9 (medium correctness): Tauri saveView writes git_sha='0000000' placeholder per contracts/README spec violation",
+    "R2-id=10 (medium observability): snapshot/worktrees/sync-point endpoints silently degrade in Docker",
+    "R2-id=22 (medium architecture): saveView/drag-to-Ready/force-release-lock UI surfaces still not wired (already documented in tasks.md per commit 62fcb15)",
+    "codex#4 / claude_code#8 (high, from impl-review-0): NOTIFY trigger payloads lack change_id / from_status / to_status — SSE filter drops all real events"
+  ],
+  "vendor_effectiveness_this_round": {
+    "claude_code": {
+      "rounds_participated": 1,
+      "rounds_failed": 2,
+      "total_findings": 12,
+      "notes": "R1 timeout 300s; R3 instant error. Only R2 produced findings."
+    },
+    "codex": {
+      "rounds_participated": 2,
+      "rounds_failed": 1,
+      "total_findings": 12,
+      "notes": "R3 stdin issue (model: gpt-5.5 stuck reading stdin). R1+R2 successful."
+    },
+    "gemini": {
+      "rounds_participated": 3,
+      "rounds_failed": 0,
+      "total_findings": null,
+      "notes": "Most reliable vendor this round. Only vendor to participate in all 3 rounds."
+    }
+  },
+  "convergence_loop_config": {
+    "review_type": "implementation",
+    "max_rounds": 3,
+    "min_quorum": 2,
+    "fix_mode": "inline",
+    "fix_callback": "no-op recorder (intentional)"
+  },
+  "feature_branch": "openspec/add-coordinator-kanban-viz",
+  "feature_branch_head": "80608b5",
+  "next_phase": "VALIDATE",
+  "operator_recommendation": "Advance to VALIDATE. The 4 original confirmed criticals are resolved (none reappear). The 2 new confirmed highs (R2-id=4 SSE callback leak, R2-id=13/20 token-in-URL redaction) are pre-existing infrastructure concerns that warrant a separate follow-up — they don't gate the MVP visualization features F1-F5, and the user's instruction was 'critical confirmed + medium unconfirmed' which scoped the impl-review-0 deltas. VALIDATE will surface anything else (spec, evidence, deploy, smoke, security, e2e). If VALIDATE fails on the token-in-URL issue, we can address it in a follow-up commit before SUBMIT_PR.",
+  "created_at": "2026-05-19T03:41:30.000000+00:00"
+}

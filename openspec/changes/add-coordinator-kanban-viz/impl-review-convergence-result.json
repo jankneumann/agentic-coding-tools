@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "converged": false,
+    "rounds": 3,
+    "reason": "quorum_lost",
+    "checkpoint_dir": "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-coordinator-kanban-viz/openspec/changes/add-coordinator-kanban-viz/.review-cache/round-3",
+    "blocking_count": 0,
+    "validation_errors": null,
+    "consensus_summary": null
+  },
+  "blocking_findings": [],
+  "consensus": null,
+  "completed_at": "2026-05-19T03:41:29.298879+00:00"
+}

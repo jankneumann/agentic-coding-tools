@@ -1,0 +1,175 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "The marquee MVP surface \u2014 vendor swimlanes for vendor-diverse parallel work \u2014 is materially under-implemented. useCoordinator.ts:163-183 projects exactly one AgentActivity per issue (sourced from issue.claimed_by), keyed by that single issue's id. VendorSwimlanes.tsx therefore always groups a 1-element array, collapses to singleVendor=true, and renders one lane. The proposal \u00a72 promises 'the card subdivides into mini-lanes per vendor when the underlying work-package is in vendor-diverse parallel-review mode' and 'each lane shows the most recent audit_log row for that (change_id, agent_id, vendor) triple'. The hook never aggregates child issues by parent_id, never queries /audit for per-(agent_id, vendor) activity, and never matches multiple agents to one card. Fix: project agentsByIssueId from (a) child issues sharing parent_id and (b) recent audit_log rows per agent_id, so a parent work-package card receives the full multi-vendor agent set. Until then, the consensus-indicator branch in VendorSwimlanes is also unreachable for real parent rows.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 159,
+        "end": 183
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Frontend Issue TS type drift versus coordinator runtime shape. apps/kanban-viz/src/lib/coordinator-types.ts:20-36 declares Issue with required top-level fields change_id, updated_at, and task_key. agent-coordinator/src/issue_service.py Issue.to_dict (lines 108-134) emits no updated_at, and emits change_id/task_key inside the metadata blob, not at top level (no top-level alias for either, unlike the body/description alias added in commit 01a5cab). Consequences at runtime: (a) Card.tsx:51 reads issue.change_id \u2014 always undefined \u2192 'card-change-id' element never renders; (b) Board.tsx:33 computes the 24-hour Done window from issue.updated_at ?? issue.created_at \u2014 updated_at undefined \u2192 falls back to created_at, so the window measures issue creation age rather than completion age (stale completed work appears wrongly, freshly-completed long-running issues filtered out). Fix: either extend Issue.to_dict with top-level change_id/task_key/updated_at aliases (matching the body/description precedent) or change the TS type to read from metadata. The TS type is currently unverified at the network boundary so the bug is silent.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/lib/coordinator-types.ts",
+      "line_range": {
+        "start": 20,
+        "end": 36
+      }
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Saved-view path does not emit the required UI audit event file. Task 6.3 mandates: 'save-view emits a UI audit event via POST /kanban-viz/audit (browser path) ... the resulting file under docs/kanban-viz/audit/<YYYY-MM-DD>/<run-id>.json has the server-stamped mandatory header and class: reversible-write'. apps/kanban-viz/src/lib/saveView.ts (browser saveBrowser) only PUTs to /kanban-viz/saved-views/{slug}; it never POSTs to /kanban-viz/audit. The coordinator's put_saved_view does call get_audit_service().log_operation(operation='kanban_viz.save_view', ...) \u2014 but that writes to the audit_log database table, not the docs/kanban-viz/audit/ file artifact contractually specified in contracts/README.md \u00a7'Audit-Event JSON File Format'. The Tauri path also omits the audit file write. Net effect: zero docs/kanban-viz/audit/* files are produced for save-view actions despite the schema, endpoint, and tests. Fix: have saveBrowser POST to /kanban-viz/audit after a successful PUT with action='save-view', class='reversible-write', outcome='confirmed' and the slug+git_sha in args.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/lib/saveView.ts",
+      "line_range": {
+        "start": 41,
+        "end": 84
+      }
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "SSE generator leaks EventBusService callbacks on every disconnect. agent-coordinator/src/event_stream.py:256-257 calls event_bus.on_event('coordinator_task', _on_task_event) and event_bus.on_event('coordinator_audit', _on_audit_event) inside sse_event_generator. The except asyncio.CancelledError block at line 295-296 does not remove them. Inspecting event_bus.py (lines 130-157) confirms on_event is an append-only registration with no public off_event \u2014 both _callbacks and _global_callbacks grow monotonically. Each browser tab open\u2192close adds two closures to the per-channel callback list; each fired event then iterates the entire list (event_bus.py:291-294 dispatches to all). In a long-running coordinator with intermittent UI sessions, callback count grows unboundedly, raising both memory and per-event dispatch cost. Fix: add an off_event/remove_callback API to EventBusService and call it in the finally block (or use weakref-based registration so closed-over generators can be GC'd).",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 256,
+        "end": 297
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "OC-1 not addressed: skills/tests/agent-coordinator/test_kanban_viz_endpoints.py still exists as dead code (51KB, full pytest test module). It is not collected by any pytest config \u2014 the canonical home is agent-coordinator/tests/test_kanban_viz_endpoints.py. The IMPL_ITERATE handoff (impl-iterate-0.json) explicitly flagged this for removal; round 2 finds it still present. The file pollutes search results, will diverge from the canonical copy under maintenance, and risks being mistakenly run if a future skills test runner picks it up. Fix: rm the dead file; verify the canonical agent-coordinator/tests/ copy is unchanged.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "optional",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 50
+      }
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "sync_points.py reimplements check_no_active_agents in direct violation of contracts/README.md line 63: 'Server handler imports check_no_active_agents() from skills/shared/active_agents.py. The function MUST NOT be reimplemented, and the file MUST NOT be vendored into agent-coordinator/.' The implementation at agent-coordinator/src/sync_points.py:7-78 reimplements the registry-reading logic inline with the rationale 'skills.shared.active_agents lives outside the agent-coordinator package and is not available in the deployed Docker image'. The rationale is correct (the Dockerfile doesn't COPY skills/), but the contract was authored with full awareness of the package layout and chose to require the import anyway. Either fix: (a) bundle skills/shared/active_agents.py into the Docker image and import it (matches contract); or (b) update contracts/README.md line 63 + design.md D5 to acknowledge the reimplementation and add a single-source-of-truth test that asserts the two implementations agree on the same registry fixture. Today, the divergence is unprotected \u2014 sync_points.py and skills/shared/active_agents.py can drift silently.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 1,
+        "end": 78
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "POST /agents/{agent_id}/kick reports kicked=true for no-op teardowns. coordination_api.py:2931 treats both 'REMOVED=true' and 'REMOVED=skipped' as registry_cleared=True. 'REMOVED=skipped' from worktree.py teardown typically means the registry entry did not exist (already cleared or never existed), which semantically is NOT a kick. The endpoint response sets kicked=registry_cleared=True for that case; the UI then shows the kick action as successful even though nothing happened. This collides with the sync-banner audit emission outcome='success' (SyncPointBanner.tsx:137) for a kick that was already a no-op. Fix: distinguish the two states \u2014 return registry_cleared=true only on REMOVED=true, and add a separate 'already_cleared': true field for REMOVED=skipped so the UI can surface 'already clear' rather than 'kicked'.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2929,
+        "end": 2935
+      }
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Sync-point status conflates per-skill state. agent-coordinator/src/sync_points.py:130-139 computes one status_row from the single registry read, then materializes it three times \u2014 one per skill in SYNC_POINT_SKILLS \u2014 with the same blockers and suggested_actions for all three. The wire shape (contract README.md \u00a7'GET /sync-points/status') models this as per-skill rows, suggesting they could differ. Today they cannot: any active agent blocks all three sync-points uniformly. The UI banner (SyncPointBanner.tsx:172) computes anyBlocked across all three and renders 'cleanup-feature blocked', 'merge-pull-requests blocked', 'update-specs blocked' as three lines for the same root cause \u2014 which is visually misleading. Fix options: (a) collapse to a single row in the response and adjust the contract; or (b) keep per-skill rows but only mark blocked the skill the user actually intends to invoke (passed via ?skills= filter, reserved in contract line 30). The current shape pretends per-skill granularity that the data layer cannot deliver.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 130,
+        "end": 139
+      }
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Tauri saveView writes a fake git_sha. apps/kanban-viz/src/lib/saveView.ts:78 sets git_sha: '0000000' in the on-disk artifact when running under Tauri. The contract README.md \u00a7'Saved-View JSON File Format' specifies git_sha pattern ^[0-9a-f]{7,40}$ (which '0000000' technically satisfies) but the field's intent is the git HEAD at write time \u2014 the coordinator's write_saved_view shells out to git rev-parse --short HEAD (kanban_viz_files.py:48-59). Tauri-authored files thus carry a deliberately fake provenance, defeating the artifact-header convention codeviz Phase 0 relies on. The contract README.md line 339 promises 'The on-disk format is identical, so files authored on either path are interoperable' \u2014 this is not true today. Fix: in the Tauri path, invoke a Tauri command (or shell out via the Rust side) to compute git rev-parse --short HEAD before stamping the header.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "apps/kanban-viz/src/lib/saveView.ts",
+      "line_range": {
+        "start": 62,
+        "end": 84
+      }
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Snapshot, worktrees, and sync-point endpoints silently degrade in Docker without operator-visible signal. event_stream.py:_build_snapshot calls worktrees_view.get_active_worktrees(), and sync_points.py reads .git-worktrees/.registry.json \u2014 both via Path(__file__).resolve().parents[2]. Inside the coordinator-api container, this resolves to /app/, where .git-worktrees/ is not bind-mounted by default (per agent-coordinator/CLAUDE.md docker-compose contract). All three surfaces return empty lists with a warning logged at WARNING; the UI receives 'no active worktrees, no sync-point blockers' and renders 'All sync-points clear' even when local worktrees are blocking. Fix: (a) document the bind-mount requirement in docs/kanban-viz/README.md, agent-coordinator/CLAUDE.md, and the compose file's coordinator-api service definition; (b) when registry path is missing, return a structured 503 or include a 'registry_unavailable: true' flag in the response so the UI can surface a 'sync-point status unknown' banner rather than a misleading green.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 45,
+        "end": 58
+      }
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Sync banner testid collision when multiple blockers share a change_id with null agent_id. SyncPointBanner.tsx:241 builds testIdSuffix = b.agent_id ?? `change-${b.change_id}`. Two single-agent worktrees in the same change (e.g. a pinned plus a recent heartbeat) \u2014 or two blocker rows of the same shape across the three repeated status rows (see finding 8) \u2014 produce identical testIdSuffix values, leading to duplicate data-testid attributes on both the heartbeat span and the kick button. React renders fine (duplicates are legal in DOM) but element-by-testid test selectors will match both, and the React key (line 236) uses the same fallback, triggering reconciliation warnings. Fix: include an index or the skill name in testIdSuffix (e.g. `${s.skill}-${b.agent_id ?? `change-${b.change_id}`}-${i}`).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 230,
+        "end": 277
+      }
+    },
+    {
+      "id": 12,
+      "type": "observability",
+      "criticality": "low",
+      "description": "JWT nonce store is in-process memory (event_stream.py:43 _nonce_store: dict). The module docstring acknowledges this is 'sufficient for single-worker deployments' and points at a follow-up. With uvicorn running multiple workers (the default Dockerfile CMD or any --workers > 1), a nonce minted by worker A cannot be validated by worker B \u2014 the SSE handshake fails for half of all requests in a round-robin. Same applies if the coordinator restarts mid-session: every outstanding token becomes invalid (the user-facing symptom is a confusing 401). Today the symptom would surface as 'SSE works sometimes, falls back to polling other times' without operator-visible cause. Fix: either constrain the deployment to single worker explicitly (uvicorn --workers 1, document in docker-compose), or back the nonce store with the existing Postgres connection (e.g., a small short-TTL table) so all workers share state.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 40,
+        "end": 48
+      }
+    }
+  ]
+}

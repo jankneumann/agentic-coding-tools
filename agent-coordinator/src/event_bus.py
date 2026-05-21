@@ -24,6 +24,9 @@ CHANNELS = (
     "coordinator_task",
     "coordinator_agent",
     "coordinator_status",
+    # New channel for audit_log NOTIFY (added by add-coordinator-kanban-viz).
+    # The SSE /events/work handler subscribes to this alongside coordinator_task.
+    "coordinator_audit",
 )
 
 # Max NOTIFY payload ~8KB; we leave 1KB margin
@@ -152,6 +155,35 @@ class EventBusService:
             if channel not in self._callbacks:
                 self._callbacks[channel] = []
             self._callbacks[channel].append(callback)
+
+    def off_event(
+        self, channel: str | None, callback: EventCallback
+    ) -> bool:
+        """Unregister a previously registered callback.
+
+        IMPL_REVIEW R2-id=4: SSE generators and other short-lived consumers
+        must call this from a finally block; otherwise the callback closure
+        plus its captured queue stay attached to the bus forever, leaking
+        memory per connection.
+
+        Returns True if a callback was removed, False if it wasn't registered.
+        Identity comparison — only the exact callback object registered via
+        on_event will be removed.
+        """
+        if channel is None:
+            try:
+                self._global_callbacks.remove(callback)
+                return True
+            except ValueError:
+                return False
+        bucket = self._callbacks.get(channel)
+        if not bucket:
+            return False
+        try:
+            bucket.remove(callback)
+            return True
+        except ValueError:
+            return False
 
     async def start(self) -> None:
         """Start listening on all configured channels."""

@@ -1,0 +1,82 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "The POST /agents/{agent_id}/kick endpoint (coordination_api.py:2905-2947) depends on skills/worktree/scripts/worktree.py, but the skills/ directory is not copied into the agent-coordinator Docker image. This endpoint will fail with a FileNotFoundError in Docker/Cloud environments (e.g., Railway). The Dockerfile should be updated to include necessary skill scripts or the logic should be moved into the coordinator package.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2915,
+        "end": 2920
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "high",
+      "description": "Token-in-URL hardening required by design D2 and tasks 2.7b/2.12 is incomplete. GET /events/work (coordination_api.py:2711-2746) passes the JWT as a query parameter but lacks access-log redaction, meaning Uvicorn will log sensitive tokens. Additionally, the SSE response lacks 'Referrer-Policy: no-referrer' and 'Cache-Control: no-store' headers required to prevent token leakage via Referer headers or intermediate caches.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2711,
+        "end": 2746
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The file-write helpers write_saved_view and write_audit_event (kanban_viz_files.py:77-151) stamp headers but fail to validate the payload against the JSON schemas defined in contracts/schemas/. This allows malformed UI state to be persisted to the repository, violating the contract-first design. jsonschema.validate() should be added to these helpers.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py",
+      "line_range": {
+        "start": 77,
+        "end": 151
+      },
+      "package_id": "agent-coordinator"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "Several features marked as complete in tasks.md are not wired into the UI. App.tsx and its subcomponents lack the Saved-view UI surface, drag-to-Ready handlers (PATCH /issues/{id}/labels), and the force-release-lock action (DELETE /locks/{file_path}). Library functions (saveView.ts) and backend endpoints exist, but the user cannot access them from the board.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 12,
+        "end": 35
+      },
+      "package_id": "kanban-viz"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Duplicate/dead test file: skills/tests/agent-coordinator/test_kanban_viz_endpoints.py. This file is a smaller, stale version of agent-coordinator/tests/test_kanban_viz_endpoints.py and is not included in the standard pytest path. It should be removed to avoid confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "package_id": "skills"
+    }
+  ]
+}

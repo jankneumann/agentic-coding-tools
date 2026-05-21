@@ -1,0 +1,302 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "App.tsx (line 26) still renders only `<Board issues={issues} />`. The SyncPointBanner component is implemented and tested but never mounted \u2014 flagged in Round 1 (codex #1) and Round 2 (all three vendors); third round, still unaddressed. Proposal \u00a73 names the banner as one of three MVP surfaces; the feature is effectively missing from the shipped UI. Fix: in apps/kanban-viz/src/App.tsx, render `<SyncPointBanner apiUrl={API_URL} apiKey={API_KEY} />` above `<Board>`; thread API_URL/API_KEY through.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 11,
+        "end": 27
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Card.tsx renders title, change_id, assignee, and timestamp only \u2014 it does not import VendorSwimlanes and the in-flight branch is absent. Flagged in Round 1 (codex #2, claude #2) and Round 2 (claude #2, codex #2), still unaddressed. Vendor swimlanes are MVP surface #2 per proposal \u00a73. Fix: when issue.status \u2208 {claimed, running}, render `<VendorSwimlanes agents={agentsForIssue} completed={false} />`; project per-issue agent activity through useCoordinator and pass it as a prop or via a context.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/Card.tsx",
+      "line_range": {
+        "start": 21,
+        "end": 67
+      },
+      "package_id": "wp-frontend-swimlanes"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "useCoordinator.fetchIssues (line 47-58) sends `labels: changeIds.map(id => 'change:'+id)` as a single array. IssueService.list_issues treats label arrays as ALL-of (AND), so multi-change boards return the intersection (almost always empty) instead of the union. Identical bug in agent-coordinator/src/event_stream.py:170 `_build_snapshot` (`labels=[f'change:{cid}' for cid in change_ids]`). Round 2 (claude #3, codex #4, gemini -) unaddressed. Fix: iterate change_ids and merge results (Promise.all + dedupe by id) on the frontend; same fix in `_build_snapshot`; add a regression test for \u22652 change_ids.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 42,
+        "end": 59
+      },
+      "package_id": "wp-frontend-skeleton"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Double state update in the transition SSE handler (useCoordinator.ts lines 163-170): `setIssues((current) => { applyTransition(payload, current); return current.map(...) })` \u2014 applyTransition itself calls `setIssues` internally at line 104, so each transition triggers two state updates per event. This causes redundant renders and a race when transitions arrive in bursts. Round 2 (claude #4, gemini #2) unaddressed. Fix: remove the `applyTransition(payload, current)` call inside the reducer; keep only the pure `current.map(...)`. Alternatively, repurpose applyTransition to return a new array rather than calling setIssues.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 160,
+        "end": 174
+      },
+      "package_id": "wp-frontend-skeleton"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Kick flow remains broken end-to-end. sync_points.get_sync_points_status (lines 106-112) emits blocker rows with only `agent_id` and `last_heartbeat_iso` \u2014 no `change_id`. SyncPointBanner.tsx line 208 then passes the literal string `\"unknown\"` to handleKickClick, which feeds it into the `change_id` body parameter of POST /agents/{agent_id}/kick. The kick endpoint runs `worktree.py teardown unknown --agent-id <agent_id> --force` (coordination_api.py:2885-2889) \u2014 that change_id will never match a real registry entry, so registry_cleared stays False, kicked=False, and the banner button is non-functional. Round 1 (codex #6, gemini #1) and Round 2 (claude #5, codex #5, gemini #1/#5) all unaddressed. Fix: (a) include `change_id` in each blocker dict in sync_points.py (registry entries carry it); (b) extend SyncPointStatus + blocker types to surface change_id; (c) thread change_id through SyncPointBanner.handleKickClick instead of hardcoding 'unknown'; (d) integration test that drives a real blocker and asserts non-default change_id reaches the registry teardown.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 95,
+        "end": 132
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "SyncPointBanner.handleConfirm (lines 96-125) treats any awaited fetch as success \u2014 it never inspects `res.ok` or the `kicked` field returned by the kick endpoint. When the kick fails (registry mismatch, 422, 500), the UI emits an `outcome: 'success'` audit event and clears pendingKick, silently lying to the operator. Round 2 (codex #5) unaddressed. Fix: `const res = await fetch(...); const body = await res.json(); if (!res.ok || !body.kicked) { onAuditEmit?.({outcome: 'failure', errors: body.errors}); return; }` before the success branch.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 96,
+        "end": 125
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "event_stream.sse_event_generator drops every audit and task event whose CoordinatorEvent.change_id is unset (lines 234, 239 `if not evt.change_id or evt.change_id not in change_ids: return`). The existing coordinator_audit pipeline does not populate change_id on every event \u2014 audit_log rows for raw operations (lock acquire/release, recall, remember, etc.) carry only agent_id. Result: vendor swimlanes can never reflect live activity from SSE; only artificially change-scoped events reach subscribers. Round 1 (codex #3) and Round 2 (claude #6, codex #3) unaddressed. Fix: derive change_id from `evt.agent_id.split('--')[0]` when evt.change_id is unset (matches D4 vendor-extraction symmetry), OR have the audit producer always stamp change_id, OR relax the filter to match by agent_id prefix. Add a test that exercises an audit event without change_id and asserts it reaches a subscribed connection.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 233,
+        "end": 242
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "_make_transition emits `from: ctx.get('from_status') or ctx.get('from', '')` (event_stream.py:213) \u2014 when the upstream LISTEN/NOTIFY payload omits both keys, this serializes `from: \"\"`, which violates the SSE schema enum `{pending,claimed,running,completed,failed}` for transition.from. Same risk on the `to` side via the fallback `evt.event_type.split('.')[-1]`, which may yield arbitrary strings depending on event type. Round 2 (claude #7) unaddressed. Fix: validate ctx values against the enum and either drop the event or fall back to the previous snapshot's status; ensure the NOTIFY trigger always emits old_status/new_status; verify the trigger covers claimed\u2192running, not only completed/failed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 207,
+        "end": 219
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "`/audit` extension landed as a forked route `/audit/v2` (coordination_api.py:3030) instead of extending GET /audit (line 1223). The inline comment at lines 3025-3029 admits the intent (\"replaced below by patching its query forwarding\") but the implementation just adds a parallel handler \u2014 FastAPI does NOT replace earlier routes with same-method/path, so GET /audit still rejects since/change_id query params, breaking proposal \u00a73 (\"extend GET /audit with since and change_id for polling fallback\"). Compounding: useCoordinator.startPolling (lines 115-134) only re-fetches /issues/list \u2014 it never polls /audit at all, so even the /v2 route is unused on the polling-fallback path. Round 2 (claude #9, codex #6) unaddressed. Fix: merge the v2 handler back into GET /audit (since/change_id are optional, fully backward-compatible), delete /audit/v2, and add an audit-polling branch to useCoordinator.startPolling so vendor swimlanes degrade gracefully when SSE is unavailable.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 1223,
+        "end": 3077
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "high",
+      "description": "Token-in-URL hardening required by D2/proposal \u00a73 is incomplete on /events/work (coordination_api.py:2711-2746): (a) no access-log redaction of the `token` query parameter \u2014 uvicorn's default access log will record the JWT; (b) no Referrer-Policy: no-referrer header on the SSE response or the served frontend, so a third-party link click leaks the URL+token via the Referer header; (c) no Cache-Control: no-store, allowing intermediate caches to retain the URL. Round 1 (codex #9) and Round 2 (claude #10, codex #8) unaddressed. Fix: add a starlette middleware that strips `token=` from request.url for the access logger; emit `Referrer-Policy: no-referrer` and `Cache-Control: no-store` on the EventSourceResponse and the static frontend; consider accepting the token via a custom header for a polyfilled EventSource so the URL form can be deprecated.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2711,
+        "end": 2760
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 11,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "kanban_viz_files.write_saved_view (lines 77-110) and write_audit_event (lines 113-151) stamp the artifact header and atomic-write the document without validating view_payload/event_payload against contracts/schemas/saved-view.schema.json and audit-event.schema.json. The pyproject.toml already declares `jsonschema>=4.0` (line 12) so the dependency is available; it just isn't called. Result: any malformed UI write becomes a git diff, defeating the schema contract that exists in contracts/. Round 1 (codex #7) and Round 2 (claude #8) unaddressed. Fix: load the corresponding JSON schema once at module import; call jsonschema.validate(document) AFTER stamping and BEFORE _atomic_write in both write functions; have the FastAPI endpoints (PUT /kanban-viz/saved-views/{slug} and POST /kanban-viz/audit) return 400 with the schema validation error path on ValidationError.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py",
+      "line_range": {
+        "start": 100,
+        "end": 151
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "sse-starlette is imported at runtime in coordination_api.py:2749 (`from sse_starlette.sse import EventSourceResponse`) but is absent from agent-coordinator/pyproject.toml dependencies. Round 2 (claude #11) explicitly flagged this; only PyJWT was added to the [api] and core dep groups. A fresh `pip install agent-coordinator[api]` will fail at first /events/work request with ModuleNotFoundError. Fix: add `\"sse-starlette>=2.0.0\"` next to `\"PyJWT>=2.8.0\"` in both the core dependencies array (line 57) and the [api] extras (line 67). Also add to the docker_imports allowlist if check_docker_imports.py doesn't already cover third-party packages.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "file_path": "agent-coordinator/pyproject.toml",
+      "line_range": {
+        "start": 55,
+        "end": 70
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 13,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "useCoordinator's audit-event handler (lines 176-180) parses the payload then discards it with `void _payload`, with the comment \"audit events are informational; no state update needed in base hook\". This contradicts the design \u2014 without audit-event projection the VendorSwimlanes component (even when Card.tsx is fixed to render it) has no source of `last_event_at`/`outcome` per agent. The frontend currently has no path from audit SSE to per-agent activity state. Fix: maintain a Map<agent_id, AgentActivity> in useCoordinator state, update it on each audit event (set last_event_at=ts; map operation\u2192outcome for completion events), and return it alongside `issues` from the hook so Card.tsx can pass the relevant slice to VendorSwimlanes.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 176,
+        "end": 181
+      },
+      "package_id": "wp-frontend-swimlanes"
+    },
+    {
+      "id": 14,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Saved-view UI surface, drag-to-Ready, and force-release-lock are marked complete in tasks but are not wired into the rendered UI. saveView.ts and reversibility.ts exist as library functions; PATCH /issues/{id}/labels and DELETE /locks/{file_path} exist on the backend; but App.tsx renders only Board, with no SavedViewsDrawer, no drag handlers on Column/Card, and no force-release flow. Round 2 (codex #7) unaddressed. Fix: either (a) wire these surfaces into App.tsx as the MVP requires, or (b) re-tag the corresponding tasks.md rows as deferred and update proposal/design to reflect the narrower MVP. Pick one \u2014 the current state where library code exists with no UI integration is the worst outcome (carrying the maintenance cost without the user value).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 11,
+        "end": 27
+      },
+      "package_id": "wp-saved-views"
+    },
+    {
+      "id": 15,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "SyncPointBanner.handleDecline (line 133) emits an audit event with `outcome: \"cancelled\"`, but contracts/schemas/audit-event.schema.json only permits outcomes in {confirmed, declined, auto-allowed, failed}. Round 2 (gemini #4) unaddressed. Fix: rename to `outcome: \"declined\"` to match the schema enum; once finding #11 lands the server-side jsonschema.validate will reject this anyway.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 127,
+        "end": 137
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 16,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "kick_agent (coordination_api.py:2877-2898) always passes `--agent-id <agent_id>` to worktree.py teardown, but the registry can contain entries where agent_id is null (single-agent worktrees keyed on change_id alone). worktree.py refuses to match when --agent-id is given but the registry entry has agent_id=None, so the kick reports REMOVED=false and the operator's button looks broken on legitimate single-agent blockers. Fix: look up the registry entry first; only pass --agent-id when the registry actually carries one; alternatively, support a change-scoped teardown form in worktree.py and choose between them. Add a test for the single-agent (agent_id is null) blocker case.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2877,
+        "end": 2900
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 17,
+      "type": "style",
+      "criticality": "low",
+      "description": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py (1071 lines wait \u2014 actually 444 lines, the 41 KB file) still exists as dead duplicate of agent-coordinator/tests/test_kanban_viz_endpoints.py, with stale sys.path manipulation and pre-IMPL_ITERATE assertions (parents[3] for migration path, unused imports). Flagged in Round 1 (codex #10, gemini #4) and Round 2 (claude #12, codex #9, gemini #3) and called out as OC-1 in the IMPL_ITERATE handoff with the explicit action \"Remove in cleanup-feature or follow-up\". Three rounds of reviewers have now seen and flagged the same file; remove it now rather than ship the misleading dead code. The two files actively diverge (`diff -q` reports differing content), so IDE Go-to-Definition and pytest -k matches will land on stale tests for future maintainers.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 444
+      },
+      "package_id": "wp-integration"
+    },
+    {
+      "id": 18,
+      "type": "observability",
+      "criticality": "low",
+      "description": "sync_points.py uses `Path(__file__).resolve().parents[2]` (line 98) to locate the repo root for the registry read. In the Docker image the source is mounted at /app, where `parents[2]` of /app/src/sync_points.py is `/`, not the worktree root \u2014 there is no `.git-worktrees/.registry.json` at `/`, so `_load_registry` always returns empty and the SSE banner will perpetually report `blocked=False` in production regardless of real state. The IMPL_ITERATE handoff R2 fixed the import-time Docker breakage by inlining the registry logic, but did not address the path-resolution side. Fix: accept the repo root from an env var (e.g., COORDINATOR_WORKTREE_ROOT) or from the FastAPI request context (resolve_workdir_path is already used in kanban_viz_files for this purpose); only fall back to parents[2] in dev. Add a Docker smoke test asserting the registry path resolves to a writable location inside the container.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "agent-coordinator/src/sync_points.py",
+      "line_range": {
+        "start": 96,
+        "end": 104
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 19,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "OC-2 acknowledgement: test_docker_manager.py::test_auto_falls_back_to_podman is a pre-existing failure on main (the test mocks `shutil.which` but the developer's docker binary is on PATH ahead of mocking, so the subprocess probe succeeds in the test environment). Confirmed identical failure on main outside the worktree per IMPL_ITERATE handoff. Not a regression from this change \u2014 accept as out-of-scope, but file a separate issue to fix the test's environment isolation (e.g., monkeypatch PATH instead of mocking shutil.which).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "file_path": "agent-coordinator/tests/test_docker_manager.py",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 20,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Cumulative pattern observation across three review rounds: IMPL_ITERATE applied only 3 minor refinements (R1 test-placement, R2 docker-import-isolation, R3 verification of two already-resolved findings) \u2014 none of the 13+ critical Round-2 findings were addressed before re-entering review. The Round-2 quality-gate output (40/40 backend, 65/70 frontend, openspec valid, ruff clean) is real but does not exercise the unwired surfaces (SyncPointBanner not mounted, VendorSwimlanes not rendered from Card, audit\u2192swimlane projection missing). Recommendation for IMPL_ITERATE-2: do not advance to IMPL_REVIEW-4 until the carry-over criticals above (findings 1-12) are actually fixed and verified by integration tests that drive the full board with \u22652 change_ids and a real blocker; otherwise each round just re-confirms the same defects. The disposition is `escalate` because this is a process finding, not a code change.",
+      "disposition": "escalate",
+      "axis": "architecture",
+      "severity": "critical",
+      "package_id": "wp-integration"
+    }
+  ]
+}

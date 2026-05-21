@@ -1,41 +1,41 @@
 {
   "schema_version": 1,
   "change_id": "add-coordinator-kanban-viz",
-  "review_type": "plan",
-  "created_at": "2026-05-17T03:30:42Z",
+  "review_type": "implementation",
+  "created_at": "2026-05-19T03:41:29Z",
   "target": "add-coordinator-kanban-viz",
   "dispatches": [
     {
       "vendor": "claude_code",
       "success": false,
-      "model_used": "(default)",
+      "model_used": null,
       "models_attempted": [
         "(default)"
       ],
-      "elapsed_seconds": 286.86863658297807,
-      "error": "Invalid JSON output",
-      "error_class": null
+      "elapsed_seconds": 3.2163162920624018,
+      "error": "Unknown error",
+      "error_class": "unknown"
     },
     {
       "vendor": "codex",
-      "success": true,
-      "model_used": "gpt-5.5",
+      "success": false,
+      "model_used": null,
       "models_attempted": [
         "gpt-5.5"
       ],
-      "elapsed_seconds": 177.02658833301393,
-      "error": null,
-      "error_class": null
+      "elapsed_seconds": 1.8888865410117432,
+      "error": "Reading additional input from stdin...\nOpenAI Codex v0.130.0\n--------\nworkdir: /Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-coordinator-kanban-viz\nmodel: gpt-5.5\nprovider: openai\napproval: never\nsandbox: read-only\nreasoning effort: high\nreasoning summaries: none\nsession id: 019e3e51-d9f7-7d61-93a2-dcd5cae83a7d\n--------\nuser\n## Review Round 3\n\nReview the following artifacts for correctness, completeness, and adherence to project standards.\n\n### Proposal\n# Add Coordinator Kanb",
+      "error_class": "unknown"
     },
     {
       "vendor": "gemini",
-      "success": false,
+      "success": true,
       "model_used": "gemini-3-flash-preview",
       "models_attempted": [
         "gemini-3-flash-preview"
       ],
-      "elapsed_seconds": 54.50194854201982,
-      "error": "Invalid JSON output",
+      "elapsed_seconds": 75.46388975006994,
+      "error": null,
       "error_class": null
     }
   ],
@@ -43,9 +43,9 @@
   "quorum_received": 1,
   "vendors": [
     {
-      "name": "codex",
-      "findings_path": "findings-codex-plan.json",
-      "finding_count": 8
+      "name": "gemini",
+      "findings_path": "findings-gemini-implementation.json",
+      "finding_count": 3
     }
   ]
 }

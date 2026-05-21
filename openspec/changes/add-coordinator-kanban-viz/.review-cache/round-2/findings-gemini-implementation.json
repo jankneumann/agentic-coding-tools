@@ -1,0 +1,81 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The file `skills/tests/agent-coordinator/test_kanban_viz_endpoints.py` still exists as misleading dead code. It is a duplicate of `agent-coordinator/tests/test_kanban_viz_endpoints.py` but with slightly different path manipulation logic. It is not in any pytest path and should be removed.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "high",
+      "description": "Missing access-log redaction of the `token` query parameter for the `/events/work` SSE endpoint. Uvicorn's default access log will record the JWT. A Starlette middleware should be added to `coordination_api.py` to strip the `token=` parameter from the URL before it reaches the logger.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/coordination_api.py"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "medium",
+      "description": "The `/events/work` SSE response lacks `Referrer-Policy: no-referrer` and `Cache-Control: no-store` headers. This allows the URL (containing the short-lived JWT) to leak via the `Referer` header if a user clicks a link from the Kanban UI, and allows intermediate caches to store the sensitive URL. These headers should be added to the `EventSourceResponse` in `coordination_api.py`.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "optional",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 2746,
+        "end": 2795
+      }
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "File-write helpers `write_saved_view` and `write_audit_event` in `kanban_viz_files.py` stamp the artifact header but do not validate the payload against the JSON schemas in `contracts/schemas/`. Since `jsonschema` is already a declared dependency, it should be used to validate documents before they are written to disk to ensure data integrity.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Incomplete MVP implementation: several core features (saveView, drag-to-Ready, force-release-lock) have library support but are not wired into the UI. `App.tsx` only renders the `Board` and `SyncPointBanner` without the `SavedViewsDrawer` or interaction handlers for drag-and-drop and lock releasing. This leaves the implementation in a state where the code carries maintenance cost without delivering user value.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "optional",
+      "file_path": "apps/kanban-viz/src/App.tsx"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The `SyncPointBanner` component triggers an `onAuditEmit` callback for kick actions, but this callback is not wired in `App.tsx`. As a result, UI-initiated audit events for agent kicks are never persisted via the `/kanban-viz/audit` endpoint. `App.tsx` should provide a handler that calls the backend audit endpoint.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "none",
+      "file_path": "apps/kanban-viz/src/App.tsx"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Dependencies `sse-starlette` and `PyJWT` are only listed in the `[api]` optional group in `pyproject.toml`. However, they are imported in `event_stream.py`, which is part of the core package structure. While primarily used by the API, their absence from the main `dependencies` list could lead to `ModuleNotFoundError` if the coordinator is installed without the `[api]` extra but a code path triggers an SSE-related operation (e.g. in tests).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "file_path": "agent-coordinator/pyproject.toml"
+    }
+  ]
+}

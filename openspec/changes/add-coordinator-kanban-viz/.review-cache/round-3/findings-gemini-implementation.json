@@ -1,0 +1,49 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "The proposal.md and design.md artifacts still list 'drag-to-Ready', 'force-release-lock', and 'Saved-Views UI' as part of the v1 MVP, but these have been explicitly deferred in tasks.md and are missing from the implemented UI (App.tsx and Board.tsx). Documentation should be updated to reflect the narrower MVP scope to avoid user confusion.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-coordinator-kanban-viz/proposal.md",
+      "line_range": {
+        "start": 123,
+        "end": 126
+      }
+    },
+    {
+      "id": 2,
+      "type": "style",
+      "criticality": "low",
+      "description": "Redundant and misplaced test file 'skills/tests/agent-coordinator/test_kanban_viz_endpoints.py' exists alongside 'agent-coordinator/tests/test_kanban_viz_endpoints.py'. The latter is more up-to-date and correctly located within the agent-coordinator package. The redundant file in skills/tests should be removed to prevent confusion.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "skills/tests/agent-coordinator/test_kanban_viz_endpoints.py",
+      "line_range": {
+        "start": 1,
+        "end": 100
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Pre-existing test failure in 'agent-coordinator/tests/test_docker_manager.py::test_auto_falls_back_to_podman' persists on this branch. While unrelated to the Kanban visualization changes, it remains an outstanding issue in the test suite.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "agent-coordinator/tests/test_docker_manager.py",
+      "line_range": {
+        "start": 1,
+        "end": 50
+      }
+    }
+  ]
+}

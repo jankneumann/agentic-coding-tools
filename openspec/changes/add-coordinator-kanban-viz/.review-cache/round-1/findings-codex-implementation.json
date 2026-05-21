@@ -1,0 +1,97 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "description": "Critical: live SSE updates are filtered out because `sse_event_generator` drops every task/audit event whose `CoordinatorEvent.change_id` is missing, but the database NOTIFY payload built by `coordinator_notify()` does not include `change_id`. Real `coordinator_task` and `coordinator_audit` trigger events therefore never reach the client; the board only gets the initial snapshot/polling path. Fix by including a change-id in emitted payloads, deriving it before filtering, or changing the filter to look up the issue/audit row before deciding suppression.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 246,
+        "end": 254
+      },
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: vendor swimlanes do not display the required latest `audit_log.args_summary` activity per vendor. `agentsByIssueId` only projects `agent_id` plus worktree heartbeat, and `VendorSwimlanes` renders only vendor and relative time. The polling fallback also never calls `GET /audit`, so swimlanes cannot show audit activity when SSE is unavailable. Fix by maintaining per-agent latest audit activity from SSE and `/audit?since=&change_id=&limit=`, threading `args_summary` into `AgentActivity`, and rendering the one-line summary per lane.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 163,
+        "end": 181
+      },
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: the Done column is bucketed from `failed` as well as `completed`, and the 24-hour filter uses `updated_at ?? created_at` instead of `completed_at`. The spec requires Done to contain only `status = completed` rows where `completed_at` is within the last 24 hours, so recently completed old tasks can be hidden and failed tasks can appear as done. Fix the `Issue` type to include `completed_at`, map only `completed` to Done, and filter on `completed_at`.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/lib/coordinator-types.ts",
+      "line_range": {
+        "start": 42,
+        "end": 53
+      },
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: destructive kick audit events are not persisted to `docs/kanban-viz/audit/...` and the emitted payload shape does not match `audit-event.json`. `SyncPointBanner` only calls an optional `onAuditEmit`, `App` does not provide one, and the emitted values include actions/outcomes like `kick-agent-initiated`, `pending`, `success`, `failure`, and `cancelled` that are outside the schema enum. Declines therefore produce no durable audit artifact. Fix by wiring `onAuditEmit` to `POST /kanban-viz/audit` and emitting schema-valid `action`, `class`, and `outcome` values for confirm, decline, and failure paths.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 92,
+        "end": 155
+      },
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: each SSE connection registers callbacks on the singleton `EventBusService` but never unregisters them when the client disconnects. Closed connections leave callback closures and queues behind; future events continue enqueueing into abandoned queues until they fill, after which event-bus callback tasks can hang and accumulate. Fix by adding an unsubscribe API to `EventBusService` or by registering connection-scoped callbacks in a context manager and removing them in the generator `finally` block.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 256,
+        "end": 257
+      },
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: coordinator-owned file-write helpers persist arbitrary saved-view and audit payloads without validating them against the checked-in JSON schemas, despite the contract requiring write-time validation. This can commit invalid canonical artifacts under `docs/kanban-viz/`. Fix by validating `view_payload` and `event_payload` against `contracts/schemas/saved-view.json` and `contracts/schemas/audit-event.json` after server-side header stamping and before atomic write, returning 400 on validation errors.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/kanban_viz_files.py",
+      "line_range": {
+        "start": 101,
+        "end": 149
+      },
+      "package_id": "whole-branch"
+    }
+  ]
+}

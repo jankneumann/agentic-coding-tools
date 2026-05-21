@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "review_type": "plan",
+  "created_at": "2026-05-17T02:22:44Z",
+  "target": "add-coordinator-kanban-viz",
+  "dispatches": [
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 300.0318672499852,
+      "error": "Timeout after 300s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 176.76761595899006,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "gemini",
+      "success": true,
+      "model_used": "gemini-3-flash-preview",
+      "models_attempted": [
+        "gemini-3-flash-preview"
+      ],
+      "elapsed_seconds": 25.096329083957244,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 3,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-plan.json",
+      "finding_count": 8
+    },
+    {
+      "name": "gemini",
+      "findings_path": "findings-gemini-plan.json",
+      "finding_count": 5
+    }
+  ]
+}

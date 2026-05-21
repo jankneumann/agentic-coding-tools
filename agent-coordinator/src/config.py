@@ -40,6 +40,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -531,6 +532,42 @@ class SessionGrantsConfig:
         ).lower()
         == "true"
     )
+
+
+def _default_workdir_root() -> Path:
+    """Resolve COORDINATOR_WORKDIR_ROOT — repo root when unset.
+
+    Default: ``Path(__file__).resolve().parents[2]`` (repo root when running
+    from the source tree: agent-coordinator/src/config.py → parents[2] = repo).
+    Override: set ``COORDINATOR_WORKDIR_ROOT`` env var to an absolute path.
+    """
+    raw = os.environ.get("COORDINATOR_WORKDIR_ROOT", "")
+    if raw.strip():
+        return Path(raw.strip()).resolve()
+    # config.py lives at agent-coordinator/src/config.py.
+    # parents[0] = src/, parents[1] = agent-coordinator/, parents[2] = repo root
+    return Path(__file__).resolve().parents[2]
+
+
+def resolve_workdir_path(*parts: str, root: Path | None = None) -> Path:
+    """Join ``parts`` under the configured workdir root and assert containment.
+
+    Raises:
+        ValueError: if the resolved path escapes the configured root (path
+            traversal attempt) or if any part fails basic sanity checks.
+
+    This helper is shared by the saved-views and audit-event endpoints so the
+    path-safety logic is implemented exactly once.
+    """
+    effective_root = (root or _default_workdir_root()).resolve()
+    resolved = (effective_root / Path(*parts)).resolve()
+    try:
+        resolved.relative_to(effective_root)
+    except ValueError:
+        raise ValueError(
+            f"Resolved path {resolved!r} escapes workdir root {effective_root!r}"
+        )
+    return resolved
 
 
 @dataclass

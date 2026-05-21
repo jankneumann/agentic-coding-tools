@@ -1,0 +1,161 @@
+{
+  "handoff_id": "impl-review-0--20260519T023302Z",
+  "schema_version": 1,
+  "change_id": "add-coordinator-kanban-viz",
+  "phase": "IMPL_REVIEW",
+  "outcome": "max_iter",
+  "summary": "IMPL_REVIEW multi-vendor convergence (claude_code + codex + gemini, 3 rounds, min_quorum=2, fix_mode=inline with no-op fix_callback) exhausted max_rounds without converging. 4 cross-vendor-confirmed CRITICAL blockers remain, all describing real defects in the shipped UI/backend integration that IMPL_ITERATE's quality gates did not catch (backend pytest passes, frontend unit tests pass — none exercise App-level composition or multi-change integration). Escalating to operator for scope decision: apply inline fixes (~4 file groups), spawn implementer Agent, or accept-and-ship with documented carve-outs.",
+  "rounds": [
+    {
+      "round": 1,
+      "started_at": "2026-05-19T02:02:47Z",
+      "ended_at": "2026-05-19T02:14:42Z",
+      "elapsed_seconds": 715,
+      "vendor_participation": {
+        "claude_code": "success",
+        "codex": "success",
+        "gemini": "success"
+      },
+      "findings_count": 13,
+      "fixes_applied": 0,
+      "notes": "Initial multi-vendor pass. All 3 vendors participated; quorum 3/3."
+    },
+    {
+      "round": 2,
+      "started_at": "2026-05-19T02:14:42Z",
+      "ended_at": "2026-05-19T02:23:43Z",
+      "elapsed_seconds": 541,
+      "vendor_participation": {
+        "claude_code": "success",
+        "codex": "success",
+        "gemini": "success"
+      },
+      "findings_count": 18,
+      "fixes_applied": 0,
+      "notes": "fix_callback was intentional no-op (driver design choice: package_authors all claude → targeted dispatch would self-loop). Findings repeated and several promoted unconfirmed→confirmed (cross-vendor agreement)."
+    },
+    {
+      "round": 3,
+      "started_at": "2026-05-19T02:23:43Z",
+      "ended_at": "2026-05-19T02:33:02Z",
+      "elapsed_seconds": 559,
+      "vendor_participation": {
+        "claude_code": "success",
+        "codex": "success",
+        "gemini": "success"
+      },
+      "findings_count": 4,
+      "fixes_applied": 0,
+      "notes": "Consensus synthesizer's relaxed final-round semantics demoted unconfirmed findings, leaving 4 hard-confirmed blockers. claude_code 20 raw findings, codex 6, gemini 6. All cross-vendor matches scored 0.95 (very high)."
+    }
+  ],
+  "findings_trend": [13, 18, 4],
+  "total_unique_findings": 27,
+  "blocking_findings_remaining": [
+    {
+      "id": 1,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "critical",
+      "match_score": 0.95,
+      "vendors_confirming": ["claude_code", "codex"],
+      "description": "App.tsx (line 26) still renders only `<Board issues={issues} />`. The SyncPointBanner component is implemented and tested but never mounted — flagged in Round 1 (codex #1) and Round 2 (all three vendors); third round, still unaddressed. Proposal §3 names the banner as one of three MVP surfaces; the feature is effectively missing from the shipped UI.",
+      "recommended_fix": "In apps/kanban-viz/src/App.tsx, render `<SyncPointBanner apiUrl={API_URL} apiKey={API_KEY} />` above `<Board>`; thread API_URL/API_KEY through.",
+      "files": ["apps/kanban-viz/src/App.tsx"]
+    },
+    {
+      "id": 2,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "critical",
+      "match_score": 0.95,
+      "vendors_confirming": ["claude_code", "codex"],
+      "description": "Card.tsx renders title, change_id, assignee, and timestamp only — it does not import VendorSwimlanes and the in-flight branch is absent. Flagged in Round 1 (codex #2, claude #2) and Round 2 (claude #2, codex #2), still unaddressed. Vendor swimlanes are MVP surface #2 per proposal §3.",
+      "recommended_fix": "When issue.status ∈ {claimed, running}, render `<VendorSwimlanes agents={agentsForIssue} completed={false} />`; project per-issue agent activity through useCoordinator and pass it as a prop or via a context.",
+      "files": ["apps/kanban-viz/src/Card.tsx", "apps/kanban-viz/src/useCoordinator.ts"]
+    },
+    {
+      "id": 3,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "match_score": 0.95,
+      "vendors_confirming": ["claude_code", "codex"],
+      "description": "useCoordinator.fetchIssues (line 47-58) sends `labels: changeIds.map(id => 'change:'+id)` as a single array. IssueService.list_issues treats label arrays as ALL-of (AND), so multi-change boards return the intersection (almost always empty) instead of the union. Identical bug in agent-coordinator/src/event_stream.py:170 `_build_snapshot` (`labels=[f'change:{cid}' for cid in change_ids]`).",
+      "recommended_fix": "Iterate change_ids and merge results (Promise.all + dedupe by id) on the frontend; same fix in `_build_snapshot`; add a regression test for ≥2 change_ids.",
+      "files": ["apps/kanban-viz/src/useCoordinator.ts", "agent-coordinator/src/event_stream.py"]
+    },
+    {
+      "id": 5,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "match_score": 0.95,
+      "vendors_confirming": ["claude_code", "gemini"],
+      "description": "Kick flow remains broken end-to-end. sync_points.get_sync_points_status (lines 106-112) emits blocker rows with only `agent_id` and `last_heartbeat_iso` — no `change_id`. SyncPointBanner.tsx line 208 then passes the literal string \"unknown\" to handleKickClick, which feeds it into the `change_id` body parameter of POST /agents/{agent_id}/kick. The kick endpoint runs `worktree.py teardown unknown --agent-id <agent_id> --force` (coordination_api.py:2885-2889) — that change_id will never match a real registry entry, so registry_cleared stays False, kicked=False, and the banner button is non-functional.",
+      "recommended_fix": "(a) include `change_id` in each blocker dict in sync_points.py (registry entries carry it); (b) extend SyncPointStatus + blocker types to surface change_id; (c) thread change_id through SyncPointBanner.handleKickClick instead of hardcoding 'unknown'; (d) integration test that drives a real blocker and asserts non-default change_id reaches the registry teardown.",
+      "files": ["agent-coordinator/src/sync_points.py", "apps/kanban-viz/src/SyncPointBanner.tsx", "apps/kanban-viz/src/useCoordinator.ts", "agent-coordinator/tests/test_kanban_viz_endpoints.py"]
+    }
+  ],
+  "demoted_unconfirmed_findings_note": "22 additional unconfirmed findings exist in .review-cache/round-3/findings-*.json (mostly single-vendor flags from claude_code's higher-recall pass: 20 vs codex 6 vs gemini 6). These include schema-validation gaps for file-write helpers, /audit vs /audit/v2 spec interpretation, sse-starlette missing from pyproject.toml [api], React setIssues nested-update anti-pattern, kick_agent --agent-id null handling, and saveView/drag-to-Ready/force-release-lock UI surfaces marked complete but absent. The consensus synthesizer's final-round semantics demoted these to non-blocking; operator should still skim them before VALIDATE.",
+  "fixes_applied": [],
+  "package_findings": {
+    "wp-frontend-skeleton": {
+      "blocking_count": 1,
+      "finding_ids": [1]
+    },
+    "wp-frontend-swimlanes": {
+      "blocking_count": 1,
+      "finding_ids": [2]
+    },
+    "wp-frontend-sync-banner": {
+      "blocking_count": 1,
+      "finding_ids": [5]
+    },
+    "wp-coord-endpoints": {
+      "blocking_count": 2,
+      "finding_ids": [3, 5]
+    },
+    "wp-saved-views": {
+      "blocking_count": 0,
+      "demoted_unconfirmed_count": 3,
+      "notes": "saveView/drag-to-Ready/force-release-lock features marked complete in tasks but vendors flag them as absent; demoted in final round but operator should verify."
+    }
+  },
+  "vendor_effectiveness": {
+    "claude_code": {
+      "rounds_participated": 3,
+      "total_findings": 20,
+      "findings_per_round": [13, 18, 20],
+      "confirmed_findings_authored": 4,
+      "elapsed_seconds_total": 717,
+      "notes": "Primary vendor on all 4 confirmed blockers. Highest recall."
+    },
+    "codex": {
+      "rounds_participated": 3,
+      "total_findings": 6,
+      "findings_per_round": [13, 18, 6],
+      "confirmed_findings_authored": 3,
+      "elapsed_seconds_total": 721,
+      "notes": "Confirmed F1, F2, F3. Higher precision than claude_code."
+    },
+    "gemini": {
+      "rounds_participated": 3,
+      "total_findings": 6,
+      "findings_per_round": [13, 18, 6],
+      "confirmed_findings_authored": 1,
+      "elapsed_seconds_total": 244,
+      "notes": "Confirmed F5 (kick flow). Fastest vendor (~80s/round)."
+    }
+  },
+  "convergence_loop_config": {
+    "review_type": "implementation",
+    "max_rounds": 3,
+    "min_quorum": 2,
+    "fix_mode": "inline",
+    "fix_callback": "no-op recorder (intentional)",
+    "post_fix_validator": "ruff check on critical source files"
+  },
+  "feature_branch": "openspec/add-coordinator-kanban-viz",
+  "feature_branch_head": "66a4f96",
+  "next_phase": "ESCALATE",
+  "escalation_reason": "max_rounds reached with 4 confirmed cross-vendor blockers. Operator decision required: (A) apply inline fixes for F1/F2/F3/F5 (~6-8 files, ~2-4h work, ships fully spec-compliant MVP), (B) spawn fresh implementer Agent with the 4 fix-specs, (C) accept partial MVP with documented carve-outs (App.tsx wiring + multi-change semantics are not optional per proposal §3 so this path is not recommended), (D) abandon.",
+  "operator_recommendation": "Option A (orchestrator applies inline fixes). The 4 fixes are well-scoped with vendor-supplied file:line references. Estimated diff: ~150 LOC across 6 files + 1 new integration test. After fixes land, re-run IMPL_REVIEW with max_rounds=1 to confirm clean (since the same vendors will re-evaluate the same code, this is a verification round, not a convergence round; the relaxed final-round semantics are acceptable here because we're confirming a known-good state).",
+  "created_at": "2026-05-19T02:33:02.000000+00:00"
+}

@@ -1,13 +1,11 @@
 {
   "schema_version": 3,
   "change_id": "add-coordinator-kanban-viz",
-  "current_phase": "IMPLEMENT",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 4,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
-  "findings_trend": [
-    0
-  ],
+  "findings_trend": [],
   "blocking_findings": [],
   "vendor_availability": {
     "claude": true,
@@ -15,21 +13,44 @@
     "gemini": true,
     "jules": false
   },
-  "packages_status": {},
-  "package_authors": {},
+  "packages_status": {
+    "wp-contracts": "complete",
+    "wp-coord-endpoints": "complete",
+    "wp-frontend-skeleton": "complete",
+    "wp-frontend-swimlanes": "complete",
+    "wp-frontend-sync-banner": "complete",
+    "wp-integration": "complete",
+    "wp-saved-views": "complete",
+    "wp-tauri-scaffold": "complete"
+  },
+  "package_authors": {
+    "wp-contracts": "claude",
+    "wp-coord-endpoints": "claude",
+    "wp-frontend-skeleton": "claude",
+    "wp-frontend-swimlanes": "claude",
+    "wp-frontend-sync-banner": "claude",
+    "wp-integration": "claude",
+    "wp-saved-views": "claude",
+    "wp-tauri-scaffold": "claude"
+  },
   "implementation_strategy": {},
   "memory_ids": [],
   "handoff_ids": [
     "plan-iterate-0--20260517T012710Z",
-    "plan-review-0--20260517T133333Z"
+    "plan-review-0--20260517T133333Z",
+    "implement-0--20260517T153208Z",
+    "impl-iterate-0--20260517T164500Z",
+    "impl-review-0--20260519T023302Z",
+    "impl-review-1--20260519T034130Z",
+    "validate-0--20260519T140000Z"
   ],
-  "last_handoff_id": "plan-review-0--20260517T133333Z",
+  "last_handoff_id": "validate-0--20260519T140000Z",
   "started_at": "2026-05-17T01:18:06.125055+00:00",
-  "phase_started_at": "2026-05-17T13:36:05.017831+00:00",
-  "previous_phase": "PLAN_REVIEW",
+  "phase_started_at": "2026-05-19T14:07:15.400760+00:00",
+  "previous_phase": "SUBMIT_PR",
   "escalation_reason": null,
-  "val_review_enabled": true,
+  "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer"
+  "phase_archetype": null
 }

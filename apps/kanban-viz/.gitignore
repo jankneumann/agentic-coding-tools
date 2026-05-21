@@ -1,0 +1,7 @@
+dist/
+node_modules/
+src-tauri/target/
+.env.local
+.env.*.local
+# Un-ignore src/lib/ which is tracked by root .gitignore
+!src/lib/

@@ -1,0 +1,97 @@
+{
+  "review_type": "implementation",
+  "target": "add-coordinator-kanban-viz",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The actual app never mounts the sync-point gate banner. App.tsx returns only `<Board issues={issues} />`, so `/sync-points/status` is never polled in the user-facing UI and the unblock/kick consent flow is unreachable outside isolated component tests. Render `SyncPointBanner` above the board with `apiUrl`/`apiKey` and add an App-level test that proves the banner appears.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/App.tsx",
+      "line_range": {
+        "start": 26,
+        "end": 26
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: In-flight cards do not render vendor swimlanes. `Card` accepts only an `Issue`, `Column` renders plain cards, and `useCoordinator` discards audit events, so the implemented `VendorSwimlanes` component is never connected to board data and live vendor activity/consensus cannot appear. Wire agent activity into card props, render `VendorSwimlanes` for in-flight/completed vendor-diverse work, and cover it with a Board/App integration test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/Card.tsx",
+      "line_range": {
+        "start": 21,
+        "end": 67
+      },
+      "package_id": "wp-frontend-swimlanes"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The sync banner cannot successfully kick a real blocker because it hardcodes `change_id` to `unknown` when calling `POST /agents/{agent_id}/kick`. The backend requires the real `(change_id, agent_id)` key to remove the registry entry, so the UI's unblock action will call `worktree.py teardown unknown --agent-id ...` and leave the blocker in place. Include `change_id` in `/sync-points/status` blocker rows or encoded suggested actions, then pass that value through the consent flow and assert the request body in tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/components/SyncPointBanner.tsx",
+      "line_range": {
+        "start": 205,
+        "end": 209
+      },
+      "package_id": "wp-frontend-sync-banner"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: Real SSE transition/audit events are filtered out before reaching clients. The handler drops any event without `evt.change_id`, but the database NOTIFY payload produced by `coordinator_notify()` and the new audit trigger does not include `change_id` or context. As a result, live coordinator_task/coordinator_audit events from the actual bus never pass the filter. Enrich NOTIFY payloads with change_id or have the SSE handler look up the affected row by `entity_id` before filtering; add an integration test using payloads shaped like the SQL trigger output.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 233,
+        "end": 241
+      },
+      "package_id": "wp-coord-endpoints"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: Multi-change subscriptions use AND semantics instead of the required union. `fetchIssues()` sends all `change:<id>` labels in one `/issues/list` request, while `IssueService.list_issues()` keeps only issues containing every label; subscribing to `change_ids=[a,b]` therefore hides normal issues that belong to only one change. The snapshot builder uses the same pattern. Fetch per change_id and merge/dedupe, or add a server-side OR filter.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts",
+      "line_range": {
+        "start": 47,
+        "end": 55
+      },
+      "package_id": "wp-frontend-skeleton"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The backend issue shape does not match the frontend contract. `Issue.to_dict()` does not emit top-level `body`, `updated_at`, `change_id`, or `task_key`, but `coordinator-types.ts` and the card/Done-column logic expect them. This means cards will not show the change/task fields, and completed work created more than 24h ago but completed recently can be incorrectly omitted because the UI falls back to `created_at`. Either flatten the metadata fields and expose `updated_at`, or regenerate the frontend types and UI against the real response shape.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "line_range": {
+        "start": 108,
+        "end": 129
+      },
+      "package_id": "wp-coord-endpoints"
+    }
+  ]
+}

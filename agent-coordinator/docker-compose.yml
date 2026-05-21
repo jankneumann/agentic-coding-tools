@@ -221,6 +221,14 @@ services:
       SUPABASE_SERVICE_KEY: "${SUPABASE_SERVICE_KEY:-dev-supabase-key-unused-with-postgres-backend}"
       AGENT_ID: "${COORDINATOR_AGENT_ID:-cloud-coordinator}"
       AGENT_TYPE: "${COORDINATOR_AGENT_TYPE:-coordinator}"
+      # IMPL_REVIEW live-smoke Finding B: the kanban-viz file-write
+      # endpoints resolve paths under COORDINATOR_WORKDIR_ROOT. Without
+      # this var set, config.py:_default_workdir_root() falls back to
+      # Path(__file__).parents[2] which is `/` in the container — writes
+      # to /docs/kanban-viz/... fail with Permission denied. Use a
+      # container-owned writable directory so the saved-view and audit
+      # endpoints work out of the box.
+      COORDINATOR_WORKDIR_ROOT: "${COORDINATOR_WORKDIR_ROOT:-/app/workdir}"
     healthcheck:
       test:
         - CMD
