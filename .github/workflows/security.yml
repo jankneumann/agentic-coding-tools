@@ -12,10 +12,21 @@ permissions:
   pull-requests: read
 
 env:
-  # CVE-2026-3219 affects pip itself. The GitHub Advisory Database lists no
-  # patched version as of 2026-05-04, so keep auditing project dependencies
-  # while waiving only this toolchain CVE.
-  PIP_AUDIT_IGNORED_VULN: CVE-2026-3219
+  # Space-separated list of CVE/PYSEC IDs to ignore in pip-audit runs.
+  # Each entry must have a written justification (disputed advisory, no fix
+  # available, or scoped-to-environment-we-don't-use); add a comment when
+  # appending. Reviewed periodically — when a fix lands upstream, drop the
+  # entry rather than carrying it forward forever.
+  #
+  # - CVE-2026-3219: affects pip itself. GitHub Advisory Database lists no
+  #   patched version as of 2026-05-04.
+  # - PYSEC-2025-183: pyjwt "weak encryption" advisory, disputed by supplier
+  #   (the key length is chosen by the calling application; library users
+  #   benefit from a minimum value but it's not a library defect). No fix
+  #   version. Added 2026-05-20 to unblock kanban-viz PR #178.
+  PIP_AUDIT_IGNORED_VULNS: >-
+    CVE-2026-3219
+    PYSEC-2025-183
 
 jobs:
   secret-scan:
@@ -48,8 +59,10 @@ jobs:
       - name: Run pip-audit
         run: |
           uv pip install pip-audit
-          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN" --format json --output pip-audit-results.json || true
-          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN"
+          # shellcheck disable=SC2086  # word-split is intentional — CVE IDs are alnum+hyphen
+          IGNORE_ARGS=$(printf -- '--ignore-vuln %s ' $PIP_AUDIT_IGNORED_VULNS)
+          uv run pip-audit --desc on $IGNORE_ARGS --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on $IGNORE_ARGS
 
   dependency-audit-skills:
     runs-on: ubuntu-latest
@@ -71,5 +84,7 @@ jobs:
       - name: Run pip-audit
         run: |
           uv pip install pip-audit
-          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN" --format json --output pip-audit-results.json || true
-          uv run pip-audit --desc on --ignore-vuln "$PIP_AUDIT_IGNORED_VULN"
+          # shellcheck disable=SC2086  # word-split is intentional — CVE IDs are alnum+hyphen
+          IGNORE_ARGS=$(printf -- '--ignore-vuln %s ' $PIP_AUDIT_IGNORED_VULNS)
+          uv run pip-audit --desc on $IGNORE_ARGS --format json --output pip-audit-results.json || true
+          uv run pip-audit --desc on $IGNORE_ARGS
