@@ -221,6 +221,12 @@ services:
       SUPABASE_SERVICE_KEY: "${SUPABASE_SERVICE_KEY:-dev-supabase-key-unused-with-postgres-backend}"
       AGENT_ID: "${COORDINATOR_AGENT_ID:-cloud-coordinator}"
       AGENT_TYPE: "${COORDINATOR_AGENT_TYPE:-coordinator}"
+      # SSE signing key for /events/auth JWT mint (design D11 fail-closed).
+      # When unset, /events/auth returns 503 and the kanban-viz SSE transport
+      # falls back to polling. Set this to enable live SSE in Docker mode;
+      # the e2e orchestrator (scripts/e2e_kanban.py) generates an ephemeral
+      # key per run and passes it through this var.
+      COORDINATOR_SSE_SIGNING_KEY: "${COORDINATOR_SSE_SIGNING_KEY:-}"
       # IMPL_REVIEW live-smoke Finding B: the kanban-viz file-write
       # endpoints resolve paths under COORDINATOR_WORKDIR_ROOT. Without
       # this var set, config.py:_default_workdir_root() falls back to
