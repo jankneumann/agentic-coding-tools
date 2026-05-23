@@ -284,7 +284,7 @@ Produce a **structured plan analysis** with findings in this format:
 - Design gap (multiple complex decisions without a design.md)
 - Implicit dependency (tasks that modify the same files or shared state without explicit ordering — would cause merge conflicts in parallel execution)
 - Monolithic task (single task that could be decomposed into independent subtasks for parallel agents)
-- Missing dependency graph (tasks lack explicit dependency annotations needed by `/parallel-implement` and Beads `--blocked-by`)
+- Missing dependency graph (tasks lack explicit dependency annotations needed by `/parallel-implement` and the coordinator's `blocked_by` field)
 - Coupled scope (tasks that modify overlapping files or modules, preventing isolated worktree execution)
 - Unstated assumption (plan proceeds on an assumption about scope, technology choice, or constraint that was never confirmed with the user — could validly go multiple ways)
 - Unprotected endpoint (new API endpoint without authentication/authorization requirement stated)
