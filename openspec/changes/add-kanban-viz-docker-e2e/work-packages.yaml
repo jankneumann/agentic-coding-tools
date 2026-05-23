@@ -1,0 +1,198 @@
+schema_version: 1
+
+feature:
+  id: add-kanban-viz-docker-e2e
+  title: "Hermetic Docker-orchestrated e2e for kanban-viz + remote-target smoke + real SSE transition assertion"
+  plan_revision: 1
+  created_by: claude-opus-4-7
+  created_at: "2026-05-23T13:00:00Z"
+
+# No new HTTP/SSE/file-format contracts authored — this change consumes
+# existing coordinator endpoints (issues/create, issues/update, events/auth,
+# events/work) and adds operational tooling around them. The transition test's
+# expected wire format (TransitionPayload) is already pinned by
+# add-coordinator-kanban-viz's spec.md and
+# apps/kanban-viz/src/lib/coordinator-types.ts.
+#
+# The schema requires this block populated, so we point at a placeholder
+# contracts/README.md that documents the consumed canonical sources.
+# revision=1 is required by schema minimum.
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/README.md"
+    files:
+      - "contracts/README.md"
+
+defaults:
+  priority: 4
+  lock_ttl_minutes: 60
+  timeout_minutes: 45
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+
+  # ───────────────────────────────────────────────────────────────────
+  # Single sequential package — no parallelism because:
+  #   - The work landed before the proposal was drafted; tasks have
+  #     hard ordering dependencies (compose → orchestrator → test → make).
+  #   - Total deliverable is ~600 lines across 5 files; below the
+  #     threshold where DAG complexity pays off.
+  # ───────────────────────────────────────────────────────────────────
+
+  - package_id: wp-e2e-orchestration
+    title: "Compose plumbing + orchestrator + seed + transition test + makefile"
+    task_type: implementation
+    description: |
+      Single sequential package covering all deliverables for the hermetic
+      Docker-orchestrated e2e flow:
+
+      1. Add COORDINATOR_SSE_SIGNING_KEY env var to the coordinator-api
+         service in docker-compose.yml with empty-default interpolation
+         (preserves fail-closed posture from add-coordinator-kanban-viz D11).
+      2. Write agent-coordinator/scripts/e2e_kanban.py — stdlib-only Python
+         orchestrator with --target {local,remote}, ephemeral key generation,
+         docker compose up/down lifecycle, SIGINT-safe teardown, and an
+         --allow-nonlocal safety guard for remote targets.
+      3. Write agent-coordinator/scripts/seed_kanban_board.py — stdlib-only
+         Python seed script planting 15 issues across every status + every
+         vendor swimlane, with seed:active umbrella label for --reset.
+      4. Extend apps/kanban-viz/src/__tests__/e2e.integration.test.tsx:
+         (a) fix pre-existing wrong response-shape assertions on
+             /sync-points/status and /worktrees/active (bare arrays, not
+             wrapper objects)
+         (b) add the real transition test that drives pending→running via
+             POST /issues/update and asserts the SSE transition event
+             arrives with correct from/to/work_queue_id
+         (c) waitForSseEvent helper that uses ReadableStreamDefaultReader
+             directly (no AbortSignal — works around jsdom↔undici interop)
+         (d) afterEach cleanup that cancels reader + closes created issues
+      5. Add Makefile targets e2e-kanban and e2e-kanban-remote. Fix
+         pre-existing help-regex bug (digits excluded).
+
+      Spec scenarios covered:
+        - "Hermetic E2E Test Orchestration > make e2e-kanban runs the full sweep"
+        - "Hermetic E2E Test Orchestration > Transition test asserts SSE event arrives within latency budget"
+        - "Hermetic E2E Test Orchestration > Operator interrupts mid-run"
+        - "Hermetic E2E Test Orchestration > Non-localhost target requires explicit --allow-nonlocal"
+        - "Hermetic E2E Test Orchestration > SSE signing key unset on coordinator triggers graceful skip"
+        - "Demo Data Seeding > Seed populates every column"
+        - "Demo Data Seeding > --reset wipes prior seeded rows"
+        - "Demo Data Seeding > Idempotent re-seed leaves multiple distinct runs queryable"
+        - "Coordinator Compose Surface > Empty default produces fail-closed SSE"
+        - "Coordinator Compose Surface > Operator-set value flows through"
+        - "Coordinator Compose Surface > Orchestrator-supplied ephemeral key enables full e2e"
+
+      Design decisions: D1 (reuse --profile api), D2 (ephemeral keys),
+                        D3 (fetch+ReadableStream not EventSource),
+                        D4 (drop AbortSignal in jsdom),
+                        D5 (--allow-nonlocal guard),
+                        D6 (empty-default interpolation preserves fail-closed)
+    role: python-engineer
+    priority: 4
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/docker-compose.yml"
+        - "agent-coordinator/scripts/e2e_kanban.py"
+        - "agent-coordinator/scripts/seed_kanban_board.py"
+        - "agent-coordinator/Makefile"
+        - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+      keys:
+        # Lock-key suffix must match ^[a-z]+$ (work-packages.schema.json pattern
+        # registry), so we use 'orchestration' rather than 'e2e-orchestration'.
+        - "feature:add-kanban-viz-docker-e2e:orchestration"
+      ttl_minutes: 90
+      reason: "Implementing orchestrator, seed, test, and Makefile glue"
+    scope:
+      write_allow:
+        - "agent-coordinator/docker-compose.yml"
+        - "agent-coordinator/scripts/e2e_kanban.py"
+        - "agent-coordinator/scripts/seed_kanban_board.py"
+        - "agent-coordinator/Makefile"
+        - "apps/kanban-viz/src/__tests__/e2e.integration.test.tsx"
+        - "openspec/changes/add-kanban-viz-docker-e2e/**"
+      read_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/event_stream.py"
+        - "agent-coordinator/src/issue_service.py"
+        - "agent-coordinator/database/migrations/025_notify_enrich_change_id.sql"
+        - "apps/kanban-viz/src/**"
+        - "openspec/specs/coordinator-kanban-viz/spec.md"
+        - "openspec/changes/archive/2026-05-22-add-coordinator-kanban-viz/**"
+        - "docs/kanban-viz/**"
+        - "CLAUDE.md"
+    worktree:
+      name: "wp-e2e-orchestration"
+      mode: "isolated"
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "ruff-check-scripts"
+          kind: "command"
+          command: "agent-coordinator/.venv/bin/ruff check agent-coordinator/scripts/e2e_kanban.py agent-coordinator/scripts/seed_kanban_board.py"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "ruff_clean"
+        - name: "typecheck-kanban-viz"
+          kind: "command"
+          command: "cd apps/kanban-viz && npm run typecheck"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "typecheck_clean"
+        - name: "unit-tests-kanban-viz"
+          kind: "command"
+          # Runs the 9 test files in apps/kanban-viz/src/__tests__/; the e2e
+          # tests inside e2e.integration.test.tsx self-skip when
+          # VITE_COORDINATOR_URL / VITE_API_KEY are unset.
+          command: "cd apps/kanban-viz && npm test -- --run"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "unit_tests_passed"
+        - name: "compose-config-validates"
+          kind: "command"
+          command: "cd agent-coordinator && docker compose --profile api config --quiet"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "compose_config_valid"
+        - name: "live-e2e-via-orchestrator"
+          kind: "command"
+          # The orchestrator owns the full Docker lifecycle; this single
+          # command brings up Postgres + coordinator-api, runs vitest with
+          # the ephemeral key, tears down. Returns 0 on suite pass, 2 on
+          # suite fail, 1 on setup error.
+          command: "cd agent-coordinator && python3 scripts/e2e_kanban.py"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "live_e2e_passed"
+        - name: "openspec-validate-strict"
+          kind: "command"
+          command: "openspec validate add-kanban-viz-docker-e2e --strict"
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_strict_valid"
+    outputs:
+      result_keys:
+        - "ruff_clean"
+        - "typecheck_clean"
+        - "unit_tests_passed"
+        - "compose_config_valid"
+        - "live_e2e_passed"
+        - "openspec_strict_valid"
