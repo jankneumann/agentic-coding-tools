@@ -320,6 +320,16 @@ test-integration: ## Run integration tests only (requires db-up)
 test-e2e: ## Run e2e tests only (requires db-up + services running)
 	$(UV_RUN) pytest -m e2e
 
+.PHONY: e2e-kanban
+e2e-kanban: ## Run kanban-viz e2e (Docker, hermetic). SEED=1 to also seed demo data.
+	$(if $(SEED),python3 $(CURDIR)/scripts/e2e_kanban.py --seed,python3 $(CURDIR)/scripts/e2e_kanban.py)
+
+.PHONY: e2e-kanban-remote
+e2e-kanban-remote: ## Run kanban-viz e2e against URL=https://... KEY=...  (requires --allow-nonlocal)
+	@test -n "$(URL)" || (echo "ERROR: URL=... required" && exit 1)
+	@test -n "$(KEY)" || (echo "ERROR: KEY=... required" && exit 1)
+	python3 $(CURDIR)/scripts/e2e_kanban.py --target remote --url "$(URL)" --api-key "$(KEY)" --allow-nonlocal
+
 .PHONY: lint
 lint: ## Run ruff linter
 	$(UV_RUN) ruff check .
@@ -383,7 +393,7 @@ stop: api-stop ## Stop all services (db + background API)
 
 .PHONY: help
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 # ---------------------------------------------------------------------------
