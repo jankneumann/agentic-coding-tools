@@ -340,9 +340,9 @@ def resolve_branch(
 
     1. **Explicit override** (highest precedence):
        - ``explicit`` — if passed, used verbatim as the final branch and returned
-         immediately, even when ``branch_prefix`` is also set. This preserves
-         backward compatibility with callers like ``openspec-beads-worktree``
-         that pre-compose their own fully-qualified task branches.
+         immediately, even when ``branch_prefix`` is also set. Useful for callers
+         that pre-compose their own fully-qualified task branches and need them
+         passed through untouched.
 
     2. **Branch-prefix scheme** (for prototype variants):
        - When ``branch_prefix='prototype'``, the result is
@@ -696,7 +696,13 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     If the worktree contains initialized submodules, deinit them first.
     If plain removal still fails with the git-specific "working trees
     containing submodules" error, fall back to ``--force``. Other removal
-    errors (dirty tree, conflicting edits) are NOT force-overridden.
+    errors (dirty tree, conflicting edits) are NOT force-overridden unless
+    ``--force`` is explicitly passed.
+
+    ``--force``: Remove the registry entry and best-effort ``git worktree
+    remove`` even if the worktree path is dirty, missing, or already deleted.
+    Used by ``POST /agents/{id}/kick`` to clear stale entries regardless of
+    worktree state.
 
     Short-circuits to a silent no-op when the caller already has
     filesystem isolation (see ``EnvironmentProfile.detect``).
@@ -711,6 +717,7 @@ def cmd_teardown(args: argparse.Namespace) -> int:
     agent_id: str | None = getattr(args, "agent_id", None)
     prefix: str | None = args.prefix
     sibling: bool = bool(getattr(args, "sibling", False))
+    force: bool = bool(getattr(args, "force", False))
 
     wt_path = worktree_path(main_repo, change_id, agent_id, prefix, sibling=sibling)
 
@@ -727,6 +734,15 @@ def cmd_teardown(args: argparse.Namespace) -> int:
             wt_path = alt_path
 
     if not wt_path.is_dir():
+        if force:
+            # --force: registry entry may still exist even if the worktree
+            # directory is gone (e.g. after a manual rm). Clear it.
+            registry = load_registry(main_repo)
+            remove_entry(registry, change_id, agent_id)
+            save_registry(main_repo, registry)
+            print("REMOVED=true")
+            print(f"REMOVED_PATH={wt_path}")
+            return 0
         print(f"No worktree found for {change_id}"
               + (f" (agent: {agent_id})" if agent_id else ""),
               file=sys.stderr)
@@ -738,7 +754,11 @@ def cmd_teardown(args: argparse.Namespace) -> int:
 
     # Must run from main repo to remove worktree
     try:
-        run_git("worktree", "remove", str(wt_path), cwd=str(main_repo))
+        git_remove_args = ["worktree", "remove"]
+        if force:
+            git_remove_args.append("--force")
+        git_remove_args.append(str(wt_path))
+        run_git(*git_remove_args, cwd=str(main_repo))
     except subprocess.CalledProcessError as exc:
         stderr = (exc.stderr or "").strip()
         if _SUBMODULE_REMOVE_ERROR in stderr:
@@ -753,6 +773,12 @@ def cmd_teardown(args: argparse.Namespace) -> int:
             run_git(
                 "worktree", "remove", "--force", str(wt_path),
                 cwd=str(main_repo),
+            )
+        elif force:
+            # --force: log but continue to clear the registry entry
+            print(
+                f"git worktree remove --force failed (ignored by --force): {stderr}",
+                file=sys.stderr,
             )
         else:
             raise  # Other errors deserve operator attention
@@ -1159,6 +1185,14 @@ def main() -> int:
             "falls back to the alternate layout if the primary path is "
             "missing, so this flag is informational unless you have both "
             "layouts coexisting for the same agent-id."
+        ),
+    )
+    teardown_parser.add_argument(
+        "--force", action="store_true",
+        help=(
+            "Remove the registry entry and best-effort git worktree remove "
+            "even if the worktree path is dirty, missing, or already deleted. "
+            "Used by POST /agents/{id}/kick to clear stale entries."
         ),
     )
     teardown_parser.set_defaults(func=cmd_teardown)
