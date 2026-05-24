@@ -1,0 +1,35 @@
+{
+  "change_id": "extract-gen-eval-package",
+  "checkpoints_injected": [
+    "wave-validation",
+    "db-migration-review"
+  ],
+  "cli_review_enabled": true,
+  "complexity_warnings": [
+    "Total LOC estimate (8140) exceeds threshold (500)",
+    "Package count (6) exceeds soft threshold (4)",
+    "Database migration signal detected; require --force"
+  ],
+  "current_phase": "PLAN_ITERATE",
+  "force_used": true,
+  "handoff_ids": [
+    "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json"
+  ],
+  "last_handoff_id": "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json",
+  "package_authors": {},
+  "phase_archetype": "architect",
+  "phase_history": [
+    {
+      "at": "2026-05-24T16:05:54.018315+00:00",
+      "outcome": "complete",
+      "phase": "INIT"
+    }
+  ],
+  "phase_iterations": {},
+  "phase_started_at": "2026-05-24T16:05:54.018315+00:00",
+  "previous_phase": "INIT",
+  "schema_version": 3,
+  "started_at": "2026-05-24T16:05:54.018315+00:00",
+  "total_iterations": 0,
+  "val_review_enabled": true
+}
