@@ -393,6 +393,7 @@ packages:
         - "skills/improve-harness/tests/**"
         - "skills/session-log/scripts/sanitize_session_log.py"
         - "skills/session-log/tests/**"
+        - ".gitignore"
       read_allow:
         - "skills/**"
         - "agent-coordinator/src/**"
