@@ -73,6 +73,7 @@ The system SHALL record capability-gap signals from four sources — agent self-
 #### Scenario: Structured failure recording schema
 WHEN any emitter records a capability-gap signal
 THEN it SHALL use the shared episodic-memory tag schema: failure_type (enum: scope_violation, verification_failed, lock_unavailable, timeout, convergence_failed, context_exhaustion), capability_gap (free text describing what was missing), suggested_improvement (free text), affected_skill (skill name), severity (low/medium/high/critical), AND source (enum: self-reported, coordinator-emitted, session-log, transcript-mined)
+AND WHEN a `remember` call recording a capability gap omits the `source` tag, the memory service SHALL default it to `self-reported` (the only emitter that calls `remember` directly without setting source); the other three emitters always set source explicitly
 
 #### Scenario: Agent self-reports a capability gap
 WHEN an agent encounters a task failure and invokes the `remember` MCP tool with capability-gap metadata
@@ -181,24 +182,44 @@ WHEN a transcript source is unavailable (path missing, API endpoint absent, auth
 THEN the adapter SHALL log a structured warning identifying the harness and the reason
 AND exit with a non-fatal status that does not block other adapters or the downstream analysis pipeline
 
-#### Scenario: Sanitization precedes any LLM analysis
+#### Scenario: Adapter fails soft on unsupported schema version
+WHEN an adapter encounters a transcript whose on-disk schema version is newer than the version the adapter is pinned to
+THEN the adapter SHALL detect the version mismatch (via the schema version field or metadata header) BEFORE attempting to parse
+AND log a structured warning identifying the harness, the pinned version, and the encountered version
+AND skip the session with a non-fatal status rather than silently mis-parsing it into malformed events
+
+#### Scenario: Sanitization precedes disk write and LLM analysis
 WHEN normalized events are produced
-THEN the sanitizer SHALL redact secrets, high-entropy strings, and environment-specific paths from event payloads (including tool-call arguments and tool-result outputs) BEFORE the events are passed to triage or deep-analysis models
+THEN the sanitizer SHALL redact secrets, high-entropy strings, and environment-specific paths from event payloads (including tool-call arguments and tool-result outputs) BEFORE the events are written to `docs/transcripts/` AND before they are passed to triage or deep-analysis models
 AND the sanitizer SHALL be the one used by the `session-log` skill, extended as needed for transcript-specific structures
+AND `docs/transcripts/` SHALL be git-ignored as a defense-in-depth measure so raw normalized events are never committed even if a sanitizer gap exists
+
+#### Scenario: Sanitizer detects bare and prefixed secret forms in tool payloads
+WHEN the sanitizer processes a tool-call argument or tool-result output
+THEN it SHALL redact secrets that appear WITHOUT an assignment prefix (e.g. a bare token in a command output, a dumped `.env` body, a JWT inside a JSON blob)
+AND it SHALL redact provider key forms including `sk-`, `sk-proj-`, `sk-svcacct-` (OpenAI), `AIza` (Google/Gemini), and `Authorization:`/`Bearer` header values
+AND a fixture-based recall test SHALL assert that a corpus of seeded secrets is fully redacted (zero leakage), failing the build on any miss
 
 #### Scenario: Triage scores every ingested session
 WHEN normalized transcripts are written
 THEN a triage pass SHALL resolve its model via the archetype system (default archetype `analyst`, configurable via `skills/collect-transcripts/config.yaml: triage.archetype` and `provider`)
 AND run the resolved model over each session
-AND produce a score covering: retry_count, tool_error_count, scope_violation_count, user_correction_count, and a single-shot struggle classification
+AND produce a score covering: retry_count (integer), tool_error_count (integer), scope_violation_count (integer), user_correction_count (integer), and struggle_class (enum: `none` | `minor` | `significant` | `severe`)
+AND a session SHALL be flagged for deep analysis when struggle_class is at or above the configured threshold (default `significant`)
 AND persist the score under the session id alongside the normalized transcript
+
+#### Scenario: Classifier recall is measured against a labeled fixture corpus
+WHEN the test suite runs for the audit-triage classifier (D9) or the transcript triage/deep-analysis (D8)
+THEN each classifier SHALL be evaluated against a labeled fixture corpus of sessions with known seeded capability gaps
+AND the test SHALL assert a minimum recall floor (default: the classifier detects at least 80% of seeded gaps) using stubbed deterministic model responses for CI and a separate opt-in live-model evaluation
+AND recall below the floor SHALL fail the build, making "recall is the controlling metric" enforceable rather than aspirational
 
 #### Scenario: Deep analysis runs on flagged sessions
 WHEN a session triage score exceeds the configured struggle threshold
 THEN a deep-read analysis SHALL resolve its model via the archetype system (default archetype `reviewer`, configurable via `skills/collect-transcripts/config.yaml: deep_analysis.archetype` and `provider`)
 AND run the resolved model over the normalized transcript
 AND emit findings using the failure-recording tag schema (`failure_type:*`, `capability_gap:*`, `affected_skill:*`, `severity:*`) from the Capability Gap Detection requirement
-AND write the findings to episodic memory via the `remember` MCP tool with `source:transcript-mined` as an additional tag
+AND write the findings to episodic memory via the `remember` MCP tool with `source:transcript-mined` plus a `prompt_version:N` tag identifying the deep-analysis prompt version (consistent with D11 prompt versioning)
 
 #### Scenario: Mining is opt-in
 WHEN the skill runs in a CI context or without an explicit `--enable` flag

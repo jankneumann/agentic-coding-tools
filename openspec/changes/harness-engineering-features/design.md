@@ -17,7 +17,7 @@
 
 **Decision**: Split CLAUDE.md into a ~100-line TOC at the root and topic-specific files under `docs/guides/`. Topic files: `workflow.md`, `python-environment.md`, `git-conventions.md`, `skills.md`, `worktree-management.md`, `documentation.md`, `session-completion.md`.
 
-**Rationale**: Follows OpenAI's principle of "give agents a map, not a manual." The current CLAUDE.md is ~130 lines and growing. Splitting now prevents the file from becoming unwieldy. Each topic doc can evolve independently.
+**Rationale**: Follows OpenAI's principle of "give agents a map, not a manual." The current CLAUDE.md is ~158 lines and growing. Splitting now prevents the file from becoming unwieldy. Each topic doc can evolve independently. The binding constraint is the ≤120-line gate enforced in `work-packages.yaml` (wp-context-architecture verification); the ~100-line target in the proposal is the goal within that hard ceiling.
 
 **Trade-offs**: Agents must follow links to get details. Accepted because the TOC provides enough context to know *where* to look, which is more valuable than having everything in one place when the file grows beyond comfortable reading size.
 
@@ -31,7 +31,7 @@
 
 ### D4: Failure metadata as shared tag schema in episodic memory
 
-**Decision**: Define a shared capability-gap tag schema in the existing episodic memory system using structured tags: `failure_type:<type>`, `capability_gap:<description>`, `affected_skill:<name>`, `severity:<level>`, plus `source:<emitter>` (one of `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`). Multiple emitters write into this schema (see D8/D9/D10); `/improve-harness` is the sole consumer and is source-agnostic.
+**Decision**: Define a shared capability-gap tag schema in the existing episodic memory system using structured tags: `failure_type:<type>`, `capability_gap:<description>`, `suggested_improvement:<text>`, `affected_skill:<name>`, `severity:<level>`, plus `source:<emitter>` (one of `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`). When a `remember` call recording a capability gap omits `source`, the memory service defaults it to `self-reported`. Multiple emitters write into this schema (see D8/D9/D10); `/improve-harness` is the sole consumer and is source-agnostic.
 
 **Rationale**: The episodic memory system already supports tags with relevance scoring and time-decay. Treating the tag schema as a *contract between emitters and consumers* — rather than as a private convention of the `remember` MCP tool — is the central insight that makes harness self-improvement work. Each emitter has its own bias profile (self-report under-reports struggle; coordinator-emitted misses tool-loop friction; session-log catches what the agent noticed but missed timing; transcript-mined catches everything but is expensive). Cross-referencing sources gives high-confidence signal; relying on any single source has a known blind spot.
 
@@ -97,6 +97,7 @@ Raw normalized events are written to disk under `docs/transcripts/<date>/<sessio
 - (c) Classifier latency is decoupled from the originating operation — a struggle pattern that happens at 14:03 may not be recorded until 14:13 (next batch interval). Accepted because `/improve-harness` operates on time windows of days, not minutes; a 10-min lag is invisible at that resolution.
 - (d) The classifier prompt is in the trusted path for what counts as a capability gap. Mitigated by versioning the classifier prompt under `agent-coordinator/src/audit_triage_prompts/` with a `prompt_version:N` tag on every emitted finding, so prompt iterations can be A/B compared via `/improve-harness` over time. Prompts are also subject to ordinary code review on change.
 - (e) LLM output is unstructured by default. The classifier MUST be invoked with strict output schema enforcement (tool-use JSON schema or constrained generation) so emitted findings always parse — invalid responses are dropped with a warning, never written to memory.
+- (f) The ring buffer is in-memory, so audit entries not yet drained are lost if the coordinator process restarts. Accepted: capability-gap emission is a best-effort signal source (one of four), not a system of record. The audit_log table remains the durable record; the ring buffer is only the un-triaged tail. A dropped tail means a few recent operations escape classification until the same patterns recur — acceptable because `/improve-harness` operates on multi-day windows and other sources (session-log, transcripts) provide overlapping coverage. v1 assumes a single coordinator instance; multi-instance HA (each with its own buffer) is out of scope.
 
 ### D10: Session-log "Capability Gaps Observed" section
 
@@ -148,8 +149,8 @@ Implementation ──→ Review Dispatch ──→ Consensus ──→ Convergen
                                      └─→ Deep analyze (flagged sessions) ──→ findings ──┘
                                              (D4 tag schema, source:transcript-mined)
 
-Coordinator audit ──→ pattern matcher ──→ findings ──┘
-(D9: source:coordinator-emitted)
+Coordinator audit ──→ ring buffer ──→ audit_triage.py (LLM classifier) ──→ findings ──┘
+(D9: source:coordinator-emitted; hot path = ring-buffer push only)
 
 session-log "Capability Gaps Observed" section ──→ findings ──┘
 (D10: source:session-log)

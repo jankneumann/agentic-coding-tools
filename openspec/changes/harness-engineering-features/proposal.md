@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implement seven features inspired by OpenAI's [Harness Engineering](https://openai.com/index/harness-engineering/) blog post to improve the coordinator and skill infrastructure. The harness engineering philosophy — "Agent = Model + Harness" — identifies that compounding improvements to agent scaffolding, context management, and feedback loops yield exponential returns. This proposal applies those principles to our existing multi-agent coordination system.
+Implement nine features inspired by OpenAI's [Harness Engineering](https://openai.com/index/harness-engineering/) blog post to improve the coordinator and skill infrastructure. (Features 1–7 map directly to the blog's principles; Features 8–9 — session transcript mining and the multi-source capability-gap pipeline — extend Feature 4's self-improvement loop, added during plan refinement.) The harness engineering philosophy — "Agent = Model + Harness" — identifies that compounding improvements to agent scaffolding, context management, and feedback loops yield exponential returns. This proposal applies those principles to our existing multi-agent coordination system.
 
 ## Why
 
@@ -80,7 +80,7 @@ Broaden Feature 4 from "agent self-tagging via `remember`" to a four-source pipe
 - Features are somewhat coupled to current architecture decisions
 - Harder to parallelize implementation (shared file modifications)
 
-**Effort**: L (large — 7 features, but each individually M or S)
+**Effort**: L–XL (large — 9 features, but each individually M or S; Features 8–9 add the transcript-mining adapters and multi-source pipeline)
 
 ### Approach B: New Harness Layer
 

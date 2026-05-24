@@ -19,8 +19,9 @@
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: None
 
-- [ ] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, affected_skill, severity, AND source tag prefixes to memory service documentation and validation. Document the source vocabulary: `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`.
+- [ ] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, suggested_improvement, affected_skill, severity, AND source tag prefixes to memory service documentation and validation. Document the source vocabulary: `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`. Implement the default: when a `remember` call recording a capability gap omits `source`, the memory service sets it to `self-reported`.
   **Files**: `agent-coordinator/src/memory.py`, `docs/guides/memory-conventions.md`
+  **Spec scenarios**: harness-engineering.4 (structured failure recording schema, source default)
   **Dependencies**: 1.3
 
 - [ ] 1.5 Write tests for session-log Capability Gaps section — verify PhaseRecord round-trip (markdown ↔ dataclass), section appears between Trade-offs and Relevant Files, empty section parses to empty list, memory emission on `write_both()`
@@ -52,8 +53,8 @@
   **Files**: `agent-coordinator/src/guardrails.py`, `agent-coordinator/src/session_grants.py`, `agent-coordinator/src/work_queue.py`
   **Dependencies**: 2.3
 
-- [ ] 2.5 Write tests for coordinator-side audit-triage LLM classifier — fixture-driven tests with mocked LLM responses covering (i) ring-buffer push from `log_operation` adds zero latency on the hot path, (ii) background task drains the buffer on cadence (mocked clock), (iii) classifier model is resolved via `agents_config.resolve_model(archetype, package_metadata={}, provider=...)` using the configured archetype/provider, (iv) system prompt is composed via `agents_config.compose_prompt(archetype, task_prompt)`, (v) classifier output with valid schema produces memory entries with `source:coordinator-emitted` + `prompt_version:N`, (vi) classifier output with invalid schema is dropped with a warning and NOT written to memory, (vii) archetype defaults to `analyst` and provider defaults to `claude_code`, both overridable via config. Use a stub LLM client that returns canned responses — no real API calls in CI.
-  **Spec scenarios**: harness-engineering.4 (coordinator auto-emits capability gaps via LLM classifier)
+- [ ] 2.5 Write tests for coordinator-side audit-triage LLM classifier — fixture-driven tests with mocked LLM responses covering (i) ring-buffer push from `log_operation` adds zero latency on the hot path, (ii) background task drains the buffer on cadence (mocked clock), (iii) classifier model is resolved via `agents_config.resolve_model(archetype, package_metadata={}, provider=...)` using the configured archetype/provider, (iv) system prompt is composed via `agents_config.compose_prompt(archetype, task_prompt)`, (v) classifier output with valid schema produces memory entries with `source:coordinator-emitted` + `prompt_version:N`, (vi) classifier output with invalid schema is dropped with a warning and NOT written to memory, (vii) archetype defaults to `analyst` and provider defaults to `claude_code`, both overridable via config; (viii) a recall-floor test against a labeled fixture corpus of audit windows with known seeded gaps asserts the classifier detects at least the configured floor (default 80%) using deterministic stubbed model responses for CI, with a separate opt-in live-model evaluation. Use a stub LLM client that returns canned responses — no real API calls in CI.
+  **Spec scenarios**: harness-engineering.4 (coordinator auto-emits capability gaps via LLM classifier), harness-engineering.8 (classifier recall measured against labeled fixture corpus)
   **Design decisions**: D9 (coordinator-side automatic capability-gap emission via LLM classifier)
   **Dependencies**: 1.4
 
@@ -126,6 +127,12 @@
   **Files**: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`, `skills/improve-harness/SKILL.md`
   **Dependencies**: 5.2, 5.5, 1.6, 2.6
 
+- [ ] 5.7 Write tests + implement report-to-feature pipeline — the companion capability promised in Feature 4: given a high-priority finding from an `/improve-harness` report, produce a pre-populated OpenSpec change proposal (Why / What Changes / Impact seeded from the finding's capability_gap, affected_skill, suggested_improvement, severity, and the set of sources that surfaced it). Implemented as an `/improve-harness --create-proposal <finding-id>` mode (or thin wrapper that hands the seed context to `/plan-feature`); human reviews/approves before the proposal is finalized.
+  **Files**: `skills/improve-harness/SKILL.md`, `skills/improve-harness/scripts/create_proposal.py`, `skills/improve-harness/tests/test_create_proposal.py`
+  **Spec scenarios**: harness-engineering.4 (report-to-feature pipeline)
+  **Design decisions**: D4 (shared tag schema — provides the seed fields)
+  **Dependencies**: 5.6
+
 ## Phase 6: Session Transcript Mining
 
 - [ ] 6.1 Write tests for normalized event schema and adapter base class — fixture-based round-trip tests per adapter (fixtures live under `skills/collect-transcripts/tests/fixtures/<harness>/`)
@@ -135,6 +142,8 @@
 
 - [ ] 6.2 Define normalized event schema + adapter base class
   **Files**: `skills/collect-transcripts/SKILL.md`, `skills/collect-transcripts/references/event-schema.md`, `skills/collect-transcripts/scripts/adapters/base.py`, `skills/collect-transcripts/scripts/normalize.py`
+  **Notes**: The adapter base class MUST declare a `pinned_schema_version` and expose a `detect_schema_version(raw)` hook so each adapter can check the on-disk schema version (or metadata header) BEFORE parsing. When the encountered version is newer than pinned, the base class fails soft (structured warning + skip) rather than mis-parsing — see the schema-version-drift scenario.
+  **Spec scenarios**: harness-engineering.8 (adapter fails soft on unsupported schema version)
   **Dependencies**: 6.1
 
 - [ ] 6.3 Implement Claude Code CLI adapter
@@ -176,22 +185,23 @@
   **Citations**: https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/session-management.md ; https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/services/chatRecordingService.ts
   **Dependencies**: 6.2
 
-- [ ] 6.8 Extend sanitizer for transcript-specific structures
-  **Files**: `skills/session-log/scripts/sanitize_session_log.py`, `skills/collect-transcripts/scripts/sanitize_events.py`, `skills/session-log/tests/test_sanitize_session_log.py`
-  **Notes**: Add coverage for tool-call argument blobs and tool-result outputs — common accidental-leak sites that the existing session-log sanitizer doesn't target. Existing redaction rules (secrets, high-entropy strings, env paths) must continue passing.
-  **Spec scenarios**: harness-engineering.8 (sanitization precedes any LLM analysis)
+- [ ] 6.8 Extend sanitizer for transcript-specific structures and run it BEFORE disk write
+  **Files**: `skills/session-log/scripts/sanitize_session_log.py`, `skills/collect-transcripts/scripts/sanitize_events.py`, `skills/session-log/tests/test_sanitize_session_log.py`, `skills/collect-transcripts/tests/test_sanitize_events.py`, `.gitignore`
+  **Required new detectors** (existing session-log rules must keep passing): (i) bare secrets in tool_result / tool-call-argument blobs that have NO assignment prefix (e.g. a token in command output, a dumped `.env` body, a JWT inside JSON) via high-entropy + known-shape matching; (ii) OpenAI key forms `sk-`, `sk-proj-`, `sk-svcacct-`; (iii) Google/Gemini keys `AIza...`; (iv) `Authorization:` / `Bearer <token>` header values; (v) JWTs (`eyJ...` three-segment).
+  **Acceptance**: a fixture corpus of seeded secrets (one per detector class) MUST be fully redacted — the recall test fails the build on any single leak. Normalized events are sanitized BEFORE being written to `docs/transcripts/`, not only before LLM calls. Add `docs/transcripts/` to `.gitignore` as defense-in-depth.
+  **Spec scenarios**: harness-engineering.8 (sanitization precedes disk write and LLM analysis), harness-engineering.8 (sanitizer detects bare and prefixed secret forms)
   **Dependencies**: 6.2
 
 - [ ] 6.9 Implement triage pass with dry-run mode
   **Files**: `skills/collect-transcripts/scripts/triage.py`, `skills/collect-transcripts/tests/test_triage.py`, `skills/collect-transcripts/config.yaml.example`
-  **Notes**: Triage model is resolved via the archetype system — default `archetype: analyst`, default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: triage.{archetype, provider}`. Resolution uses `agents_config.resolve_model()` from the coordinator (skills can import directly OR call coordinator HTTP `/archetypes/resolve_for_phase` — pick whichever fits the skill's runtime). System prompt composed via `agents_config.compose_prompt(archetype, task_prompt)` where `task_prompt` lives in `skills/collect-transcripts/prompts/triage_v1.md` and is kept SEPARATE from the coordinator's audit-triage prompt (see D11). Configurable struggle threshold. `--dry-run` mode prints planned per-session and total estimated operation count without making any API calls. Default-off in CI.
-  **Spec scenarios**: harness-engineering.8 (triage scores every ingested session), harness-engineering.8 (mining is opt-in)
+  **Notes**: Triage model is resolved via the archetype system — default `archetype: analyst`, default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: triage.{archetype, provider}`. Resolution uses `from src.agents_config import load_archetypes_config, resolve_model, compose_prompt` — the SAME direct-import pattern already used by `skills/implement-feature/SKILL.md` and `skills/fix-scrub/SKILL.md` (do NOT invent an HTTP path; the established precedent is direct import). System prompt composed via `compose_prompt(archetype, task_prompt)` where `task_prompt` lives in `skills/collect-transcripts/prompts/triage_v1.md` and is kept SEPARATE from the coordinator's audit-triage prompt (see D11). Triage output is the structured score: retry_count, tool_error_count, scope_violation_count, user_correction_count (integers) + struggle_class (enum: none|minor|significant|severe). Configurable struggle threshold (default `significant`). `--dry-run` mode prints planned per-session and total estimated operation count without making any API calls. Default-off in CI.
+  **Spec scenarios**: harness-engineering.8 (triage scores every ingested session), harness-engineering.8 (classifier recall measured against labeled fixture corpus), harness-engineering.8 (mining is opt-in)
   **Dependencies**: 6.2, 6.8
 
 - [ ] 6.10 Implement deep-analysis writer
   **Files**: `skills/collect-transcripts/scripts/deep_analyze.py`, `skills/collect-transcripts/tests/test_deep_analyze.py`
-  **Notes**: Deep-analysis model resolved via archetype system — default `archetype: reviewer` (premium tier), default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: deep_analysis.{archetype, provider}`. Same `agents_config.resolve_model()` + `compose_prompt()` pattern as the triage task. Task prompt lives in `skills/collect-transcripts/prompts/deep_analysis_v1.md` — kept SEPARATE from the coordinator's audit-triage prompt and from the transcript-triage prompt (see D11). Emits findings under the D4 tag schema with `source:transcript-mined`. Uses the coordinator's `remember` MCP tool.
-  **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions only)
+  **Notes**: Deep-analysis model resolved via archetype system — default `archetype: reviewer` (premium tier), default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: deep_analysis.{archetype, provider}`. Same direct-import `resolve_model()` + `compose_prompt()` pattern as task 6.9. Task prompt lives in `skills/collect-transcripts/prompts/deep_analysis_v1.md` — kept SEPARATE from the coordinator's audit-triage prompt and from the transcript-triage prompt (see D11). Emits findings under the D4 tag schema with `source:transcript-mined` PLUS `prompt_version:N` identifying the deep-analysis prompt version (consistent with D11). Uses the coordinator's `remember` MCP tool. Recall is verified against the labeled fixture corpus (shared with task 6.9) with the configured recall floor.
+  **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions), harness-engineering.8 (classifier recall measured against labeled fixture corpus)
   **Dependencies**: 1.4, 6.9
 
 - [ ] 6.11 Verify `/improve-harness` surfaces transcript-sourced findings end-to-end

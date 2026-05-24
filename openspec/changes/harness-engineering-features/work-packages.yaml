@@ -104,7 +104,7 @@ packages:
   - package_id: wp-coordinator-extensions
     title: "Coordinator Extensions — Profiles, Scope Enforcement, Capability-Gap Auto-Emission"
     task_type: implementation
-    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, enforce scope locks on work_queue task claims, AND extend audit.AuditService.log_operation with a pattern matcher that auto-emits capability-gap memory entries with source:coordinator-emitted (D9) when struggle-shaped patterns are detected (retry storm, repeated verify failure, scope violation, lock contention)."
+    description: "Add the evaluator agent profile, extend check_guardrails with optional session_scope parameter, enforce scope locks on work_queue task claims, AND add the audit-triage subsystem (D9): a hot-path ring-buffer push in audit.AuditService.log_operation plus a background task (audit_triage.py) that drains the buffer and runs an LLM classifier (model resolved via the archetype system, default archetype analyst) to auto-emit capability-gap memory entries with source:coordinator-emitted. NOT a regex/threshold pattern matcher — the classifier reads each audit window semantically to maximize recall."
     role: backend-implementer
     priority: 2
     depends_on:
@@ -116,13 +116,14 @@ packages:
         - "agent-coordinator/src/work_queue.py"
         - "agent-coordinator/src/session_grants.py"
         - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/audit_triage.py"
       keys:
         - "db:schema:agent_profiles"
         - "api:guardrails"
         - "api:work_queue"
         - "api:audit:capability-gap-emitter"
       ttl_minutes: 150
-      reason: "Evaluator profile migration, guardrail scope enforcement, audit-side capability-gap pattern matcher"
+      reason: "Evaluator profile migration, guardrail scope enforcement, audit-triage LLM classifier subsystem"
     scope:
       write_allow:
         - "agent-coordinator/src/profiles.py"
@@ -130,8 +131,11 @@ packages:
         - "agent-coordinator/src/guardrails.py"
         - "agent-coordinator/src/session_grants.py"
         - "agent-coordinator/src/audit.py"
+        - "agent-coordinator/src/audit_triage.py"
+        - "agent-coordinator/src/audit_triage_prompts/**"
         - "agent-coordinator/src/memory.py"
         - "agent-coordinator/config.yaml.example"
+        - "agent-coordinator/pyproject.toml"
         - "agent-coordinator/database/migrations/**"
         - "agent-coordinator/tests/**"
       read_allow:
