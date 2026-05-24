@@ -1,0 +1,495 @@
+schema_version: 1
+
+feature:
+  id: extract-gen-eval-package
+  title: "Extract gen-eval into a reusable package"
+  plan_revision: 1
+  created_by: claude
+  created_at: "2026-05-23T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/extract-gen-eval-package/contracts/README.md"
+    files:
+      - "openspec/changes/extract-gen-eval-package/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: "B"
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-package-scaffold
+    title: "Create packages/gen-eval/ skeleton and pyproject"
+    task_type: implement
+    description: |
+      Create the new packages/gen-eval/ directory with src/-layout pyproject.toml,
+      empty src/gen_eval/__init__.py, README.md stub, tests/__init__.py, and
+      examples/ placeholder. Configure the four optional extras (mcp, sdk, db, all)
+      and the gen-eval console script per design D2. Includes the empty-package
+      smoke test (task 1.1) and the scaffold itself (tasks 1.2-1.3).
+    role: python-engineer
+    priority: 1
+    depends_on: []
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "packages/gen-eval/pyproject.toml"
+        - "packages/gen-eval/README.md"
+        - "packages/gen-eval/src/gen_eval/__init__.py"
+        - "packages/gen-eval/tests/__init__.py"
+        - "packages/gen-eval/tests/test_smoke.py"
+      keys:
+        - "feature:extract-gen-eval-package:scaffold"
+      ttl_minutes: 60
+      reason: "Initial package scaffold and pyproject configuration."
+    scope:
+      write_allow:
+        - "packages/gen-eval/**"
+      read_allow:
+        - "openspec/changes/extract-gen-eval-package/**"
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/pyproject.toml"
+    worktree:
+      name: wp-package-scaffold
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "package smoke test"
+          kind: command
+          command: "cd packages/gen-eval && uv sync && uv run pytest tests/test_smoke.py -v"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/pyproject.toml"
+              - "packages/gen-eval/src/gen_eval/__init__.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "uv_sync_success"
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "uv_sync_success"
+
+  - package_id: wp-framework-move
+    title: "Move framework code and resolve metrics coupling"
+    task_type: implement
+    description: |
+      Move all 23 .py files from agent-coordinator/evaluation/gen_eval/ to
+      packages/gen-eval/src/gen_eval/ (excluding mcp_service.py and mcp_client.py,
+      handled separately). Move agent-coordinator/evaluation/metrics.py into the
+      package as gen_eval/metrics.py and update reports.py. Move mcp_service.py
+      and clients/mcp_client.py with try/except wrappers per design D4. Move
+      package-shipped data (schemas/, dtu/ templates, sample descriptor). Update
+      gen_eval/__init__.py with the public API re-exports. Covers tasks 2.1-2.5.
+      L-sized but mechanical — splitting would break import consistency mid-move.
+    role: python-engineer
+    priority: 2
+    depends_on: [wp-package-scaffold]
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "packages/gen-eval/src/gen_eval"
+        - "agent-coordinator/evaluation/gen_eval"
+        - "agent-coordinator/evaluation/metrics.py"
+      keys:
+        - "feature:extract-gen-eval-package:framework"
+      ttl_minutes: 180
+      reason: "Atomic move of framework code; cannot be split without breaking imports."
+    scope:
+      write_allow:
+        - "packages/gen-eval/src/**"
+        - "packages/gen-eval/tests/fixtures/**"
+        - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/evaluation/metrics.py"
+      read_allow:
+        - "agent-coordinator/**"
+        - "openspec/changes/extract-gen-eval-package/**"
+        - "evaluation/gen_eval/**"
+    worktree:
+      name: wp-framework-move
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "framework parity test"
+          kind: command
+          command: "cd packages/gen-eval && uv sync --all-extras && uv run pytest tests/ -v"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/src/gen_eval/evaluator.py"
+              - "packages/gen-eval/src/gen_eval/orchestrator.py"
+              - "packages/gen-eval/src/gen_eval/metrics.py"
+            result_keys:
+              - "pytest_exit_code"
+              - "files_moved"
+        - name: "no coordinator imports in package"
+          kind: command
+          command: "! grep -rE 'from (agent_coordinator|src\\.coordination_)' packages/gen-eval/src/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "static_import_check"
+    metadata:
+      loc_estimate: 6500
+      complexity: medium
+      package_kind: migration
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "files_moved"
+        - "static_import_check"
+
+  - package_id: wp-package-tests
+    title: "Relocate gen-eval tests and add CI job"
+    task_type: implement
+    description: |
+      Relocate gen-eval's existing unit tests to packages/gen-eval/tests/ with
+      import path updates. Add tests for the optional [mcp] extra ImportError
+      contract and the sdist-content contract. Add the gen-eval-tests CI job to
+      .github/workflows/ci.yml per design D10. Covers tasks 3.1-3.4. Runs in
+      parallel with the coordinator migration, skill updates, and examples doc.
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-framework-move]
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "packages/gen-eval/tests"
+        - ".github/workflows/ci.yml"
+      keys:
+        - "feature:extract-gen-eval-package:tests"
+      ttl_minutes: 120
+      reason: "Package tests and CI matrix addition."
+    scope:
+      write_allow:
+        - "packages/gen-eval/tests/**"
+        - ".github/workflows/ci.yml"
+      read_allow:
+        - "packages/gen-eval/**"
+        - "agent-coordinator/tests/**"
+        - ".github/workflows/**"
+        - "openspec/changes/extract-gen-eval-package/**"
+    worktree:
+      name: wp-package-tests
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "full package test suite"
+          kind: command
+          command: "cd packages/gen-eval && uv run pytest -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/tests/"
+              - ".github/workflows/ci.yml"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+              - "ci_job_added"
+    metadata:
+      loc_estimate: 600
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+        - "ci_job_added"
+
+  - package_id: wp-coordinator-migrate
+    title: "Migrate agent-coordinator to consume gen-eval package"
+    task_type: implement
+    description: |
+      Update agent-coordinator/pyproject.toml to depend on gen-eval[mcp] via uv
+      path source per design D5. Rewrite all from evaluation.gen_eval imports in
+      agent-coordinator/src/ to from gen_eval per D6. Relocate per-project data
+      (descriptors/, manifests/, scenarios/) one level up out of the deleted
+      gen_eval/ directory per D7. Update Dockerfile build context and COPY order
+      per D8. Update agent-coordinator/README.md to document the build-context
+      change. Run full coordinator test suite. Covers tasks 4.1-4.6.
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-framework-move]
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/evaluation/__init__.py"
+      keys:
+        - "feature:extract-gen-eval-package:coordinator"
+      ttl_minutes: 180
+      reason: "Coordinator dependency, imports, Dockerfile, and data relocation."
+    scope:
+      write_allow:
+        - "agent-coordinator/pyproject.toml"
+        - "agent-coordinator/uv.lock"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/README.md"
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/evaluation/**"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "agent-coordinator/**"
+        - "packages/gen-eval/**"
+        - "openspec/changes/extract-gen-eval-package/**"
+      deny:
+        - "agent-coordinator/evaluation/gen_eval/**"
+    worktree:
+      name: wp-coordinator-migrate
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "coordinator test suite"
+          kind: command
+          command: "cd agent-coordinator && uv sync --all-extras && uv run pytest -v -m 'not e2e and not integration'"
+          evidence:
+            artifacts:
+              - "agent-coordinator/pyproject.toml"
+              - "agent-coordinator/Dockerfile"
+            result_keys:
+              - "pytest_exit_code"
+              - "tests_passed"
+        - name: "no legacy import paths remain"
+          kind: command
+          command: "! grep -r 'from evaluation.gen_eval' agent-coordinator/"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "static_import_check"
+        - name: "in-tree gen_eval directory removed"
+          kind: command
+          command: "test ! -d agent-coordinator/evaluation/gen_eval"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "directory_removed"
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: migration
+    outputs:
+      result_keys:
+        - "pytest_exit_code"
+        - "tests_passed"
+        - "static_import_check"
+        - "directory_removed"
+
+  - package_id: wp-skills-update
+    title: "Update skill invocations to use new module path"
+    task_type: implement
+    description: |
+      Update python -m evaluation.gen_eval invocations in skills/gen-eval/SKILL.md
+      and skills/validate-feature/SKILL.md to python -m gen_eval. Update
+      skills/playwright-validator/SKILL.md import from evaluation.gen_eval to
+      gen_eval (retain fallback parser). Regenerate runtime mirrors via
+      install.sh. Verify no evaluation.gen_eval strings remain in any skill copy.
+      Covers tasks 5.1-5.4. Parallel-safe with coordinator migrate, package tests,
+      examples doc.
+    role: python-engineer
+    priority: 3
+    depends_on: [wp-framework-move]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/gen-eval/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/playwright-validator/SKILL.md"
+      keys:
+        - "feature:extract-gen-eval-package:skills"
+      ttl_minutes: 60
+      reason: "Skill invocation string updates and runtime mirror regeneration."
+    scope:
+      write_allow:
+        - "skills/gen-eval/**"
+        - "skills/validate-feature/**"
+        - "skills/playwright-validator/**"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "skills/**"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "openspec/changes/extract-gen-eval-package/**"
+    worktree:
+      name: wp-skills-update
+      mode: isolated
+    verification:
+      tier_required: "B"
+      steps:
+        - name: "no legacy invocation strings remain"
+          kind: command
+          command: "! grep -r 'evaluation.gen_eval' skills/ .claude/skills/ .agents/skills/"
+          evidence:
+            artifacts:
+              - "skills/gen-eval/SKILL.md"
+              - "skills/validate-feature/SKILL.md"
+              - "skills/playwright-validator/SKILL.md"
+            result_keys:
+              - "static_string_check"
+              - "mirrors_regenerated"
+    metadata:
+      loc_estimate: 60
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "static_string_check"
+        - "mirrors_regenerated"
+
+  - package_id: wp-examples-doc
+    title: "Write quickstart, descriptor template, README, and ADR"
+    task_type: implement
+    description: |
+      Write packages/gen-eval/examples/agentic-assistant-quickstart.md per spec
+      requirement (complete adoption walkthrough). Write annotated
+      examples/descriptor-template.yaml. Write packages/gen-eval/README.md with
+      public API summary, two install profiles, and pointer to quickstart.
+      Write ADR in docs/decisions/ documenting the packages/ convention and the
+      gen-eval extraction. Covers tasks 6.1-6.4. Parallel-safe with coordinator
+      migrate, package tests, skills update.
+    role: technical-writer
+    priority: 3
+    depends_on: [wp-framework-move]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "packages/gen-eval/README.md"
+        - "packages/gen-eval/examples/agentic-assistant-quickstart.md"
+        - "packages/gen-eval/examples/descriptor-template.yaml"
+      keys:
+        - "feature:extract-gen-eval-package:docs"
+      ttl_minutes: 90
+      reason: "Documentation and ADR."
+    scope:
+      write_allow:
+        - "packages/gen-eval/README.md"
+        - "packages/gen-eval/examples/**"
+        - "docs/decisions/**"
+      read_allow:
+        - "packages/gen-eval/**"
+        - "openspec/changes/extract-gen-eval-package/**"
+        - "docs/decisions/**"
+        - "openspec/specs/gen-eval-framework/**"
+    worktree:
+      name: wp-examples-doc
+      mode: isolated
+    verification:
+      tier_required: "C"
+      steps:
+        - name: "documentation files exist and are non-empty"
+          kind: command
+          command: "test -s packages/gen-eval/README.md && test -s packages/gen-eval/examples/agentic-assistant-quickstart.md && test -s packages/gen-eval/examples/descriptor-template.yaml"
+          evidence:
+            artifacts:
+              - "packages/gen-eval/README.md"
+              - "packages/gen-eval/examples/agentic-assistant-quickstart.md"
+              - "packages/gen-eval/examples/descriptor-template.yaml"
+            result_keys:
+              - "docs_present"
+    metadata:
+      loc_estimate: 400
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "docs_present"
+
+  - package_id: wp-integration
+    title: "Full validation pass and Docker smoke"
+    task_type: validate
+    description: |
+      Run openspec validate extract-gen-eval-package --strict. Refresh
+      docs/architecture-analysis/ via make architecture (gen-eval's component
+      now lives under packages/, not agent-coordinator/). Run
+      /validate-feature extract-gen-eval-package (full validation pass).
+      Manually verify docker build with new context. Run one end-to-end gen-eval
+      scenario inside the built container. Covers tasks 7.1-7.5.
+    role: integration-engineer
+    priority: 4
+    depends_on: [wp-package-tests, wp-coordinator-migrate, wp-skills-update, wp-examples-doc]
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "docs/architecture-analysis"
+      keys:
+        - "feature:extract-gen-eval-package:integration"
+      ttl_minutes: 60
+      reason: "Architecture artifact refresh and full validation pass."
+    scope:
+      write_allow:
+        - "docs/architecture-analysis/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: "A"
+      steps:
+        - name: "openspec strict validation"
+          kind: command
+          command: "openspec validate extract-gen-eval-package --strict"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_validate_exit_code"
+        - name: "architecture refresh"
+          kind: command
+          command: "make architecture"
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.summary.json"
+            result_keys:
+              - "architecture_refreshed"
+        - name: "validate-feature full pass"
+          kind: command
+          command: "echo 'invoke /validate-feature extract-gen-eval-package interactively'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "validate_feature_passed"
+        - name: "docker smoke"
+          kind: command
+          command: "docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test ."
+          evidence:
+            artifacts: []
+            result_keys:
+              - "docker_build_exit_code"
+    metadata:
+      loc_estimate: 100
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "openspec_validate_exit_code"
+        - "architecture_refreshed"
+        - "validate_feature_passed"
+        - "docker_build_exit_code"
