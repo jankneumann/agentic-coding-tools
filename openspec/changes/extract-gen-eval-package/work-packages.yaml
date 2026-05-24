@@ -284,6 +284,7 @@ packages:
         - "agent-coordinator/Makefile"
         - "agent-coordinator/.gitignore"
         - "agent-coordinator/README.md"
+        - "agent-coordinator/railway.toml"
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/coordination_mcp.py"
         - "agent-coordinator/CLAUDE.md"
@@ -293,7 +294,7 @@ packages:
       keys:
         - "feature:extract-gen-eval-package:coordinator"
       ttl_minutes: 180
-      reason: "Coordinator dependency, imports, Dockerfile (Option B wheel install), Makefile target, .gitignore, data relocation, and leftover test-fixture string updates."
+      reason: "Coordinator dependency, imports, Dockerfile (Option B wheel install + --no-sources), Makefile target, .gitignore, railway.toml buildCommand, data relocation, and leftover test-fixture string updates."
     scope:
       write_allow:
         - "agent-coordinator/pyproject.toml"
@@ -302,6 +303,7 @@ packages:
         - "agent-coordinator/Makefile"
         - "agent-coordinator/.gitignore"
         - "agent-coordinator/README.md"
+        - "agent-coordinator/railway.toml"
         - "agent-coordinator/CLAUDE.md"
         - "agent-coordinator/src/**"
         - "agent-coordinator/evaluation/**"
@@ -311,9 +313,13 @@ packages:
         - "agent-coordinator/**"
         - "packages/gen-eval/**"
         - "openspec/changes/extract-gen-eval-package/**"
-      deny:
-        - "agent-coordinator/evaluation/gen_eval/**"
-        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
+      # Note: no `deny:` block here. Task 4.4 requires this package to read AND
+      # mutate (relocate, then delete) files under
+      # `agent-coordinator/evaluation/gen_eval/` (descriptors/, manifests/,
+      # scenarios/ moving one level up, then the directory itself being removed).
+      # An earlier draft denied that subtree which would block the relocation —
+      # the write_allow on `agent-coordinator/evaluation/**` is the authoritative
+      # scope for that work.
     worktree:
       name: wp-coordinator-migrate
       mode: isolated
@@ -548,7 +554,11 @@ packages:
               - "validate_feature_passed"
         - name: "docker smoke"
           kind: command
-          command: "docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test ."
+          # Build context is `agent-coordinator/` (NOT repo root) to match Railway's
+          # service root and D8 Option B's COPY dist/gen_eval-*.whl semantics.
+          # The wheel must be present in agent-coordinator/dist/ before this runs —
+          # `make -C agent-coordinator build-image` produces it (D8).
+          command: "make -C agent-coordinator build-image && docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/"
           evidence:
             artifacts: []
             result_keys:

@@ -163,7 +163,9 @@ gen-eval = { path = "../packages/gen-eval", editable = true }
 
 `editable = true` is important: this is a monorepo, the coordinator and the package evolve together, and editable installs mean code changes in `packages/gen-eval/src/` are immediately visible in the coordinator's venv without a re-sync.
 
-**Editable vs Docker.** Editable installs work locally (the `.pth` file in the venv points to `../packages/gen-eval/src/`). They do NOT work inside the Docker image because the multi-stage build copies the venv but not the source — the `.pth` would dangle. D8 picks the wheel-install path for Docker specifically to sidestep this: in Docker, gen-eval is a regular non-editable wheel install; in local dev, the editable path-dep is active. Consumers see the same import paths in both modes; only the install mechanism differs.
+**Editable vs Docker.** Editable installs work locally (the `.pth` file in the venv points to `../packages/gen-eval/src/`). They do NOT work inside the Docker image because (a) the multi-stage build copies the venv but not the source — the `.pth` would dangle — AND (b) the Docker build context is `agent-coordinator/`, so the `../packages/gen-eval` path that `[tool.uv.sources]` points at is literally not reachable from inside the build. D8 picks the wheel-install path for Docker specifically to sidestep this: in Docker, gen-eval is a regular non-editable wheel install discovered via `UV_FIND_LINKS=/tmp/wheels`; in local dev, the editable path-dep is active. Consumers see the same import paths in both modes; only the install mechanism differs.
+
+**Critical Docker invariant.** Because `[tool.uv.sources]` would still cause `uv sync` to try to resolve `../packages/gen-eval` (and fail) inside the Docker build context, the Dockerfile's `uv sync` invocation MUST pass `--no-sources` (or an equivalent uv flag/env var that disables `tool.uv.sources` resolution) so that the wheel resolved via `UV_FIND_LINKS` is the only source uv considers. Without this, the Docker build fails with "path source not found" even though the wheel is present. D8 task 4.5 below makes this explicit.
 
 ### D6 — Lazy import sites in `coordination_api.py` and `coordination_mcp.py`
 
@@ -230,13 +232,30 @@ Three options were considered:
    COPY dist/gen_eval-*.whl /tmp/wheels/
    ENV UV_FIND_LINKS=/tmp/wheels
    ```
+   AND the existing `uv sync …` invocation in the Dockerfile MUST gain the `--no-sources` flag (or set `UV_NO_SOURCES=1`) so that `[tool.uv.sources]` (which points at `../packages/gen-eval`, unreachable from the Docker build context) is ignored and the wheel from `UV_FIND_LINKS` is used instead. Without this, `uv sync` errors with a path-source-not-found failure even though the wheel is present.
 2. `agent-coordinator/Makefile` (or a `scripts/build.sh`) gains a `build-image` target that does `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` first.
 3. `.github/workflows/ci.yml` docker-build step adds a pre-step `cd packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` before invoking the build.
 4. `agent-coordinator/.gitignore` ensures `dist/` is ignored.
 5. For local *editable* dev (where you `cd agent-coordinator && uv run …` outside Docker), the path-dep with `editable = true` (D5) continues to work — Docker is the only consumer that sees the wheel.
 6. `agent-coordinator/README.md` documents the new `make build-image` workflow.
 
-This decision adds task scope to `wp-coordinator-migrate`: Makefile target, `.gitignore`, `Dockerfile` edits. It also adds scope to `wp-package-tests` (CI workflow's docker-build pre-step). The `railway.toml` file is unchanged; Railway's build runs `uv build` for gen-eval as part of its agent-coordinator build via a Railway buildCommand or a `railway.toml` `[build]` `buildCommand` line (documented in the README).
+This decision adds task scope to `wp-coordinator-migrate`: Makefile target, `.gitignore`, `Dockerfile` edits, **and `railway.toml` edits**. It also adds scope to `wp-package-tests` (CI workflow's docker-build pre-step).
+
+**Railway prebuild story (concrete).** Railway's Docker builds run inside a sandbox rooted at the service root (here, `agent-coordinator/`) with no preexisting `dist/` directory. To produce the wheel before Docker build runs, `agent-coordinator/railway.toml` MUST grow a `[build]` section that runs the wheel build as a buildCommand:
+
+```toml
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+# Build the gen-eval wheel into agent-coordinator/dist/ so the Dockerfile's
+# COPY dist/gen_eval-*.whl can find it. Railway runs buildCommand BEFORE
+# the docker build, in the service root (agent-coordinator/). The path
+# `../packages/gen-eval` is reachable because Railway clones the full repo;
+# the *Docker build context* is what's restricted to agent-coordinator/.
+buildCommand = "cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist"
+```
+
+This is tracked work-package scope for `wp-coordinator-migrate` (the `railway.toml` file is now in its `write_allow`). Verified by `wp-integration`'s docker smoke step, which simulates a clean checkout: it runs `make -C agent-coordinator build-image` (the exact equivalent of the Railway buildCommand) followed by `docker build -f agent-coordinator/Dockerfile -t … agent-coordinator/` (the exact context Railway uses).
 
 **Implementation guard.** A test in wp-integration (`Verification` block) asserts `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/` succeeds with the same context Railway will use — proves the prod build path works.
 
@@ -245,7 +264,8 @@ This decision adds task scope to `wp-coordinator-migrate`: Makefile target, `.gi
 | Skill / file | Before | After |
 |---|---|---|
 | `skills/gen-eval/SKILL.md` | `python -m evaluation.gen_eval --descriptor …` | `python -m gen_eval --descriptor …` |
-| `skills/validate-feature/SKILL.md` (phase 4b) | `python -m evaluation.gen_eval …` | `python -m gen_eval …` |
+| `skills/validate-feature/SKILL.md` (phase 4b, line 322) | `python -m evaluation.gen_eval …` | `python -m gen_eval …` |
+| `skills/validate-feature/SKILL.md` (phase 4b, line 295) | `find … -path "*/evaluation/gen_eval/descriptors/*.yaml"` | `find … -path "*/evaluation/descriptors/*.yaml"` — descriptor-discovery glob must follow D7's relocation, otherwise validate-feature silently finds zero descriptors after the change lands |
 | `skills/playwright-validator/SKILL.md` | (MCP tool name references; unchanged) | unchanged |
 | `skills/playwright-validator/scripts/cli.py:141` | `from evaluation.gen_eval.openspec_seed import parse_openspec_change` (with `sys.path.insert(0, agent-coordinator/)` workaround) | `from gen_eval.openspec_seed import parse_openspec_change` (the `sys.path` insert becomes unnecessary because the package is now properly installable; remove it. Keep the fallback `_minimal_parse` for environments that genuinely don't have gen-eval installed — that's a robustness, not a compat, concern.) |
 | `skills/playwright-validator/scripts/findings.py:112` | docstring reference `agent_coordinator.evaluation.gen_eval.findings_emitter.BehavioralFinding` | docstring reference `gen_eval.findings_emitter.BehavioralFinding` |

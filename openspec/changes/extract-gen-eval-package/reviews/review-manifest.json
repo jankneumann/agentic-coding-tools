@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-05-24T16:33:02Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 182.90555383299943,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "gemini",
+      "success": true,
+      "model_used": "gemini-3-flash-preview",
+      "models_attempted": [
+        "gemini-3-flash-preview"
+      ],
+      "elapsed_seconds": 118.70253599993885,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-plan.json",
+      "finding_count": 5
+    },
+    {
+      "name": "gemini",
+      "findings_path": "findings-gemini-plan.json",
+      "finding_count": 4
+    }
+  ]
+}

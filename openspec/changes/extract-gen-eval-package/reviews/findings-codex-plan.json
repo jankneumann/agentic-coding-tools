@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: D8 copies a wheel into the Docker context and sets UV_FIND_LINKS, but D5 still declares gen-eval as an explicit editable path source. Without also ignoring tool.uv.sources in the Docker sync, uv will still try to resolve ../packages/gen-eval, which is outside the agent-coordinator build context.",
+      "resolution": "Update D8/task 4.5 to change the Dockerfile's uv sync command to use the wheel path explicitly, e.g. `uv sync --no-sources --all-extras --no-dev --no-install-project` with `UV_FIND_LINKS=/tmp/wheels`, or an equivalent Docker-only pyproject/source override. Add a validation step that builds with only `agent-coordinator/` as context and no parent package source available.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {
+        "start": 150,
+        "end": 166
+      }
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The Railway path is still not executable as written: dist/ is ignored, railway.toml is unchanged, and the plan only says Railway will run uv build via an unspecified buildCommand or README note. A remote Railway Docker build rooted at agent-coordinator will not have agent-coordinator/dist/gen_eval-*.whl unless a tracked prebuild mechanism exists.",
+      "resolution": "Make the Railway wheel-generation mechanism explicit and tracked: either update Railway service configuration/railway.toml to use a supported prebuild flow, switch Railway to a shared monorepo root context, or choose a Docker strategy that builds/copies the package source inside the Docker build. Add a task and verification that simulate a clean Railway checkout with no preexisting dist/ wheel.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {
+        "start": 233,
+        "end": 239
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Integration task 7.4 contradicts Option B by building with repo root context (`.`), while D8 says the proof must use `agent-coordinator/` context. With the planned `COPY dist/gen_eval-*.whl`, root context looks for `dist/` at the repo root and does not prove the Railway-compatible build path.",
+      "resolution": "Change task 7.4 and wp-integration's docker smoke command to `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/`, and ensure the prebuilt wheel is generated under `agent-coordinator/dist/` immediately before that command.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {
+        "start": 157,
+        "end": 160
+      }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: Task 5.2 updates validate-feature's module invocation but not its descriptor discovery path. After D7 relocates descriptors to `evaluation/descriptors/`, validate-feature's old `*/evaluation/gen_eval/descriptors/*.yaml` glob can silently skip gen-eval coverage, and the planned grep only catches dotted `evaluation.gen_eval` strings, not slash paths.",
+      "resolution": "Expand D9 and task 5.2 to update validate-feature descriptor discovery to the relocated consumer-controlled descriptor path, and add verification for both `evaluation.gen_eval` and `evaluation/gen_eval` legacy strings across canonical skills and runtime mirrors.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {
+        "start": 100,
+        "end": 115
+      }
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "D3's surgical extraction of only GenEvalMetrics is now coherent with the dependency boundary, and task 2.4.1 gives that decision an enforceable regression test.",
+      "resolution": "No action required; keep this shape during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {
+        "start": 107,
+        "end": 129
+      }
+    }
+  ]
+}

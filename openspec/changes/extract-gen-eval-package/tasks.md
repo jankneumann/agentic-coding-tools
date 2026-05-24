@@ -84,7 +84,7 @@
   **Spec scenarios**: gen-eval-framework.framework-consumer-data-split
   **Design decisions**: D7
   **Dependencies**: 4.3
-- [ ] 4.5 Update `agent-coordinator/Dockerfile` per D8 **Option B (wheel install)**. Specifically: (a) add `COPY dist/gen_eval-*.whl /tmp/wheels/` and `ENV UV_FIND_LINKS=/tmp/wheels` before the `uv sync` step; (b) move the `COPY evaluation/` line *after* `uv sync` for layer-cache hygiene; (c) keep the existing `context: agent-coordinator` everywhere (Railway service root unchanged, ci.yml docker-build context unchanged, docker-compose.yml unchanged). Add an `agent-coordinator/Makefile` target `build-image` that runs `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` before the docker build. Add `dist/` to `agent-coordinator/.gitignore`. Document the new `make build-image` workflow in `agent-coordinator/README.md` and explain that the path-dep is editable locally but installs as a wheel inside Docker. **(M)**
+- [ ] 4.5 Update `agent-coordinator/Dockerfile` per D8 **Option B (wheel install)**. Specifically: (a) add `COPY dist/gen_eval-*.whl /tmp/wheels/` and `ENV UV_FIND_LINKS=/tmp/wheels` before the `uv sync` step; (b) **add `--no-sources` to the Dockerfile's `uv sync` invocation** (or set `UV_NO_SOURCES=1`) so `[tool.uv.sources]` (which points at `../packages/gen-eval`, unreachable from the Docker context) is bypassed and the wheel from `UV_FIND_LINKS` is the resolved source; (c) move the `COPY evaluation/` line *after* `uv sync` for layer-cache hygiene; (d) keep the existing `context: agent-coordinator` everywhere (Railway service root unchanged, ci.yml docker-build context unchanged, docker-compose.yml unchanged). Add an `agent-coordinator/Makefile` target `build-image` that runs `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` before the docker build. Add `dist/` to `agent-coordinator/.gitignore`. **Update `agent-coordinator/railway.toml`** to add a `[build]` section with a `buildCommand` that runs the gen-eval wheel build before the Docker build (Railway has no pre-build hook by default; the buildCommand is the supported entry point). Document the new `make build-image` workflow AND the Railway buildCommand in `agent-coordinator/README.md` and explain that the path-dep is editable locally but installs as a wheel inside Docker. **(M)**
   **Design decisions**: D8
   **Dependencies**: 4.4
 - [ ] 4.6 Run the full `agent-coordinator` test suite locally: `cd agent-coordinator && uv sync --all-extras && uv run pytest -m "not e2e and not integration"`. All must pass. **(S)**
@@ -97,8 +97,10 @@
 - [ ] 5.1 Update `skills/gen-eval/SKILL.md`: replace every `python -m evaluation.gen_eval` with `python -m gen_eval`. Verify the surrounding context (PYTHONPATH assumptions, descriptor-discovery hints) is also updated. **(S)**
   **Design decisions**: D9
   **Dependencies**: 2.C
-- [ ] 5.2 Update `skills/validate-feature/SKILL.md` phase 4b invocation similarly. **(S)**
-  **Design decisions**: D9
+- [ ] 5.2 Update `skills/validate-feature/SKILL.md` phase 4b. Two changes required:
+  - Replace the `python -m evaluation.gen_eval` invocation (line 322) with `python -m gen_eval`.
+  - **Update the descriptor-discovery glob (line 295)** from `find "$PROJECT_ROOT" -path "*/evaluation/gen_eval/descriptors/*.yaml"` to `find "$PROJECT_ROOT" -path "*/evaluation/descriptors/*.yaml"` so it matches the relocated consumer-side descriptors at `agent-coordinator/evaluation/descriptors/` (per D7). The old glob silently produces zero matches after relocation, which would silently skip gen-eval coverage in /validate-feature. **(S)**
+  **Design decisions**: D7, D9
   **Dependencies**: 2.C
 - [ ] 5.3 Update playwright-validator's Python scripts and SKILL.md per D9. Specifically:
   - `skills/playwright-validator/scripts/cli.py:141`: change `from evaluation.gen_eval.openspec_seed import parse_openspec_change` to `from gen_eval.openspec_seed import parse_openspec_change`. Remove the `sys.path.insert(0, agent-coordinator/)` workaround above the import — once gen-eval is a real installed package, that hack is no longer needed. Retain the `_minimal_parse` fallback (it's now defensive robustness, not legacy compat).
@@ -112,7 +114,10 @@
   **Design decisions**: D9
   **Dependencies**: 5.1, 5.2, 5.3, 5.3.1
 
-- [ ] 5.C **Checkpoint**: `grep -rn "evaluation\.gen_eval" skills/ .claude/skills/ .agents/skills/` returns no matches (excluding the historical docstring in `findings.py` if it has already been updated to `gen_eval.findings_emitter`).
+- [ ] 5.C **Checkpoint**: BOTH greps must return zero matches across `skills/`, `.claude/skills/`, and `.agents/skills/`:
+  - `grep -rn "evaluation\.gen_eval" skills/ .claude/skills/ .agents/skills/` — dotted Python import form.
+  - `grep -rn "evaluation/gen_eval" skills/ .claude/skills/ .agents/skills/` — slash path form (catches things like the validate-feature descriptor-discovery glob and any shell-level path references that the dotted grep would miss).
+  Excluded: the historical docstring in `findings.py` if it has already been updated to `gen_eval.findings_emitter`.
 
 ## 6. Examples + adoption docs (parallel-safe with sections 4 and 5)
 
@@ -156,7 +161,7 @@ wp-package-scaffold → wp-framework-move ──┬─→ wp-package-tests      
   **Dependencies**: 4.C
 - [ ] 7.3 Run `/validate-feature extract-gen-eval-package` (full validation pass: spec, evidence, deploy smoke, security, e2e). **(M)**
   **Dependencies**: 7.1, 7.2
-- [ ] 7.4 Manually verify the docker build with the new context: `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:test .` from repo root. **(S)**
+- [ ] 7.4 Manually verify the docker build with the **same context Railway uses** (`agent-coordinator/`, per D8 Option B): first run `make -C agent-coordinator build-image` (which builds the wheel into `agent-coordinator/dist/`), then `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/`. The `agent-coordinator/` build context is what makes `COPY dist/gen_eval-*.whl /tmp/wheels/` resolve and proves the Railway-compatible build path. **(S)**
   **Design decisions**: D8
   **Dependencies**: 4.5
 - [ ] 7.5 Run one end-to-end gen-eval scenario inside the built container against a started coordinator to confirm `/gen-eval/run` works. **(S)**
