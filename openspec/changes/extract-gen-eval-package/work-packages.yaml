@@ -82,17 +82,27 @@ packages:
         - "uv_sync_success"
 
   - package_id: wp-framework-move
-    title: "Move framework code and resolve metrics coupling"
+    title: "Move framework code and surgically extract GenEvalMetrics"
     task_type: implement
     description: |
       Move all 23 .py files from agent-coordinator/evaluation/gen_eval/ to
-      packages/gen-eval/src/gen_eval/ (excluding mcp_service.py and mcp_client.py,
-      handled separately). Move agent-coordinator/evaluation/metrics.py into the
-      package as gen_eval/metrics.py and update reports.py. Move mcp_service.py
-      and clients/mcp_client.py with try/except wrappers per design D4. Move
-      package-shipped data (schemas/, dtu/ templates, sample descriptor). Update
-      gen_eval/__init__.py with the public API re-exports. Covers tasks 2.1-2.5.
-      L-sized but mechanical — splitting would break import consistency mid-move.
+      packages/gen-eval/src/gen_eval/ (mcp_service.py and clients/mcp_client.py
+      land here too with try/except wrappers per design D4). Move mcp_service.py
+      and clients/mcp_client.py with try/except wrappers per design D4.
+      SURGICAL EXTRACTION (per refined D3): cut ONLY the `GenEvalMetrics`
+      dataclass out of agent-coordinator/evaluation/metrics.py and paste it
+      into packages/gen-eval/src/gen_eval/metrics.py. The other 10 classes
+      (TimingMetric, TokenUsage, CorrectnessMetrics, CoordinationMetrics,
+      SafetyMetrics, ParallelizationMetrics, TaskMetrics, AggregatedMetrics,
+      TrialMetrics, MetricsCollector) and compute_effect_size STAY in the
+      coordinator file — they are consumed by evaluation/ablation.py,
+      evaluation/reports/generator.py, and coordinator tests. Update
+      gen_eval/reports.py to import from gen_eval.metrics. Move
+      package-shipped data (schemas/, dtu/ templates, sample descriptor).
+      Update gen_eval/__init__.py with the public API re-exports. Add the
+      surface test asserting gen_eval.metrics exposes exactly GenEvalMetrics
+      (task 2.4.1). Covers tasks 2.1-2.5. L-sized but mechanical — splitting
+      would break import consistency mid-move.
     role: python-engineer
     priority: 2
     depends_on: [wp-package-scaffold]
@@ -142,6 +152,20 @@ packages:
             artifacts: []
             result_keys:
               - "static_import_check"
+        - name: "gen_eval.metrics surface is exactly GenEvalMetrics"
+          kind: command
+          command: "cd packages/gen-eval && uv run python -c \"import gen_eval.metrics; assert {n for n in dir(gen_eval.metrics) if not n.startswith('_')} == {'GenEvalMetrics'}, sorted(n for n in dir(gen_eval.metrics) if not n.startswith('_'))\""
+          evidence:
+            artifacts: []
+            result_keys:
+              - "metrics_surface_check"
+        - name: "coordinator metrics consumers still resolve"
+          kind: command
+          command: "cd agent-coordinator && uv run python -c \"from evaluation.metrics import TimingMetric, TokenUsage, CorrectnessMetrics, CoordinationMetrics, SafetyMetrics, ParallelizationMetrics, TaskMetrics, AggregatedMetrics, TrialMetrics, MetricsCollector, compute_effect_size; print('ok')\""
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_metrics_resolve_check"
     metadata:
       loc_estimate: 6500
       complexity: medium
@@ -151,16 +175,28 @@ packages:
         - "pytest_exit_code"
         - "files_moved"
         - "static_import_check"
+        - "metrics_surface_check"
+        - "coordinator_metrics_resolve_check"
 
   - package_id: wp-package-tests
     title: "Relocate gen-eval tests and add CI job"
     task_type: implement
     description: |
-      Relocate gen-eval's existing unit tests to packages/gen-eval/tests/ with
-      import path updates. Add tests for the optional [mcp] extra ImportError
-      contract and the sdist-content contract. Add the gen-eval-tests CI job to
-      .github/workflows/ci.yml per design D10. Covers tasks 3.1-3.4. Runs in
-      parallel with the coordinator migration, skill updates, and examples doc.
+      Relocate gen-eval's 29 unit-test files from
+      agent-coordinator/tests/test_evaluation/test_gen_eval/ (note the
+      test_ prefix on every segment — the original task text had the wrong
+      path) to packages/gen-eval/tests/ with import path updates
+      (evaluation.gen_eval.* -> gen_eval.*, evaluation.metrics import
+      GenEvalMetrics -> gen_eval.metrics import GenEvalMetrics). Delete
+      the now-empty test_evaluation/test_gen_eval/ directory in the
+      coordinator. Add tests for the optional [mcp] extra ImportError
+      contract and the sdist-content contract. Add the gen-eval-tests CI
+      job to .github/workflows/ci.yml per design D10 — and per D8 Option B
+      (wheel install), add a pre-build step `cd packages/gen-eval && uv
+      build --out-dir ../../agent-coordinator/dist` to the existing
+      coordinator docker-build CI job so the Dockerfile finds the wheel.
+      Covers tasks 3.1-3.4. Runs in parallel with the coordinator
+      migration, skill updates, and examples doc.
     role: python-engineer
     priority: 3
     depends_on: [wp-framework-move]
@@ -171,14 +207,16 @@ packages:
       files:
         - "packages/gen-eval/tests"
         - ".github/workflows/ci.yml"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval"
       keys:
         - "feature:extract-gen-eval-package:tests"
       ttl_minutes: 120
-      reason: "Package tests and CI matrix addition."
+      reason: "Package tests, CI matrix addition, and source-test deletion after relocation."
     scope:
       write_allow:
         - "packages/gen-eval/tests/**"
         - ".github/workflows/ci.yml"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
       read_allow:
         - "packages/gen-eval/**"
         - "agent-coordinator/tests/**"
@@ -217,11 +255,22 @@ packages:
     description: |
       Update agent-coordinator/pyproject.toml to depend on gen-eval[mcp] via uv
       path source per design D5. Rewrite all from evaluation.gen_eval imports in
-      agent-coordinator/src/ to from gen_eval per D6. Relocate per-project data
-      (descriptors/, manifests/, scenarios/) one level up out of the deleted
-      gen_eval/ directory per D7. Update Dockerfile build context and COPY order
-      per D8. Update agent-coordinator/README.md to document the build-context
-      change. Run full coordinator test suite. Covers tasks 4.1-4.6.
+      agent-coordinator/src/ to from gen_eval per D6. ALSO update the two literal
+      string fixtures in agent-coordinator/tests/test_check_docker_imports.py
+      (lines 54 and 210) and the reference in agent-coordinator/CLAUDE.md
+      line 122. Relocate per-project data (descriptors/, manifests/, scenarios/)
+      one level up out of the deleted gen_eval/ directory per D7. Update the
+      agent-coordinator/Dockerfile per design D8 OPTION B (wheel install):
+      add a `COPY dist/gen_eval-*.whl /tmp/wheels/` + `ENV UV_FIND_LINKS=...`
+      ahead of `uv sync`; move the `COPY evaluation/` after `uv sync` for
+      layer-cache hygiene. Add an `agent-coordinator/Makefile` target
+      `build-image` that runs `cd ../packages/gen-eval && uv build
+      --out-dir ../../agent-coordinator/dist` first. Add `dist/` to
+      `agent-coordinator/.gitignore`. Update agent-coordinator/README.md to
+      document the new make build-image workflow and the wheel-install
+      semantics (editable locally, wheel inside Docker). Build context stays
+      at `agent-coordinator/` so docker-compose.yml and railway.toml need
+      no changes. Run full coordinator test suite. Covers tasks 4.1-4.6.
     role: python-engineer
     priority: 3
     depends_on: [wp-framework-move]
@@ -232,22 +281,31 @@ packages:
       files:
         - "agent-coordinator/pyproject.toml"
         - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/Makefile"
+        - "agent-coordinator/.gitignore"
         - "agent-coordinator/README.md"
         - "agent-coordinator/src/coordination_api.py"
         - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/CLAUDE.md"
         - "agent-coordinator/evaluation/__init__.py"
+        - "agent-coordinator/evaluation/metrics.py"
+        - "agent-coordinator/tests/test_check_docker_imports.py"
       keys:
         - "feature:extract-gen-eval-package:coordinator"
       ttl_minutes: 180
-      reason: "Coordinator dependency, imports, Dockerfile, and data relocation."
+      reason: "Coordinator dependency, imports, Dockerfile (Option B wheel install), Makefile target, .gitignore, data relocation, and leftover test-fixture string updates."
     scope:
       write_allow:
         - "agent-coordinator/pyproject.toml"
         - "agent-coordinator/uv.lock"
         - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/Makefile"
+        - "agent-coordinator/.gitignore"
         - "agent-coordinator/README.md"
+        - "agent-coordinator/CLAUDE.md"
         - "agent-coordinator/src/**"
         - "agent-coordinator/evaluation/**"
+        - "agent-coordinator/tests/test_check_docker_imports.py"
         - "agent-coordinator/tests/**"
       read_allow:
         - "agent-coordinator/**"
@@ -255,6 +313,7 @@ packages:
         - "openspec/changes/extract-gen-eval-package/**"
       deny:
         - "agent-coordinator/evaluation/gen_eval/**"
+        - "agent-coordinator/tests/test_evaluation/test_gen_eval/**"
     worktree:
       name: wp-coordinator-migrate
       mode: isolated
@@ -302,11 +361,18 @@ packages:
     description: |
       Update python -m evaluation.gen_eval invocations in skills/gen-eval/SKILL.md
       and skills/validate-feature/SKILL.md to python -m gen_eval. Update
-      skills/playwright-validator/SKILL.md import from evaluation.gen_eval to
-      gen_eval (retain fallback parser). Regenerate runtime mirrors via
-      install.sh. Verify no evaluation.gen_eval strings remain in any skill copy.
-      Covers tasks 5.1-5.4. Parallel-safe with coordinator migrate, package tests,
-      examples doc.
+      skills/playwright-validator/scripts/cli.py:141 (the actual Python import,
+      not the SKILL.md) — change from evaluation.gen_eval to gen_eval and
+      drop the sys.path.insert(0, agent-coordinator/) workaround (no longer
+      needed once gen-eval is a real installed package). Retain the
+      _minimal_parse fallback. Update the docstring reference in
+      skills/playwright-validator/scripts/findings.py:112. Update the
+      embedded Python validation snippet in skills/gen-eval-scenario/SKILL.md
+      line 172 (`from evaluation.gen_eval.models import Scenario` ->
+      `from gen_eval.models import Scenario`). Regenerate runtime mirrors via
+      install.sh. Verify no evaluation.gen_eval strings remain in any skill
+      copy. Covers tasks 5.1-5.4. Parallel-safe with coordinator migrate,
+      package tests, examples doc.
     role: python-engineer
     priority: 3
     depends_on: [wp-framework-move]
@@ -318,15 +384,19 @@ packages:
         - "skills/gen-eval/SKILL.md"
         - "skills/validate-feature/SKILL.md"
         - "skills/playwright-validator/SKILL.md"
+        - "skills/playwright-validator/scripts/cli.py"
+        - "skills/playwright-validator/scripts/findings.py"
+        - "skills/gen-eval-scenario/SKILL.md"
       keys:
         - "feature:extract-gen-eval-package:skills"
       ttl_minutes: 60
-      reason: "Skill invocation string updates and runtime mirror regeneration."
+      reason: "Skill invocation string updates (SKILL.md + Python scripts) and runtime mirror regeneration."
     scope:
       write_allow:
         - "skills/gen-eval/**"
         - "skills/validate-feature/**"
         - "skills/playwright-validator/**"
+        - "skills/gen-eval-scenario/**"
         - ".claude/skills/**"
         - ".agents/skills/**"
       read_allow:

@@ -47,3 +47,48 @@
 ### Context
 Planned the extraction of gen-eval (~6.5 KLOC framework) from agent-coordinator/evaluation/gen_eval/ into packages/gen-eval/ as a standalone pip-installable package. Selected full cutover in a single atomic change, with framework-only data split, optional [mcp] extra, and an examples doc as the agentic-assistant adoption proof. The change establishes the packages/ convention for future shared-library extractions (Hoverfly, prompt opt, harness opt, vendor conventions).
 
+---
+
+## Phase: Plan Iteration 1 (2026-05-24)
+
+**Agent**: claude_code (architect) | **Session**: N/A
+
+### Decisions
+1. **Surgical extraction of GenEvalMetrics only** — evaluation/metrics.py defines 11 classes; only GenEvalMetrics is gen-eval-specific. The other 10 are consumed by evaluation/ablation.py, evaluation/reports/generator.py, and coordinator tests. Moving the whole file would either break those consumers or force the coordinator to circularly re-import its own classes from a shared library that should not own them. Updated D3, task 2.4, spec MODIFIED requirement, and wp-framework-move verification (new metrics_surface_check and coordinator_metrics_resolve_check steps).
+2. **Docker build-context Option B (wheel install)** — Three deploy/CI surfaces consume the agent-coordinator/ build context: ci.yml (context: agent-coordinator), docker-compose.yml (context: .), and Railway (service root = agent-coordinator/, dockerfilePath = Dockerfile). Option A (move context to repo root) requires reconfiguring Railway via the dashboard — operationally awkward and not git-trackable. Option B builds gen-eval to a wheel, copies it into agent-coordinator/dist/, and the Dockerfile installs it via UV_FIND_LINKS. Keeps Railway untouched and matches how external PyPI consumers will install. Updated D8 with full implementation steps.
+3. **Expanded skill-update scope** — Plan D9 missed three Python-script-level imports: playwright-validator/scripts/cli.py (the actual runtime import; plan only touched SKILL.md), findings.py (docstring reference), and gen-eval-scenario/SKILL.md line 172 (D9 row 4 incorrectly said 'no change'). Updated D9, tasks 5.3/5.3.1, and wp-skills-update scope.
+4. **Expanded coordinator-migrate scope to leftover test fixtures** — Plan task 4.3 only covered agent-coordinator/src/. But test_check_docker_imports.py embeds two literal 'from evaluation.gen_eval import mcp_service' strings as test fixtures (lines 54, 210). Updated task 4.3 and wp-coordinator-migrate scope to include this file plus CLAUDE.md line 122.
+5. **Test-source relocation moved into wp-package-tests** — Original plan had task 3.1 in wp-package-tests but the write_allow scope didn't include agent-coordinator/tests/test_evaluation/test_gen_eval/. Now scoped correctly with explicit deny in wp-coordinator-migrate so the two parallel packages do not collide. Also fixed the source path in task 3.1 (it was tests/evaluation/gen_eval/, actual is tests/test_evaluation/test_gen_eval/, 29 files).
+6. **Spec acquires gen_eval.metrics surface scenario** — Added a new scenario asserting gen_eval.metrics exposes exactly {GenEvalMetrics} so a future refactor can't silently reintroduce the unrelated 10 classes. Verified by wp-framework-move.metrics_surface_check verification step + task 2.4.1 surface test.
+
+### Alternatives Considered
+- Move whole evaluation/metrics.py into the package: rejected because Wrong-grained: 10/11 classes are coordinator-domain. Would break agent-coordinator/evaluation/ablation.py, reports/generator.py, and 4 test files OR force a circular import back to the package.
+- Docker Option A (move build context to repo root): rejected because Cleaner mental model but requires reconfiguring Railway service root via dashboard (not git-trackable) and updating ci.yml + docker-compose.yml + railway.toml atomically. Risk on the production deploy path for build-context cleanliness is a bad trade.
+- Combine .github/workflows/ci.yml writes in one WP: rejected because With Option B (chosen), the build context is unchanged so wp-coordinator-migrate doesn't need ci.yml at all. Only wp-package-tests writes ci.yml (adding the gen-eval matrix job + the Option-B wheel pre-build step for the existing coordinator job). No conflict, no need to combine.
+
+### Trade-offs
+- Accepted Two metrics.py files (one in gen-eval, one in coordinator) over Single shared metrics.py with full extraction because The 10 coordinator-domain classes have no business in a shared library named after gen-eval. Two narrowly-scoped files are clearer than one wide-scoped one whose name no longer matches its content.
+- Accepted Docker installs gen-eval as a wheel; local dev installs editable over Same install mode in both because Editable installs don't work cleanly across multi-stage Docker builds (the .pth file would dangle). Keeping local dev editable preserves developer ergonomics; Docker wheel install matches the future PyPI consumer experience.
+- Accepted One extra CI step (uv build) before docker build over docker build self-contained because Trade build complexity for Railway-deploy simplicity. Railway service root and dockerfilePath stay untouched.
+
+### Open Questions
+- [ ] Should agent-coordinator's local Makefile target also pre-build the wheel for non-Docker uv-run flows, or is the editable path-dep sufficient outside Docker? Recommendation: keep local non-Docker on editable; only Docker needs the wheel.
+- [ ] Does Railway's build pipeline auto-discover the new agent-coordinator/Makefile build-image target, or does the railway.toml need a `[build] buildCommand = "make build-image"` addition? Validate during wp-coordinator-migrate impl.
+
+### Completed Work
+- F1: D3 refactored to surgical-extraction of GenEvalMetrics; task 2.4 + 2.4.1 + spec MODIFIED requirement + wp-framework-move verification all consistent.
+- F2: Tasks 3.1, 4.3 updated to cover coordinator-test sites; wp-coordinator-migrate + wp-package-tests scopes updated.
+- F3: D9 and task 5.3/5.3.1 cover playwright-validator scripts and gen-eval-scenario SKILL.md.
+- F4: D8 picks Option B (wheel install) with full implementation steps; Railway untouched.
+- F5: Scope collision on .github/workflows/ci.yml resolved by D8 Option B (only wp-package-tests writes ci.yml).
+- F6: Task 3.1 source path corrected to agent-coordinator/tests/test_evaluation/test_gen_eval/.
+- F7: D7 hedge removed; concrete sample-frontend fixture paths listed.
+- F8: Surface test added (task 2.4.1) and verification step added to wp-framework-move.
+- F9: wp-framework-move scope clarified (metrics.py is partially edited, not deleted).
+- F10: Spec MODIFIED requirement language fixed (GenEvalMetrics-specific, not whole-file).
+- F11: Parallelizability summary added to tasks.md after section 6.
+- F12: Editable-vs-Docker interaction documented in D5.
+
+### Context
+Iteration 1 fixed one critical and three high-criticality plan defects found during architect-archetype review: the wholesale metrics.py move would have broken 10 unrelated coordinator consumers; multiple import-rewrite sites were missing from tasks (coordinator tests, skill scripts, gen-eval-scenario SKILL.md); and the Docker build-context strategy was hand-waved and would have broken Railway deployment. Resolved by surgical-extraction of GenEvalMetrics only, Option B (wheel install) for Docker, expanded task coverage, and tightened work-package scopes. Strict OpenSpec validation passes.
+

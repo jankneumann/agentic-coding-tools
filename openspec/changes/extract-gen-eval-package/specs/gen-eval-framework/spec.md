@@ -83,7 +83,7 @@ The package SHALL ship a `packages/gen-eval/examples/agentic-assistant-quickstar
 
 ### Requirement: Module discovery and import boundary
 
-The framework's public API SHALL be discoverable solely through the `gen_eval` top-level Python module (this replaces the prior packaging-implicit assumption that gen-eval was an in-tree module under `agent-coordinator/evaluation/gen_eval/`). Internal modules (`gen_eval.evaluator`, `gen_eval.orchestrator`, `gen_eval.clients.*`, `gen_eval.generator`, `gen_eval.openspec_seed`, `gen_eval.metrics`, etc.) SHALL be importable directly. The framework SHALL NOT depend on any module under `agent_coordinator.*` or `src.coordination_*`. The previously existing reverse coupling (`evaluation/metrics.py` importing into gen-eval's `reports.py`) SHALL be resolved by moving `metrics.py` into the package as `gen_eval/metrics.py`, since `GenEvalMetrics` is gen-eval-specific by name and has no other consumers.
+The framework's public API SHALL be discoverable solely through the `gen_eval` top-level Python module (this replaces the prior packaging-implicit assumption that gen-eval was an in-tree module under `agent-coordinator/evaluation/gen_eval/`). Internal modules (`gen_eval.evaluator`, `gen_eval.orchestrator`, `gen_eval.clients.*`, `gen_eval.generator`, `gen_eval.openspec_seed`, `gen_eval.metrics`, etc.) SHALL be importable directly. The framework SHALL NOT depend on any module under `agent_coordinator.*` or `src.coordination_*`. The previously existing reverse coupling (`gen_eval/reports.py` importing `GenEvalMetrics` from `agent-coordinator/evaluation/metrics.py`) SHALL be resolved by **surgical extraction**: the `GenEvalMetrics` dataclass SHALL be moved into the package as `gen_eval/metrics.py`, while the remaining classes in `evaluation/metrics.py` (`TimingMetric`, `TokenUsage`, `CorrectnessMetrics`, `CoordinationMetrics`, `SafetyMetrics`, `ParallelizationMetrics`, `TaskMetrics`, `AggregatedMetrics`, `TrialMetrics`, `MetricsCollector`) and `compute_effect_size` SHALL remain in `agent-coordinator/evaluation/metrics.py` because they are coordinator-domain symbols consumed by `evaluation/ablation.py`, `evaluation/reports/generator.py`, and coordinator test code — they have no gen-eval consumers and have no business in a shared library.
 
 #### Scenario: framework has zero imports from agent-coordinator
 
@@ -96,3 +96,9 @@ The framework's public API SHALL be discoverable solely through the `gen_eval` t
 - **WHEN** `gen_eval.coordinator` is imported in an environment where the coordinator HTTP API is unreachable
 - **THEN** the import SHALL succeed without raising
 - **AND** any subsequent method calls on the coordinator integration object SHALL degrade gracefully (log a warning, return empty results) as they do today
+
+#### Scenario: gen_eval.metrics exposes only the gen-eval-specific symbol
+
+- **WHEN** the contents of `gen_eval.metrics` are inspected (e.g., `set(dir(gen_eval.metrics)) - {x for x in dir(gen_eval.metrics) if x.startswith("_")}`)
+- **THEN** the set SHALL be exactly `{"GenEvalMetrics"}` — no coordinator-domain classes (`TimingMetric`, `TokenUsage`, `CorrectnessMetrics`, `CoordinationMetrics`, `SafetyMetrics`, `ParallelizationMetrics`, `TaskMetrics`, `AggregatedMetrics`, `TrialMetrics`, `MetricsCollector`) and no `compute_effect_size` helper SHALL be re-exported
+- **AND** `agent-coordinator/evaluation/metrics.py` SHALL continue to define and export the 10 coordinator-domain classes plus `compute_effect_size`, so existing in-coordinator imports (`evaluation.ablation`, `evaluation.reports.generator`, coordinator tests) continue to resolve unchanged
