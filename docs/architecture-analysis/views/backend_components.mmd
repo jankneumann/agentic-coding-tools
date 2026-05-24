@@ -1,18 +1,19 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (31 symbols)"]
+    agents_config["agents_config (37 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
-    config["config (41 symbols)"]
-    coordination_api["coordination_api (121 symbols)"]
+    config["config (43 symbols)"]
+    coordination_api["coordination_api (135 symbols)"]
     coordination_cli["coordination_cli (33 symbols)"]
     coordination_mcp["coordination_mcp (77 symbols)"]
     db["db (23 symbols)"]
     db_postgres["db_postgres (14 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
-    event_bus["event_bus (21 symbols)"]
+    event_bus["event_bus (22 symbols)"]
+    event_stream["event_stream (13 symbols)"]
     feature_flags["feature_flags (26 symbols)"]
     feature_registry["feature_registry (19 symbols)"]
     git_adapter["git_adapter (25 symbols)"]
@@ -22,9 +23,10 @@ flowchart TB
     help_service["help_service (6 symbols)"]
     http_proxy["http_proxy (68 symbols)"]
     issue_service["issue_service (21 symbols)"]
+    kanban_viz_files["kanban_viz_files (10 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]
-    locks["locks (18 symbols)"]
+    locks["locks (19 symbols)"]
     memory["memory (13 symbols)"]
     merge_queue["merge_queue (17 symbols)"]
     merge_train["merge_train (30 symbols)"]
@@ -48,12 +50,15 @@ flowchart TB
     refresh_rpc_client["refresh_rpc_client (12 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
+    sse_log_redaction["sse_log_redaction (6 symbols)"]
     status["status (6 symbols)"]
+    sync_points["sync_points (5 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
     tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
+    worktrees_view["worktrees_view (4 symbols)"]
     agents_config -->|"call"| profile_loader
     agents_config -->|"call"| teams
     approval -->|"call, import"| db
@@ -65,13 +70,16 @@ flowchart TB
     coordination_api -->|"call, import"| approval
     coordination_api -->|"call, import"| audit
     coordination_api -->|"call, import"| config
+    coordination_api -->|"call, import"| db
     coordination_api -->|"call, import"| discovery
     coordination_api -->|"call, import"| event_bus
+    coordination_api -->|"call, import"| event_stream
     coordination_api -->|"call, import"| feature_registry
     coordination_api -->|"call, import"| guardrails
     coordination_api -->|"call, import"| handoffs
     coordination_api -->|"call, import"| help_service
     coordination_api -->|"call, import"| issue_service
+    coordination_api -->|"call, import"| kanban_viz_files
     coordination_api -->|"import"| langfuse_middleware
     coordination_api -->|"call, import"| langfuse_tracing
     coordination_api -->|"call, import"| locks
@@ -86,9 +94,12 @@ flowchart TB
     coordination_api -->|"call, import"| profiles
     coordination_api -->|"call, import"| refresh_rpc_client
     coordination_api -->|"call, import"| session_grants
+    coordination_api -->|"call, import"| sse_log_redaction
+    coordination_api -->|"import"| sync_points
     coordination_api -->|"call, import"| telemetry
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
+    coordination_api -->|"import"| worktrees_view
     coordination_cli -->|"call, import"| audit
     coordination_cli -->|"call, import"| config
     coordination_cli -->|"call, import"| db
@@ -131,6 +142,10 @@ flowchart TB
     discovery -->|"call, import"| audit
     discovery -->|"call, import"| config
     discovery -->|"call, import"| db
+    event_stream -->|"call"| coordination_api
+    event_stream -->|"import"| event_bus
+    event_stream -->|"import"| issue_service
+    event_stream -->|"import"| worktrees_view
     feature_registry -->|"call, import"| audit
     feature_registry -->|"call, import"| config
     feature_registry -->|"call, import"| db
@@ -149,6 +164,7 @@ flowchart TB
     issue_service -->|"call, import"| config
     issue_service -->|"call, import"| db
     issue_service -->|"call"| discovery
+    kanban_viz_files -->|"call, import"| config
     langfuse_middleware -->|"call, import"| config
     langfuse_middleware -->|"call, import"| langfuse_tracing
     langfuse_tracing -->|"call, import"| config
@@ -209,3 +225,4 @@ flowchart TB
     work_queue -->|"call, import"| policy_engine
     work_queue -->|"call, import"| profiles
     work_queue -->|"call, import"| telemetry
+    worktrees_view -->|"call"| approval

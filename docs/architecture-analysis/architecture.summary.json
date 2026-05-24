@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-05-08T02:30:07.714822+00:00",
-  "git_sha": "a2e8e2c74ff5e3fb72f0d916020df513ff578c72",
+  "generated_at": "2026-05-24T00:15:22.272696+00:00",
+  "git_sha": "9647378fe03e02a629a5372cf9495b2c722e4ae1",
   "stats": {
-    "total_nodes": 1471,
-    "total_edges": 901,
+    "total_nodes": 1533,
+    "total_edges": 978,
     "by_language": {
-      "python": 1117,
+      "python": 1179,
       "sql": 354
     },
     "by_kind": {
-      "module": 54,
-      "class": 184,
-      "function": 827,
+      "module": 59,
+      "class": 192,
+      "function": 876,
       "table": 24,
       "column": 236,
       "index": 56,
@@ -20,7 +20,7 @@
       "test_class": 7,
       "test_function": 45
     },
-    "entrypoint_count": 82
+    "entrypoint_count": 91
   },
   "cross_layer_flows": [],
   "disconnected_endpoints": [
@@ -289,6 +289,42 @@
       "path": "/help/{topic}"
     },
     {
+      "node_id": "py:coordination_api.create_coordination_api.get_sync_points_status",
+      "path": "/sync-points/status"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.get_active_worktrees",
+      "path": "/worktrees/active"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.mint_events_token",
+      "path": "/events/auth"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.stream_work_events",
+      "path": "/events/work"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.patch_issue_labels",
+      "path": "/issues/{issue_id}/labels"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.force_release_lock",
+      "path": "/locks/{file_path:path}"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.kick_agent",
+      "path": "/agents/{agent_id}/kick"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.put_saved_view",
+      "path": "/kanban-viz/saved-views/{slug}"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.post_kanban_audit",
+      "path": "/kanban-viz/audit"
+    },
+    {
       "node_id": "py:coordination_api.create_coordination_api.live",
       "path": "/live"
     },
@@ -357,7 +393,7 @@
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 171
+      "dependent_count": 177
     },
     {
       "id": "py:http_proxy.get_client",
@@ -380,12 +416,16 @@
       "dependent_count": 43
     },
     {
-      "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 30
+      "id": "py:audit.get_audit_service",
+      "dependent_count": 31
     },
     {
       "id": "py:config",
-      "dependent_count": 28
+      "dependent_count": 30
+    },
+    {
+      "id": "py:coordination_api.resolve_identity",
+      "dependent_count": 30
     },
     {
       "id": "py:coordination_api.authorize_operation",
@@ -400,28 +440,24 @@
       "dependent_count": 26
     },
     {
-      "id": "py:audit.get_audit_service",
-      "dependent_count": 25
+      "id": "py:db.create_db_client",
+      "dependent_count": 26
     },
     {
       "id": "py:coordination_cli._run",
       "dependent_count": 25
     },
     {
-      "id": "py:db.create_db_client",
-      "dependent_count": 24
+      "id": "py:db.get_db",
+      "dependent_count": 25
     },
     {
       "id": "py:db_postgres",
-      "dependent_count": 23
-    },
-    {
-      "id": "py:db.get_db",
-      "dependent_count": 23
+      "dependent_count": 24
     },
     {
       "id": "py:db",
-      "dependent_count": 22
+      "dependent_count": 23
     },
     {
       "id": "py:merge_queue.get_merge_queue_service",
@@ -456,6 +492,10 @@
       "dependent_count": 14
     },
     {
+      "id": "py:locks.get_lock_service",
+      "dependent_count": 13
+    },
+    {
       "id": "py:profiles.get_profiles_service",
       "dependent_count": 13
     },
@@ -480,10 +520,6 @@
       "dependent_count": 11
     },
     {
-      "id": "py:locks.get_lock_service",
-      "dependent_count": 11
-    },
-    {
       "id": "py:merge_train_service.get_merge_train_service",
       "dependent_count": 10
     },
@@ -505,6 +541,10 @@
     },
     {
       "id": "py:profiles",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:event_bus.get_event_bus",
       "dependent_count": 8
     },
     {
@@ -536,11 +576,15 @@
       "dependent_count": 7
     },
     {
-      "id": "py:approval.get_approval_service",
+      "id": "py:agents_config._normalize_provider_model_map",
       "dependent_count": 7
     },
     {
-      "id": "py:event_bus.get_event_bus",
+      "id": "py:approval._parse_dt",
+      "dependent_count": 7
+    },
+    {
+      "id": "py:approval.get_approval_service",
       "dependent_count": 7
     },
     {
@@ -556,11 +600,15 @@
       "dependent_count": 7
     },
     {
-      "id": "py:approval._parse_dt",
+      "id": "py:config._default_workdir_root",
       "dependent_count": 6
     },
     {
       "id": "py:db_postgres._validate_identifier",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:event_stream._get_signing_key",
       "dependent_count": 6
     },
     {
@@ -576,11 +624,35 @@
       "dependent_count": 5
     },
     {
+      "id": "py:config.resolve_workdir_path",
+      "dependent_count": 5
+    },
+    {
       "id": "py:coordination_mcp.get_agent_id",
       "dependent_count": 5
     },
     {
+      "id": "py:event_stream.sse_event_generator._normalize_status",
+      "dependent_count": 5
+    },
+    {
       "id": "py:feature_flags.get_feature_flag_service",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:kanban_viz_files._validate_against",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:kanban_viz_files._validate_slug",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:kanban_viz_files._git_sha",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:kanban_viz_files._atomic_write",
       "dependent_count": 5
     },
     {
