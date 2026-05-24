@@ -208,7 +208,7 @@ class FeatureConflictsRequest(BaseModel):
 
 
 class StatusReportRequest(BaseModel):
-    agent_id: str = Field(max_length=128)
+    agent_id: str | None = Field(default=None, max_length=128)
     change_id: str = Field(default="", max_length=128)
     phase: str = Field(default="UNKNOWN", max_length=64)
     message: str = Field(default="", max_length=500)
@@ -382,6 +382,36 @@ class KanbanAuditRequest(BaseModel):
 # =============================================================================
 
 
+def _extract_api_key(
+    x_api_key: str | None,
+    authorization: str | None,
+    x_coordinator_api_key: str | None,
+) -> str | None:
+    """Resolve effective API key by supported header precedence."""
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token.strip():
+            return token.strip()
+    if x_coordinator_api_key:
+        return x_coordinator_api_key.strip() or None
+    if x_api_key:
+        return x_api_key.strip() or None
+    return None
+
+
+def _principal_for_api_key(resolved_key: str) -> dict[str, Any]:
+    """Return the coordinator principal bound to an API key."""
+    config = get_config()
+    if resolved_key not in config.api.api_keys:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    identity = config.api.api_key_identities.get(resolved_key, {})
+    return {
+        "api_key": resolved_key,
+        "agent_id": identity.get("agent_id"),
+        "agent_type": identity.get("agent_type"),
+    }
+
+
 async def verify_api_key(
     x_api_key: str | None = Header(None),
     authorization: str | None = Header(None),
@@ -398,26 +428,22 @@ async def verify_api_key(
 
     Existing callers using only ``X-API-Key`` are unaffected.
     """
-    # Resolve effective key by precedence
-    resolved_key: str | None = None
-    if authorization:
-        scheme, _, token = authorization.partition(" ")
-        if scheme.lower() == "bearer" and token.strip():
-            resolved_key = token.strip()
-    if resolved_key is None and x_coordinator_api_key:
-        resolved_key = x_coordinator_api_key.strip() or None
-    if resolved_key is None and x_api_key:
-        resolved_key = x_api_key.strip() or None
-
-    config = get_config()
-    if not resolved_key or resolved_key not in config.api.api_keys:
+    resolved_key = _extract_api_key(x_api_key, authorization, x_coordinator_api_key)
+    if not resolved_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    identity = config.api.api_key_identities.get(resolved_key, {})
-    return {
-        "api_key": resolved_key,
-        "agent_id": identity.get("agent_id"),
-        "agent_type": identity.get("agent_type"),
-    }
+    return _principal_for_api_key(resolved_key)
+
+
+async def optional_api_key(
+    x_api_key: str | None = Header(None),
+    authorization: str | None = Header(None),
+    x_coordinator_api_key: str | None = Header(None),
+) -> dict[str, Any]:
+    """Resolve API-key identity when provided; preserve unauthenticated hooks."""
+    resolved_key = _extract_api_key(x_api_key, authorization, x_coordinator_api_key)
+    if not resolved_key:
+        return {"api_key": None, "agent_id": None, "agent_type": None}
+    return _principal_for_api_key(resolved_key)
 
 
 def resolve_identity(
@@ -2106,11 +2132,12 @@ def create_coordination_api() -> FastAPI:
     @app.post("/status/report")
     async def report_status(
         request: StatusReportRequest,
+        principal: dict[str, Any] = Depends(optional_api_key),
     ) -> dict[str, Any]:
         """Accept status reports from agent hooks (Stop/SubagentStop).
 
-        No API key required — status reports are fire-and-forget from hooks
-        that may not have credentials configured.
+        API key identity is used when present; unauthenticated status reports
+        remain fire-and-forget for hooks without credentials configured.
         """
         import logging as _logging
 
@@ -2118,6 +2145,15 @@ def create_coordination_api() -> FastAPI:
         from .event_bus import CoordinatorEvent, classify_urgency, get_event_bus
 
         _log = _logging.getLogger(__name__)
+        metadata = request.metadata or {}
+        request_agent_type = metadata.get("agent_type")
+        if not isinstance(request_agent_type, str):
+            request_agent_type = None
+        agent_id, agent_type = resolve_identity(
+            principal,
+            request.agent_id,
+            request_agent_type,
+        )
 
         # Update heartbeat for the reporting agent (not the coordinator itself).
         # wire-autopilot-phase-subagents (task 3.8): forward phase_archetype
@@ -2129,7 +2165,7 @@ def create_coordination_api() -> FastAPI:
         try:
             discovery = get_discovery_service()
             await discovery.heartbeat(
-                agent_id=request.agent_id,
+                agent_id=agent_id,
                 phase_archetype=request.phase_archetype,
             )
         except Exception:  # noqa: BLE001
@@ -2148,7 +2184,7 @@ def create_coordination_api() -> FastAPI:
             event_type=request.event_type,
             channel="coordinator_status",
             entity_id=request.change_id or "unknown",
-            agent_id=request.agent_id,
+            agent_id=agent_id,
             urgency=urgency,
             summary=f"[{request.phase}] {request.message}"[:200],
             change_id=request.change_id or None,
@@ -2156,7 +2192,8 @@ def create_coordination_api() -> FastAPI:
                 "phase": request.phase,
                 "phase_archetype": request.phase_archetype,
                 "needs_human": request.needs_human,
-                **(request.metadata or {}),
+                **metadata,
+                "agent_type": agent_type,
             },
         )
 

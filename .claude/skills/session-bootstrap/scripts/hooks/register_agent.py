@@ -13,8 +13,8 @@ Usage:
 Environment variables:
     COORDINATION_API_URL: Coordinator HTTP API URL (optional; skips if unset)
     COORDINATION_API_KEY: API key for X-API-Key header
-    AGENT_ID: Agent identifier (default: "unknown")
-    AGENT_TYPE: Agent type (default: "claude_code")
+    AGENT_ID: Optional legacy agent identifier; API-key identity wins when bound
+    AGENT_TYPE: Optional legacy agent type; API-key identity wins when bound
     SESSION_ID: Session identifier (optional)
 """
 
@@ -70,17 +70,18 @@ def main() -> None:
         print(f"{PREFIX} No coordinator URL configured, skipping", file=sys.stderr)
         return
 
-    agent_id = os.environ.get("AGENT_ID", "unknown")
-    agent_type = os.environ.get("AGENT_TYPE", "claude_code")
+    agent_id = os.environ.get("AGENT_ID", "")
+    agent_type = os.environ.get("AGENT_TYPE", "")
     session_id = os.environ.get("SESSION_ID", "")
 
     # Register via status report (triggers heartbeat on the coordinator).
-    # /status/report has no auth — uses AGENT_ID env var directly.
+    # When COORDINATION_API_KEY is present, /status/report resolves identity
+    # from the coordinator's key binding. AGENT_ID/AGENT_TYPE are legacy hints.
     result = _post(base_url, "/status/report", {
         "agent_id": agent_id,
         "change_id": "",
         "phase": "SESSION_START",
-        "message": f"Session started (type={agent_type})",
+        "message": "Session started",
         "needs_human": False,
         "event_type": "status.phase_transition",
         "metadata": {
@@ -91,7 +92,7 @@ def main() -> None:
     })
 
     if result:
-        print(f"{PREFIX} Registered session for {agent_id}")
+        print(f"{PREFIX} Registered session")
     else:
         print(f"{PREFIX} Registration failed (coordinator may be unreachable)", file=sys.stderr)
 

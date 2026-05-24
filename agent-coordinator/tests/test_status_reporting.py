@@ -109,6 +109,78 @@ def test_report_status_updates_heartbeat(client: TestClient) -> None:
     mock_heartbeat.assert_awaited_once()
 
 
+def test_report_status_resolves_identity_from_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """POST /status/report can use API-key-bound identity without agent_id."""
+    from src.config import reset_config
+
+    reset_config()
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
+    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        json.dumps({_TEST_KEY: {"agent_id": "bound-codex", "agent_type": "codex"}}),
+    )
+    reset_config()
+
+    bound_client = TestClient(create_coordination_api())
+    mock_heartbeat = AsyncMock()
+    with (
+        patch("src.discovery.get_discovery_service") as mock_disc,
+        patch("src.event_bus.get_event_bus") as mock_bus_fn,
+    ):
+        mock_disc.return_value.heartbeat = mock_heartbeat
+        mock_bus = MagicMock()
+        mock_bus.running = False
+        mock_bus.failed = False
+        mock_bus_fn.return_value = mock_bus
+
+        response = bound_client.post(
+            "/status/report",
+            headers=_auth_headers(),
+            json={
+                "change_id": "change-001",
+                "phase": "PLAN",
+            },
+        )
+
+    assert response.status_code == 200
+    mock_heartbeat.assert_awaited_once_with(
+        agent_id="bound-codex",
+        phase_archetype=None,
+    )
+    reset_config()
+
+
+def test_report_status_blocks_spoofed_api_key_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """POST /status/report rejects request identity that conflicts with key binding."""
+    from src.config import reset_config
+
+    reset_config()
+    monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
+    monkeypatch.setenv("SUPABASE_SERVICE_KEY", "test-service-key")
+    monkeypatch.setenv("COORDINATION_API_KEYS", _TEST_KEY)
+    monkeypatch.setenv(
+        "COORDINATION_API_KEY_IDENTITIES",
+        json.dumps({_TEST_KEY: {"agent_id": "bound-codex", "agent_type": "codex"}}),
+    )
+    reset_config()
+
+    bound_client = TestClient(create_coordination_api())
+    response = bound_client.post(
+        "/status/report",
+        headers=_auth_headers(),
+        json={
+            "agent_id": "other-agent",
+            "change_id": "change-001",
+            "phase": "PLAN",
+        },
+    )
+
+    assert response.status_code == 403
+    reset_config()
+
+
 def test_report_status_emits_notify(client: TestClient) -> None:
     """POST /status/report emits pg_notify when bus is running."""
     mock_conn = AsyncMock()

@@ -180,9 +180,11 @@ make gemini-wrapper-install  # Symlinks gemini-coord to ~/.local/bin/
 | Gemini CLI | `gemini-coord` wrapper | register → run → report → deregister |
 
 Hook scripts use absolute paths to the coordinator's `scripts/` directory, so they resolve correctly regardless of the current working directory.
-The installed commands set provider-specific `AGENT_ID` / `AGENT_TYPE` defaults
-and a local `COORDINATION_API_URL` default (`http://localhost:8081`) while still
-allowing runtime environment variables to override them.
+The installed Claude and Codex commands do not set `AGENT_ID`, `AGENT_TYPE`,
+`COORDINATION_API_URL`, or `COORDINATION_API_KEY` inline. They inherit
+`COORDINATION_API_URL` and `COORDINATION_API_KEY` from the current run
+environment, and the coordinator resolves `agent_id` / `agent_type` from the
+API-key identity mapping when the key is bound in server config.
 
 For Gemini, use `gemini-coord` instead of bare `gemini` to get coordinator integration:
 ```bash

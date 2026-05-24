@@ -185,8 +185,6 @@ longer matches.
 ```
 COORDINATION_API_URL=https://coord.yourdomain.com
 COORDINATION_API_KEY=<your-api-key>
-AGENT_ID=claude-web-1
-AGENT_TYPE=claude_code
 ```
 
 ## Environment Variables
@@ -195,8 +193,8 @@ AGENT_TYPE=claude_code
 |----------|----------|-------------|
 | `COORDINATION_API_URL` | No | Coordinator HTTP API URL (hooks skip gracefully if unset) |
 | `COORDINATION_API_KEY` | No | API key for `X-API-Key` header |
-| `AGENT_ID` | No | Agent identifier (default: "unknown") |
-| `AGENT_TYPE` | No | Agent type (default: "claude_code") |
+| `AGENT_ID` | No | Optional legacy agent identifier; API-key identity wins when bound |
+| `AGENT_TYPE` | No | Optional legacy agent type; API-key identity wins when bound |
 | `CLAUDE_CODE_REMOTE` | Auto | Set to `true` by Claude Code web — can be used to skip local execution |
 | `CLAUDE_ENV_FILE` | Auto | File path for persisting env vars across Bash calls |
 

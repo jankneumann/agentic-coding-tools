@@ -17,33 +17,13 @@ HOOK_SCRIPTS = {
 }
 
 
-def _shell_default_assignment(name: str, default: str) -> str:
-    escaped = (
-        default.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("$", "\\$")
-        .replace("`", "\\`")
-    )
-    return f'{name}="${{{name}:-{escaped}}}"'
-
-
 def _command(
     scripts_dir: Path,
     script_name: str,
     *,
-    agent_id: str,
-    agent_type: str,
-    coordination_api_url: str,
-    coordination_api_key: str,
     extra_args: str = "",
 ) -> str:
-    env = [
-        _shell_default_assignment("AGENT_ID", agent_id),
-        _shell_default_assignment("AGENT_TYPE", agent_type),
-        _shell_default_assignment("COORDINATION_API_URL", coordination_api_url),
-        _shell_default_assignment("COORDINATION_API_KEY", coordination_api_key),
-    ]
-    command = [*env, "python3", shlex.quote(str(scripts_dir / script_name))]
+    command = ["python3", shlex.quote(str(scripts_dir / script_name))]
     if extra_args:
         command.append(extra_args)
     return " ".join(command)
@@ -64,35 +44,19 @@ def build_hooks(
     *,
     agent: str,
     scripts_dir: Path,
-    agent_id: str,
-    agent_type: str,
-    coordination_api_url: str,
-    coordination_api_key: str,
 ) -> dict[str, Any]:
     """Build the provider-specific hooks mapping."""
     print_env = _command(
         scripts_dir,
         HOOK_SCRIPTS["print_env"],
-        agent_id=agent_id,
-        agent_type=agent_type,
-        coordination_api_url=coordination_api_url,
-        coordination_api_key=coordination_api_key,
     )
     register = _command(
         scripts_dir,
         HOOK_SCRIPTS["register"],
-        agent_id=agent_id,
-        agent_type=agent_type,
-        coordination_api_url=coordination_api_url,
-        coordination_api_key=coordination_api_key,
     )
     report = _command(
         scripts_dir,
         HOOK_SCRIPTS["report"],
-        agent_id=agent_id,
-        agent_type=agent_type,
-        coordination_api_url=coordination_api_url,
-        coordination_api_key=coordination_api_key,
     )
 
     if agent == "codex":
@@ -109,10 +73,6 @@ def build_hooks(
     deregister = _command(
         scripts_dir,
         HOOK_SCRIPTS["deregister"],
-        agent_id=agent_id,
-        agent_type=agent_type,
-        coordination_api_url=coordination_api_url,
-        coordination_api_key=coordination_api_key,
     )
     return {
         "SessionStart": _claude_hook_group([
@@ -127,10 +87,6 @@ def build_hooks(
                 _command(
                     scripts_dir,
                     HOOK_SCRIPTS["report"],
-                    agent_id=agent_id,
-                    agent_type=agent_type,
-                    coordination_api_url=coordination_api_url,
-                    coordination_api_key=coordination_api_key,
                     extra_args="--subagent",
                 )
             ),
@@ -163,10 +119,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--agent", required=True, choices=["claude", "codex"])
     parser.add_argument("--target", required=True, type=Path)
     parser.add_argument("--scripts-dir", type=Path, default=Path(__file__).resolve().parent)
-    parser.add_argument("--agent-id", required=True)
-    parser.add_argument("--agent-type", required=True)
-    parser.add_argument("--coordination-api-url", default="")
-    parser.add_argument("--coordination-api-key", default="")
+    parser.add_argument("--agent-id", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--agent-type", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--coordination-api-url", default="", help=argparse.SUPPRESS)
+    parser.add_argument("--coordination-api-key", default="", help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -175,10 +131,6 @@ def main() -> int:
     hooks = build_hooks(
         agent=args.agent,
         scripts_dir=args.scripts_dir.resolve(),
-        agent_id=args.agent_id,
-        agent_type=args.agent_type,
-        coordination_api_url=args.coordination_api_url,
-        coordination_api_key=args.coordination_api_key,
     )
     write_hooks(args.target, hooks)
     print(f"Merged {args.agent} hooks into {args.target}")

@@ -24,13 +24,12 @@ available.
 
 | Hook Event | Script | What It Does | Requires Auth |
 |------------|--------|-------------|---------------|
-| `SessionStart` | `register_agent.py` | Reports session start, loads previous handoff | Yes (`X-API-Key`) |
-| `Stop` / `SubagentStop` | `report_status.py` | Reports phase transitions, heartbeat | No |
-| `SessionEnd` | `deregister_agent.py` | Writes final handoff, reports session end | Yes (`X-API-Key`) |
+| `SessionStart` | `register_agent.py` | Reports session start, loads previous handoff | Yes for handoff read (`X-API-Key`) |
+| `Stop` / `SubagentStop` | `report_status.py` | Reports phase transitions, heartbeat | Optional; key resolves identity when present |
+| `SessionEnd` | `deregister_agent.py` | Writes final handoff, reports session end | Yes for handoff write (`X-API-Key`) |
 
 All scripts communicate with the coordinator via its HTTP API. They resolve
-the coordinator URL from environment variables (checked in order):
-`COORDINATION_API_URL` → `COORDINATOR_URL` → `COORDINATOR_HTTP_URL`.
+the coordinator URL from `COORDINATION_API_URL`.
 
 If no coordinator URL is configured, scripts skip silently without blocking
 Claude Code.
@@ -46,14 +45,11 @@ before session end using the coordination bridge.
 
 ### Agent Identity
 
-The `AGENT_ID` environment variable controls which agent identity is used for
-handoff read/write operations. If the API key maps to a specific agent via
-`COORDINATION_API_KEY_IDENTITIES` on the server, the `agent_id` in requests
-must match the key's mapped identity (or the server resolves it from the key
-automatically).
-
-For cloud sessions, set `AGENT_ID` to match the key's identity mapping (e.g.,
-`claude-remote`). Without it, handoff endpoints may return 403.
+Hooks inherit `COORDINATION_API_URL` and `COORDINATION_API_KEY` from the active
+Claude or Codex run. When the API key maps to a specific agent via
+`COORDINATION_API_KEY_IDENTITIES` on the server, hook scripts may omit
+`AGENT_ID` and `AGENT_TYPE`; the coordinator resolves them from the key and
+rejects mismatched request identities.
 
 ## Tool-Call Tracking (Langfuse)
 
@@ -186,10 +182,10 @@ These must be set in the cloud session environment for coordinator access:
 | Variable | Required | Example | Used By |
 |----------|----------|---------|---------|
 | `COORDINATION_API_URL` | Yes | `https://coord.rotkohl.ai` | All hook scripts, `check_coordinator.py`, `coordination_bridge.py` |
-| `COORDINATION_API_KEY` | Yes | `91a8925e...` | HTTP `X-API-Key` header (register, deregister, handoffs) |
+| `COORDINATION_API_KEY` | Yes | `91a8925e...` | HTTP `X-API-Key` header and key-bound identity resolution |
 | `COORDINATION_ALLOWED_HOSTS` | Yes | `coord.rotkohl.ai` | SSRF allowlist in bridge |
-| `AGENT_ID` | Recommended | `claude-remote` | Agent identity — must match API key identity mapping |
-| `AGENT_TYPE` | Optional | `claude_code` | Agent type label (default: `claude_code`) |
+| `AGENT_ID` | Optional legacy | `claude-remote` | Hook hint only; API-key identity wins when bound |
+| `AGENT_TYPE` | Optional legacy | `claude_code` | Hook hint only; API-key identity wins when bound |
 
 **Note**: `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are **not needed** for
 cloud sessions. All hook scripts communicate via the coordinator HTTP API.

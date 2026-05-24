@@ -18,8 +18,8 @@ Usage:
 Environment variables:
     COORDINATION_API_URL: Coordinator HTTP API URL (optional; skips if unset)
     COORDINATION_API_KEY: API key for X-API-Key header
-    AGENT_ID: Agent identifier (default: "unknown")
-    AGENT_TYPE: Agent type (default: "claude_code")
+    AGENT_ID: Optional legacy agent identifier; API-key identity wins when bound
+    AGENT_TYPE: Optional legacy agent type; API-key identity wins when bound
     SESSION_ID: Session identifier (optional)
 """
 
@@ -75,8 +75,8 @@ def main() -> None:
         print(f"{PREFIX} No coordinator URL configured, skipping", file=sys.stderr)
         return
 
-    agent_id = os.environ.get("AGENT_ID", "unknown")
-    agent_type = os.environ.get("AGENT_TYPE", "claude_code")
+    agent_id = os.environ.get("AGENT_ID", "")
+    agent_type = os.environ.get("AGENT_TYPE", "")
     session_id = os.environ.get("SESSION_ID", "")
 
     # Write a final handoff document.
@@ -113,7 +113,7 @@ def main() -> None:
     })
 
     if result:
-        print(f"{PREFIX} Deregistered session for {agent_id}")
+        print(f"{PREFIX} Deregistered session")
     else:
         print(f"{PREFIX} Deregistration failed (coordinator may be unreachable)", file=sys.stderr)
 

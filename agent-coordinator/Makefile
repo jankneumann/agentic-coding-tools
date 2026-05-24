@@ -192,19 +192,13 @@ mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordin
 # Claude Code reads hooks from settings.json. Codex reads hooks from hooks.json.
 
 SCRIPTS_ABS := $(CURDIR)/scripts
-HOOK_COORDINATION_API_URL ?= http://localhost:$(API_PORT)
-HOOK_COORDINATION_API_KEY ?=
 
 .PHONY: claude-hooks-setup
 claude-hooks-setup: ## Install coordinator hooks into Claude Code (user scope, works in any repo)
 	python3 $(SCRIPTS_ABS)/install_hooks.py \
 		--agent claude \
 		--target "$(HOME)/.claude/settings.json" \
-		--scripts-dir "$(SCRIPTS_ABS)" \
-		--agent-id "$(CLAUDE_AGENT_ID)" \
-		--agent-type "$(CLAUDE_AGENT_TYPE)" \
-		--coordination-api-url "$(HOOK_COORDINATION_API_URL)" \
-		--coordination-api-key "$(HOOK_COORDINATION_API_KEY)"
+		--scripts-dir "$(SCRIPTS_ABS)"
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
@@ -213,11 +207,7 @@ codex-hooks-setup: ## Install coordinator hooks into Codex CLI (user scope, work
 	python3 $(SCRIPTS_ABS)/install_hooks.py \
 		--agent codex \
 		--target "$(HOME)/.codex/hooks.json" \
-		--scripts-dir "$(SCRIPTS_ABS)" \
-		--agent-id "$(CODEX_AGENT_ID)" \
-		--agent-type "$(CODEX_AGENT_TYPE)" \
-		--coordination-api-url "$(HOOK_COORDINATION_API_URL)" \
-		--coordination-api-key "$(HOOK_COORDINATION_API_KEY)"
+		--scripts-dir "$(SCRIPTS_ABS)"
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop"
 

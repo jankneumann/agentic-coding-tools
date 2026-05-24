@@ -12,7 +12,8 @@ Usage:
     python agent-coordinator/scripts/report_status.py [--subagent]
 
 Environment variables:
-    AGENT_ID: Agent identifier
+    AGENT_ID: Optional legacy agent identifier; API-key identity wins when bound
+    AGENT_TYPE: Optional legacy agent type; API-key identity wins when bound
     CHANGE_ID: Fallback change_id if loop-state.json is missing
     COORDINATION_API_URL: Coordinator HTTP API URL (optional; skips if unset)
     COORDINATION_API_KEY: API key for auth header
@@ -132,7 +133,8 @@ def _write_status_cache(data: dict[str, Any]) -> None:
 def main() -> None:
     is_subagent = "--subagent" in sys.argv
 
-    agent_id = os.environ.get("AGENT_ID", "unknown")
+    agent_id = os.environ.get("AGENT_ID", "")
+    agent_type = os.environ.get("AGENT_TYPE", "")
     base_url = _coordinator_url()
     if not base_url:
         print(
@@ -187,6 +189,7 @@ def main() -> None:
         "event_type": event_type,
         "metadata": {
             "is_subagent": is_subagent,
+            "agent_type": agent_type,
         },
     }
     # Always set the field — explicit `null` round-trips to FastAPI's

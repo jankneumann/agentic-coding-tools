@@ -109,8 +109,10 @@ Hooks provide:
 - **Stop**: Report status and heartbeat after each turn (Claude Code, Codex)
 - **SessionEnd**: Write final handoff and deregister agent where the CLI exposes a session-end hook
 
-Defaults are provider-specific: Claude uses `claude-code-1` / `claude_code`,
-Codex uses `codex-1` / `codex`, and Gemini uses `gemini-1` / `gemini`.
+Claude and Codex hook commands inherit `COORDINATION_API_URL` and
+`COORDINATION_API_KEY` from the active run environment. When the key is bound in
+the coordinator config, the coordinator resolves `agent_id` / `agent_type` from
+that key instead of requiring hooks to set provider-specific identity variables.
 Codex installs to `~/.codex/hooks.json` and currently wires `SessionStart` and `Stop`.
 
 Gemini CLI has no hooks, so a wrapper script (`gemini-coord`) is installed instead:
