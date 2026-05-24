@@ -64,6 +64,7 @@ WRITE_ACTIONS = frozenset({
     "acquire_lock", "release_lock", "complete_work", "submit_work",
     "remember", "write_handoff", "check_guardrails",
     "request_approval", "request_permission",
+    "register_feature", "deregister_feature",
 })
 
 # Admin actions requiring trust_level >= 3

@@ -489,6 +489,49 @@ def test_profiles_me_delegates_to_service(
 
 
 # =============================================================================
+# Handoff endpoint tests
+# =============================================================================
+
+
+def test_write_handoff_resolves_missing_identity_from_api_key(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Clients may omit identity fields and let API-key binding resolve them."""
+    from src.handoffs import WriteHandoffResult
+
+    mock_service = AsyncMock()
+    mock_service.write.return_value = WriteHandoffResult(success=True)
+
+    import src.handoffs
+
+    monkeypatch.setattr(src.handoffs, "_handoff_service", mock_service)
+
+    response = client.post(
+        "/handoffs/write",
+        headers=_auth_headers(),
+        json={
+            "summary": "Session ended.",
+            "decisions": [{"summary": "preserve structured decision"}],
+            "relevant_files": [{"path": "agent-coordinator/src/handoffs.py"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    mock_service.write.assert_awaited_once_with(
+        summary="Session ended.",
+        agent_name="cloud-agent",
+        agent_type="cloud_agent",
+        session_id=None,
+        completed_work=None,
+        in_progress=None,
+        decisions=[{"summary": "preserve structured decision"}],
+        next_steps=None,
+        relevant_files=[{"path": "agent-coordinator/src/handoffs.py"}],
+    )
+
+
+# =============================================================================
 # Audit endpoint test
 # =============================================================================
 

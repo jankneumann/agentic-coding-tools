@@ -180,6 +180,7 @@ VALID_TRANSPORTS = {"mcp", "http"}
 VALID_ISOLATION_MODES = {"worktree", "sandbox", "none"}
 VALID_CAPABILITIES = {
     "lock", "queue", "memory", "guardrails", "handoff", "discover", "audit",
+    "feature_registry",
 }
 
 AGENTS_SCHEMA: dict[str, Any] = {

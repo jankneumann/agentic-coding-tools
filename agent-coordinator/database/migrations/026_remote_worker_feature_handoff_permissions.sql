@@ -1,5 +1,36 @@
--- Ensure Cedar DB policy seed includes check_guardrails in write-operations.
--- Required because Cedar runtime prefers cedar_policies table over file fallback.
+-- Migration 026: Remote worker feature registry and handoff permissions
+--
+-- Earlier profile seeds limited feature-registry operations to high-trust
+-- orchestrators. Remote trust-2 workers also need to register resource claims
+-- and write handoffs through API-key-bound HTTP sessions.
+
+UPDATE agent_profiles
+SET allowed_operations = (
+        SELECT ARRAY(
+            SELECT DISTINCT op
+            FROM unnest(
+                allowed_operations
+                || ARRAY['register_feature', 'deregister_feature']
+            ) AS t(op)
+            ORDER BY op
+        )
+    ),
+    updated_at = now()
+WHERE name IN ('claude_code_web_implementer', 'codex_cloud_worker');
+
+UPDATE agent_profiles
+SET allowed_operations = (
+        SELECT ARRAY(
+            SELECT DISTINCT op
+            FROM unnest(
+                allowed_operations
+                || ARRAY['write_handoff', 'read_handoff']
+            ) AS t(op)
+            ORDER BY op
+        )
+    ),
+    updated_at = now()
+WHERE name = 'codex_cloud_worker';
 
 INSERT INTO cedar_policies (name, policy_text, description, priority, enabled)
 VALUES (

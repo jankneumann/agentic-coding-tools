@@ -634,6 +634,7 @@ def try_complete_work(
 def try_handoff_write(
     *,
     agent_id: str,
+    agent_type: str | None = None,
     summary: str,
     session_id: str | None = None,
     content: dict[str, Any] | None = None,
@@ -641,15 +642,21 @@ def try_handoff_write(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Write handoff context when handoff capability is available."""
+    structured = content or {}
     return _execute_multi_endpoint_operation(
         operation="try_handoff_write",
         capability_flag="CAN_HANDOFF",
         endpoints=_HANDOFF_WRITE_ENDPOINTS,
         payload={
             "agent_id": agent_id,
+            "agent_type": agent_type,
             "session_id": session_id,
             "summary": summary,
-            "content": content or {},
+            "completed_work": structured.get("completed_work"),
+            "in_progress": structured.get("in_progress"),
+            "decisions": structured.get("decisions"),
+            "next_steps": structured.get("next_steps"),
+            "relevant_files": structured.get("relevant_files"),
         },
         http_url=http_url,
         api_key=api_key,
