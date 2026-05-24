@@ -1,0 +1,127 @@
+{
+  "review_type": "plan",
+  "target": "extract-gen-eval-package",
+  "reviewer_vendor": "claude",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Spec scenario 'gen_eval.metrics exposes only the gen-eval-specific symbol' (specs/gen-eval-framework/spec.md lines 100-104) is asserted via a set-difference expression, while task 2.4.1 asserts a literal equality including 'dunder names' but does not pin what counts as dunder. The two checks are operationally equivalent in 99% of cases, but they don't strictly agree if @dataclass auto-injects helpers like __dataclass_fields__ (non-dunder, single underscore, etc., are unlikely but the assertion as written excludes only names starting with '_'). Consider tightening the assertion to a fixed allowlist so the test cannot silently pass when an unrelated public symbol is reintroduced.",
+      "resolution": "In task 2.4.1, change the assertion from 'all non-underscore names == {GenEvalMetrics}' to an explicit allowlist matching exactly the public surface (e.g., {'GenEvalMetrics'} plus any explicitly-exported helpers). Mirror the same wording in the spec scenario so the test and the requirement read identically.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {"start": 39, "end": 42}
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "fyi",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: Design D8 picks Option B (wheel + COPY) and notes Railway untouched, but the railway.toml story for how the wheel gets built inside Railway's sandbox is only mentioned in passing ('Railway buildCommand or a railway.toml [build] buildCommand line, documented in the README'). Since Railway is the production deployment target, this should be concrete in the plan rather than 'documented later'. If Railway runs only the Dockerfile via its native builder, the wheel doesn't exist at COPY time and the build fails.",
+      "resolution": "Add to D8 a concrete Railway story: either (a) Railway-specific buildCommand in railway.toml that runs uv build on packages/gen-eval first, or (b) commit the wheel artifact to a known location (rejected — generated artifact), or (c) move Railway's service root to repo root with dockerfilePath set, accepting the one-time dashboard change. Pick one, name the file that gets edited, and add it to wp-coordinator-migrate's write_allow.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {"start": 226, "end": 241}
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The spec's 'documented consumer adoption contract' scenario (specs/gen-eval-framework/spec.md lines 76-80) requires that a developer 'follows the quickstart end-to-end' and 'produces a working evaluation/descriptors/<consumer>.yaml ... execute at least one scenario'. This is a strong human-in-the-loop assertion that cannot be verified by automated CI. The task 6.C checkpoint also requires 'a human follows the quickstart end-to-end on a clean clone'. That makes the scenario unfalsifiable in automated validate-feature runs. Suggest splitting into (a) automated: the doc exists, is non-empty, and links resolve; and (b) manual: the human walkthrough as a one-time release gate.",
+      "resolution": "In specs/gen-eval-framework/spec.md, add a second sub-scenario that is automatable (e.g., the quickstart contains a fenced code block whose first line is 'uv add ../agentic-coding-tools/packages/gen-eval' or similar). Keep the human walkthrough as the existing scenario but mark task 6.C as 'manual gate' so /validate-feature does not block on it.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/specs/gen-eval-framework/spec.md",
+      "line_range": {"start": 76, "end": 80}
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Tasks 7.4 and the wp-integration 'docker smoke' verification step both invoke 'docker build -f agent-coordinator/Dockerfile -t agent-coordinator:test .' from repo root (note the trailing '.'). But D8 explicitly chose Option B precisely so that the build context stays at agent-coordinator/ (not the repo root). The smoke-test commands in tasks 7.4 (line 159) and work-packages.yaml line 551 use the wrong context, which would also have to find the wheel via a different path (agent-coordinator/dist relative to repo root). This is an internal inconsistency: the implementation says context=agent-coordinator/, the integration smoke test runs context=. (repo root).",
+      "resolution": "Change task 7.4 from 'docker build -f agent-coordinator/Dockerfile -t agent-coordinator:test .' (repo-root context) to 'cd agent-coordinator && docker build -f Dockerfile -t agent-coordinator:test .' or equivalently 'docker build -f agent-coordinator/Dockerfile -t agent-coordinator:test agent-coordinator/'. Mirror the same fix in wp-integration's verification step.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {"start": 159, "end": 159}
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: D2 declares uv_build as the build backend with `requires = [\"uv_build>=0.9,<0.10\"]`. The upper bound 0.10 is aggressive — uv_build is pre-1.0 and breaking releases are likely. Mainstream Python advice is to either pin major.minor exactly (e.g., '~=0.9.0') or allow any 0.x while explicit about not yet committing to API stability. The current spec creates a maintenance pin that needs to be touched the moment uv_build 0.10 lands (which could be weeks). Consider widening to '>=0.9,<1.0' or pinning '~=0.9'.",
+      "resolution": "Change the build-system spec in D2 to either `requires = [\"uv_build>=0.9,<1.0\"]` (allow any 0.x within major-version-0 contract) or `requires = [\"uv_build~=0.9.0\"]` (PEP 440 compatible release on the patch level). Document the choice briefly so future maintainers know why.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {"start": 98, "end": 99}
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Task 4.3 instructs agent-coordinator/CLAUDE.md line 122 to be updated. The plan does not also instruct top-level CLAUDE.md (or docs/) to be scanned for stale `evaluation.gen_eval` references. A repo-wide grep would catch any remaining mentions in docs/, README.md at repo root, or .github/PULL_REQUEST_TEMPLATE.md that an implementer might miss. The plan currently checks skills/ and agent-coordinator/ but not the top-level repo prose.",
+      "resolution": "Add a sub-task to either wp-coordinator-migrate or wp-skills-update: 'Run `grep -rn evaluation\\.gen_eval -- ':(exclude)openspec/changes/extract-gen-eval-package/' ':(exclude)openspec/changes/archive/'` and update any remaining matches in repo-root docs, README, and PR templates.' Add the matched paths to the appropriate write_allow.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {"start": 79, "end": 82}
+    },
+    {
+      "id": 7,
+      "axis": "performance",
+      "severity": "fyi",
+      "type": "performance",
+      "criticality": "low",
+      "description": "FYI: D6 says lazy-import is preserved partly to keep gen-eval's startup cost out of FastAPI bootstrap. This is correct but underspecified: the plan does not give an SLA or numeric target for coordinator boot time before/after. If the editable path-dep introduces a noticeable resolution cost (e.g., .pth file scan), a future regression test would be helpful. This is informational — no action required at plan stage.",
+      "resolution": "Consider adding a 'startup time' observation point to wp-integration's verification (e.g., 'coordinator boots in under N seconds with the new path dep'). Optional, not a blocker.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {"start": 168, "end": 184}
+    },
+    {
+      "id": 8,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive observation: D3's surgical-extraction decision (post-iteration-1) is the right shape. The analysis correctly identifies that the reverse coupling is symbol-shaped, not file-shaped, and that moving the whole file would create exactly the kind of circular dependency a package extraction is meant to prevent. Task 2.4.1 surface test is a concrete tripwire against future drift.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {"start": 107, "end": 130}
+    },
+    {
+      "id": 9,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive observation: The work-packages.yaml DAG has clean scope separation post-D8-Option-B. .github/workflows/ci.yml is owned solely by wp-package-tests; agent-coordinator/Dockerfile/Makefile/.gitignore are owned solely by wp-coordinator-migrate. The four parallel packages (post-2.C) have non-overlapping write_allow scopes. This is the parallelism shape the plan claimed.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {"start": 133, "end": 149}
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: wp-framework-move.scope.write_allow includes 'agent-coordinator/evaluation/gen_eval/**' (correct, the framework code is being moved out from there) but does NOT include 'agent-coordinator/evaluation/metrics.py' even though task 2.4 explicitly modifies that file (cutting GenEvalMetrics out). The locks list does include metrics.py, but write_allow does not. With strict scope enforcement, the agent would be blocked from editing metrics.py.",
+      "resolution": "Add 'agent-coordinator/evaluation/metrics.py' to wp-framework-move.scope.write_allow. Or, if the intent is that wp-framework-move only adds the new file and wp-coordinator-migrate removes GenEvalMetrics from the old file, that needs to be made explicit and the dependency between the two work packages adjusted so the second package depends on the first (it already does via depends_on: [wp-framework-move]).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {"start": 122, "end": 130}
+    }
+  ]
+}

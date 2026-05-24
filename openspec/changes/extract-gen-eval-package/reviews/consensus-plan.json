@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "extract-gen-eval-package",
+  "reviewers": [
+    {
+      "vendor": "claude",
+      "agent_id": "claude",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gemini",
+      "agent_id": "gemini",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The wp-coordinator-migrate work package includes 'agent-coordinator/evaluation/gen_eval/**' in its 'deny' scope, which will prevent the agent from reading and relocating the per-project descriptors, manifests, and scenarios as required by Task 4.4."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Nit: Tasks 7.4 and the wp-integration 'docker smoke' verification step both invoke 'docker build -f agent-coordinator/Dockerfile -t agent-coordinator:test .' from repo root (note the trailing '.'). But D8 explicitly chose Option B precisely so that the build context stays at agent-coordinator/ (not the repo root). The smoke-test commands in tasks 7.4 (line 159) and work-packages.yaml line 551 use the wrong context, which would also have to find the wheel via a different path (agent-coordinator/dist relative to repo root). This is an internal inconsistency: the implementation says context=agent-coordinator/, the integration smoke test runs context=. (repo root)."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: D8 copies a wheel into the Docker context and sets UV_FIND_LINKS, but D5 still declares gen-eval as an explicit editable path source. Without also ignoring tool.uv.sources in the Docker sync, uv will still try to resolve ../packages/gen-eval, which is outside the agent-coordinator build context."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: The Railway path is still not executable as written: dist/ is ignored, railway.toml is unchanged, and the plan only says Railway will run uv build via an unspecified buildCommand or README note. A remote Railway Docker build rooted at agent-coordinator will not have agent-coordinator/dist/gen_eval-*.whl unless a tracked prebuild mechanism exists."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Spec scenario 'gen_eval.metrics exposes only the gen-eval-specific symbol' (specs/gen-eval-framework/spec.md lines 100-104) is asserted via a set-difference expression, while task 2.4.1 asserts a literal equality including 'dunder names' but does not pin what counts as dunder. The two checks are operationally equivalent in 99% of cases, but they don't strictly agree if @dataclass auto-injects helpers like __dataclass_fields__ (non-dunder, single underscore, etc., are unlikely but the assertion as written excludes only names starting with '_'). Consider tightening the assertion to a fixed allowlist so the test cannot silently pass when an unrelated public symbol is reintroduced."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The spec's 'documented consumer adoption contract' scenario (specs/gen-eval-framework/spec.md lines 76-80) requires that a developer 'follows the quickstart end-to-end' and 'produces a working evaluation/descriptors/<consumer>.yaml ... execute at least one scenario'. This is a strong human-in-the-loop assertion that cannot be verified by automated CI. The task 6.C checkpoint also requires 'a human follows the quickstart end-to-end on a clean clone'. That makes the scenario unfalsifiable in automated validate-feature runs. Suggest splitting into (a) automated: the doc exists, is non-empty, and links resolve; and (b) manual: the human walkthrough as a one-time release gate."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Task 4.3 instructs agent-coordinator/CLAUDE.md line 122 to be updated. The plan does not also instruct top-level CLAUDE.md (or docs/) to be scanned for stale `evaluation.gen_eval` references. A repo-wide grep would catch any remaining mentions in docs/, README.md at repo root, or .github/PULL_REQUEST_TEMPLATE.md that an implementer might miss. The plan currently checks skills/ and agent-coordinator/ but not the top-level repo prose."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: wp-framework-move.scope.write_allow includes 'agent-coordinator/evaluation/gen_eval/**' (correct, the framework code is being moved out from there) but does NOT include 'agent-coordinator/evaluation/metrics.py' even though task 2.4 explicitly modifies that file (cutting GenEvalMetrics out). The locks list does include metrics.py, but write_allow does not. With strict scope enforcement, the agent would be blocked from editing metrics.py."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Critical: Task 5.2 updates validate-feature's module invocation but not its descriptor discovery path. After D7 relocates descriptors to `evaluation/descriptors/`, validate-feature's old `*/evaluation/gen_eval/descriptors/*.yaml` glob can silently skip gen-eval coverage, and the planned grep only catches dotted `evaluation.gen_eval` strings, not slash paths."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Design D8 picks Option B (wheel + COPY) and notes Railway untouched, but the railway.toml story for how the wheel gets built inside Railway's sandbox is only mentioned in passing ('Railway buildCommand or a railway.toml [build] buildCommand line, documented in the README'). Since Railway is the production deployment target, this should be concrete in the plan rather than 'documented later'. If Railway runs only the Dockerfile via its native builder, the wheel doesn't exist at COPY time and the build fails."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: D2 declares uv_build as the build backend with `requires = [\"uv_build>=0.9,<0.10\"]`. The upper bound 0.10 is aggressive \u2014 uv_build is pre-1.0 and breaking releases are likely. Mainstream Python advice is to either pin major.minor exactly (e.g., '~=0.9.0') or allow any 0.x while explicit about not yet committing to API stability. The current spec creates a maintenance pin that needs to be touched the moment uv_build 0.10 lands (which could be weeks). Consider widening to '>=0.9,<1.0' or pinning '~=0.9'."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: D6 says lazy-import is preserved partly to keep gen-eval's startup cost out of FastAPI bootstrap. This is correct but underspecified: the plan does not give an SLA or numeric target for coordinator boot time before/after. If the editable path-dep introduces a noticeable resolution cost (e.g., .pth file scan), a future regression test would be helpful. This is informational \u2014 no action required at plan stage."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: D3's surgical-extraction decision (post-iteration-1) is the right shape. The analysis correctly identifies that the reverse coupling is symbol-shaped, not file-shaped, and that moving the whole file would create exactly the kind of circular dependency a package extraction is meant to prevent. Task 2.4.1 surface test is a concrete tripwire against future drift."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: The work-packages.yaml DAG has clean scope separation post-D8-Option-B. .github/workflows/ci.yml is owned solely by wp-package-tests; agent-coordinator/Dockerfile/Makefile/.gitignore are owned solely by wp-coordinator-migrate. The four parallel packages (post-2.C) have non-overlapping write_allow scopes. This is the parallelism shape the plan claimed."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "D3's surgical extraction of only GenEvalMetrics is now coherent with the dependency boundary, and task 2.4.1 gives that decision an enforceable regression test."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The surgical extraction of GenEvalMetrics (D3) correctly resolves the reverse coupling while leaving coordinator-domain metrics in the service, maintaining a clean dependency boundary without circular imports."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The 'Option B' wheel-install strategy for Docker (D8) effectively handles the monorepo build-context limitation and Railway service-root constraints without requiring infrastructure-level dashboard changes."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan for import rewrites is highly thorough, correctly identifying edge cases like literal string fixtures in agent-coordinator/tests/test_check_docker_imports.py and skill docstrings."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 18,
+    "confirmed_count": 1,
+    "unconfirmed_count": 17,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

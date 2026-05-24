@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: The wp-coordinator-migrate work package includes 'agent-coordinator/evaluation/gen_eval/**' in its 'deny' scope, which will prevent the agent from reading and relocating the per-project descriptors, manifests, and scenarios as required by Task 4.4.",
+      "resolution": "Remove 'agent-coordinator/evaluation/gen_eval/**' from the scope.deny list in wp-coordinator-migrate to allow the data relocation to proceed.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 314,
+        "end": 316
+      }
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The surgical extraction of GenEvalMetrics (D3) correctly resolves the reverse coupling while leaving coordinator-domain metrics in the service, maintaining a clean dependency boundary without circular imports.",
+      "resolution": "accept",
+      "disposition": "accept"
+    },
+    {
+      "id": 3,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The 'Option B' wheel-install strategy for Docker (D8) effectively handles the monorepo build-context limitation and Railway service-root constraints without requiring infrastructure-level dashboard changes.",
+      "resolution": "accept",
+      "disposition": "accept"
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan for import rewrites is highly thorough, correctly identifying edge cases like literal string fixtures in agent-coordinator/tests/test_check_docker_imports.py and skill docstrings.",
+      "resolution": "accept",
+      "disposition": "accept"
+    }
+  ]
+}
