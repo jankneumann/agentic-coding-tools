@@ -140,9 +140,16 @@ make gemini-mcp-setup   # gemini mcp add --scope user --env ...
 Each target registers the coordination MCP server with:
 - Absolute path to the venv Python binary (`.venv/bin/python -m src.coordination_mcp`)
 - `DB_BACKEND=postgres` and `POSTGRES_DSN` pointing to local ParadeDB
-- `AGENT_ID` and `AGENT_TYPE` for identity
+- Provider-specific identity by default:
+  - Claude Code: `AGENT_ID=claude-code-1`, `AGENT_TYPE=claude_code`
+  - Codex CLI: `AGENT_ID=codex-1`, `AGENT_TYPE=codex`
+  - Gemini CLI: `AGENT_ID=gemini-1`, `AGENT_TYPE=gemini`
 - `COORDINATION_API_URL` and `COORDINATION_API_KEY` (optional) — enables HTTP proxy fallback when the local DB is unavailable
 - Claude Code also gets `cwd` via `add-json` (Codex/Gemini don't need it — all file lookups use `Path(__file__)`)
+
+Pass `AGENT_ID=... AGENT_TYPE=...` to preserve the old behavior of using one
+identity for every target, or pass `CLAUDE_AGENT_ID`, `CODEX_AGENT_ID`, or
+`GEMINI_AGENT_ID` to override one provider only.
 
 Restart each CLI after registration to activate.
 
@@ -159,8 +166,8 @@ cd agent-coordinator
 make hooks-setup
 
 # Or individually:
-make claude-hooks-setup      # Writes ~/.claude/hooks.json (SessionStart, Stop, SessionEnd)
-make codex-hooks-setup       # Writes ~/.codex/hooks.json (SessionStart, Stop, SessionEnd)
+make claude-hooks-setup      # Writes ~/.claude/settings.json (SessionStart, Stop, SubagentStop, SessionEnd)
+make codex-hooks-setup       # Writes ~/.codex/hooks.json (SessionStart, Stop)
 make gemini-wrapper-install  # Symlinks gemini-coord to ~/.local/bin/
 ```
 
@@ -168,11 +175,14 @@ make gemini-wrapper-install  # Symlinks gemini-coord to ~/.local/bin/
 
 | Agent | Mechanism | Events |
 |-------|-----------|--------|
-| Claude Code | `~/.claude/hooks.json` | SessionStart, Stop, SubagentStop, SessionEnd |
-| Codex CLI | `~/.codex/hooks.json` | SessionStart, Stop, SessionEnd |
+| Claude Code | `~/.claude/settings.json` | SessionStart, Stop, SubagentStop, SessionEnd |
+| Codex CLI | `~/.codex/hooks.json` | SessionStart, Stop |
 | Gemini CLI | `gemini-coord` wrapper | register → run → report → deregister |
 
 Hook scripts use absolute paths to the coordinator's `scripts/` directory, so they resolve correctly regardless of the current working directory.
+The installed commands set provider-specific `AGENT_ID` / `AGENT_TYPE` defaults
+and a local `COORDINATION_API_URL` default (`http://localhost:8081`) while still
+allowing runtime environment variables to override them.
 
 For Gemini, use `gemini-coord` instead of bare `gemini` to get coordinator integration:
 ```bash

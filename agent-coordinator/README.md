@@ -99,7 +99,7 @@ This registers the coordination MCP server at user scope. Restart the CLI to act
 make hooks-setup
 
 # Or individually:
-make claude-hooks-setup      # ~/.claude/hooks.json
+make claude-hooks-setup      # ~/.claude/settings.json
 make codex-hooks-setup       # ~/.codex/hooks.json
 make gemini-wrapper-install  # ~/.local/bin/gemini-coord
 ```
@@ -107,7 +107,11 @@ make gemini-wrapper-install  # ~/.local/bin/gemini-coord
 Hooks provide:
 - **SessionStart**: Auto-register agent with coordinator
 - **Stop**: Report status and heartbeat after each turn (Claude Code, Codex)
-- **SessionEnd**: Release locks and deregister agent
+- **SessionEnd**: Write final handoff and deregister agent where the CLI exposes a session-end hook
+
+Defaults are provider-specific: Claude uses `claude-code-1` / `claude_code`,
+Codex uses `codex-1` / `codex`, and Gemini uses `gemini-1` / `gemini`.
+Codex installs to `~/.codex/hooks.json` and currently wires `SessionStart` and `Stop`.
 
 Gemini CLI has no hooks, so a wrapper script (`gemini-coord`) is installed instead:
 ```bash

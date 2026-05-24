@@ -126,32 +126,56 @@ api-serve: ## Run HTTP API server on :8081
 # Override for Railway:
 #   make mcp-setup POSTGRES_DSN="postgresql://postgres:<pass>@<host>:<port>/coordinator"
 POSTGRES_DSN ?= postgresql://postgres:postgres@localhost:$(DB_PORT)/postgres
-AGENT_ID     ?= claude-code-1
-AGENT_TYPE   ?= claude_code
+CLAUDE_AGENT_ID   ?= claude-code-1
+CLAUDE_AGENT_TYPE ?= claude_code
+CODEX_AGENT_ID    ?= codex-1
+CODEX_AGENT_TYPE  ?= codex
+GEMINI_AGENT_ID   ?= gemini-1
+GEMINI_AGENT_TYPE ?= gemini
 
-# Env vars shared across all MCP registrations
-MCP_ENV_FLAGS := --env DB_BACKEND=postgres \
-	--env "POSTGRES_DSN=$(POSTGRES_DSN)" \
-	--env AGENT_ID=$(AGENT_ID) \
-	--env AGENT_TYPE=$(AGENT_TYPE)
+# Backward compatibility: callers that pass AGENT_ID/AGENT_TYPE explicitly
+# still get the old "same identity for every target" behavior.
+ifneq ($(origin AGENT_ID), undefined)
+CLAUDE_AGENT_ID := $(AGENT_ID)
+CODEX_AGENT_ID := $(AGENT_ID)
+GEMINI_AGENT_ID := $(AGENT_ID)
+endif
+ifneq ($(origin AGENT_TYPE), undefined)
+CLAUDE_AGENT_TYPE := $(AGENT_TYPE)
+CODEX_AGENT_TYPE := $(AGENT_TYPE)
+GEMINI_AGENT_TYPE := $(AGENT_TYPE)
+endif
+
+# Env vars shared across all MCP registrations, plus provider-specific identity.
+COMMON_MCP_ENV_FLAGS := --env DB_BACKEND=postgres \
+	--env "POSTGRES_DSN=$(POSTGRES_DSN)"
+CLAUDE_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
+	--env AGENT_ID=$(CLAUDE_AGENT_ID) \
+	--env AGENT_TYPE=$(CLAUDE_AGENT_TYPE)
+CODEX_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
+	--env AGENT_ID=$(CODEX_AGENT_ID) \
+	--env AGENT_TYPE=$(CODEX_AGENT_TYPE)
+GEMINI_MCP_ENV_FLAGS := $(COMMON_MCP_ENV_FLAGS) \
+	--env AGENT_ID=$(GEMINI_AGENT_ID) \
+	--env AGENT_TYPE=$(GEMINI_AGENT_TYPE)
 
 .PHONY: claude-mcp-setup
 claude-mcp-setup: ## Register coordination MCP server with Claude Code
 	claude mcp add-json --scope user coordination \
-		'{"type":"stdio","command":"$(CURDIR)/.venv/bin/python","args":["-m","src.coordination_mcp"],"cwd":"$(CURDIR)","env":{"DB_BACKEND":"postgres","POSTGRES_DSN":"$(POSTGRES_DSN)","AGENT_ID":"$(AGENT_ID)","AGENT_TYPE":"$(AGENT_TYPE)"}}'
+		'{"type":"stdio","command":"$(CURDIR)/.venv/bin/python","args":["-m","src.coordination_mcp"],"cwd":"$(CURDIR)","env":{"DB_BACKEND":"postgres","POSTGRES_DSN":"$(POSTGRES_DSN)","AGENT_ID":"$(CLAUDE_AGENT_ID)","AGENT_TYPE":"$(CLAUDE_AGENT_TYPE)"}}'
 	@echo "Coordination MCP server registered. Restart Claude Code to activate."
 	@echo "  DSN: $(POSTGRES_DSN)"
 
 .PHONY: codex-mcp-setup
 codex-mcp-setup: ## Register coordination MCP server with Codex CLI
-	codex mcp add $(MCP_ENV_FLAGS) \
+	codex mcp add $(CODEX_MCP_ENV_FLAGS) \
 		coordination -- $(CURDIR)/.venv/bin/python -m src.coordination_mcp
 	@echo "Coordination MCP server registered. Restart Codex to activate."
 	@echo "  DSN: $(POSTGRES_DSN)"
 
 .PHONY: gemini-mcp-setup
 gemini-mcp-setup: ## Register coordination MCP server with Gemini CLI
-	gemini mcp add --scope user $(MCP_ENV_FLAGS) \
+	gemini mcp add --scope user $(GEMINI_MCP_ENV_FLAGS) \
 		coordination $(CURDIR)/.venv/bin/python -m src.coordination_mcp
 	@echo "Coordination MCP server registered. Restart Gemini to activate."
 	@echo "  DSN: $(POSTGRES_DSN)"
@@ -165,85 +189,37 @@ mcp-setup: claude-mcp-setup codex-mcp-setup gemini-mcp-setup ## Register coordin
 # Hooks install at USER scope (~/.claude/, ~/.codex/) so they fire in ANY
 # repo, not just this one.  The hook scripts use absolute paths back to
 # this checkout so they find the coordinator Python modules.
-#
-# Claude Code reads hooks from settings.json (not hooks.json).  The targets
-# below merge the "hooks" key into the existing settings file so we don't
-# clobber other settings (permissions, outputStyle, etc.).
+# Claude Code reads hooks from settings.json. Codex reads hooks from hooks.json.
 
 SCRIPTS_ABS := $(CURDIR)/scripts
-
-# JSON fragment containing just the hooks to merge into settings.json.
-# Uses absolute paths so the hooks work from any working directory.
-define HOOKS_FRAGMENT
-{
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 $(SCRIPTS_ABS)/print_coordinator_env.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 $(SCRIPTS_ABS)/register_agent.py"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 $(SCRIPTS_ABS)/report_status.py"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 $(SCRIPTS_ABS)/deregister_agent.py"
-          }
-        ]
-      }
-    ]
-  }
-}
-endef
-export HOOKS_FRAGMENT
-
-# Helper: merge HOOKS_FRAGMENT into a settings.json, preserving existing keys.
-# Usage: $(call merge-hooks,<settings-path>)
-define merge-hooks
-	@mkdir -p $(dir $(1))
-	@python3 -c "\
-import json, os, sys; \
-path = '$(1)'; \
-existing = json.load(open(path)) if os.path.isfile(path) else {}; \
-fragment = json.loads(os.environ['HOOKS_FRAGMENT']); \
-existing['hooks'] = fragment['hooks']; \
-json.dump(existing, open(path, 'w'), indent=2); \
-print(f'Merged hooks into {path}')"
-endef
+HOOK_COORDINATION_API_URL ?= http://localhost:$(API_PORT)
+HOOK_COORDINATION_API_KEY ?=
 
 .PHONY: claude-hooks-setup
 claude-hooks-setup: ## Install coordinator hooks into Claude Code (user scope, works in any repo)
-	$(call merge-hooks,$(HOME)/.claude/settings.json)
+	python3 $(SCRIPTS_ABS)/install_hooks.py \
+		--agent claude \
+		--target "$(HOME)/.claude/settings.json" \
+		--scripts-dir "$(SCRIPTS_ABS)" \
+		--agent-id "$(CLAUDE_AGENT_ID)" \
+		--agent-type "$(CLAUDE_AGENT_TYPE)" \
+		--coordination-api-url "$(HOOK_COORDINATION_API_URL)" \
+		--coordination-api-key "$(HOOK_COORDINATION_API_KEY)"
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
 	@echo "  Hooks: SessionStart, Stop, SessionEnd"
 
 .PHONY: codex-hooks-setup
 codex-hooks-setup: ## Install coordinator hooks into Codex CLI (user scope, works in any repo)
-	$(call merge-hooks,$(HOME)/.codex/settings.json)
+	python3 $(SCRIPTS_ABS)/install_hooks.py \
+		--agent codex \
+		--target "$(HOME)/.codex/hooks.json" \
+		--scripts-dir "$(SCRIPTS_ABS)" \
+		--agent-id "$(CODEX_AGENT_ID)" \
+		--agent-type "$(CODEX_AGENT_TYPE)" \
+		--coordination-api-url "$(HOOK_COORDINATION_API_URL)" \
+		--coordination-api-key "$(HOOK_COORDINATION_API_KEY)"
 	@echo "  Scripts point to: $(SCRIPTS_ABS)/"
-	@echo "  Hooks: SessionStart, Stop, SessionEnd"
+	@echo "  Hooks: SessionStart, Stop"
 
 .PHONY: gemini-wrapper-install
 gemini-wrapper-install: ## Install Gemini status wrapper (symlink gemini-coord to ~/.local/bin)
@@ -259,15 +235,15 @@ gemini-wrapper-install: ## Install Gemini status wrapper (symlink gemini-coord t
 	@echo "Ensure ~/.local/bin is in your PATH."
 	@echo "Set env vars for coordinator connection:"
 	@echo "  export COORDINATION_API_URL=http://localhost:$(API_PORT)"
-	@echo "  export AGENT_ID=gemini-1"
-	@echo "  export AGENT_TYPE=gemini"
+	@echo "  export AGENT_ID=$(GEMINI_AGENT_ID)"
+	@echo "  export AGENT_TYPE=$(GEMINI_AGENT_TYPE)"
 
 .PHONY: hooks-setup
 hooks-setup: claude-hooks-setup codex-hooks-setup gemini-wrapper-install ## Install coordinator hooks/wrappers for ALL agents (user scope)
 	@echo ""
 	@echo "All agents configured for coordinator status reporting."
 	@echo "  Claude Code: ~/.claude/settings.json  (SessionStart, Stop, SessionEnd)"
-	@echo "  Codex CLI:   ~/.codex/settings.json   (SessionStart, Stop, SessionEnd)"
+	@echo "  Codex CLI:   ~/.codex/hooks.json      (SessionStart, Stop)"
 	@echo "  Gemini CLI:  ~/.local/bin/gemini-coord (wrapper script)"
 
 # ---------------------------------------------------------------------------
