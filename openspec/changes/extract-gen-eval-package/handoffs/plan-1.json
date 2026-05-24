@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-24T01:36:29.359362+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the extraction of gen-eval (~6.5 KLOC framework) from agent-coordinator/evaluation/gen_eval/ into packages/gen-eval/ as a standalone pip-installable package. Selected full cutover in a single atomic change, with framework-only data split, optional [mcp] extra, and an examples doc as the agentic-assistant adoption proof. The change establishes the packages/ convention for future shared-library extractions (Hoverfly, prompt opt, harness opt, vendor conventions).",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Package lives at packages/gen-eval/ (new top-level convention)",
+        "rationale": "User clarified that agentic-coding-tools is conceptually a coordinator service + shared component libraries, with multiple future extractions planned. Introducing the packages/ convention with one example is cheaper than retrofitting later with three. Rejected: evaluation/gen_eval/ at root (namespace ambiguity + single-purpose dir name); separate repo (highest setup cost, weakest coupling to OpenSpec workflow).",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Framework-only data split; descriptors stay in consumers",
+        "rationale": "Matches the stated architectural intent 'code in agentic-coding-tools, configuration in consumer repos'. Package ships .py + schemas/ + dtu/ templates + tests/fixtures/ + examples/. agent-coordinator keeps its descriptor.yaml + manifests/ + scenarios/ as project test fixtures.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Optional [mcp] extra inside the package",
+        "rationale": "Two consumer profiles in the ecosystem: agent-coordinator wants MCP routing (it's a service), agentic-assistant wants pure Python (skills do orchestration). Optional extra is the only design that serves both without forcing a wrong dependency on either. mcp_service.py and clients/mcp_client.py wrap their fastmcp imports in try/except per design D4.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Move evaluation/metrics.py into the package",
+        "rationale": "Resolves the only reverse coupling. GenEvalMetrics is named for gen-eval, only consumed by gen-eval's reports.py, and has no other consumers. Alternatives (Protocol injection, no-op stub, callback shim) all add indirection for zero gain.",
+        "capability": "gen-eval-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Full cutover in one atomic change",
+        "rationale": "Phased approach saves no work (the follow-up has the same skill/Dockerfile updates) and creates a drift window with two sources of truth. The convention isn't really set until the coordinator actually uses the package.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "agentic-assistant adoption proven via examples doc only, not cross-repo PR",
+        "rationale": "User chose the compromise option. Real cross-repo PR costs coordination overhead (separate CI, separate review cycle). The quickstart doc is verifiable inside this repo; if it turns out to be wrong, the agentic-assistant adoption will surface it.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start with wp-package-scaffold (priority 1) \u2014 create packages/gen-eval/ skeleton + pyproject + smoke test.",
+      "Then wp-framework-move (priority 2) \u2014 the big atomic move including metrics.py coupling resolution and mcp_service.py [mcp] extra wrap.",
+      "Fan out to four parallel packages: wp-coordinator-migrate, wp-package-tests, wp-skills-update, wp-examples-doc.",
+      "Converge at wp-integration: full validate-feature pass + Docker smoke."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/extract-gen-eval-package/proposal.md",
+        "description": "Approved proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/extract-gen-eval-package/design.md",
+        "description": "11 load-bearing design decisions (D1-D11) and trade-offs"
+      },
+      {
+        "path": "openspec/changes/extract-gen-eval-package/tasks.md",
+        "description": "7 phases, 27 tasks with TDD ordering and spec/contract refs"
+      },
+      {
+        "path": "openspec/changes/extract-gen-eval-package/specs/gen-eval-framework/spec.md",
+        "description": "Spec delta: 5 ADDED requirements + 1 MODIFIED requirement"
+      },
+      {
+        "path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+        "description": "7-package DAG, coordinated tier, 6 valid parallel pairs"
+      },
+      {
+        "path": "openspec/changes/extract-gen-eval-package/contracts/README.md",
+        "description": "Stub: no OpenAPI/DB/event/codegen contracts apply"
+      }
+    ]
+  }
+}
