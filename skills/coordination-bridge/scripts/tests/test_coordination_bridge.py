@@ -194,6 +194,50 @@ def test_try_handoff_write_skips_when_endpoints_missing(monkeypatch) -> None:
     assert result["reason"] == "capability_unavailable"
 
 
+def test_try_handoff_write_sends_http_contract_payload(monkeypatch) -> None:
+    captured: list[dict[str, Any]] = []
+
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_HANDOFF=True),
+    )
+
+    def fake_http_request(**kwargs: Any) -> dict[str, Any]:
+        captured.append(kwargs)
+        return {"status_code": 200, "data": {"success": True}, "error": None}
+
+    monkeypatch.setattr(coordination_bridge, "_http_request", fake_http_request)
+
+    result = coordination_bridge.try_handoff_write(
+        agent_id="agent-1",
+        agent_type="codex",
+        session_id="session-1",
+        summary="done",
+        content={
+            "completed_work": ["finished"],
+            "decisions": [{"summary": "structured"}],
+            "next_steps": ["ship"],
+            "relevant_files": [{"path": "a.py"}],
+            "ignored": "legacy",
+        },
+    )
+
+    assert result["status"] == "ok"
+    payload = captured[0]["payload"]
+    assert payload == {
+        "agent_id": "agent-1",
+        "agent_type": "codex",
+        "session_id": "session-1",
+        "summary": "done",
+        "completed_work": ["finished"],
+        "in_progress": None,
+        "decisions": [{"summary": "structured"}],
+        "next_steps": ["ship"],
+        "relevant_files": [{"path": "a.py"}],
+    }
+
+
 def test_try_submit_work_passes_payload(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
 

@@ -194,6 +194,43 @@ class TestHandoffService:
         assert result.success is False
         assert result.error == "operation_not_permitted"
 
+    @pytest.mark.asyncio
+    async def test_write_handoff_uses_resolved_agent_type(self, monkeypatch):
+        """HTTP routes pass API-key-resolved agent type into service policy."""
+        captured: dict[str, str] = {}
+
+        class AllowPolicyEngine:
+            async def check_operation(self, **kwargs):
+                captured.update(
+                    agent_id=kwargs["agent_id"],
+                    agent_type=kwargs["agent_type"],
+                    operation=kwargs["operation"],
+                )
+                return PolicyDecision.allow("ok")
+
+        class FakeDB:
+            async def rpc(self, *_args, **_kwargs):
+                return {"success": True, "handoff_id": str(uuid4())}
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: AllowPolicyEngine(),
+        )
+
+        service = HandoffService(FakeDB())
+        result = await service.write(
+            summary="handoff",
+            agent_name="bound-agent",
+            agent_type="codex",
+        )
+
+        assert result.success is True
+        assert captured == {
+            "agent_id": "bound-agent",
+            "agent_type": "codex",
+            "operation": "write_handoff",
+        }
+
 
 class TestHandoffDataClasses:
     """Tests for handoff dataclasses."""
