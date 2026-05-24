@@ -1,0 +1,43 @@
+{
+  "phase": "PLAN_REVIEW",
+  "change_id": "extract-gen-eval-package",
+  "outcome": "not_converged",
+  "agent_name": "autopilot",
+  "session_id": null,
+  "summary": "Plan review ran 2 multi-vendor rounds (claude+codex+gemini). Round 1 surfaced 5 unique blocking findings; PLAN_FIX commit 7540ffb applied inline fixes. Round 2 surfaced 4 new high/critical findings, most importantly Gemini's call-out that Railway's [build] buildCommand only fires for Nixpacks builds, not Dockerfile builds — invalidating the round-1 Railway prebuild fix. The Railway prebuild story now requires either a service-root reconfig (dashboard change), a self-contained multi-stage Dockerfile that doesn't depend on out-of-context source, or a different deploy strategy. This is a substantive design decision, not a textual patch — escalating to PLAN_ITERATE / human gate rather than looping inline.",
+  "completed_work": [
+    "Dispatched parallel-review-plan round 1 to codex-local and gemini-local (3/3 vendors counting claude). Persisted findings at openspec/changes/extract-gen-eval-package/reviews/findings-{codex,gemini}-plan.json and review-findings-plan.json.",
+    "Synthesized consensus at openspec/changes/extract-gen-eval-package/reviews/consensus-plan.json. 18 unique findings, 5 blocking.",
+    "Applied PLAN_FIX (commit 7540ffb) for: wp-coordinator-migrate deny conflict; D5/D8 --no-sources; railway.toml buildCommand (later invalidated by round 2); task 7.4 / wp-integration docker context; task 5.2 validate-feature descriptor glob + D9; task 5.C dotted+slash grep.",
+    "openspec validate --strict passed after round-1 fixes.",
+    "Dispatched parallel-review-plan round 2 to codex-local and gemini-local (2/2 vendors). Persisted findings at openspec/changes/extract-gen-eval-package/reviews/round-2/findings-{codex,gemini}-plan.json."
+  ],
+  "in_progress": [],
+  "decisions": [
+    "Stop after round 2 instead of looping to round 3: round-2 surfaced a structural Railway design re-think (Gemini's Nixpacks-vs-Dockerfile builder catch) that exceeds the scope of inline PLAN_FIX. Round 3 with another fix attempt would either re-introduce a different incorrect Railway story or require the design re-think the autopilot is not equipped to make unilaterally."
+  ],
+  "next_steps": [
+    "PLAN_ITERATE (round 2) or human-gated design review on the Railway prebuild story. Options: (a) reconfigure Railway service root to repo root, dockerfilePath = agent-coordinator/Dockerfile (requires one-time dashboard change); (b) restructure agent-coordinator/Dockerfile as a multi-stage build that does not need ../packages/gen-eval/ source — currently impossible because Railway's Docker context is the service root, so the gen-eval source would have to be vendored into agent-coordinator/ inside the Docker build, defeating the extraction; (c) accept that local Docker builds and Railway production builds use different wheel sources (e.g., pin a known-good wheel version in agent-coordinator/dist-fixtures/ and refresh on release).",
+    "Address Codex round-2 finding #2 (CI docker-smoke job lacks the uv setup + working-directory needed for the wheel prebuild step) and finding #3 (CI smoke-import list still imports `evaluation.gen_eval.mcp_service` — needs to be updated in lockstep with the change).",
+    "Address Codex round-2 finding #4 (wp-skills-update verification grep should mirror task 5.C's dotted+slash coverage).",
+    "Address Gemini round-2 finding #3 (evaluation/__init__.py __all__ list cleanup if it's mentioned)."
+  ],
+  "relevant_files": [
+    "openspec/changes/extract-gen-eval-package/review-findings-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/findings-codex-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/findings-gemini-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/consensus-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/review-manifest.json",
+    "openspec/changes/extract-gen-eval-package/reviews/round-2/findings-codex-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/round-2/findings-gemini-plan.json",
+    "openspec/changes/extract-gen-eval-package/reviews/round-2/review-manifest.json",
+    "openspec/changes/extract-gen-eval-package/design.md",
+    "openspec/changes/extract-gen-eval-package/tasks.md",
+    "openspec/changes/extract-gen-eval-package/work-packages.yaml"
+  ],
+  "rounds_executed": 2,
+  "max_rounds": 3,
+  "vendors_dispatched": ["claude_code", "codex", "gemini"],
+  "blocking_findings_after_round_1": 5,
+  "blocking_findings_after_round_2": 4
+}

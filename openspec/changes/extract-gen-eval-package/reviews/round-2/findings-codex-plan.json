@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `wp-coordinator-migrate` still tells the implementer that `railway.toml` needs no changes, while D8 and task 4.5 require adding a `[build] buildCommand`. An implementation agent following the work-package description can skip the Railway prebuild and reintroduce the production Docker failure.",
+      "resolution": "Update the `wp-coordinator-migrate.description` to say docker-compose.yml remains unchanged but `agent-coordinator/railway.toml` must gain the concrete `[build] buildCommand`; keep the existing locks/write_allow entries for railway.toml.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 263,
+        "end": 273
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The planned CI wheel prebuild command is not executable in the existing docker-smoke job: the job defaults `working-directory` to `agent-coordinator`, but the plan says to run `cd packages/gen-eval`, and the job currently has no `astral-sh/setup-uv` step. That means the CI Docker build may still run without `agent-coordinator/dist/gen_eval-*.whl`.",
+      "resolution": "In D8 and `wp-package-tests`, require the docker-smoke job to add `uses: astral-sh/setup-uv@v5` before the prebuild and run the wheel build from a valid directory, either with `working-directory: .` plus `cd packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` or from `agent-coordinator` with `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 194,
+        "end": 197
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: The existing GitHub Actions docker smoke import list still imports `evaluation.gen_eval.mcp_service`, but the plan does not explicitly update that CI string. After the legacy module is removed, the smoke-import step will fail even if the package extraction itself works.",
+      "resolution": "Add to task 3.4 or wp-package-tests that `.github/workflows/ci.yml` must change the smoke module from `evaluation.gen_eval.mcp_service` to `gen_eval.mcp_service`, and add a repo or CI-specific grep that catches legacy `evaluation.gen_eval` strings outside the moved OpenSpec artifacts.",
+      "disposition": "fix",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 194,
+        "end": 200
+      }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Task 5.C now checks both dotted and slash legacy forms, but `wp-skills-update` verification still only greps `evaluation.gen_eval`. The slash-path regression that motivated the round-1 fix would not be caught by the work-package verification step.",
+      "resolution": "Mirror task 5.C in `wp-skills-update.verification.steps`: run both `grep -r 'evaluation\\.gen_eval' ...` and `grep -r 'evaluation/gen_eval' ...` across `skills/`, `.claude/skills/`, and `.agents/skills/`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 419,
+        "end": 422
+      }
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The round-1 fixes are otherwise present in the core design/tasks: D5/D8 now mandate `--no-sources`, task 7.4 uses the `agent-coordinator/` Docker context with a prior wheel build, task 5.2 updates the descriptor glob, and the stale `deny` block was removed.",
+      "resolution": "No action required for those fixed items; keep the corrected design/task language during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {
+        "start": 87,
+        "end": 119
+      }
+    }
+  ]
+}
