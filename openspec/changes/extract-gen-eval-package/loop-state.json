@@ -13,11 +13,12 @@
   "current_phase": "PLAN_REVIEW",
   "force_used": true,
   "handoff_ids": [
-    "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json"
+    "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json",
+    "openspec/changes/extract-gen-eval-package/handoffs/plan_review-1.json"
   ],
-  "last_handoff_id": "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json",
+  "last_handoff_id": "openspec/changes/extract-gen-eval-package/handoffs/plan_review-1.json",
   "package_authors": {},
-  "phase_archetype": "architect",
+  "phase_archetype": "reviewer",
   "phase_history": [
     {
       "at": "2026-05-24T16:05:54.018315+00:00",
@@ -25,9 +26,9 @@
       "phase": "INIT"
     },
     {
-      "phase": "PLAN_ITERATE",
+      "at": "2026-05-24T16:24:11.039844+00:00",
       "outcome": "complete",
-      "at": "2026-05-24T16:24:11.039844+00:00"
+      "phase": "PLAN_ITERATE"
     }
   ],
   "phase_iterations": {},
