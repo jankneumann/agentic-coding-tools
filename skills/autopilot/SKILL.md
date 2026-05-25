@@ -205,6 +205,7 @@ Failure here is non-fatal — the helper logs a warning and writes
 
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
+- **Before showing/answering the proposal approval gate prompt**, invoke `/review-artifacts <change-id>` to open proposal/design/spec/tasks artifacts in a new VS Code review session
 - Wait for proposal approval before continuing
 
 If argument was an existing change-id:
@@ -602,6 +603,8 @@ Write final strategic memory summarizing:
 Write final handoff document.
 
 **STOP — Await human approval for merge via `/cleanup-feature <change-id>`.**
+
+Before presenting merge-approval questions, automatically invoke `/review-artifacts <change-id>` so the reviewer has the relevant artifacts open prior to choosing gate outcomes.
 
 ## Progress Reporting
 
