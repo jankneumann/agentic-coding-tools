@@ -58,20 +58,37 @@ verdict is *reproducible*: re-run the triage, get the same answer. Principle V a
 routing** (Claude, Codex, and other configured vendors). Verdicts may therefore be produced
 by different models across runs, which weakens bit-for-bit reproducibility.
 
-**Why.** The platform's core value is vendor diversity and cross-checking; forcing a single
-provider for Sentinel alone would fork the dispatch layer and discard that strength.
+**Why.** The platform's core value is vendor diversity and cross-checking. Rather than treat
+multi-vendor operation as a reproducibility *liability* to tolerate, Sentinel treats it as a
+*consensus mechanism* — the same way this repository already synthesizes vendor-diverse code
+reviews (`parallel-infrastructure`'s `ConsensusSynthesizer`). A verdict corroborated across
+calibrated vendors is more stable and more defensible than a single provider's verdict.
+
+The governing rule that makes this sound: **never place raw outputs from different vendors on
+one shared scale.** Inconsistency comes from cross-vendor scale-mixing, not from multi-vendor
+itself. Each vendor must be internally consistent; only calibrated, then synthesized, results
+are combined.
 
 **Mitigations (binding):**
 1. **Verdict-provenance** — every verdict records the vendor, model, and rule/corpus version
    that produced it (see `sentinel-security-eval` requirement "Verdict Provenance"). A verdict
    without provenance is invalid.
-2. **Shared, per-provider backoff** — Principle V's rate-arbiter behavior is preserved
+2. **Within-vendor consistency** — a given verdict and its severity are produced by one vendor
+   applying the rubric uniformly, so each vendor's scale is self-consistent. Raw outputs from
+   different vendors are never compared or merged on a shared scale before calibration.
+3. **Cross-vendor calibration** — before results from different vendors are combined, their
+   scales are calibrated to a common reference so that, e.g., one vendor's CVSS band maps to
+   another's. Calibration is owned configuration, not per-run model whim.
+4. **Principled synthesis** — per-vendor verdicts are integrated via the consensus model
+   (`confirmed` / `unconfirmed` / `disagreement`, with per-vendor dispositions recorded),
+   reusing the same `ConsensusSynthesizer` substrate as code review. The synthesized consensus
+   verdict — not a lone vendor's — is what reaches the Reporter (see `sentinel-security-eval`
+   requirement "Multi-Vendor Verdict Consensus and Calibration").
+5. **Shared, per-provider backoff** — Principle V's rate-arbiter behavior is preserved
    *per provider*: backoff state is shared across all agents calling the same provider, so
    the multi-vendor fan-out does not rediscover each provider's limit N times.
-3. **Provenance-aware diffing** — re-run comparisons (fingerprint dedup, SC-005) account for
-   provenance: a verdict change between runs is only flagged as a regression when the
-   provenance is held constant, isolating genuine target changes from model variance.
 
-**Residual risk (accepted).** Cross-run verdict stability is statistical, not guaranteed.
-Reviewers must treat a lone verdict as provider-conditioned; high-stakes verdicts should be
-corroborated across providers before publication.
+**Residual risk (accepted).** Stability now rests on calibration quality rather than on a
+single provider. Mis-calibration between vendors is the residual risk; it is mitigated by
+treating calibration as owned, versioned configuration and by surfacing cross-vendor
+`disagreement` (rather than silently averaging it) for human attention.

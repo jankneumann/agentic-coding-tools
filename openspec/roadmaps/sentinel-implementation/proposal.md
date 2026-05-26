@@ -92,6 +92,17 @@ Implement Reporter-owned CVSS-v4 severity derivation, CWE weakness classificatio
 - A model-emitted severity string is ignored as authoritative.
 - `needs-review` findings are surfaced via the `triaged/needs-review` label and never carry `triaged/true-positive`.
 
+### Capability: Multi-Vendor Verdict Consensus and Calibration
+
+Combine per-vendor results into a verdict through principled synthesis rather than mixing raw cross-vendor outputs on one scale (Deviation D-1 mitigation). Each vendor applies the rubric internally (within-vendor consistency); vendor scales are calibrated to a common reference via owned, versioned config; calibrated results are synthesized into a `confirmed`/`unconfirmed`/`disagreement` consensus verdict reusing `parallel-infrastructure`'s `ConsensusSynthesizer`. The synthesized consensus verdict — not a lone vendor's — is what the Reporter publishes; disagreement is surfaced, not averaged.
+
+**Acceptance Outcomes:**
+- Each vendor produces a self-consistent verdict/severity before any cross-vendor comparison.
+- Calibration config maps vendor scales to a common reference before synthesis.
+- Consensus verdict is classified `confirmed`/`unconfirmed`/`disagreement` with per-vendor dispositions recorded.
+- Cross-vendor disagreement is surfaced (e.g. `needs-review`), never silently averaged.
+- A vendor pair lacking calibration falls back to single-vendor verdicts with provenance.
+
 ### Service: Reporter
 
 Produce self-contained per-finding reports (title, location, description, impact, reproduction, evidence) and an evaluation-level rollup grouping findings by component, publishing to GitHub issues with consistent labels and updating (not duplicating) by fingerprint.
@@ -174,7 +185,8 @@ Optional extension that improves the detection rule corpus from measured gaps. *
 
 - Every capability must bind to its mapped existing capability per `seed-sentinel-security-eval/design.md` D1 rather than duplicate infrastructure.
 - The coordination substrate must reuse `agent-coordinator`'s Work Queue and Heartbeat requirements (depends-on, not rebuild).
-- Every verdict must carry vendor/model/corpus-version provenance (Deviation D-1 mitigation).
+- Every verdict must carry vendor/model/corpus-version provenance, plus per-vendor dispositions and consensus status for synthesized verdicts (Deviation D-1 mitigation).
+- Raw outputs from different vendors must never be compared or merged on a shared scale before calibration; cross-vendor results must be calibrated then synthesized into a consensus verdict.
 - Sandbox boundaries must be enforced by infrastructure, never by prompt alone.
 - The `exploited` flag must be settable only by the Validator and only on independently reproduced impact.
 - Findings must satisfy the three-leg evidence gate before reaching `true-positive`.
@@ -201,6 +213,7 @@ Optional extension that improves the detection rule corpus from measured gaps. *
 
 ### Phase 4: Validation, Reporting, and Coverage
 
+- Capability: Multi-Vendor Verdict Consensus and Calibration
 - Service: Validator
 - Service: Reporter
 - Service: Coverage-Guide

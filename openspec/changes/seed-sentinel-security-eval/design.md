@@ -19,6 +19,7 @@ Each foundry role binds to an existing capability or primitive. The seed spec ad
 | **Coverage-Guide** | `roadmap-orchestration` (goal→checklist decomposition) + `observability` | Checklist derivation reuses decomposition patterns; coverage status feeds observability. |
 | **Reporter** | `observability` + `merge-pull-requests`/GitHub issue tooling | Per-finding reports + rollup reuse observability and GitHub publishing surfaces. |
 | **Coordination substrate** | `agent-coordinator` **Work Queue** + **Heartbeat and Dead Agent Detection** | Atomic claiming, `open/blocked/closed` states, heartbeat liveness, auto-block — all already specified; Sentinel depends on them (no `MODIFIED` delta in the seed). |
+| **Multi-vendor verdict consensus** | `parallel-infrastructure` **`ConsensusSynthesizer`** (`consensus_synthesizer.py`) | The same `confirmed`/`unconfirmed`/`disagreement` synthesis the repo uses for vendor-diverse code review is reused to synthesize per-vendor security verdicts (see D3). |
 
 **Why dependency, not `MODIFIED`:** the seed introduces no change to coordinator behavior — it consumes the queue and heartbeat as-is. Authoring `MODIFIED` deltas now would mean inventing extensions (e.g., eval-role claim tags) before they're concrete. Those belong to roadmap implementation changes, which will copy the exact existing requirement text and modify it.
 
@@ -34,14 +35,15 @@ Each foundry role binds to an existing capability or primitive. The seed spec ad
 
 The seed is **spec + governance only**. `openspec validate --strict` is the acceptance test; no role logic ships here.
 
-## D3 — Deviation analysis (multi-vendor vs. single-provider)
+## D3 — Deviation analysis (multi-vendor consensus vs. single-provider)
 
-Foundry §11.2 + Constitution V assume a single LLM provider so verdicts are reproducible. This repo is multi-vendor by design. We accept the deviation (D-1 in `constitution.md`) and mitigate:
+Foundry §11.2 + Constitution V assume a single LLM provider so verdicts are reproducible. This repo is multi-vendor by design. Rather than tolerate multi-vendor as a reproducibility liability, Sentinel treats it as a **consensus mechanism** — the same way the repo already synthesizes vendor-diverse code reviews. The governing rule: inconsistency comes from *mixing raw cross-vendor outputs on one scale*, not from multi-vendor per se. So we make each vendor internally consistent, calibrate across vendors, then synthesize.
 
-- **What we lose:** bit-for-bit verdict reproducibility across runs — a re-triage may land on a different model and reach a different verdict.
+- **The pipeline:** *within-vendor consistency* (each vendor applies the rubric uniformly) → *cross-vendor calibration* (owned, versioned config maps vendor scales to a common reference) → *principled synthesis* (`confirmed`/`unconfirmed`/`disagreement` via `parallel-infrastructure`'s `ConsensusSynthesizer`, per-vendor dispositions recorded). The synthesized consensus verdict — not a lone vendor's — is what the Reporter publishes.
+- **What we gain:** a consensus verdict corroborated across calibrated vendors is *more* stable and defensible than a single provider's verdict; cross-vendor `disagreement` becomes a first-class signal surfaced to humans (e.g., `needs-review`).
 - **What we keep:** the rate-arbiter behavior of Principle V, preserved *per provider* (shared per-provider backoff).
-- **Mitigation:** the **Verdict Provenance** requirement records vendor/model/corpus-version on every verdict, and re-run comparison is provenance-aware so model variance is not mistaken for a target regression (relevant to foundry SC-005 dedup).
-- **Residual risk (accepted):** cross-run stability is statistical; high-stakes verdicts should be corroborated across providers before publication. Revisiting single-provider mode is a future decision, not part of this seed.
+- **Provenance:** the **Verdict Provenance** requirement records vendor/model/corpus-version plus, for synthesized verdicts, each participating vendor's disposition and the consensus status; re-run comparison is consensus-aware so a change in participating-vendor set is not mistaken for a target regression (relevant to foundry SC-005 dedup).
+- **Residual risk (accepted):** stability now rests on *calibration quality* rather than on a single provider. Mis-calibration between vendors is the residual risk, mitigated by treating calibration as owned, versioned configuration and by surfacing (not averaging) disagreement. When no calibration exists for a vendor pair, Sentinel falls back to single-vendor verdicts with provenance rather than fabricating a cross-vendor consensus.
 
 ## D4 — Deferred extensions (adopt-when preconditions)
 
