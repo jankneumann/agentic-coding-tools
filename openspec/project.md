@@ -42,6 +42,7 @@ Agentic coding tools - a collection of systems for coordinating and enhancing AI
 - **Agent types**: Local (Claude Code, Codex CLI, Aider) and Cloud (Claude API, Codex Cloud)
 - **Coordination primitives**: File locks, memory (episodic/working/procedural), work queue
 - **Verification tiers**: Static (0) → Unit (1) → Integration (2) → System (3) → Manual (4)
+- **Sentinel (agentic security evaluation)**: An adaptation of Cisco's [foundry-security-spec](https://github.com/CiscoDevNet/foundry-security-spec) — 8 evaluation roles mapped onto the existing coordinator/worker/validator model. Governed by the [Sentinel Constitution](changes/seed-sentinel-security-eval/constitution.md) (11 inviolable principles + the multi-vendor Deviation D-1). Capability spec: `specs/sentinel-security-eval/` (seeded via the `seed-sentinel-security-eval` change). Verdicts must satisfy a three-leg evidence gate; the `exploited` flag requires independent reproduction.
 
 ## Important Constraints
 - Lock TTL must be enforced to prevent deadlocks
