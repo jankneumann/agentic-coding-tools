@@ -110,6 +110,27 @@ items:
   - CVSS-v4 severity via owned rubric + CWE class per finding
   - Model-emitted severity ignored as authoritative
   - needs-review surfaced via triaged/needs-review label
+- item_id: sentinel-verdict-consensus
+  title: Multi-Vendor Verdict Consensus and Calibration
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - sentinel-triager
+  - sentinel-severity-classification
+  description: 'Within-vendor consistency + cross-vendor calibration + principled
+    synthesis (confirmed/unconfirmed/disagreement) of per-vendor verdicts and CVSS-v4
+    severities, reusing parallel-infrastructure''s ConsensusSynthesizer. Mitigates
+    Deviation D-1: never mix raw cross-vendor outputs on one scale.'
+  acceptance_outcomes:
+  - Each vendor produces a self-consistent verdict/severity before any cross-vendor
+    comparison
+  - Calibration config maps vendor scales to a common reference before synthesis
+  - Synthesized verdict classified confirmed/unconfirmed/disagreement with per-vendor
+    dispositions recorded
+  - Cross-vendor disagreement surfaced (needs-review), never silently averaged
+  - Missing calibration for a vendor pair falls back to single-vendor verdict with
+    provenance
 - item_id: sentinel-validator
   title: Validator
   status: candidate
@@ -130,8 +151,7 @@ items:
   priority: 4
   effort: M
   depends_on:
-  - sentinel-triager
-  - sentinel-severity-classification
+  - sentinel-verdict-consensus
   description: Per-finding reports + rollup; GitHub issue publish; update-by-fingerprint.
   acceptance_outcomes:
   - Published finding has all report fields + taxonomy labels
@@ -248,4 +268,4 @@ items:
   - Activation requires a measured rule-gap corpus with examples
   blocked_by:
   - rule corpus has measured gaps with examples
-updated_at: '2026-05-26T11:55:31.900681+00:00'
+updated_at: '2026-05-26T12:09:33.203384+00:00'

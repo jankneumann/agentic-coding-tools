@@ -238,23 +238,52 @@ The `exploited` flag SHALL be set **only** by the Validator, and only when headl
 
 ### Requirement: Verdict Provenance
 
-Because Sentinel reuses this repository's multi-vendor LLM routing (Deviation D-1 in `constitution.md`, exception to Constitution V), every verdict SHALL record its provenance: the vendor, the model, and the rule/corpus version that produced it. A verdict without recorded provenance SHALL be invalid. Re-run comparison SHALL be provenance-aware: a verdict difference between runs SHALL be flagged as a regression only when provenance is held constant.
+Because Sentinel reuses this repository's multi-vendor LLM routing (Deviation D-1 in `constitution.md`, exception to Constitution V), every verdict SHALL record its provenance: the vendor, the model, and the rule/corpus version that produced it. Where a verdict is the product of multi-vendor synthesis (see "Multi-Vendor Verdict Consensus and Calibration"), the recorded provenance SHALL additionally include each participating vendor's per-vendor disposition and the consensus status. A verdict without recorded provenance SHALL be invalid. Re-run comparison SHALL be consensus- and provenance-aware: a verdict difference between runs SHALL be flagged as a regression only when the participating-vendor set and consensus status are held constant.
 
 #### Scenario: Verdict carries provenance
 
-**WHEN** the Triager assigns any verdict
+**WHEN** the Triager assigns or synthesizes any verdict
 **THEN** the recorded verdict SHALL include the vendor, model, and rule/corpus version
+**AND** a synthesized verdict SHALL additionally record each participating vendor's disposition and the consensus status
 **AND** a verdict missing any provenance field SHALL be rejected as invalid
 
-#### Scenario: Provenance-aware regression detection
+#### Scenario: Consensus-aware regression detection
 
-**WHEN** a re-run produces a different verdict for the same fingerprint under a different vendor or model
+**WHEN** a re-run produces a different consensus verdict for the same fingerprint with a different participating-vendor set
 **THEN** the difference SHALL NOT be reported as a target regression
-**AND** the system SHALL attribute the difference to provenance variance
+**AND** the system SHALL attribute the difference to consensus-composition variance
+
+### Requirement: Multi-Vendor Verdict Consensus and Calibration
+
+Sentinel SHALL combine per-vendor results into a verdict through principled synthesis rather than by placing raw outputs from different vendors on a shared scale (Deviation D-1; Constitution I, V). Each vendor SHALL apply the rubric uniformly so its own scale is self-consistent (within-vendor consistency). Before results from different vendors are combined, their scales SHALL be calibrated to a common reference using owned, versioned calibration configuration (cross-vendor calibration). Calibrated per-vendor results SHALL then be synthesized into a consensus verdict classified as `confirmed`, `unconfirmed`, or `disagreement` with each vendor's disposition recorded, reusing the `parallel-infrastructure` consensus substrate (`ConsensusSynthesizer`). The synthesized consensus verdict — not a lone vendor's — SHALL be what the Reporter publishes. Cross-vendor `disagreement` SHALL be surfaced for human attention rather than silently averaged.
+
+#### Scenario: Within-vendor consistency before combination
+
+**WHEN** two vendors evaluate the same candidate
+**THEN** each vendor SHALL apply the rubric uniformly to produce its own self-consistent verdict and severity
+**AND** Sentinel SHALL NOT compare or merge the two raw outputs on a shared scale before calibration
+
+#### Scenario: Calibration precedes synthesis
+
+**WHEN** calibrated per-vendor results are combined
+**THEN** the results SHALL be mapped to a common reference via owned, versioned calibration configuration
+**AND** the synthesized consensus verdict SHALL be recorded as `confirmed`, `unconfirmed`, or `disagreement` with per-vendor dispositions
+
+#### Scenario: Disagreement is surfaced, not averaged
+
+**WHEN** calibrated vendors reach materially different verdicts for the same fingerprint
+**THEN** the consensus status SHALL be `disagreement`
+**AND** the finding SHALL be surfaced for human attention (e.g., via `needs-review`) rather than collapsed into an averaged verdict
+
+#### Scenario: Missing calibration blocks combination
+
+**WHEN** no calibration configuration exists for a pair of vendors whose results would be combined
+**THEN** Sentinel SHALL NOT synthesize a cross-vendor consensus for that pair
+**AND** SHALL fall back to single-vendor verdicts with provenance recorded
 
 ### Requirement: Severity and Weakness Classification
 
-The Reporter SHALL own severity assignment using **CVSS v4**, and SHALL classify each finding's weakness using **CWE** (foundry FR-076, FR-077, §11.9; Constitution I). Severity SHALL NOT be taken as raw model output; it SHALL be derived through the owned CVSS-v4 rubric.
+The Reporter SHALL own severity assignment using **CVSS v4**, and SHALL classify each finding's weakness using **CWE** (foundry FR-076, FR-077, §11.9; Constitution I). Severity SHALL NOT be taken as raw model output; it SHALL be derived through the owned CVSS-v4 rubric. When multiple vendors contribute severity for a finding, each vendor's CVSS-v4 score SHALL be computed within-vendor, then calibrated and synthesized per "Multi-Vendor Verdict Consensus and Calibration"; raw cross-vendor severities SHALL NOT be averaged or compared on a shared scale prior to calibration.
 
 #### Scenario: CVSS v4 severity and CWE class assigned
 
@@ -267,6 +296,12 @@ The Reporter SHALL own severity assignment using **CVSS v4**, and SHALL classify
 **WHEN** a candidate arrives carrying a severity string emitted directly by a model
 **THEN** the Reporter SHALL ignore that string as authoritative
 **AND** SHALL compute severity through the CVSS-v4 rubric instead
+
+#### Scenario: Cross-vendor severity calibrated, not averaged
+
+**WHEN** two vendors produce different CVSS-v4 severities for the same finding
+**THEN** the Reporter SHALL calibrate each vendor's score to the common reference before combining
+**AND** SHALL NOT publish a raw arithmetic average of the uncalibrated scores
 
 ### Requirement: Label Taxonomy
 
