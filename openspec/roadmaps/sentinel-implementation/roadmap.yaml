@@ -1,0 +1,251 @@
+schema_version: 1
+roadmap_id: sentinel-implementation
+source_proposal: openspec/roadmaps/sentinel-implementation/proposal.md
+status: planning
+policy:
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: sentinel-substrate-binding
+  title: Coordination Substrate Binding
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: Bind Sentinel role agents onto agent-coordinator's Work Queue + Heartbeat;
+    tag claims/heartbeats with eval-role semantics. Extend, not rebuild.
+  acceptance_outcomes:
+  - Concurrent role agents receive different tasks via existing Work Queue
+  - Killed agent's claim auto-releases within heartbeat-stale window
+  - Heartbeat never blocked by primary work
+- item_id: sentinel-finding-store
+  title: Finding Store with Fingerprint and Provenance
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - sentinel-substrate-binding
+  description: Finding store + state machine + structure-based fingerprint + verdict-provenance;
+    atomic write-then-replace.
+  acceptance_outcomes:
+  - Fingerprint stable under line-moving edits
+  - Re-run yields zero new/duplicate findings
+  - Every verdict carries vendor/model/corpus provenance or is rejected
+  - Crash mid-write leaves complete prior state
+- item_id: sentinel-sandbox-scope
+  title: Sandbox and Scope Enforcement
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Sandbox-by-infrastructure (ephemeral containers + E2B), read-only mounts,
+    hard-rule injection.
+  acceptance_outcomes:
+  - Elevated agent cannot reach hosts outside allowlist
+  - Writes to target/config/sandbox fail (read-only)
+  - Every agent prompt carries operator hard-rules + non-testbed prohibitions
+- item_id: sentinel-indexer
+  title: Indexer
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - sentinel-substrate-binding
+  description: Structural index (symbols/call-graph/xrefs) + query interface; extends
+    codebase-analysis.
+  acceptance_outcomes:
+  - Index signals queryable to release downstream roles
+  - Re-run updates only changed portions
+  - Unparseable files recorded without aborting
+- item_id: sentinel-cartographer
+  title: Cartographer
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - sentinel-indexer
+  description: Security-context documents (architecture, attack-surface, trust boundaries,
+    data flows, threat model).
+  acceptance_outcomes:
+  - Five security-context docs persisted and readable by all roles
+  - Roles run on the Indexer alone when map absent
+- item_id: sentinel-detector
+  title: Detector
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - sentinel-indexer
+  - sentinel-finding-store
+  description: Rule application + exploratory hunting; versioned corpus; rule-gap
+    recording.
+  acceptance_outcomes:
+  - Candidates written to store (state candidate), never to tracker
+  - Rule gaps recorded against corpus version
+  - No verdict/severity/exploited assigned
+- item_id: sentinel-triager
+  title: Triager
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - sentinel-detector
+  - sentinel-finding-store
+  description: Verdict assignment + three-leg evidence gate with presence-vuln carve-out
+    + citation resolution.
+  acceptance_outcomes:
+  - Exactly one verdict with reasoning per candidate
+  - Unprovable likelihood -> needs-review
+  - Unresolvable citation demotes to needs-review
+  - Non-true-positive verdicts stay internal
+- item_id: sentinel-severity-classification
+  title: Severity, Classification, and Label Taxonomy
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - sentinel-finding-store
+  description: Reporter-owned CVSS-v4 + CWE + namespaced label taxonomy.
+  acceptance_outcomes:
+  - CVSS-v4 severity via owned rubric + CWE class per finding
+  - Model-emitted severity ignored as authoritative
+  - needs-review surfaced via triaged/needs-review label
+- item_id: sentinel-validator
+  title: Validator
+  status: candidate
+  priority: 4
+  effort: L
+  depends_on:
+  - sentinel-triager
+  - sentinel-sandbox-scope
+  description: Clean-room reproduction against testbed; PoC-only degradation; extends
+    live-service-testing.
+  acceptance_outcomes:
+  - exploited set only on independently reproduced impact, with PoC
+  - Failed reproduction records explanation, verdict intact
+  - No testbed -> never sets exploited
+- item_id: sentinel-reporter
+  title: Reporter
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - sentinel-triager
+  - sentinel-severity-classification
+  description: Per-finding reports + rollup; GitHub issue publish; update-by-fingerprint.
+  acceptance_outcomes:
+  - Published finding has all report fields + taxonomy labels
+  - Fingerprint match updates existing entry, no duplicate
+- item_id: sentinel-coverage-guide
+  title: Coverage-Guide
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - sentinel-finding-store
+  - sentinel-cartographer
+  description: Goal->checklist decomposition; coverage-complete declaration; extends
+    roadmap-orchestration + observability.
+  acceptance_outcomes:
+  - Non-empty goals yield finite checklist + directed tasks
+  - Credibly attempted item checked even with no finding
+  - Empty goals refused
+- item_id: sentinel-governance-gates
+  title: Governance Gates
+  status: candidate
+  priority: 4
+  effort: M
+  depends_on:
+  - sentinel-coverage-guide
+  - sentinel-finding-store
+  description: Coverage + yield auto-stop; task auto-blocking; operator-configurable
+    weights/window/threshold.
+  acceptance_outcomes:
+  - Low yield before coverage-complete does not stop
+  - Coverage-complete + nonzero yield resets timer
+  - Task released N times -> blocked, re-openable
+- item_id: sentinel-orchestrator
+  title: Orchestrator
+  status: candidate
+  priority: 5
+  effort: M
+  depends_on:
+  - sentinel-substrate-binding
+  - sentinel-indexer
+  description: Two non-blocking lanes (lifecycle + conversational); extends agent-coordinator
+    Agent Orchestration.
+  acceptance_outcomes:
+  - Invalid config blocks run, no partial fleet
+  - Downstream roles withheld until index queryable
+  - Conversational request never stalls lifecycle lane
+- item_id: sentinel-observability
+  title: Observability Dashboard and Session Logs
+  status: candidate
+  priority: 5
+  effort: M
+  depends_on:
+  - sentinel-finding-store
+  - sentinel-substrate-binding
+  description: 'FR-120-124: dashboard, activity feed, structured session logs, cost/token
+    rollups.'
+  acceptance_outcomes:
+  - Dashboard and status query agree at an instant
+  - Full detection->triage->validation->report provenance reconstructable from logs
+- item_id: sentinel-ext-deep-tester
+  title: Deep-Tester Extension
+  status: blocked
+  priority: 9
+  effort: L
+  depends_on: []
+  description: 'Optional: PoC binary builder. Deferred; not in initial build.'
+  acceptance_outcomes:
+  - Activation requires a stable testbed precondition
+  blocked_by:
+  - stable testbed exists and findings need PoC binaries
+- item_id: sentinel-ext-variant-hunter
+  title: Variant-Hunter Extension
+  status: blocked
+  priority: 9
+  effort: L
+  depends_on: []
+  description: 'Optional: semantic variant discovery. Blocked: seed has no vector
+    store.'
+  acceptance_outcomes:
+  - Activation requires vector store + embeddings + true-positive corpus
+  blocked_by:
+  - vector store + semantic embeddings + true-positive corpus (none in seed)
+- item_id: sentinel-ext-attack-mapper
+  title: Attack-Mapper Extension
+  status: blocked
+  priority: 9
+  effort: L
+  depends_on: []
+  description: 'Optional: attack-path/chaining mapper. Deferred; not first build.'
+  acceptance_outcomes:
+  - Activation requires chaining demand and evaluations >2 quarters old
+  blocked_by:
+  - reviewers ask about chaining; evaluations >2 quarters old
+- item_id: sentinel-ext-remediator
+  title: Remediator Extension
+  status: blocked
+  priority: 9
+  effort: L
+  depends_on: []
+  description: 'Optional: proposes code fixes. Deferred until Reporter trusted.'
+  acceptance_outcomes:
+  - Activation requires mature merge gating and trusted Reporter output
+  blocked_by:
+  - mature code-review/merge gating; trusted Reporter output
+- item_id: sentinel-ext-self-improver
+  title: Self-Improver Extension
+  status: blocked
+  priority: 9
+  effort: M
+  depends_on: []
+  description: 'Optional: improves detection corpus from measured gaps. Deferred;
+    not day one.'
+  acceptance_outcomes:
+  - Activation requires a measured rule-gap corpus with examples
+  blocked_by:
+  - rule corpus has measured gaps with examples
+updated_at: '2026-05-26T11:55:31.900681+00:00'
