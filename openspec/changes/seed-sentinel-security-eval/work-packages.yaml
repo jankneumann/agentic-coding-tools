@@ -1,0 +1,40 @@
+version: 1
+change_id: seed-sentinel-security-eval
+
+packages:
+  - id: wp-main
+    description: |
+      Seed-only spec change: vendor the adapted Sentinel constitution (11 principles
+      + multi-vendor Deviation D-1), author the cohesive `sentinel-security-eval`
+      capability spec (8 roles, finding lifecycle, evidence gate, fingerprint,
+      exploited flag, verdict-provenance, governance gates, CVSS-v4/CWE/needs-review
+      policy), author the design.md role->infrastructure binding table, wire a
+      constitution reference into openspec/project.md, validate, and hand off to
+      /plan-roadmap. No role logic is implemented.
+    tier: sequential
+    write_allow:
+      - openspec/changes/seed-sentinel-security-eval/**
+      - openspec/project.md
+    write_deny:
+      - openspec/specs/**
+      - agent-coordinator/**
+      - skills/**
+      - apps/**
+    read_allow:
+      - "**/*"
+    test_command: |
+      openspec validate seed-sentinel-security-eval --strict
+    acceptance:
+      - openspec validate seed-sentinel-security-eval --strict passes
+      - constitution.md contains all 11 principles plus a Deviations section naming
+        D-1 (multi-vendor) and its verdict-provenance mitigation
+      - sentinel-security-eval spec encodes all 8 roles, the 5-verdict lifecycle, the
+        3-leg evidence gate with presence-vuln carve-out, structure-based
+        fingerprinting, the Validator-only exploited flag, verdict-provenance, the
+        coverage + yield-auto-stop + auto-block governance, and the CVSS-v4/CWE/
+        needs-review/namespaced-label policy
+      - every requirement carries at least one success and one failure/edge scenario
+      - design.md contains a role->existing-capability binding table covering all 8 roles
+      - openspec/project.md references constitution.md
+      - the diff is confined to the change dir plus the project.md reference (no role
+        implementation code)
