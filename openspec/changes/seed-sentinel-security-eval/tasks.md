@@ -24,6 +24,6 @@
 
 ## Phase 4 — Roadmap handoff
 
-- [ ] 4.1 Run `/plan-roadmap` against this seed to decompose the 8 roles + lifecycle + governance into prioritized follow-on implementation changes, binding each to its mapped existing capability per `design.md` D1
-- [ ] 4.2 Capture the 5 extension roles as roadmap candidates gated on their adopt-when preconditions (per `design.md` D4)
-- [ ] Checkpoint: roadmap workspace created; seed marked ready to archive once roadmap exists
+- [x] 4.1 Run `/plan-roadmap` against this seed to decompose the 8 roles + lifecycle + governance into prioritized follow-on implementation changes, binding each to its mapped existing capability per `design.md` D1
+- [x] 4.2 Capture the 5 extension roles as roadmap candidates gated on their adopt-when preconditions (per `design.md` D4)
+- [x] Checkpoint: roadmap workspace created; seed marked ready to archive once roadmap exists
