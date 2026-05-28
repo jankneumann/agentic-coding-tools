@@ -73,11 +73,20 @@ The package SHALL ship only framework-level artifacts (the Python source, its sc
 
 The package SHALL ship a `packages/gen-eval/examples/agentic-assistant-quickstart.md` document that walks a new consumer through the complete adoption path: `uv add` command, descriptor template, optional MCP install, and a worked example of running one scenario end-to-end. The package SHALL also ship a `packages/gen-eval/README.md` summarizing the public API, the two install profiles (base and `[mcp]`), and a pointer to the quickstart.
 
-#### Scenario: a new consumer can adopt the package using only the shipped docs
+#### Scenario: quickstart artifacts pass automated shape checks
 
-- **WHEN** a developer who has never seen gen-eval before clones a sibling repo and follows the quickstart end-to-end
+- **WHEN** automated validation runs against `packages/gen-eval/examples/agentic-assistant-quickstart.md` and `packages/gen-eval/examples/descriptor-template.yaml`
+- **THEN** the quickstart SHALL exist, be non-empty, contain a verbatim `uv add` invocation referencing the package by name (`gen-eval` or `gen-eval[mcp]`), reference both install profiles (base and `[mcp]`) at least once, and link to `descriptor-template.yaml`
+- **AND** the descriptor-template SHALL be a YAML file parsable by gen-eval's `descriptor.py` schema validator with at most non-blocking warnings (no errors)
+- **AND** every relative link in the quickstart SHALL resolve (no dead links to files that don't exist in the package)
+
+#### Scenario: a new consumer can adopt the package end-to-end (manual release gate)
+
+- **WHEN** a developer who has never seen gen-eval before clones a sibling repo and follows the quickstart end-to-end as part of a pre-release walkthrough
 - **THEN** they SHALL produce a working `evaluation/descriptors/<consumer>.yaml`, install the package, and execute at least one scenario whose verdict appears in `gen-eval-report.md`
 - **AND** the quickstart SHALL NOT require the developer to read any other gen-eval source file to complete the task
+
+*Verification note:* This scenario is intentionally a manual release-gate check, not an automated CI check. Run before each minor version bump (e.g. 0.1.x → 0.2.0). Record the outcome in `packages/gen-eval/CHANGELOG.md` (or a release-notes section in `README.md`).
 
 ## MODIFIED Requirements
 

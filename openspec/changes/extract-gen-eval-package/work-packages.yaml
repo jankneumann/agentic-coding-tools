@@ -191,12 +191,13 @@ packages:
       the now-empty test_evaluation/test_gen_eval/ directory in the
       coordinator. Add tests for the optional [mcp] extra ImportError
       contract and the sdist-content contract. Add the gen-eval-tests CI
-      job to .github/workflows/ci.yml per design D10 — and per D8 Option B
-      (wheel install), add a pre-build step `cd packages/gen-eval && uv
-      build --out-dir ../../agent-coordinator/dist` to the existing
-      coordinator docker-build CI job so the Dockerfile finds the wheel.
-      Covers tasks 3.1-3.4. Runs in parallel with the coordinator
-      migration, skill updates, and examples doc.
+      job to .github/workflows/ci.yml per design D10. Per D8 Strategy A
+      (repo-root build context), this package does NOT touch the
+      coordinator docker-build CI step — wp-coordinator-migrate owns that
+      under task 4.5(b). No wheel prebuild step is needed (the package
+      lives inside the build context once context = repo root). Covers
+      tasks 3.1-3.4. Runs in parallel with the coordinator migration,
+      skill updates, and examples doc.
     role: python-engineer
     priority: 3
     depends_on: [wp-framework-move]
@@ -255,22 +256,30 @@ packages:
     description: |
       Update agent-coordinator/pyproject.toml to depend on gen-eval[mcp] via uv
       path source per design D5. Rewrite all from evaluation.gen_eval imports in
-      agent-coordinator/src/ to from gen_eval per D6. ALSO update the two literal
-      string fixtures in agent-coordinator/tests/test_check_docker_imports.py
+      agent-coordinator/src/ to from gen_eval per D6, AND remove the
+      `gen_eval` entry from evaluation/__init__.py's __all__ list along
+      with the now-dangling import. ALSO update the two literal string
+      fixtures in agent-coordinator/tests/test_check_docker_imports.py
       (lines 54 and 210) and the reference in agent-coordinator/CLAUDE.md
       line 122. Relocate per-project data (descriptors/, manifests/, scenarios/)
       one level up out of the deleted gen_eval/ directory per D7. Update the
-      agent-coordinator/Dockerfile per design D8 OPTION B (wheel install):
-      add a `COPY dist/gen_eval-*.whl /tmp/wheels/` + `ENV UV_FIND_LINKS=...`
-      ahead of `uv sync`; move the `COPY evaluation/` after `uv sync` for
-      layer-cache hygiene. Add an `agent-coordinator/Makefile` target
-      `build-image` that runs `cd ../packages/gen-eval && uv build
-      --out-dir ../../agent-coordinator/dist` first. Add `dist/` to
-      `agent-coordinator/.gitignore`. Update agent-coordinator/README.md to
-      document the new make build-image workflow and the wheel-install
-      semantics (editable locally, wheel inside Docker). Build context stays
-      at `agent-coordinator/` so docker-compose.yml and railway.toml need
-      no changes. Run full coordinator test suite. Covers tasks 4.1-4.6.
+      agent-coordinator/Dockerfile per design D8 STRATEGY A (repo-root
+      build context): prefix every COPY source with `agent-coordinator/`,
+      add `COPY packages/gen-eval/` before `uv sync` so the path-dep
+      resolves in-image, and move `COPY agent-coordinator/evaluation/`
+      after `uv sync` for layer-cache hygiene. Update
+      .github/workflows/ci.yml coordinator docker-build step:
+      context=`.`, file=`agent-coordinator/Dockerfile`. Update
+      docker-compose.yml coordinator service: context=`..`,
+      dockerfile=`agent-coordinator/Dockerfile`. Update railway.toml with
+      `dockerfilePath = "agent-coordinator/Dockerfile"` and a comment
+      block documenting the required Railway dashboard change (Source >
+      Root Directory: agent-coordinator -> /). Update README.md with a
+      Deployment section documenting the dashboard change. Do NOT add a
+      Makefile build-image target, do NOT add dist/ to .gitignore, do NOT
+      add `--no-sources` or UV_FIND_LINKS — these were Option B artifacts
+      Strategy A obsoletes. Run full coordinator test suite. Covers tasks
+      4.1-4.6.
     role: python-engineer
     priority: 3
     depends_on: [wp-framework-move]
@@ -281,8 +290,7 @@ packages:
       files:
         - "agent-coordinator/pyproject.toml"
         - "agent-coordinator/Dockerfile"
-        - "agent-coordinator/Makefile"
-        - "agent-coordinator/.gitignore"
+        - "agent-coordinator/docker-compose.yml"
         - "agent-coordinator/README.md"
         - "agent-coordinator/railway.toml"
         - "agent-coordinator/src/coordination_api.py"
@@ -291,28 +299,29 @@ packages:
         - "agent-coordinator/evaluation/__init__.py"
         - "agent-coordinator/evaluation/metrics.py"
         - "agent-coordinator/tests/test_check_docker_imports.py"
+        - "agent-coordinator/tests/test_gen_eval_extraction.py"
       keys:
         - "feature:extract-gen-eval-package:coordinator"
       ttl_minutes: 180
-      reason: "Coordinator dependency, imports, Dockerfile (Option B wheel install + --no-sources), Makefile target, .gitignore, railway.toml buildCommand, data relocation, and leftover test-fixture string updates."
+      reason: "Coordinator dependency, imports, Dockerfile + docker-compose repointed to repo-root build context per D8 Strategy A, railway.toml dashboard-change documentation, data relocation, and leftover test-fixture string updates. CI-workflow ci.yml step repoint is owned by wp-integration to avoid scope overlap with wp-package-tests."
     scope:
       write_allow:
         - "agent-coordinator/pyproject.toml"
         - "agent-coordinator/uv.lock"
         - "agent-coordinator/Dockerfile"
-        - "agent-coordinator/Makefile"
-        - "agent-coordinator/.gitignore"
+        - "agent-coordinator/docker-compose.yml"
         - "agent-coordinator/README.md"
         - "agent-coordinator/railway.toml"
         - "agent-coordinator/CLAUDE.md"
         - "agent-coordinator/src/**"
         - "agent-coordinator/evaluation/**"
         - "agent-coordinator/tests/test_check_docker_imports.py"
-        - "agent-coordinator/tests/**"
+        - "agent-coordinator/tests/test_gen_eval_extraction.py"
       read_allow:
         - "agent-coordinator/**"
         - "packages/gen-eval/**"
         - "openspec/changes/extract-gen-eval-package/**"
+        - ".github/workflows/**"
       # Note: no `deny:` block here. Task 4.4 requires this package to read AND
       # mutate (relocate, then delete) files under
       # `agent-coordinator/evaluation/gen_eval/` (descriptors/, manifests/,
@@ -320,6 +329,17 @@ packages:
       # An earlier draft denied that subtree which would block the relocation —
       # the write_allow on `agent-coordinator/evaluation/**` is the authoritative
       # scope for that work.
+      # Tests-scope tightening (post-Strategy-A): explicit file paths instead of
+      # `agent-coordinator/tests/**` to avoid overlap with wp-package-tests'
+      # `agent-coordinator/tests/test_evaluation/test_gen_eval/**` (which deletes
+      # the relocated test source dir). Task 4.1 pins the new test file name
+      # `test_gen_eval_extraction.py`; task 4.3 modifies the existing
+      # `test_check_docker_imports.py`.
+      # CI workflow ownership: `.github/workflows/ci.yml` is NOT in this
+      # package's scope. wp-package-tests owns the additive gen-eval-tests
+      # matrix job (D10). wp-integration owns the existing coordinator
+      # docker-build step repoint (D8 Strategy A) so the change lands after
+      # the Dockerfile and docker-compose updates here are in place.
     worktree:
       name: wp-coordinator-migrate
       mode: isolated
@@ -497,15 +517,20 @@ packages:
         - "docs_present"
 
   - package_id: wp-integration
-    title: "Full validation pass and Docker smoke"
+    title: "Full validation pass, CI docker-build repoint, and Docker smoke"
     task_type: validate
     description: |
       Run openspec validate extract-gen-eval-package --strict. Refresh
       docs/architecture-analysis/ via make architecture (gen-eval's component
       now lives under packages/, not agent-coordinator/). Run
       /validate-feature extract-gen-eval-package (full validation pass).
-      Manually verify docker build with new context. Run one end-to-end gen-eval
-      scenario inside the built container. Covers tasks 7.1-7.5.
+      Update the existing coordinator docker-build step in
+      .github/workflows/ci.yml: context `.`, file
+      `agent-coordinator/Dockerfile` (per D8 Strategy A — owned here, not
+      in wp-coordinator-migrate, to avoid scope overlap with the gen-eval-tests
+      matrix job that wp-package-tests adds to the same file). Manually
+      verify docker build with new repo-root context. Run one end-to-end
+      gen-eval scenario inside the built container. Covers tasks 7.1-7.6.
     role: integration-engineer
     priority: 4
     depends_on: [wp-package-tests, wp-coordinator-migrate, wp-skills-update, wp-examples-doc]
@@ -515,13 +540,15 @@ packages:
     locks:
       files:
         - "docs/architecture-analysis"
+        - ".github/workflows/ci.yml"
       keys:
         - "feature:extract-gen-eval-package:integration"
       ttl_minutes: 60
-      reason: "Architecture artifact refresh and full validation pass."
+      reason: "Architecture artifact refresh, CI docker-build step repoint (D8 Strategy A), and full validation pass."
     scope:
       write_allow:
         - "docs/architecture-analysis/**"
+        - ".github/workflows/ci.yml"
       read_allow:
         - "**"
     worktree:
@@ -554,17 +581,28 @@ packages:
               - "validate_feature_passed"
         - name: "docker smoke"
           kind: command
-          # Build context is `agent-coordinator/` (NOT repo root) to match Railway's
-          # service root and D8 Option B's COPY dist/gen_eval-*.whl semantics.
-          # The wheel must be present in agent-coordinator/dist/ before this runs —
-          # `make -C agent-coordinator build-image` produces it (D8).
-          command: "make -C agent-coordinator build-image && docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/"
+          # Strategy A: build context is repo root, file is agent-coordinator/Dockerfile.
+          # No prebuild step — packages/gen-eval/ is in-context via the COPY
+          # directives in the Dockerfile.
+          command: "docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test ."
           evidence:
             artifacts: []
             result_keys:
               - "docker_build_exit_code"
+        - name: "ci step matches Strategy A"
+          kind: command
+          # Confirms the coordinator docker-build step in ci.yml has been
+          # repointed to repo-root context. Grep for the new pattern; fail
+          # if the old `context: agent-coordinator` is still present
+          # alongside a Dockerfile that expects repo-root paths.
+          command: "grep -q 'context: \\.' .github/workflows/ci.yml && ! grep -q 'context: agent-coordinator' .github/workflows/ci.yml"
+          evidence:
+            artifacts:
+              - ".github/workflows/ci.yml"
+            result_keys:
+              - "ci_step_repointed"
     metadata:
-      loc_estimate: 100
+      loc_estimate: 120
       complexity: medium
       package_kind: integration
     outputs:
@@ -573,3 +611,4 @@ packages:
         - "architecture_refreshed"
         - "validate_feature_passed"
         - "docker_build_exit_code"
+        - "ci_step_repointed"
