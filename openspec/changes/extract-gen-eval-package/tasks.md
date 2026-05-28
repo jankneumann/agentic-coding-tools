@@ -36,7 +36,7 @@
   **Spec scenarios**: gen-eval-framework.module-discovery-and-import-boundary (framework has zero imports from agent-coordinator)
   **Design decisions**: D3
   **Dependencies**: 2.2
-- [ ] 2.4.1 **Surface test**: add `packages/gen-eval/tests/test_metrics_surface.py` asserting `gen_eval.metrics` exposes exactly `{"GenEvalMetrics"}` (plus dunder names). Guards against re-importing unrelated coordinator metrics classes during future refactors. **(XS)**
+- [ ] 2.4.1 **Surface test**: add `packages/gen-eval/tests/test_metrics_surface.py` asserting the exact public surface of `gen_eval.metrics`. Use an explicit allowlist rather than a `_`-prefix filter so the assertion fails loudly if any unrelated symbol is reintroduced: `assert {n for n in dir(gen_eval.metrics) if not n.startswith("_")} == {"GenEvalMetrics"}, f"unexpected public names: {sorted(n for n in dir(gen_eval.metrics) if not n.startswith('_'))}"`. The test message lists the unexpected names so the failure is self-diagnosing. Guards against re-importing unrelated coordinator metrics classes during future refactors. **(XS)**
   **Spec scenarios**: gen-eval-framework.module-discovery-and-import-boundary
   **Design decisions**: D3
   **Dependencies**: 2.4
@@ -68,7 +68,7 @@
 
 ## 4. agent-coordinator migration
 
-- [ ] 4.1 Write a failing test in `agent-coordinator/tests/` that confirms `from gen_eval.mcp_service import get_gen_eval_service` resolves AND that the existing `/gen-eval/list-scenarios` endpoint returns at least one scenario. Test must use a started coordinator process or its TestClient. **(M)**
+- [ ] 4.1 Write a failing test at `agent-coordinator/tests/test_gen_eval_extraction.py` (pinned name for scope hygiene — wp-coordinator-migrate's scope explicitly allows this file rather than the broader `agent-coordinator/tests/**` glob, which would overlap with wp-package-tests' relocation deletes). The test SHALL assert that (a) `from gen_eval.mcp_service import get_gen_eval_service` resolves and (b) the existing `/gen-eval/list-scenarios` endpoint returns at least one scenario. Test must use a started coordinator process or its TestClient. **(M)**
   **Spec scenarios**: gen-eval-framework.optional-mcp-service-extra (agent-coordinator-installs-the-mcp-extra)
   **Design decisions**: D5, D6
   **Dependencies**: 2.C (checkpoint)
@@ -76,7 +76,7 @@
   **Spec scenarios**: gen-eval-framework.distributable-python-package (agent-coordinator-consumes-the-package)
   **Design decisions**: D5
   **Dependencies**: 4.1
-- [ ] 4.3 Rewrite all `from evaluation.gen_eval` imports in `agent-coordinator/src/` to `from gen_eval`. Confirmed sites: `src/coordination_api.py` (4 lazy imports), `src/coordination_mcp.py` (6 lazy imports), and any others surfaced by `grep -rn 'evaluation\.gen_eval' agent-coordinator/src/`. Update `evaluation/__init__.py` to remove the `from . import gen_eval` re-export. **Also update** `agent-coordinator/tests/test_check_docker_imports.py` — it embeds two literal `"from evaluation.gen_eval import mcp_service\n"` strings as test fixtures (lines 54 and 210); both need to become `"from gen_eval import mcp_service\n"`. **Also update** `agent-coordinator/CLAUDE.md` line 122 reference (`evaluation.gen_eval.mcp_service` → `gen_eval.mcp_service`). **(S)**
+- [ ] 4.3 Rewrite all `from evaluation.gen_eval` imports in `agent-coordinator/src/` to `from gen_eval`. Confirmed sites: `src/coordination_api.py` (4 lazy imports), `src/coordination_mcp.py` (6 lazy imports), and any others surfaced by `grep -rn 'evaluation\.gen_eval' agent-coordinator/src/`. Update `evaluation/__init__.py` to remove the `from . import gen_eval` re-export **AND** remove the `"gen_eval"` entry from the module's `__all__` list (if present). Leaving the name in `__all__` after deleting the import would trigger linter warnings (F401/F405) and produce an `AttributeError` for any consumer that does `from evaluation import *`. **Also update** `agent-coordinator/tests/test_check_docker_imports.py` — it embeds two literal `"from evaluation.gen_eval import mcp_service\n"` strings as test fixtures (lines 54 and 210); both need to become `"from gen_eval import mcp_service\n"`. **Also update** `agent-coordinator/CLAUDE.md` line 122 reference (`evaluation.gen_eval.mcp_service` → `gen_eval.mcp_service`). **(S)**
   **Spec scenarios**: gen-eval-framework.canonical-module-name (import-path-migration)
   **Design decisions**: D6
   **Dependencies**: 4.2
@@ -84,7 +84,13 @@
   **Spec scenarios**: gen-eval-framework.framework-consumer-data-split
   **Design decisions**: D7
   **Dependencies**: 4.3
-- [ ] 4.5 Update `agent-coordinator/Dockerfile` per D8 **Option B (wheel install)**. Specifically: (a) add `COPY dist/gen_eval-*.whl /tmp/wheels/` and `ENV UV_FIND_LINKS=/tmp/wheels` before the `uv sync` step; (b) **add `--no-sources` to the Dockerfile's `uv sync` invocation** (or set `UV_NO_SOURCES=1`) so `[tool.uv.sources]` (which points at `../packages/gen-eval`, unreachable from the Docker context) is bypassed and the wheel from `UV_FIND_LINKS` is the resolved source; (c) move the `COPY evaluation/` line *after* `uv sync` for layer-cache hygiene; (d) keep the existing `context: agent-coordinator` everywhere (Railway service root unchanged, ci.yml docker-build context unchanged, docker-compose.yml unchanged). Add an `agent-coordinator/Makefile` target `build-image` that runs `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` before the docker build. Add `dist/` to `agent-coordinator/.gitignore`. **Update `agent-coordinator/railway.toml`** to add a `[build]` section with a `buildCommand` that runs the gen-eval wheel build before the Docker build (Railway has no pre-build hook by default; the buildCommand is the supported entry point). Document the new `make build-image` workflow AND the Railway buildCommand in `agent-coordinator/README.md` and explain that the path-dep is editable locally but installs as a wheel inside Docker. **(M)**
+- [ ] 4.5 Update `agent-coordinator/Dockerfile` and the surrounding docker-build surfaces per D8 **Strategy A (repo-root build context)**. Five subtasks; all five must land in the same commit because they redefine the Docker build context together:
+  - (a) **Dockerfile path updates**. The build context is now repo root, so every `COPY` source path in `agent-coordinator/Dockerfile` SHALL be prefixed with `agent-coordinator/` (e.g. `COPY pyproject.toml uv.lock ./` → `COPY agent-coordinator/pyproject.toml agent-coordinator/uv.lock ./`; `COPY evaluation/ /app/evaluation/` → `COPY agent-coordinator/evaluation/ /app/evaluation/`; same for `src/`, etc.). Add `COPY packages/gen-eval/ /workspace/packages/gen-eval/` BEFORE the `uv sync` step so the `[tool.uv.sources]` path-dep `{ path = "../packages/gen-eval" }` resolves inside the image. Move the `COPY agent-coordinator/evaluation/` line *after* `uv sync` for layer-cache hygiene.
+  - (b) **`.github/workflows/ci.yml` coordinator docker-build step**: change `context: agent-coordinator` → `context: .` and `file: Dockerfile` → `file: agent-coordinator/Dockerfile`. **Owned by wp-integration (task 7.6), not this package** — the CI step repoint depends on the Dockerfile changes here being in place first, so it lands after wp-coordinator-migrate completes; wp-package-tests independently adds the gen-eval-tests matrix job (task 3.4). The CI file is therefore touched by three packages but on disjoint stanzas; wp-integration's scope is the merge boundary. The Dockerfile change in subtask (a) and the CI step change are coupled: do not merge wp-coordinator-migrate alone without queuing wp-integration's CI step, or CI will fail (Dockerfile expects repo-root context but CI still passes `context: agent-coordinator`).
+  - (c) **`agent-coordinator/docker-compose.yml`**: for the coordinator service, change `build.context` from `.` to `..` (parent dir, which is the repo root from the file's location) and add `build.dockerfile: agent-coordinator/Dockerfile`. Other services in the compose file that don't depend on the gen-eval package keep their existing context.
+  - (d) **`agent-coordinator/railway.toml`**: add a top-of-file comment block documenting that the Railway dashboard must be configured with **Source > Root Directory = `/`** and **Build > Dockerfile Path = `agent-coordinator/Dockerfile`** (the dashboard setting takes precedence; the file alone cannot override Source > Root Directory). Add a `dockerfilePath = "agent-coordinator/Dockerfile"` entry that takes effect once the dashboard root is at repo root. Do NOT add a `[build] buildCommand` — under the Dockerfile builder Railway silently ignores `buildCommand`, and Strategy A doesn't need one (the package is in-context).
+  - (e) **`agent-coordinator/README.md`**: add a `## Deployment` section documenting (1) the Railway dashboard change as a one-time prerequisite when adopting this version; (2) the rationale (gen-eval lives at `packages/gen-eval/`, a sibling of `agent-coordinator/`, so the Docker build needs to see both); (3) the rollback path if the dashboard change can't be made (revert this change's commit on the deployed branch). Also remove any pre-existing prose that references the old `context: agent-coordinator` build path.
+  - Do NOT add an `agent-coordinator/Makefile build-image` target, do NOT add `dist/` to `.gitignore`, do NOT add `--no-sources` to `uv sync`, do NOT add `UV_FIND_LINKS` — these were Option B artifacts that Strategy A obsoletes. **(M)**
   **Design decisions**: D8
   **Dependencies**: 4.4
 - [ ] 4.6 Run the full `agent-coordinator` test suite locally: `cd agent-coordinator && uv sync --all-extras && uv run pytest -m "not e2e and not integration"`. All must pass. **(S)**
@@ -118,6 +124,13 @@
   - `grep -rn "evaluation\.gen_eval" skills/ .claude/skills/ .agents/skills/` — dotted Python import form.
   - `grep -rn "evaluation/gen_eval" skills/ .claude/skills/ .agents/skills/` — slash path form (catches things like the validate-feature descriptor-discovery glob and any shell-level path references that the dotted grep would miss).
   Excluded: the historical docstring in `findings.py` if it has already been updated to `gen_eval.findings_emitter`.
+
+- [ ] 5.5 **Repo-wide stale-reference sweep.** After tasks 4.3 and 5.4 land, the import-rewrite work is complete inside `agent-coordinator/`, `skills/`, and the runtime mirrors — but prose elsewhere in the repo may still reference the legacy paths. Run both greps below at the repo root and update every match (the union — not just the dotted form):
+  - `grep -rn "evaluation\.gen_eval" CLAUDE.md README.md docs/ .github/ apps/ 2>/dev/null` — dotted Python import form in prose.
+  - `grep -rn "evaluation/gen_eval" CLAUDE.md README.md docs/ .github/ apps/ 2>/dev/null` — slash path form (catches docs that quote shell commands or file paths).
+  Update each hit to `gen_eval` / `packages/gen-eval/` as appropriate (the same rewrites tasks 4.3, 5.1–5.4 use inside their respective scopes). Specifically check: top-level `CLAUDE.md`, top-level `README.md`, `docs/parallel-agentic-development.md`, `docs/skills-workflow.md`, `docs/lessons-learned.md`, `.github/PULL_REQUEST_TEMPLATE.md` (if present), `.github/ISSUE_TEMPLATE/*` (if present). **(S)**
+  **Design decisions**: D9
+  **Dependencies**: 4.3, 5.4
 
 ## 6. Examples + adoption docs (parallel-safe with sections 4 and 5)
 
@@ -161,7 +174,10 @@ wp-package-scaffold → wp-framework-move ──┬─→ wp-package-tests      
   **Dependencies**: 4.C
 - [ ] 7.3 Run `/validate-feature extract-gen-eval-package` (full validation pass: spec, evidence, deploy smoke, security, e2e). **(M)**
   **Dependencies**: 7.1, 7.2
-- [ ] 7.4 Manually verify the docker build with the **same context Railway uses** (`agent-coordinator/`, per D8 Option B): first run `make -C agent-coordinator build-image` (which builds the wheel into `agent-coordinator/dist/`), then `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/`. The `agent-coordinator/` build context is what makes `COPY dist/gen_eval-*.whl /tmp/wheels/` resolve and proves the Railway-compatible build path. **(S)**
+- [ ] 7.4 Manually verify the docker build with the **same context Railway uses after the dashboard change** (repo root, per D8 Strategy A): `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test .`. The repo-root build context is what makes `COPY packages/gen-eval/` and `COPY agent-coordinator/` both resolve and proves the Railway-compatible build path. **(S)**
+- [ ] 7.6 **CI docker-build step repoint** (owned by wp-integration to avoid scope collision with wp-package-tests on `.github/workflows/ci.yml`, per D8 Strategy A). Update the existing coordinator docker-build step in `.github/workflows/ci.yml`: change `context: agent-coordinator` → `context: .` and `file: Dockerfile` → `file: agent-coordinator/Dockerfile`. Run the CI workflow locally with `act` (or push a draft PR) to confirm the coordinator docker-build step succeeds with the new context. **(S)**
+  **Design decisions**: D8
+  **Dependencies**: wp-coordinator-migrate complete (Dockerfile paths updated), wp-package-tests complete (gen-eval-tests matrix job added)
   **Design decisions**: D8
   **Dependencies**: 4.5
 - [ ] 7.5 Run one end-to-end gen-eval scenario inside the built container against a started coordinator to confirm `/gen-eval/run` works. **(S)**

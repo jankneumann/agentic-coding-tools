@@ -95,14 +95,14 @@ all = ["gen-eval[mcp,sdk,db]"]
 gen-eval = "gen_eval.__main__:main"
 
 [build-system]
-requires = ["uv_build>=0.9,<0.10"]
+requires = ["uv_build>=0.9,<1.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.13"]
 ```
 
-**Rationale.** Four optional-extras (mcp, sdk, db, all) match the four lazy-import boundaries in the existing code. `[project.scripts]` adds a `gen-eval` console script as a convenience over `python -m gen_eval`. `uv_build` matches the convention agentic-assistant already uses.
+**Rationale.** Four optional-extras (mcp, sdk, db, all) match the four lazy-import boundaries in the existing code. `[project.scripts]` adds a `gen-eval` console script as a convenience over `python -m gen_eval`. `uv_build` matches the convention agentic-assistant already uses. The `<1.0` upper bound (rather than `<0.10`) allows the next pre-1.0 minor (uv_build 0.10, 0.11, …) without a maintenance commit; the `>=0.9` floor keeps the floor at a known-good release. We accept the small risk that a breaking pre-1.0 minor lands and forces a fix; pinning to `<0.10` would force a touch every few weeks because uv_build's release cadence is fast and the project is pre-1.0.
 
 ### D3 — Resolving the `evaluation.metrics` reverse coupling
 
@@ -219,45 +219,36 @@ The harder question is **build context**. The Dockerfile needs to reach `package
 
 Three options were considered:
 
-**Option A — Move build context to repo root.** Update CI (`context: .`, `file: agent-coordinator/Dockerfile`), update `docker-compose.yml` (`context: ..`, `dockerfile: agent-coordinator/Dockerfile`), reconfigure Railway service root to repo root with `dockerfilePath = "agent-coordinator/Dockerfile"`. Pros: cleanest mental model; the Dockerfile sees everything. Cons: every consumer of the Docker build (CI, compose, Railway, plus any future runner) must be updated atomically. The Railway change requires a dashboard reconfiguration (not just a file edit) which is operationally awkward and not git-trackable. Rejected because Railway is the *production* deployment target; making prod harder to reason about for build-context cleanliness is a bad trade.
+**Option A — Move build context to repo root.** Update CI (`context: .`, `file: agent-coordinator/Dockerfile`), update `docker-compose.yml` (`context: ..`, `dockerfile: agent-coordinator/Dockerfile`), reconfigure Railway service root to repo root with `dockerfilePath = "agent-coordinator/Dockerfile"`. Pros: cleanest mental model; the Dockerfile sees both `packages/gen-eval/` and `agent-coordinator/` simultaneously; the `[tool.uv.sources]` path-dep just works at build time without any wheel-juggling; no `--no-sources` flag, no `UV_FIND_LINKS`, no Makefile prebuild target, no `.gitignore` dance. Cons: every consumer of the Docker build (CI, compose, Railway, plus any future runner) must be updated atomically; the Railway change requires a dashboard reconfiguration (not just a file edit) and is therefore not fully git-trackable — operators reading the repo can't infer Railway's service-root setting from any file.
 
-**Option B — Build gen-eval into a wheel; copy the wheel into the build context.** A pre-build step (in CI, in a Makefile target, in the dev workflow) runs `cd packages/gen-eval && uv build`, then the wheel lands at `agent-coordinator/dist/gen_eval-*.whl`. The Dockerfile's `uv sync` step sees the wheel because it's inside the existing build context. Pros: Railway service root stays at `agent-coordinator/` — zero dashboard changes. `docker-compose.yml` and CI keep their `context: agent-coordinator` setting. The wheel is a stable artifact and matches how external consumers will install gen-eval once it's on PyPI. Cons: requires the wheel to exist before `docker build` runs; CI gets one extra step; `agent-coordinator/dist/` needs to be `.gitignore`d (or, in CI, generated fresh per build). The agent-coordinator pyproject's path-dep semantics change: in CI/prod the source is the wheel, in local dev it's still editable from `../packages/gen-eval/`.
+**Option B — Build gen-eval into a wheel; copy the wheel into the build context.** A pre-build step (in CI, in a Makefile target, in the dev workflow) runs `cd packages/gen-eval && uv build`, then the wheel lands at `agent-coordinator/dist/gen_eval-*.whl`. The Dockerfile's `uv sync` step sees the wheel because it's inside the existing build context. Pros: Railway service root stays at `agent-coordinator/` — zero dashboard changes. The wheel is a stable artifact and matches how external consumers will install gen-eval once it's on PyPI. Cons: requires the wheel to exist before `docker build` runs; CI gets one extra step; `agent-coordinator/dist/` needs to be `.gitignore`d. **Critically, the Railway prebuild story does NOT work as written**: Railway's `[build] buildCommand` only fires under the *Nixpacks* builder, not the *Dockerfile* builder, so the `buildCommand` that would produce the wheel before `docker build` runs would be silently ignored in production. Round-2 PLAN_REVIEW caught this. Workable only with a separate prebuild path (e.g. a GitHub Action that builds the wheel and uploads it as a release artifact for the Dockerfile to fetch), which adds more moving parts than Option A's dashboard click.
 
 **Option C — Symlink/.dockerignore tricks.** Rejected as fragile.
 
-**Decision: Option B (wheel + COPY).** Production parity wins; Railway untouched. The implementation:
+**Decision: Option A (build context = repo root).** Operator-tracked over technically-tracked: the Railway dashboard change is real but one-time, captured in this design doc and in `agent-coordinator/README.md`'s deploy section, and validated by the docker smoke step in `wp-integration`. Option B's failure mode — silent buildCommand drop under the Dockerfile builder — is too dangerous; the change would land "green" in CI (which uses GitHub Actions, not Railway) and break in production with no in-repo signal. Option A's worst case is "operator forgot to update Railway dashboard", which surfaces immediately as a failed deploy with a clear "package not found" error.
 
-1. `agent-coordinator/Dockerfile` adds before `uv sync`:
-   ```dockerfile
-   COPY dist/gen_eval-*.whl /tmp/wheels/
-   ENV UV_FIND_LINKS=/tmp/wheels
-   ```
-   AND the existing `uv sync …` invocation in the Dockerfile MUST gain the `--no-sources` flag (or set `UV_NO_SOURCES=1`) so that `[tool.uv.sources]` (which points at `../packages/gen-eval`, unreachable from the Docker build context) is ignored and the wheel from `UV_FIND_LINKS` is used instead. Without this, `uv sync` errors with a path-source-not-found failure even though the wheel is present.
-2. `agent-coordinator/Makefile` (or a `scripts/build.sh`) gains a `build-image` target that does `cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` first.
-3. `.github/workflows/ci.yml` docker-build step adds a pre-step `cd packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist` before invoking the build.
-4. `agent-coordinator/.gitignore` ensures `dist/` is ignored.
-5. For local *editable* dev (where you `cd agent-coordinator && uv run …` outside Docker), the path-dep with `editable = true` (D5) continues to work — Docker is the only consumer that sees the wheel.
-6. `agent-coordinator/README.md` documents the new `make build-image` workflow.
+The implementation:
 
-This decision adds task scope to `wp-coordinator-migrate`: Makefile target, `.gitignore`, `Dockerfile` edits, **and `railway.toml` edits**. It also adds scope to `wp-package-tests` (CI workflow's docker-build pre-step).
+1. **`agent-coordinator/Dockerfile`** keeps `[tool.uv.sources]` resolution path intact (no `--no-sources`, no `UV_FIND_LINKS`). It needs to be retargeted for the new context — paths inside the Dockerfile change from `COPY pyproject.toml uv.lock ./` to `COPY agent-coordinator/pyproject.toml agent-coordinator/uv.lock ./` and from `COPY evaluation/ /app/evaluation/` to `COPY agent-coordinator/evaluation/ /app/evaluation/`. Add `COPY packages/gen-eval/ /workspace/packages/gen-eval/` before the `uv sync` step so the path-dep `[tool.uv.sources] gen-eval = { path = "../packages/gen-eval" }` resolves inside the image. Move the `COPY evaluation/` line *after* `uv sync` for layer-cache hygiene.
+2. **`.github/workflows/ci.yml` docker-build step** updates from `context: agent-coordinator` + `file: Dockerfile` to `context: .` + `file: agent-coordinator/Dockerfile`.
+3. **`agent-coordinator/docker-compose.yml`** updates the build context for the coordinator service from `context: .` to `context: ..` (resolving to repo root) and adds `dockerfile: agent-coordinator/Dockerfile`. Any other services in `docker-compose.yml` that don't need the package can keep their existing context; only the coordinator service needs the repo-root view.
+4. **Railway dashboard** (one-time operator change): change the coordinator service's **Source > Root Directory** from `agent-coordinator` to `/` (repo root). In the same dashboard, set **Build > Dockerfile Path** to `agent-coordinator/Dockerfile`. `agent-coordinator/railway.toml` is updated to reflect this with comments documenting the dashboard change (the file itself cannot override Source > Root Directory — that lives only in the dashboard).
+5. **`agent-coordinator/README.md`** gains a **Deployment** section documenting: (a) the Railway dashboard change as a one-time prerequisite when adopting this version; (b) the rationale (gen-eval is a sibling package under `packages/gen-eval/` outside the coordinator's subdir); (c) the rollback path (revert dashboard settings and check out the pre-change commit if needed).
+6. **No `agent-coordinator/Makefile` target needed.** No `dist/` directory, no wheel prebuild step, no `.gitignore` change. Local dev keeps `cd agent-coordinator && uv run …` (editable path-dep already resolves to `../packages/gen-eval/`).
 
-**Railway prebuild story (concrete).** Railway's Docker builds run inside a sandbox rooted at the service root (here, `agent-coordinator/`) with no preexisting `dist/` directory. To produce the wheel before Docker build runs, `agent-coordinator/railway.toml` MUST grow a `[build]` section that runs the wheel build as a buildCommand:
+This decision keeps `wp-coordinator-migrate`'s scope simpler than Option B would have: Dockerfile + docker-compose.yml + railway.toml (documentation only) + README.md, plus the existing import-rewrite and data-relocation work. **No** Makefile target, **no** `.gitignore` dist/, **no** railway.toml `[build] buildCommand`, **no** `--no-sources` flag.
 
-```toml
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
-# Build the gen-eval wheel into agent-coordinator/dist/ so the Dockerfile's
-# COPY dist/gen_eval-*.whl can find it. Railway runs buildCommand BEFORE
-# the docker build, in the service root (agent-coordinator/). The path
-# `../packages/gen-eval` is reachable because Railway clones the full repo;
-# the *Docker build context* is what's restricted to agent-coordinator/.
-buildCommand = "cd ../packages/gen-eval && uv build --out-dir ../../agent-coordinator/dist"
-```
+**Railway dashboard change — operator checklist.** Before merging this change to main, the operator (or whoever owns the Railway project) MUST update the coordinator service settings in Railway's dashboard:
 
-This is tracked work-package scope for `wp-coordinator-migrate` (the `railway.toml` file is now in its `write_allow`). Verified by `wp-integration`'s docker smoke step, which simulates a clean checkout: it runs `make -C agent-coordinator build-image` (the exact equivalent of the Railway buildCommand) followed by `docker build -f agent-coordinator/Dockerfile -t … agent-coordinator/` (the exact context Railway uses).
+| Setting | Old value | New value |
+|---|---|---|
+| **Source > Root Directory** | `agent-coordinator` | `/` (or blank, depending on Railway UI) |
+| **Build > Builder** | Dockerfile | Dockerfile (unchanged) |
+| **Build > Dockerfile Path** | `Dockerfile` | `agent-coordinator/Dockerfile` |
 
-**Implementation guard.** A test in wp-integration (`Verification` block) asserts `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test agent-coordinator/` succeeds with the same context Railway will use — proves the prod build path works.
+`agent-coordinator/railway.toml` is updated with a top-of-file comment block documenting the dashboard change and a `dockerfilePath = "agent-coordinator/Dockerfile"` entry that takes effect once the dashboard root is set to repo root. The dashboard change itself is NOT git-trackable — that is the inherent operator cost we accept for Strategy A.
+
+**Implementation guard.** A test in `wp-integration` (`Verification` block) asserts `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test .` succeeds with the new context (repo root). This is the exact context Railway will use after the dashboard change. The test catches Dockerfile path-update mistakes and verifies the `[tool.uv.sources]` path-dep resolves inside the image.
 
 ### D9 — Skill invocation updates
 
