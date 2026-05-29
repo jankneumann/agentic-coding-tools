@@ -1,0 +1,62 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Task 5.5 (repo-wide stale-reference sweep) is defined in tasks.md but remains unassigned to any work package in work-packages.yaml, and no work package has the write-scope for repo-root prose files (CLAUDE.md, README.md, docs/, apps/). This leaves the stale import in .github/workflows/ci.yml (Codex round-2 finding #3) unaddressed by any active agent.",
+      "resolution": "Assign Task 5.5 to wp-integration, update its description to include 'Covers tasks 5.5, 7.1-7.6', and expand its write_allow scope to include the root CLAUDE.md, README.md, docs/**, apps/**, and .github/**.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 519,
+        "end": 533
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "style",
+      "criticality": "medium",
+      "description": "Critical: The verification step for wp-skills-update still only greps for the dotted form evaluation.gen_eval, failing to verify that slash-path references like the validate-feature descriptor-discovery glob have been updated. This ignores the round-2 nit from Codex finding #4 and contradicts the corrected checkpoint 5.C in tasks.md.",
+      "resolution": "Update the wp-skills-update verification command to check for both 'evaluation.gen_eval' and 'evaluation/gen_eval' as specified in Task 5.C.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 441,
+        "end": 441
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: The description for wp-coordinator-migrate still claims to update the .github/workflows/ci.yml coordinator docker-build step, but later correctly states this task is owned by wp-integration. The package also lacks the write_allow scope for the CI file, making the claim inaccurate.",
+      "resolution": "Remove the claim about updating ci.yml from the wp-coordinator-migrate description (lines 268-270) to align with its actual scope and Task 4.5(b).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 268,
+        "end": 270
+      }
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The adoption of Strategy A (repo-root build context) is consistently reflected across D8, Task 4.5, and Task 7.6. The plan correctly eliminates the complex wheel prebuild and --no-sources juggling from Option B, and the wp-integration verification step is strong enough to confirm the CI repoint matches the new Dockerfile context.",
+      "resolution": "No action required.",
+      "disposition": "accept"
+    }
+  ]
+}

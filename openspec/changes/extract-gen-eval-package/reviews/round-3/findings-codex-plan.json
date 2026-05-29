@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: D5 still describes Docker as an agent-coordinator build context with a wheel install via UV_FIND_LINKS and mandatory --no-sources, directly contradicting D8 Strategy A's repo-root context with no prebuild artifacts. An implementation agent following D5 can recreate the round-2 Railway/Docker failure path even though D8 says Strategy A is selected.",
+      "resolution": "Rewrite D5's Docker paragraph to match Strategy A: repo-root build context, COPY packages/gen-eval before uv sync, no UV_FIND_LINKS, no --no-sources, no wheel prebuild. Remove the stale Option B invariant entirely.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {
+        "start": 166,
+        "end": 168
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Strategy A still does not specify how the editable path dependency survives the existing multi-stage Dockerfile. With `[tool.uv.sources] gen-eval = { path = \"../packages/gen-eval\", editable = true }`, `uv sync` can install an editable .pth pointing at package source that is only copied in the builder stage; the runtime stage currently copies only `/app/.venv`, so `docker build` may pass while `import gen_eval` fails in the built image.",
+      "resolution": "Update D8/task 4.5 to either install path dependencies non-editably in Docker via a supported uv mechanism, or copy `packages/gen-eval` into the runtime image at the exact path referenced by the editable install. Strengthen 7.4 to run `python -c 'import gen_eval; import gen_eval.mcp_service'` inside the built container, not just `docker build`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/design.md",
+      "line_range": {
+        "start": 160,
+        "end": 166
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Task 5.5 is the only artifact that would catch the `.github` smoke-import list still referencing `evaluation.gen_eval.mcp_service`, but no work package owns task 5.5 or has write scope for the full sweep targets. wp-integration owns `.github/workflows/ci.yml`, but its verification only checks `context: .` versus `context: agent-coordinator`, so Codex round-2 finding #3 is not fully covered.",
+      "resolution": "Assign task 5.5 to a concrete work package, preferably wp-integration for `.github/workflows/ci.yml` plus a small docs sweep package for prose, or expand wp-integration scope intentionally. Add an explicit CI import rewrite requirement from `evaluation.gen_eval.mcp_service` to `gen_eval.mcp_service` and a verification grep for legacy `evaluation.gen_eval` / `evaluation/gen_eval` in `.github/` and the documented sweep targets.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 519,
+        "end": 598
+      }
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: wp-coordinator-migrate's description still instructs that package to edit `.github/workflows/ci.yml`, while its scope comments and write_allow exclude that file and assign the CI docker-build repoint to wp-integration. This residual ownership contradiction can make the coordinator worker fail scope enforcement or duplicate wp-integration's CI edit.",
+      "resolution": "Remove the `.github/workflows/ci.yml` edit from wp-coordinator-migrate's description and keep it solely in wp-integration, or explicitly allow and lock the file in wp-coordinator-migrate and remove the wp-integration ownership claim. The current mixed ownership should not proceed to implementation.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+      "line_range": {
+        "start": 270,
+        "end": 342
+      }
+    },
+    {
+      "id": 5,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: tasks.md's parallelizability summary still says `post-D8-Option-B`, claims `.github/workflows/ci.yml` is touched only by wp-package-tests for a pre-build wheel step, and names Makefile/.gitignore ownership. That contradicts the later Strategy A tasks and work-package split.",
+      "resolution": "Update the parallelizability summary to Strategy A: wp-package-tests adds the gen-eval test job, wp-integration repoints the existing docker-build step, and no Makefile/dist/.gitignore work exists.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extract-gen-eval-package/tasks.md",
+      "line_range": {
+        "start": 164,
+        "end": 168
+      }
+    }
+  ]
+}
