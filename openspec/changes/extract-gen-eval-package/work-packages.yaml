@@ -267,9 +267,11 @@ packages:
       build context): prefix every COPY source with `agent-coordinator/`,
       add `COPY packages/gen-eval/` before `uv sync` so the path-dep
       resolves in-image, and move `COPY agent-coordinator/evaluation/`
-      after `uv sync` for layer-cache hygiene. Update
-      .github/workflows/ci.yml coordinator docker-build step:
-      context=`.`, file=`agent-coordinator/Dockerfile`. Update
+      after `uv sync` for layer-cache hygiene. **Note**: the
+      .github/workflows/ci.yml coordinator docker-build step repoint is
+      NOT in this package's scope — it's owned by wp-integration (task
+      7.6) so the CI change lands after the Dockerfile + docker-compose
+      updates here are in place. Update
       docker-compose.yml coordinator service: context=`..`,
       dockerfile=`agent-coordinator/Dockerfile`. Update railway.toml with
       `dockerfilePath = "agent-coordinator/Dockerfile"` and a comment
@@ -436,16 +438,29 @@ packages:
     verification:
       tier_required: "B"
       steps:
-        - name: "no legacy invocation strings remain"
+        - name: "no legacy invocation strings remain (dotted)"
           kind: command
-          command: "! grep -r 'evaluation.gen_eval' skills/ .claude/skills/ .agents/skills/"
+          command: "! grep -r 'evaluation\\.gen_eval' skills/ .claude/skills/ .agents/skills/"
           evidence:
             artifacts:
               - "skills/gen-eval/SKILL.md"
               - "skills/validate-feature/SKILL.md"
               - "skills/playwright-validator/SKILL.md"
             result_keys:
-              - "static_string_check"
+              - "static_string_check_dotted"
+        - name: "no legacy invocation strings remain (slash)"
+          kind: command
+          # Required to catch slash-path references like
+          # validate-feature's descriptor-discovery glob
+          # (`*/evaluation/gen_eval/descriptors/*.yaml`) that the dotted
+          # grep silently misses. Mirrors checkpoint 5.C and matches
+          # round-2 / round-3 reviewer guidance.
+          command: "! grep -r 'evaluation/gen_eval' skills/ .claude/skills/ .agents/skills/"
+          evidence:
+            artifacts:
+              - "skills/validate-feature/SKILL.md"
+            result_keys:
+              - "static_string_check_slash"
               - "mirrors_regenerated"
     metadata:
       loc_estimate: 60
@@ -453,7 +468,8 @@ packages:
       package_kind: config
     outputs:
       result_keys:
-        - "static_string_check"
+        - "static_string_check_dotted"
+        - "static_string_check_slash"
         - "mirrors_regenerated"
 
   - package_id: wp-examples-doc
@@ -517,7 +533,7 @@ packages:
         - "docs_present"
 
   - package_id: wp-integration
-    title: "Full validation pass, CI docker-build repoint, and Docker smoke"
+    title: "Full validation, CI docker-build repoint, Docker smoke, repo-wide stale-reference sweep"
     task_type: validate
     description: |
       Run openspec validate extract-gen-eval-package --strict. Refresh
@@ -525,12 +541,26 @@ packages:
       now lives under packages/, not agent-coordinator/). Run
       /validate-feature extract-gen-eval-package (full validation pass).
       Update the existing coordinator docker-build step in
-      .github/workflows/ci.yml: context `.`, file
+      .github/workflows/ci.yml per task 7.6: (a) context `.`, file
       `agent-coordinator/Dockerfile` (per D8 Strategy A — owned here, not
-      in wp-coordinator-migrate, to avoid scope overlap with the gen-eval-tests
-      matrix job that wp-package-tests adds to the same file). Manually
-      verify docker build with new repo-root context. Run one end-to-end
-      gen-eval scenario inside the built container. Covers tasks 7.1-7.6.
+      in wp-coordinator-migrate, to avoid scope overlap with the
+      gen-eval-tests matrix job that wp-package-tests adds to the same
+      file); (b) rewrite the smoke-import line in the same step from
+      `import evaluation.gen_eval.mcp_service` (or any variant) to
+      `import gen_eval.mcp_service` (legacy module is removed by task
+      4.3). Manually verify docker build with new repo-root context
+      (task 7.4), run the in-container `import gen_eval` smoke (task
+      7.4.1, catches the runtime-stage non-editable path-dep
+      reachability), and run one end-to-end gen-eval scenario inside
+      the built container (task 7.5).
+      **Repo-wide stale-reference sweep (task 5.5)** is also owned here
+      because the targets (`CLAUDE.md` at repo root, top-level
+      `README.md`, `docs/**`, `apps/**`, `.github/**` non-CI files like
+      ISSUE_TEMPLATE/PULL_REQUEST_TEMPLATE) span repo-root prose that
+      no other package has scope for. Run both greps at the repo root
+      and rewrite every match: `grep -rn 'evaluation\\.gen_eval' CLAUDE.md README.md docs/ .github/ apps/`
+      and `grep -rn 'evaluation/gen_eval' CLAUDE.md README.md docs/ .github/ apps/`.
+      Covers tasks 5.5, 7.1-7.6.
     role: integration-engineer
     priority: 4
     depends_on: [wp-package-tests, wp-coordinator-migrate, wp-skills-update, wp-examples-doc]
@@ -541,16 +571,34 @@ packages:
       files:
         - "docs/architecture-analysis"
         - ".github/workflows/ci.yml"
+        - "CLAUDE.md"
+        - "README.md"
       keys:
         - "feature:extract-gen-eval-package:integration"
       ttl_minutes: 60
-      reason: "Architecture artifact refresh, CI docker-build step repoint (D8 Strategy A), and full validation pass."
+      reason: "Architecture artifact refresh, CI docker-build step repoint + smoke-import rewrite (D8 Strategy A + D9), full validation pass, and repo-wide stale-reference sweep (task 5.5) across repo-root prose targets that no other package owns."
     scope:
       write_allow:
         - "docs/architecture-analysis/**"
         - ".github/workflows/ci.yml"
+        - "CLAUDE.md"
+        - "README.md"
+        - "docs/**"
+        - "apps/**"
+        - ".github/**"
       read_allow:
         - "**"
+      # Scope expansion rationale (Strategy A + task 5.5 ownership):
+      # `CLAUDE.md` (repo root, NOT agent-coordinator/CLAUDE.md — that's
+      # owned by wp-coordinator-migrate), top-level `README.md`,
+      # `docs/**`, `apps/**`, and `.github/**` are all repo-root prose
+      # surfaces where stale `evaluation.gen_eval` / `evaluation/gen_eval`
+      # references may live. Codex round-3 finding #3 + Gemini round-3
+      # finding #1 both flagged that task 5.5 was previously unassigned;
+      # this package now owns the sweep. Other write_allow scopes already
+      # cover the CI matrix (wp-package-tests), the in-coordinator
+      # rewrites (wp-coordinator-migrate), and the skill mirrors
+      # (wp-skills-update), so there is no scope overlap.
     worktree:
       name: wp-integration
       mode: isolated
@@ -601,8 +649,45 @@ packages:
               - ".github/workflows/ci.yml"
             result_keys:
               - "ci_step_repointed"
+        - name: "ci smoke-import uses new module path"
+          kind: command
+          # Pairs with task 7.6(b). The legacy module is removed by task
+          # 4.3, so the smoke-import line in the coordinator docker-build
+          # step MUST reference `gen_eval.mcp_service`, not
+          # `evaluation.gen_eval.mcp_service`. Without this verification,
+          # the CI step would build green and fail at import-time.
+          command: "! grep -E 'evaluation\\.gen_eval|evaluation/gen_eval' .github/workflows/ci.yml"
+          evidence:
+            artifacts:
+              - ".github/workflows/ci.yml"
+            result_keys:
+              - "ci_smoke_import_updated"
+        - name: "in-container import smoke (task 7.4.1)"
+          kind: command
+          # Catches the multi-stage / non-editable interaction Codex
+          # round-3 flagged: docker build can exit 0 with a dangling
+          # editable .pth, only failing at runtime on `import gen_eval`.
+          command: "docker run --rm --entrypoint python agent-coordinator:gen-eval-test -c 'import gen_eval; import gen_eval.mcp_service; print(gen_eval.__file__)' | grep -q '/app/.venv/lib/python.*/site-packages/gen_eval/'"
+          evidence:
+            artifacts: []
+            result_keys:
+              - "in_container_import_smoke"
+        - name: "repo-wide stale-reference sweep (task 5.5)"
+          kind: command
+          # Pairs with task 5.5. Both forms (dotted + slash) must return
+          # zero matches across the repo-root prose surfaces this package
+          # owns. wp-skills-update covers skills/ separately; wp-coordinator-migrate
+          # covers agent-coordinator/; wp-package-tests covers the CI
+          # matrix job. This sweep covers everything else.
+          command: "! grep -rn -E 'evaluation\\.gen_eval|evaluation/gen_eval' CLAUDE.md README.md docs/ .github/ apps/ 2>/dev/null"
+          evidence:
+            artifacts:
+              - "CLAUDE.md"
+              - "README.md"
+            result_keys:
+              - "repo_wide_sweep_clean"
     metadata:
-      loc_estimate: 120
+      loc_estimate: 160
       complexity: medium
       package_kind: integration
     outputs:
@@ -612,3 +697,6 @@ packages:
         - "validate_feature_passed"
         - "docker_build_exit_code"
         - "ci_step_repointed"
+        - "ci_smoke_import_updated"
+        - "in_container_import_smoke"
+        - "repo_wide_sweep_clean"
