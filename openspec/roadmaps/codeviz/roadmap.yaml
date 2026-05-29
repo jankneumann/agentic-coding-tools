@@ -170,8 +170,10 @@ items:
     (c) navigate from a security finding to the responsible commit. Task success rate and time-to-completion
     MUST be reported alongside performance metrics.'
   - 'The variant comparison MUST additionally score deterministic headless capture: whether the renderer
-    produces frame-stable, pixel-reproducible output under headless Chrome (Puppeteer), since this gates
-    the downstream timelapse-review-export capability. Canvas2D/SVG renderers (Cytoscape, d3) are expected
+    produces frame-stable, pixel-reproducible output under headless Chrome (Puppeteer), since this supports
+    the Action API''s reproducible-headless-screenshot requirement. (timelapse-review-export uses its own
+    standalone capture composition and does NOT depend on the production renderer, so this criterion is
+    about screenshot reproducibility, not video export.) Canvas2D/SVG renderers (Cytoscape, d3) are expected
     to score higher than WebGL renderers (Sigma, three.js) whose headless-GPU output may vary; the score
     MUST be recorded in render-comparison.md even though it does not by itself decide the winner.'
 - item_id: source-viewer-panel
@@ -389,40 +391,53 @@ items:
   priority: 8
   effort: M
   depends_on:
+  - http-api-server
   - temporal-snapshot-scrubber
-  - diff-overlay-render
+  - diff-graph-artifact
   - action-api-for-agents
   - saved-views-url-state
-  description: 'Render shareable MP4 walkthroughs of code evolution by treating the SPA''s deterministic,
-    URL-encoded views as video composition input. Adopts hyperframes (heygen-com/hyperframes) — an HTML-native
+  description: 'Render shareable MP4 walkthroughs of code evolution as a standalone capture composition
+    fed the same subgraph data the SPA consumes. Adopts hyperframes (heygen-com/hyperframes) — an HTML-native
     deterministic video renderer (seekable frame-accurate animation clock over headless Chrome + FFmpeg,
     non-interactive CLI designed for agent use) — as the export/render layer ONLY; it does NOT replace
-    the in-app temporal scrubber, which remains the surface for live interactive review. A hyperframes
-    composition embeds the codeviz canvas (or a focused lens subset) and binds its seekable clock to a
-    sequence of codeviz states: advancing valid_from_commit across a commit range, fading the diff overlay
-    in by change_kind, materializing ghost nodes, growing the blast-radius Sankey. Smooth interpolation
-    between commit snapshots is achievable only because temporal-snapshot-scrubber guarantees stable node
-    positions across transitions. Two render modes: scrub-export (raw timelapse of a commit range or a
-    saved view''s scrub track) and review-walkthrough (a templated narrative driven by diff-graph.json
-    for a single PR / OpenSpec change — title card with change-id, the call/dataflow network rewiring
-    as edges appear and disappear, contract-changes flagged, closing validation-outcome badges). Driven
-    headlessly through the Action API so an agent can produce a walkthrough as a review deliverable. Local-first:
-    hyperframes'' optional AWS Lambda cloud render is opt-in and defaults off.'
+    the in-app temporal scrubber, which remains the surface for live interactive review. Rather than embed
+    the production SPA renderer, the composition reads at-commit subgraphs from the HTTP API (/repos/{id}/at/{commit_sha}/subgraph)
+    plus the diff-graph.json artifact and renders them through its OWN deterministic Canvas2D/SVG path,
+    decoupling frame-reproducibility from the production renderer (which may be WebGL and not headless-deterministic);
+    it reuses the SPA''s layout seed so node positions match the live view. It binds hyperframes'' seekable
+    clock to a sequence of codeviz states: advancing valid_from_commit across a commit range, fading the
+    diff classification in by change_kind, materializing ghost nodes, growing the blast-radius Sankey.
+    Two render modes: scrub-export (raw timelapse of a commit range or a saved view''s scrub track) and
+    review-walkthrough (a templated narrative driven by diff-graph.json for a single PR / OpenSpec change
+    — title card with change-id, the call/dataflow network rewiring as edges appear and disappear, contract-changes
+    flagged, closing validation-outcome badges). Driven headlessly through the Action API so an agent
+    can produce a walkthrough as a review deliverable. Untrusted repo-derived strings (commit messages,
+    symbol names, diff text) injected into the headless-Chrome composition MUST be escaped and the render
+    context network-isolated (covered by threat-model-artifact). Local-first: hyperframes'' optional AWS
+    Lambda cloud render is opt-in and defaults off.'
   acceptance_outcomes:
   - A codeviz-timelapse CLI MUST render an MP4 from a saved-view URL plus a commit range with no interactive
-    input, reproducibly (same inputs produce frame-identical output).
-  - Scrub-export MUST animate the temporal scrubber across a commit range, preserving stable node positions
-    across frames (no relayout jitter for symbols that persist across commits).
+    input, reproducibly (same inputs produce frame-identical output, independent of the production SPA
+    renderer).
+  - Scrub-export MUST animate across a commit range, applying the SPA's layout seed so positions match
+    the live view and stay stable across frames (no relayout jitter for symbols that persist across commits).
   - Review-walkthrough MUST consume a single PR's or OpenSpec change's diff-graph.json and render its
     change_kind classification (refactoring / micro-change / contract-change / test-impact / runtime-risk
-    / ordinary) with the same color treatment as the diff overlay.
+    / ordinary) using the same change_kind color mapping as the diff overlay.
+  - All repo-derived strings (commit messages, symbol names, diff text) injected into the composition MUST
+    be escaped before rendering, and the headless render context MUST be network-isolated; this surface
+    MUST be listed in docs/codeviz/threat-model.md.
+  - Render cost MUST be bounded for long histories — a configurable max-frame budget (with commit-sampling
+    beyond a threshold, mirroring the >50-commit scatterplot mini-map) MUST cap total frames so a wide
+    commit range cannot produce an unbounded render.
   - Cloud rendering (hyperframes AWS Lambda) MUST be opt-in behind an explicit flag and default to local
     render; the core render path MUST work offline.
-  - The export MUST be invocable headlessly via the Action API and classified read by the shared op_reversibility
-    classifier (it produces an artifact and mutates no graph state).
-  - Rendered walkthroughs MUST be written as event-class artifacts under docs/codeviz/walkthroughs/<YYYY-MM-DD>/<run-id>.mp4
-    with a sidecar JSON carrying the mandatory artifact header (source view URL, commit range, renderer
-    version) so each video is reproducible and attributable.
+  - The export MUST be classified reversible-write by the shared op_reversibility classifier (it produces
+    a deletable artifact) and MUST emit an audit event; it MUST NOT mutate graph state.
+  - Rendered MP4s MUST be written to the operational storage tier (a gitignored cache such as .codeviz-cache/walkthroughs/),
+    never committed to git, per the storage-tier policy; only a small sidecar JSON carrying the mandatory
+    artifact header (source view URL, commit range, renderer version, output digest) is committed as an
+    event artifact under docs/codeviz/walkthroughs/<YYYY-MM-DD>/<run-id>.json.
   - The capability MUST document the added toolchain dependency (Node >= 22, FFmpeg, headless Chrome via
     Puppeteer) and MUST fail with an actionable error when FFmpeg or Chrome is missing rather than producing
     a partial render.
@@ -783,4 +798,4 @@ items:
     for downstream tooling.'
   - A fixture suite MUST verify ingestion across all supported tools and catch SARIF schema regressions.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-05-28T00:00:00+00:00'
+updated_at: '2026-05-29T00:00:00+00:00'
