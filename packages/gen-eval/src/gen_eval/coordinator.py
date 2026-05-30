@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from evaluation.gen_eval.models import EvalFeedback, Scenario
+from gen_eval.models import EvalFeedback, Scenario
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from evaluation.gen_eval.descriptor import InterfaceDescriptor
+from gen_eval.descriptor import InterfaceDescriptor
 
 
 class ChangeDetector:

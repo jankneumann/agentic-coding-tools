@@ -3,9 +3,22 @@
 Provides the business logic behind gen-eval MCP tools — scenario listing,
 coverage analysis, validation, scenario generation, and evaluation runs.
 Follows the singleton pattern used by other coordination services.
+
+This module is the entry point for the optional ``[mcp]`` extra (per design
+decision D4). Consumers that don't install ``gen-eval[mcp]`` will get a
+helpful ``ImportError`` the moment they try to import it -- preventing a
+later, mysterious failure at first MCP call.
 """
 
 from __future__ import annotations
+
+try:
+    import fastmcp as _fastmcp  # noqa: F401  (presence check only)
+except ImportError as _e:  # pragma: no cover - exercised via mcp-extra absence test
+    raise ImportError(
+        "gen_eval.mcp_service requires the [mcp] extra. "
+        "Install with: uv add 'gen-eval[mcp]'"
+    ) from _e
 
 import json
 import logging
@@ -204,7 +217,7 @@ class GenEvalMCPService:
         """Validate scenario YAML against the Pydantic model."""
         import yaml as yaml_lib
 
-        from evaluation.gen_eval.models import Scenario
+        from gen_eval.models import Scenario
 
         try:
             data = yaml_lib.safe_load(yaml_content)

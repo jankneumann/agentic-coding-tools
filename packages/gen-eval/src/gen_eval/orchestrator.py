@@ -13,18 +13,18 @@ import re
 import subprocess
 import time
 
-from evaluation.gen_eval.change_detector import ChangeDetector
-from evaluation.gen_eval.config import BudgetTracker, GenEvalConfig
-from evaluation.gen_eval.descriptor import InterfaceDescriptor
-from evaluation.gen_eval.evaluator import Evaluator
-from evaluation.gen_eval.feedback import FeedbackSynthesizer
-from evaluation.gen_eval.models import (
+from gen_eval.change_detector import ChangeDetector
+from gen_eval.config import BudgetTracker, GenEvalConfig
+from gen_eval.descriptor import InterfaceDescriptor
+from gen_eval.evaluator import Evaluator
+from gen_eval.feedback import FeedbackSynthesizer
+from gen_eval.models import (
     EvalFeedback,
     Scenario,
     ScenarioGenerator,
     ScenarioVerdict,
 )
-from evaluation.gen_eval.reports import GenEvalReport
+from gen_eval.reports import GenEvalReport
 
 logger = logging.getLogger(__name__)
 

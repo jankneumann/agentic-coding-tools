@@ -20,32 +20,32 @@
 
 ## 2. Framework code move
 
-- [ ] 2.1 Write parity test: pick three representative public APIs (e.g., `gen_eval.run_evaluation`, `gen_eval.openspec_seed.parse_openspec_change`, `gen_eval.evaluator.Evaluator`) and assert they exist + have the expected signatures after the move. **(M)**
+- [x] 2.1 Write parity test: pick three representative public APIs (e.g., `gen_eval.run_evaluation`, `gen_eval.openspec_seed.parse_openspec_change`, `gen_eval.evaluator.Evaluator`) and assert they exist + have the expected signatures after the move. **(M)**
   **Spec scenarios**: gen-eval-framework.canonical-module-name, gen-eval-framework.module-discovery-and-import-boundary
   **Design decisions**: D1, D3
   **Dependencies**: 1.3
-- [ ] 2.2 Move all 23 `.py` files from `agent-coordinator/evaluation/gen_eval/` (excluding `mcp_service.py` and `clients/mcp_client.py`) to `packages/gen-eval/src/gen_eval/`. Update `gen_eval/__init__.py` to re-export the existing public API. Use `git mv` to preserve history. **(L — flagged, but splitting wouldn't reduce risk; single atomic move keeps imports consistent)**
+- [x] 2.2 Move all 23 `.py` files from `agent-coordinator/evaluation/gen_eval/` (excluding `mcp_service.py` and `clients/mcp_client.py`) to `packages/gen-eval/src/gen_eval/`. Update `gen_eval/__init__.py` to re-export the existing public API. Use `git mv` to preserve history. **(L — flagged, but splitting wouldn't reduce risk; single atomic move keeps imports consistent)**
   **Spec scenarios**: gen-eval-framework.canonical-module-name
   **Design decisions**: D1
   **Dependencies**: 2.1
-- [ ] 2.3 Move `mcp_service.py` and `clients/mcp_client.py` and wrap their `fastmcp` imports in a try/except per D4 (raise `ImportError` with `[mcp]` install hint). **(S)**
+- [x] 2.3 Move `mcp_service.py` and `clients/mcp_client.py` and wrap their `fastmcp` imports in a try/except per D4 (raise `ImportError` with `[mcp]` install hint). **(S)**
   **Spec scenarios**: gen-eval-framework.optional-mcp-service-extra
   **Design decisions**: D4
   **Dependencies**: 2.2
-- [ ] 2.4 **Surgical extraction of `GenEvalMetrics`.** Cut the `GenEvalMetrics` dataclass out of `agent-coordinator/evaluation/metrics.py` and paste it into a new file `packages/gen-eval/src/gen_eval/metrics.py`. Leave the remaining 10 classes (`TimingMetric`, `TokenUsage`, `CorrectnessMetrics`, `CoordinationMetrics`, `SafetyMetrics`, `ParallelizationMetrics`, `TaskMetrics`, `AggregatedMetrics`, `TrialMetrics`, `MetricsCollector`) and `compute_effect_size` in place — they are coordinator-domain, consumed by `evaluation/ablation.py`, `evaluation/reports/generator.py`, and four coordinator test files. Update `gen_eval/reports.py` import from `from evaluation.metrics import GenEvalMetrics` to `from gen_eval.metrics import GenEvalMetrics`. Verify no other coordinator imports break with `cd agent-coordinator && uv run pytest tests/test_evaluation/ -m "not e2e and not integration"`. **(S)**
+- [x] 2.4 **Surgical extraction of `GenEvalMetrics`.** Cut the `GenEvalMetrics` dataclass out of `agent-coordinator/evaluation/metrics.py` and paste it into a new file `packages/gen-eval/src/gen_eval/metrics.py`. Leave the remaining 10 classes (`TimingMetric`, `TokenUsage`, `CorrectnessMetrics`, `CoordinationMetrics`, `SafetyMetrics`, `ParallelizationMetrics`, `TaskMetrics`, `AggregatedMetrics`, `TrialMetrics`, `MetricsCollector`) and `compute_effect_size` in place — they are coordinator-domain, consumed by `evaluation/ablation.py`, `evaluation/reports/generator.py`, and four coordinator test files. Update `gen_eval/reports.py` import from `from evaluation.metrics import GenEvalMetrics` to `from gen_eval.metrics import GenEvalMetrics`. Verify no other coordinator imports break with `cd agent-coordinator && uv run pytest tests/test_evaluation/ -m "not e2e and not integration"`. **(S)**
   **Spec scenarios**: gen-eval-framework.module-discovery-and-import-boundary (framework has zero imports from agent-coordinator)
   **Design decisions**: D3
   **Dependencies**: 2.2
-- [ ] 2.4.1 **Surface test**: add `packages/gen-eval/tests/test_metrics_surface.py` asserting the exact public surface of `gen_eval.metrics`. Use an explicit allowlist rather than a `_`-prefix filter so the assertion fails loudly if any unrelated symbol is reintroduced: `assert {n for n in dir(gen_eval.metrics) if not n.startswith("_")} == {"GenEvalMetrics"}, f"unexpected public names: {sorted(n for n in dir(gen_eval.metrics) if not n.startswith('_'))}"`. The test message lists the unexpected names so the failure is self-diagnosing. Guards against re-importing unrelated coordinator metrics classes during future refactors. **(XS)**
+- [x] 2.4.1 **Surface test**: add `packages/gen-eval/tests/test_metrics_surface.py` asserting the exact public surface of `gen_eval.metrics`. Use an explicit allowlist rather than a `_`-prefix filter so the assertion fails loudly if any unrelated symbol is reintroduced: `assert {n for n in dir(gen_eval.metrics) if not n.startswith("_")} == {"GenEvalMetrics"}, f"unexpected public names: {sorted(n for n in dir(gen_eval.metrics) if not n.startswith('_'))}"`. The test message lists the unexpected names so the failure is self-diagnosing. Guards against re-importing unrelated coordinator metrics classes during future refactors. **(XS)**
   **Spec scenarios**: gen-eval-framework.module-discovery-and-import-boundary
   **Design decisions**: D3
   **Dependencies**: 2.4
-- [ ] 2.5 Move package-shipped data: `schemas/`, `dtu/` (templates only — drop `dtu/*/fidelity-report.json`), and `evaluation/gen_eval/descriptors/sample-frontend.yaml` → `packages/gen-eval/tests/fixtures/sample-descriptor.yaml`. **(S)**
+- [x] 2.5 Move package-shipped data: `schemas/`, `dtu/` (templates only — drop `dtu/*/fidelity-report.json`), and `evaluation/gen_eval/descriptors/sample-frontend.yaml` → `packages/gen-eval/tests/fixtures/sample-descriptor.yaml`. **(S)**
   **Spec scenarios**: gen-eval-framework.framework-consumer-data-split
   **Design decisions**: D1, D7
   **Dependencies**: 2.2
 
-- [ ] 2.C **Checkpoint**: parity test 2.1 passes; `grep -rE "from (agent_coordinator|src\.coordination_)" packages/gen-eval/src/` is empty; `grep -r "from evaluation.gen_eval" packages/gen-eval/src/` is empty.
+- [x] 2.C **Checkpoint**: parity test 2.1 passes; `grep -rE "from (agent_coordinator|src\.coordination_)" packages/gen-eval/src/` is empty; `grep -r "from evaluation.gen_eval" packages/gen-eval/src/` is empty.
 
 ## 3. Package tests + CI
 

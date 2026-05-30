@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from evaluation.gen_eval.models import ActionStep
+from gen_eval.models import ActionStep
 
 from .base import StepContext, StepResult
 

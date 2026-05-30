@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import logging
 
-from evaluation.gen_eval.descriptor import InterfaceDescriptor
-from evaluation.gen_eval.models import EvalFeedback, ScenarioVerdict
+from gen_eval.descriptor import InterfaceDescriptor
+from gen_eval.models import EvalFeedback, ScenarioVerdict
 
 logger = logging.getLogger(__name__)
 
