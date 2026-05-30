@@ -1,0 +1,53 @@
+{
+  "phase": "IMPLEMENT",
+  "change_id": "extract-gen-eval-package",
+  "outcome": "complete",
+  "agent_name": "autopilot",
+  "session_id": null,
+  "summary": "IMPLEMENT phase complete. All work packages (wp-coordinator-migrate, wp-skills-update, wp-examples-doc, wp-package-tests, wp-integration) are done. Branch openspec/extract-gen-eval-package pushed to origin at 7f6125a. 548 gen-eval package tests pass; 2 coordinator extraction tests pass; openspec validate --strict passes; architecture artifacts refreshed. Tasks 1.1–7.6 all marked complete except docker-validation tasks 7.3–7.5 which require a running Docker daemon.",
+  "completed_work": [
+    "Commit 6a68507 — feat(gen-eval): migrate agent-coordinator to consume gen-eval package (wp-coordinator-migrate). Covers tasks 4.1–4.6, 4.C: pyproject.toml path-dep, import rewrites, data relocation to evaluation/, Dockerfile Strategy A rewrite, docker-compose.yml + railway.toml + README.md deploy docs.",
+    "Commit 70089db — feat(gen-eval): update skill invocations to use new module paths (wp-skills-update). Covers tasks 5.1–5.3.1: gen-eval/SKILL.md, validate-feature/SKILL.md, playwright-validator scripts + SKILL.md, gen-eval-scenario/SKILL.md, skills/install.sh rsync to runtime mirrors.",
+    "Commit a2b169e — docs(gen-eval): add quickstart, descriptor template, package README, and ADR (wp-examples-doc). Covers tasks 6.1–6.4: examples/agentic-assistant-quickstart.md, examples/descriptor-template.yaml, packages/gen-eval/README.md, docs/decisions/packages-convention-gen-eval-extraction.md.",
+    "Commit 34313e6 — test(gen-eval): add mcp import-guard and sdist-content tests (tasks 3.2, 3.3). test_mcp_import_error.py uses sys.modules blocker per D4; test_sdist_contents.py asserts schemas/+dtu/ present and no coordinator data.",
+    "Commit 7f6125a — chore(gen-eval): integrate CI, docs, and architecture refresh (wp-integration). ci.yml gen-eval-tests job, docker-smoke-import repoint, gen-eval job update; docs/mental-models.md + docs/software-factory-tooling.md path updates; architecture artifacts refreshed (stale evaluation.gen_eval references removed); tasks.md checkboxes updated."
+  ],
+  "in_progress": [],
+  "pending": [
+    "7.3: /validate-feature extract-gen-eval-package (full validation pass) — requires Docker daemon; safe to run in cleanup phase.",
+    "7.4: docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test . — requires Docker daemon.",
+    "7.4.1: in-container import smoke — depends on 7.4.",
+    "7.5: E2E gen-eval scenario in built container — depends on 7.4.1.",
+    "7.C: final checkpoint (all validate-feature phases green, CI green, container serves gen-eval) — most of this is CI-verified; Docker tasks deferred to cleanup."
+  ],
+  "test_results": {
+    "gen_eval_package_tests": "548 passed (excluding e2e/integration/slow markers)",
+    "coordinator_extraction_tests": "2 passed (test_gen_eval_extraction.py)",
+    "openspec_validate": "Change 'extract-gen-eval-package' is valid (strict mode)"
+  },
+  "commits_landed": [
+    "6a68507",
+    "70089db",
+    "a2b169e",
+    "34313e6",
+    "7f6125a"
+  ],
+  "work_packages_complete": [
+    "wp-package-scaffold",
+    "wp-framework-move",
+    "wp-package-tests",
+    "wp-coordinator-migrate",
+    "wp-skills-update",
+    "wp-examples-doc",
+    "wp-integration"
+  ],
+  "work_packages_pending": [],
+  "branch": "openspec/extract-gen-eval-package",
+  "head_sha": "7f6125a",
+  "next_steps": [
+    "Transition to CLEANUP phase via /cleanup-feature extract-gen-eval-package.",
+    "During cleanup: run full /validate-feature (all phases) including Docker-dependent phases (deploy, smoke, security, e2e) against the built container.",
+    "Verify Railway deployment prerequisite: dashboard Source > Root Directory = / before deploy.",
+    "Merge via rebase strategy (agent PR)."
+  ]
+}
