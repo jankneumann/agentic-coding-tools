@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from evaluation.gen_eval.models import ActionStep
+from gen_eval.models import ActionStep
 
 
 @dataclass

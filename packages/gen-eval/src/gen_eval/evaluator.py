@@ -17,9 +17,9 @@ from typing import Any
 from jsonpath_ng import parse as jsonpath_parse
 from jsonpath_ng.exceptions import JsonPathParserError
 
-from evaluation.gen_eval.clients.base import StepContext, StepResult, TransportClientRegistry
-from evaluation.gen_eval.descriptor import InterfaceDescriptor
-from evaluation.gen_eval.models import (
+from gen_eval.clients.base import StepContext, StepResult, TransportClientRegistry
+from gen_eval.descriptor import InterfaceDescriptor
+from gen_eval.models import (
     ActionStep,
     ExpectBlock,
     Scenario,
@@ -30,7 +30,7 @@ from evaluation.gen_eval.models import (
     SideEffectStep,
     StepVerdict,
 )
-from evaluation.gen_eval.semantic_judge import LLMBackend, evaluate_semantic
+from gen_eval.semantic_judge import LLMBackend, evaluate_semantic
 
 # Pattern for variable interpolation: {{ var_name }}
 _VAR_PATTERN = re.compile(r"\{\{\s*([\w.\-]+)\s*\}\}")

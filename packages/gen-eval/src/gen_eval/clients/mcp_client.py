@@ -6,7 +6,7 @@ import json
 import time
 from typing import Any
 
-from evaluation.gen_eval.models import ActionStep
+from gen_eval.models import ActionStep
 
 from .base import StepContext, StepResult
 
@@ -21,7 +21,13 @@ class McpClient:
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
-            from fastmcp import Client
+            try:
+                from fastmcp import Client
+            except ImportError as e:  # pragma: no cover - exercised via mcp-extra absence test
+                raise ImportError(
+                    "gen_eval.clients.mcp_client requires the [mcp] extra. "
+                    "Install with: uv add 'gen-eval[mcp]'"
+                ) from e
 
             self._client = Client(self._mcp_url)
             await self._client.__aenter__()

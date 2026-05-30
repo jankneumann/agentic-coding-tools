@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from evaluation.gen_eval.models import ScenarioVerdict
-from evaluation.metrics import GenEvalMetrics
+from gen_eval.models import ScenarioVerdict
+from gen_eval.metrics import GenEvalMetrics
 
 
 @dataclass

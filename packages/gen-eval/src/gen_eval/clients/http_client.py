@@ -8,8 +8,8 @@ from typing import Any
 
 import httpx
 
-from evaluation.gen_eval.descriptor import AuthConfig
-from evaluation.gen_eval.models import ActionStep
+from gen_eval.descriptor import AuthConfig
+from gen_eval.models import ActionStep
 
 from .base import StepContext, StepResult
 
