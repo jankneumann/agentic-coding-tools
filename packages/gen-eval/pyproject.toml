@@ -1,0 +1,65 @@
+[project]
+name = "gen-eval"
+version = "0.1.0"
+description = "Generator-evaluator framework for agentic-system testing"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+    # Core runtime deps shared by every install profile.
+    # Pinned floors match what the framework code already uses inside
+    # agent-coordinator/evaluation/gen_eval/ and what the design (D2) calls
+    # for; ceilings are deliberately open per D2 rationale.
+    "pydantic>=2.13",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "jsonpath-ng>=1.6",
+    "httpx>=0.28",
+]
+
+# Optional extras (D2). Four profiles matching the four lazy-import
+# boundaries in the existing code; ``all`` is the union.
+[project.optional-dependencies]
+mcp = ["fastmcp>=2.0"]
+sdk = ["anthropic>=0.94", "openai>=1.50"]
+db = ["asyncpg>=0.29"]
+all = ["gen-eval[mcp,sdk,db]"]
+
+# Console-script entry point (D2). ``gen-eval`` becomes a thin convenience
+# over ``python -m gen_eval`` once the __main__.py lands under wp-framework-move.
+[project.scripts]
+gen-eval = "gen_eval.__main__:main"
+
+# uv_build is the modern uv-native backend (D2). The ``<1.0`` upper bound
+# tolerates pre-1.0 minor releases without forcing a maintenance bump; the
+# ``>=0.9`` floor pins to a known-good baseline.
+[build-system]
+requires = ["uv_build>=0.9,<1.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: tests requiring live services (skipped in CI by default)",
+    "e2e: end-to-end tests against running services",
+]
