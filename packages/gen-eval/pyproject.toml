@@ -62,4 +62,5 @@ testpaths = ["tests"]
 markers = [
     "integration: tests requiring live services (skipped in CI by default)",
     "e2e: end-to-end tests against running services",
+    "slow: tests that take a long time to run (e.g., build-time tests)",
 ]
