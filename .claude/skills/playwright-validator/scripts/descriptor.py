@@ -1,6 +1,6 @@
 """Frontend-descriptor loading and detection.
 
-Loads ``evaluation/gen_eval/descriptors/<name>.yaml`` (or any YAML path) and
+Loads ``evaluation/descriptors/<name>.yaml`` (or any YAML path) and
 validates it against ``contracts/frontend-descriptor.schema.json`` from the
 ``factory-missions-architecture-alignment`` change.
 

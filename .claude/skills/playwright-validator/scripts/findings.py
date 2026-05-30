@@ -12,7 +12,7 @@ generated ``.spec.ts`` file -- so consumers of consensus findings see
 "generated TypeScript file at <hash>.spec.ts failed".
 
 This module deliberately defines its own minimal :class:`BehavioralFinding`
-dataclass rather than importing from ``agent-coordinator/evaluation/gen_eval``
+dataclass rather than importing from ``gen_eval``
 because the playwright skill should be packageable independently (see D2).
 The shape MUST match the gen-eval emitter so consensus_synthesizer treats
 both files identically.
@@ -109,7 +109,7 @@ def parse_source_ref(
 class BehavioralFinding:
     """A single behavioral_failure finding ready for serialization.
 
-    Mirrors :class:`agent_coordinator.evaluation.gen_eval.findings_emitter.BehavioralFinding`
+    Mirrors :class:`gen_eval.findings_emitter.BehavioralFinding`
     so a consumer reading the resulting ``findings-playwright.json`` cannot
     tell whether it came from gen-eval or Playwright by shape alone. The
     discriminator is the filename + ``reviewer_vendor`` field.

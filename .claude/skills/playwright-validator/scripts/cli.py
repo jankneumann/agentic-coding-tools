@@ -15,7 +15,7 @@ Behavior:
    gen-eval's openspec_seed regex; fail fast on shell-metacharacter
    injection attempts).
 2. Loads the frontend descriptor (``--descriptor`` or auto-detected at
-   ``evaluation/gen_eval/descriptors/<change-id>.yaml``).
+   ``evaluation/descriptors/<change-id>.yaml``).
 3. Parses OpenSpec scenarios from
    ``openspec/changes/<change-id>/specs/**/*.md`` (or ``--specs-dir``).
 4. Translates scenarios -> Playwright actions/assertions.
@@ -84,7 +84,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Path to frontend-descriptor YAML. "
-        "Defaults to evaluation/gen_eval/descriptors/<change-id>.yaml.",
+        "Defaults to evaluation/descriptors/<change-id>.yaml.",
     )
     parser.add_argument(
         "--specs-dir",
@@ -134,11 +134,8 @@ def _load_scenarios(specs_dir: Path) -> list:
     not on the path.
     """
     repo_root = _repo_root()
-    coord_path = repo_root / "agent-coordinator"
-    if str(coord_path) not in sys.path:
-        sys.path.insert(0, str(coord_path))
     try:
-        from evaluation.gen_eval.openspec_seed import (  # type: ignore[import-not-found]
+        from gen_eval.openspec_seed import (  # type: ignore[import-not-found]
             parse_openspec_change,
         )
     except ImportError:
@@ -154,7 +151,7 @@ def _load_scenarios(specs_dir: Path) -> list:
 def _minimal_parse(specs_dir: Path, repo_root: Path) -> list:
     """Tiny standalone fallback parser for OpenSpec WHEN/THEN scenarios.
 
-    Used only when ``agent-coordinator/evaluation/gen_eval/openspec_seed.py``
+    Used only when ``gen_eval.openspec_seed``
     cannot be imported. Produces objects with the same duck-typed attributes
     that :func:`parser.translate_openspec_scenario` needs.
     """
@@ -252,7 +249,6 @@ def main(argv: list[str] | None = None) -> int:
     descriptor_path = args.descriptor or (
         repo_root
         / "evaluation"
-        / "gen_eval"
         / "descriptors"
         / f"{args.change_id}.yaml"
     )

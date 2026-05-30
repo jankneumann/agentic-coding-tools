@@ -15,14 +15,14 @@ triggers:
 
 Behavioral validator for frontend surfaces. Reads OpenSpec scenarios
 (`openspec/changes/<id>/specs/**/*.md`) and a frontend descriptor
-(`evaluation/gen_eval/descriptors/<id>.yaml`), generates Playwright
+(`evaluation/descriptors/<id>.yaml`), generates Playwright
 TypeScript test files, executes them with `npx playwright test --reporter=json`,
 and emits `findings-playwright.json` conforming to
 `openspec/schemas/review-findings.schema.json`.
 
 This is the **peer skill** chosen in design D2 of
 `factory-missions-architecture-alignment` — packaged separately from
-`agent-coordinator/evaluation/gen_eval/` so its Node/browser-binary
+`packages/gen-eval/` so its Node/browser-binary
 dependencies don't bleed into the gen-eval Python runtime.
 
 ## When to use
@@ -43,7 +43,7 @@ non-frontend dispatch target.
 
 * `<change-id>` (required, `^[a-zA-Z0-9_-]+$`) — OpenSpec change identifier.
 * `--descriptor PATH` — path to frontend-descriptor YAML (default:
-  `evaluation/gen_eval/descriptors/<change-id>.yaml`).
+  `evaluation/descriptors/<change-id>.yaml`).
 * `--specs-dir PATH` — override OpenSpec specs directory.
 * `--output-dir PATH` — where `findings-playwright.json` is written
   (default: `openspec/changes/<change-id>/`).
@@ -85,13 +85,13 @@ bash skills/playwright-validator/scripts/dispatch.sh <change-id>
 ## Auto-detection in validate-feature
 
 `validate-feature --phase gen-eval` walks
-`evaluation/gen_eval/descriptors/*.yaml` and routes each descriptor:
+`evaluation/descriptors/*.yaml` and routes each descriptor:
 
 1. If the YAML validates against
    `contracts/frontend-descriptor.schema.json` → dispatch to this skill via
    `dispatch.sh`.
 2. Otherwise → existing HTTP/MCP gen-eval path
-   (`agent-coordinator/evaluation/gen_eval/`).
+   (`packages/gen-eval/`).
 
 The detection predicate is `descriptor.is_frontend_descriptor(path)` from
 `scripts/descriptor.py`.
@@ -115,19 +115,15 @@ Each finding:
 
 ## Sample frontend (smoke test)
 
-A minimal static HTML page lives at
-`evaluation/gen_eval/fixtures/sample-frontend/index.html` (per design D6 —
-no framework, just inline JS) along with a sample descriptor at
-`evaluation/gen_eval/descriptors/sample-frontend.yaml` and an OpenSpec
-scenario at `evaluation/gen_eval/fixtures/sample-frontend/specs/sample.spec.md`.
-
-To exercise the full pipeline (requires Node + Playwright):
+A minimal static HTML page is available at
+`packages/gen-eval/tests/fixtures/sample-descriptor.yaml` (per design D7 —
+package-shipped data). To exercise the full pipeline (requires Node + Playwright):
 
 ```bash
 skills/.venv/bin/python skills/playwright-validator/scripts/cli.py \
     sample-frontend-demo \
-    --descriptor evaluation/gen_eval/descriptors/sample-frontend.yaml \
-    --specs-dir evaluation/gen_eval/fixtures/sample-frontend/specs
+    --descriptor packages/gen-eval/tests/fixtures/sample-descriptor.yaml \
+    --specs-dir openspec/changes/sample-frontend-demo/specs
 ```
 
 ## Localhost-bind invariant (D7)
