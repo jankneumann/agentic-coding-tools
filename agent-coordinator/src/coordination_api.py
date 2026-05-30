@@ -2374,7 +2374,7 @@ def create_coordination_api() -> FastAPI:
         interface: str | None = None,
     ) -> dict[str, Any]:
         """List gen-eval scenarios, optionally filtered by category or interface."""
-        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+        from gen_eval.mcp_service import get_gen_eval_service
 
         scenarios = await get_gen_eval_service().list_scenarios(
             category=category, interface=interface
@@ -2409,7 +2409,7 @@ def create_coordination_api() -> FastAPI:
             operation="validate_scenario",
         )
 
-        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+        from gen_eval.mcp_service import get_gen_eval_service
 
         result = await get_gen_eval_service().validate_scenario(request.yaml_content)
         return {
@@ -2434,7 +2434,7 @@ def create_coordination_api() -> FastAPI:
             context={"category": request.category, "priority": request.priority},
         )
 
-        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+        from gen_eval.mcp_service import get_gen_eval_service
 
         result = await get_gen_eval_service().create_scenario(
             category=request.category,
@@ -2462,7 +2462,7 @@ def create_coordination_api() -> FastAPI:
             },
         )
 
-        from evaluation.gen_eval.mcp_service import get_gen_eval_service
+        from gen_eval.mcp_service import get_gen_eval_service
 
         result = await get_gen_eval_service().run_evaluation(
             mode=request.mode,

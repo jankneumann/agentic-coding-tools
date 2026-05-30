@@ -202,8 +202,13 @@ services:
   # editing this file.
   coordinator-api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      # Build context is the repo root so the Dockerfile can COPY both
+      # agent-coordinator/ and packages/gen-eval/ (D8 Strategy A).
+      # Compose resolves relative paths from the docker-compose.yml location,
+      # so `..` is the repo root when docker-compose.yml lives in
+      # agent-coordinator/.
+      context: ..
+      dockerfile: agent-coordinator/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy

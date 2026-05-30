@@ -362,6 +362,42 @@ supabase db push
 supabase db pull
 ```
 
+## Deployment
+
+### Docker Build Context (repo root — D8 Strategy A)
+
+The gen-eval framework was extracted to a sibling package at `packages/gen-eval/`
+(see [OpenSpec change extract-gen-eval-package](../openspec/changes/extract-gen-eval-package/proposal.md)).
+The `Dockerfile` now uses a **repo-root build context** so it can `COPY` both
+`agent-coordinator/` and `packages/gen-eval/` in a single build:
+
+```bash
+# Local build (from the repo root, not from agent-coordinator/):
+docker build -f agent-coordinator/Dockerfile -t agent-coordinator:latest .
+```
+
+**Railway dashboard (one-time prerequisite):**
+
+Before deploying this version, update the Railway dashboard for the
+Coordination API service:
+
+| Setting | Old value | New value |
+|---------|-----------|-----------|
+| Settings → Source → Root Directory | `agent-coordinator` | `/` (repo root) |
+| Settings → Build → Dockerfile Path | `Dockerfile` | `agent-coordinator/Dockerfile` |
+
+The dashboard's *Source > Root Directory* takes precedence over `railway.toml`;
+only the dashboard change makes the repo-root build context effective.
+
+**Rationale:** `packages/gen-eval/` is a sibling of `agent-coordinator/`, so
+the Dockerfile must see both trees.  With `context: agent-coordinator` the
+`COPY packages/gen-eval/` step would fail at build time.
+
+**Rollback:** If the dashboard change cannot be made, revert the commit on the
+deployed branch that introduced the Dockerfile Strategy A pivot.  The reverted
+Dockerfile uses the old `agent-coordinator/` build context and does not require
+`packages/gen-eval/` to be in-context.
+
 ## License
 
 MIT

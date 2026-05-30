@@ -6,12 +6,13 @@ Provides scenario-driven benchmarking infrastructure to measure:
 - Coordination mechanism value (locking, memory, handoffs, queue)
 - Memory effectiveness across session boundaries
 - Scaling behavior with varying agent counts
+
+The ``gen_eval`` framework has been extracted to a separate package at
+``packages/gen-eval/`` (OpenSpec change ``extract-gen-eval-package``).
+Import it directly: ``from gen_eval import ...`` -- no longer routed
+through this module.
 """
 
-# Lazy import for gen_eval subpackage — import the module itself
-# so consumers can do ``from evaluation import gen_eval`` or
-# ``from evaluation.gen_eval import ...``.
-from . import gen_eval as gen_eval  # noqa: E402
 from .config import AblationFlags, AgentBackendConfig, EvalConfig
 from .harness import EvalHarness
 from .metrics import MetricsCollector, TaskMetrics, TrialMetrics
@@ -24,5 +25,4 @@ __all__ = [
     "MetricsCollector",
     "TaskMetrics",
     "TrialMetrics",
-    "gen_eval",
 ]

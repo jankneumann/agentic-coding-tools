@@ -1,7 +1,7 @@
 """CLI entry point for gen-eval framework.
 
 Usage:
-    python -m evaluation.gen_eval --descriptor PATH [options]
+    python -m gen_eval --descriptor PATH [options]
 """
 
 import argparse

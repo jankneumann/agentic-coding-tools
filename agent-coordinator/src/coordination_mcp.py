@@ -2830,7 +2830,7 @@ async def list_scenarios(
         )
         return json_mod.dumps(result) if not isinstance(result, str) else result
 
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     scenarios = await service.list_scenarios(category=category, interface=interface)
@@ -2871,7 +2871,7 @@ async def validate_scenario(
         http_result = await http_proxy.proxy_validate_scenario(yaml_content=yaml_content)
         return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
 
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     result = await service.validate_scenario(yaml_content)
@@ -2922,7 +2922,7 @@ async def create_scenario(
         )
         return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
 
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     result = await service.create_scenario(
@@ -2970,7 +2970,7 @@ async def run_gen_eval(
         )
         return json_mod.dumps(http_result) if not isinstance(http_result, str) else http_result
 
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     result = await service.run_evaluation(
@@ -2992,7 +2992,7 @@ async def get_gen_eval_coverage() -> str:
     """
     if _transport == "http":
         return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     coverage = await service.get_coverage()
@@ -3024,7 +3024,7 @@ async def get_gen_eval_report() -> str:
     """
     if _transport == "http":
         return _RESOURCE_UNAVAILABLE_IN_PROXY_MODE
-    from evaluation.gen_eval.mcp_service import get_gen_eval_service
+    from gen_eval.mcp_service import get_gen_eval_service
 
     service = get_gen_eval_service()
     summary = await service.get_report_summary()

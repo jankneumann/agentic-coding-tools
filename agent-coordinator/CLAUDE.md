@@ -119,7 +119,7 @@ Two CI jobs enforce this contract:
    COPY'd too. Fast (~1s), catches both import and data-directory bugs.
 2. **`docker-smoke-import`** — builds the actual Docker image and runs a smoke
    test that imports the critical modules (`src.coordination_api`,
-   `src.coordination_mcp`, `src.http_proxy`, `evaluation.gen_eval.mcp_service`)
+   `src.coordination_mcp`, `src.http_proxy`, `gen_eval.mcp_service`)
    inside the built container, then constructs the FastAPI app factory.
    Catches anything the static check misses (system libs, PYTHONPATH issues,
    lazy imports from third-party code).
