@@ -51,11 +51,11 @@ def test_collect_imports_absolute_import(tmp_path: Path) -> None:
 def test_collect_imports_from_import(tmp_path: Path) -> None:
     src = tmp_path / "src"
     src.mkdir()
-    (src / "a.py").write_text("from evaluation.gen_eval import mcp_service\n")
+    (src / "a.py").write_text("from gen_eval import mcp_service\n")
 
     imports = collect_imports(src)
-    assert "evaluation" in imports
-    assert "src/a.py" in imports["evaluation"]
+    assert "gen_eval" in imports
+    assert "src/a.py" in imports["gen_eval"]
 
 
 def test_collect_imports_skips_relative_imports(tmp_path: Path) -> None:
@@ -203,18 +203,24 @@ def _make_project(
 
 
 def test_check_detects_missing_local_copy(tmp_path: Path) -> None:
-    """Regression: the evaluation/ bug should be caught."""
+    """Regression: the evaluation/ bug should be caught.
+
+    Uses a fictitious local package name so the assertion exercises the
+    "missing local COPY" detection path -- ``gen_eval`` itself is now a
+    real installed dependency post extract-gen-eval-package and would
+    short-circuit as ``status == "ok"``.
+    """
     src, dockerfile = _make_project(
         tmp_path,
         src_files={
-            "api.py": "from evaluation.gen_eval import mcp_service\n",
+            "api.py": "from fictitious_local_pkg import mcp_service\n",
         },
         dockerfile_content="FROM python:3.12-slim\nCOPY src/ /app/src/\n",
     )
 
     result = check_dockerfile_imports(src_dir=src, dockerfile=dockerfile)
     assert result["status"] == "missing_copies"
-    assert "evaluation" in result["missing"]  # type: ignore[operator]
+    assert "fictitious_local_pkg" in result["missing"]  # type: ignore[operator]
 
 
 def test_check_ignores_stdlib(tmp_path: Path) -> None:

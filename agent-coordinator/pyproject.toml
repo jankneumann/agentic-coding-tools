@@ -16,6 +16,10 @@ dependencies = [
     "aioimaplib>=1.0.0",
     "email-validator>=2.3.0",
     "urllib3>=2.7.0",
+    # gen-eval framework is now a sibling package (see [tool.uv.sources]).
+    # We install with the [mcp] extra so coordinator's MCP service surface
+    # keeps working (it serves /gen-eval/* tools via gen_eval.mcp_service).
+    "gen-eval[mcp]",
 ]
 
 [project.optional-dependencies]
@@ -41,10 +45,6 @@ sdk = [
     "anthropic>=0.94.0",
     "openai>=2.38.0",
     "google-generativeai>=0.8",
-]
-gen-eval = [
-    "jinja2>=3.1.6",
-    "jsonpath-ng>=1.6.0",
 ]
 analysis = [
     "psycopg2-binary>=2.9.0",
@@ -97,6 +97,15 @@ override-dependencies = [
     # the patched version until upstream constraints catch up.
     "python-multipart>=0.0.27",
 ]
+
+# Resolve `gen-eval` to the sibling package in this monorepo. Per design
+# decision D5, the install is NON-editable: uv builds gen-eval into a wheel
+# and copies the contents into the coordinator's venv. This keeps the
+# multi-stage agent-coordinator/Dockerfile safe (the runtime image stage
+# copies only /app/.venv from the builder stage, and gen_eval is fully
+# self-contained inside .venv/lib/python3.X/site-packages/gen_eval/).
+[tool.uv.sources]
+gen-eval = { path = "../packages/gen-eval" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

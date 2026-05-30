@@ -22,6 +22,7 @@ except ImportError as _e:  # pragma: no cover - exercised via mcp-extra absence 
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -88,10 +89,25 @@ class GenEvalMCPService:
         self._base_dir = base_dir
 
     def _find_base_dir(self) -> Path:
-        """Find the gen_eval package directory."""
+        """Locate the consumer-side data directory (scenarios/, descriptors/).
+
+        Resolution order:
+        1. Explicit ``base_dir`` passed to the constructor.
+        2. ``GEN_EVAL_DATA_DIR`` environment variable (absolute path preferred;
+           relative paths are resolved against the process cwd).
+           Set this to ``evaluation/`` inside the coordinator when running
+           outside the source tree (e.g. in a Docker container).
+        3. Fallback: the gen_eval package directory itself (works when the
+           caller ships data alongside the package, or when running from the
+           packages/gen-eval development layout where data lives in
+           ``tests/fixtures/``).
+        """
         if self._base_dir:
             return self._base_dir
-        # Default: relative to this file
+        env_dir = os.environ.get("GEN_EVAL_DATA_DIR")
+        if env_dir:
+            return Path(env_dir)
+        # Default: relative to this file (valid for package-internal fixtures)
         return Path(__file__).parent
 
     def _scenarios_dir(self) -> Path:
@@ -101,11 +117,17 @@ class GenEvalMCPService:
         return self._find_base_dir() / "descriptors"
 
     def _find_latest_report(self) -> Path | None:
-        """Find the most recent gen-eval report JSON."""
+        """Find the most recent gen-eval report JSON.
+
+        Looks next to the data directory (parent of ``scenarios/``/``descriptors/``)
+        and in the process cwd.  The report is written by ``python -m gen_eval``
+        via ``--output-dir``.
+        """
         base = self._find_base_dir()
         candidates = [
-            base.parent.parent / "gen-eval-report.json",  # agent-coordinator/
-            base.parent.parent.parent / "gen-eval-report.json",  # repo root
+            base.parent / "gen-eval-report.json",  # sibling of evaluation/
+            Path("gen-eval-report.json"),  # cwd (Docker / standalone)
+            base.parent.parent / "gen-eval-report.json",  # repo root fallback
         ]
         for path in candidates:
             if path.exists():
@@ -434,7 +456,10 @@ class GenEvalMCPService:
                     }
 
         base = self._find_base_dir()
-        project_root = base.parent.parent  # evaluation/gen_eval -> agent-coordinator
+        # project_root is the parent of the data dir (e.g. agent-coordinator/).
+        # When GEN_EVAL_DATA_DIR=evaluation/ it resolves to the coordinator dir;
+        # when running from source it navigates up from the package dir.
+        project_root = base.parent
         descriptor = base / "descriptors" / "agent-coordinator.yaml"
 
         if not descriptor.exists():
@@ -445,7 +470,7 @@ class GenEvalMCPService:
             python = Path("python3")
 
         cmd = [
-            str(python), "-m", "evaluation.gen_eval",
+            str(python), "-m", "gen_eval",
             "--descriptor", str(descriptor),
             "--mode", mode,
             "--no-services",

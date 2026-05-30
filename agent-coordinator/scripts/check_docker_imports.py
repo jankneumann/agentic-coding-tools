@@ -2,7 +2,7 @@
 """Verify that every local package imported from src/ is COPY'd in the Dockerfile.
 
 This catches a common class of deployment bug where code references a local
-package (e.g., ``from evaluation.gen_eval.mcp_service import ...``) but the
+package (e.g., ``from gen_eval.mcp_service import ...``) but the
 Dockerfile only copies ``src/``, causing a runtime ImportError in production
 while unit tests (which see the full source tree) pass green.
 

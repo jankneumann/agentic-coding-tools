@@ -1,13 +1,37 @@
 # Railway deployment configuration for the Coordination API
 #
-# Two-service architecture:
+# ─── ONE-TIME DASHBOARD PREREQUISITE (D8 Strategy A) ───────────────────────
+#
+# The gen-eval framework is now a sibling package at packages/gen-eval/
+# (see OpenSpec change extract-gen-eval-package).  The Dockerfile (at
+# agent-coordinator/Dockerfile) uses a repo-root build context so it can
+# COPY both agent-coordinator/ and packages/gen-eval/ in a single build.
+#
+# Before deploying this version, update the Railway dashboard for the
+# Coordination API service:
+#
+#   Settings → Source → Root Directory: /   (change from agent-coordinator)
+#   Settings → Build  → Dockerfile Path: agent-coordinator/Dockerfile
+#
+# The dashboard's Source > Root Directory takes precedence over any
+# buildCommand in this file; only the dashboard change makes the
+# repo-root build context effective.
+#
+# ─── ROLLBACK ────────────────────────────────────────────────────────────────
+# If the dashboard change cannot be made, revert the commit on the deployed
+# branch that introduced the Dockerfile Strategy A pivot (see git log
+# --oneline for `feat(gen-eval): migrate agent-coordinator`).  The reverted
+# Dockerfile uses the old agent-coordinator/ build context and does not
+# require packages/gen-eval/ to be in-context.
+#
+# ─── TWO-SERVICE ARCHITECTURE ────────────────────────────────────────────────
 #   Service 1: ParadeDB Postgres
 #     - Add via Railway dashboard: Docker image → paradedb/paradedb
 #     - Accessible on private network: postgres://...@paradedb.railway.internal:5432/coordinator
-#     - Configure persistent volume for /var/lib/postgresql/data
+#     - Configure persistent volume for /var/lib/postgresql
 #
 #   Service 2: Coordination API (this config)
-#     - Builds from agent-coordinator/Dockerfile
+#     - Builds from agent-coordinator/Dockerfile with repo-root context
 #     - Connects to Postgres via POSTGRES_DSN on private network
 #     - Public HTTPS endpoint for cloud agents
 #
@@ -23,7 +47,8 @@
 #   API_ACCESS_LOG=true
 
 [build]
-dockerfilePath = "Dockerfile"
+# Effective once the Railway dashboard Source > Root Directory is set to `/`.
+dockerfilePath = "agent-coordinator/Dockerfile"
 
 [deploy]
 healthcheckPath = "/live"
