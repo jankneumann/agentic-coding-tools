@@ -1,0 +1,71 @@
+# gen-eval interface descriptor template
+#
+# Copy this file to your project's evaluation/descriptors/<service-name>.yaml
+# and fill in the sections marked with TODO comments.
+#
+# Validated by gen_eval.descriptor.InterfaceDescriptor.from_yaml().
+# Required fields are marked [required]; everything else has a sensible default.
+#
+# Quickstart: packages/gen-eval/examples/agentic-assistant-quickstart.md
+# Spec:       openspec/specs/gen-eval-framework/
+
+# [required] Human-readable name for this service (used in report headers).
+name: my-service
+
+# Short description shown in verbose output and reports.
+description: "TODO: brief description of the service under test."
+
+# [required] At least one service entry.
+services:
+  # An HTTP service (JSON REST API, healthcheck endpoint, etc.)
+  - name: api             # [required] arbitrary label; referenced by interface entries
+    type: http            # http | cli | mcp (choose one)
+    base_url: "http://localhost:8080"  # [required for http] base URL of the service
+
+    # Optional: authentication configuration.
+    # Remove the auth block entirely for unauthenticated services.
+    auth:
+      type: header        # header | bearer | none
+      header: "X-API-Key"
+      value: "${MY_SERVICE_API_KEY}"  # resolved from env at run time
+
+  # Example: a CLI-based service (comment out if not needed)
+  # - name: cli
+  #   type: cli
+  #   command: "my-service-cli"   # shell command; must be on PATH
+  #   json_flag: "--json"         # optional: flag that switches output to JSON
+
+# [required] At least one interface entry.
+# Each interface maps to a single endpoint or logical operation.
+interfaces:
+  - id: health-check          # [required] unique, kebab-case identifier
+    name: "Health check"      # [required] human-readable label
+    service: api              # [required] must match a name in services[]
+    http_path: "/health"      # path appended to base_url
+    http_method: GET          # GET | POST | PUT | DELETE | PATCH
+
+  - id: create-item
+    name: "Create an item"
+    service: api
+    http_path: "/items"
+    http_method: POST
+    description: "Creates a new item; returns 201 with the item's ID."
+
+    # Optional: payload template (Jinja2 syntax, rendered per scenario step).
+    # Variables like {{ item_name }} are filled in from scenario step parameters.
+    # request_body: |
+    #   { "name": "{{ item_name }}", "value": {{ item_value }} }
+
+    # Optional: expected response schema (JSON Schema subset).
+    # response_schema:
+    #   type: object
+    #   required: [id, name]
+
+# Optional: specify which categories of scenarios to include/skip by default.
+# categories:
+#   include: [smoke, regression]
+#   exclude: [e2e]
+
+# Optional: time budget for CLI-augmented or SDK-only modes (minutes).
+# Ignored in template-only mode.
+# time_budget_minutes: 30
