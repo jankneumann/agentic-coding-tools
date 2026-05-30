@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-24T00:15:22.404927+00:00",
+  "generated_at": "2026-05-30T23:39:37.725273+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -9511,7 +9511,7 @@
     {
       "id": 895,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator"
+        "py:watchdog.WatchdogService"
       ],
       "language_mix": [
         "python"
@@ -9521,7 +9521,7 @@
     {
       "id": 896,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format"
+        "py:watchdog.WatchdogService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9531,7 +9531,7 @@
     {
       "id": 897,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection"
+        "py:watchdog.WatchdogService._check_aging_approvals"
       ],
       "language_mix": [
         "python"
@@ -9541,7 +9541,7 @@
     {
       "id": 898,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream"
+        "py:watchdog.WatchdogService._check_expiring_locks"
       ],
       "language_mix": [
         "python"
@@ -9551,7 +9551,7 @@
     {
       "id": 899,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection"
+        "py:watchdog.WatchdogService._check_stale_agents"
       ],
       "language_mix": [
         "python"
@@ -9561,7 +9561,7 @@
     {
       "id": 900,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check"
+        "py:watchdog.WatchdogService._check_vendor_health"
       ],
       "language_mix": [
         "python"
@@ -9571,7 +9571,7 @@
     {
       "id": 901,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler"
+        "py:watchdog.WatchdogService._cleanup_expired_tokens"
       ],
       "language_mix": [
         "python"
@@ -9581,7 +9581,7 @@
     {
       "id": 902,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output"
+        "py:watchdog.WatchdogService._emit_event"
       ],
       "language_mix": [
         "python"
@@ -9591,7 +9591,7 @@
     {
       "id": 903,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges"
+        "py:watchdog.WatchdogService._loop"
       ],
       "language_mix": [
         "python"
@@ -9601,7 +9601,7 @@
     {
       "id": 904,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers"
+        "py:watchdog.WatchdogService.run_once"
       ],
       "language_mix": [
         "python"
@@ -9611,7 +9611,7 @@
     {
       "id": 905,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking"
+        "py:watchdog.WatchdogService.running"
       ],
       "language_mix": [
         "python"
@@ -9621,7 +9621,7 @@
     {
       "id": 906,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization"
+        "py:watchdog.WatchdogService.start"
       ],
       "language_mix": [
         "python"
@@ -9631,7 +9631,7 @@
     {
       "id": 907,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges"
+        "py:watchdog.WatchdogService.stop"
       ],
       "language_mix": [
         "python"
@@ -9641,7 +9641,7 @@
     {
       "id": 908,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold"
+        "py:watchdog.reset_watchdog"
       ],
       "language_mix": [
         "python"
@@ -9651,7 +9651,7 @@
     {
       "id": 909,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid"
+        "py:work_queue.ClaimResult"
       ],
       "language_mix": [
         "python"
@@ -9661,7 +9661,7 @@
     {
       "id": 910,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones"
+        "py:work_queue.ClaimResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9671,7 +9671,7 @@
     {
       "id": 911,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure"
+        "py:work_queue.CompleteResult"
       ],
       "language_mix": [
         "python"
@@ -9681,7 +9681,7 @@
     {
       "id": 912,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection"
+        "py:work_queue.CompleteResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9691,7 +9691,7 @@
     {
       "id": 913,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection"
+        "py:work_queue.SubmitResult"
       ],
       "language_mix": [
         "python"
@@ -9701,7 +9701,7 @@
     {
       "id": 914,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius"
+        "py:work_queue.SubmitResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9711,7 +9711,7 @@
     {
       "id": 915,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification"
+        "py:work_queue.Task"
       ],
       "language_mix": [
         "python"
@@ -9721,7 +9721,7 @@
     {
       "id": 916,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli"
+        "py:work_queue.Task.from_dict.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -9731,7 +9731,7 @@
     {
       "id": 917,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components"
+        "py:work_queue.WorkQueueService"
       ],
       "language_mix": [
         "python"
@@ -9741,7 +9741,7 @@
     {
       "id": 918,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer"
+        "py:work_queue.WorkQueueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9751,7 +9751,7 @@
     {
       "id": 919,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction"
+        "py:work_queue.WorkQueueService.cancel_task_convention"
       ],
       "language_mix": [
         "python"
@@ -9761,7 +9761,7 @@
     {
       "id": 920,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction"
+        "py:work_queue.WorkQueueService.get_pending"
       ],
       "language_mix": [
         "python"
@@ -9771,7 +9771,7 @@
     {
       "id": 921,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics"
+        "py:work_queue.WorkQueueService.get_task"
       ],
       "language_mix": [
         "python"
@@ -9781,526 +9781,6 @@
     {
       "id": 922,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 923,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 924,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 925,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 926,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 927,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 928,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 929,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 930,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 931,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 932,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 933,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 934,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 935,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 936,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 937,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 938,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 939,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 940,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 941,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 942,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 943,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 944,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 945,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 946,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 947,
-      "modules": [
-        "py:watchdog.WatchdogService"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 948,
-      "modules": [
-        "py:watchdog.WatchdogService.__init__"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 949,
-      "modules": [
-        "py:watchdog.WatchdogService._check_aging_approvals"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 950,
-      "modules": [
-        "py:watchdog.WatchdogService._check_expiring_locks"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 951,
-      "modules": [
-        "py:watchdog.WatchdogService._check_stale_agents"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 952,
-      "modules": [
-        "py:watchdog.WatchdogService._check_vendor_health"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 953,
-      "modules": [
-        "py:watchdog.WatchdogService._cleanup_expired_tokens"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 954,
-      "modules": [
-        "py:watchdog.WatchdogService._emit_event"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 955,
-      "modules": [
-        "py:watchdog.WatchdogService._loop"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 956,
-      "modules": [
-        "py:watchdog.WatchdogService.run_once"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 957,
-      "modules": [
-        "py:watchdog.WatchdogService.running"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 958,
-      "modules": [
-        "py:watchdog.WatchdogService.start"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 959,
-      "modules": [
-        "py:watchdog.WatchdogService.stop"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 960,
-      "modules": [
-        "py:watchdog.reset_watchdog"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 961,
-      "modules": [
-        "py:work_queue.ClaimResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 962,
-      "modules": [
-        "py:work_queue.ClaimResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 963,
-      "modules": [
-        "py:work_queue.CompleteResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 964,
-      "modules": [
-        "py:work_queue.CompleteResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 965,
-      "modules": [
-        "py:work_queue.SubmitResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 966,
-      "modules": [
-        "py:work_queue.SubmitResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 967,
-      "modules": [
-        "py:work_queue.Task"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 968,
-      "modules": [
-        "py:work_queue.Task.from_dict.parse_dt"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 969,
-      "modules": [
-        "py:work_queue.WorkQueueService"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 970,
-      "modules": [
-        "py:work_queue.WorkQueueService.__init__"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 971,
-      "modules": [
-        "py:work_queue.WorkQueueService.cancel_task_convention"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 972,
-      "modules": [
-        "py:work_queue.WorkQueueService.get_pending"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 973,
-      "modules": [
-        "py:work_queue.WorkQueueService.get_task"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 974,
-      "modules": [
         "py:work_queue.reset_instruments"
       ],
       "language_mix": [
@@ -10309,7 +9789,7 @@
       "size": 1
     },
     {
-      "id": 975,
+      "id": 923,
       "modules": [
         "py:worktrees_view._parse_dt"
       ],
@@ -16111,266 +15591,6 @@
       "file": "telemetry.py"
     },
     {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
       "id": "py:watchdog.WatchdogService",
       "language": "python",
       "file": "watchdog.py"
@@ -17891,10 +17111,10 @@
     }
   ],
   "summary": {
-    "total_modules": 1533,
-    "total_groups": 976,
+    "total_modules": 1481,
+    "total_groups": 924,
     "largest_group_size": 443,
-    "leaf_count": 1250,
+    "leaf_count": 1198,
     "high_impact_count": 32
   }
 }

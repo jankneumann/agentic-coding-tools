@@ -125,7 +125,7 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 | Branch naming with `--` separator (`openspec/<change-id>--<agent-id>`) | Avoids git ref storage collisions; small but real isolation |
 | Sync-point skills (the named three: `/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) | Names the *only* places that touch main; everything else is forbidden from doing so |
 | Phase isolation (sub-agents for IMPLEMENT, IMPL_REVIEW, VALIDATE per [`docs/decisions/software-factory-tooling.md`](decisions/software-factory-tooling.md)) | Heavy phases run in their own conversation; driver receives only `(outcome, handoff_id)` |
-| Public vs holdout scenario visibility | Manifest entries in `agent-coordinator/evaluation/gen_eval/manifests/*.manifest.yaml` mark each scenario `visibility: public\|holdout`. `manifest.py:ScenarioPackManifest` filters at runtime via `public_ids()` / `holdout_ids()`. The manifest is the source of truth (per `manifest.py:28` docstring); filesystem layout is intentionally not used as a classifier. See also G11 |
+| Public vs holdout scenario visibility | Manifest entries in `agent-coordinator/evaluation/manifests/*.manifest.yaml` mark each scenario `visibility: public\|holdout`. `gen_eval.manifest:ScenarioPackManifest` filters at runtime via `public_ids()` / `holdout_ids()`. The manifest is the source of truth (per `manifest.py:28` docstring); filesystem layout is intentionally not used as a classifier. See also G11 |
 | `EnvironmentProfile.isolation_provided` (`skills/shared/environment_profile.py`) | Cloud harness vs local — the substrate provides isolation in cloud; the skill semantics stay identical |
 
 > **The strongest simplification artifact in this repo is the explicit naming of sync-point skills.** Most agentic systems pretend all skills are equal; this one calls out the three places where convergence happens (`/merge-pull-requests`, `/update-specs`, `/cleanup-feature`) and constrains everything else to worktrees. That is how Toyota runs thousands of parallel stations without explosion — the andon and the takt time are *named* convergence rules.
@@ -142,7 +142,7 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 | Coordinator events / heartbeats | Failed or stalled agents are visible in `.git-worktrees/.registry.json` and via `agent-coordinator/src/coordination_api.py` (`/audit`, `/work/get`), not hidden in transcripts |
 | `/validate-feature` hard-gate ladder | `skills/validate-feature/scripts/gate_logic.py` enumerates `REQUIRED_PHASES` (Smoke / Security / E2E); a `fail` status in `validation-report.md` halts `pre_merge_gate` |
 | `subscribe_pr_activity` | Webhook events wake the session on CI failure or review comment |
-| `gen-eval` scenarios under `agent-coordinator/evaluation/gen_eval/scenarios/` | Failures rehearse production behavior at the validation gate (lock-lifecycle, audit-trail, work-queue, handoffs, etc.) |
+| `gen-eval` scenarios under `agent-coordinator/evaluation/scenarios/` | Failures rehearse production behavior at the validation gate (lock-lifecycle, audit-trail, work-queue, handoffs, etc.) |
 | `rework-report.json` (emitted by `skills/validate-feature/scripts/rework_report.py`) | Maps failed scenarios to owners and recommended actions (`iterate` / `revise-spec` / `defer` / `block-cleanup`) |
 | Token instrumentation (`phase_token_pre/post` audit-trail entries — emitted in `skills/autopilot/scripts/autopilot.py`, see [`docs/decisions/observability.md`](decisions/observability.md)) | Cost spikes become visible at phase boundaries |
 | `docs/lock-key-namespaces.md`, `coordination-bridge` skill | Lock contention is named, not hidden |
@@ -326,9 +326,9 @@ The contract is now both implemented and enforced. A sync-point skill that does 
 
 ### G11. Public/holdout visibility — design intent clarified, not a gap
 
-**Original framing.** This document originally flagged that `agent-coordinator/evaluation/gen_eval/scenarios/` is flat — no `public/` or `holdout/` subdirectories — and concluded the layered enforcement described in `docs/software-factory-tooling.md` (directory structure + manifest metadata + runtime filtering) was incomplete here. The recommended fix was to implement the directory split.
+**Original framing.** This document originally flagged that `agent-coordinator/evaluation/scenarios/` is flat — no `public/` or `holdout/` subdirectories — and concluded the layered enforcement described in `docs/software-factory-tooling.md` (directory structure + manifest metadata + runtime filtering) was incomplete here. The recommended fix was to implement the directory split.
 
-**Correction.** Reading `agent-coordinator/evaluation/gen_eval/manifest.py:28` (`ManifestEntry` docstring) reverses that conclusion:
+**Correction.** Reading `gen_eval.manifest:ManifestEntry` docstring reverses that conclusion:
 
 > "The manifest is the source of truth for scenario classification — **not file paths or naming conventions**."
 
