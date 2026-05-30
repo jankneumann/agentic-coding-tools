@@ -4,19 +4,19 @@
 
 ## 1. Package scaffold
 
-- [ ] 1.1 Write smoke test for empty package import — confirms `import gen_eval` resolves to the new package, not the legacy location. **(S)**
+- [x] 1.1 Write smoke test for empty package import — confirms `import gen_eval` resolves to the new package, not the legacy location. **(S)**
   **Spec scenarios**: gen-eval-framework.canonical-module-name
   **Design decisions**: D1, D2
   **Dependencies**: None
-- [ ] 1.2 Create `packages/gen-eval/` skeleton: `pyproject.toml`, `src/gen_eval/__init__.py` (empty re-exports), `README.md` stub, `tests/__init__.py`, `examples/` placeholder. Verify with task 1.1 that `cd packages/gen-eval && uv sync && uv run python -c "import gen_eval"` succeeds. **(S)**
+- [x] 1.2 Create `packages/gen-eval/` skeleton: `pyproject.toml`, `src/gen_eval/__init__.py` (empty re-exports), `README.md` stub, `tests/__init__.py`, `examples/` placeholder. Verify with task 1.1 that `cd packages/gen-eval && uv sync && uv run python -c "import gen_eval"` succeeds. **(S)**
   **Spec scenarios**: gen-eval-framework.distributable-python-package (the relative-path-install scenario)
   **Design decisions**: D1, D2
   **Dependencies**: 1.1
-- [ ] 1.3 Configure `packages/gen-eval/pyproject.toml` with the four optional extras (`mcp`, `sdk`, `db`, `all`), the `gen-eval` console script entry point, and the `uv_build` backend per D2. **(S)**
+- [x] 1.3 Configure `packages/gen-eval/pyproject.toml` with the four optional extras (`mcp`, `sdk`, `db`, `all`), the `gen-eval` console script entry point, and the `uv_build` backend per D2. **(S)**
   **Design decisions**: D2, D4
   **Dependencies**: 1.2
 
-- [ ] 1.C **Checkpoint**: `cd packages/gen-eval && uv sync && uv run pytest -q` green; `uv build` produces a wheel.
+- [x] 1.C **Checkpoint**: `cd packages/gen-eval && uv sync && uv run pytest -q` green; `uv build` produces a wheel.
 
 ## 2. Framework code move
 
