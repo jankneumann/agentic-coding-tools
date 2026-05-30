@@ -8,11 +8,11 @@
   "completed_work": [
     "Commit 13c0e04 — feat(gen-eval): scaffold packages/gen-eval/ with smoke test and pyproject. Covers wp-package-scaffold tasks 1.1–1.3 + verification step 1.C.",
     "Commit b1e106e — feat(gen-eval): move framework into packages/gen-eval/ and surgically extract GenEvalMetrics. Covers wp-framework-move tasks 2.1–2.5 + verification step 2.C.",
-    "wp-package-tests: 28 test files copied from agent-coordinator/tests/test_evaluation/test_gen_eval/ to packages/gen-eval/tests/. Source-side deletions present (29 deletions including __init__.py which intentionally isn't carried over). NOT yet committed — staged (28 additions) + unstaged (29 deletions) form a single logical move that needs `git add -u agent-coordinator/tests/test_evaluation/` + `git commit` to land as one unit.",
+    "wp-package-tests: 28 test files copied from agent-coordinator/tests/test_evaluation/test_gen_eval/ to packages/gen-eval/tests/. The ADDITIONS landed in commit bcde916 alongside the failure-handoff openspec files (accidental sweep — `git commit -m` after `git add` of the 2 openspec files also committed the 28 pre-staged test files). The MATCHING DELETIONS in agent-coordinator/tests/test_evaluation/ require a separate follow-up commit to close out the move. After the follow-up, wp-package-tests is functionally complete (logical move = additions + deletions); attribution is mixed across two commits with non-conventional subjects.",
     "wp-coordinator-migrate: in-progress modifications to agent-coordinator/CLAUDE.md, evaluation/__init__.py, pyproject.toml, src/coordination_api.py, src/coordination_mcp.py, tests/test_check_docker_imports.py, uv.lock. Unstaged. Incomplete — appears to be mid-edit (no commit attempt, no validation evidence)."
   ],
   "in_progress": [
-    "wp-package-tests staged but not committed — see completed_work[2]. Recoverable by `git add -u agent-coordinator/tests/test_evaluation/ && git commit -m 'test(gen-eval): move tests from agent-coordinator to packages/gen-eval (extract-gen-eval-package tasks 3.1-3.x)'`.",
+    "wp-package-tests additions landed in commit bcde916 (accidental sweep); matching deletions still unstaged. Closing follow-up commit `test(gen-eval): remove migrated tests from agent-coordinator/tests/test_evaluation` is pending — required to avoid a half-moved state where the same test files exist in both old and new locations on disk.",
     "wp-coordinator-migrate file modifications — see completed_work[3]. Mid-flight; the next sub-agent dispatch should `git status` first and decide whether to extend the in-flight edits or stash + restart.",
     "wp-skills-update: not started (no evidence of changes under skills/ for this purpose).",
     "wp-examples-doc: not started.",
