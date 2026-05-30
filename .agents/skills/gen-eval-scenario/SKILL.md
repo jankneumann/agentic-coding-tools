@@ -31,7 +31,7 @@ Interactively create gen-eval scenario YAML files. Reads the project's interface
 ### 1. Auto-Detect Descriptor
 
 ```bash
-DESCRIPTOR=$(find . -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null | head -1)
+DESCRIPTOR=$(find . -path "*/evaluation/descriptors/*.yaml" -type f 2>/dev/null | head -1)
 
 if [ -z "$DESCRIPTOR" ]; then
   echo "ERROR: No gen-eval descriptor found."
@@ -99,7 +99,7 @@ Let the user pick which endpoints to include in the scenario steps.
 
 Build the scenario YAML following the `Scenario` model schema. Key rules:
 
-**Schema reference** (from `evaluation/gen_eval/models.py`):
+**Schema reference** (from `gen_eval.models`):
 
 ```yaml
 # Required fields
@@ -169,7 +169,7 @@ Before writing, validate the generated YAML against the Pydantic model:
 cd <project-root>
 .venv/bin/python -c "
 import yaml
-from evaluation.gen_eval.models import Scenario
+from gen_eval.models import Scenario
 
 with open('/dev/stdin') as f:
     data = yaml.safe_load(f)

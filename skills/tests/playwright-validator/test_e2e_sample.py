@@ -1,7 +1,7 @@
 """End-to-end sample fixture test for the Playwright validator.
 
 Exercises the full pipeline against
-``evaluation/gen_eval/fixtures/sample-frontend/`` per the spec scenario
+``packages/gen-eval/tests/fixtures/sample-descriptor.yaml`` per the spec scenario
 "Sample frontend exercise validates the full path".
 
 Skipped when ``npx`` is not on PATH so CI without Node stays green; the

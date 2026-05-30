@@ -40,7 +40,7 @@ Run the generator-evaluator testing framework against live or local services. Ge
 If `--descriptor` is not provided, find the nearest descriptor YAML:
 
 ```bash
-DESCRIPTOR=$(find . -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null | head -1)
+DESCRIPTOR=$(find . -path "*/evaluation/descriptors/*.yaml" -type f 2>/dev/null | head -1)
 
 if [ -z "$DESCRIPTOR" ]; then
   echo "ERROR: No gen-eval descriptor found. Provide --descriptor <path> or create one with /gen-eval-scenario."
@@ -76,7 +76,7 @@ MAX_ITER="${MAX_ITER:-1}"
 REPORT_FORMAT="${REPORT_FORMAT:-both}"
 OUTPUT_DIR="${OUTPUT_DIR:-.}"
 
-CMD="$PYTHON -m evaluation.gen_eval --descriptor $DESCRIPTOR --mode $MODE --parallel $PARALLEL --max-iterations $MAX_ITER --report-format $REPORT_FORMAT --output-dir $OUTPUT_DIR"
+CMD="$PYTHON -m gen_eval --descriptor $DESCRIPTOR --mode $MODE --parallel $PARALLEL --max-iterations $MAX_ITER --report-format $REPORT_FORMAT --output-dir $OUTPUT_DIR"
 
 # Append optional flags from arguments
 if [ -n "$TIME_BUDGET" ]; then CMD="$CMD --time-budget $TIME_BUDGET"; fi

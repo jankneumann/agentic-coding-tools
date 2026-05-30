@@ -25,7 +25,7 @@ import pytest
 # selected mode label without needing a full gen-eval setup.
 MODE_SELECTION_FRAGMENT = textwrap.dedent("""
     set -e
-    GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null)
+    GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/descriptors/*.yaml" -type f 2>/dev/null)
     if [ -z "$GENEVAL_DESCRIPTORS" ]; then
       echo "SKIP: No gen-eval descriptors found. Skipping gen-eval phase."
       echo "GENEVAL_RESULT=skip"
@@ -60,7 +60,7 @@ def _run(project_root: Path, change_id: str) -> subprocess.CompletedProcess:
 
 
 def _make_descriptor(project_root: Path) -> None:
-    desc_dir = project_root / "agent-coordinator" / "evaluation" / "gen_eval" / "descriptors"
+    desc_dir = project_root / "agent-coordinator" / "evaluation" / "descriptors"
     desc_dir.mkdir(parents=True, exist_ok=True)
     (desc_dir / "api.yaml").write_text("name: test\nbase_url: http://localhost:8000\n")
 

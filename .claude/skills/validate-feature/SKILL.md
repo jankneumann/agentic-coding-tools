@@ -292,7 +292,7 @@ Run generator-evaluator testing when interface descriptors exist for the project
 
 ```bash
 # Auto-detect gen-eval descriptors
-GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/gen_eval/descriptors/*.yaml" -type f 2>/dev/null)
+GENEVAL_DESCRIPTORS=$(find "$PROJECT_ROOT" -path "*/evaluation/descriptors/*.yaml" -type f 2>/dev/null)
 
 if [ -z "$GENEVAL_DESCRIPTORS" ]; then
   echo "SKIP: No gen-eval descriptors found. Skipping gen-eval phase."
@@ -315,11 +315,12 @@ else
 
   for DESCRIPTOR in $GENEVAL_DESCRIPTORS; do
     echo "  Descriptor: $DESCRIPTOR"
-    # Resolve the module root (parent of evaluation/) and cd into it
-    GENEVAL_MODULE_ROOT=$(dirname "$(dirname "$(dirname "$(dirname "$DESCRIPTOR")")")")
+    # Resolve the module root (parent of evaluation/) and cd into it.
+    # Descriptor is at <project>/evaluation/descriptors/<name>.yaml — 3 levels up.
+    GENEVAL_MODULE_ROOT=$(dirname "$(dirname "$(dirname "$DESCRIPTOR")")")
     GENEVAL_PYTHON="$GENEVAL_MODULE_ROOT/.venv/bin/python"
     if [ ! -f "$GENEVAL_PYTHON" ]; then GENEVAL_PYTHON="python3"; fi
-    (cd "$GENEVAL_MODULE_ROOT" && "$GENEVAL_PYTHON" -m evaluation.gen_eval \
+    (cd "$GENEVAL_MODULE_ROOT" && GEN_EVAL_DATA_DIR="$GENEVAL_MODULE_ROOT/evaluation" "$GENEVAL_PYTHON" -m gen_eval \
       --descriptor "$DESCRIPTOR" \
       $GENEVAL_MODE_FLAGS \
       --report-format both \

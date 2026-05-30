@@ -1,7 +1,7 @@
 """OpenSpec scenario -> Playwright action/assertion translator.
 
 Reads ``ParsedScenario`` objects produced by
-``agent-coordinator/evaluation/gen_eval/openspec_seed.py`` and maps the
+``gen_eval.openspec_seed`` and maps the
 WHEN/AND/THEN bullet structure to Playwright actions and assertions.
 
 The translator is intentionally pattern-based (not LLM-driven) so the
