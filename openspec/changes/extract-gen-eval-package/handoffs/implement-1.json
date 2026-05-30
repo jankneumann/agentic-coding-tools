@@ -1,0 +1,49 @@
+{
+  "phase": "IMPLEMENT",
+  "change_id": "extract-gen-eval-package",
+  "outcome": "failed",
+  "agent_name": "autopilot",
+  "session_id": null,
+  "summary": "IMPLEMENT sub-agent (background Agent id=a4590eb4efe3cd21f, archetype=implementer, model=standard, isolation=worktree) stalled after ~10+ minutes of real progress: stream watchdog reported no progress for 600s and never recovered. Sub-agent's final message claimed 'stash@{0} has my work. Let me restore.' but on inspection stash@{0} is an unrelated entry from a previous session (WIP on claude/factory-missions-architecture-cUuq2). Actual in-flight work is in the orchestrator worktree's working tree (staged + unstaged), NOT in any stash. Per feedback_harness_worktree_silent_noop.md memory, this matches the known failure mode: Agent(isolation='worktree') silently no-opped — the harness worktree at .claude/worktrees/agent-a4590eb4efe3cd21f remained at [main] and was never used. The sub-agent committed directly into the orchestrator's openspec/extract-gen-eval-package branch.",
+  "completed_work": [
+    "Commit 13c0e04 — feat(gen-eval): scaffold packages/gen-eval/ with smoke test and pyproject. Covers wp-package-scaffold tasks 1.1–1.3 + verification step 1.C.",
+    "Commit b1e106e — feat(gen-eval): move framework into packages/gen-eval/ and surgically extract GenEvalMetrics. Covers wp-framework-move tasks 2.1–2.5 + verification step 2.C.",
+    "wp-package-tests: 28 test files copied from agent-coordinator/tests/test_evaluation/test_gen_eval/ to packages/gen-eval/tests/. Source-side deletions present (29 deletions including __init__.py which intentionally isn't carried over). NOT yet committed — staged (28 additions) + unstaged (29 deletions) form a single logical move that needs `git add -u agent-coordinator/tests/test_evaluation/` + `git commit` to land as one unit.",
+    "wp-coordinator-migrate: in-progress modifications to agent-coordinator/CLAUDE.md, evaluation/__init__.py, pyproject.toml, src/coordination_api.py, src/coordination_mcp.py, tests/test_check_docker_imports.py, uv.lock. Unstaged. Incomplete — appears to be mid-edit (no commit attempt, no validation evidence)."
+  ],
+  "in_progress": [
+    "wp-package-tests staged but not committed — see completed_work[2]. Recoverable by `git add -u agent-coordinator/tests/test_evaluation/ && git commit -m 'test(gen-eval): move tests from agent-coordinator to packages/gen-eval (extract-gen-eval-package tasks 3.1-3.x)'`.",
+    "wp-coordinator-migrate file modifications — see completed_work[3]. Mid-flight; the next sub-agent dispatch should `git status` first and decide whether to extend the in-flight edits or stash + restart.",
+    "wp-skills-update: not started (no evidence of changes under skills/ for this purpose).",
+    "wp-examples-doc: not started.",
+    "wp-integration: not started (depends on all of the above)."
+  ],
+  "decisions": [
+    "Apply outcome=failed and transition IMPLEMENT → ESCALATE per autopilot state machine, rather than attempting inline recovery in the orchestrator's context. Justification: (a) orchestrator's context budget is already tight after PLAN_REVIEW round 3 + PLAN_FIX + 3 multi-vendor convergence loops; (b) inline recovery would mean orchestrating wp-package-tests commit + wp-coordinator-migrate completion + wp-skills-update + wp-examples-doc + wp-integration in this context, which is exactly the per-phase fresh-context design intent autopilot was built around; (c) the work-in-progress is safely preserved in the working tree — git won't lose it absent explicit destructive operations.",
+    "Do NOT commit the staged wp-package-tests work on the sub-agent's behalf. Justification: (a) the user has not given direction yet on recovery vs re-dispatch; (b) deferring the commit decision is conservative — the working tree state is durable enough to survive until next session; (c) avoids triple-attribution authorship ambiguity (orchestrator + sub-agent + future agent on the same commit lineage)."
+  ],
+  "next_steps": [
+    "Orchestrator: write this handoff, call runner.py apply-outcome --outcome failed --handoff-id implement-1.json, transition loop-state to ESCALATE.",
+    "User: choose one of three recovery paths: (1) commit the staged wp-package-tests work manually, then re-dispatch IMPLEMENT in a fresh session via /autopilot extract-gen-eval-package --force; (2) reset working tree (git stash + reset) and re-dispatch IMPLEMENT clean; (3) abandon and roll back to commit 0c406e1 (the IMPLEMENT-entry checkpoint before any work started).",
+    "Recommended path: option (1) — preserves the ~28-file test-move work which appears clean and self-consistent. Run `git add -u agent-coordinator/tests/test_evaluation/ && git commit -m 'test(gen-eval): move tests from agent-coordinator to packages/gen-eval (extract-gen-eval-package wp-package-tests)' && git stash push -m 'wp-coordinator-migrate WIP from a4590eb4 stalled run' agent-coordinator/`, then re-dispatch IMPLEMENT — the next sub-agent will see a clean tree with wp-package-scaffold + wp-framework-move + wp-package-tests committed and a labeled stash for wp-coordinator-migrate.",
+    "Filed as separate change: fix-compact-hook-phase-boundary-detection (commit 3778a79, branch openspec/fix-compact-hook-phase-boundary-detection) to address the false-positive Stop-hook firing that surfaced during this run. Independent fix; can land anytime."
+  ],
+  "relevant_files": [
+    "openspec/changes/extract-gen-eval-package/loop-state.json",
+    "openspec/changes/extract-gen-eval-package/work-packages.yaml",
+    "openspec/changes/extract-gen-eval-package/tasks.md",
+    "packages/gen-eval/pyproject.toml",
+    "packages/gen-eval/src/gen_eval/",
+    "packages/gen-eval/tests/",
+    "agent-coordinator/pyproject.toml",
+    "agent-coordinator/src/coordination_api.py",
+    "agent-coordinator/src/coordination_mcp.py",
+    ".claude/worktrees/agent-a4590eb4efe3cd21f/"
+  ],
+  "stall_reason": "stream_watchdog_no_progress_600s",
+  "harness_isolation_silent_noop": true,
+  "commits_landed": ["13c0e04", "b1e106e"],
+  "work_packages_complete": ["wp-package-scaffold", "wp-framework-move"],
+  "work_packages_partial": ["wp-package-tests", "wp-coordinator-migrate"],
+  "work_packages_pending": ["wp-skills-update", "wp-examples-doc", "wp-integration"]
+}
