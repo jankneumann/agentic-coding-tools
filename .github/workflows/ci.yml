@@ -127,8 +127,8 @@ jobs:
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
   # Catches the class of bug where a lazy import references a directory
-  # that isn't COPY'd (e.g., `from evaluation.gen_eval import ...` when
-  # evaluation/ isn't bundled in the runtime image).
+  # that isn't COPY'd (e.g., `from gen_eval import ...` when
+  # the gen-eval wheel isn't in .venv or evaluation/ isn't bundled).
   check-docker-imports:
     runs-on: ubuntu-latest
     defaults:
@@ -162,9 +162,9 @@ jobs:
   # third-party code).
   docker-smoke-import:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: agent-coordinator
+    # Build context is now repo root (D8 Strategy A) so the Dockerfile can
+    # COPY both agent-coordinator/ and packages/gen-eval/ in a single build.
+    # No working-directory override — the build-push-action uses context: .
 
     steps:
       - uses: actions/checkout@v6
@@ -175,7 +175,10 @@ jobs:
       - name: Build runtime image
         uses: docker/build-push-action@v7
         with:
-          context: agent-coordinator
+          # context is repo root; file points at agent-coordinator/Dockerfile
+          # (per D8 Strategy A — gen-eval is a sibling package, not a subdir)
+          context: .
+          file: agent-coordinator/Dockerfile
           load: true
           tags: coord-api-ci:smoke
           cache-from: type=gha
@@ -191,12 +194,13 @@ jobs:
 
           # Every top-level entry point we expect to work in the built image.
           # Keep this list aligned with what the MCP server and HTTP API load.
+          # gen_eval.mcp_service — the canonical path since extract-gen-eval-package.
           modules = [
               'src.coordination_api',
               'src.coordination_mcp',
               'src.http_proxy',
               'src.config',
-              'evaluation.gen_eval.mcp_service',
+              'gen_eval.mcp_service',
           ]
 
           failures = []
@@ -330,8 +334,17 @@ jobs:
             PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f "$f"
           done
 
-      - name: Run gen-eval unit tests
-        run: uv run pytest tests/test_evaluation/test_gen_eval/ -v -m "not integration" --tb=short -x --maxfail=3
+      - name: Run gen-eval extraction contract tests
+        # test_gen_eval_extraction.py asserts (a) gen_eval.mcp_service is
+        # importable with the [mcp] extra, (b) /gen-eval/scenarios responds.
+        # The gen-eval unit tests have been relocated to packages/gen-eval/tests/
+        # (extract-gen-eval-package wp-package-tests); the gen-eval-tests job
+        # below runs them against the package directly.
+        run: uv run pytest tests/test_gen_eval_extraction.py -v --tb=short
+        env:
+          DB_BACKEND: postgres
+          POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
+          GEN_EVAL_DATA_DIR: evaluation
 
       - name: Start coordinator services
         run: |
@@ -344,12 +357,37 @@ jobs:
           AGENT_ID: ci-gen-eval
           AGENT_TYPE: test_agent
           COORDINATION_API_KEYS: test-key
+          GEN_EVAL_DATA_DIR: evaluation
 
-      - name: Run gen-eval integration tests (template-only)
-        run: uv run pytest tests/test_evaluation/test_gen_eval/ -v -m "integration" --tb=short -x --maxfail=3
+  gen-eval-tests:
+    # Package-level unit tests for packages/gen-eval/ (task 3.4, D10).
+    # Runs in parallel with other jobs; does NOT require a live DB.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/gen-eval
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install gen-eval package with all extras
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        run: uv run ruff check src/ tests/
+
+      - name: Type-check (mypy)
+        run: uv run mypy src/gen_eval/ --strict --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run gen-eval unit tests
+        run: uv run pytest -v -m "not e2e and not integration" --tb=short
         env:
-          DB_BACKEND: postgres
-          POSTGRES_DSN: postgresql://postgres:postgres@localhost:54322/postgres
-          DATABASE_URL: postgresql://postgres:postgres@localhost:54322/postgres
-          COORDINATION_API_KEY: test-key
-          COORDINATOR_BASE_URL: http://localhost:8081
+          AGENT_ID: ci-gen-eval-pkg

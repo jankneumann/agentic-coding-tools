@@ -39,8 +39,8 @@ entries:
 ### Directory Layout
 
 ```
-evaluation/gen_eval/
-  scenarios/
+agent-coordinator/evaluation/
+  scenarios/         # Consumer-owned scenario library (post-extraction D7)
     public/          # Implementation-visible scenarios
       lock-lifecycle/
       memory-ops/
@@ -86,10 +86,10 @@ The fidelity report determines holdout eligibility:
 ### Quick Start
 
 ```python
-from evaluation.gen_eval.dtu_scaffold import (
+from gen_eval.dtu_scaffold import (
     PublicDocInput, EndpointDoc, AuthDoc, generate_scaffold, write_scaffold
 )
-from evaluation.gen_eval.fidelity import compute_fidelity, write_fidelity_report
+from gen_eval.fidelity import compute_fidelity, write_fidelity_report
 
 # 1. Describe the external system
 docs = PublicDocInput(
@@ -103,7 +103,7 @@ docs = PublicDocInput(
 
 # 2. Generate scaffold
 scaffold = generate_scaffold(docs)
-write_scaffold(scaffold, Path("evaluation/gen_eval/dtu/my-api"))
+write_scaffold(scaffold, Path("evaluation/dtu/my-api"))
 
 # 3. Compute fidelity
 report = compute_fidelity(
@@ -112,7 +112,7 @@ report = compute_fidelity(
     unsupported_surfaces=scaffold.unsupported_surfaces,
     total_endpoints=len(docs.endpoints),
 )
-write_fidelity_report(report, Path("evaluation/gen_eval/dtu/my-api/fidelity-report.json"))
+write_fidelity_report(report, Path("evaluation/dtu/my-api/fidelity-report.json"))
 ```
 
 ## Validation-Driven Rework

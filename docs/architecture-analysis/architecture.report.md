@@ -1,7 +1,7 @@
 # Architecture Report
 
-Generated: 2026-05-24T00:15:22.272696+00:00  
-Git SHA: `9647378fe03e02a629a5372cf9495b2c722e4ae1`
+Generated: 2026-05-30T23:39:37.597270+00:00  
+Git SHA: `a2b169ef9dedb96b84dbfca4f1e7db67b73eb696`
 
 ## System Overview
 
@@ -11,14 +11,14 @@ This is a **Python MCP server** with 59 modules exposing **91 MCP endpoints** (7
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1533 |
+| Total nodes | 1481 |
 | Total edges | 978 |
 | Python modules | 59 |
 | Functions | 876 (383 async) |
 | Classes | 192 |
 | Mcp Endpoints | 91 |
 | DB tables | 24 |
-| Python nodes | 1179 |
+| Python nodes | 1127 |
 | Sql nodes | 354 |
 
 ## Module Responsibility Map
@@ -116,22 +116,22 @@ This is a **Python MCP server** with 59 modules exposing **91 MCP endpoints** (7
 - `config` — imported by 23 modules
 - `db` — imported by 21 modules
 - `audit` — imported by 13 modules
-- `telemetry` — imported by 6 modules
 - `policy_engine` — imported by 6 modules
+- `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
 - `guardrails` — imported by 4 modules
 - `profiles` — imported by 4 modules
 - `event_bus` — imported by 4 modules
+- `merge_train` — imported by 3 modules
+- `agents_config` — imported by 3 modules
 - `issue_service` — imported by 3 modules
+- `help_service` — imported by 3 modules
+- `locks` — imported by 3 modules
 - `handoffs` — imported by 3 modules
 - `memory` — imported by 3 modules
 - `work_queue` — imported by 3 modules
-- `locks` — imported by 3 modules
-- `merge_train` — imported by 3 modules
-- `merge_queue` — imported by 3 modules
-- `help_service` — imported by 3 modules
 - `refresh_rpc_client` — imported by 3 modules
-- `agents_config` — imported by 3 modules
+- `merge_queue` — imported by 3 modules
 
 ## Entry Points
 
@@ -295,11 +295,11 @@ Breakdown: 83 info, 8 warning.
 
 91 MCP routes have no frontend callers — expected for an MCP server (clients are AI agents, not browsers).
 
-- Backend route 'post_kanban_audit' has no frontend callers
-- Backend route 'register_feature_endpoint' has no frontend callers
-- Backend route 'eject_from_train_endpoint' has no frontend callers
-- Backend route 'run_pre_merge_checks_endpoint' has no frontend callers
-- Backend route 'create_issue' has no frontend callers
+- Backend route 'request_permission_endpoint' has no frontend callers
+- Backend route 'check_policy' has no frontend callers
+- Backend route 'request_approval_endpoint' has no frontend callers
+- Backend route 'get_gen_eval_report' has no frontend callers
+- Backend route 'search_issues' has no frontend callers
 - ... and 86 more
 
 ## High-Impact Nodes
@@ -428,7 +428,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**976 independent groups** identified. The largest interconnected group has 443 modules; 1250 modules are leaf nodes (safe to modify in isolation).
+**924 independent groups** identified. The largest interconnected group has 443 modules; 1198 modules are leaf nodes (safe to modify in isolation).
 
 **32 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -456,9 +456,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (4 members spanning 1 modules): `sync_points`
 
-### Leaf Modules (1250)
+### Leaf Modules (1198)
 
-1250 modules have no dependents — changes are fully isolated. 958 of the 976 groups are singletons.
+1198 modules have no dependents — changes are fully isolated. 906 of the 924 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -468,7 +468,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1179 nodes)"]
+    Backend["Backend (1127 nodes)"]
     Database["Database (354 nodes)"]
 ```
 
@@ -532,7 +532,6 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (10 symbols)"]
     telemetry["telemetry (20 symbols)"]
-    tests__test_architecture["tests.test_architecture (52 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
