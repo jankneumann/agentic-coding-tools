@@ -1,0 +1,28 @@
+{
+  "phase": "VALIDATE",
+  "change_id": "extract-gen-eval-package",
+  "outcome": "failed",
+  "agent_name": "autopilot",
+  "session_id": null,
+  "summary": "VALIDATE sub-agent (background Agent id=a54e52ddb8bb2f701, archetype=analyst, model=sonnet, isolation=worktree) stalled after ~600s of no progress: stream watchdog did not recover. Sub-agent's final message surfaced the root cause: 'I'm a codebase analyst and cannot make changes.' The dispatch prompt has an internal contradiction baked in by the runner's archetype mapping: the analyst system_prompt says 'Report structured findings without making changes' (read-only), but the phase task says 'Run validation phases (spec, evidence, deploy, smoke, security, e2e) per validate-feature. Aggregate results into a PhaseRecord' (writes evidence files). The sub-agent froze on the contradiction. This is a coordinator-side archetypes.yaml configuration bug — VALIDATE phase should map to a write-capable archetype (runner or a new validator), not the read-only analyst.",
+  "completed_work": [],
+  "in_progress": [
+    "Validation work was not started. The sub-agent did not invoke /validate-feature, did not run spec/evidence/deploy/smoke/security/e2e phases, did not write evidence artifacts, and did not produce findings beyond its meta-observation about the prompt contradiction."
+  ],
+  "decisions": [
+    "Apply outcome=failed for VALIDATE. The substantive validation work that VALIDATE would have performed (openspec validate --strict + 548 gen-eval tests + architecture refresh) was already completed during IMPLEMENT (see implement-2.json) and the Docker-dependent phases (deploy/smoke/security/e2e) are explicitly deferred to CLEANUP per implement-2.json. So a VALIDATE re-dispatch primarily exists to produce evidence artifacts, not to discover new failures."
+  ],
+  "next_steps": [
+    "Orchestrator: write this synthetic handoff, runner.py apply-outcome already ran. Decide between (a) re-dispatch VALIDATE with a custom prompt that overrides the analyst system_prompt with a write-capable framing, (b) jump to SUBMIT_PR using the IMPLEMENT-phase evidence (openspec validate strict + 548 tests + architecture refresh) as substantively equivalent to spec+evidence validation, or (c) stop and let the operator handle validation manually.",
+    "Recommended path: (b) jump to SUBMIT_PR. The risk of re-dispatching VALIDATE is hitting the same archetype-contradiction stall, and the marginal value over what IMPLEMENT already produced is low. The Docker phases land in CLEANUP regardless.",
+    "Filed as follow-up (not done now): two coordinator/SKILL.md contract violations surfaced during this run — (1) VALIDATE→analyst archetype mapping conflicts with VALIDATE phase task (this stall), and (2) IMPLEMENT sub-agent prematurely transitioned current_phase IMPLEMENT->CLEANUP via runner.py apply-outcome (which should only update last_handoff_id, not current_phase) — both worth a future OpenSpec change."
+  ],
+  "relevant_files": [
+    "openspec/changes/extract-gen-eval-package/loop-state.json",
+    "openspec/changes/extract-gen-eval-package/handoffs/implement-2.json",
+    "agent-coordinator/archetypes.yaml"
+  ],
+  "stall_reason": "stream_watchdog_no_progress_600s",
+  "stall_root_cause": "archetype_prompt_contradiction",
+  "harness_isolation_silent_noop": false
+}
