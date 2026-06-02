@@ -10,7 +10,7 @@
     "Package count (6) exceeds soft threshold (4)",
     "Database migration signal detected; require --force"
   ],
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "force_used": true,
   "handoff_ids": [
     "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json",
@@ -22,7 +22,7 @@
   ],
   "last_handoff_id": "openspec/changes/extract-gen-eval-package/handoffs/validate-1.json",
   "package_authors": {},
-  "phase_archetype": "analyst",
+  "phase_archetype": "runner",
   "phase_history": [
     {
       "at": "2026-05-24T16:05:54.018315+00:00",
@@ -61,11 +61,17 @@
       "note": "operator chose option 2: sub-agent prematurely transitioned IMPLEMENT->CLEANUP; correcting to VALIDATE per SKILL.md sequence",
       "outcome": "correct",
       "phase": "CLEANUP"
+    },
+    {
+      "at": "2026-06-02T02:18:18.631897+00:00",
+      "note": "operator chose option A: skip VAL_FIX, jump to SUBMIT_PR; IMPLEMENT-phase evidence (openspec validate strict + 548 tests) substantively covers spec+evidence; Docker phases land in /cleanup-feature",
+      "outcome": "skip_to_submit",
+      "phase": "VALIDATE"
     }
   ],
   "phase_iterations": {},
   "phase_started_at": "2026-05-30T15:18:59.979082+00:00",
-  "previous_phase": "IMPLEMENT",
+  "previous_phase": "VALIDATE",
   "schema_version": 3,
   "started_at": "2026-05-24T16:05:54.018315+00:00",
   "total_iterations": 0,
