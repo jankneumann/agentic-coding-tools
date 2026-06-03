@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-06-03T14:45:45.476749+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned ambient continuous review + self-verifying finding ledger, adapting roborev concepts onto our coordinator+skills stack as a continuous sensor that feeds (not replaces) the existing gate-time consensus. Approach A (hook-driven, local-first ledger) approved at Gate 1. 8-package coordinated-tier DAG; all validations pass.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "One phased change, not a roadmap",
+        "rationale": "User chose single change-id with phases 0-5 for items 1-5.",
+        "capability": "ambient-review-ledger",
+        "supersedes": null
+      },
+      {
+        "title": "Phase 0 extracts refine-core first",
+        "rationale": "De-conflicts with in-progress harness-engineering-features Feature 1, which also edits convergence_loop.py; converts merge-conflict risk into a shared dependency.",
+        "capability": "refine-loop",
+        "supersedes": null
+      },
+      {
+        "title": "Ambient review on-by-default with kill-switch",
+        "rationale": "User chose on-by-default; single-vendor read-only fast tier bounds cost; REVIEW_AMBIENT=0 disables.",
+        "capability": "ambient-review",
+        "supersedes": null
+      },
+      {
+        "title": "Local-first ledger, best-effort coordinator sync",
+        "rationale": "Works offline; coordinator sync idempotent on stable content-derived id.",
+        "capability": "review-ledger",
+        "supersedes": null
+      },
+      {
+        "title": "compact reuses consensus_synthesizer matching",
+        "rationale": "Avoid a third dedup implementation per CLAUDE.md shared-logic rule.",
+        "capability": "review-ledger",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/implement-feature ambient-review-ledger starting with wp-contracts and wp-refine-core (parallel roots)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/ambient-review-ledger/proposal.md",
+        "description": "approved proposal (Approach A selected at Gate 1)"
+      },
+      {
+        "path": "openspec/changes/ambient-review-ledger/design.md",
+        "description": "design decisions D1-D6"
+      },
+      {
+        "path": "openspec/changes/ambient-review-ledger/work-packages.yaml",
+        "description": "8-package coordinated DAG (validated)"
+      }
+    ]
+  }
+}
