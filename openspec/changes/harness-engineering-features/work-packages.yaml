@@ -2,7 +2,7 @@ schema_version: 1
 
 feature:
   id: harness-engineering-features
-  title: "Harness Engineering Features — Context, Review Loops, Architecture Linters"
+  title: "Harness Engineering Features — 9 Features: Context, Review Loops, Linters, Capability Gaps, Evaluator, Scope, Metrics, Transcripts, Multi-Source Pipeline"
   plan_revision: 2
   created_by: claude-code
 
