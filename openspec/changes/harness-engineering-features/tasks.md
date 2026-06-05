@@ -71,7 +71,7 @@
   **Design decisions**: D1 (extend convergence_loop.py)
   **Dependencies**: None
 
-- [ ] 3.2 Add human escalation pathway and configurable convergence thresholds — extend `converge()` to accept `escalation_callback` for structured human escalation when `reason` is "max_rounds" or "disagreement"; make `BLOCKING_CRITICALITIES` and stall detection window configurable via parameters rather than hardcoded; wire `fix_callback` into an author-agent autonomous response pattern
+- [x] 3.2 Add human escalation pathway and configurable convergence thresholds — extend `converge()` to accept `escalation_callback` for structured human escalation when `reason` is "max_rounds" or "disagreement"; make `BLOCKING_CRITICALITIES` and stall detection window configurable via parameters rather than hardcoded; wire `fix_callback` into an author-agent autonomous response pattern
   **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
   **Dependencies**: 3.1
 

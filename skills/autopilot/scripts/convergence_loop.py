@@ -61,8 +61,11 @@ from checkpoint_findings import (  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-# Criticality levels that count as blocking
+# Default criticality levels that count as blocking
 _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
+
+# Default stall detection window (number of data points to compare)
+_DEFAULT_STALL_WINDOW = 3
 
 
 # ---------------------------------------------------------------------------
@@ -168,16 +171,27 @@ def _is_blocking(
     cf: dict[str, Any],
     *,
     relax_unconfirmed: bool = False,
+    blocking_criticalities: set[str] | None = None,
 ) -> bool:
     """Determine if a consensus finding is blocking.
 
     Blocking = medium+ criticality AND (confirmed or unconfirmed).
     In the final round, unconfirmed findings are relaxed (not blocking).
+
+    Args:
+        cf: Consensus finding dict.
+        relax_unconfirmed: If True, unconfirmed findings are not blocking.
+        blocking_criticalities: Custom set of criticalities that count as
+            blocking. Defaults to ``_BLOCKING_CRITICALITIES``.
     """
+    effective_criticalities = (
+        blocking_criticalities if blocking_criticalities is not None
+        else _BLOCKING_CRITICALITIES
+    )
     criticality = cf.get("agreed_criticality", "low")
     status = cf.get("status", "unconfirmed")
 
-    if criticality not in _BLOCKING_CRITICALITIES:
+    if criticality not in effective_criticalities:
         return False
 
     if status == "confirmed":
@@ -187,6 +201,56 @@ def _is_blocking(
         return True
 
     return False
+
+
+def _compute_vendor_agreement_rate(
+    consensus_dict: dict[str, Any] | None,
+) -> float:
+    """Compute vendor agreement rate from consensus findings.
+
+    Returns a float 0.0-1.0 representing the fraction of multi-vendor
+    consensus findings where vendors agreed on disposition (confirmed).
+    Single-vendor (unconfirmed) findings are excluded from the calculation.
+    Returns 1.0 if there are no multi-vendor findings.
+    """
+    if not consensus_dict:
+        return 1.0
+    findings = consensus_dict.get("consensus_findings", [])
+    multi_vendor = [
+        f for f in findings if f.get("status") in ("confirmed", "disagreement")
+    ]
+    if not multi_vendor:
+        return 1.0
+    agreed = sum(1 for f in multi_vendor if f.get("status") == "confirmed")
+    return agreed / len(multi_vendor)
+
+
+def _build_escalation_summary(
+    reason: str,
+    rounds_completed: int,
+    unresolved_findings: list[dict[str, Any]],
+    trend: list[int],
+    consensus_dict: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Build a structured escalation summary for human review.
+
+    Args:
+        reason: Why the loop stopped (max_rounds, disagreement, stalled).
+        rounds_completed: Number of review rounds completed.
+        unresolved_findings: Findings that remain unresolved.
+        trend: Per-round blocking finding counts.
+        consensus_dict: Latest consensus report dict.
+
+    Returns:
+        Structured dict suitable for the escalation_callback.
+    """
+    return {
+        "reason": reason,
+        "rounds_completed": rounds_completed,
+        "unresolved_findings": unresolved_findings,
+        "iteration_history": list(trend),
+        "vendor_agreement_rate": _compute_vendor_agreement_rate(consensus_dict),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +270,9 @@ def converge(
     memory_callback: Callable[[str], None] | None = None,
     orchestrator: ReviewOrchestrator | None = None,
     post_fix_validator: Callable[[Path], list[str]] | None = None,
+    escalation_callback: Callable[[dict[str, Any]], None] | None = None,
+    blocking_criticalities: set[str] | None = None,
+    stall_window: int = _DEFAULT_STALL_WINDOW,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -225,6 +292,15 @@ def converge(
             Returns a list of error strings (e.g. test failures, type errors).
             Errors are logged and attached to the result but do not alter
             convergence logic — the next review round will surface them.
+        escalation_callback: Called with a structured escalation summary when
+            the loop exits without converging (reason is "max_rounds",
+            "disagreement", or "stalled"). The summary includes unresolved
+            findings, iteration history, and vendor agreement rate.
+        blocking_criticalities: Set of criticality levels that count as
+            blocking. Defaults to ``{"medium", "high", "critical"}``.
+        stall_window: Number of data points for stall detection.
+            Stall is detected when ``trend[-1] >= trend[-stall_window]``.
+            Defaults to 3.
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -375,7 +451,7 @@ def converge(
                     f"Round {round_num}: disagreement on "
                     f"{len(disagreement_findings)} findings — escalating"
                 )
-            return ConvergenceResult(
+            disagreement_result = ConvergenceResult(
                 converged=False,
                 rounds=round_num,
                 reason="disagreement",
@@ -384,6 +460,15 @@ def converge(
                 validation_errors=all_validation_errors or None,
                 checkpoint_dir=latest_checkpoint_dir,
             )
+            if escalation_callback is not None:
+                escalation_callback(_build_escalation_summary(
+                    reason="disagreement",
+                    rounds_completed=round_num,
+                    unresolved_findings=disagreement_findings,
+                    trend=trend,
+                    consensus_dict=consensus_dict,
+                ))
+            return disagreement_result
 
         # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
         is_final_round = round_num == max_rounds
@@ -391,7 +476,11 @@ def converge(
         # 2h. Relax unconfirmed in final round
         blocking = [
             cf for cf in consensus_dict.get("consensus_findings", [])
-            if _is_blocking(cf, relax_unconfirmed=is_final_round)
+            if _is_blocking(
+                cf,
+                relax_unconfirmed=is_final_round,
+                blocking_criticalities=blocking_criticalities,
+            )
         ]
 
         # Track trend
@@ -418,12 +507,13 @@ def converge(
                 checkpoint_dir=latest_checkpoint_dir,
             )
 
-        # 2j. 3-point stall detection
-        if len(trend) >= 3 and trend[-1] >= trend[-3]:
+        # 2j. N-point stall detection (configurable window, default 3)
+        if len(trend) >= stall_window and trend[-1] >= trend[-stall_window]:
             logger.warning(
-                "Stall detected: trend %s", trend[-3:],
+                "Stall detected: trend %s (window=%d)",
+                trend[-stall_window:], stall_window,
             )
-            return ConvergenceResult(
+            stall_result = ConvergenceResult(
                 converged=False,
                 rounds=round_num,
                 reason="stalled",
@@ -432,6 +522,15 @@ def converge(
                 validation_errors=all_validation_errors or None,
                 checkpoint_dir=latest_checkpoint_dir,
             )
+            if escalation_callback is not None:
+                escalation_callback(_build_escalation_summary(
+                    reason="stalled",
+                    rounds_completed=round_num,
+                    unresolved_findings=blocking,
+                    trend=trend,
+                    consensus_dict=consensus_dict,
+                ))
+            return stall_result
 
         # 2k. Dispatch fixes
         if fix_callback is not None:
@@ -455,7 +554,7 @@ def converge(
                     all_validation_errors.extend(errors)
 
     # 3. Max rounds exhausted
-    return ConvergenceResult(
+    max_rounds_result = ConvergenceResult(
         converged=False,
         rounds=max_rounds,
         reason="max_rounds",
@@ -464,3 +563,12 @@ def converge(
         validation_errors=all_validation_errors or None,
         checkpoint_dir=latest_checkpoint_dir,
     )
+    if escalation_callback is not None:
+        escalation_callback(_build_escalation_summary(
+            reason="max_rounds",
+            rounds_completed=max_rounds,
+            unresolved_findings=blocking or [],
+            trend=trend,
+            consensus_dict=consensus_dict,
+        ))
+    return max_rounds_result
