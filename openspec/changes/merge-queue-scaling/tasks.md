@@ -104,17 +104,17 @@
 
 ## Phase 5: Merge Throughput Metrics (wp-metrics)
 
-- [ ] 5.1 Write tests for metrics aggregation — compute queue depth, median wait time, merge/revert rates from JSONL events
+- [x] 5.1 Write tests for metrics aggregation — compute queue depth, median wait time, merge/revert rates from JSONL events
   **Spec scenarios**: merge-infrastructure.5 (metrics aggregation)
   **Design decisions**: D6 (metrics schema and storage)
   **Dependencies**: 1.4
   **Size**: S
 
-- [ ] 5.2 Implement metrics_summary() — read JSONL events for current session, compute aggregated metrics, format as markdown table for merge log
+- [x] 5.2 Implement metrics_summary() — read JSONL events for current session, compute aggregated metrics, format as markdown table for merge log
   **Dependencies**: 5.1
   **Size**: S
 
-- [ ] 5.3 Wire metrics summary into SKILL.md Step 12 (Summary) — append metrics table after the PR triage summary
+- [x] 5.3 Wire metrics summary into SKILL.md Step 12 (Summary) — append metrics table after the PR triage summary
   **Dependencies**: 5.2
   **Size**: XS
 
