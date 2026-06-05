@@ -136,6 +136,17 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
             "Dependency graph contains a cycle — depends_on edges must form a DAG."
         )
 
+    # 5. Every item must declare at least one acceptance_outcome. The
+    #    generation prompt asks for 1–5 measurable outcomes; if the generator
+    #    omits the field or emits an empty list the roadmap is incomplete and
+    #    autopilot has no acceptance signal to gate on.
+    for item in roadmap.items:
+        if not item.acceptance_outcomes:
+            errors.append(
+                f"Item {item.item_id!r} has no acceptance_outcomes — "
+                "every item must list at least one measurable, observable outcome."
+            )
+
     return errors
 
 

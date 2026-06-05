@@ -147,6 +147,23 @@ class TestValidateRoadmap:
         errors = validate_roadmap(data, _REPO_ROOT)
         assert any("cycle" in e.lower() for e in errors)
 
+    def test_empty_acceptance_outcomes_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0]["acceptance_outcomes"] = []
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any(
+            "acceptance_outcomes" in e and "ri-01" in e for e in errors
+        ), f"expected ri-01 acceptance_outcomes error, got: {errors}"
+
+    def test_missing_acceptance_outcomes_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0].pop("acceptance_outcomes", None)
+        errors = validate_roadmap(data, _REPO_ROOT)
+        # Schema requires acceptance_outcomes — surfaces as either a schema
+        # error OR our semantic check on default-empty. Either is acceptable.
+        assert errors
+        assert any("acceptance_outcomes" in e for e in errors)
+
     def test_dangling_dep_suppresses_cycle_noise(self):
         # A dangling reference should report the reference error, not a
         # confusing cycle error layered on top.
