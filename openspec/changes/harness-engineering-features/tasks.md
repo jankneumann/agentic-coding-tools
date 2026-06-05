@@ -75,7 +75,7 @@
   **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
   **Dependencies**: 3.1
 
-- [ ] 3.3 Write tests for convergence metrics recording — verify episodic memory entries with iteration count, vendor agreement rate, convergence status
+- [x] 3.3 Write tests for convergence metrics recording — verify episodic memory entries with iteration count, vendor agreement rate, convergence status
   **Spec scenarios**: harness-engineering.1 (records convergence metrics)
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: 1.4, 3.2
