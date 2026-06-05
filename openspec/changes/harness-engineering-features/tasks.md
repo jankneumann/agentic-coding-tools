@@ -91,7 +91,7 @@
   **Design decisions**: D3 (architecture linters as Python scripts)
   **Dependencies**: None
 
-- [ ] 4.2 Implement structural linters — dependency direction validator, file-size checker, naming convention enforcer under `skills/validate-feature/scripts/linters/`
+- [x] 4.2 Implement structural linters — dependency direction validator, file-size checker, naming convention enforcer under `skills/validate-feature/scripts/linters/`
   **Files**: `skills/validate-feature/scripts/linters/dependency_direction.py`, `skills/validate-feature/scripts/linters/file_size.py`, `skills/validate-feature/scripts/linters/naming_conventions.py`, `skills/validate-feature/scripts/linters/__init__.py`
   **Dependencies**: 4.1
 
