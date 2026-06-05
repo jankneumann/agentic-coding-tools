@@ -2,6 +2,22 @@
 
 Provides episodic and procedural memory for cross-session learning.
 Memories are stored with relevance scoring and time-decay.
+
+Tag Conventions
+---------------
+Tags are arbitrary strings, but capability-gap signals use a shared
+prefix schema so multiple emitters and consumers interoperate:
+
+    failure_type:<type>       — scope_violation | verification_failed |
+                                lock_unavailable | timeout |
+                                convergence_failed | context_exhaustion
+    capability_gap:<text>     — free-text description of what was missing
+    affected_skill:<name>     — skill name (kebab-case)
+    severity:<level>          — low | medium | high | critical
+    source:<emitter>          — self-reported | coordinator-emitted |
+                                session-log | transcript-mined
+
+See docs/guides/memory-conventions.md for the full schema reference.
 """
 
 import logging

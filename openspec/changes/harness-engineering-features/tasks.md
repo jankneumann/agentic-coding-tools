@@ -19,7 +19,7 @@
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: None
 
-- [ ] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, affected_skill, severity, AND source tag prefixes to memory service documentation and validation. Document the source vocabulary: `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`.
+- [x] 1.4 Extend episodic memory tag conventions — add failure_type, capability_gap, affected_skill, severity, AND source tag prefixes to memory service documentation and validation. Document the source vocabulary: `self-reported` | `coordinator-emitted` | `session-log` | `transcript-mined`.
   **Files**: `agent-coordinator/src/memory.py`, `docs/guides/memory-conventions.md`
   **Dependencies**: 1.3
 
