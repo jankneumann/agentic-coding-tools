@@ -11,6 +11,8 @@ permit(principal, action == Action::"complete_work", resource) when { principal.
 permit(principal, action == Action::"submit_work", resource) when { principal.trust_level >= 2 };
 permit(principal, action == Action::"remember", resource) when { principal.trust_level >= 2 };
 permit(principal, action == Action::"write_handoff", resource) when { principal.trust_level >= 2 };
+permit(principal, action == Action::"register_feature", resource) when { principal.trust_level >= 2 };
+permit(principal, action == Action::"deregister_feature", resource) when { principal.trust_level >= 2 };
 permit(principal, action == Action::"check_guardrails", resource) when { principal.trust_level >= 2 };
 ',
     'Allow trusted agents (level 2+) to perform write operations',

@@ -59,7 +59,7 @@ def test_state_save_load_roundtrip(tmp_path: Path) -> None:
 def test_initial_state_defaults() -> None:
     """A fresh LoopState has the expected default values."""
     state = LoopState()
-    assert state.schema_version == 1
+    assert state.schema_version == 4  # bumped 3->4 by the GATEKEEPER judge gate
     assert state.change_id == ""
     assert state.current_phase == "INIT"
     assert state.iteration == 0
@@ -86,9 +86,51 @@ def test_initial_state_defaults() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_transition_init_to_plan() -> None:
+def test_transition_init_to_gatekeeper() -> None:
+    """INIT -> GATEKEEPER by default (judge evaluates verifiability/risk)."""
     state = LoopState(current_phase="INIT")
+    assert transition(state, "next") == "GATEKEEPER"
+
+
+def test_transition_init_to_plan_with_force() -> None:
+    """--force skips the judge: INIT -> PLAN directly."""
+    state = LoopState(current_phase="INIT", force=True)
     assert transition(state, "next") == "PLAN"
+
+
+def test_transition_gatekeeper_proceed() -> None:
+    state = LoopState(current_phase="GATEKEEPER")
+    assert transition(state, "proceed") == "PLAN"
+    assert transition(state, "proceed_with_review") == "PLAN"
+
+
+def test_transition_gatekeeper_escalate() -> None:
+    state = LoopState(current_phase="GATEKEEPER")
+    assert transition(state, "escalate") == "ESCALATE"
+
+
+def test_transition_plan_to_plan_iterate() -> None:
+    """PLAN -> PLAN_ITERATE (always, regardless of cli_review_enabled)."""
+    state = LoopState(current_phase="PLAN")
+    assert transition(state, "exists") == "PLAN_ITERATE"
+    assert transition(state, "created") == "PLAN_ITERATE"
+
+
+def test_transition_plan_iterate_to_plan_review_cli() -> None:
+    """PLAN_ITERATE -> PLAN_REVIEW when cli_review_enabled=True."""
+    state = LoopState(current_phase="PLAN_ITERATE", cli_review_enabled=True)
+    assert transition(state, "complete") == "PLAN_REVIEW"
+
+
+def test_transition_plan_iterate_to_implement_no_cli() -> None:
+    """PLAN_ITERATE -> IMPLEMENT when cli_review_enabled=False."""
+    state = LoopState(current_phase="PLAN_ITERATE", cli_review_enabled=False)
+    assert transition(state, "complete") == "IMPLEMENT"
+
+
+def test_transition_plan_iterate_failed() -> None:
+    state = LoopState(current_phase="PLAN_ITERATE")
+    assert transition(state, "failed") == "ESCALATE"
 
 
 def test_transition_plan_review_converged() -> None:
@@ -104,6 +146,29 @@ def test_transition_plan_review_not_converged() -> None:
 def test_transition_plan_review_max_iter() -> None:
     state = LoopState(current_phase="PLAN_REVIEW")
     assert transition(state, "max_iter") == "ESCALATE"
+
+
+def test_transition_implement_to_impl_iterate() -> None:
+    """IMPLEMENT -> IMPL_ITERATE (always)."""
+    state = LoopState(current_phase="IMPLEMENT")
+    assert transition(state, "complete") == "IMPL_ITERATE"
+
+
+def test_transition_impl_iterate_to_impl_review_cli() -> None:
+    """IMPL_ITERATE -> IMPL_REVIEW when cli_review_enabled=True."""
+    state = LoopState(current_phase="IMPL_ITERATE", cli_review_enabled=True)
+    assert transition(state, "complete") == "IMPL_REVIEW"
+
+
+def test_transition_impl_iterate_to_validate_no_cli() -> None:
+    """IMPL_ITERATE -> VALIDATE when cli_review_enabled=False."""
+    state = LoopState(current_phase="IMPL_ITERATE", cli_review_enabled=False)
+    assert transition(state, "complete") == "VALIDATE"
+
+
+def test_transition_impl_iterate_failed() -> None:
+    state = LoopState(current_phase="IMPL_ITERATE")
+    assert transition(state, "failed") == "ESCALATE"
 
 
 def test_transition_validate_to_submit_pr() -> None:
@@ -226,8 +291,41 @@ def test_full_happy_path(tmp_path: Path) -> None:
 
     assert result.current_phase == "DONE"
     assert result.error is None
-    # Phases traversed: INIT->PLAN->PLAN_REVIEW->IMPLEMENT->IMPL_REVIEW->VALIDATE->SUBMIT_PR->DONE
+    # Phases: INIT->PLAN->PLAN_ITERATE->PLAN_REVIEW->IMPLEMENT->IMPL_ITERATE->IMPL_REVIEW->VALIDATE->SUBMIT_PR->DONE
+    assert result.total_iterations >= 9
+
+
+def test_full_happy_path_no_cli_review(tmp_path: Path) -> None:
+    """With cli_review_enabled=False, review phases are skipped."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
+
+    # Convergence should NOT be called when cli_review_enabled=False
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "no-review-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+        cli_review_enabled=False,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.error is None
+    assert result.cli_review_enabled is False
+    # Phases: INIT->PLAN->PLAN_ITERATE->IMPLEMENT->IMPL_ITERATE->VALIDATE->SUBMIT_PR->DONE
     assert result.total_iterations >= 7
+    # Convergence should not have been called (no review phases)
+    converge_mock.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +340,8 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
     wt = tmp_path / "wt"
     wt.mkdir()
 
-    # First call: not converged; second call: converged
+    # First call: not converged; second call: converged (PLAN_REVIEW)
+    # Third call: converged (IMPL_REVIEW)
     converge_results = iter([
         {"converged": False, "findings_count": 3, "blocking_findings": [{"id": "F1"}]},
         {"converged": True, "findings_count": 0, "blocking_findings": []},
@@ -262,7 +361,7 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
     )
 
     assert result.current_phase == "DONE"
-    # Should have gone through PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW -> IMPLEMENT ...
+    # Should have gone through PLAN_ITERATE -> PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW -> IMPLEMENT ...
     assert 3 in result.findings_trend or len(result.findings_trend) >= 1
 
 
@@ -290,6 +389,222 @@ def test_complexity_gate_blocks(tmp_path: Path) -> None:
 
     assert result.current_phase == "ESCALATE"
     assert "force_required" in (result.escalation_reason or "")
+
+
+# ---------------------------------------------------------------------------
+# GATEKEEPER judge gate
+# ---------------------------------------------------------------------------
+
+
+def test_gatekeeper_escalate_stops_loop(tmp_path: Path) -> None:
+    """A judge verdict of 'escalate' halts the loop at ESCALATE."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="escalate")
+
+    result = run_loop(
+        "gate-esc-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+    )
+
+    assert result.current_phase == "ESCALATE"
+    assert result.gate_verdict == "escalate"
+    # Escalation context must be preserved so the resolve-and-resume path works.
+    assert result.previous_phase == "GATEKEEPER"
+    assert result.escalation_reason is not None
+    gatekeeper_mock.assert_called_once()
+
+
+def test_force_bypasses_scope_safety_floor_in_init(tmp_path: Path) -> None:
+    """--force overrides the deterministic scope-safety floor at INIT."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    # Gate reports a broad-write-scope block, but --force should override it.
+    assess_mock = MagicMock(return_value={
+        "force_required": True,
+        "signals": {"has_broad_write_scope": True},
+        "warnings": ["Broad write scope detected; require --force"],
+    })
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "force-floor-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+        force=True,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.error is None
+    # assess_complexity must receive force=True so its own decision stays consistent.
+    assert assess_mock.call_args.kwargs.get("force") is True
+
+
+def test_gatekeeper_proceed_with_review_enables_val_review(tmp_path: Path) -> None:
+    """'proceed_with_review' flips val_review_enabled and continues to DONE."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="proceed_with_review")
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-rev-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+        converge_fn=converge_mock,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.gate_verdict == "proceed_with_review"
+    assert result.val_review_enabled is True
+
+
+def test_gatekeeper_permissive_fallback_without_judge(tmp_path: Path) -> None:
+    """No gatekeeper_fn -> permissive verdict derived from signals."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    # Risk signal present -> fallback should enable validation review.
+    assess_mock = MagicMock(return_value={
+        "force_required": False,
+        "signals": {"has_security_signal": True},
+    })
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-fb-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.gate_verdict == "proceed_with_review"
+    assert result.val_review_enabled is True
+
+
+def test_force_skips_gatekeeper(tmp_path: Path) -> None:
+    """--force bypasses the judge entirely (it is never called)."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="escalate")
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-force-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+        converge_fn=converge_mock,
+        force=True,
+    )
+
+    assert result.current_phase == "DONE"
+    gatekeeper_mock.assert_not_called()
+
+
+def test_iterate_callbacks_called(tmp_path: Path) -> None:
+    """iterate_plan_fn and iterate_impl_fn are called in the loop."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+    iterate_plan_mock = MagicMock(return_value="complete")
+    iterate_impl_mock = MagicMock(return_value="complete")
+
+    result = run_loop(
+        "iterate-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+        iterate_plan_fn=iterate_plan_mock,
+        iterate_impl_fn=iterate_impl_mock,
+    )
+
+    assert result.current_phase == "DONE"
+    iterate_plan_mock.assert_called_once()
+    iterate_impl_mock.assert_called_once()
+
+
+def test_iterate_plan_failure_escalates(tmp_path: Path) -> None:
+    """iterate_plan_fn returning 'failed' leads to ESCALATE."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
+    iterate_plan_mock = MagicMock(return_value="failed")
+
+    result = run_loop(
+        "iterate-fail-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        iterate_plan_fn=iterate_plan_mock,
+    )
+
+    assert result.current_phase == "ESCALATE"
+
+
+def test_cli_review_enabled_persisted(tmp_path: Path) -> None:
+    """cli_review_enabled is saved/loaded in state."""
+    state = LoopState(
+        change_id="cli-1",
+        current_phase="PLAN_ITERATE",
+        cli_review_enabled=False,
+    )
+    path = tmp_path / "state.json"
+    save_state(state, path)
+    loaded = load_state(path)
+    assert loaded.cli_review_enabled is False
 
 
 def test_complexity_gate_enables_val_review(tmp_path: Path) -> None:

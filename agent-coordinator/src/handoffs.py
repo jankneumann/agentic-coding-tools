@@ -26,11 +26,11 @@ class HandoffDocument:
     agent_name: str
     session_id: str | None
     summary: str
-    completed_work: list[str] = field(default_factory=list)
-    in_progress: list[str] = field(default_factory=list)
-    decisions: list[str] = field(default_factory=list)
-    next_steps: list[str] = field(default_factory=list)
-    relevant_files: list[str] = field(default_factory=list)
+    completed_work: list[Any] = field(default_factory=list)
+    in_progress: list[Any] = field(default_factory=list)
+    decisions: list[Any] = field(default_factory=list)
+    next_steps: list[Any] = field(default_factory=list)
+    relevant_files: list[Any] = field(default_factory=list)
     created_at: datetime | None = None
 
     @classmethod
@@ -106,12 +106,13 @@ class HandoffService:
         self,
         summary: str,
         agent_name: str | None = None,
+        agent_type: str | None = None,
         session_id: str | None = None,
-        completed_work: list[str] | None = None,
-        in_progress: list[str] | None = None,
-        decisions: list[str] | None = None,
-        next_steps: list[str] | None = None,
-        relevant_files: list[str] | None = None,
+        completed_work: list[Any] | None = None,
+        in_progress: list[Any] | None = None,
+        decisions: list[Any] | None = None,
+        next_steps: list[Any] | None = None,
+        relevant_files: list[Any] | None = None,
     ) -> WriteHandoffResult:
         """Write a handoff document for session continuity.
 
@@ -130,12 +131,13 @@ class HandoffService:
         """
         config = get_config()
         resolved_agent_name = agent_name or config.agent.agent_id
+        resolved_agent_type = agent_type or config.agent.agent_type
 
         from .policy_engine import get_policy_engine
 
         decision = await get_policy_engine().check_operation(
             agent_id=resolved_agent_name,
-            agent_type=config.agent.agent_type,
+            agent_type=resolved_agent_type,
             operation="write_handoff",
             context={"summary_length": len(summary)},
         )

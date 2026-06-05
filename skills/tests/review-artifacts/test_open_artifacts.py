@@ -384,3 +384,95 @@ def test_main_missing_change_id_returns_1(
         ["--change-id", "nonexistent-change", "--dry-run"]
     )
     assert rc == 1
+
+
+# ---------------------------------------------------------------------------
+# _resolve_worktree — sibling-worktree lookup must use the main checkout
+# ---------------------------------------------------------------------------
+
+
+def _add_real_worktree(main_checkout: Path, change_id: str) -> Path:
+    """Use `git worktree add` to create a real linked worktree.
+
+    Returns the worktree's path under `<main>/.git-worktrees/<change_id>/`.
+    Requires the main repo to have at least one commit on the default branch.
+    """
+    wt_path = main_checkout / ".git-worktrees" / change_id
+    branch_name = f"test-branch-{change_id}"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", branch_name, str(wt_path)],
+        cwd=main_checkout,
+        check=True,
+    )
+    return wt_path
+
+
+@pytest.fixture
+def fake_repo_with_commit(fake_repo: Path) -> Path:
+    """fake_repo + at least one commit, so `git worktree add` can succeed."""
+    subprocess.run(["git", "add", "-A"], cwd=fake_repo, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "init"], cwd=fake_repo, check=True
+    )
+    return fake_repo
+
+
+def test_resolve_worktree_finds_sibling_when_called_from_inside_worktree(
+    fake_repo_with_commit: Path,
+) -> None:
+    """Regression: from inside a worktree, _resolve_worktree must look up
+    siblings via the MAIN checkout's `.git-worktrees/`, not via the
+    worktree-local `git rev-parse --show-toplevel`.
+
+    Reproduces the bug observed when invoking review-artifacts from inside
+    `.git-worktrees/extract-gen-eval-package/` for `--worktree fix-autopilot-...`:
+    pre-fix, the resolver looked under
+    `<worktree>/.git-worktrees/<change-id>/` which doesn't exist.
+    """
+    main_checkout = fake_repo_with_commit
+    inside_worktree = _add_real_worktree(main_checkout, "inside-wt")
+    target_worktree = _add_real_worktree(main_checkout, "target-wt")
+
+    resolved = open_artifacts._resolve_worktree("target-wt", inside_worktree)
+
+    assert resolved is not None, (
+        "From inside a worktree, sibling lookup must succeed. "
+        "Pre-fix this returned None because the lookup used the worktree's "
+        "own toplevel, not the main checkout."
+    )
+    assert resolved.resolve() == target_worktree.resolve()
+
+
+def test_resolve_worktree_finds_target_when_called_from_main_checkout(
+    fake_repo_with_commit: Path,
+) -> None:
+    """Sanity: from the main checkout, the resolver still works."""
+    target_worktree = _add_real_worktree(fake_repo_with_commit, "from-main-wt")
+
+    resolved = open_artifacts._resolve_worktree(
+        "from-main-wt", fake_repo_with_commit
+    )
+
+    assert resolved is not None
+    assert resolved.resolve() == target_worktree.resolve()
+
+
+def test_git_main_checkout_returns_main_from_main(fake_repo: Path) -> None:
+    """From the main checkout itself, _git_main_checkout returns its own toplevel."""
+    result = open_artifacts._git_main_checkout(fake_repo)
+    assert result is not None
+    assert result.resolve() == fake_repo.resolve()
+
+
+def test_git_main_checkout_returns_main_from_inside_worktree(
+    fake_repo_with_commit: Path,
+) -> None:
+    """From inside a worktree, _git_main_checkout returns the MAIN checkout,
+    not the worktree's own path. This is the load-bearing property that
+    makes sibling-worktree lookup work."""
+    inside_worktree = _add_real_worktree(fake_repo_with_commit, "test-wt")
+
+    result = open_artifacts._git_main_checkout(inside_worktree)
+
+    assert result is not None
+    assert result.resolve() == fake_repo_with_commit.resolve()

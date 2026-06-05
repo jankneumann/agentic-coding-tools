@@ -1,0 +1,62 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: Mandatory centralization of transition logic (Task 5.1). Centralizing the next-phase decision logic (D10) should be a mandatory architectural improvement for maintainability and auditability, rather than being contingent on whether the audit identifies Layer D as the specific cause of the recent failure.",
+      "resolution": "Update Task 5.1 to always extract and centralize the next-phase logic into a single auditable structure (table/dict) regardless of the audit's findings on the current implementation's correctness.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/tasks.md"
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Optional: Handle 'double-failure' scenarios in orchestrator (D9). If `apply-outcome` fails due to a system-level issue like a full disk or read-only filesystem, the orchestrator's attempt to transition to `ESCALATE` (which also requires a write to loop-state.json) will also fail.",
+      "resolution": "The orchestrator should be documented (or implemented) to emit a critical 'panic' message to stderr and preserve the handoff file if it cannot even write the state transition to ESCALATE.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "optional",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Mechanically detect unauthorized edits to loop-state.json (Layer C). While prompt-based prohibitions (D1) are a good first step, they rely on sub-agent compliance. A more resilient approach would be to verify the file hasn't changed unexpectedly.",
+      "resolution": "Consider adding a simple hash or mtime check on loop-state.json in the orchestrator. If the file is modified during sub-agent execution without an authorized `apply-outcome` call (or if the sub-agent bypassed the tool and edited directly), the orchestrator should detect the out-of-band change and transition to ESCALATE.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "High-quality shift to structured capability fields (D3). The decision to move away from brittle substring matching on system prompts in favor of a structured `write_capable` field significantly improves the system's technical integrity and prevents future role-confusion regressions.",
+      "resolution": "no action required",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Comprehensive 4-layer defense in depth (D1). The proposal correctly identifies that sub-agent shell behavior is not fully observable or enforceable via a single layer, and by addressing all four candidate pathways (A through D), it provides a robust fix for the observed transition bug.",
+      "resolution": "no action required",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/proposal.md"
+    }
+  ]
+}

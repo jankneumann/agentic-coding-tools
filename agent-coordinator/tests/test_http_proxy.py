@@ -547,6 +547,47 @@ async def test_proxy_register_session_omits_implicit_identity_for_bound_key(
 
 
 @pytest.mark.asyncio
+async def test_proxy_write_handoff_omits_implicit_identity_for_bound_key(
+    _reset_client: None,
+) -> None:
+    config = HttpProxyConfig(
+        base_url="http://localhost:8081",
+        api_key="test-key",
+        agent_id="claude-code-1",
+        agent_type="claude_code",
+        agent_id_explicit=False,
+        agent_type_explicit=False,
+    )
+    http_proxy.init_client(config)
+
+    captured: dict[str, Any] = {}
+
+    class _MockResponse:
+        status_code = 200
+        text = '{"success": true}'
+
+        def json(self) -> dict[str, Any]:
+            return {"success": True}
+
+    async def _capture(method: str, url: str, **kw: Any) -> _MockResponse:
+        captured["method"] = method
+        captured["url"] = url
+        captured["json"] = kw.get("json")
+        return _MockResponse()
+
+    http_proxy.get_client().request = _capture  # type: ignore[method-assign]
+
+    result = await http_proxy.proxy_write_handoff(summary="done")
+
+    assert result["success"] is True
+    assert captured["method"] == "POST"
+    assert captured["url"] == "/handoffs/write"
+    assert "agent_id" not in captured["json"]
+    assert "agent_type" not in captured["json"]
+    assert captured["json"]["summary"] == "done"
+
+
+@pytest.mark.asyncio
 async def test_proxy_register_session_keeps_explicit_identity(
     _reset_client: None,
 ) -> None:

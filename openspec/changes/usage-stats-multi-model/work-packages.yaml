@@ -1,0 +1,414 @@
+schema_version: 1
+
+feature:
+  id: usage-stats-multi-model
+  title: "Multi-Model Usage Statistics Dashboard — coordinator-backed, vendor-adapter collector + kanban-viz frontend"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/usage-stats-multi-model/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/usage-stats-multi-model/contracts/openapi/v1.yaml"
+      - "openspec/changes/usage-stats-multi-model/contracts/db/schema.sql"
+      - "openspec/changes/usage-stats-multi-model/contracts/generated/types.ts"
+      - "openspec/changes/usage-stats-multi-model/contracts/generated/models.py"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-contracts — DB schema, OpenAPI, generated stubs (root of DAG)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Contracts — DB schema, /usage OpenAPI, generated TS/Pydantic stubs"
+    task_type: contracts
+    description: |
+      Validate and finalize contracts/db/schema.sql, contracts/openapi/v1.yaml,
+      and the generated type stubs. Establishes the coordination boundary for
+      all downstream packages. Implements tasks.md task 0.1.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/usage-stats-multi-model/contracts"
+      keys:
+        - "contract:usage-db-schema"
+        - "contract:usage-openapi"
+        - "contract:usage-types"
+      ttl_minutes: 60
+      reason: "Usage contracts for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/usage-stats-multi-model/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-stats-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "OpenAPI parses and DB contract is non-empty"
+          kind: command
+          command: "python3 -c 'import yaml; yaml.safe_load(open(\"openspec/changes/usage-stats-multi-model/contracts/openapi/v1.yaml\"))' && test -s openspec/changes/usage-stats-multi-model/contracts/db/schema.sql"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["contracts_valid"]
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["contracts_valid"]
+      artifacts:
+        - "openspec/changes/usage-stats-multi-model/contracts/openapi/v1.yaml"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-migration — 026_usage_stats.sql (Postgres tables)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-migration
+    title: "DB migration — 026_usage_stats.sql (usage_records + usage_ingest_state)"
+    task_type: backend
+    description: |
+      Add migration 026_usage_stats.sql realizing the DB contract: usage_records
+      (token/cost facts + fleet dimensions, UNIQUE(vendor,session_id,record_hash))
+      and usage_ingest_state (per-file mtime/offset watermark), with indexes.
+      Implements tasks.md tasks 1.1-1.2.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/database/migrations/026_usage_stats.sql"
+      keys:
+        - "db:schema:usage_records"
+        - "db:schema:usage_ingest_state"
+      ttl_minutes: 60
+      reason: "Usage tables migration"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/026_usage_stats.sql"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-stats-wp-migration
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Migration file exists and declares both tables"
+          kind: command
+          command: "grep -q 'usage_records' agent-coordinator/database/migrations/026_usage_stats.sql && grep -q 'usage_ingest_state' agent-coordinator/database/migrations/026_usage_stats.sql"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["migration_present"]
+    metadata:
+      loc_estimate: 60
+      complexity: low
+      package_kind: migration
+    inputs: {}
+    outputs:
+      result_keys: ["migration_present"]
+      artifacts:
+        - "agent-coordinator/database/migrations/026_usage_stats.sql"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-collector — stdlib collector + vendor adapters (apps/usage-stats/collector)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-collector
+    title: "Collector core + vendor adapters (schema, pricing, store, claude/codex/gemini/antigravity)"
+    task_type: backend
+    description: |
+      stdlib-only collector under apps/usage-stats/collector: UsageRecord schema
+      + record_hash, pricing seeded from agents.yaml, store.py (watermark, dedupe,
+      offline spool, push client), adapter base+registry, and the Claude/Codex/
+      Gemini adapters plus Antigravity stub. Implements tasks.md tasks 1.3-1.8,
+      4.3-4.5.
+    role: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "apps/usage-stats/collector"
+      keys:
+        - "feature:usage-stats:collector"
+      ttl_minutes: 120
+      reason: "Collector implementation and adapters"
+    scope:
+      write_allow:
+        - "apps/usage-stats/collector/**"
+      read_allow:
+        - "**"
+      deny:
+        - "apps/usage-stats/src/**"
+    worktree:
+      name: usage-stats-wp-collector
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Collector unit tests pass"
+          kind: command
+          command: "python3 -m pytest apps/usage-stats/collector -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["collector_tests_pass"]
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys: ["collector_tests_pass"]
+      artifacts:
+        - "apps/usage-stats/collector/schema.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-api — /usage/* FastAPI routes + SSE (agent-coordinator/src)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-api
+    title: "Coordinator /usage/* routes + usage.recorded SSE"
+    task_type: backend
+    description: |
+      Add /usage/ingest, /usage/summary, /usage/daily, /usage/by-model,
+      /usage/by-vendor to coordination_api.py behind existing Bearer auth, backed
+      by db_postgres.py queries; emit usage.recorded SSE via coordinator_notify.
+      Implements tasks.md tasks 2.1-2.3.
+    role: implementer
+    priority: 3
+    depends_on: [wp-migration]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:GET /usage/summary"
+        - "api:POST /usage/ingest"
+        - "event:usage.recorded"
+      ttl_minutes: 120
+      reason: "Usage API routes and SSE event"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/usage_api.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-stats-wp-api
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Usage API tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q -k usage"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["usage_api_tests_pass"]
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys: ["usage_api_tests_pass"]
+      artifacts:
+        - "agent-coordinator/src/coordination_api.py"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-frontend — React/Vite dashboard (apps/usage-stats/src)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-frontend
+    title: "Usage dashboard — React + TS + Vite (useUsage hook, charts, filters)"
+    task_type: frontend
+    description: |
+      Scaffold apps/usage-stats from the kanban-viz Vite/TS config. Implement
+      useUsage.ts (Bearer fetch, SSE primary, polling fallback), URL-encoded
+      filters, and chart components (daily/weekly/all-time, vendor/model filters,
+      "n/a" cost labelling). Implements tasks.md tasks 3.1-3.3.
+    role: implementer
+    priority: 4
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "apps/usage-stats/src"
+      keys:
+        - "feature:usage-stats:frontend"
+      ttl_minutes: 120
+      reason: "Dashboard frontend implementation"
+    scope:
+      write_allow:
+        - "apps/usage-stats/src/**"
+        - "apps/usage-stats/index.html"
+        - "apps/usage-stats/package.json"
+        - "apps/usage-stats/package-lock.json"
+        - "apps/usage-stats/tsconfig.json"
+        - "apps/usage-stats/vite.config.ts"
+      read_allow:
+        - "**"
+      deny:
+        - "apps/usage-stats/collector/**"
+    worktree:
+      name: usage-stats-wp-frontend
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Frontend typecheck and tests pass"
+          kind: command
+          command: "cd apps/usage-stats && npm run typecheck && npm run test:run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["frontend_tests_pass"]
+    metadata:
+      loc_estimate: 600
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys: ["frontend_tests_pass"]
+      artifacts:
+        - "apps/usage-stats/src/hooks/useUsage.ts"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-hook — session-end ingestion wiring
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-hook
+    title: "Session-end ingestion hook (session-bootstrap + vendor hook configs)"
+    task_type: backend
+    description: |
+      Wire collector invocation into session-end via skills/session-bootstrap and
+      the .claude/.codex/.gemini hook configs, with offline-spool tolerance.
+      Implements tasks.md tasks 4.1-4.2.
+    role: implementer
+    priority: 5
+    depends_on: [wp-collector]
+    locks:
+      files:
+        - "skills/session-bootstrap"
+      keys:
+        - "feature:usage-stats:hook"
+      ttl_minutes: 60
+      reason: "Session-end collector wiring"
+    scope:
+      write_allow:
+        - "skills/session-bootstrap/**"
+        - ".claude/hooks.json"
+        - ".codex/hooks.json"
+        - ".gemini/settings.json"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-stats-wp-hook
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Session-end hook test passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/session-bootstrap -q -k usage"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["hook_test_pass"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["hook_test_pass"]
+      artifacts: []
+
+  # ─────────────────────────────────────────────────────────────────────
+  # wp-integration — merge, full suite, docs (leaf of DAG)
+  # ─────────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration — merge packages, full suite, end-to-end smoke, docs"
+    task_type: integration
+    description: |
+      Merge package branches, run full backend + frontend suites, run end-to-end
+      smoke (ingest fixtures → query API → render dashboard), and document at
+      docs/usage-stats/README.md. Implements tasks.md tasks 5.1-5.2.
+    role: integrator
+    priority: 9
+    depends_on: [wp-api, wp-frontend, wp-hook, wp-collector]
+    locks:
+      files:
+        - "docs/usage-stats"
+      keys:
+        - "feature:usage-stats:integration"
+      ttl_minutes: 90
+      reason: "Integration and documentation"
+    scope:
+      write_allow:
+        - "docs/usage-stats/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-stats-wp-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Docs present"
+          kind: command
+          command: "test -s docs/usage-stats/README.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["docs_present"]
+    metadata:
+      loc_estimate: 120
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["docs_present"]
+      artifacts:
+        - "docs/usage-stats/README.md"
