@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "fix-autopilot-archetype-and-apply-outcome",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gemini",
+      "agent_id": "gemini",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The structured `write_capable` field is a backward-incompatible schema addition to archetypes.yaml \u2014 every existing archetype must add the field, and any other consumer of archetypes.yaml that doesn't know about it may misbehave. D7 documents the addition but doesn't specify a migration path or whether the field is required-immediately vs. defaults-to-false-if-absent. If a future archetype entry omits the field, does the resolver fail-closed (treat as not-write-capable) or fail-loud (require explicit declaration)? Task 2.1 says 'each existing archetype gets an explicit value' but the resolver's behavior on missing field is unspecified."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The `--force` \u2192 `--allow-phase-mismatch` rename is incomplete. Any caller currently passing `--force` to apply-outcome (scripts, CI, operator habit) will break. The plan doesn't specify a deprecation path: should `--force` be accepted as an alias that emits a deprecation warning for one release, then removed? Or is hard-break OK because `--force` was a not-yet-merged proposal flag (we filed the parent change but haven't implemented)? Need to disambiguate."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: The out-of-scope rationale for rejecting structural enforcement (filesystem permissions, pre-write hooks) cites 'harness worktree's filesystem permissions are set by Claude Code's container runtime and are not under our control' \u2014 but this is too quick. The agentic-coding-tools repo controls worktree.py and could chmod 0444 loop-state.json after the orchestrator's writes. The harness can still read; the sub-agent can't write. Filesystem-permission enforcement is at least worth a paragraph of consideration before being rejected."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D10 says 'if Task 1.5 finds the logic is distributed, extract into a single table.' This is a structural refactor that may exceed 'fix a bug' scope. Extracting orchestrator next-phase logic into a phase_transitions table changes how the orchestrator reads its own state machine, which is a load-bearing refactor that deserves its own design discussion. If the audit finds (a), the targeted fix is small; if (b), the structural extraction expands scope significantly."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D9 requires the orchestrator to append phase_history and transition current_phase to ESCALATE even for failure causes like disk full or malformed loop-state, but those same causes may prevent writing loop-state at all."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The spec allows INIT and SUBMIT_PR prompts to omit the Layer B/C state-mutation prohibitions, but the invariant is that every dispatched sub-agent returns a handoff while the orchestrator owns loop-state mutation."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D7 says in-flight loop-state may retain an old phase_archetype while the next dispatch reads the new archetype from YAML, but no requirement or task proves resume/build-dispatch ignores stale phase_archetype values."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The apply-outcome unit-test tasks emphasize last_handoff_id and current_phase, but they do not require assertions for all owned fields that the spec says apply-outcome updates: handoff_ids, phase_archetype, and phase_history."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The list of write-capable phases is duplicated in 3+ places: proposal.md What Changes section, design.md D7 backward-compat matrix, spec.md 'Archetypes Declare Write-Capability' requirement, spec.md 'Sub-Agent Dispatch Prompts Forbid State Mutation' requirement, and tasks.md Task 4.2 + Task 8.6. If a new write-capable phase is added (e.g. via a future change), updating all 5+ locations is brittle. The list should be canonicalized in a single location and referenced from the others."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The proposal references audit-result.md as authoritative ('Design Decisions D1, D2-A, and D10 specify the per-layer fix and their relationship to the audit outcome'), but audit-result.md doesn't exist until Task 1.7 runs during implementation. From the spec's standpoint at plan-approval time, the file is a forward reference. This is fine for an implementation guide but creates a small chicken-and-egg: a reviewer of the spec can't verify the audit conclusions because they haven't been run yet."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: The pivot from substring-matching to a structured `write_capable: bool` field (D3-revised, after round-1 review confirmed brittleness) is exactly the right move. It eliminates an entire class of future drift bugs and makes the capability check mechanically auditable. The fact that this came from a confirmed multi-vendor finding (claude_code + gemini) and was acted on cleanly is a positive signal that the review process is working as designed."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Task 6.1 says to iterate the write-capable phases listed in design D7's compatibility matrix, but D7 is a before/after surface matrix and does not contain the canonical phase list."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The revised plan correctly broadens V2 beyond apply-outcome by covering direct loop-state edits and the orchestrator's own transition logic, and it explicitly names structural enforcement as a rejected alternative with rationale."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Mandatory centralization of transition logic (Task 5.1). Centralizing the next-phase decision logic (D10) should be a mandatory architectural improvement for maintainability and auditability, rather than being contingent on whether the audit identifies Layer D as the specific cause of the recent failure."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Handle 'double-failure' scenarios in orchestrator (D9). If `apply-outcome` fails due to a system-level issue like a full disk or read-only filesystem, the orchestrator's attempt to transition to `ESCALATE` (which also requires a write to loop-state.json) will also fail."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Mechanically detect unauthorized edits to loop-state.json (Layer C). While prompt-based prohibitions (D1) are a good first step, they rely on sub-agent compliance. A more resilient approach would be to verify the file hasn't changed unexpectedly."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "High-quality shift to structured capability fields (D3). The decision to move away from brittle substring matching on system prompts in favor of a structured `write_capable` field significantly improves the system's technical integrity and prevents future role-confusion regressions."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Comprehensive 4-layer defense in depth (D1). The proposal correctly identifies that sub-agent shell behavior is not fully observable or enforceable via a single layer, and by addressing all four candidate pathways (A through D), it provides a robust fix for the observed transition bug."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 18,
+    "confirmed_count": 0,
+    "unconfirmed_count": 18,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

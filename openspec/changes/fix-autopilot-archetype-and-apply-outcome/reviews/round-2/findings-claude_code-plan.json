@@ -1,0 +1,84 @@
+{
+  "review_type": "plan",
+  "target": "fix-autopilot-archetype-and-apply-outcome",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: The structured `write_capable` field is a backward-incompatible schema addition to archetypes.yaml — every existing archetype must add the field, and any other consumer of archetypes.yaml that doesn't know about it may misbehave. D7 documents the addition but doesn't specify a migration path or whether the field is required-immediately vs. defaults-to-false-if-absent. If a future archetype entry omits the field, does the resolver fail-closed (treat as not-write-capable) or fail-loud (require explicit declaration)? Task 2.1 says 'each existing archetype gets an explicit value' but the resolver's behavior on missing field is unspecified.",
+      "resolution": "Add a sub-decision to D3: specify the resolver's behavior when `write_capable` is missing. Recommendation: fail-loud (require explicit declaration) for safety. Update Task 6.2's test accordingly. Also note in D7's row for the field addition: 'all archetype entries must add the field; resolver fails-loud on absence.'",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: The `--force` → `--allow-phase-mismatch` rename is incomplete. Any caller currently passing `--force` to apply-outcome (scripts, CI, operator habit) will break. The plan doesn't specify a deprecation path: should `--force` be accepted as an alias that emits a deprecation warning for one release, then removed? Or is hard-break OK because `--force` was a not-yet-merged proposal flag (we filed the parent change but haven't implemented)? Need to disambiguate.",
+      "resolution": "Add a clarifying line to D4 noting that since the parent change has not yet been implemented (per audit-result.md, Layer A may not even have a --force flag today), the rename is a hard-replace, not a deprecation. If the audit finds --force already exists in apply-outcome, add a deprecation-alias task in section 3.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 3,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Optional: The out-of-scope rationale for rejecting structural enforcement (filesystem permissions, pre-write hooks) cites 'harness worktree's filesystem permissions are set by Claude Code's container runtime and are not under our control' — but this is too quick. The agentic-coding-tools repo controls worktree.py and could chmod 0444 loop-state.json after the orchestrator's writes. The harness can still read; the sub-agent can't write. Filesystem-permission enforcement is at least worth a paragraph of consideration before being rejected.",
+      "resolution": "Either revise the out-of-scope paragraph to acknowledge that filesystem-permission enforcement is feasible (we control worktree.py and can chmod) but rejected for [different reason — e.g. operational complexity, breaks legitimate orchestrator writes], OR move filesystem-permission enforcement into a follow-up change explicitly committed to.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/proposal.md"
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: D10 says 'if Task 1.5 finds the logic is distributed, extract into a single table.' This is a structural refactor that may exceed 'fix a bug' scope. Extracting orchestrator next-phase logic into a phase_transitions table changes how the orchestrator reads its own state machine, which is a load-bearing refactor that deserves its own design discussion. If the audit finds (a), the targeted fix is small; if (b), the structural extraction expands scope significantly.",
+      "resolution": "Either commit to the structural extraction as in-scope (and surface it more prominently in proposal What Changes), OR split: if Task 1.5 finds (b), the targeted fix lands in this change AND a follow-up change is committed to for the extraction. Make the scope split explicit rather than letting Task 5.2 silently absorb a structural refactor.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: The list of write-capable phases is duplicated in 3+ places: proposal.md What Changes section, design.md D7 backward-compat matrix, spec.md 'Archetypes Declare Write-Capability' requirement, spec.md 'Sub-Agent Dispatch Prompts Forbid State Mutation' requirement, and tasks.md Task 4.2 + Task 8.6. If a new write-capable phase is added (e.g. via a future change), updating all 5+ locations is brittle. The list should be canonicalized in a single location and referenced from the others.",
+      "resolution": "Add a 'Glossary' or 'Definitions' section to design.md that defines the canonical write-capable phase list. All other references (in proposal, spec, tasks) point back to that definition. Alternatively, codify the list in `agent-coordinator/archetypes.yaml` (e.g. as a top-level `write_capable_phases:` array) and have all consumers read from there.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 6,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: The proposal references audit-result.md as authoritative ('Design Decisions D1, D2-A, and D10 specify the per-layer fix and their relationship to the audit outcome'), but audit-result.md doesn't exist until Task 1.7 runs during implementation. From the spec's standpoint at plan-approval time, the file is a forward reference. This is fine for an implementation guide but creates a small chicken-and-egg: a reviewer of the spec can't verify the audit conclusions because they haven't been run yet.",
+      "resolution": "Add a note to D6 clarifying that audit-result.md is an implementation-time artifact, not a plan-time deliverable. Acknowledge that some design decisions (specifically which layers actually need fixes) are conditional on the audit and can shift slightly between plan approval and implementation. This is acceptable; just make it explicit.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    },
+    {
+      "id": 7,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: The pivot from substring-matching to a structured `write_capable: bool` field (D3-revised, after round-1 review confirmed brittleness) is exactly the right move. It eliminates an entire class of future drift bugs and makes the capability check mechanically auditable. The fact that this came from a confirmed multi-vendor finding (claude_code + gemini) and was acted on cleanly is a positive signal that the review process is working as designed.",
+      "resolution": "No action required. Worth flagging because future plan changes should default to structured fields over textual conventions when the choice arises.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md"
+    }
+  ]
+}

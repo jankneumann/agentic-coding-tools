@@ -1,0 +1,88 @@
+{
+  "review_type": "plan",
+  "target": "fix-autopilot-archetype-and-apply-outcome",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Proposal V2 enumerates two possible causes (Layer A = apply-outcome implementation bug; Layer B = sub-agent prompt overreach), but a third pathway is missing: the sub-agent can write loop-state.json *directly* via shell tools (python3 -c, sed, jq) without invoking apply-outcome at all. The commit subject 'chore(autopilot): record IMPLEMENT=complete, transition to CLEANUP' matches apply-outcome's format but could have been authored by hand. The currently-designed fix leaves this pathway open — Layer B's prompt addition forbids running apply-outcome but says nothing about direct edits. Empirically, the IMPLEMENT sub-agent demonstrated initiative-taking behavior (it skipped 4 phases to land at a non-existent state); a sub-agent willing to do that would also be willing to bypass apply-outcome.",
+      "resolution": "Either expand the dispatch prompt prohibition to forbid all loop-state.json edits (not just apply-outcome invocations), OR add a process-level guard (e.g., a pre-write check via git pre-commit hook in the harness worktree, or file-permission scoping). Make the chosen layer explicit in Design D1 as 'Layer C'. Update spec scenarios accordingly.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/proposal.md"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: D4's `--force` semantics are unusual — the flag bypasses the phase-mismatch guard but explicitly does NOT enable current_phase modification. Operators encountering `--force` typically expect it to be the most-permissive escape hatch. The intent (allow last_handoff_id update for a non-current phase, e.g. recovery from a crash) is reasonable, but the naming will surprise operators reading the CLI help.",
+      "resolution": "Either (a) rename the flag to `--allow-phase-mismatch` to make the narrow semantics explicit, or (b) extend `--force` to also be the documented mechanism for legitimate phase rollback (with audit logging). The current name promises power it doesn't deliver.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {"start": 78, "end": 92}
+    },
+    {
+      "id": 3,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: The spec scenario 'Resolved VALIDATE archetype is write-capable' enumerates specific substrings ('without making changes', 'do not modify', 'without modifying', 'only synthesize') as the read-only-marker check. This is brittle: a future archetype description using semantically-equivalent phrasing ('report only', 'no modifications', 'analyze without writing') passes the substring check while violating the intent. The CI guard scenario inherits the same fragility.",
+      "resolution": "Either (a) codify the substring list as the explicit source of truth and document that future read-only synonyms must be added to the list (acceptable but requires discipline), or (b) upgrade to a semantic check — e.g., a small classifier model or a structured archetype-capability field (write_capable: true/false) in archetypes.yaml that the resolver enforces directly. Option (b) is cleaner long-term.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {"start": 9, "end": 21}
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Optional: The 'Out of Scope' section names related concerns (harness silent-no-op, compact-hook FP, git-commit foot-gun) but does not name the most relevant structural alternative: should sub-agents have write access to openspec/changes/<id>/loop-state.json at all? A process-level guard (filesystem permissions on the harness worktree, a pre-commit hook scoped to sub-agent identity, or routing loop-state writes through a syscall the harness intercepts) is more robust than prompt instructions, which depend on sub-agent compliance. The proposal should explicitly acknowledge this alternative and justify why prompt-level enforcement is sufficient (or commit to a follow-up change).",
+      "resolution": "Add a paragraph to 'Out of Scope' explaining that structural enforcement (file permissions / pre-write hooks) was considered and rejected because [reason], OR commit to filing a follow-up change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/proposal.md"
+    },
+    {
+      "id": 5,
+      "axis": "readability",
+      "severity": "optional",
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: Task 1 is an audit step whose outcome determines whether Task 3.1 is a no-op vs. requires real work. The design says 'Record finding in commit message' which is informal — git log search across the implementation commit chain is not a durable place for an architectural finding. A future maintainer asking 'did Layer A turn out to be the bug?' has to grep commit messages and reconstruct the audit conclusion.",
+      "resolution": "Write the audit outcome to a structured location: either an addendum at the bottom of design.md ('Audit Result' section appended during Task 1), OR a separate openspec/changes/<id>/audit-result.md file referenced from design.md and proposal.md. Make the artifact discoverable from the change-id.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/tasks.md",
+      "line_range": {"start": 5, "end": 11}
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Nit: After the fix lands, apply-outcome is the only writer of last_handoff_id/handoff_ids/phase_archetype. Nothing in the spec requires the orchestrator to handle the case where apply-outcome itself fails (disk full, transient FS error, lock contention, malformed loop-state.json). A silent apply-outcome failure leaves loop-state inconsistent with the just-written handoff — and the next dispatch will read stale state.",
+      "resolution": "Add a scenario to the apply-outcome requirement: 'WHEN apply-outcome exits non-zero, THEN the orchestrator SHALL detect the failure, retain the un-applied handoff file in handoffs/, AND report the failure via ESCALATE transition.' This makes apply-outcome failures a first-class state in the autopilot state machine.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md"
+    },
+    {
+      "id": 7,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive: D2's choice to introduce a new `validator` archetype rather than reusing the existing `runner` archetype is correct. The reasoning ('runner system_prompt is too thin for multi-phase validation; introducing validator keeps the mapping table semantically clean') matches the broader archetype-as-vocabulary pattern. The accompanying system_prompt draft is appropriately tailored — it distinguishes 'I produce evidence artifacts' from 'I modify code being validated', which lines up with the VALIDATE/VAL_FIX split.",
+      "resolution": "No action required. Calling this out so future archetype additions follow the same pattern of explicit role separation rather than overloading existing archetypes.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {"start": 47, "end": 76}
+    }
+  ]
+}

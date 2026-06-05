@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cost-ledger-entry.schema.json",
+  "title": "Metered-Counterfactual Cost Ledger Entry",
+  "description": "Per-work-unit cost record. Persisted by extending roadmap-runtime LearningEntry.vendor_notes; the cumulative (metered_baseline - actual_spend) across entries is the headline arbitrage-value metric.",
+  "type": "object",
+  "required": ["schema_version", "work_unit_id", "vendor", "modality", "actual_cost_usd", "metered_counterfactual_usd", "estimated"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "work_unit_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "vendor": { "type": "string" },
+    "model": { "type": "string" },
+    "modality": {
+      "type": "string",
+      "enum": ["internal", "programmatic-subscription", "programmatic-metered"]
+    },
+    "archetype": { "type": "string" },
+    "input_tokens": { "type": "integer", "minimum": 0 },
+    "output_tokens": { "type": "integer", "minimum": 0 },
+    "actual_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Marginal $ actually incurred. ~0 for subsidised-subscription work until the cap."
+    },
+    "metered_counterfactual_usd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "What this unit would have cost on metered API, from the versioned per-vendor price table."
+    },
+    "estimated": {
+      "type": "boolean",
+      "description": "True when token usage was heuristically estimated rather than reported by the adapter."
+    },
+    "pricing_table_version": { "type": "string", "description": "Version of the per-vendor price table used to compute the counterfactual." }
+  }
+}

@@ -2,7 +2,7 @@
 
 A structured feature development workflow for AI-assisted coding. Skills are reusable Claude Code slash commands that guide features from proposal through implementation to completion, with human approval gates at each stage.
 
-> Looking for the full list of skills with one-line summaries? See [`skills-catalogue.md`](skills-catalogue.md). This document covers *how* skills are designed and composed; the catalogue covers *what* each skill does.
+> Looking for the full list of skills with one-line summaries? See [`skills-catalogue.md`](skills-catalogue.md). This document covers *how* skills are designed and composed; the catalogue covers *what* each skill does. For a visual map of the flow and artifacts, see [`skill-flow/README.md`](skill-flow/README.md).
 
 ## Overview
 

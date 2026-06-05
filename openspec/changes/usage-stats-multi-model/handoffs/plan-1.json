@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-05-31T03:29:10.267045+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a fleet-wide, multi-vendor usage-statistics dashboard modeled on phuryn/claude-usage but reusing the coordinator Postgres instead of SQLite. Operator selected Approach 2 (coordinator-backed, vendor-adapter collector, kanban-viz frontend) at Gate 1.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reuse coordinator Postgres over SQLite",
+        "rationale": "SQLite cannot do the operator-selected fleet-wide aggregation and duplicates migration/query machinery the repo already has (migration 026_usage_stats.sql).",
+        "capability": "usage-collection",
+        "supersedes": null
+      },
+      {
+        "title": "Vendor-adapter core with normalized UsageRecord",
+        "rationale": "Storage/pricing/API/UI operate only on UsageRecord; adding a vendor is one file. Quarantines Gemini's OTEL paradigm to one adapter.",
+        "capability": "usage-collection",
+        "supersedes": null
+      },
+      {
+        "title": "Idempotency on (vendor, session_id, record_hash) + per-file watermark",
+        "rationale": "DB UNIQUE constraint plus usage_ingest_state watermark = incremental, re-runnable ingestion.",
+        "capability": "usage-collection",
+        "supersedes": null
+      },
+      {
+        "title": "Pricing seeded from agents.yaml",
+        "rationale": "Same registry vendor_health.py reads; known-model set cannot drift; unknown models persist with null cost.",
+        "capability": "usage-api",
+        "supersedes": null
+      },
+      {
+        "title": "Session-end hook ingestion with offline spool",
+        "rationale": "Automatic, near-real-time; offline spool bounds the coordinator-coupling data-loss risk.",
+        "capability": "usage-collection",
+        "supersedes": null
+      },
+      {
+        "title": "Dashboard mirrors useCoordinator.ts",
+        "rationale": "useUsage.ts copies kanban-viz Bearer+SSE+polling pattern; consistent observability surface in apps/.",
+        "capability": "usage-dashboard",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "On Gate 2 approval, seed coordinator issues, then /implement-feature usage-stats-multi-model starting with wp-contracts -> wp-migration."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/usage-stats-multi-model/proposal.md",
+        "description": "approved proposal + selected approach"
+      },
+      {
+        "path": "openspec/changes/usage-stats-multi-model/design.md",
+        "description": "design decisions D1-D6"
+      },
+      {
+        "path": "openspec/changes/usage-stats-multi-model/work-packages.yaml",
+        "description": "7-package DAG"
+      }
+    ]
+  }
+}
