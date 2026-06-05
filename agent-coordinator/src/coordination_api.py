@@ -2086,15 +2086,15 @@ def create_coordination_api() -> FastAPI:
 
         merge_count = sum(
             1 for e in entries
-            if (e.get("details") or {}).get("event_type") == "merge"
+            if (e.result or {}).get("event_type") == "merge"
         )
         revert_count = sum(
             1 for e in entries
-            if (e.get("details") or {}).get("event_type") == "revert"
+            if (e.result or {}).get("event_type") == "revert"
         )
         rebase_count = sum(
             1 for e in entries
-            if (e.get("details") or {}).get("event_type") == "rebase"
+            if (e.result or {}).get("event_type") == "rebase"
         )
 
         return {
