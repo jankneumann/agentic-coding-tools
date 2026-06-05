@@ -66,7 +66,7 @@
 
 **Note**: `convergence_loop.py` already has durable per-round checkpoints, `max_rounds` parameter (default 3), 3-point stall detection, and `ConvergenceResult` with `escalate_findings`. This phase extends the existing infrastructure rather than building from scratch. **Coordination risk**: PR #195 (ambient-review-ledger) plans to extract `refine-core` from this same file — landing order must be coordinated.
 
-- [ ] 3.1 Write tests for human escalation pathway and author-agent autonomous response — verify that when `reason="max_rounds"` or `reason="disagreement"`, the loop produces a structured escalation summary; verify that `fix_callback` is invoked per round and that author-agent responses to "fix" findings trigger re-review
+- [x] 3.1 Write tests for human escalation pathway and author-agent autonomous response — verify that when `reason="max_rounds"` or `reason="disagreement"`, the loop produces a structured escalation summary; verify that `fix_callback` is invoked per round and that author-agent responses to "fix" findings trigger re-review
   **Spec scenarios**: harness-engineering.1 (converges within limit), harness-engineering.1 (escalates on consensus failure)
   **Design decisions**: D1 (extend convergence_loop.py)
   **Dependencies**: None
