@@ -19,9 +19,9 @@ def test_new_loop_state_default_phase_archetype_is_none() -> None:
     assert state.phase_archetype is None
 
 
-def test_new_loop_state_schema_version_is_3() -> None:
+def test_new_loop_state_schema_version_is_4() -> None:
     state = autopilot.LoopState()
-    assert state.schema_version == 3
+    assert state.schema_version == 4
 
 
 def test_phase_archetype_field_round_trips_through_save_load(tmp_path: Path) -> None:
@@ -31,31 +31,34 @@ def test_phase_archetype_field_round_trips_through_save_load(tmp_path: Path) -> 
 
     loaded = autopilot.load_state(state_path)
     assert loaded.phase_archetype == "architect"
-    assert loaded.schema_version == 3
+    assert loaded.schema_version == 4
 
 
-def test_load_v2_snapshot_migrates_to_v3_with_null(tmp_path: Path) -> None:
-    """Older v2 snapshots load with phase_archetype=None and rewrite to v3 on save."""
+def test_load_v2_snapshot_migrates_to_v4_with_defaults(tmp_path: Path) -> None:
+    """Older v2 snapshots load with the v4 field defaults and rewrite on save."""
     legacy: dict[str, object] = {
         "schema_version": 2,
         "change_id": "legacy-feature",
         "current_phase": "IMPLEMENT",
         "iteration": 1,
-        # Notice: no phase_archetype field
+        # Notice: no phase_archetype / force / gate_signals / gate_verdict fields
     }
     state_path = tmp_path / "loop-state.json"
     state_path.write_text(json.dumps(legacy) + "\n")
 
     state = autopilot.load_state(state_path)
     assert state.phase_archetype is None
+    assert state.force is False
+    assert state.gate_signals == {}
+    assert state.gate_verdict is None
     # The migration is applied: schema_version is bumped on the loaded instance.
-    # (Actual file-on-disk gets schema_version=3 only after a save_state call.)
-    assert state.schema_version == 3
+    # (Actual file-on-disk gets schema_version=4 only after a save_state call.)
+    assert state.schema_version == 4
 
-    # Saving rewrites the file with v3.
+    # Saving rewrites the file with v4.
     autopilot.save_state(state, state_path)
     on_disk = json.loads(state_path.read_text())
-    assert on_disk["schema_version"] == 3
+    assert on_disk["schema_version"] == 4
     assert on_disk["phase_archetype"] is None
 
 

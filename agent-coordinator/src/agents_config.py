@@ -61,6 +61,7 @@ ARCHETYPE_NAME_PATTERN = r"^[a-z][a-z0-9_-]{0,31}$"
 # Terminal phases (DONE, ESCALATE, ERROR) are not mapped.
 NON_TERMINAL_PHASES: tuple[str, ...] = (
     "INIT",
+    "GATEKEEPER",
     "PLAN",
     "PLAN_ITERATE",
     "PLAN_REVIEW",

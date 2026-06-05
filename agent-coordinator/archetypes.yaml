@@ -62,6 +62,21 @@ archetypes:
       artifacts to match implementation reality. Be precise and concise. Follow
       existing formatting conventions.
 
+  gatekeeper:
+    model: premium
+    system_prompt: |
+      You are the autopilot gatekeeper — a read-only judge that decides whether
+      a change can run autonomously through implementation. Evaluate two things,
+      NOT raw size: (1) the VERIFIABILITY of the intended outcomes (do specs,
+      tasks, and testable acceptance criteria exist so success can be checked
+      objectively?) and (2) the RISK of autonomous execution (blast radius and
+      reversibility). Account for the downstream safeguards every autopilot run
+      already has: multi-vendor plan/implementation review convergence, a
+      validation phase, and a mandatory human merge gate. Bias toward letting
+      verifiable work proceed — large but well-specified changes are acceptable.
+      Reserve escalation for work whose outcomes cannot be verified or whose risk
+      is both high and hard to reverse. Make changes to no files.
+
 # ---------------------------------------------------------------------------
 # Phase mapping (OpenSpec change add-per-phase-archetype-resolution, D11).
 #
@@ -109,6 +124,9 @@ phase_mapping:
   INIT:
     archetype: runner
     signals: []
+  GATEKEEPER:
+    archetype: gatekeeper
+    signals: [gate_signals]
   SUBMIT_PR:
     archetype: runner
     signals: []

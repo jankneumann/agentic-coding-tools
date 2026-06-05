@@ -59,7 +59,7 @@ def test_state_save_load_roundtrip(tmp_path: Path) -> None:
 def test_initial_state_defaults() -> None:
     """A fresh LoopState has the expected default values."""
     state = LoopState()
-    assert state.schema_version == 3  # bumped 2->3 by add-per-phase-archetype-resolution
+    assert state.schema_version == 4  # bumped 3->4 by the GATEKEEPER judge gate
     assert state.change_id == ""
     assert state.current_phase == "INIT"
     assert state.iteration == 0
@@ -86,9 +86,27 @@ def test_initial_state_defaults() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_transition_init_to_plan() -> None:
+def test_transition_init_to_gatekeeper() -> None:
+    """INIT -> GATEKEEPER by default (judge evaluates verifiability/risk)."""
     state = LoopState(current_phase="INIT")
+    assert transition(state, "next") == "GATEKEEPER"
+
+
+def test_transition_init_to_plan_with_force() -> None:
+    """--force skips the judge: INIT -> PLAN directly."""
+    state = LoopState(current_phase="INIT", force=True)
     assert transition(state, "next") == "PLAN"
+
+
+def test_transition_gatekeeper_proceed() -> None:
+    state = LoopState(current_phase="GATEKEEPER")
+    assert transition(state, "proceed") == "PLAN"
+    assert transition(state, "proceed_with_review") == "PLAN"
+
+
+def test_transition_gatekeeper_escalate() -> None:
+    state = LoopState(current_phase="GATEKEEPER")
+    assert transition(state, "escalate") == "ESCALATE"
 
 
 def test_transition_plan_to_plan_iterate() -> None:
@@ -371,6 +389,121 @@ def test_complexity_gate_blocks(tmp_path: Path) -> None:
 
     assert result.current_phase == "ESCALATE"
     assert "force_required" in (result.escalation_reason or "")
+
+
+# ---------------------------------------------------------------------------
+# GATEKEEPER judge gate
+# ---------------------------------------------------------------------------
+
+
+def test_gatekeeper_escalate_stops_loop(tmp_path: Path) -> None:
+    """A judge verdict of 'escalate' halts the loop at ESCALATE."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="escalate")
+
+    result = run_loop(
+        "gate-esc-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+    )
+
+    assert result.current_phase == "ESCALATE"
+    assert result.gate_verdict == "escalate"
+    gatekeeper_mock.assert_called_once()
+
+
+def test_gatekeeper_proceed_with_review_enables_val_review(tmp_path: Path) -> None:
+    """'proceed_with_review' flips val_review_enabled and continues to DONE."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="proceed_with_review")
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-rev-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+        converge_fn=converge_mock,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.gate_verdict == "proceed_with_review"
+    assert result.val_review_enabled is True
+
+
+def test_gatekeeper_permissive_fallback_without_judge(tmp_path: Path) -> None:
+    """No gatekeeper_fn -> permissive verdict derived from signals."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    # Risk signal present -> fallback should enable validation review.
+    assess_mock = MagicMock(return_value={
+        "force_required": False,
+        "signals": {"has_security_signal": True},
+    })
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-fb-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.gate_verdict == "proceed_with_review"
+    assert result.val_review_enabled is True
+
+
+def test_force_skips_gatekeeper(tmp_path: Path) -> None:
+    """--force bypasses the judge entirely (it is never called)."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    assess_mock = MagicMock(return_value={"force_required": False, "signals": {}})
+    gatekeeper_mock = MagicMock(return_value="escalate")
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "gate-force-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        gatekeeper_fn=gatekeeper_mock,
+        converge_fn=converge_mock,
+        force=True,
+    )
+
+    assert result.current_phase == "DONE"
+    gatekeeper_mock.assert_not_called()
 
 
 def test_iterate_callbacks_called(tmp_path: Path) -> None:

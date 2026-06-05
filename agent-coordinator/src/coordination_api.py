@@ -227,6 +227,7 @@ class StatusReportRequest(BaseModel):
         "implementer",
         "analyst",
         "runner",
+        "gatekeeper",
     ] | None = Field(default=None)
 
 

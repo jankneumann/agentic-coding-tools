@@ -10,9 +10,10 @@ from __future__ import annotations
 import phase_agent
 import pytest
 
-# All 13 non-terminal phases per design D11.
+# All non-terminal phases (per design D11, plus GATEKEEPER judge gate).
 _ALL_PHASES = (
     "INIT",
+    "GATEKEEPER",
     "PLAN",
     "PLAN_ITERATE",
     "PLAN_REVIEW",
