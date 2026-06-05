@@ -1,0 +1,92 @@
+schema_version: 1
+
+feature:
+  id: merge-queue-scaling
+  title: "Merge Queue Scaling — Train Integration, Auto-Rebase, Auto-Rollback, Metrics"
+  plan_revision: 1
+  created_by: claude-code
+  created_at: "2026-06-05T00:00:00Z"
+
+contracts:
+  revision: 1
+  openapi:
+    primary: contracts/README.md
+    files:
+      - contracts/README.md
+
+defaults:
+  priority: 5
+  timeout_minutes: 120
+  retry_budget: 1
+
+packages:
+  - package_id: wp-main
+    name: "Merge Queue Scaling — full scope"
+    description: >
+      Wire coordinator merge train into merge-pull-requests skill with
+      GitHub merge queue fallback and direct merge for solo-dev. Add auto
+      cascading rebase, auto rollback with CI monitoring, merge throughput
+      metrics, and background merge watcher. Sequential execution —
+      all changes share the merge-pull-requests skill scripts.
+    tasks:
+      - "1.1"
+      - "1.2"
+      - "1.3"
+      - "1.4"
+      - "2.1"
+      - "2.2"
+      - "2.3"
+      - "2.4"
+      - "2.5"
+      - "2.6"
+      - "3.1"
+      - "3.2"
+      - "3.3"
+      - "4.1"
+      - "4.2"
+      - "4.3"
+      - "4.4"
+      - "4.5"
+      - "5.1"
+      - "5.2"
+      - "5.3"
+      - "5.4"
+      - "5.5"
+      - "6.1"
+      - "6.2"
+      - "6.3"
+      - "6.4"
+      - "6.5"
+      - "7.1"
+      - "7.2"
+      - "7.3"
+      - "7.4"
+    priority: 1
+    depends_on: []
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/**"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/merge_watcher.py"
+        - "agent-coordinator/tests/**"
+        - "docs/parallel-agentic-development.md"
+        - "docs/lessons-learned.md"
+        - "docs/merge-logs/**"
+      read_allow:
+        - "**"
+      deny: []
+    verification:
+      tier_required: B
+      steps:
+        - name: "Unit tests for merge backend"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest tests/merge-pull-requests/ -v"
+        - name: "Unit tests for coordinator extensions"
+          kind: command
+          command: "cd agent-coordinator && .venv/bin/python -m pytest tests/ -v -m 'not e2e and not integration' -k 'merge_watcher or merge_metrics'"
+        - name: "Existing merge-pull-requests tests (backward compat)"
+          kind: command
+          command: "cd skills && .venv/bin/python -m pytest tests/merge-pull-requests/ -v"
+        - name: "Type checking"
+          kind: command
+          command: "cd skills && .venv/bin/python -m ruff check merge-pull-requests/"
