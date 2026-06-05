@@ -643,21 +643,30 @@ def try_handoff_write(
 ) -> dict[str, Any]:
     """Write handoff context when handoff capability is available."""
     structured = content or {}
+    payload: dict[str, Any] = {
+        "session_id": session_id,
+        "summary": summary,
+        "completed_work": structured.get("completed_work"),
+        "in_progress": structured.get("in_progress"),
+        "decisions": structured.get("decisions"),
+        "next_steps": structured.get("next_steps"),
+        "relevant_files": structured.get("relevant_files"),
+    }
+    # When the bridge authenticates via an API key, the server's
+    # resolve_identity() uses the principal's bound identity and 403s
+    # on a mismatched request agent_id. Omit the identity fields so
+    # the server populates them from the principal. Only forward the
+    # caller-provided identity on the truly unauthenticated path
+    # (no api_key arg and no COORDINATION_API_KEY env var), where
+    # resolve_identity legitimately falls back to the request fields.
+    if _resolve_api_key(api_key) is None:
+        payload["agent_id"] = agent_id
+        payload["agent_type"] = agent_type
     return _execute_multi_endpoint_operation(
         operation="try_handoff_write",
         capability_flag="CAN_HANDOFF",
         endpoints=_HANDOFF_WRITE_ENDPOINTS,
-        payload={
-            "agent_id": agent_id,
-            "agent_type": agent_type,
-            "session_id": session_id,
-            "summary": summary,
-            "completed_work": structured.get("completed_work"),
-            "in_progress": structured.get("in_progress"),
-            "decisions": structured.get("decisions"),
-            "next_steps": structured.get("next_steps"),
-            "relevant_files": structured.get("relevant_files"),
-        },
+        payload=payload,
         http_url=http_url,
         api_key=api_key,
     )

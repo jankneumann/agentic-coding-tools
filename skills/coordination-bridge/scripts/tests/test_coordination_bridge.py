@@ -197,6 +197,8 @@ def test_try_handoff_write_skips_when_endpoints_missing(monkeypatch) -> None:
 def test_try_handoff_write_sends_http_contract_payload(monkeypatch) -> None:
     captured: list[dict[str, Any]] = []
 
+    monkeypatch.delenv("COORDINATION_API_KEY", raising=False)
+    monkeypatch.delenv("COORDINATOR_API_KEY", raising=False)
     monkeypatch.setattr(
         coordination_bridge,
         "detect_coordination",
@@ -236,6 +238,56 @@ def test_try_handoff_write_sends_http_contract_payload(monkeypatch) -> None:
         "next_steps": ["ship"],
         "relevant_files": [{"path": "a.py"}],
     }
+
+
+def test_try_handoff_write_omits_identity_when_bound_api_key(monkeypatch) -> None:
+    """Bound-key path: server resolves identity from the principal, so the
+    bridge must not send caller-provided agent_id / agent_type — that path
+    triggers a 403 in resolve_identity when the bound identity differs."""
+    captured: list[dict[str, Any]] = []
+
+    monkeypatch.delenv("COORDINATION_API_KEY", raising=False)
+    monkeypatch.delenv("COORDINATOR_API_KEY", raising=False)
+    monkeypatch.setattr(
+        coordination_bridge,
+        "detect_coordination",
+        lambda **_: _state(CAN_HANDOFF=True),
+    )
+    monkeypatch.setattr(
+        coordination_bridge,
+        "_http_request",
+        lambda **kwargs: (captured.append(kwargs) or {"status_code": 200, "data": {"success": True}, "error": None}),
+    )
+
+    # Explicit api_key — should suppress identity fields in the payload.
+    result = coordination_bridge.try_handoff_write(
+        agent_id="claude-code-local",
+        agent_type="claude_code",
+        session_id="session-1",
+        summary="done",
+        api_key="bound-key-xyz",
+    )
+
+    assert result["status"] == "ok"
+    payload = captured[0]["payload"]
+    assert "agent_id" not in payload
+    assert "agent_type" not in payload
+    # Other fields still propagate.
+    assert payload["session_id"] == "session-1"
+    assert payload["summary"] == "done"
+
+    # Same suppression when api_key arrives via COORDINATION_API_KEY env var.
+    captured.clear()
+    monkeypatch.setenv("COORDINATION_API_KEY", "env-bound-key")
+    coordination_bridge.try_handoff_write(
+        agent_id="claude-code-local",
+        agent_type="claude_code",
+        session_id="session-2",
+        summary="done",
+    )
+    payload = captured[0]["payload"]
+    assert "agent_id" not in payload
+    assert "agent_type" not in payload
 
 
 def test_try_submit_work_passes_payload(monkeypatch) -> None:
