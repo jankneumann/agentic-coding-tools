@@ -1,0 +1,7 @@
+{"type":"session_meta","session_id":"sess-xyz789","source":"cli","timestamp":"2026-05-01T12:00:00Z","model_provider":"openai","model":"gpt-5.4"}
+{"type":"event_msg","event_type":"UserMessage","content":"Write a function to sort a list of numbers"}
+{"type":"response_item","item_type":"message","role":"assistant","content":"I'll write a sorting function for you."}
+{"type":"response_item","item_type":"function_call","call_id":"fc-001","name":"write_file","arguments":"{\"path\": \"sort.py\", \"content\": \"def sort_numbers(nums):\\n    return sorted(nums)\\n\"}"}
+{"type":"response_item","item_type":"function_call_output","call_id":"fc-001","output":"File written successfully"}
+{"type":"response_item","item_type":"message","role":"assistant","content":"Done! I've created sort.py with a simple sorting function."}
+{"type":"response_item","item_type":"reasoning","content":"The user asked for a simple sort function. Python's built-in sorted() is the best choice."}

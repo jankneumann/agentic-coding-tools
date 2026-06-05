@@ -1,0 +1,1 @@
+"""Vendor-specific transcript adapters."""
