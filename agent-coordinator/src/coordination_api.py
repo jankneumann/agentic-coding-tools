@@ -604,9 +604,24 @@ def create_coordination_api() -> FastAPI:
                     "MergeTrainSweeper startup failed.", exc_info=True,
                 )
 
+        from .merge_watcher import get_merge_watcher
+
+        merge_watcher = get_merge_watcher()
+        if not os.environ.get("MERGE_WATCHER_DISABLED", "").strip():
+            try:
+                await merge_watcher.start()
+            except Exception:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "MergeWatcher startup failed.", exc_info=True,
+                )
+
         yield
 
-        # Shutdown sweeper, watchdog, notifier, event bus, langfuse
+        # Shutdown merge watcher, sweeper, watchdog, notifier, event bus, langfuse
+        try:
+            await merge_watcher.stop()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             await sweeper.stop()
         except Exception:  # noqa: BLE001
@@ -2053,6 +2068,42 @@ def create_coordination_api() -> FastAPI:
         if result is None:
             return {"full_suite_required": True, "test_files": []}
         return {"full_suite_required": False, "test_files": result}
+
+    # --------------------------------------------------------------------- #
+    # MERGE METRICS (merge-queue-scaling, task 5.5)
+    # --------------------------------------------------------------------- #
+
+    @app.get("/merge-train/metrics")
+    async def merge_train_metrics_endpoint() -> dict[str, Any]:
+        """Return aggregated merge throughput metrics from the audit log."""
+        from .audit import get_audit_service
+
+        audit = get_audit_service()
+        try:
+            entries = await audit.query(operation="merge_event", limit=1000)
+        except Exception:
+            entries = []
+
+        merge_count = sum(
+            1 for e in entries
+            if (e.get("details") or {}).get("event_type") == "merge"
+        )
+        revert_count = sum(
+            1 for e in entries
+            if (e.get("details") or {}).get("event_type") == "revert"
+        )
+        rebase_count = sum(
+            1 for e in entries
+            if (e.get("details") or {}).get("event_type") == "rebase"
+        )
+
+        return {
+            "total_events": len(entries),
+            "merge_count": merge_count,
+            "revert_count": revert_count,
+            "rebase_count": rebase_count,
+            "revert_rate": revert_count / merge_count if merge_count else 0.0,
+        }
 
     # --------------------------------------------------------------------- #
     # ARCHETYPES — per-phase resolution
