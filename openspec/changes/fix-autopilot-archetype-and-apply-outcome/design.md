@@ -1,113 +1,183 @@
 # Design — Fix autopilot archetype mapping and apply-outcome contract
 
-## D1. Where does the V2 fix live: `apply-outcome` impl, or sub-agent prompt scaffold?
+## Revision History
 
-Two layers can have caused V2:
+- **2026-06-05 round 2** — Round-1 multi-vendor review (`/parallel-review-plan`) surfaced two critical findings (Layer C: sub-agent direct edits; Layer D: orchestrator transition-table) and several mid-severity findings (substring brittleness, self-contradicting validator prompt, prohibition coverage gaps, missing apply-outcome failure handling). This revision expands D1 to four layers, replaces D3's substring approach with a structured `write_capable: bool` field, renames `--force` to `--allow-phase-mismatch` per D4-revised, adds D6 (audit result durability), D9 (apply-outcome failure → ESCALATE), and D10 (orchestrator transition-table audit).
 
-### Layer A: `runner.py apply-outcome` itself transitions `current_phase`
+## D1. Four causal layers, four targeted fixes
 
-If the implementation of `apply-outcome` writes `current_phase` (e.g. always sets it based on a per-phase transition table), then sub-agents calling `apply-outcome` will trip this automatically — even if their prompt told them not to.
+The V2 transition `IMPLEMENT=complete → CLEANUP` could have been produced by any of four pathways. We can't tell which from the audit trail alone, so the fix covers all four. Task 1 audits each layer; the audit's findings are recorded in a durable artifact (D6) so future debugging can locate them.
 
-**Fix:** remove the `current_phase` write from `apply-outcome`. Add a guard that errors if `--phase` ≠ existing `current_phase`. This makes the subcommand idempotent w.r.t. phase state and makes the orchestrator the sole `current_phase` author.
+### Layer A — `runner.py apply-outcome` writes `current_phase`
 
-### Layer B: `apply-outcome` is innocent; the sub-agent ran it AND additionally wrote `current_phase`
+If `apply-outcome` writes `current_phase` (e.g. via an internal `next_phase` lookup table), then sub-agents calling `apply-outcome` will trip this automatically — no prompt instructions can prevent it.
 
-The sub-agent has shell access and can `python -c` or sed-edit `loop-state.json` directly. If the prompt scaffold doesn't forbid it, a "helpful" sub-agent may take initiative and "finish the bookkeeping."
+**Fix**: remove the `current_phase` write from `apply-outcome`. Add a phase-mismatch guard (D4) that errors if `--phase` ≠ existing `current_phase`. Add an `--allow-phase-mismatch` flag for operator recovery (D4). The guard does NOT enable `current_phase` modification — it only allows updating `last_handoff_id`/`handoff_ids`/`phase_archetype` for a non-current phase.
 
-**Fix:** add an explicit guard in the write-capable phase prompt scaffolds: "DO NOT run `apply-outcome`. DO NOT edit `loop-state.json`. The orchestrator handles state transitions. Return `(outcome, handoff_id)` and exit."
+### Layer B — Sub-agent ran `apply-outcome` itself
 
-### Selected approach: fix BOTH layers
+The sub-agent has shell access. Even after Layer A is fixed, a "helpful" sub-agent might run `apply-outcome` to "finish the bookkeeping" — and that's a contract violation even without `current_phase` getting touched.
 
-The two layers are complementary, not alternative:
+**Fix**: every write-capable phase's dispatch prompt scaffold appends an explicit instruction: *"DO NOT run runner.py apply-outcome. Return (outcome, handoff_id) and exit; the orchestrator runs apply-outcome."*
 
-- Layer A protects against innocent invocations of `apply-outcome` by future tooling.
-- Layer B protects against the more general class of sub-agent overreach (which `a370a9b2c533fb7a7` clearly demonstrated — it also ran `gh pr create`-adjacent bookkeeping, signaled "transition to CLEANUP," etc.).
+### Layer C — Sub-agent edited `loop-state.json` directly
 
-Empirically we don't know from the audit trail alone which layer triggered V2. The commit subject `chore(autopilot): record IMPLEMENT=complete, transition to CLEANUP` matches the `apply-outcome` output format, so Layer A is suspicious. But the sub-agent could also have shell-invoked the same string. **The Task 1 audit step (read `runner.py apply-outcome`) determines whether Layer A needs the fix.** If `apply-outcome` does NOT touch `current_phase`, Task 1's outcome is "Layer A already clean; only Layer B needs work."
+Sub-agents have shell access and can `python3 -c '... json.dump(...)'` or `sed -i` directly into `loop-state.json` without invoking `apply-outcome` at all. Layer B's `apply-outcome` prohibition alone leaves this gap open.
+
+**Fix**: the same dispatch prompt scaffold appends a stricter prohibition: *"DO NOT edit openspec/changes/<id>/loop-state.json by any means. The orchestrator owns this file."* Layer C closes the gap that pure-prompt enforcement leaves — admittedly with the same weakness (sub-agents can ignore instructions), but layered prompt + structured failure mode is the current best-effort. Structural enforcement was considered and rejected per proposal Out-of-Scope.
+
+### Layer D — Orchestrator's own next-phase transition logic is wrong
+
+When the orchestrator resumes after a sub-agent returns `outcome=complete`, it consults a next-phase decision (whether code-side or YAML-side) to pick what comes after IMPLEMENT. If that decision logic maps `IMPLEMENT=complete → CLEANUP` (instead of `IMPL_ITERATE`), the bug is in the orchestrator's state-machine config — not in any sub-agent behavior. The commit subject would be authored by the orchestrator AFTER the sub-agent returned, making the failure look like Layer A or B but actually being neither.
+
+**Fix**: Task 1.5 audits the orchestrator's phase-transition logic. If a `phase_transitions` table or equivalent exists and contains the wrong mapping, fix it to match the canonical state machine in `skills/autopilot/SKILL.md` sections 4-8. Add a regression test (Task 6.7) that seeds loop-state with `current_phase=IMPLEMENT, outcome=complete` and asserts the orchestrator's next-phase decision is `IMPL_ITERATE`.
+
+### Why fix all four, not pick one
+
+The four layers are not mutually exclusive and aren't observable from the bug's symptom alone. Fixing only the suspected layer (A) leaves three escape hatches; sub-agents have demonstrated initiative-taking behavior. Defense in depth is cheap (each fix is small) and the alternative is iterative bug-chasing after each future autopilot run produces a different layer's variant.
 
 ## D2. Picking between `runner` and a new `validator` archetype for V1
 
-`runner` system prompt today (per memory/runner observations):
+`runner` system prompt today:
 
 > "You execute well-defined commands. Run the requested action, report the result, exit cleanly."
 
-This is too thin for VALIDATE: a validator agent needs to orchestrate spec/evidence/deploy/smoke/security/e2e phases via `/validate-feature`, classify results, aggregate them into a PhaseRecord, and write a handoff. The `runner` framing as "execute one command" doesn't shape that behavior; the agent would likely run *something* and stop early.
+Too thin for VALIDATE: a validator agent needs to orchestrate spec/evidence/deploy/smoke/security/e2e phases via `/validate-feature`, classify results, aggregate them into a PhaseRecord, and write a handoff. The "execute one command" framing doesn't shape that behavior.
 
 A `validator` archetype with a tailored system prompt:
 
 ```yaml
 validator:
+  write_capable: true
   system_prompt: |
     You are a validator. Your job is to exercise the change under test
     end-to-end and produce a structured evidence record. Run the validation
     phases as specified (spec, evidence, deploy, smoke, security, e2e),
     aggregate findings, classify each phase pass/fail/skipped, and write
-    the resulting PhaseRecord handoff. You may write evidence artifacts
-    (reports, logs) and the handoff JSON. You do NOT modify source code
-    being validated; if a validation fails, return outcome 'failed' and
-    the orchestrator will dispatch a fix.
+    the resulting PhaseRecord handoff. You produce evidence artifacts
+    (reports, logs) and the handoff JSON. If a validation fails, return
+    outcome 'failed' and the orchestrator will dispatch a fix.
   model: standard
 ```
 
-This separates "I produce evidence artifacts" from "I modify code being validated" — both are write-capable but to different scopes.
+**Important change vs round-1 draft**: the round-1 prompt included the line *"You do NOT modify source code being validated"*, which a parallel-review reviewer (codex) flagged as self-contradicting — the validator IS write-capable per the schema, but that line frames it as not-modifying, which inherits the same role-confusion that V1 introduced. Scope guidance ("don't touch source code being validated") belongs in task descriptions, not role system prompts. The revised prompt above omits it.
 
-**Selected: introduce `validator` archetype.** Update `phase_mapping.VALIDATE` and `phase_mapping.VAL_FIX` accordingly. VAL_FIX is *fixing* validation failures, which arguably needs `implementer` instead — Task 1 includes deciding the VAL_FIX target.
+**Selected: introduce `validator` archetype.** `VAL_FIX` maps to `implementer` (also write-capable) because VAL_FIX is *fixing* code, not *producing* evidence.
 
-## D3. Why not add a custom prompt override for VALIDATE in SKILL.md instead
+## D3. Capability check: structured field, not substring matching
 
-Operator-side workarounds:
+The round-1 design used substring matching over `system_prompt` text to detect read-only archetypes — checking for phrases like "without making changes", "do not modify", "report findings only". Two reviewers (claude_code + gemini) independently flagged this as brittle: any future rephrasing ("report only", "no modifications", "analyze without writing") passes the check while violating intent. The confirmed finding moved the design.
 
-- `AUTOPILOT_PHASE_MODEL_OVERRIDE=VALIDATE=...` — only overrides model, not system_prompt. Doesn't help.
-- Editing SKILL.md to prefix the prompt with "DO write artifacts" — violates the "treat prompt as opaque" rule in the dispatch protocol.
-- Operator-side prompt augmentation via the orchestrator concatenating extra context — same rule violation; also doesn't survive across the runner.py build-dispatch boundary.
+**Selected approach** (revised): add a structured `write_capable: bool` field to every archetype entry in `archetypes.yaml`. The runner's archetype resolver enforces directly on this field. The check is unambiguous, can't drift over time, and is mechanically verifiable.
 
-None of these compose well. The archetype mapping is the right surface to fix.
+```yaml
+archetypes:
+  analyst:
+    write_capable: false
+    system_prompt: "You are a codebase analyst..."
+  validator:
+    write_capable: true
+    system_prompt: "You are a validator..."
+  implementer:
+    write_capable: true
+    system_prompt: "You are a focused implementer..."
+  # ... etc
+```
 
-## D4. Apply-outcome guard: hard-error vs warn-and-continue
+The CI guard (Task 5) iterates `phase_mapping` for the write-capable phases and asserts each resolved archetype has `write_capable: true`. No string matching.
 
-If `apply-outcome --phase X` is invoked while `current_phase = Y` where Y ≠ X, options:
+The original substring-based scenarios in the spec are replaced with structured-field-based scenarios (see spec.md round 2).
 
-- **Hard error.** Exit non-zero, refuse the update. Safe but breaks rare legitimate cases (e.g. operator manually recovering from a crash mid-transition).
-- **Warn and continue.** Log a warning, do the update. Permissive but defeats the guard's purpose.
-- **Hard error with `--force` escape hatch.** Default to refusal; allow `--force` for operator-conscious overrides.
+## D4. Phase-mismatch guard: rename `--force` to `--allow-phase-mismatch`
 
-**Selected: hard error with `--force` escape hatch.** Matches the broader autopilot pattern (complexity gate uses the same flag; sync-point skills use the same escape hatch). Operator has a clear signal when the contract is being violated and a clean way to override when they know what they're doing.
+Round-1 design called the escape-hatch flag `--force`. A reviewer (claude_code) flagged this as misleading — operators expect `--force` to be the most-permissive escape hatch, but in this design `--force` only bypasses the phase-mismatch guard; it explicitly does NOT enable `current_phase` modification. The narrower semantics deserve a narrower name.
 
-## D5. Test plan — V1
+**Selected**: rename to `--allow-phase-mismatch`. Operators reading the CLI help see the exact thing the flag allows, with no ambiguity.
+
+```bash
+# Default: error if --phase doesn't match loop-state's current_phase
+runner.py apply-outcome --change-id X --phase IMPLEMENT --outcome complete --handoff-id ...
+# Error: --phase IMPLEMENT does not match current_phase=PLAN_REVIEW. Use --allow-phase-mismatch to apply anyway (current_phase will not be modified).
+
+# With --allow-phase-mismatch: applies anyway, current_phase still untouched
+runner.py apply-outcome --change-id X --phase IMPLEMENT --outcome complete --handoff-id ... --allow-phase-mismatch
+```
+
+The error message MUST mention `--allow-phase-mismatch` so operators can find the escape hatch without reading the help text. (Gemini-surfaced finding.)
+
+## D5. Test plan — V1 capability check
 
 | Case | Setup | Expected |
 |---|---|---|
-| `archetypes.yaml` VALIDATE resolves write-capable | parse YAML, look up `phase_mapping.VALIDATE` → archetype name → `archetypes.<name>.system_prompt` | system_prompt does not contain "read-only", "without making changes", "report findings", "analyst" or other read-only markers |
-| `build-dispatch --phase VALIDATE` renders write-capable prompt | shell out to runner.py | rendered `system_prompt` field passes the same check as above |
-| `build-dispatch --phase VAL_FIX` renders write-capable prompt | shell out to runner.py | same |
+| `phase_mapping.VALIDATE` resolves to `write_capable: true` | parse YAML, look up `phase_mapping.VALIDATE` → archetype name → `archetypes.<name>.write_capable` | `True` |
+| `phase_mapping.VAL_FIX` resolves to `write_capable: true` | same | `True` |
+| All write-capable phases resolve to `write_capable: true` | iterate write-capable-phases list (per D7), assert each maps to `write_capable: true` | all pass |
+| `build-dispatch --phase VALIDATE` uses validator archetype | shell out to runner.py | `archetype` field in JSON output is `validator` |
+| Validator system_prompt does not self-contradict | inspect `archetypes.yaml validator.system_prompt` | does NOT contain "do not modify", "without modifying", "without making changes" or equivalent (we still enforce this for the system_prompt text as a *secondary check* — defense in depth against future drift in the role's prompt itself, not as the primary capability gate) |
 
-## D6. Test plan — V2
+## D6. Audit result durability artifact
 
-| Case | Setup | Expected |
-|---|---|---|
-| `apply-outcome` does not transition `current_phase` | seed loop-state with `current_phase=IMPLEMENT`; run `apply-outcome --phase IMPLEMENT --outcome complete --handoff-id …`; re-read loop-state | `current_phase` still `IMPLEMENT`; `last_handoff_id`/`handoff_ids`/`phase_archetype` updated |
-| `apply-outcome --phase X` errors when `current_phase=Y, X≠Y` | seed loop-state with `current_phase=IMPLEMENT`; run `apply-outcome --phase PLAN_REVIEW …` | exit non-zero with clear error message; loop-state untouched |
-| `apply-outcome --phase X --force` overrides mismatch | seed loop-state with `current_phase=IMPLEMENT`; run `apply-outcome --phase PLAN_REVIEW --force …` | exit zero; `last_handoff_id` updated; `current_phase` STILL unchanged (force only bypasses the guard, doesn't add transition) |
-| Write-capable phase prompt forbids running `apply-outcome` | `build-dispatch --phase IMPLEMENT` | rendered prompt body contains "DO NOT run apply-outcome" or equivalent |
+Task 1 is an audit step whose outcome determines whether Layer A actually requires changes vs. is already clean (`apply-outcome` doesn't write `current_phase` today). A reviewer flagged that recording the audit finding "in the commit message" is informal and not searchable later.
+
+**Selected**: write the audit outcome to `openspec/changes/fix-autopilot-archetype-and-apply-outcome/audit-result.md`. The file MUST contain, per layer:
+
+- The empirical finding (e.g. "Layer A: `apply-outcome` does/does NOT write `current_phase`. Evidence: line X of runner.py.")
+- The decision (e.g. "Layer A fix required" or "Layer A already clean; no code change needed")
+- The link to the task(s) that act on the finding
+
+Subsequent design.md, spec changes, and implementation tasks refer to `audit-result.md` for the load-bearing layer-by-layer findings. This makes the audit's conclusions discoverable from the change-id itself, not from git log archaeology.
 
 ## D7. Backward compatibility
 
 | Surface | Before | After |
 |---|---|---|
-| `apply-outcome` CLI interface | `--change-id --phase --outcome --handoff-id` | unchanged + `--force` added |
+| `apply-outcome` CLI interface | `--change-id --phase --outcome --handoff-id` | unchanged + `--allow-phase-mismatch` added |
 | `apply-outcome` `current_phase` write | possibly (Task 1 audit determines) | never |
-| `archetypes.yaml` `phase_mapping.VALIDATE` | `analyst` | `validator` (new) |
-| `archetypes.yaml` `phase_mapping.VAL_FIX` | `analyst` (presumed) | TBD by Task 1 — either `validator` or `implementer` |
-| Existing autopilot runs in flight | loop-state with `current_phase=VALIDATE` and archetype `analyst` recorded | next dispatch reads new archetype from YAML; recorded `phase_archetype` in loop-state stays as-is (historical record) |
+| `apply-outcome` `phase_history` append | already happening | unchanged, but now codified as a spec requirement |
+| `apply-outcome` non-zero exit behavior | implementation-dependent | orchestrator MUST detect and transition to ESCALATE (D9) |
+| `archetypes.yaml` `phase_mapping.VALIDATE` | `analyst` | `validator` (new archetype) |
+| `archetypes.yaml` `phase_mapping.VAL_FIX` | `analyst` (presumed) | `implementer` |
+| `archetypes.yaml` `archetypes.*` entries | each has `system_prompt` and `model` | each adds `write_capable: bool` (required for all archetypes) |
+| Dispatch prompt scaffold for write-capable phases | no state-mutation prohibition | includes Layer B + C prohibitions |
+| Dispatch prompt scaffold for read-only phases | no state-mutation prohibition | unchanged (state-only phases don't need it) |
+| Existing autopilot runs in flight | loop-state with `current_phase=VALIDATE` recorded with old archetype | next dispatch reads new archetype from YAML; recorded `phase_archetype` in loop-state stays as-is |
 
-Existing OpenSpec changes (including extract-gen-eval-package whose VALIDATE failed for this exact reason) DON'T need retroactive fixes — the substantive work was already done and the PR was created via the Option A skip-to-SUBMIT_PR path. The fix prevents recurrence on the NEXT autopilot run.
+Existing OpenSpec changes (including extract-gen-eval-package, whose VALIDATE failed for exactly the V1 reason) don't need retroactive fixes — that PR's substantive work was completed via the Option-A skip-to-SUBMIT_PR path. The fix prevents recurrence on the NEXT autopilot run.
 
 ## D8. Edge cases
 
-- **E1: Sub-agent running `apply-outcome` in a future runtime where it's been blocked.** Sub-agent receives exit-non-zero, retries, fails again. Sub-agent should treat this as a structural problem and return `outcome=failed`. Acceptable behavior; the prompt scaffold guards against the attempt in the first place (Layer B fix).
+- **E1: Sub-agent running `apply-outcome` in a future runtime where it's been blocked**. Sub-agent receives exit-non-zero, retries, fails again. Sub-agent should treat this as a structural problem and return `outcome=failed`. The prompt scaffold's Layer B prohibition guards against the attempt in the first place; this is the fallback safety net.
 
-- **E2: Operator manually running `apply-outcome` to recover from a crash mid-transition.** They want to "complete" a phase whose handoff was written but whose state never updated. Use `--force` (D4). Document this in the runner's CLI help text.
+- **E2: Operator manually running `apply-outcome` to recover from a crash mid-transition**. They want to record an outcome for a phase whose handoff was written but whose state never updated. Use `--allow-phase-mismatch` (D4). The runner's CLI help text and the phase-mismatch error message both document this.
 
-- **E3: A future archetype mapping update introduces a read-only role for a write-capable phase.** Add a CI check (Task 4): grep `phase_mapping.<write-capable phases>` and assert their archetypes' system_prompts don't contain read-only markers.
+- **E3: A future archetype mapping update introduces `write_capable: false` for a write-capable phase**. The CI check (Task 5) catches it before merge by failing the test.
 
-- **E4: `apply-outcome --phase X` for a phase that isn't in the state machine** (e.g. `CLEANUP`). Already errors out on the validity of `--phase` per the existing CLI. Unchanged.
+- **E4: `apply-outcome --phase X` for a phase that isn't in the state machine** (e.g. `CLEANUP`). Already errors out on `--phase` validity per the existing CLI surface. The phase-mismatch guard is an additional check on top.
+
+- **E5: Sub-agent obeys Layer B (doesn't run `apply-outcome`) but writes `loop-state.json` directly (Layer C violation)**. Layer C's prohibition is the prompt-level discouragement. If the sub-agent ignores both prompts, the orchestrator's next dispatch reads the corrupted state and the V2 failure recurs. This is acknowledged in proposal Out-of-Scope as the residual risk of prompt-based enforcement; structural enforcement is a future change if this proves insufficient.
+
+## D9. `apply-outcome` failure handling: orchestrator transitions to ESCALATE
+
+A reviewer (claude_code + codex) flagged that after the V2 fix lands, `apply-outcome` becomes the sole writer of `last_handoff_id`/`handoff_ids`/`phase_archetype`. A silent `apply-outcome` failure (disk full, lock contention, malformed loop-state, transient FS error) leaves loop-state inconsistent with the just-written handoff — and the next dispatch reads stale state.
+
+**Selected**: when `apply-outcome` exits non-zero, the orchestrator MUST:
+
+1. Detect the non-zero exit code.
+2. Retain the un-applied handoff file in `openspec/changes/<id>/handoffs/` (do not delete it).
+3. Append a `phase_history` entry recording the apply-outcome failure (writing this directly via a small helper is OK because the orchestrator owns `phase_history` writes too).
+4. Transition `current_phase` to `ESCALATE` with `previous_phase` set to the failing phase.
+
+This makes apply-outcome failures a first-class state in the autopilot state machine. The operator resumes via `/autopilot <change-id> --force` after addressing the underlying cause (free disk space, restart the FS, etc.) — the orchestrator reads the retained handoff and re-applies.
+
+## D10. Orchestrator transition-table audit (Layer D)
+
+Task 1.5 audits the autopilot orchestrator's next-phase decision logic. The audit asks:
+
+- Does the orchestrator consult a `phase_transitions` table (YAML/JSON config, hardcoded dict, or generated from SKILL.md state diagram)?
+- For each `(current_phase, outcome)` pair on the state machine, what next-phase does the table produce?
+- For `(IMPLEMENT, complete)`, the answer MUST be `IMPL_ITERATE`. For `(IMPL_ITERATE, complete)`, `IMPL_REVIEW` if `cli_review_enabled` else `VALIDATE`. Etc.
+- Any mismatch is the Layer D bug.
+
+If the audit finds Layer D is the bug (or contributes to it), the fix is to correct the transition table to match SKILL.md sections 4-8. If the audit finds the orchestrator's transition logic is implementation-distributed (e.g. branched control flow in `runner.py run-loop` rather than a table), the fix is to extract the logic into a single table for auditability — a structural fix worth carrying on top of the targeted fix.
+
+Add a regression test (Task 6.7): seed `loop-state.json` with `current_phase=IMPLEMENT, last_handoff_id=...` and `phase_history` ending in `outcome=complete`; invoke the orchestrator's next-phase decision; assert the result is `IMPL_ITERATE` (or whatever SKILL.md prescribes).
