@@ -259,3 +259,4 @@ openspec/.plan-roadmap-tmp/
 
 # Legacy openspec init output (replaced by .agents/skills/ via skills/install.sh)
 .agent/
+skills/merge-pull-requests/scripts/docs/
