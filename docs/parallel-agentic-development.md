@@ -712,7 +712,7 @@ Immutable, append-only logging of all coordination operations. Best-effort (non-
 | Contract-first tooling | Schema complete, agent-executed | No automated type generation (Pydantic/TS from OpenAPI) |
 | Prism mock orchestration | Config in schema | Orchestrator doesn't start/verify Prism |
 | Schemathesis / Pact execution | Config in schema | Agents responsible, no coordinator integration |
-| Merge queue integration | Service + DB exist | Full cross-feature rebase coordination needs testing |
+| Merge queue integration | **Complete** | MergeBackend protocol with 3 backends, post-merge pipeline, auto-rebase, auto-rollback, metrics, background watcher |
 
 ### Future Work
 

@@ -150,6 +150,18 @@ Accumulated patterns and conventions from building and operating this project.
 
 - **Spec-vs-reality drift surfaces in implementation**: Two minor deviations between plan and implementation: `simplify` skill didn't exist on disk despite being labeled a "tail-block pilot" (sub-agent created it from scratch); `review-findings.schema.json` lives at `openspec/schemas/`, not `skills/parallel-infrastructure/schemas/` as the work-packages.yaml assumed. Both deviations were in-scope corrections that sub-agents handled cleanly — but they're a reminder that work-packages.yaml file paths are forecasts, not contracts. Sub-agents should be empowered to find the actual location and proceed.
 
+## Merge Queue Scaling (merge-queue-scaling, 2026-06)
+
+- **Protocol pattern for multi-backend merge**: `MergeBackend` protocol with three implementations (CoordinatorTrainBackend, GitHubQueueBackend, DirectMergeBackend) selected at runtime via `detect_merge_backend()`. This mirrors the existing `GitAdapter` and `DatabaseClient` patterns in the codebase. The protocol approach pays for itself immediately in test coverage — each backend is tested in complete isolation.
+
+- **Composable post-merge hooks prevent cascading failures**: The post-merge pipeline runs metrics, auto-rebase, and auto-rollback as independent hooks. Each wraps its body in try/except so a rebase API timeout doesn't block rollback monitoring. This is critical for the "zero broken main" guarantee — rollback monitoring must never be blocked by a rebase failure.
+
+- **Rate-limited auto-rebase prevents CI storms**: A merge touching `pyproject.toml` could make 50+ PRs stale. Refreshing all simultaneously would exhaust GitHub API quota and CI runners. The default `MAX_AUTO_REBASE_PER_MERGE=5` cap bounds CI load per merge event. The background watcher picks up remaining PRs in the next tick.
+
+- **File overlap attribution for auto-revert reduces false positives**: Auto-reverting the most recent merge unconditionally on CI failure is dangerous — a flaky test could revert a good PR. Requiring file overlap between the merged PR's changes and the failing test files prevents unrelated reverts. The trade-off: if a PR breaks something through a non-obvious transitive dependency (no file overlap), the system won't auto-revert — it flags for operator investigation instead.
+
+- **Backward compatibility via additive design**: The `merge_with_pipeline()` function wraps the existing `merge_pr()` rather than modifying it. The `--pipeline` CLI flag is opt-in. All 106 existing tests pass unchanged. Solo-dev repos without coordinator or GitHub queue use DirectMergeBackend — identical behavior to before.
+
 ## Self-Healing at Milestone Boundaries
 
 What `escalation_handler.py` (`agent-coordinator/src/escalation_handler.py`) actually implements, in Factory Missions vocabulary: orchestrator-driven re-scoping at milestone boundaries based on structured handoffs. When a worker emits CONTRACT_REVISION_REQUIRED, PLAN_REVISION_REQUIRED, SCOPE_VIOLATION, or one of the other escalation types, the orchestrator deterministically re-scopes the DAG (e.g., bumping `contracts.revision`, re-submitting impacted packages) — no agent memory required.
