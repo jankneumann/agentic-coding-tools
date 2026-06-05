@@ -44,15 +44,27 @@ them idempotently using the `(vendor, session_id, record_hash)` key.
 
 ### Requirement: Live Usage Event Stream
 
-The API SHALL emit a `usage.recorded` event over the existing SSE channel when
-new records are persisted, so dashboards refresh without polling. Polling MUST
-remain available as a fallback.
+The API SHALL expose `GET /events/usage` as a dedicated Server-Sent Events
+stream — separate from `/events/work` (which is keyed on a non-empty work-id
+and therefore unsuitable for a global usage feed). The endpoint SHALL accept
+the same Bearer auth as the rest of the usage API and an optional `vendor`
+query filter. When new records are persisted the API SHALL publish a
+`usage.recorded` event to this stream whose `data:` payload is a JSON object
+containing `{ "vendors": [...], "record_count": int, "ts": "<RFC3339>" }`.
+Polling MUST remain available as a fallback.
 
 #### Scenario: New records push an SSE event
 
 - **WHEN** a batch of new records is persisted
-- **THEN** subscribers to the usage SSE stream SHALL receive a `usage.recorded`
-  event referencing the affected vendors
+- **THEN** subscribers connected to `GET /events/usage` SHALL receive a
+  `usage.recorded` event whose payload lists the affected vendors and the
+  count of new records
+
+#### Scenario: Vendor filter narrows the stream
+
+- **GIVEN** a subscriber connects to `GET /events/usage?vendor=claude`
+- **WHEN** a batch lands that contains only `openai` records
+- **THEN** the API SHALL NOT push a `usage.recorded` event to that subscriber
 
 ### Requirement: Pricing Seeded From Agent Registry
 
