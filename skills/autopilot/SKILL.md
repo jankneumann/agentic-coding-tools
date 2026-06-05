@@ -139,7 +139,7 @@ Failure here is non-fatal — the helper logs a warning and writes
 
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
-- **Before showing/answering the proposal approval gate prompt**, invoke `/review-artifacts <change-id>` to open proposal/design/spec/tasks artifacts in a new VS Code review session
+- **Before showing/answering the proposal approval gate prompt**, **best-effort** invoke `/review-artifacts <change-id>` to open proposal/design/spec/tasks artifacts in a new VS Code review session. The helper is local-only (depends on the VS Code CLI / a desktop environment) and will be unavailable in cloud harnesses — treat its failure as non-fatal: log a short notice (`[autopilot] /review-artifacts unavailable — skipping artifact pre-open`) and continue to the approval gate.
 - Wait for proposal approval before continuing
 
 If argument was an existing change-id:
@@ -538,7 +538,7 @@ Write final handoff document.
 
 **STOP — Await human approval for merge via `/cleanup-feature <change-id>`.**
 
-Before presenting merge-approval questions, automatically invoke `/review-artifacts <change-id>` so the reviewer has the relevant artifacts open prior to choosing gate outcomes.
+Before presenting merge-approval questions, **best-effort** invoke `/review-artifacts <change-id>` so the reviewer has the relevant artifacts open prior to choosing gate outcomes. The helper is local-only (VS Code CLI dependency) — when it's unavailable (cloud harness, headless CI), log a short notice and proceed to the approval prompt without it; do not block the gate on artifact pre-opening.
 
 ## Progress Reporting
 
