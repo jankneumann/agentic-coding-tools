@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "fix-autopilot-archetype-and-apply-outcome",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "gemini",
+      "agent_id": "gemini",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Proposal V2 enumerates two possible causes (Layer A = apply-outcome implementation bug; Layer B = sub-agent prompt overreach), but a third pathway is missing: the sub-agent can write loop-state.json *directly* via shell tools (python3 -c, sed, jq) without invoking apply-outcome at all. The commit subject 'chore(autopilot): record IMPLEMENT=complete, transition to CLEANUP' matches apply-outcome's format but could have been authored by hand. The currently-designed fix leaves this pathway open \u2014 Layer B's prompt addition forbids running apply-outcome but says nothing about direct edits. Empirically, the IMPLEMENT sub-agent demonstrated initiative-taking behavior (it skipped 4 phases to land at a non-existent state); a sub-agent willing to do that would also be willing to bypass apply-outcome."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: V2's causal model only covers apply-outcome mutating current_phase or the sub-agent doing extra bookkeeping, but it does not cover the orchestrator's own next-phase transition table selecting CLEANUP after IMPLEMENT. If that transition code is wrong, the proposed Layer A/Layer B fixes can pass while the next orchestrator-owned transition still skips IMPL_ITERATE, IMPL_REVIEW, VALIDATE, and SUBMIT_PR."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: The 'Out of Scope' section names related concerns (harness silent-no-op, compact-hook FP, git-commit foot-gun) but does not name the most relevant structural alternative: should sub-agents have write access to openspec/changes/<id>/loop-state.json at all? A process-level guard (filesystem permissions on the harness worktree, a pre-commit hook scoped to sub-agent identity, or routing loop-state writes through a syscall the harness intercepts) is more robust than prompt instructions, which depend on sub-agent compliance. The proposal should explicitly acknowledge this alternative and justify why prompt-level enforcement is sufficient (or commit to a follow-up change)."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The proposed validator archetype prompt contains 'You do NOT modify source code being validated', while the spec says write-capable archetype prompts SHALL NOT contain phrases such as 'do not modify'. The planned CI substring guard would reject the very prompt described by the design."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The prompt-prohibition coverage is inconsistent. The spec's CI guard lists write-capable phases including PLAN, PLAN_FIX, IMPL_FIX, and VAL_FIX, but the dispatch-prompt scenario and Task 4.2 only require prohibitions for PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE, and VAL_REVIEW. That leaves several mutation-capable phases outside the direct state-mutation guard."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The plan introduces a hard-error path for apply-outcome mismatches, but it does not specify what the orchestrator must do when its own apply-outcome call fails. Without a required failure behavior, the orchestrator could still advance current_phase, leave partial loop-state updates, or obscure the mismatch behind a generic phase failure."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: Layer B relies on prompt text to stop sub-agents from mutating loop-state even though the design explicitly notes that sub-agents have shell access and can edit loop-state.json directly. A structural control such as file permissions, a runner wrapper, or a mutation hook is not evaluated or named as out of scope, so the plan may overstate the strength of the guard."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The backward-compatibility matrix omits two behavior changes that consumers may depend on: apply-outcome now appends phase_history entries per the spec, and phase-mismatched invocations that previously succeeded now fail unless --force is supplied."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: D4's `--force` semantics are unusual \u2014 the flag bypasses the phase-mismatch guard but explicitly does NOT enable current_phase modification. Operators encountering `--force` typically expect it to be the most-permissive escape hatch. The intent (allow last_handoff_id update for a non-current phase, e.g. recovery from a crash) is reasonable, but the naming will surprise operators reading the CLI help."
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "gemini",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "fix",
+      "description": "Nit: The spec scenario 'Resolved VALIDATE archetype is write-capable' enumerates specific substrings ('without making changes', 'do not modify', 'without modifying', 'only synthesize') as the read-only-marker check. This is brittle: a future archetype description using semantically-equivalent phrasing ('report only', 'no modifications', 'analyze without writing') passes the substring check while violating the intent. The CI guard scenario inherits the same fragility."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Task 1 is an audit step whose outcome determines whether Task 3.1 is a no-op vs. requires real work. The design says 'Record finding in commit message' which is informal \u2014 git log search across the implementation commit chain is not a durable place for an architectural finding. A future maintainer asking 'did Layer A turn out to be the bug?' has to grep commit messages and reconstruct the audit conclusion."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: After the fix lands, apply-outcome is the only writer of last_handoff_id/handoff_ids/phase_archetype. Nothing in the spec requires the orchestrator to handle the case where apply-outcome itself fails (disk full, transient FS error, lock contention, malformed loop-state.json). A silent apply-outcome failure leaves loop-state inconsistent with the just-written handoff \u2014 and the next dispatch will read stale state."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: D2's choice to introduce a new `validator` archetype rather than reusing the existing `runner` archetype is correct. The reasoning ('runner system_prompt is too thin for multi-phase validation; introducing validator keeps the mapping table semantically clean') matches the broader archetype-as-vocabulary pattern. The accompanying system_prompt draft is appropriately tailored \u2014 it distinguishes 'I produce evidence artifacts' from 'I modify code being validated', which lines up with the VALIDATE/VAL_FIX split."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The read-only-marker tests are phrased around brittle substrings and 'equivalent' language, which is hard to implement consistently and can both false-positive on safe scope limits and false-negative on rephrased read-only instructions."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The introduction of a dedicated 'validator' archetype (D2) correctly separates the concerns of 'producing evidence' from 'modifying source code', resolving the contract contradiction while maintaining safety boundaries."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The error message for phase mismatch in apply-outcome (Requirement: apply-outcome rejects phase mismatch) should explicitly mention the existence of the --force flag to guide operators during manual recovery."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "gemini",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: The state-mutation prohibition (Layer B) is only applied to write-capable phases. While read-only phases currently map to 'analyst', applying the prohibition to all autopilot-managed sub-agents would provide better defense-in-depth against future archetype mapping changes."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 17,
+    "confirmed_count": 1,
+    "unconfirmed_count": 16,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

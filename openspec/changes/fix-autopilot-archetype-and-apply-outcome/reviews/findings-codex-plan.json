@@ -1,0 +1,112 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: V2's causal model only covers apply-outcome mutating current_phase or the sub-agent doing extra bookkeeping, but it does not cover the orchestrator's own next-phase transition table selecting CLEANUP after IMPLEMENT. If that transition code is wrong, the proposed Layer A/Layer B fixes can pass while the next orchestrator-owned transition still skips IMPL_ITERATE, IMPL_REVIEW, VALIDATE, and SUBMIT_PR.",
+      "resolution": "Add an explicit audit and test for the orchestrator transition function: IMPLEMENT complete SHALL advance to IMPL_ITERATE, no autopilot transition SHALL target CLEANUP, and apply-outcome failure/success must not be the code path that computes next phase.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 5,
+        "end": 17
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The proposed validator archetype prompt contains 'You do NOT modify source code being validated', while the spec says write-capable archetype prompts SHALL NOT contain phrases such as 'do not modify'. The planned CI substring guard would reject the very prompt described by the design.",
+      "resolution": "Define allowed write scopes structurally instead of banning the substring globally, or reword the validator prompt and spec so evidence-writing is allowed while source-code edits are explicitly disallowed without tripping the read-only marker check.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 36,
+        "end": 48
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The prompt-prohibition coverage is inconsistent. The spec's CI guard lists write-capable phases including PLAN, PLAN_FIX, IMPL_FIX, and VAL_FIX, but the dispatch-prompt scenario and Task 4.2 only require prohibitions for PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, VALIDATE, and VAL_REVIEW. That leaves several mutation-capable phases outside the direct state-mutation guard.",
+      "resolution": "Use one canonical write-capable phase list across design, spec, tasks, and tests, and include every phase that can run with shell/write capability in the 'must not run apply-outcome or edit loop-state.json' prompt check.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 74,
+        "end": 77
+      }
+    },
+    {
+      "id": 4,
+      "axis": "resilience",
+      "severity": "nit",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: The plan introduces a hard-error path for apply-outcome mismatches, but it does not specify what the orchestrator must do when its own apply-outcome call fails. Without a required failure behavior, the orchestrator could still advance current_phase, leave partial loop-state updates, or obscure the mismatch behind a generic phase failure.",
+      "resolution": "Add a requirement and test that orchestrator-owned apply-outcome failures are atomic and resumable: no current_phase transition, no partial loop-state mutation, a clear diagnostic is written or returned, and the autopilot loop exits in a state the operator can retry or force consciously.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 74
+      }
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Optional: Layer B relies on prompt text to stop sub-agents from mutating loop-state even though the design explicitly notes that sub-agents have shell access and can edit loop-state.json directly. A structural control such as file permissions, a runner wrapper, or a mutation hook is not evaluated or named as out of scope, so the plan may overstate the strength of the guard.",
+      "resolution": "Either add a short rejected-alternatives section explaining why filesystem/tooling enforcement is out of scope for this change, or add a follow-up task to evaluate a structural guard that prevents non-orchestrator writes to loop-state.json.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 18
+      }
+    },
+    {
+      "id": 6,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: The read-only-marker tests are phrased around brittle substrings and 'equivalent' language, which is hard to implement consistently and can both false-positive on safe scope limits and false-negative on rephrased read-only instructions.",
+      "resolution": "Replace or supplement substring checks with explicit archetype metadata such as write_capable: true and allowed_write_scopes, then keep substring checks as a regression heuristic rather than the primary contract.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 5,
+        "end": 13
+      }
+    },
+    {
+      "id": 7,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: The backward-compatibility matrix omits two behavior changes that consumers may depend on: apply-outcome now appends phase_history entries per the spec, and phase-mismatched invocations that previously succeeded now fail unless --force is supplied.",
+      "resolution": "Extend D7 with compatibility rows for phase_history, phase-mismatch exit behavior, and any existing callers or recovery scripts that may need to pass --force intentionally.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 93,
+        "end": 103
+      }
+    }
+  ]
+}
