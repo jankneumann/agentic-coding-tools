@@ -10,7 +10,7 @@
     "Package count (6) exceeds soft threshold (4)",
     "Database migration signal detected; require --force"
   ],
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "force_used": true,
   "handoff_ids": [
     "openspec/changes/extract-gen-eval-package/handoffs/plan-iteration-1-1.json",
@@ -67,11 +67,23 @@
       "note": "operator chose option A: skip VAL_FIX, jump to SUBMIT_PR; IMPLEMENT-phase evidence (openspec validate strict + 548 tests) substantively covers spec+evidence; Docker phases land in /cleanup-feature",
       "outcome": "skip_to_submit",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-06-05T13:34:50.904084+00:00",
+      "outcome": "complete",
+      "phase": "SUBMIT_PR",
+      "note": "PR #194 created; awaiting human approval via /cleanup-feature"
+    },
+    {
+      "at": "2026-06-05T13:34:50.904248+00:00",
+      "outcome": "awaiting_merge",
+      "phase": "DONE",
+      "note": "Autopilot loop complete. PR #194. Follow-up change filed: openspec/fix-autopilot-archetype-and-apply-outcome (V1+V2 contract fixes)"
     }
   ],
   "phase_iterations": {},
   "phase_started_at": "2026-05-30T15:18:59.979082+00:00",
-  "previous_phase": "VALIDATE",
+  "previous_phase": "SUBMIT_PR",
   "schema_version": 3,
   "started_at": "2026-05-24T16:05:54.018315+00:00",
   "total_iterations": 0,
