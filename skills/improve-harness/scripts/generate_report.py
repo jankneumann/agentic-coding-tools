@@ -4,6 +4,9 @@ Formats the output of ``analyze_failures.rank_findings()`` into a
 human-readable markdown report with summary statistics, a ranked findings
 table, and recommendations.  Optionally creates OpenSpec proposal stubs
 from high-priority findings.
+
+Supports both single-source (legacy) and multi-source reports with
+per-finding source attribution and cross-source agreement summaries.
 """
 
 from __future__ import annotations
@@ -103,6 +106,164 @@ def generate_report(
             f"score {finding['score']}"
         )
         lines.append(f"- **Affected skills**: {', '.join(finding['affected_skills']) or '—'}")
+        lines.append(
+            f"- **Action**: Investigate root cause and consider creating an "
+            f"OpenSpec proposal to address this gap."
+        )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Multi-source report generation
+# ---------------------------------------------------------------------------
+
+def generate_report_multi_source(
+    findings: list[dict[str, Any]],
+    *,
+    time_window_days: int = 30,
+) -> str:
+    """Generate a markdown report with per-finding source attribution.
+
+    Parameters
+    ----------
+    findings:
+        Deduplicated finding dicts (from ``analyze_failures.deduplicate_findings``),
+        each with a ``sources`` list.
+    time_window_days:
+        The time window used for the query (for display).
+
+    Returns
+    -------
+    str
+        A complete markdown report with Source column and cross-source
+        agreement summary.
+    """
+    from analyze_failures import SEVERITY_WEIGHTS
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    total = len(findings)
+
+    if total == 0:
+        return (
+            f"# Capability Gap Report (Multi-Source)\n\n"
+            f"No capability gaps recorded in the last {time_window_days} days.\n\n"
+            f"Verify that emitters (self-report, coordinator, session-log, "
+            f"transcript) are configured and active.\n"
+        )
+
+    # Compute cross-source agreement
+    multi_source_count = sum(
+        1 for f in findings if len(f.get("sources", [])) >= 2
+    )
+    agreement_pct = (multi_source_count / total * 100) if total > 0 else 0.0
+
+    # Group by capability_gap for ranking
+    from collections import defaultdict
+    gap_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for f in findings:
+        gap_groups[f.get("capability_gap", "unknown")].append(f)
+
+    # Rank groups
+    ranked: list[dict[str, Any]] = []
+    for gap, group in gap_groups.items():
+        score = 0
+        severities: list[str] = []
+        all_sources: set[str] = set()
+        all_skills: set[str] = set()
+
+        for entry in group:
+            sev = entry.get("severity", "low")
+            severities.append(sev)
+            score += SEVERITY_WEIGHTS.get(sev, 1)
+            all_sources.update(entry.get("sources", []))
+            skill = entry.get("affected_skill", "")
+            if skill:
+                all_skills.add(skill)
+
+        max_severity = "low"
+        for level in ("critical", "high", "medium", "low"):
+            if level in severities:
+                max_severity = level
+                break
+
+        ranked.append({
+            "capability_gap": gap,
+            "frequency": len(group),
+            "max_severity": max_severity,
+            "score": score,
+            "affected_skills": sorted(all_skills),
+            "sources": sorted(all_sources),
+        })
+
+    ranked.sort(key=lambda r: r["score"], reverse=True)
+
+    lines: list[str] = []
+    lines.append("# Capability Gap Report (Multi-Source)")
+    lines.append("")
+    lines.append(f"**Generated**: {today}  ")
+    lines.append(f"**Time window**: {time_window_days} days  ")
+    lines.append(f"**Total findings**: {total}  ")
+    lines.append(f"**Unique gaps**: {len(ranked)}  ")
+    lines.append(
+        f"**Cross-source agreement**: {agreement_pct:.1f}% of findings "
+        f"surfaced in 2+ sources ({multi_source_count}/{total})"
+    )
+    lines.append("")
+
+    # --- Summary ---
+    lines.append("## Summary")
+    lines.append("")
+    severity_counts: dict[str, int] = {}
+    for r in ranked:
+        sev = r["max_severity"]
+        severity_counts[sev] = severity_counts.get(sev, 0) + r["frequency"]
+    for sev in ("critical", "high", "medium", "low"):
+        count = severity_counts.get(sev, 0)
+        if count:
+            lines.append(f"- **{sev.capitalize()}**: {count} occurrences")
+    lines.append("")
+
+    # --- Ranked findings table with Source column ---
+    lines.append("## Ranked Findings")
+    lines.append("")
+    lines.append(
+        "| Rank | Capability Gap | Frequency | Max Severity "
+        "| Score | Affected Skills | Sources |"
+    )
+    lines.append(
+        "|------|---------------|-----------|-------------|"
+        "-------|-----------------|---------|"
+    )
+    for i, r in enumerate(ranked, 1):
+        skills_str = ", ".join(r["affected_skills"]) or "—"
+        sources_str = ", ".join(r["sources"]) or "—"
+        lines.append(
+            f"| {i} | {r['capability_gap']} "
+            f"| {r['frequency']} "
+            f"| {r['max_severity']} "
+            f"| {r['score']} "
+            f"| {skills_str} "
+            f"| {sources_str} |"
+        )
+    lines.append("")
+
+    # --- Recommendations ---
+    lines.append("## Recommendations")
+    lines.append("")
+    for i, r in enumerate(ranked[:5], 1):
+        lines.append(f"### {i}. {r['capability_gap']}")
+        lines.append("")
+        lines.append(
+            f"- **Impact**: {r['frequency']} occurrences, "
+            f"max severity {r['max_severity']}, score {r['score']}"
+        )
+        lines.append(
+            f"- **Affected skills**: "
+            f"{', '.join(r['affected_skills']) or '—'}"
+        )
+        lines.append(f"- **Sources**: {', '.join(r['sources']) or '—'}")
         lines.append(
             f"- **Action**: Investigate root cause and consider creating an "
             f"OpenSpec proposal to address this gap."
