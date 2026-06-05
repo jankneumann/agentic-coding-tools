@@ -1,0 +1,35 @@
+# Agent Coordinator Configuration
+# Copy to config.yaml and customize for your deployment.
+
+# Audit trail settings
+audit:
+  retention_days: 90
+  async_logging: true
+
+  # Capability gap triage via LLM classifier (D9)
+  # Classifies audit log batches for capability-gap signals using an LLM.
+  # Hot path (log_operation) only pushes to a ring buffer — zero LLM latency.
+  # Background task drains the buffer on cadence and invokes the classifier.
+  capability_gap_triage:
+    # Enable/disable the triage classifier.
+    # Default-off in CI, set to true for production.
+    enabled: false
+
+    # Archetype for model selection (from archetypes.yaml).
+    # "analyst" = standard tier (sonnet / gpt-5.4 / gemini-3-flash).
+    # Override to "reviewer" for premium tier if accuracy matters more than cost.
+    archetype: analyst
+
+    # Provider for model resolution.
+    # One of: claude_code, codex, gemini
+    provider: claude_code
+
+    # Maximum entries per classifier invocation.
+    batch_size: 50
+
+    # How often the background task drains the buffer (minutes).
+    batch_interval_minutes: 10
+
+    # Classifier prompt version (maps to audit_triage_prompts/v{N}.md).
+    # Emitted findings include prompt_version:N tag for A/B comparison.
+    prompt_version: 1
