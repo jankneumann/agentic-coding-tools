@@ -34,12 +34,12 @@
 
 ## Phase 2: Coordinator Extensions — Profiles, Scope, Work Queue
 
-- [ ] 2.1 Write tests for evaluator profile — verify read-only permissions, operation restrictions, work queue role filtering
+- [x] 2.1 Write tests for evaluator profile — verify read-only permissions, operation restrictions, work queue role filtering
   **Spec scenarios**: harness-engineering.5 (evaluator profile definition), harness-engineering.5 (work queue role separation)
   **Design decisions**: D5 (evaluator profile via existing profile system)
   **Dependencies**: None
 
-- [ ] 2.2 Add evaluator agent profile — database migration seeding evaluator profile, work queue agent_type preference logic
+- [x] 2.2 Add evaluator agent profile — database migration seeding evaluator profile, work queue agent_type preference logic
   **Files**: `agent-coordinator/database/migrations/026_evaluator_profile.sql`, `agent-coordinator/src/work_queue.py`, `agent-coordinator/src/profiles.py`
   **Dependencies**: 2.1
 
