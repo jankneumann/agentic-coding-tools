@@ -5,7 +5,7 @@
 
 ## Phase 1: Foundation — Context Architecture & Memory Schema
 
-- [ ] 1.1 Write tests for CLAUDE.md restructuring — verify TOC links resolve, topic docs exist, line count constraint
+- [x] 1.1 Write tests for CLAUDE.md restructuring — verify TOC links resolve, topic docs exist, line count constraint
   **Spec scenarios**: harness-engineering.2 (CLAUDE.md as context map), harness-engineering.2 (topic docs self-contained)
   **Design decisions**: D2 (CLAUDE.md restructure via file splitting)
   **Dependencies**: None
