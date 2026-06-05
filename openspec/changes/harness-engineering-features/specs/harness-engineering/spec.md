@@ -109,6 +109,13 @@ WHEN `/improve-harness` generates a report
 THEN each finding SHALL be annotated with the set of sources that surfaced it (one or more of: self-reported, coordinator-emitted, session-log, transcript-mined)
 AND the report SHALL include a summary line stating what fraction of findings surfaced in 2 or more sources (cross-source agreement is the strongest signal)
 
+#### Scenario: Report handles empty capability-gap data
+WHEN `/improve-harness` is invoked
+AND episodic memory contains zero capability_gap entries within the time window
+AND no `openspec/changes/**/session-log.md` files contain Capability Gaps Observed sections
+THEN the skill SHALL report "No capability gaps recorded in the last N days" with a suggestion to verify that emitters (self-report, coordinator, session-log, transcript) are configured and active
+AND exit with a zero status code
+
 #### Scenario: Report-to-feature pipeline
 WHEN an improvement report identifies a high-priority capability gap
 THEN the user SHALL be able to invoke a skill that takes the report finding and creates an OpenSpec change proposal from it
@@ -128,6 +135,12 @@ AND it SHALL be assignable to review tasks in the work queue
 WHEN an evaluation task is submitted to the work queue
 THEN the coordinator SHALL NOT assign it to the same agent_id that generated the work being evaluated
 AND the coordinator SHALL prefer agents with the "evaluator" agent_type
+
+#### Scenario: No evaluator agent available
+WHEN an evaluation task is submitted to the work queue
+AND no agent with the "evaluator" agent_type is registered or available
+THEN the coordinator SHALL fall back to assigning the task to any non-author agent
+AND the task metadata SHALL include a flag indicating evaluator-preferred but fallback-assigned
 
 ### Requirement: Session Focus Enforcement
 
