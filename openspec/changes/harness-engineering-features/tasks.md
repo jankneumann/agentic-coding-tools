@@ -10,7 +10,7 @@
   **Design decisions**: D2 (CLAUDE.md restructure via file splitting)
   **Dependencies**: None
 
-- [ ] 1.2 Restructure CLAUDE.md — split into ~100-line TOC + topic docs under `docs/guides/`
+- [x] 1.2 Restructure CLAUDE.md — split into ~100-line TOC + topic docs under `docs/guides/`
   **Files**: `CLAUDE.md`, `docs/guides/workflow.md`, `docs/guides/python-environment.md`, `docs/guides/git-conventions.md`, `docs/guides/skills.md`, `docs/guides/worktree-management.md`, `docs/guides/documentation.md`, `docs/guides/session-completion.md`
   **Dependencies**: 1.1
 
