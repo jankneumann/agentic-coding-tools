@@ -662,6 +662,7 @@ def _phase_init(
         result = assess_complexity_fn(
             work_packages_path=wp_path,
             proposal_path=proposal_path if proposal_path.exists() else None,
+            force=state.force,
         )
 
         def _field(name: str, default: Any) -> Any:
@@ -674,9 +675,11 @@ def _phase_init(
         # Persist the signal profile so the GATEKEEPER judge (and resume) sees it.
         state.gate_signals = dict(_field("signals", {}))
 
-        # Scope-safety floor — the only deterministic block remaining.
+        # Scope-safety floor — the only deterministic block remaining. --force is
+        # an explicit operator override of this floor, so honor state.force here
+        # (the documented bypass) rather than escalating unconditionally.
         force_required = _field("force_required", False)
-        if force_required:
+        if force_required and not state.force:
             warnings = _field("warnings", [])
             enter_escalate(
                 state,
@@ -732,6 +735,17 @@ def _phase_gatekeeper(
     state.gate_verdict = outcome
     if outcome == "proceed_with_review":
         state.val_review_enabled = True
+    elif outcome == "escalate":
+        # Route through the escalation helper so previous_phase and
+        # escalation_reason are populated. The bare table transition
+        # (GATEKEEPER -> ESCALATE) would leave both unset, making the saved
+        # state unhelpful and causing transition() to raise on the
+        # ESCALATE "resolved" -> _previous_phase resume path.
+        enter_escalate(
+            state,
+            "GATEKEEPER judged the change unverifiable or too risky for "
+            "autonomous execution",
+        )
     return outcome
 
 

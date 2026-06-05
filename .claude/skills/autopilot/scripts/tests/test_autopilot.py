@@ -417,7 +417,43 @@ def test_gatekeeper_escalate_stops_loop(tmp_path: Path) -> None:
 
     assert result.current_phase == "ESCALATE"
     assert result.gate_verdict == "escalate"
+    # Escalation context must be preserved so the resolve-and-resume path works.
+    assert result.previous_phase == "GATEKEEPER"
+    assert result.escalation_reason is not None
     gatekeeper_mock.assert_called_once()
+
+
+def test_force_bypasses_scope_safety_floor_in_init(tmp_path: Path) -> None:
+    """--force overrides the deterministic scope-safety floor at INIT."""
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
+    # Gate reports a broad-write-scope block, but --force should override it.
+    assess_mock = MagicMock(return_value={
+        "force_required": True,
+        "signals": {"has_broad_write_scope": True},
+        "warnings": ["Broad write scope detected; require --force"],
+    })
+    converge_mock = MagicMock(return_value={
+        "converged": True, "findings_count": 0, "blocking_findings": [],
+    })
+
+    result = run_loop(
+        "force-floor-1",
+        change_dir,
+        wt,
+        state_path=tmp_path / "state.json",
+        assess_complexity_fn=assess_mock,
+        converge_fn=converge_mock,
+        force=True,
+    )
+
+    assert result.current_phase == "DONE"
+    assert result.error is None
+    # assess_complexity must receive force=True so its own decision stays consistent.
+    assert assess_mock.call_args.kwargs.get("force") is True
 
 
 def test_gatekeeper_proceed_with_review_enables_val_review(tmp_path: Path) -> None:
