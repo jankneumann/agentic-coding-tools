@@ -14,11 +14,9 @@ see wp-coordinator-migrate scope in work-packages.yaml.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # (a) Package import: gen_eval.mcp_service is importable

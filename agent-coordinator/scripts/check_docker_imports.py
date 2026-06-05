@@ -232,17 +232,23 @@ def collect_dockerfile_copies(dockerfile: Path) -> set[str]:
     runtime_stage = "FROM " + stages[-1] if len(stages) > 1 else content
 
     copies: set[str] = set()
-    # Match: COPY <src>/ /app/... or COPY <src>/ /<abs>/
-    # Also match: COPY <src> /app/...  (without trailing slash)
-    pattern = re.compile(r"^\s*COPY\s+(?:--from=\S+\s+)?(\S+?)/?\s+(?:/app/|/)", re.MULTILINE)
+    # Match: COPY [--from=<stage>] <src> /app/<dest>/  or  COPY ... /app/<dest>
+    # We extract the *destination* directory under /app/, not the source path,
+    # because the source may be prefixed when the build context is the repo
+    # root (e.g. `COPY agent-coordinator/cedar/ /app/cedar/` — what ships at
+    # runtime is the destination `cedar`, regardless of source prefix).
+    pattern = re.compile(
+        r"^\s*COPY\s+(?:--from=\S+\s+)?(\S+)\s+/app/([^/\s]+)/?\s*$",
+        re.MULTILINE,
+    )
     for match in pattern.finditer(runtime_stage):
-        src = match.group(1)
-        # Skip COPY --from (cross-stage copies, not local directories)
-        if src.startswith("/") or src.startswith("--"):
-            continue
-        # Only track directory-like copies (no file extensions like .toml, .yaml)
-        if "." not in Path(src).name or src.endswith(("/", "/*")):
-            copies.add(src.rstrip("/").split("/")[0])
+        src, dest = match.group(1), match.group(2)
+        # Only track directory-like copies (skip single files like agents.yaml).
+        # The source path is the signal: if it ends with `/` or has no dot in
+        # its basename, treat it as a directory.
+        src_basename = Path(src.rstrip("/")).name
+        if src.endswith(("/", "/*")) or "." not in src_basename:
+            copies.add(dest)
 
     return copies
 

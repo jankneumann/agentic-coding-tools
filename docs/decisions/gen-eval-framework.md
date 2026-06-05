@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-05-24 — extract-gen-eval-package
+
+### Phase: Plan
+
+**Package lives at packages/gen-eval/ (new top-level convention)** — User clarified that agentic-coding-tools is conceptually a coordinator service + shared component libraries, with multiple future extractions planned. Introducing the packages/ convention with one example is cheaper than retrofitting later with three. Rejected: evaluation/gen_eval/ at root (namespace ambiguity + single-purpose dir name); separate repo (highest setup cost, weakest coupling to OpenSpec workflow).
+
+- Status: `active`
+- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D1)
+
+---
+
+## 2026-05-24 — extract-gen-eval-package
+
+### Phase: Plan
+
+**Framework-only data split; descriptors stay in consumers** — Matches the stated architectural intent 'code in agentic-coding-tools, configuration in consumer repos'. Package ships .py + schemas/ + dtu/ templates + tests/fixtures/ + examples/. agent-coordinator keeps its descriptor.yaml + manifests/ + scenarios/ as project test fixtures.
+
+- Status: `active`
+- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D2)
+
+---
+
+## 2026-05-24 — extract-gen-eval-package
+
+### Phase: Plan
+
+**Optional [mcp] extra inside the package** — Two consumer profiles in the ecosystem: agent-coordinator wants MCP routing (it's a service), agentic-assistant wants pure Python (skills do orchestration). Optional extra is the only design that serves both without forcing a wrong dependency on either. mcp_service.py and clients/mcp_client.py wrap their fastmcp imports in try/except per design D4.
+
+- Status: `active`
+- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D3)
+
+---
+
+## 2026-05-24 — extract-gen-eval-package
+
+### Phase: Plan
+
+**Move evaluation/metrics.py into the package** — Resolves the only reverse coupling. GenEvalMetrics is named for gen-eval, only consumed by gen-eval's reports.py, and has no other consumers. Alternatives (Protocol injection, no-op stub, callback shim) all add indirection for zero gain.
+
+- Status: `active`
+- Source: [openspec/changes/extract-gen-eval-package/session-log.md](/openspec/changes/extract-gen-eval-package/session-log.md) (D4)
+
+---
+
 ## 2026-05-08 — factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1

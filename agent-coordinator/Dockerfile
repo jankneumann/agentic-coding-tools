@@ -21,15 +21,15 @@ FROM python:3.14-slim AS builder
 # Build tools needed to compile native deps (e.g. asyncpg, cryptography)
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libffi-dev && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /workspace
-
 # Install uv package manager
 RUN pip install --no-cache-dir uv
 
-# Copy the gen-eval sibling package FIRST so the path-dep in
-# agent-coordinator/pyproject.toml resolves: [tool.uv.sources]
-# gen-eval = { path = "../packages/gen-eval" }
-COPY packages/gen-eval/ /workspace/packages/gen-eval/
+# Copy the gen-eval sibling package so the path-dep in
+# agent-coordinator/pyproject.toml resolves at uv-sync time. The path is
+# `{ path = "../packages/gen-eval" }` relative to the pyproject.toml dir.
+# We put pyproject.toml at /app, so `../packages/gen-eval` resolves to
+# /packages/gen-eval — gen-eval must live there, not under /workspace.
+COPY packages/gen-eval/ /packages/gen-eval/
 
 WORKDIR /app
 
