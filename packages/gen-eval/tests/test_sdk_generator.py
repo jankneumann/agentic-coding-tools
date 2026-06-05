@@ -88,10 +88,10 @@ class TestSDKBackend:
 
     @pytest.mark.asyncio
     async def test_is_available_without_key(self) -> None:
-        backend = SDKBackend(api_key_env="NONEXISTENT_KEY_XYZ_123")  # gitleaks:allow
+        backend = SDKBackend(api_key_env="MISSING_TEST_VAR")
         # Ensure the env var doesn't exist
         env = os.environ.copy()
-        env.pop("NONEXISTENT_KEY_XYZ_123", None)
+        env.pop("MISSING_TEST_VAR", None)
         with patch.dict(os.environ, env, clear=True):
             assert await backend.is_available() is False
 
