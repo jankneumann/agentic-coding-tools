@@ -282,6 +282,15 @@ class WorkQueueService:
             outcome = "claimed"
             task_type_label = "unknown"
             try:
+                # For evaluation tasks, exclude self-review: pass the
+                # claiming agent's ID so the RPC can skip tasks where
+                # input_data->>'submitted_by' matches the claimant.
+                exclude_submitted_by: str | None = None
+                if task_types and any(
+                    t in ("evaluate", "review") for t in task_types
+                ):
+                    exclude_submitted_by = resolved_agent_id
+
                 result = await self.db.rpc(
                     "claim_task",
                     {
@@ -290,6 +299,7 @@ class WorkQueueService:
                         "p_task_types": task_types,
                         "p_agent_archetypes": agent_archetypes,
                         "p_agent_trust_level": agent_trust,
+                        "p_exclude_submitted_by": exclude_submitted_by,
                     },
                 )
                 claim_result = ClaimResult.from_dict(result)
