@@ -101,12 +101,12 @@
 
 ## Phase 5: New Skills — Improve Harness & Agent Metrics
 
-- [ ] 5.1 Write tests for /improve-harness skill — verify failure pattern querying, grouping, ranking, report format
+- [x] 5.1 Write tests for /improve-harness skill — verify failure pattern querying, grouping, ranking, report format
   **Spec scenarios**: harness-engineering.4 (failure pattern analysis), harness-engineering.4 (report-to-feature pipeline)
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: 1.4
 
-- [ ] 5.2 Create /improve-harness skill — query episodic memory for failure patterns, group by capability_gap, rank by frequency/severity, generate structured report, support creating OpenSpec proposals from findings
+- [x] 5.2 Create /improve-harness skill — query episodic memory for failure patterns, group by capability_gap, rank by frequency/severity, generate structured report, support creating OpenSpec proposals from findings
   **Files**: `skills/improve-harness/SKILL.md`, `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`
   **Dependencies**: 5.1
 
