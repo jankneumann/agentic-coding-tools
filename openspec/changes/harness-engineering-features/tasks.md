@@ -110,12 +110,12 @@
   **Files**: `skills/improve-harness/SKILL.md`, `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`
   **Dependencies**: 5.1
 
-- [ ] 5.3 Write tests for /agent-metrics skill — verify audit trail queries, throughput calculations, failure rate computation
+- [x] 5.3 Write tests for /agent-metrics skill — verify audit trail queries, throughput calculations, failure rate computation
   **Spec scenarios**: harness-engineering.7 (throughput report), harness-engineering.7 (failure rate analysis), harness-engineering.7 (capability gap frequency)
   **Design decisions**: D7 (metrics skill uses audit trail queries)
   **Dependencies**: None
 
-- [ ] 5.4 Create /agent-metrics skill — query audit trail and episodic memory, compute throughput metrics, generate markdown reports
+- [x] 5.4 Create /agent-metrics skill — query audit trail and episodic memory, compute throughput metrics, generate markdown reports
   **Files**: `skills/agent-metrics/SKILL.md`, `skills/agent-metrics/scripts/query_metrics.py`, `skills/agent-metrics/scripts/generate_dashboard.py`
   **Dependencies**: 5.3
 
