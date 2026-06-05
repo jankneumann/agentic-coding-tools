@@ -22,7 +22,7 @@ obsidian create name="My Note" content="Hello world"
 **Flags** are boolean switches with no value:
 
 ```bash
-obsidian create name="My Note" silent overwrite
+obsidian create name="My Note" overwrite
 ```
 
 For multiline content use `\n` for newline and `\t` for tab.
@@ -46,7 +46,7 @@ obsidian vault="My Vault" search query="test"
 
 ```bash
 obsidian read file="My Note"
-obsidian create name="New Note" content="# Hello" template="Template" silent
+obsidian create name="New Note" content="# Hello" template="Template"
 obsidian append file="My Note" content="New line"
 obsidian search query="search term" limit=10
 obsidian daily:read
@@ -57,7 +57,7 @@ obsidian tags sort=count counts
 obsidian backlinks file="My Note"
 ```
 
-Use `--copy` on any command to copy output to clipboard. Use `silent` to prevent files from opening. Use `total` on list commands to get a count.
+Use `--copy` on any command to copy output to clipboard. Use `total` on list commands to get a count.
 
 ## Plugin development
 
