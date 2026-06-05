@@ -196,6 +196,25 @@ def sanitize(content: str) -> tuple[str, list[dict[str, str]]]:
     return content, all_redactions
 
 
+def sanitize_json_blob(blob: dict | list | str) -> tuple[str, list[dict[str, str]]]:
+    """Sanitize a JSON-serializable blob (e.g. tool-call arguments or results).
+
+    Serializes the blob to a JSON string, runs the full sanitization
+    pipeline, and returns the sanitized string alongside redaction records.
+
+    This is intended for transcript mining where tool-call argument blobs
+    and tool-result outputs are common accidental-leak sites.
+    """
+    import json as _json
+
+    if isinstance(blob, str):
+        text = blob
+    else:
+        text = _json.dumps(blob, default=str)
+
+    return sanitize(text)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Sanitize session log to remove secrets and sensitive information."
