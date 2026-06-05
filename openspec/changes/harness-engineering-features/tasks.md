@@ -23,7 +23,7 @@
   **Files**: `agent-coordinator/src/memory.py`, `docs/guides/memory-conventions.md`
   **Dependencies**: 1.3
 
-- [ ] 1.5 Write tests for session-log Capability Gaps section — verify PhaseRecord round-trip (markdown ↔ dataclass), section appears between Trade-offs and Relevant Files, empty section parses to empty list, memory emission on `write_both()`
+- [x] 1.5 Write tests for session-log Capability Gaps section — verify PhaseRecord round-trip (markdown ↔ dataclass), section appears between Trade-offs and Relevant Files, empty section parses to empty list, memory emission on `write_both()`
   **Spec scenarios**: harness-engineering.4 (session-log Capability Gaps Observed section)
   **Design decisions**: D10 (session-log Capability Gaps section)
   **Dependencies**: 1.3
