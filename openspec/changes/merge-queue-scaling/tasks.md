@@ -69,7 +69,7 @@
   **Dependencies**: 3.1
   **Size**: M
 
-- [ ] 3.3 Wire auto_cascade_rebase into post-merge pipeline — call after each successful merge in merge_pr.py, emit rebase events for each refreshed PR
+- [x] 3.3 Wire auto_cascade_rebase into post-merge pipeline — call after each successful merge in merge_pr.py, emit rebase events for each refreshed PR
   **Dependencies**: 3.2, 2.5
   **Size**: S
 
@@ -96,7 +96,7 @@
   **Dependencies**: 4.3
   **Size**: M
 
-- [ ] 4.5 Wire auto-rollback into post-merge pipeline — call monitor_ci_for_rollback after each merge, run concurrently with auto-rebase (not blocking)
+- [x] 4.5 Wire auto-rollback into post-merge pipeline — call monitor_ci_for_rollback after each merge, run concurrently with auto-rebase (not blocking)
   **Dependencies**: 4.4, 3.3
   **Size**: S
 
