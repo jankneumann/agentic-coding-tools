@@ -86,7 +86,7 @@
 
 ## Phase 4: Architecture Enforcement & Validation
 
-- [ ] 4.1 Write tests for structural linters — dependency direction, file-size, naming conventions
+- [x] 4.1 Write tests for structural linters — dependency direction, file-size, naming conventions
   **Spec scenarios**: harness-engineering.3 (dependency direction), harness-engineering.3 (file-size), harness-engineering.3 (naming conventions)
   **Design decisions**: D3 (architecture linters as Python scripts)
   **Dependencies**: None
