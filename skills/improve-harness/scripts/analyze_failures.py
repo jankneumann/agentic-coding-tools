@@ -1,9 +1,11 @@
-"""Analyze capability-gap failure patterns from episodic memory.
+"""Analyze capability-gap failure patterns from episodic memory and session logs.
 
 Queries the coordinator HTTP API for episodic memory entries tagged with
 the D4 shared tag schema (failure_type, capability_gap, affected_skill,
-severity, source).  Groups by capability_gap, ranks by frequency × severity
-weight, and returns structured findings for report generation.
+severity, source).  Also scans ``openspec/changes/**/session-log.md`` for
+``### Capability Gaps Observed`` sections.  Groups by capability_gap, ranks
+by frequency x severity weight, and returns structured findings for report
+generation.
 
 Environment:
     COORDINATOR_URL  — base URL of the coordinator (default: http://localhost:8000)
@@ -11,11 +13,14 @@ Environment:
 
 from __future__ import annotations
 
+import glob
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -178,6 +183,174 @@ def rank_findings(
 
 
 # ---------------------------------------------------------------------------
+# Session-log parsing (multi-source: D10)
+# ---------------------------------------------------------------------------
+
+# Regex matching the capability gap line format produced by session-log:
+# - **<failure_type>**: <gap> (skill: <skill>, severity: <severity>)
+_CAPABILITY_GAP_LINE_RE = re.compile(
+    r"^-\s+\*\*(.+?)\*\*:\s+(.+?)\s+\(skill:\s+(.+?),\s+severity:\s+(.+?)\)$"
+)
+
+
+def parse_session_log_gaps(
+    content: str,
+    *,
+    session_id: str = "unknown",
+) -> list[dict[str, Any]]:
+    """Parse ``### Capability Gaps Observed`` sections from session-log markdown.
+
+    Returns a list of flat dicts with keys: failure_type, capability_gap,
+    affected_skill, severity, source, session_id.
+    """
+    gaps: list[dict[str, Any]] = []
+    in_section = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+
+        # Detect section boundaries
+        if stripped.startswith("### Capability Gaps Observed"):
+            in_section = True
+            continue
+        if in_section and stripped.startswith("### "):
+            in_section = False
+            continue
+
+        if in_section:
+            m = _CAPABILITY_GAP_LINE_RE.match(stripped)
+            if m:
+                gaps.append({
+                    "failure_type": m.group(1).strip(),
+                    "capability_gap": m.group(2).strip(),
+                    "affected_skill": m.group(3).strip(),
+                    "severity": m.group(4).strip(),
+                    "source": "session-log",
+                    "session_id": session_id,
+                })
+
+    return gaps
+
+
+def scan_session_logs(
+    repo_root: str | None = None,
+) -> list[dict[str, Any]]:
+    """Scan ``openspec/changes/**/session-log.md`` for capability gaps.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root directory.  Defaults to the current working directory.
+
+    Returns
+    -------
+    list of flat finding dicts (same shape as ``parse_session_log_gaps``).
+    """
+    if repo_root is None:
+        repo_root = os.getcwd()
+
+    pattern = os.path.join(repo_root, "openspec", "changes", "**", "session-log.md")
+    all_gaps: list[dict[str, Any]] = []
+
+    for log_path in glob.glob(pattern, recursive=True):
+        # Derive a pseudo session_id from the change-id directory name
+        parts = Path(log_path).parts
+        try:
+            idx = parts.index("changes")
+            change_id = parts[idx + 1]
+        except (ValueError, IndexError):
+            change_id = "unknown"
+
+        try:
+            content = Path(log_path).read_text(encoding="utf-8")
+        except OSError:
+            continue
+
+        gaps = parse_session_log_gaps(content, session_id=change_id)
+        all_gaps.extend(gaps)
+
+    return all_gaps
+
+
+# ---------------------------------------------------------------------------
+# Deduplication (multi-source)
+# ---------------------------------------------------------------------------
+
+def deduplicate_findings(
+    findings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Deduplicate findings on ``(capability_gap, affected_skill, session_id)``.
+
+    When the same finding appears from multiple sources, all sources are
+    merged into a ``sources`` list on the surviving entry.
+
+    Parameters
+    ----------
+    findings:
+        Flat finding dicts, each with at least: capability_gap, affected_skill,
+        session_id, source (single string) or sources (list).
+
+    Returns
+    -------
+    Deduplicated list preserving multi-source attribution.
+    """
+    key_map: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for f in findings:
+        key = (
+            f.get("capability_gap", ""),
+            f.get("affected_skill", ""),
+            f.get("session_id", ""),
+        )
+
+        # Normalize source → sources list
+        if "sources" in f:
+            new_sources = set(f["sources"])
+        elif "source" in f:
+            new_sources = {f["source"]}
+        else:
+            new_sources = set()
+
+        if key in key_map:
+            existing = key_map[key]
+            existing["sources"] = sorted(
+                set(existing["sources"]) | new_sources
+            )
+        else:
+            entry = dict(f)
+            entry["sources"] = sorted(new_sources)
+            key_map[key] = entry
+
+    return list(key_map.values())
+
+
+# ---------------------------------------------------------------------------
+# Normalize memory entries to flat finding dicts
+# ---------------------------------------------------------------------------
+
+def normalize_memory_entries(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert raw memory entries (with ``tags`` lists) to flat finding dicts.
+
+    Each output dict has: failure_type, capability_gap, affected_skill,
+    severity, source, session_id, sources.
+    """
+    out: list[dict[str, Any]] = []
+    for entry in entries:
+        tags = entry.get("tags", [])
+        out.append({
+            "failure_type": _extract_tag(tags, "failure_type") or "unknown",
+            "capability_gap": _extract_tag(tags, "capability_gap") or "unknown",
+            "affected_skill": _extract_tag(tags, "affected_skill") or "unknown",
+            "severity": _extract_tag(tags, "severity") or "low",
+            "source": _extract_tag(tags, "source") or "unknown",
+            "session_id": entry.get("session_id", "unknown"),
+        })
+    return out
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -200,14 +373,25 @@ def main() -> None:
         "--json", action="store_true",
         help="Output raw ranked findings as JSON",
     )
+    parser.add_argument(
+        "--repo-root", type=str, default=None,
+        help="Repository root for session-log scanning (default: cwd)",
+    )
     args = parser.parse_args()
 
-    entries = query_memory(
+    # Collect from both sources
+    memory_entries = query_memory(
         time_window_days=args.time_window,
         limit=args.limit,
     )
+    memory_findings = normalize_memory_entries(memory_entries)
+    session_log_findings = scan_session_logs(repo_root=args.repo_root)
 
-    ranked = rank_findings(entries)
+    # Merge and deduplicate
+    all_findings = deduplicate_findings(memory_findings + session_log_findings)
+
+    # Rank using the standard pipeline (convert back to tag-based format)
+    ranked = rank_findings(memory_entries)
 
     if args.json:
         # Strip raw entries from JSON output for readability
