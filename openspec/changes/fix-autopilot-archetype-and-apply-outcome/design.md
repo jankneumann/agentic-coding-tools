@@ -64,6 +64,16 @@ validator:
 
 **Selected: introduce `validator` archetype.** `VAL_FIX` maps to `implementer` (also write-capable) because VAL_FIX is *fixing* code, not *producing* evidence.
 
+## Glossary — Canonical Lists
+
+To eliminate the duplication-drift risk surfaced in round-2 review, these lists are defined here once and referenced from proposal.md, spec.md, and tasks.md:
+
+- **Write-capable phases** (11): `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`.
+- **State-only phases** (2): `INIT`, `SUBMIT_PR`.
+- **Terminal phases** (2): `DONE`, `ESCALATE`.
+
+A future change adding a new write-capable phase MUST update this list AND any place that mechanically enumerates it (Task 6.1's CI guard, Task 4.2's coverage smoke, the spec's "phase coverage" scenarios).
+
 ## D3. Capability check: structured field, not substring matching
 
 The round-1 design used substring matching over `system_prompt` text to detect read-only archetypes — checking for phrases like "without making changes", "do not modify", "report findings only". Two reviewers (claude_code + gemini) independently flagged this as brittle: any future rephrasing ("report only", "no modifications", "analyze without writing") passes the check while violating intent. The confirmed finding moved the design.
@@ -84,9 +94,17 @@ archetypes:
   # ... etc
 ```
 
-The CI guard (Task 5) iterates `phase_mapping` for the write-capable phases and asserts each resolved archetype has `write_capable: true`. No string matching.
+The CI guard (Task 5) iterates the canonical write-capable phases list (Glossary above) and asserts each resolved archetype has `write_capable: true`. No string matching.
 
 The original substring-based scenarios in the spec are replaced with structured-field-based scenarios (see spec.md round 2).
+
+### D3.1. Resolver behavior on missing `write_capable` field
+
+If a future archetype entry omits `write_capable`, the resolver MUST fail-loud with a clear error identifying the offending archetype name and the required field. Fail-loud (not fail-closed-as-false) is the safer choice: it prevents an entire class of "accidentally added write-capable archetype with no declaration" silent bugs, at the cost of forcing every archetype author to make an explicit choice. The migration path is: Task 2.1 adds the field to every existing archetype; the resolver enforces presence from then on. There is no implicit default.
+
+### D3.2. Migration concerns (round-2 finding)
+
+Adding `write_capable` to `archetypes.yaml` is a backward-incompatible schema change. Other consumers of `archetypes.yaml` (if any) that don't know about the new field will not break unless they validate against the schema strictly. Task 2.7 updates the JSON schema; Task 1 (audit) identifies other consumers in the repo and the audit-result.md captures any that need updating. No external consumers outside this repo are currently known.
 
 ## D4. Phase-mismatch guard: rename `--force` to `--allow-phase-mismatch`
 
@@ -104,6 +122,15 @@ runner.py apply-outcome --change-id X --phase IMPLEMENT --outcome complete --han
 ```
 
 The error message MUST mention `--allow-phase-mismatch` so operators can find the escape hatch without reading the help text. (Gemini-surfaced finding.)
+
+### D4.1. Rename vs. deprecation alias
+
+The audit (Task 1.3) determines whether `--force` exists in `apply-outcome` today:
+
+- **If `--force` does NOT exist** (likely, since the no-transition guard itself is being newly added by this change): the new flag is named `--allow-phase-mismatch` from the start. No deprecation needed.
+- **If `--force` DOES exist** (e.g. via a partial earlier implementation): Task 3.5 adds `--force` as a deprecation alias for `--allow-phase-mismatch`. The alias emits a stderr warning and is removed after one release. No hard-break of existing callers.
+
+The audit-result.md (Task 1.7) records which path applies.
 
 ## D5. Test plan — V1 capability check
 
@@ -169,6 +196,18 @@ A reviewer (claude_code + codex) flagged that after the V2 fix lands, `apply-out
 
 This makes apply-outcome failures a first-class state in the autopilot state machine. The operator resumes via `/autopilot <change-id> --force` after addressing the underlying cause (free disk space, restart the FS, etc.) — the orchestrator reads the retained handoff and re-applies.
 
+### D9.1. Double-failure handling: what if ESCALATE-write also fails?
+
+A round-2 finding (gemini) and a related codex finding asked: if `apply-outcome` fails because `loop-state.json` is corrupt or the FS is read-only, can the orchestrator even write the `ESCALATE` transition that D9 requires?
+
+Resolution:
+
+- **Best-effort transition**: the orchestrator attempts to write the `phase_history` entry and update `current_phase = ESCALATE`. If THAT write also fails, the orchestrator falls back to emitting a structured log line (stderr, level CRITICAL, with the handoff path and the underlying cause) AND exits non-zero.
+- **The retained handoff file is the durable record**: regardless of whether the ESCALATE write succeeds, the handoff file written by the sub-agent stays in place. On operator resume (after fixing the disk/FS), the orchestrator reads the handoff and applies it.
+- **No silent data loss**: the worst case is an orchestrator exit with a CRITICAL log line and a handoff on disk. The operator has both the symptom (exit + log) and the recovery path (the handoff). No state is lost.
+
+This is acknowledged as best-effort, not guaranteed-atomic. Atomic state-transition guarantees would require a transactional store (SQLite, etc.), which is over-scope for this change.
+
 ## D10. Orchestrator transition-table audit (Layer D)
 
 Task 1.5 audits the autopilot orchestrator's next-phase decision logic. The audit asks:
@@ -178,6 +217,15 @@ Task 1.5 audits the autopilot orchestrator's next-phase decision logic. The audi
 - For `(IMPLEMENT, complete)`, the answer MUST be `IMPL_ITERATE`. For `(IMPL_ITERATE, complete)`, `IMPL_REVIEW` if `cli_review_enabled` else `VALIDATE`. Etc.
 - Any mismatch is the Layer D bug.
 
-If the audit finds Layer D is the bug (or contributes to it), the fix is to correct the transition table to match SKILL.md sections 4-8. If the audit finds the orchestrator's transition logic is implementation-distributed (e.g. branched control flow in `runner.py run-loop` rather than a table), the fix is to extract the logic into a single table for auditability — a structural fix worth carrying on top of the targeted fix.
+If the audit finds Layer D is the bug (or contributes to it), the fix is to correct the transition table to match SKILL.md sections 4-8.
 
-Add a regression test (Task 6.7): seed `loop-state.json` with `current_phase=IMPLEMENT, last_handoff_id=...` and `phase_history` ending in `outcome=complete`; invoke the orchestrator's next-phase decision; assert the result is `IMPL_ITERATE` (or whatever SKILL.md prescribes).
+### D10.1. Scope decision: in-place fix vs. structural extraction
+
+A round-2 finding (claude_code, gemini) flagged that "extract distributed logic into a single table" (Task 5.2 in the round-1 plan) is a structural refactor that may exceed the bug-fix scope of this change. The scope decision is made conditional on the audit:
+
+- **If Task 1.5 finds the orchestrator already uses a centralized table** (a single dict, YAML config, or equivalent): Task 5.2 only updates wrong mappings. In-place fix, small scope.
+- **If Task 1.5 finds the orchestrator's next-phase logic is distributed** across multiple `if/elif` branches: the targeted fix (correcting any wrong branches that map IMPLEMENT-complete→CLEANUP) lands in this change. The structural extraction (consolidating into a single table) is committed to as a **follow-up change** rather than absorbed silently here. The follow-up's change-id is recorded in `audit-result.md` so the commitment is durable.
+
+This split keeps the current change focused on bug-fixing while making the structural-refactor commitment explicit. The Layer D regression test (Task 6.6) runs against whichever shape the orchestrator has post-fix.
+
+Add a regression test (Task 6.6): seed `loop-state.json` with `current_phase=IMPLEMENT, last_handoff_id=...` and `phase_history` ending in `outcome=complete`; invoke the orchestrator's next-phase decision; assert the result is `IMPL_ITERATE` (or whatever SKILL.md prescribes).

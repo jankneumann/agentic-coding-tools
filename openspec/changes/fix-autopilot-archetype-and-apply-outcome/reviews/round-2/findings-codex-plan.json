@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: D9 requires the orchestrator to append phase_history and transition current_phase to ESCALATE even for failure causes like disk full or malformed loop-state, but those same causes may prevent writing loop-state at all.",
+      "resolution": "Specify a second-stage failure path: if loop-state cannot be parsed or persisted during apply-outcome failure handling, retain the handoff, emit or record a sidecar escalation artifact where possible, return non-zero to the operator, and avoid claiming current_phase was transitioned.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 159,
+        "end": 170
+      }
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The spec allows INIT and SUBMIT_PR prompts to omit the Layer B/C state-mutation prohibitions, but the invariant is that every dispatched sub-agent returns a handoff while the orchestrator owns loop-state mutation.",
+      "resolution": "Make the prohibition scaffold apply to every sub-agent dispatch prompt, or explicitly document and test that INIT and SUBMIT_PR are never sub-agent-dispatched and therefore cannot mutate loop-state outside the orchestrator.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 100,
+        "end": 103
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: D7 says in-flight loop-state may retain an old phase_archetype while the next dispatch reads the new archetype from YAML, but no requirement or task proves resume/build-dispatch ignores stale phase_archetype values.",
+      "resolution": "Add a compatibility scenario and test for a loop-state at current_phase=VALIDATE with phase_archetype=analyst, asserting the next VALIDATE dispatch resolves validator/write_capable from archetypes.yaml or performs an explicit migration.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 143,
+        "end": 145
+      }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The apply-outcome unit-test tasks emphasize last_handoff_id and current_phase, but they do not require assertions for all owned fields that the spec says apply-outcome updates: handoff_ids, phase_archetype, and phase_history.",
+      "resolution": "Expand Tasks 7.2, 7.4, and 7.5 to assert the full owned-field contract, including handoff_ids append behavior, phase_archetype update semantics, and the exact phase_history entry for success and allowed mismatch cases.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/tasks.md",
+      "line_range": {
+        "start": 60,
+        "end": 65
+      }
+    },
+    {
+      "id": 5,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: Task 6.1 says to iterate the write-capable phases listed in design D7's compatibility matrix, but D7 is a before/after surface matrix and does not contain the canonical phase list.",
+      "resolution": "Point Task 6.1 at the spec requirement's canonical write-capable phase list or add that list explicitly to D7 so test authors do not infer it from an unrelated compatibility table.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/tasks.md",
+      "line_range": {
+        "start": 48,
+        "end": 52
+      }
+    },
+    {
+      "id": 6,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The revised plan correctly broadens V2 beyond apply-outcome by covering direct loop-state edits and the orchestrator's own transition logic, and it explicitly names structural enforcement as a rejected alternative with rationale.",
+      "resolution": "no action required",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/proposal.md",
+      "line_range": {
+        "start": 29,
+        "end": 46
+      }
+    }
+  ]
+}
