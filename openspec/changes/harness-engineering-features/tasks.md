@@ -95,7 +95,7 @@
   **Files**: `skills/validate-feature/scripts/linters/dependency_direction.py`, `skills/validate-feature/scripts/linters/file_size.py`, `skills/validate-feature/scripts/linters/naming_conventions.py`, `skills/validate-feature/scripts/linters/__init__.py`
   **Dependencies**: 4.1
 
-- [ ] 4.3 Extend existing architecture phase with structural linters — the `--phase=architecture` already runs `validate_flows.py` for cross-layer flow validation; extend it to also invoke structural linters (dependency direction, file-size, naming) and merge both sets of findings into a single review-findings output
+- [x] 4.3 Extend existing architecture phase with structural linters — the `--phase=architecture` already runs `validate_flows.py` for cross-layer flow validation; extend it to also invoke structural linters (dependency direction, file-size, naming) and merge both sets of findings into a single review-findings output
   **Files**: `skills/validate-feature/SKILL.md`, `skills/validate-feature/scripts/run_architecture_linters.py`
   **Dependencies**: 4.2
 
