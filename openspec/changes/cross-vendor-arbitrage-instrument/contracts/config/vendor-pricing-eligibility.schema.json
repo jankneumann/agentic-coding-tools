@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vendor-pricing-eligibility.schema.json",
+  "title": "Vendor Pricing & Eligibility Config",
+  "description": "Runtime-mutable per-vendor configuration (config, NOT hardcode). Supplies the metered-counterfactual price table and the role/modality eligibility values consumed by the Cedar hard-constraint filter. Editing this changes the routing topology without a redeploy (D4).",
+  "type": "object",
+  "required": ["schema_version", "version", "vendors"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "version": { "type": "string", "description": "Monotonic version string stamped onto ledger entries for auditability." },
+    "maintenance_cost_usd_per_window": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Trailing-window maintenance cost; the economic-kill tripwire fires when cumulative net savings drops below this."
+    },
+    "vendors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "lead_eligible", "programmatic_eligible", "metered_pricing"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "description": "Vendor key, e.g. claude_code, codex, gemini, opencode." },
+          "lead_eligible": { "type": "boolean" },
+          "programmatic_eligible": {
+            "type": "boolean",
+            "description": "Whether this vendor may be called programmatically under its current subscription terms. Claude=false on subscription; Codex/Gemini/opencode=true today."
+          },
+          "data_residency": { "type": "string", "description": "Optional residency tag used by the data-residency hard constraint." },
+          "frozen": {
+            "type": "boolean",
+            "default": false,
+            "description": "Posture flag set by the ToS-diff / enforcement tripwires; when true the router excludes this vendor."
+          },
+          "tos_clause_url": { "type": "string", "format": "uri", "description": "URL the ToS monitor fetches and hashes." },
+          "metered_pricing": {
+            "type": "object",
+            "description": "Per-tier metered $ per million tokens, used for the counterfactual.",
+            "required": ["tiers"],
+            "additionalProperties": false,
+            "properties": {
+              "tiers": {
+                "type": "object",
+                "description": "Keyed by logical tier (premium/standard/economy).",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["input_usd_per_mtok", "output_usd_per_mtok"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input_usd_per_mtok": { "type": "number", "minimum": 0 },
+                    "output_usd_per_mtok": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

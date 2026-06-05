@@ -1,0 +1,331 @@
+schema_version: 1
+
+feature:
+  id: cross-vendor-arbitrage-instrument
+  title: "Cross-Vendor Cost-Arbitrage Learning Instrument"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/cross-vendor-arbitrage-instrument/contracts/README.md"
+    files:
+      - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/README.md"
+      - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/events/arbitrage-signal.schema.json"
+      - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/events/cost-ledger-entry.schema.json"
+      - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/events/router-decision.schema.json"
+      - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/config/vendor-pricing-eligibility.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Contract schemas — signal, ledger, router-decision, pricing/eligibility"
+    task_type: contracts
+    description: "Validate the four contract schemas as JSON Schema 2020-12 and provide valid/invalid fixtures for downstream tests. These schemas are the cross-codebase coordination boundary (D10)."
+    role: backend-implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/**"
+      keys:
+        - "feature:arbitrage:contracts"
+      ttl_minutes: 120
+      reason: "Contract schema validation and fixtures"
+    scope:
+      write_allow:
+        - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/**"
+    worktree:
+      name: cross-vendor-arbitrage-instrument
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Contract schemas parse + fixtures validate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-arbitrage/test_contracts.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contract_schemas_valid"
+    metadata:
+      loc_estimate: 120
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contract_schemas_valid"
+      artifacts:
+        - "openspec/changes/cross-vendor-arbitrage-instrument/contracts/"
+
+  - package_id: wp-coordinator-signals
+    title: "Coordinator signal substrate — recording, OTel meter, kill switch, Cedar eligibility"
+    task_type: implementation
+    description: "Add agent-coordinator/src/arbitrage_signal.py recording five signal families via AuditService.log_operation (D2); register the coordinator.signal OTel meter in telemetry.py with vendor/model/modality/archetype labels; gate everything behind ARBITRAGE_INSTRUMENT_ENABLED (D7); extend cedar/schema.cedarschema with vendor/modality/data_residency attributes plus forbid() eligibility policies; seed mutable eligibility values in agents.yaml / agent_profiles.metadata (D4)."
+    role: backend-implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "agent-coordinator/src/arbitrage_signal.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/cedar/schema.cedarschema"
+        - "agent-coordinator/cedar/default_policies.cedar"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:arbitrage:signal"
+        - "feature:arbitrage:telemetry"
+        - "feature:arbitrage:eligibility"
+      ttl_minutes: 120
+      reason: "Coordinator-side signal recording, telemetry meter, and Cedar eligibility"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/arbitrage_signal.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "agent-coordinator/cedar/**"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/tests/unit/arbitrage_signal_test.py"
+        - "agent-coordinator/tests/unit/arbitrage_eligibility_test.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/probes/**"
+        - "agent-coordinator/src/watchdog.py"
+        - "skills/**"
+    worktree:
+      name: cross-vendor-arbitrage-instrument
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Signal recording + kill-switch + eligibility tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/unit/arbitrage_signal_test.py agent-coordinator/tests/unit/arbitrage_eligibility_test.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "signal_substrate_tests_passed"
+    metadata:
+      loc_estimate: 400
+      package_kind: algorithm
+    inputs:
+      result_keys:
+        - "contract_schemas_valid"
+    outputs:
+      result_keys:
+        - "signal_substrate_tests_passed"
+        - "arbitrage_signal_module"
+      artifacts:
+        - "agent-coordinator/src/arbitrage_signal.py"
+
+  - package_id: wp-probes
+    title: "Scheduled probes — ToS monitor + model canary on WatchdogService"
+    task_type: implementation
+    description: "Add agent-coordinator/src/probes/tos_monitor.py (fetch+hash+diff automation-clause URLs) and model_canary.py (fixed-prompt fingerprint drift detection), each recording signals via arbitrage_signal; register both as WatchdogService periodic jobs that do not schedule when the instrument flag is off (D6, D7). Runs in parallel with wp-skill-router (different codebase, non-overlapping scope)."
+    role: backend-implementer
+    priority: 3
+    depends_on:
+      - wp-coordinator-signals
+    locks:
+      files:
+        - "agent-coordinator/src/probes/tos_monitor.py"
+        - "agent-coordinator/src/probes/model_canary.py"
+        - "agent-coordinator/src/watchdog.py"
+      keys:
+        - "feature:arbitrage-tos:probe"
+        - "feature:arbitrage-canary:probe"
+        - "feature:arbitrage-watchdog:jobs"
+      ttl_minutes: 120
+      reason: "Scheduled ToS monitor and model canary probes"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/probes/**"
+        - "agent-coordinator/src/watchdog.py"
+        - "agent-coordinator/tests/unit/probes_tos_monitor_test.py"
+        - "agent-coordinator/tests/unit/probes_model_canary_test.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/arbitrage_signal.py"
+        - "agent-coordinator/src/telemetry.py"
+        - "skills/**"
+    worktree:
+      name: cross-vendor-arbitrage-instrument
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Probe tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/unit/probes_tos_monitor_test.py agent-coordinator/tests/unit/probes_model_canary_test.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "probe_tests_passed"
+    metadata:
+      loc_estimate: 300
+      package_kind: integration
+    inputs:
+      result_keys:
+        - "arbitrage_signal_module"
+    outputs:
+      result_keys:
+        - "probe_tests_passed"
+      artifacts:
+        - "agent-coordinator/src/probes/"
+
+  - package_id: wp-skill-router
+    title: "vendor-arbitrage skill — router, ledger, tripwires, digest"
+    task_type: implementation
+    description: "Create the skills/vendor-arbitrage skill: ledger.py + eligibility.py (versioned pricing/eligibility config, counterfactual cost via roadmap-runtime LearningEntry.vendor_notes — D3/D5); router.py (static-priority select_assignment with feasibility via coordinator check_policy, cheap-first + 429 spill + cohesion — D8); tripwires.py (declarative thresholds that freeze vendors and write learnings — D9); digest.py + SKILL.md (landscape report). Extends skills/roadmap-runtime/scripts/models.py for vendor_notes ledger fields. Runs in parallel with wp-probes."
+    role: backend-implementer
+    priority: 3
+    depends_on:
+      - wp-coordinator-signals
+    locks:
+      files:
+        - "skills/vendor-arbitrage/**"
+        - "skills/roadmap-runtime/scripts/models.py"
+      keys:
+        - "feature:arbitrage:skill"
+        - "feature:arbitrage:ledger"
+        - "feature:arbitrage:router"
+        - "feature:arbitrage:tripwires"
+      ttl_minutes: 120
+      reason: "vendor-arbitrage skill: router, ledger, tripwires, digest"
+    scope:
+      write_allow:
+        - "skills/vendor-arbitrage/**"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/tests/vendor-arbitrage/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: cross-vendor-arbitrage-instrument
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Router + ledger + tripwires + digest tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-arbitrage/ -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "vendor_arbitrage_skill_tests_passed"
+    metadata:
+      loc_estimate: 550
+      package_kind: algorithm
+    inputs:
+      result_keys:
+        - "arbitrage_signal_module"
+        - "contract_schemas_valid"
+    outputs:
+      result_keys:
+        - "vendor_arbitrage_skill_tests_passed"
+      artifacts:
+        - "skills/vendor-arbitrage/"
+
+  - package_id: wp-integration
+    title: "Integration — end-to-end kill-switch + signal flow, spec coordination, install wiring"
+    task_type: integration
+    description: "End-to-end test (flag off ⇒ baseline dispatch; flag on ⇒ ledger entry + provenance signal + OTel measurement); cross-reference the observability cost requirement (fulfilled) and the symphony token-accounting item (subsumed) without duplication (D11); wire the skill into skills/install.sh and document the kill-switch flag; run the full suite and openspec validate --strict."
+    role: backend-implementer
+    priority: 4
+    depends_on:
+      - wp-probes
+      - wp-skill-router
+    locks:
+      files:
+        - "skills/install.sh"
+        - "openspec/changes/cross-vendor-arbitrage-instrument/specs/**"
+      keys:
+        - "feature:arbitrage:integration"
+        - "feature:arbitrage:spec"
+      ttl_minutes: 120
+      reason: "Integration tests, spec coordination, install wiring"
+    scope:
+      write_allow:
+        - "openspec/changes/cross-vendor-arbitrage-instrument/specs/**"
+        - "skills/install.sh"
+        - "skills/tests/vendor-arbitrage/test_e2e_instrument.py"
+        - "docs/cross-vendor-arbitrage/**"
+      read_allow:
+        - "**"
+      deny: []
+    worktree:
+      name: cross-vendor-arbitrage-instrument
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "End-to-end instrument flow"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/vendor-arbitrage/test_e2e_instrument.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "e2e_instrument_passed"
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate cross-vendor-arbitrage-instrument --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    metadata:
+      loc_estimate: 200
+      package_kind: integration
+    inputs:
+      result_keys:
+        - "probe_tests_passed"
+        - "vendor_arbitrage_skill_tests_passed"
+    outputs:
+      result_keys:
+        - "e2e_instrument_passed"
+        - "openspec_valid"
+      artifacts:
+        - "openspec/changes/cross-vendor-arbitrage-instrument/specs/"
