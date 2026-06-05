@@ -147,6 +147,24 @@ def test_collect_copies_multi_stage_takes_last_stage(tmp_path: Path) -> None:
     assert "build_only" not in copies
 
 
+def test_collect_copies_with_prefixed_source_uses_destination(tmp_path: Path) -> None:
+    # Repo-root build context: COPY paths are prefixed with the project dir,
+    # but the destination under /app/ is the invariant we care about.
+    dockerfile = tmp_path / "Dockerfile"
+    dockerfile.write_text(
+        dedent(
+            """\
+            FROM python:3.12-slim AS runtime
+            COPY agent-coordinator/cedar/ /app/cedar/
+            COPY agent-coordinator/database/ /app/database/
+            COPY agent-coordinator/src/ /app/src/
+            """
+        )
+    )
+    copies = collect_dockerfile_copies(dockerfile)
+    assert copies == {"cedar", "database", "src"}
+
+
 def test_collect_copies_ignores_file_copies(tmp_path: Path) -> None:
     dockerfile = tmp_path / "Dockerfile"
     dockerfile.write_text(
