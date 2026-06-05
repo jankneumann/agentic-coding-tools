@@ -4,23 +4,23 @@
 
 ## Phase 1: Merge Backend Abstraction (wp-contracts)
 
-- [ ] 1.1 Write tests for MergeBackend protocol — verify interface contract for merge(), get_queue_status(), supports_train() methods across all three implementations
+- [x] 1.1 Write tests for MergeBackend protocol — verify interface contract for merge(), get_queue_status(), supports_train() methods across all three implementations
   **Spec scenarios**: merge-infrastructure.1 (backend detection), merge-infrastructure.1 (solo-dev fallback)
   **Design decisions**: D1 (MergeBackend protocol)
   **Dependencies**: None
   **Size**: S
 
-- [ ] 1.2 Create `merge_backend.py` — MergeBackend protocol + CoordinatorTrainBackend, GitHubQueueBackend, DirectMergeBackend implementations + `detect_merge_backend()` factory
+- [x] 1.2 Create `merge_backend.py` — MergeBackend protocol + CoordinatorTrainBackend, GitHubQueueBackend, DirectMergeBackend implementations + `detect_merge_backend()` factory
   **Dependencies**: 1.1
   **Size**: M
 
-- [ ] 1.3 Write tests for merge event schema — validate event structure, serialization, JSONL append
+- [x] 1.3 Write tests for merge event schema — validate event structure, serialization, JSONL append
   **Spec scenarios**: merge-infrastructure.5 (metrics event emission)
   **Design decisions**: D6 (metrics schema)
   **Dependencies**: None
   **Size**: XS
 
-- [ ] 1.4 Create `merge_events.py` — MergeEvent dataclass, emit_event() to JSONL file, emit_to_coordinator() for audit service
+- [x] 1.4 Create `merge_events.py` — MergeEvent dataclass, emit_event() to JSONL file, emit_to_coordinator() for audit service
   **Dependencies**: 1.3
   **Size**: S
 
