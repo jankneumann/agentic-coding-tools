@@ -28,7 +28,7 @@
   **Design decisions**: D10 (session-log Capability Gaps section)
   **Dependencies**: 1.3
 
-- [ ] 1.6 Extend session-log PhaseRecord with Capability Gaps section — add `CapabilityGap` dataclass and `capability_gaps: list[CapabilityGap]` field to `PhaseRecord`; extend renderer to emit `### Capability Gaps Observed` between Trade-offs and Relevant Files; extend `_parse_*` dispatchers to extract it; on `write_both()`, emit one memory entry per gap with `source:session-log` tag
+- [x] 1.6 Extend session-log PhaseRecord with Capability Gaps section — add `CapabilityGap` dataclass and `capability_gaps: list[CapabilityGap]` field to `PhaseRecord`; extend renderer to emit `### Capability Gaps Observed` between Trade-offs and Relevant Files; extend `_parse_*` dispatchers to extract it; on `write_both()`, emit one memory entry per gap with `source:session-log` tag
   **Files**: `skills/session-log/scripts/phase_record.py`, `skills/session-log/scripts/extract_session_log.py`, `skills/session-log/SKILL.md`
   **Dependencies**: 1.4, 1.5
 

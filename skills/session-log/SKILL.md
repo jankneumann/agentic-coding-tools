@@ -63,7 +63,7 @@ python3 scripts/sanitize_session_log.py input.md output.md --dry-run
 
 Unified data model that renders to both session-log markdown AND coordinator handoff JSON from a single in-memory object. Use this in place of `append_phase_entry` for new code.
 
-**Dataclasses**: `PhaseRecord`, `Decision`, `Alternative`, `TradeOff`, `FileRef`, `PhaseWriteResult`.
+**Dataclasses**: `PhaseRecord`, `Decision`, `Alternative`, `TradeOff`, `CapabilityGap`, `FileRef`, `PhaseWriteResult`.
 
 **Usage from Python (skill entry-point)**:
 
@@ -122,6 +122,9 @@ Each workflow phase appends a section following this structure:
 ### Trade-offs
 - Accepted <X> over <Y> because <reason>
 
+### Capability Gaps Observed
+- **<failure_type>**: <capability_gap description> (skill: <affected_skill>, severity: <low|medium|high|critical>)
+
 ### Open Questions
 - [ ] <unresolved question>
 
@@ -141,9 +144,11 @@ Each workflow phase appends a section following this structure:
 <2-3 sentences: what was the goal, what happened>
 ```
 
-**Section names must be identical across all skills**: Decisions, Alternatives Considered, Trade-offs, Open Questions, Completed Work, In Progress, Next Steps, Relevant Files, Context.
+**Section names must be identical across all skills**: Decisions, Alternatives Considered, Trade-offs, Capability Gaps Observed, Open Questions, Completed Work, In Progress, Next Steps, Relevant Files, Context.
 
-The four added sections (Completed Work, In Progress, Next Steps, Relevant Files) are **optional** — omit them when empty. They mirror the structured `PhaseRecord` fields written to the coordinator handoff (see `skills/session-log/scripts/phase_record.py`), so a skill using `PhaseRecord(...).write_both()` produces matching content in both `session-log.md` and `handoff_documents`.
+The five added sections (Capability Gaps Observed, Completed Work, In Progress, Next Steps, Relevant Files) are **optional** — omit them when empty. They mirror the structured `PhaseRecord` fields written to the coordinator handoff (see `skills/session-log/scripts/phase_record.py`), so a skill using `PhaseRecord(...).write_both()` produces matching content in both `session-log.md` and `handoff_documents`.
+
+**Capability Gaps Observed** captures gaps the agent noticed during the phase. Each entry uses the D4 shared tag schema (`failure_type`, `capability_gap`, `affected_skill`, `severity`). On `write_both()`, each gap is also emitted to episodic memory with `source:session-log`. See `docs/guides/memory-conventions.md` for the full tag schema.
 
 **When no decisions were made** (e.g., validation passed cleanly): include Context, write "No significant decisions required" in Decisions, omit other sections.
 
