@@ -24,7 +24,7 @@
   **Dependencies**: 1.3
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2: Train Integration (wp-train-bridge)
 
@@ -55,7 +55,7 @@
   **Dependencies**: 2.5
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3: Auto Cascading Rebase (wp-auto-rebase)
 
@@ -73,7 +73,7 @@
   **Dependencies**: 3.2, 2.5
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4: Auto Rollback (wp-auto-rollback)
 
@@ -100,7 +100,7 @@
   **Dependencies**: 4.4, 3.3
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 5: Merge Throughput Metrics (wp-metrics)
 
@@ -127,7 +127,7 @@
   **Dependencies**: 5.4
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 6: Background Merge Watcher (wp-watcher)
 
@@ -154,26 +154,26 @@
   **Dependencies**: 6.2
   **Size**: S
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 7: Integration (wp-integration)
 
-- [ ] 7.1 Write integration test — full merge lifecycle: enqueue → compose train → speculate → pass → merge → auto-rebase → monitor CI → metrics summary. Verify with coordinator mock.
+- [x] 7.1 Write integration test — full merge lifecycle: enqueue → compose train → speculate → pass → merge → auto-rebase → monitor CI → metrics summary. Verify with coordinator mock.
   **Spec scenarios**: All merge-infrastructure scenarios
   **Dependencies**: 6.4, 5.3
   **Size**: M
 
-- [ ] 7.2 Write solo-dev backward compatibility test — verify merge-pull-requests works without coordinator, without GitHub merge queue, with direct merge only. Verify all existing test_merge_strategy.py tests still pass.
+- [x] 7.2 Write solo-dev backward compatibility test — verify merge-pull-requests works without coordinator, without GitHub merge queue, with direct merge only. Verify all existing test_merge_strategy.py tests still pass.
   **Spec scenarios**: merge-infrastructure.1 (solo-dev fallback)
   **Dependencies**: 7.1
   **Size**: S
 
-- [ ] 7.3 Update docs/parallel-agentic-development.md — add merge queue scaling section covering train integration, auto-rebase, auto-rollback
+- [x] 7.3 Update docs/parallel-agentic-development.md — add merge queue scaling section covering train integration, auto-rebase, auto-rollback
   **Dependencies**: 7.1
   **Size**: S
 
-- [ ] 7.4 Update docs/lessons-learned.md — add merge queue scaling patterns and rollback best practices
+- [x] 7.4 Update docs/lessons-learned.md — add merge queue scaling patterns and rollback best practices
   **Dependencies**: 7.1
   **Size**: XS
 
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
