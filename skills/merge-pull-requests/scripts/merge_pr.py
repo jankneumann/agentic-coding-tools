@@ -954,6 +954,64 @@ def batch_close(pr_numbers: list[int], reason: str,
     return resp
 
 
+def merge_with_pipeline(
+    pr_number: int,
+    strategy: str = "squash",
+    *,
+    origin: str | None = None,
+    dry_run: bool = False,
+    validation_report: str | None = None,
+    force: bool = False,
+    force_approval: bool = False,
+    enable_rebase: bool = True,
+    enable_rollback: bool = True,
+) -> dict:
+    """Merge a PR and run the post-merge pipeline (rebase, rollback, metrics).
+
+    This is the high-level entry point that combines validation, merge
+    execution via the detected backend, and the composable post-merge hooks.
+    """
+    from check_staleness import get_pr_changed_files
+    from merge_backend import detect_merge_backend
+    from post_merge_pipeline import post_merge_pipeline
+
+    result = merge_pr(
+        pr_number, strategy, dry_run,
+        validation_report=validation_report,
+        force=force,
+        force_approval=force_approval,
+    )
+
+    if dry_run or not result.get("success"):
+        return result
+
+    merged_files = []
+    try:
+        merged_files = get_pr_changed_files(pr_number)
+    except Exception:
+        pass
+
+    merge_sha = result.get("merge_commit_sha", "")
+    pr_title = result.get("title", "")
+
+    backend = detect_merge_backend()
+
+    pipeline_result = post_merge_pipeline(
+        pr_number=pr_number,
+        strategy=strategy,
+        backend=backend.name,
+        merge_sha=merge_sha,
+        pr_title=pr_title,
+        merged_files=merged_files,
+        origin=origin,
+        enable_rebase=enable_rebase,
+        enable_rollback=enable_rollback,
+    )
+
+    result["post_merge"] = pipeline_result
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Merge or close pull requests with pre-merge validation.",
@@ -993,6 +1051,10 @@ def main():
         ),
     )
     merge_parser.add_argument("--dry-run", action="store_true")
+    merge_parser.add_argument(
+        "--pipeline", action="store_true",
+        help="Run post-merge pipeline (auto-rebase, auto-rollback, metrics)",
+    )
 
     # close subcommand
     close_parser = subparsers.add_parser("close", help="Close a single PR")
@@ -1035,12 +1097,22 @@ def main():
 
     if args.action == "merge":
         strategy = resolve_strategy(args.strategy, args.origin)
-        result = merge_pr(
-            args.pr_number, strategy, args.dry_run,
-            validation_report=args.validation_report,
-            force=args.force,
-            force_approval=args.force_approval,
-        )
+        if getattr(args, "pipeline", False):
+            result = merge_with_pipeline(
+                args.pr_number, strategy,
+                origin=args.origin,
+                dry_run=args.dry_run,
+                validation_report=args.validation_report,
+                force=args.force,
+                force_approval=args.force_approval,
+            )
+        else:
+            result = merge_pr(
+                args.pr_number, strategy, args.dry_run,
+                validation_report=args.validation_report,
+                force=args.force,
+                force_approval=args.force_approval,
+            )
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)
     elif args.action == "batch-close":

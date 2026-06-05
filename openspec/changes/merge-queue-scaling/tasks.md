@@ -28,26 +28,26 @@
 
 ## Phase 2: Train Integration (wp-train-bridge)
 
-- [ ] 2.1 Write tests for CoordinatorTrainBackend — mock coordinator calls, verify compose_train → poll → merge_partition flow, verify fallback on coordinator unavailability
+- [x] 2.1 Write tests for CoordinatorTrainBackend — mock coordinator calls, verify compose_train → poll → merge_partition flow, verify fallback on coordinator unavailability
   **Spec scenarios**: merge-infrastructure.2 (train compose), merge-infrastructure.2 (partition merge)
   **Design decisions**: D1 (backend protocol)
   **Dependencies**: 1.2
   **Size**: M
 
-- [ ] 2.2 Implement CoordinatorTrainBackend.merge() — call compose_train via coordination bridge, poll train status, call merge_partition when ready, emit merge event
+- [x] 2.2 Implement CoordinatorTrainBackend.merge() — call compose_train via coordination bridge, poll train status, call merge_partition when ready, emit merge event
   **Dependencies**: 2.1
   **Size**: M
 
-- [ ] 2.3 Write tests for GitHubQueueBackend — mock gh CLI, verify --merge-queue flag, verify fallback to direct merge
+- [x] 2.3 Write tests for GitHubQueueBackend — mock gh CLI, verify --merge-queue flag, verify fallback to direct merge
   **Spec scenarios**: merge-infrastructure.1 (GitHub queue path)
   **Dependencies**: 1.2
   **Size**: S
 
-- [ ] 2.4 Implement GitHubQueueBackend.merge() — use existing `_try_merge_queue()` logic from merge_pr.py, emit merge event
+- [x] 2.4 Implement GitHubQueueBackend.merge() — use existing `_try_merge_queue()` logic from merge_pr.py, emit merge event
   **Dependencies**: 2.3
   **Size**: S
 
-- [ ] 2.5 Wire merge_backend into merge_pr.py — replace direct `_try_merge()` calls with `backend.merge()`, preserve all existing validation logic (approval, CI checks, draft status, conflicts)
+- [x] 2.5 Wire merge_backend into merge_pr.py — replace direct `_try_merge()` calls with `backend.merge()`, preserve all existing validation logic (approval, CI checks, draft status, conflicts)
   **Dependencies**: 2.2, 2.4
   **Size**: M
 
