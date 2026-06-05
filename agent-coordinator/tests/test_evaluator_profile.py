@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
-from src.profiles import AgentProfile, OperationCheck, ProfilesService
+from src.profiles import AgentProfile, ProfilesService
 
 
 class TestEvaluatorProfilePermissions:

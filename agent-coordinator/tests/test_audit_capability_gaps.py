@@ -10,18 +10,14 @@ Fixture-driven tests with mocked LLM responses covering:
 (vii) archetype defaults to analyst, provider to claude_code, both overridable
 """
 
-import asyncio
 import logging
 import time
-from collections import deque
-from dataclasses import dataclass
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from src.audit import AuditEntry
-
 
 # ---------------------------------------------------------------------------
 # Fixtures: audit entries representing various agent operations
@@ -173,7 +169,7 @@ class TestBackgroundTaskDrain:
         mock_classify = AsyncMock(return_value=VALID_CLASSIFIER_OUTPUT)
         mock_remember = AsyncMock()
 
-        findings = await drain_and_classify(
+        await drain_and_classify(
             buffer=buffer,
             classify_fn=mock_classify,
             remember_fn=mock_remember,
@@ -194,7 +190,7 @@ class TestBackgroundTaskDrain:
         mock_classify = AsyncMock(return_value=[])
         mock_remember = AsyncMock()
 
-        findings = await drain_and_classify(
+        await drain_and_classify(
             buffer=buffer,
             classify_fn=mock_classify,
             remember_fn=mock_remember,
