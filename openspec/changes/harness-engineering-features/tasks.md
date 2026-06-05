@@ -119,12 +119,12 @@
   **Files**: `skills/agent-metrics/SKILL.md`, `skills/agent-metrics/scripts/query_metrics.py`, `skills/agent-metrics/scripts/generate_dashboard.py`
   **Dependencies**: 5.3
 
-- [ ] 5.5 Write tests for multi-source mining and source attribution in /improve-harness — verify reader pulls from BOTH episodic memory (all `source:*` values) AND `session-log.md` "Capability Gaps Observed" sections under `openspec/changes/*/session-log.md`; verify dedup on `(capability_gap, affected_skill, session_id)` keeps a multi-source list; verify report includes per-finding source attribution and a summary line (e.g. "23% of findings surfaced in 2+ sources")
+- [x] 5.5 Write tests for multi-source mining and source attribution in /improve-harness — verify reader pulls from BOTH episodic memory (all `source:*` values) AND `session-log.md` "Capability Gaps Observed" sections under `openspec/changes/*/session-log.md`; verify dedup on `(capability_gap, affected_skill, session_id)` keeps a multi-source list; verify report includes per-finding source attribution and a summary line (e.g. "23% of findings surfaced in 2+ sources")
   **Spec scenarios**: harness-engineering.4 (/improve-harness multi-source mining), harness-engineering.4 (source attribution in report)
   **Design decisions**: D4 (shared tag schema with `source:*`), D10 (session-log as source)
   **Dependencies**: 5.1
 
-- [ ] 5.6 Extend /improve-harness for multi-source mining and source attribution — `analyze_failures.py` reads memory entries AND scans `openspec/changes/**/session-log.md` for Capability Gaps Observed sections; dedupes findings keyed on `(capability_gap, affected_skill, session_id)` keeping a multi-source list; `generate_report.py` adds a Source column (and a cross-source-agreement summary). This is the shared machinery that Phase 6 transcript mining and D9 coordinator emission both plug into.
+- [x] 5.6 Extend /improve-harness for multi-source mining and source attribution — `analyze_failures.py` reads memory entries AND scans `openspec/changes/**/session-log.md` for Capability Gaps Observed sections; dedupes findings keyed on `(capability_gap, affected_skill, session_id)` keeping a multi-source list; `generate_report.py` adds a Source column (and a cross-source-agreement summary). This is the shared machinery that Phase 6 transcript mining and D9 coordinator emission both plug into.
   **Files**: `skills/improve-harness/scripts/analyze_failures.py`, `skills/improve-harness/scripts/generate_report.py`, `skills/improve-harness/SKILL.md`
   **Dependencies**: 5.2, 5.5, 1.6, 2.6
 
