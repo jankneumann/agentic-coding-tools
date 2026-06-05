@@ -1,0 +1,47 @@
+# Configuration for /collect-transcripts skill
+#
+# Copy to config.yaml and adjust as needed.
+
+# Triage pass configuration
+triage:
+  # Archetype for model resolution (standard tier)
+  archetype: analyst
+  # Provider for model resolution
+  provider: claude_code
+  # Composite score threshold for flagging deep analysis
+  threshold: 5.0
+  # Prompt version (matches prompts/triage_v<N>.md)
+  prompt_version: 1
+
+# Deep analysis configuration
+deep_analysis:
+  # Archetype for model resolution (premium tier)
+  archetype: reviewer
+  # Provider for model resolution
+  provider: claude_code
+  # Prompt version (matches prompts/deep_analysis_v<N>.md)
+  prompt_version: 1
+
+# Adapter configuration
+adapters:
+  claude_code_cli:
+    enabled: true
+    # Override base directory (default: ~/.claude/projects)
+    # base_dir: null
+  claude_code_web:
+    enabled: true
+  codex_cli:
+    enabled: true
+    # Override base directory (default: $CODEX_HOME/sessions or ~/.codex/sessions)
+    # base_dir: null
+  codex_web:
+    enabled: true
+  gemini_cli:
+    enabled: true
+    # Override base directory (default: ~/.gemini/tmp)
+    # base_dir: null
+
+# Output configuration
+output:
+  # Where normalized events are written
+  transcripts_dir: docs/transcripts
