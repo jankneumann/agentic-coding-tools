@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 from httpx import Response
 
-from src.guardrails import GuardrailResult, GuardrailsService
+from src.guardrails import GuardrailsService
 
 
 class TestSessionScopeEnforcement:

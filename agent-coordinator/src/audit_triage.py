@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 from .audit import AuditEntry
 
