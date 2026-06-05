@@ -204,7 +204,7 @@
 
 ## Phase 7: Integration & Documentation
 
-- [ ] 7.1 Update docs and run skills install — sync new skills to runtime copies, update docs/lessons-learned.md with harness engineering patterns including transcript-mining design notes
+- [x] 7.1 Update docs and run skills install — sync new skills to runtime copies, update docs/lessons-learned.md with harness engineering patterns including transcript-mining design notes
   **Files**: `docs/lessons-learned.md`, `docs/parallel-agentic-development.md`
   **Dependencies**: All previous tasks
 

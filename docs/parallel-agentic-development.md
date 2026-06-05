@@ -579,6 +579,26 @@ python skills/parallel-infrastructure/scripts/consensus_synthesizer.py \
 
 A log handler raising in `emit()` does NOT mask the original exception — the helper wraps `logger.error()` in a bare try/except so observability cannot break correctness.
 
+### Convergence Loop Escalation and Metrics
+
+**Implementation**: [`convergence_loop.py`](../skills/autopilot/scripts/convergence_loop.py)
+
+The `converge()` API extends with three callback-based extension points that preserve backward compatibility (all default to `None`):
+
+- **`escalation_callback`**: Invoked when convergence fails due to `max_rounds` exhaustion or persistent vendor disagreement. Produces a structured escalation summary for human review containing: rounds completed, final findings by criticality, vendor agreement rate, and recommended next steps. This formalizes the existing `ConvergenceResult.escalate_findings` into an actionable human handoff.
+
+- **`fix_callback`**: Invoked per round with the synthesized findings, enabling an author-agent autonomous response pattern. The author agent attempts to fix findings in its worktree before the next review round, closing the loop without human intervention for mechanical fixes.
+
+- **`memory_callback`**: Invoked after `converge()` completes with structured convergence metrics — rounds completed, findings per round, final convergence status, time elapsed, vendor agreement rate, and escalation count. These metrics feed into episodic memory for trend analysis via `/agent-metrics`.
+
+**Configurability**: `BLOCKING_CRITICALITIES` and the stall detection window are now parameters of `converge()` rather than hardcoded constants, allowing callers to tune convergence behavior per use case (e.g., tighter thresholds for security-sensitive reviews).
+
+### Session Scope Enforcement
+
+**Implementation**: [`guardrails.py`](../agent-coordinator/src/guardrails.py), [`session_grants.py`](../agent-coordinator/src/session_grants.py)
+
+When an agent claims a task from the work queue, the coordinator creates a session grant scoping that agent to the task's declared file paths. The guardrails engine checks file paths against session grants when `session_scope_enforcement=true` in the agent's profile. Out-of-scope file modifications trigger guardrail warnings, enforcing the one-task-per-session focus principle at the coordinator level rather than relying on agent self-discipline alone. This complements the post-hoc scope check in `scope_checker.py` (which runs after work is done) with a proactive guardrail (which warns before damage is done).
+
 ### Escalation Protocol
 
 **Implementation**: [`escalation_handler.py`](../skills/parallel-implement-feature/scripts/escalation_handler.py) (212 lines, 8 types)
