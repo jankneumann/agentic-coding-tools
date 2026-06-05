@@ -34,9 +34,9 @@ class TestLoopStateFieldShape:
         state = LoopState()
         assert state.last_handoff_id is None
 
-    def test_schema_version_is_two(self) -> None:
+    def test_schema_version_is_current(self) -> None:
         state = LoopState()
-        assert state.schema_version == 2
+        assert state.schema_version == 4
 
     def test_handoff_ids_still_present(self) -> None:
         # Don't break the existing handoff_ids list — both fields coexist.
@@ -117,7 +117,7 @@ class TestRoundTrip:
         loaded = load_state(path)
         assert loaded.last_handoff_id == "h-2"
         assert loaded.handoff_ids == ["h-1", "h-2"]
-        assert loaded.schema_version == 2
+        assert loaded.schema_version == 4
 
     def test_roundtrip_with_none(self, tmp_path: Path) -> None:
         original = LoopState(change_id="rt", last_handoff_id=None)
@@ -136,4 +136,4 @@ class TestRoundTrip:
         body = json.loads(path.read_text())
         assert "last_handoff_id" in body
         assert body["last_handoff_id"] == "h-99"
-        assert body["schema_version"] == 2
+        assert body["schema_version"] == 4

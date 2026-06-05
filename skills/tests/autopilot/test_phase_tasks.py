@@ -12,6 +12,7 @@ import phase_agent
 import pytest
 
 _ACTIVE_PHASES = (
+    "GATEKEEPER",
     "PLAN",
     "PLAN_ITERATE",
     "PLAN_REVIEW",
@@ -28,7 +29,7 @@ _STATE_ONLY_PHASES = ("INIT", "SUBMIT_PR")
 _ALL_PHASES = _ACTIVE_PHASES + _STATE_ONLY_PHASES
 
 
-def test_phase_tasks_covers_all_13_phases() -> None:
+def test_phase_tasks_covers_all_phases() -> None:
     for phase in _ALL_PHASES:
         assert phase in phase_agent._PHASE_TASKS, f"_PHASE_TASKS missing entry for {phase}"
 

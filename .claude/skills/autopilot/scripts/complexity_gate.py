@@ -1,7 +1,31 @@
-"""Complexity gate for the automated dev loop.
+"""Entry gate for the automated dev loop.
 
-Entry assessment that determines if a feature is suitable for full automation
-based on LOC estimates, package count, external dependencies, and risk signals.
+Historically this module deterministically *blocked* automation by counting
+lines of code and work packages against hard thresholds. That proved too
+aggressive: autopilot already has strong downstream safeguards (multi-vendor
+PLAN/IMPL review convergence, a VALIDATE phase, and a mandatory human merge
+gate), so pre-blocking on raw size was redundant friction.
+
+The gate now does two cheap, deterministic things:
+
+1. **Scope-safety floor** — the *only* remaining hard block. A package that can
+   write the entire repository (``**``, ``*``, ``.``) defeats worktree scope
+   isolation, which no amount of downstream review recovers cleanly. This still
+   requires ``--force``.
+
+2. **Signal gathering** — it assembles a structured *risk + verifiability
+   profile* of the change (``gather_signals``) without mapping any count to a
+   verdict. That profile is handed to the GATEKEEPER judge sub-agent, which
+   evaluates the change's *verifiability of outcomes* and *associated risk* and
+   returns ``proceed`` / ``proceed_with_review`` / ``escalate``.
+
+Former hard blockers (LOC, package count, external deps, db-migration signals)
+are demoted to ``val_review_enabled`` + scheduling ``checkpoints`` +
+informational ``warnings``. They inform the judge; they no longer gate.
+
+``default_gate_verdict`` provides the permissive headless fallback used when no
+judge model is reachable (CI, coordinator down, unit tests): proceed, enabling
+validation review when any risk signal is present.
 """
 
 from __future__ import annotations
@@ -13,13 +37,13 @@ from typing import Any
 import yaml
 
 
-# Built-in default thresholds
-DEFAULT_MAX_LOC = 500
+# Scheduling thresholds. These NO LONGER block automation — they only decide
+# when to inject wave/limit scheduling checkpoints and a dependency-review
+# checkpoint. They are deliberately advisory.
 DEFAULT_MAX_PACKAGES = 4
 DEFAULT_MAX_EXTERNAL_DEPS = 2
-DEFAULT_MAX_ROADMAP_PACKAGES = 12
 
-# Signal keywords
+# Signal keywords (informational — feed the judge, never force).
 DB_MIGRATION_SIGNALS = {"migration", "db:"}
 SECURITY_SIGNALS = {"auth", "crypto", "secret", "token"}
 BROAD_WRITE_SCOPES = {"**", "**/*", "*", ".", "./"}
@@ -27,41 +51,42 @@ BROAD_WRITE_SCOPES = {"**", "**/*", "*", ".", "./"}
 
 @dataclass
 class GateResult:
-    """Result of the complexity gate assessment."""
+    """Result of the entry gate assessment.
+
+    ``force_required`` is now set by exactly one condition — a broad write
+    scope — so it represents a genuine scope-safety concern rather than a
+    complexity threshold. ``signals`` carries the risk + verifiability profile
+    consumed by the GATEKEEPER judge.
+    """
 
     allowed: bool = True
     warnings: list[str] = field(default_factory=list)
     checkpoints: list[str] = field(default_factory=list)
     val_review_enabled: bool = False
     force_required: bool = False
+    signals: dict[str, Any] = field(default_factory=dict)
 
 
 def _load_work_packages(work_packages_path: Path) -> dict[str, Any]:
-    """Load and return parsed work-packages.yaml."""
-    with open(work_packages_path) as f:
+    """Load and return parsed work-packages.yaml (empty dict if missing)."""
+    path = Path(work_packages_path)
+    if not path.exists():
+        return {}
+    with open(path) as f:
         return yaml.safe_load(f) or {}
 
 
-def _get_thresholds(data: dict[str, Any]) -> tuple[int, int, int, int]:
-    """Extract thresholds from work-packages.yaml defaults or use built-ins."""
+def _get_thresholds(data: dict[str, Any]) -> tuple[int, int]:
+    """Extract scheduling thresholds from work-packages.yaml or use built-ins."""
     defaults = data.get("defaults", {})
     auto_loop = defaults.get("auto_loop", {}) if isinstance(defaults, dict) else {}
     if not isinstance(auto_loop, dict):
         auto_loop = {}
 
-    max_loc = auto_loop.get("max_loc", DEFAULT_MAX_LOC)
     max_packages = auto_loop.get("max_packages", DEFAULT_MAX_PACKAGES)
     max_external_deps = auto_loop.get("max_external_deps", DEFAULT_MAX_EXTERNAL_DEPS)
-    max_roadmap_packages = auto_loop.get(
-        "max_roadmap_packages", DEFAULT_MAX_ROADMAP_PACKAGES
-    )
 
-    return (
-        int(max_loc),
-        int(max_packages),
-        int(max_external_deps),
-        int(max_roadmap_packages),
-    )
+    return int(max_packages), int(max_external_deps)
 
 
 def _get_packages(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -73,7 +98,10 @@ def _get_packages(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _sum_loc(packages: list[dict[str, Any]]) -> int | None:
-    """Sum metadata.loc_estimate across packages. Returns None if no package has it."""
+    """Sum metadata.loc_estimate across packages. None if no package has it.
+
+    Reported as a signal only — it never gates automation.
+    """
     total = 0
     found_any = False
     for pkg in packages:
@@ -115,9 +143,7 @@ def _text_contains_signal(text: str, signals: set[str]) -> bool:
     return any(signal in text_lower for signal in signals)
 
 
-def _check_signals(
-    packages: list[dict[str, Any]], signals: set[str]
-) -> bool:
+def _check_signals(packages: list[dict[str, Any]], signals: set[str]) -> bool:
     """Check package descriptions and lock keys for signal keywords."""
     for pkg in packages:
         description = pkg.get("description", "")
@@ -162,84 +188,134 @@ def _add_checkpoint(result: GateResult, checkpoint: str) -> None:
         result.checkpoints.append(checkpoint)
 
 
+def gather_signals(
+    work_packages_path: Path,
+    proposal_path: Path | None = None,
+) -> dict[str, Any]:
+    """Assemble the risk + verifiability profile for the GATEKEEPER judge.
+
+    This is pure observation: counts and booleans, never a verdict. The judge
+    weighs these against the downstream safeguards (review convergence,
+    validation, human merge gate) to decide whether outcomes are verifiable and
+    the risk acceptable for autonomous execution.
+
+    Verifiability facts (``has_proposal`` / ``has_specs`` / ``has_tasks``) are
+    derived from the change directory — a change with specs and a task
+    breakdown is materially easier to verify than a bare description.
+    """
+    data = _load_work_packages(work_packages_path)
+    packages = _get_packages(data)
+    change_dir = Path(work_packages_path).parent
+
+    proposal = proposal_path if proposal_path is not None else change_dir / "proposal.md"
+
+    return {
+        # Risk surface
+        "package_count": _count_impl_packages(packages),
+        "total_loc_estimate": _sum_loc(packages),
+        "external_dep_count": _count_external_deps(packages),
+        "has_db_migration": _check_signals(packages, DB_MIGRATION_SIGNALS),
+        "has_security_signal": _check_signals(packages, SECURITY_SIGNALS),
+        "has_broad_write_scope": _has_broad_write_scope(packages),
+        # Verifiability surface — what evidence exists to check outcomes against
+        "has_proposal": Path(proposal).exists(),
+        "has_specs": (change_dir / "specs").is_dir(),
+        "has_tasks": (change_dir / "tasks.md").exists(),
+        "has_work_packages": Path(work_packages_path).exists(),
+    }
+
+
+# Signal keys that, when truthy, indicate elevated risk worth a validation
+# review even on the permissive path.
+_RISK_SIGNAL_KEYS = (
+    "has_db_migration",
+    "has_security_signal",
+    "has_broad_write_scope",
+)
+
+
+def default_gate_verdict(signals: dict[str, Any]) -> str:
+    """Permissive fallback verdict when no judge model is reachable.
+
+    Returns ``"proceed_with_review"`` when any risk signal is present (cheap
+    insurance via the VAL_REVIEW phase), otherwise ``"proceed"``. It never
+    returns ``"escalate"`` — blocking is reserved for the scope-safety floor
+    (handled in ``assess_complexity``) and for an actual judge verdict.
+    """
+    if any(bool(signals.get(k)) for k in _RISK_SIGNAL_KEYS):
+        return "proceed_with_review"
+    return "proceed"
+
+
 def assess_complexity(
     work_packages_path: Path,
     proposal_path: Path | None = None,
     force: bool = False,
 ) -> GateResult:
-    """Assess feature complexity and determine automation suitability.
+    """Assess a feature at the INIT gate.
+
+    Applies the deterministic scope-safety floor (the only hard block),
+    gathers the risk + verifiability ``signals`` profile, and surfaces
+    advisory warnings / scheduling checkpoints. It does NOT block on size:
+    LOC, package count, external deps, and db-migration signals are reported
+    for the GATEKEEPER judge to weigh, not used to force ``--force``.
 
     Args:
-        work_packages_path: Path to work-packages.yaml
-        proposal_path: Optional path to proposal.md (reserved for future use)
-        force: Whether --force was provided to bypass thresholds
+        work_packages_path: Path to work-packages.yaml (may not exist yet).
+        proposal_path: Optional path to proposal.md.
+        force: Whether --force was provided (bypasses the scope-safety floor).
 
     Returns:
-        GateResult with automation decision, warnings, and checkpoints.
+        GateResult with the permissive decision, signals, warnings, and
+        scheduling checkpoints.
     """
     data = _load_work_packages(work_packages_path)
-    (
-        max_loc,
-        max_packages,
-        max_external_deps,
-        max_roadmap_packages,
-    ) = _get_thresholds(data)
+    max_packages, max_external_deps = _get_thresholds(data)
     packages = _get_packages(data)
 
     result = GateResult()
+    result.signals = gather_signals(work_packages_path, proposal_path)
 
-    # 1. LOC check
-    total_loc = _sum_loc(packages)
-    if total_loc is not None and total_loc > max_loc:
+    # 1. Scope-safety floor — the ONLY hard block. A package that can write the
+    #    whole repository defeats worktree scope isolation.
+    if result.signals.get("has_broad_write_scope"):
         result.force_required = True
-        result.warnings.append(
-            f"Total LOC estimate ({total_loc}) exceeds threshold ({max_loc})"
-        )
+        result.warnings.append("Broad write scope detected; require --force")
 
-    # 2. Package count is a scheduling signal, not a hard blocker. A higher
-    # count often means the work was decomposed well; only an extreme count
-    # requires force because roadmap decomposition is probably more suitable.
-    impl_count = _count_impl_packages(packages)
+    # 2. Package count is purely a scheduling signal now: a higher count usually
+    #    means the work was decomposed well. Emit wave/limit checkpoints so the
+    #    DAG scheduler paces itself; never force.
+    impl_count = result.signals["package_count"]
     if impl_count > max_packages:
         result.warnings.append(
-            f"Package count ({impl_count}) exceeds soft threshold ({max_packages})"
+            f"Package count ({impl_count}) exceeds scheduling threshold "
+            f"({max_packages}); pacing validation in waves"
         )
         _add_checkpoint(result, "wave-validation")
         if impl_count > max_packages * 2:
             _add_checkpoint(result, "limit-concurrency")
-        if impl_count > max_roadmap_packages:
-            result.force_required = True
-            result.warnings.append(
-                f"Package count ({impl_count}) exceeds roadmap threshold "
-                f"({max_roadmap_packages}); consider /plan-roadmap"
-            )
-            _add_checkpoint(result, "roadmap-decomposition")
 
-    # 3. External dependencies check
-    ext_deps = _count_external_deps(packages)
+    # 3. External dependencies — informational + a dependency-review checkpoint.
+    ext_deps = result.signals["external_dep_count"]
     if ext_deps > max_external_deps:
         result.warnings.append(
-            f"External dependencies ({ext_deps}) exceeds threshold ({max_external_deps})"
+            f"External dependencies ({ext_deps}) exceeds threshold "
+            f"({max_external_deps})"
         )
         _add_checkpoint(result, "dependency-review")
 
-    # 4. Hard risk signals
-    if _check_signals(packages, DB_MIGRATION_SIGNALS):
-        result.force_required = True
-        result.warnings.append("Database migration signal detected; require --force")
+    # 4. Risk signals enable validation review (and a focused checkpoint) but no
+    #    longer block — the judge and the downstream gates handle them.
+    if result.signals.get("has_db_migration"):
+        result.warnings.append("Database migration signal detected; enabling val review")
         result.val_review_enabled = True
         _add_checkpoint(result, "db-migration-review")
 
-    if _has_broad_write_scope(packages):
-        result.force_required = True
-        result.warnings.append("Broad write scope detected; require --force")
-
-    # 5. Security-sensitive work should continue, but with validation review.
-    if _check_signals(packages, SECURITY_SIGNALS):
+    if result.signals.get("has_security_signal"):
         result.val_review_enabled = True
         _add_checkpoint(result, "security-review")
 
-    # Final decision
+    # Final decision — only the scope-safety floor can flip this.
     if result.force_required and not force:
         result.allowed = False
 
