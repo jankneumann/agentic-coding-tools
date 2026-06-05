@@ -51,7 +51,7 @@
   **Dependencies**: 2.2, 2.4
   **Size**: M
 
-- [ ] 2.6 Update SKILL.md — document new merge backend selection, train integration, transport detection
+- [x] 2.6 Update SKILL.md — document new merge backend selection, train integration, transport detection
   **Dependencies**: 2.5
   **Size**: S
 
