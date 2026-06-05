@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-06-05T09:26:30.586335+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "HTTP Error 422: Unprocessable Entity",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a kill-switchable cross-vendor cost-arbitrage learning instrument. Instrument-first: durable five-family signal substrate + metered-counterfactual ledger + two active probes, with a deliberately simple static-priority router behind a hard/soft constraint split. Coordinated tier, 5-package DAG.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Bounded instrument capability (Approach A)",
+        "rationale": "Only option honouring the kill-switch principle: one capability, one feature flag, clean removal seam, slot-in point for the deferred smart router.",
+        "capability": "cross-vendor-arbitrage",
+        "supersedes": null
+      },
+      {
+        "title": "Signals ride audit_log + OTel; interpretive records extend roadmap-runtime",
+        "rationale": "Reuse append-only immutability + graceful-degrade (audit/telemetry) and existing cost/decision schema fields (LearningEntry.vendor_notes, checkpoint.vendor_state). No new tables.",
+        "capability": "cross-vendor-arbitrage",
+        "supersedes": null
+      },
+      {
+        "title": "Hard constraints as mutable Cedar forbid() policies",
+        "rationale": "EULA/eligibility is a moving input; a config edit must reorganise routing without redeploy (NOTIFY-invalidated).",
+        "capability": "cross-vendor-arbitrage",
+        "supersedes": null
+      },
+      {
+        "title": "Cost model = static price table + adapter tokens with labelled estimates",
+        "rationale": "No token tracking exists; degrade to labelled estimates rather than block the ledger. Headline metric reportable with/without estimates.",
+        "capability": "cross-vendor-arbitrage",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts first (schemas + fixtures), then wp-coordinator-signals.",
+      "Run wp-probes and wp-skill-router in parallel after the signal substrate lands."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/cross-vendor-arbitrage-instrument/proposal.md",
+        "description": "approved proposal (Approach A)"
+      },
+      {
+        "path": "openspec/changes/cross-vendor-arbitrage-instrument/design.md",
+        "description": "design decisions D1\u2013D11"
+      },
+      {
+        "path": "openspec/changes/cross-vendor-arbitrage-instrument/work-packages.yaml",
+        "description": "5-package coordinated DAG"
+      }
+    ]
+  }
+}

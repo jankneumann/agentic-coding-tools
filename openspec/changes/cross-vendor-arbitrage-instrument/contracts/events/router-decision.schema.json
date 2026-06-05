@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "router-decision.schema.json",
+  "title": "Router Decision Provenance",
+  "description": "The inputs, choice, and applied constraints for a single static-priority router selection. Recorded as a decision_provenance signal and as a LearningEntry decision. This is the stable interface a future optimiser must also populate.",
+  "type": "object",
+  "required": ["schema_version", "work_unit_id", "chosen", "feasible_set", "policy"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "work_unit_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "policy": {
+      "type": "string",
+      "const": "static-priority",
+      "description": "The selection policy. Pinned to static-priority in this slice; future optimisers use a different value."
+    },
+    "chosen": {
+      "type": "object",
+      "required": ["vendor", "modality"],
+      "additionalProperties": true,
+      "properties": {
+        "vendor": { "type": "string" },
+        "model": { "type": "string" },
+        "modality": { "type": "string", "enum": ["internal", "programmatic-subscription", "programmatic-metered"] }
+      }
+    },
+    "feasible_set": {
+      "type": "array",
+      "description": "Assignments that passed the hard (Cedar) feasibility filter, in evaluated order.",
+      "items": {
+        "type": "object",
+        "required": ["vendor", "modality"],
+        "additionalProperties": true,
+        "properties": {
+          "vendor": { "type": "string" },
+          "modality": { "type": "string" }
+        }
+      }
+    },
+    "rejected": {
+      "type": "array",
+      "description": "Assignments excluded by the feasibility filter, with reasons.",
+      "items": {
+        "type": "object",
+        "required": ["vendor", "reason"],
+        "additionalProperties": true,
+        "properties": {
+          "vendor": { "type": "string" },
+          "reason": { "type": "string", "description": "e.g. programmatic-ineligible, vendor-frozen, data-residency, capability-floor." }
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable selection rationale, e.g. 'cheapest eligible tier' or 'spill on 429 from codex'."
+    },
+    "cohesion_applied": {
+      "type": "boolean",
+      "description": "True when the work-package cohesion preference influenced the choice."
+    }
+  }
+}
