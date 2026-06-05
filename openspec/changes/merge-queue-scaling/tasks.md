@@ -59,13 +59,13 @@
 
 ## Phase 3: Auto Cascading Rebase (wp-auto-rebase)
 
-- [ ] 3.1 Write tests for auto_cascade_rebase() — verify refresh-branch calls for overlapping PRs, verify rate limiting (max 5), verify skip for conflicting overlaps, verify no-op when no overlapping PRs
+- [x] 3.1 Write tests for auto_cascade_rebase() — verify refresh-branch calls for overlapping PRs, verify rate limiting (max 5), verify skip for conflicting overlaps, verify no-op when no overlapping PRs
   **Spec scenarios**: merge-infrastructure.3 (auto rebase non-conflicting), merge-infrastructure.3 (rate limiting), merge-infrastructure.3 (conflicting skip)
   **Design decisions**: D3 (rate limiting)
   **Dependencies**: 1.4
   **Size**: M
 
-- [ ] 3.2 Implement auto_cascade_rebase() — after merge, compute overlapping PRs via check_staleness, call refresh_branch for non-conflicting overlaps (up to MAX_AUTO_REBASE_PER_MERGE), log conflicting PRs for operator attention
+- [x] 3.2 Implement auto_cascade_rebase() — after merge, compute overlapping PRs via check_staleness, call refresh_branch for non-conflicting overlaps (up to MAX_AUTO_REBASE_PER_MERGE), log conflicting PRs for operator attention
   **Dependencies**: 3.1
   **Size**: M
 
@@ -77,22 +77,22 @@
 
 ## Phase 4: Auto Rollback (wp-auto-rollback)
 
-- [ ] 4.1 Write tests for monitor_ci_for_rollback() — mock CI polling, verify breakage attribution via file overlap, verify auto-revert creation, verify no-revert when no overlap, verify monitoring window timeout
+- [x] 4.1 Write tests for monitor_ci_for_rollback() — mock CI polling, verify breakage attribution via file overlap, verify auto-revert creation, verify no-revert when no overlap, verify monitoring window timeout
   **Spec scenarios**: merge-infrastructure.4 (breakage detection), merge-infrastructure.4 (auto revert), merge-infrastructure.4 (no false positive), merge-infrastructure.4 (monitoring timeout)
   **Design decisions**: D4 (file overlap attribution)
   **Dependencies**: 1.4
   **Size**: M
 
-- [ ] 4.2 Implement monitor_ci_for_rollback() — poll main branch CI for ROLLBACK_MONITOR_MINUTES, on failure check file overlap with merged PR, create revert commit if attributed, push and fast-track merge
+- [x] 4.2 Implement monitor_ci_for_rollback() — poll main branch CI for ROLLBACK_MONITOR_MINUTES, on failure check file overlap with merged PR, create revert commit if attributed, push and fast-track merge
   **Dependencies**: 4.1
   **Size**: M
 
-- [ ] 4.3 Write tests for create_revert_pr() — verify git revert, verify PR creation with explanatory body, verify fast-track merge, verify notification event emission
+- [x] 4.3 Write tests for create_revert_pr() — verify git revert, verify PR creation with explanatory body, verify fast-track merge, verify notification event emission
   **Spec scenarios**: merge-infrastructure.4 (revert PR creation)
   **Dependencies**: 4.2
   **Size**: S
 
-- [ ] 4.4 Implement create_revert_pr() — git revert <merge-sha>, create PR via gh, auto-merge the revert PR (bypasses normal queue to unblock trunk), emit revert event
+- [x] 4.4 Implement create_revert_pr() — git revert <merge-sha>, create PR via gh, auto-merge the revert PR (bypasses normal queue to unblock trunk), emit revert event
   **Dependencies**: 4.3
   **Size**: M
 
