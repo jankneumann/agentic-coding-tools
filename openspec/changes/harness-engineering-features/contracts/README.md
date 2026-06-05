@@ -11,7 +11,7 @@
 
 ## Database Contract
 
-### Migration: 017_evaluator_profile.sql
+### Migration: 026_evaluator_profile.sql
 
 Seeds the `agent_profiles` table with a built-in evaluator profile:
 
@@ -53,6 +53,8 @@ Failure recording uses structured tag prefixes:
 | `capability_gap:` | Free text | `capability_gap:no-auto-fix-for-import-errors` |
 | `affected_skill:` | Skill name | `affected_skill:implement-feature` |
 | `severity:` | low, medium, high, critical | `severity:high` |
+| `source:` | self-reported, coordinator-emitted, session-log, transcript-mined | `source:coordinator-emitted` |
+| `prompt_version:` | Integer version of classifier prompt | `prompt_version:1` |
 
 ## Linter Output Format
 

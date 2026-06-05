@@ -23,7 +23,7 @@ Extend the existing `convergence_loop.py` and `consensus_synthesizer.py` to impl
 **Existing foundations**: `autopilot/scripts/convergence_loop.py`, `parallel-infrastructure/scripts/consensus_synthesizer.py`, `parallel-infrastructure/scripts/review_dispatcher.py`
 
 ### Feature 2: Progressive Context Architecture
-Restructure the monolithic CLAUDE.md into a tiered context system: a lightweight (~100-line) table-of-contents entry point pointing to structured, topic-specific docs. This follows the same pattern successfully used in the agentic-newsletter-aggregator project for CLAUDE.md files that have grown too large. OpenAI replaced their 800-line AGENTS.md with a 100-line TOC and saw immediate improvements.
+Restructure the monolithic CLAUDE.md (currently 188 lines and growing) into a tiered context system: a lightweight (~100-line) table-of-contents entry point pointing to structured, topic-specific docs under `docs/guides/`. This follows the same pattern successfully used in the agentic-newsletter-aggregator project for CLAUDE.md files that have grown too large. OpenAI replaced their 800-line AGENTS.md with a 100-line TOC and saw immediate improvements. The 188→~100 line reduction requires extracting ~90 lines of content into 7+ topic docs.
 
 **Existing foundations**: Current CLAUDE.md, `docs/` directory structure
 

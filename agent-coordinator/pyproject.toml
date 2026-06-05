@@ -21,7 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 api = [
     "fastapi>=0.136.1",
-    "uvicorn>=0.32.0",
+    "uvicorn>=0.48.0",
     # IMPL_REVIEW claude_code#12: sse-starlette is imported at runtime in
     # coordination_api.py:2759 (EventSourceResponse) for the /events/work SSE
     # endpoint. PyJWT is imported in event_stream.py for mint/verify of the

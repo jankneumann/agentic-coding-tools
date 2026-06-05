@@ -1,7 +1,7 @@
 """Scope overlap detection primitives.
 
-Shared by ``validate_work_packages.py`` (parallel package validation)
-and ``semantic_decomposer.py`` (Tier A deterministic dependency inference).
+Used by ``validate_work_packages.py`` (parallel package validation) for
+deterministic scope-overlap checks between work units.
 
 Provides pairwise overlap checks for write_allow globs, read_allow globs,
 and lock keys.  All functions operate on plain lists/sets — they don't

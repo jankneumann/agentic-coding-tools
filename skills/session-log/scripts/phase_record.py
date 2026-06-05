@@ -101,6 +101,20 @@ class TradeOff:
 
 
 @dataclass
+class CapabilityGap:
+    """A capability gap observed during the phase.
+
+    Fields match the D4 shared tag schema so they can be emitted as
+    episodic memory entries with ``source:session-log``.
+    """
+
+    failure_type: str
+    capability_gap: str
+    affected_skill: str
+    severity: str
+
+
+@dataclass
 class PhaseWriteResult:
     """Outcome of `PhaseRecord.write_both()` — best-effort across three steps."""
 
@@ -128,6 +142,7 @@ class PhaseRecord:
     decisions: list[Decision] = field(default_factory=list)
     alternatives: list[Alternative] = field(default_factory=list)
     trade_offs: list[TradeOff] = field(default_factory=list)
+    capability_gaps: list[CapabilityGap] = field(default_factory=list)
     open_questions: list[str] = field(default_factory=list)
     completed_work: list[str] = field(default_factory=list)
     in_progress: list[str] = field(default_factory=list)
@@ -176,6 +191,15 @@ class PhaseRecord:
             lines.append("### Trade-offs")
             for t in self.trade_offs:
                 lines.append(f"- Accepted {t.accepted} over {t.over} because {t.reason}")
+            lines.append("")
+
+        if self.capability_gaps:
+            lines.append("### Capability Gaps Observed")
+            for gap in self.capability_gaps:
+                lines.append(
+                    f"- **{gap.failure_type}**: {gap.capability_gap} "
+                    f"(skill: {gap.affected_skill}, severity: {gap.severity})"
+                )
             lines.append("")
 
         if self.open_questions:
@@ -244,14 +268,15 @@ class PhaseRecord:
         phase_name: str,
         alternatives: list[Alternative] | None = None,
         trade_offs: list[TradeOff] | None = None,
+        capability_gaps: list[CapabilityGap] | None = None,
         open_questions: list[str] | None = None,
     ) -> PhaseRecord:
         """Reconstruct a PhaseRecord from a handoff payload.
 
         The handoff payload schema is a strict subset of PhaseRecord
-        (no alternatives / trade_offs / open_questions). Pass them
-        explicitly if you need to restore those fields from a side
-        channel; otherwise they default to empty.
+        (no alternatives / trade_offs / open_questions / capability_gaps).
+        Pass them explicitly if you need to restore those fields from a
+        side channel; otherwise they default to empty.
         """
         return cls(
             change_id=change_id,
@@ -262,6 +287,7 @@ class PhaseRecord:
             decisions=[Decision(**d) for d in payload.get("decisions", [])],
             alternatives=alternatives or [],
             trade_offs=trade_offs or [],
+            capability_gaps=capability_gaps or [],
             open_questions=open_questions or [],
             completed_work=list(payload.get("completed_work", [])),
             in_progress=list(payload.get("in_progress", [])),
@@ -560,6 +586,9 @@ _TRADE_OFF_LINE_RE = re.compile(
     r"^-\s+Accepted\s+(.+?)\s+over\s+(.+?)\s+because\s+(.+)$"
 )
 _FILE_REF_LINE_RE = re.compile(r"^-\s+`([^`]+)`(?:\s+—\s+(.+))?$")
+_CAPABILITY_GAP_LINE_RE = re.compile(
+    r"^-\s+\*\*(.+?)\*\*:\s+(.+?)\s+\(skill:\s+(.+?),\s+severity:\s+(.+?)\)$"
+)
 
 
 def parse_markdown(text: str, *, change_id: str) -> PhaseRecord:
@@ -600,6 +629,9 @@ def parse_markdown(text: str, *, change_id: str) -> PhaseRecord:
     decisions = _parse_decisions(sections.get("Decisions", []))
     alternatives = _parse_alternatives(sections.get("Alternatives Considered", []))
     trade_offs = _parse_trade_offs(sections.get("Trade-offs", []))
+    capability_gaps = _parse_capability_gaps(
+        sections.get("Capability Gaps Observed", [])
+    )
     open_questions = _parse_bullet_list(
         sections.get("Open Questions", []), prefix="- [ ] "
     )
@@ -618,6 +650,7 @@ def parse_markdown(text: str, *, change_id: str) -> PhaseRecord:
         decisions=decisions,
         alternatives=alternatives,
         trade_offs=trade_offs,
+        capability_gaps=capability_gaps,
         open_questions=open_questions,
         completed_work=completed_work,
         in_progress=in_progress,
@@ -701,6 +734,22 @@ def _parse_trade_offs(lines: list[str]) -> list[TradeOff]:
     return out
 
 
+def _parse_capability_gaps(lines: list[str]) -> list[CapabilityGap]:
+    out: list[CapabilityGap] = []
+    for line in lines:
+        m = _CAPABILITY_GAP_LINE_RE.match(line.strip())
+        if m:
+            out.append(
+                CapabilityGap(
+                    failure_type=m.group(1).strip(),
+                    capability_gap=m.group(2).strip(),
+                    affected_skill=m.group(3).strip(),
+                    severity=m.group(4).strip(),
+                )
+            )
+    return out
+
+
 def _parse_bullet_list(lines: list[str], *, prefix: str = "- ") -> list[str]:
     out: list[str] = []
     for line in lines:
@@ -721,6 +770,7 @@ def _parse_relevant_files(lines: list[str]) -> list[FileRef]:
 
 __all__ = [
     "Alternative",
+    "CapabilityGap",
     "Decision",
     "FileRef",
     "PhaseRecord",

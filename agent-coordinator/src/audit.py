@@ -92,11 +92,16 @@ class AuditService:
         success: bool | None = None,
         error_message: str | None = None,
         delegated_from: str | None = None,
+        session_id: str | None = None,
     ) -> AuditResult:
         """Log a coordination operation to the audit trail.
 
         When async_logging is enabled (default), this fires-and-forgets
         the insert to avoid blocking the caller.
+
+        Also pushes the entry into the audit-triage ring buffer (D9)
+        for downstream LLM classification.  The push is synchronous
+        and microsecond-fast — no LLM involvement on the hot path.
         """
         config = get_config()
         agent_id = agent_id or config.agent.agent_id
@@ -113,6 +118,28 @@ class AuditService:
             "error_message": error_message,
             "delegated_from": delegated_from,
         }
+
+        # Push to audit-triage ring buffer (D9: hot path, no LLM)
+        try:
+            from .audit_triage import get_triage_buffer
+
+            entry = AuditEntry(
+                id="",
+                agent_id=agent_id,
+                agent_type=agent_type,
+                operation=operation,
+                parameters=parameters or {},
+                result=result or {},
+                duration_ms=duration_ms,
+                success=success,
+                error_message=error_message,
+                delegated_from=delegated_from,
+            )
+            resolved_session_id = session_id or (config.agent.session_id or "unknown")
+            get_triage_buffer().push(entry, session_id=resolved_session_id)
+        except Exception:
+            # Never let triage buffer failures affect the audit hot path
+            pass
 
         if config.audit.async_logging:
             # Fire-and-forget: don't block the caller

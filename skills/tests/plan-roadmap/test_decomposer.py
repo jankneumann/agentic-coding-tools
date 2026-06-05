@@ -1,464 +1,253 @@
-"""Tests for the plan-roadmap decomposer module."""
+"""Tests for the plan-roadmap validation-only decomposer module."""
 
 from __future__ import annotations
 
+import copy
+import tempfile
+from pathlib import Path
+
 import pytest
 from decomposer import (
-    _CAPABILITY_MARKERS,
-    build_dependency_dag,
-    decompose,
-    diagnose_thin_output,
-    validate_item_sizes,
+    main,
+    make_repo_relative,
+    scan_archive_state,
     validate_proposal,
+    validate_roadmap,
 )
-from models import Effort, ItemStatus, RoadmapItem
+
+# Repo root: skills/tests/plan-roadmap/test_decomposer.py -> parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-WELL_FORMED_PROPOSAL = """\
-# Multi-Service Platform Proposal
+def _valid_roadmap() -> dict:
+    return {
+        "schema_version": 1,
+        "roadmap_id": "roadmap-example",
+        "source_proposal": "openspec/roadmaps/example/proposal.md",
+        "status": "planning",
+        "policy": {"default_action": "wait_if_budget_exceeded"},
+        "items": [
+            {
+                "item_id": "ri-01",
+                "title": "Add structured logging",
+                "description": "Emit JSON logs.",
+                "rationale": "Foundation for metrics.",
+                "status": "candidate",
+                "priority": 1,
+                "effort": "S",
+                "depends_on": [],
+                "acceptance_outcomes": ["Logs are JSON."],
+            },
+            {
+                "item_id": "ri-02",
+                "title": "Export metrics",
+                "description": "Add /metrics endpoint.",
+                "rationale": "Enables alerting.",
+                "status": "candidate",
+                "priority": 2,
+                "effort": "M",
+                "depends_on": ["ri-01"],
+                "acceptance_outcomes": ["/metrics returns counters."],
+            },
+        ],
+    }
 
-## Phase 1: Foundation
 
-### Database Infrastructure Setup
+PROSE_PROPOSAL_NO_KEYWORDS = """\
+# Tidy Up the Onboarding Flow
 
-This component provides the foundational database infrastructure for all services.
+## Background
 
-- Must support PostgreSQL 15+
-- Should handle connection pooling
-- Database migrations must be automated
-- Schema validation should pass on every deploy
+New folks get lost in the first ten minutes. We want the first run to feel
+calm and obvious, with sensible defaults and a clear next step.
 
-### Authentication Service
+## What we want
 
-This feature implements user authentication and authorization.
-
-- OAuth2 provider integration
-- JWT token management
-- Role-based access control must be enforced
-- Session management should handle concurrent logins
-
-## Phase 2: Core Features
-
-### API Gateway Component
-
-The API gateway service routes requests to backend microservices.
-
-- Rate limiting must be configurable per endpoint
-- Request validation should reject malformed payloads
-- Circuit breaker pattern for downstream failures
-- Health check endpoints must respond within 100ms
-- Load balancing across service instances
-- Request/response logging for audit
-
-### Notification System Feature
-
-This feature delivers notifications across multiple channels.
-
-- Email notification delivery
-- Push notification support
-- Notification preferences must be user-configurable
-- Delivery status tracking should be real-time
-
-## Constraints
-
-- All services must pass security review before deployment
-- Response latency must stay under 200ms p99
-- System must handle 10k concurrent users
+A welcome screen, a guided first task, and a way to skip ahead for power users.
 """
 
-MINIMAL_PROPOSAL = """\
-# Simple Feature
-
-## Component: User Dashboard
-
-A basic user dashboard feature.
-
-- Display user profile
-- Show recent activity
-"""
-
-NO_CAPABILITIES_PROPOSAL = """\
-# Meeting Notes
-
-We discussed the timeline for the project.
-The budget is approved.
-Next meeting is on Friday.
-"""
-
-EMPTY_PROPOSAL = ""
 
 # ---------------------------------------------------------------------------
-# validate_proposal tests
+# validate_proposal — readiness gate, NOT a vocabulary gate
 # ---------------------------------------------------------------------------
 class TestValidateProposal:
-    def test_well_formed_proposal_passes(self):
-        errors = validate_proposal(WELL_FORMED_PROPOSAL)
-        assert errors == []
-
-    def test_empty_proposal_fails(self):
-        errors = validate_proposal(EMPTY_PROPOSAL)
-        assert len(errors) >= 1
+    def test_empty_fails(self):
+        errors = validate_proposal("")
+        assert errors
         assert any("empty" in e.lower() for e in errors)
 
-    def test_no_capabilities_fails(self):
-        errors = validate_proposal(NO_CAPABILITIES_PROPOSAL)
-        assert len(errors) >= 1
-        assert any("capabilit" in e.lower() or "no actionable" in e.lower() for e in errors)
+    def test_whitespace_only_fails(self):
+        assert validate_proposal("   \n\t  ") != []
 
-    def test_minimal_proposal_passes(self):
-        errors = validate_proposal(MINIMAL_PROPOSAL)
-        assert errors == []
+    def test_no_headings_fails(self):
+        errors = validate_proposal("just a paragraph with no headings at all")
+        assert errors
+        assert any("heading" in e.lower() for e in errors)
 
+    def test_heading_passes(self):
+        assert validate_proposal("# Title\n\nSome body text.") == []
 
-# ---------------------------------------------------------------------------
-# Expanded capability vocabulary
-# ---------------------------------------------------------------------------
-class TestExpandedCapabilityVocabulary:
-    """Verify keywords added to address the port/adapter/workspace failure case."""
-
-    @pytest.mark.parametrize("term", [
-        "port", "adapter", "workspace", "subsystem",
-        "handler", "worker", "pipeline", "queue",
-        "registry", "store", "cache", "broker", "gateway",
-        "dashboard", "panel",
-        "integration", "bridge", "connector", "driver",
-        "orchestrator", "scheduler", "dispatcher",
-    ])
-    def test_recognizes_term(self, term):
-        assert _CAPABILITY_MARKERS.search(term) is not None, (
-            f"Vocabulary regression: {term!r} no longer matches "
-            "_CAPABILITY_MARKERS — proposals using this term will be missed."
-        )
-
-    def test_proposal_with_hexagonal_vocabulary_validates(self):
-        """The original failure case: ports/adapters/workspace/retry queue vocabulary."""
-        proposal = """\
-# Hexagonal Refactor
-
-## Phase 1: Adapters
-
-### Port: Outbound Email Adapter
-
-This adapter wraps the SMTP integration.
-
-- Must handle TLS connections
-- Retry on transient failures
-
-### Workspace Registry Service
-
-A workspace registry tracking active sessions.
-
-- Must persist across restarts
-
-### Retry Queue Handler
-
-The retry queue handler reschedules failed jobs.
-
-- Backoff must be exponential
-"""
-        errors = validate_proposal(proposal)
-        assert errors == [], f"Validator should accept hexagonal vocabulary: {errors}"
+    def test_prose_without_capability_vocabulary_passes(self):
+        # The old keyword gate would reject this; the new gate must not.
+        assert validate_proposal(PROSE_PROPOSAL_NO_KEYWORDS) == []
 
 
 # ---------------------------------------------------------------------------
-# Thin-output detection
+# validate_roadmap — schema + semantic integrity
 # ---------------------------------------------------------------------------
-class TestDiagnoseThinOutput:
-    def test_healthy_output_returns_none(self):
-        proposal = "## A\ntext\n## B\ntext\n## C\ntext\n"
-        # 3 H2s, 3 items extracted → 100% ratio
-        assert diagnose_thin_output(proposal, extracted_count=3) is None
+class TestValidateRoadmap:
+    def test_valid_roadmap_passes(self):
+        assert validate_roadmap(_valid_roadmap(), _REPO_ROOT) == []
 
-    def test_above_threshold_returns_none(self):
-        proposal = "## A\n## B\n## C\n## D\n"
-        # 4 H2s, 2 items → 50% ratio at default 0.5 threshold
-        assert diagnose_thin_output(proposal, extracted_count=2) is None
+    def test_non_mapping_rejected(self):
+        errors = validate_roadmap([1, 2, 3], _REPO_ROOT)  # type: ignore[arg-type]
+        assert errors
+        assert any("mapping" in e.lower() for e in errors)
 
-    def test_thin_output_returns_diagnostic(self):
-        proposal = "## A\n## B\n## C\n## D\n## E\n## F\n"
-        # 6 H2s, 1 item → way under 0.5
-        msg = diagnose_thin_output(proposal, extracted_count=1)
-        assert msg is not None
-        assert "Thin extraction" in msg
-        assert "vocabulary" in msg
-        assert "template" in msg
+    def test_missing_required_field_is_schema_error(self):
+        data = _valid_roadmap()
+        del data["roadmap_id"]
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert errors
+        assert all(e.startswith("Schema:") for e in errors)
 
-    def test_diagnostic_warns_against_hand_authoring(self):
-        """Critical: the message must steer the agent away from the
-        bypass pattern (writing roadmap.yaml directly)."""
-        proposal = "## A\n## B\n## C\n## D\n## E\n## F\n"
-        msg = diagnose_thin_output(proposal, extracted_count=0)
-        assert msg is not None
-        assert "hand-author" in msg.lower() or "hides the regression" in msg.lower()
+    def test_bad_effort_enum_is_schema_error(self):
+        data = _valid_roadmap()
+        data["items"][0]["effort"] = "HUGE"
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert errors
+        assert any(e.startswith("Schema:") for e in errors)
 
-    def test_no_h2_returns_none(self):
-        # No H2 means we cannot ratio-check; skip the diagnostic
-        proposal = "# Title only\nbody\n"
-        assert diagnose_thin_output(proposal, extracted_count=0) is None
+    def test_duplicate_item_id_rejected(self):
+        data = _valid_roadmap()
+        data["items"][1]["item_id"] = "ri-01"
+        # fix the now-dangling dependency so we isolate the duplicate check
+        data["items"][1]["depends_on"] = []
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any("duplicate" in e.lower() and "ri-01" in e for e in errors)
 
-    def test_empty_proposal_returns_none(self):
-        assert diagnose_thin_output("", extracted_count=0) is None
+    def test_dangling_dependency_rejected(self):
+        data = _valid_roadmap()
+        data["items"][1]["depends_on"] = ["ri-99"]
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any("ri-99" in e and "not a declared" in e for e in errors)
 
+    def test_self_dependency_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0]["depends_on"] = ["ri-01"]
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any("depends on itself" in e for e in errors)
 
-# ---------------------------------------------------------------------------
-# decompose tests
-# ---------------------------------------------------------------------------
-class TestDecompose:
-    def test_successful_decomposition(self):
-        roadmap = decompose(WELL_FORMED_PROPOSAL, "proposals/platform.md")
-        assert roadmap.roadmap_id == "roadmap-platform"
-        assert roadmap.source_proposal == "proposals/platform.md"
-        assert len(roadmap.items) >= 2  # At least some items extracted
-        assert all(it.status == ItemStatus.CANDIDATE for it in roadmap.items)
-        assert all(it.acceptance_outcomes for it in roadmap.items)
-        assert roadmap.created_at is not None
+    def test_cycle_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0]["depends_on"] = ["ri-02"]  # ri-01 <-> ri-02
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any("cycle" in e.lower() for e in errors)
 
-    def test_items_have_priorities(self):
-        roadmap = decompose(WELL_FORMED_PROPOSAL, "proposals/platform.md")
-        priorities = [it.priority for it in roadmap.items]
-        # Priorities should be sequential starting from 1
-        assert priorities == list(range(1, len(priorities) + 1))
+    def test_empty_acceptance_outcomes_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0]["acceptance_outcomes"] = []
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert any(
+            "acceptance_outcomes" in e and "ri-01" in e for e in errors
+        ), f"expected ri-01 acceptance_outcomes error, got: {errors}"
 
-    def test_items_have_effort_estimates(self):
-        roadmap = decompose(WELL_FORMED_PROPOSAL, "proposals/platform.md")
-        for item in roadmap.items:
-            assert item.effort in (Effort.XS, Effort.S, Effort.M, Effort.L, Effort.XL)
+    def test_missing_acceptance_outcomes_rejected(self):
+        data = _valid_roadmap()
+        data["items"][0].pop("acceptance_outcomes", None)
+        errors = validate_roadmap(data, _REPO_ROOT)
+        # Schema requires acceptance_outcomes — surfaces as either a schema
+        # error OR our semantic check on default-empty. Either is acceptable.
+        assert errors
+        assert any("acceptance_outcomes" in e for e in errors)
 
-    def test_rejection_no_capabilities(self):
-        with pytest.raises(ValueError, match="No actionable capabilities"):
-            decompose(NO_CAPABILITIES_PROPOSAL, "proposals/notes.md")
+    def test_dangling_dep_suppresses_cycle_noise(self):
+        # A dangling reference should report the reference error, not a
+        # confusing cycle error layered on top.
+        data = _valid_roadmap()
+        data["items"][1]["depends_on"] = ["ri-99"]
+        errors = validate_roadmap(data, _REPO_ROOT)
+        assert not any("cycle" in e.lower() for e in errors)
 
-    def test_rejection_empty(self):
-        with pytest.raises(ValueError, match="empty"):
-            decompose(EMPTY_PROPOSAL, "proposals/empty.md")
+    def test_errors_are_independent_of_input_mutation(self):
+        data = _valid_roadmap()
+        snapshot = copy.deepcopy(data)
+        validate_roadmap(data, _REPO_ROOT)
+        assert data == snapshot  # validation must not mutate the input
 
-    def test_dag_is_acyclic(self):
-        roadmap = decompose(WELL_FORMED_PROPOSAL, "proposals/platform.md")
-        assert not roadmap.has_cycle()
-
-    def test_minimal_proposal_produces_item(self):
-        roadmap = decompose(MINIMAL_PROPOSAL, "proposals/simple.md")
-        assert len(roadmap.items) >= 1
-
-# ---------------------------------------------------------------------------
-# validate_item_sizes tests
-# ---------------------------------------------------------------------------
-class TestValidateItemSizes:
-    def _make_item(
-        self, item_id: str, effort: Effort, title: str = "Test"
-    ) -> RoadmapItem:
-        return RoadmapItem(
-            item_id=item_id,
-            title=title,
-            status=ItemStatus.CANDIDATE,
-            priority=1,
-            effort=effort,
-        )
-
-    def test_items_within_range_unchanged(self):
-        items = [
-            self._make_item("ri-01", Effort.S, "Small item"),
-            self._make_item("ri-02", Effort.M, "Medium item"),
-            self._make_item("ri-03", Effort.L, "Large item"),
-        ]
-        result = validate_item_sizes(items, min_effort=Effort.S, max_effort=Effort.L)
-        assert len(result) == 3
-        assert [it.item_id for it in result] == ["ri-01", "ri-02", "ri-03"]
-
-    def test_merge_undersized_items(self):
-        """Two XS items should be merged into one S item."""
-        items = [
-            self._make_item("ri-01", Effort.XS, "Tiny feature A"),
-            self._make_item("ri-02", Effort.XS, "Tiny feature B"),
-        ]
-        result = validate_item_sizes(items, min_effort=Effort.S, max_effort=Effort.L)
-        assert len(result) == 1
-        merged = result[0]
-        # Merged item should have bumped effort
-        assert merged.effort == Effort.S
-        assert "Tiny feature A" in merged.title
-        assert "Tiny feature B" in merged.title
-
-    def test_merge_preserves_acceptance_outcomes(self):
-        item_a = self._make_item("ri-01", Effort.XS, "Feature A")
-        item_a.acceptance_outcomes = ["A works"]
-        item_b = self._make_item("ri-02", Effort.XS, "Feature B")
-        item_b.acceptance_outcomes = ["B works"]
-        result = validate_item_sizes([item_a, item_b], min_effort=Effort.S, max_effort=Effort.L)
-        assert len(result) == 1
-        assert "A works" in result[0].acceptance_outcomes
-        assert "B works" in result[0].acceptance_outcomes
-
-    def test_split_oversized_item(self):
-        """An XL item with multiple bullets should be split."""
-        item = self._make_item("ri-01", Effort.XL, "Mega feature")
-        item.description = (
-            "- Implement user auth system\n"
-            "- Build notification pipeline\n"
-            "- Create analytics dashboard\n"
-            "- Deploy monitoring infrastructure\n"
-        )
-        result = validate_item_sizes([item], min_effort=Effort.S, max_effort=Effort.L)
-        assert len(result) == 2
-        # Split items should have reduced effort
-        assert all(it.effort == Effort.L for it in result)
-        # Part 2 should depend on part 1
-        assert result[1].depends_on == [result[0].item_id]
-
-    def test_no_split_single_bullet(self):
-        """XL item with only one bullet cannot be split meaningfully."""
-        item = self._make_item("ri-01", Effort.XL, "Single thing")
-        item.description = "- Just one big task"
-        result = validate_item_sizes([item], min_effort=Effort.S, max_effort=Effort.L)
-        # Cannot split — returned as-is
-        assert len(result) == 1
-
-    def test_mixed_sizes(self):
-        """Mix of undersized, normal, and oversized items."""
-        items = [
-            self._make_item("ri-01", Effort.XS, "Tiny A"),
-            self._make_item("ri-02", Effort.XS, "Tiny B"),
-            self._make_item("ri-03", Effort.M, "Normal"),
-        ]
-        result = validate_item_sizes(items, min_effort=Effort.S, max_effort=Effort.L)
-        # Two XS merged into one, plus the M — should be 2 items
-        assert len(result) == 2
-
-    def test_priorities_reassigned(self):
-        items = [
-            self._make_item("ri-01", Effort.S, "First"),
-            self._make_item("ri-02", Effort.M, "Second"),
-            self._make_item("ri-03", Effort.L, "Third"),
-        ]
-        result = validate_item_sizes(items)
-        priorities = [it.priority for it in result]
-        assert priorities == list(range(1, len(result) + 1))
 
 # ---------------------------------------------------------------------------
-# build_dependency_dag tests
+# scan_archive_state
 # ---------------------------------------------------------------------------
-class TestBuildDependencyDag:
-    def _make_item(
-        self,
-        item_id: str,
-        title: str,
-        priority: int,
-        description: str | None = None,
-    ) -> RoadmapItem:
-        return RoadmapItem(
-            item_id=item_id,
-            title=title,
-            status=ItemStatus.CANDIDATE,
-            priority=priority,
-            effort=Effort.M,
-            description=description,
-        )
+class TestScanArchiveState:
+    def test_archived_and_active(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "openspec" / "changes" / "archive" / "2026-01-15-old-feature"
+            archive.mkdir(parents=True)
+            active = root / "openspec" / "changes" / "new-feature"
+            active.mkdir(parents=True)
 
-    def test_no_edge_without_scope(self):
-        """Items without scope declarations should get no automatic edges.
+            state = scan_archive_state(root)
+            assert state["old-feature"] == "completed"
+            assert state["new-feature"] == "in_progress"
 
-        Tier A (deterministic) only adds edges when both items declare
-        scope.  Without scope, dependency inference requires the LLM
-        semantic pass (Tier B), which is not part of build_dependency_dag.
-        """
-        infra = self._make_item("ri-01", "Database Infrastructure Setup", 1)
-        feature = self._make_item("ri-02", "User Dashboard Feature", 2)
-        items = build_dependency_dag([infra, feature])
-        # No automatic infra→feature edge (Rule 1 removed per PR #113)
-        assert items[1].depends_on == []
+    def test_archive_takes_precedence_over_active(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "openspec" / "changes" / "archive" / "2026-01-15-dup").mkdir(parents=True)
+            (root / "openspec" / "changes" / "dup").mkdir(parents=True)
+            state = scan_archive_state(root)
+            assert state["dup"] == "completed"
 
-    def test_scope_overlap_creates_edge(self):
-        """Items with overlapping write_allow scopes get a deterministic edge."""
-        from models import Scope
+    def test_empty_repo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            assert scan_archive_state(Path(tmp)) == {}
 
-        item_a = self._make_item("ri-01", "DB Schema Setup", 1)
-        item_a.scope = Scope(write_allow=["src/db/**"])
-        item_b = self._make_item("ri-02", "DB Migration Tool", 2)
-        item_b.scope = Scope(write_allow=["src/db/migrations/*"])
-        items = build_dependency_dag([item_a, item_b])
-        assert "ri-01" in items[1].depends_on
 
-    def test_no_edge_when_scopes_dont_overlap(self):
-        """Disjoint scopes → no deterministic edge (Tier A is authoritative)."""
-        from models import Scope
+# ---------------------------------------------------------------------------
+# make_repo_relative
+# ---------------------------------------------------------------------------
+class TestMakeRepoRelative:
+    def test_absolute_inside_root(self):
+        root = Path("/repo")
+        assert make_repo_relative("/repo/openspec/x.md", root) == "openspec/x.md"
 
-        item_a = self._make_item("ri-01", "Auth Service", 1)
-        item_a.scope = Scope(write_allow=["src/auth/**"])
-        item_b = self._make_item("ri-02", "Email Service", 2)
-        item_b.scope = Scope(write_allow=["src/email/**"])
-        items = build_dependency_dag([item_a, item_b])
-        assert items[1].depends_on == []
+    def test_already_relative_unchanged(self):
+        assert make_repo_relative("openspec/x.md", Path("/repo")) == "openspec/x.md"
 
-    def test_lock_key_overlap_creates_edge(self):
-        """Shared lock keys → deterministic edge."""
-        from models import Scope
+    def test_absolute_outside_root_unchanged(self):
+        assert make_repo_relative("/elsewhere/x.md", Path("/repo")) == "/elsewhere/x.md"
 
-        item_a = self._make_item("ri-01", "User Schema", 1)
-        item_a.scope = Scope(lock_keys=["db:schema:users"])
-        item_b = self._make_item("ri-02", "User API", 2)
-        item_b.scope = Scope(lock_keys=["db:schema:users", "api:GET /v1/users"])
-        items = build_dependency_dag([item_a, item_b])
-        assert "ri-01" in items[1].depends_on
 
-    def test_read_after_write_creates_edge(self):
-        """A writes files that B reads → deterministic edge."""
-        from models import Scope
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+class TestCli:
+    def _write(self, tmp: str, data: dict) -> Path:
+        import yaml
 
-        item_a = self._make_item("ri-01", "Config Generator", 1)
-        item_a.scope = Scope(write_allow=["src/config/**"])
-        item_b = self._make_item("ri-02", "Config Consumer", 2)
-        item_b.scope = Scope(read_allow=["src/config/**"])
-        items = build_dependency_dag([item_a, item_b])
-        assert "ri-01" in items[1].depends_on
+        path = Path(tmp) / "roadmap.yaml"
+        path.write_text(yaml.dump(data, sort_keys=False))
+        return path
 
-    def test_no_self_dependency(self):
-        items = [
-            self._make_item("ri-01", "Infrastructure Setup", 1),
-        ]
-        items = build_dependency_dag(items)
-        assert "ri-01" not in items[0].depends_on
+    def test_validate_ok(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp, _valid_roadmap())
+            rc = main(["validate", str(path), "--repo-root", str(_REPO_ROOT)])
+            assert rc == 0
 
-    def test_preserves_existing_deps(self):
-        item_a = self._make_item("ri-01", "Foundation Setup", 1)
-        item_b = self._make_item("ri-02", "Feature Build", 2)
-        item_b.depends_on = ["ri-01"]
-        items = build_dependency_dag([item_a, item_b])
-        assert "ri-01" in items[1].depends_on
+    def test_validate_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = _valid_roadmap()
+            data["items"][1]["depends_on"] = ["ri-99"]
+            path = self._write(tmp, data)
+            rc = main(["validate", str(path), "--repo-root", str(_REPO_ROOT)])
+            assert rc == 1
 
-    def test_no_cycles_produced(self):
-        """DAG builder must never produce cycles."""
-        from models import Scope
-
-        items = [
-            self._make_item("ri-01", "Service Alpha", 1),
-            self._make_item("ri-02", "Service Bravo", 2),
-            self._make_item("ri-03", "Service Charlie", 3),
-        ]
-        # Create mutual scope overlap that could cause cycles
-        items[0].scope = Scope(write_allow=["src/shared/**"])
-        items[1].scope = Scope(write_allow=["src/shared/**"])
-        items[2].scope = Scope(write_allow=["src/other/**"])
-        items = build_dependency_dag(items)
-
-        from models import Roadmap, RoadmapStatus
-
-        roadmap = Roadmap(
-            schema_version=1,
-            roadmap_id="test",
-            source_proposal="test.md",
-            items=items,
-            status=RoadmapStatus.PLANNING,
-        )
-        assert not roadmap.has_cycle()
-
-    def test_empty_items(self):
-        result = build_dependency_dag([])
-        assert result == []
-
-    def test_single_item(self):
-        item = self._make_item("ri-01", "Solo Feature", 1)
-        result = build_dependency_dag([item])
-        assert len(result) == 1
-        assert result[0].depends_on == []
+    def test_validate_missing_file(self):
+        rc = main(["validate", "/nonexistent/roadmap.yaml", "--repo-root", str(_REPO_ROOT)])
+        assert rc == 2

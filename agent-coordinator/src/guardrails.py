@@ -2,8 +2,14 @@
 
 Provides deterministic pattern-matching to detect and block destructive operations.
 Patterns are stored in the database with a hardcoded fallback registry.
+
+Session scope enforcement (D6): When a ``session_scope`` dict is passed to
+``check_operation``, file paths are validated against ``write_allow`` / ``deny``
+glob patterns.  Violations produce ``warn``-level entries (not blocks) to allow
+agents to request scope expansion.
 """
 
+import fnmatch
 import logging
 import re
 import time
@@ -200,6 +206,65 @@ class GuardrailResult:
         )
 
 
+def _check_session_scope(
+    file_paths: list[str],
+    session_scope: dict[str, Any],
+) -> list[GuardrailViolation]:
+    """Check file paths against session scope constraints.
+
+    Args:
+        file_paths: File paths to validate.
+        session_scope: Dict with ``write_allow`` (list of glob patterns) and
+            ``deny`` (list of glob patterns).
+
+    Returns:
+        List of :class:`GuardrailViolation` for out-of-scope files.
+        Violations use ``warn`` severity (not ``block``) so agents can
+        request scope expansion.
+    """
+    write_allow = session_scope.get("write_allow", [])
+    deny = session_scope.get("deny", [])
+    violations: list[GuardrailViolation] = []
+
+    for fp in file_paths:
+        # Check deny first — deny takes precedence over write_allow
+        denied = any(fnmatch.fnmatch(fp, pat) for pat in deny)
+        if denied:
+            violations.append(
+                GuardrailViolation(
+                    pattern_name="session_scope_violation",
+                    category="scope",
+                    severity="warn",
+                    matched_text=(
+                        f"File '{fp}' matches a deny pattern in session scope. "
+                        f"Declared write_allow: {write_allow}"
+                    )[:200],
+                    blocked=False,
+                    approval_required=True,
+                )
+            )
+            continue
+
+        # Check write_allow — file must match at least one pattern
+        allowed = any(fnmatch.fnmatch(fp, pat) for pat in write_allow)
+        if not allowed:
+            violations.append(
+                GuardrailViolation(
+                    pattern_name="session_scope_violation",
+                    category="scope",
+                    severity="warn",
+                    matched_text=(
+                        f"File '{fp}' is outside session scope. "
+                        f"Declared write_allow: {write_allow}"
+                    )[:200],
+                    blocked=False,
+                    approval_required=True,
+                )
+            )
+
+    return violations
+
+
 class GuardrailsService:
     """Service for detecting and blocking destructive operations."""
 
@@ -247,6 +312,7 @@ class GuardrailsService:
         trust_level: int = 2,
         agent_id: str | None = None,
         agent_type: str | None = None,
+        session_scope: dict[str, Any] | None = None,
     ) -> GuardrailResult:
         """Check an operation for destructive patterns.
 
@@ -255,6 +321,11 @@ class GuardrailsService:
             file_paths: File paths involved in the operation
             trust_level: Agent's trust level (higher = more permissive)
             agent_id: Agent performing the operation (for logging)
+            agent_type: Agent type (for logging)
+            session_scope: Optional session scope constraint with
+                ``{"write_allow": [...], "deny": [...]}``.  When provided,
+                file paths are validated against the scope patterns.
+                Out-of-scope files produce ``warn``-severity violations.
 
         Returns:
             GuardrailResult indicating whether the operation is safe
@@ -292,6 +363,15 @@ class GuardrailsService:
                             approval_required=requires_approval,
                         )
                     )
+
+            # Session scope enforcement (D6)
+            if session_scope is not None and file_paths:
+                scope_violations = _check_session_scope(
+                    file_paths, session_scope
+                )
+                violations.extend(scope_violations)
+                if scope_violations:
+                    needs_approval = True
 
             result = GuardrailResult(
                 safe=safe, violations=violations, approval_required=needs_approval,

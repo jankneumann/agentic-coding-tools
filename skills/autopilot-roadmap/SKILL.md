@@ -152,6 +152,17 @@ The same principle applies to `skills/autopilot/scripts/`. The invariant exists 
 
 The one intentional exception elsewhere in the codebase is `skills/parallel-infrastructure/scripts/review_dispatcher.py` (used by `parallel-review-plan` and `parallel-review-implementation`), where vendor diversity is the feature — multi-vendor review requires calling *different* models to get independent findings. That's not host-assistable by construction.
 
+## Deferred: automated re-decomposition on `replan_required`
+
+The roadmap item status enum includes `replan_required`, but autopilot **does not act on it today** — `replanner.replan()` only nudges priorities of existing items (regex over learning entries), and the orchestrator never re-reads the source proposal. An item that genuinely needs re-decomposition currently requires a human to re-run `/plan-roadmap`.
+
+If we later want autopilot to re-decompose automatically when an item is flagged `replan_required`, that is the point at which a headless generation entry point in `plan-roadmap` earns its keep. The shape that respects this invariant:
+
+- A `skills/plan-roadmap/scripts/generate.py` that drives the deterministic loop — fill `templates/generation-prompt.md`, dispatch, run `decomposer.validate_roadmap()`, and re-dispatch with the error list up to a bounded retry — but takes an **injected runner callback** rather than calling any model itself (mirror `skills/autopilot/scripts/provider_dispatch.py::dispatch_phase(payload, runner=...)`).
+- Autopilot supplies that runner the same way it supplies `dispatch_fn`: the host agent (or a CLI dispatch via `review_dispatcher.py`) does the actual generation. No LLM SDK enters `scripts/`.
+
+Until that automation exists, `generate.py` would be solving for a caller that doesn't exist — decomposition stays interactive in `/plan-roadmap`, where the agent is already the control flow.
+
 ## Next Step
 
 After roadmap execution completes:

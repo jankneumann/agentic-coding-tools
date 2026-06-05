@@ -1,188 +1,39 @@
 
 # Project Guidelines
 
+This is a multi-agent coordination system. Each section below links to its full guide.
+
 ## Workflow
 
-Unified skills with **tiered execution** — each skill auto-selects its tier at startup based on coordinator availability and feature complexity:
-
-| Tier | When | Planning Artifacts | Execution |
-|------|------|-------------------|-----------|
-| **Coordinated** | Coordinator available | Contracts + work-packages + resource claims | Multi-agent DAG via coordinator |
-| **Local parallel** | No coordinator, complex feature | Contracts + work-packages (no claims) | DAG via built-in Agent parallelism |
-| **Sequential** | Simple feature | Tasks.md + contracts + work-packages (single package) | Single-agent sequential |
-
-```
-/explore-feature [focus-area] (optional)               → Candidate shortlist for next work
-/plan-feature <description>                            → Proposal approval gate
-  /iterate-on-plan <change-id> (optional)              → Refines plan before approval
-  /parallel-review-plan <change-id> (optional)         → Independent plan review (vendor-diverse)
-  /prototype-feature <change-id> (optional)            → N parallel variant skeletons + human pick-and-choose
-  /iterate-on-plan <change-id> --prototype-context <change-id>  → Convergence: synthesize variants into design.md/tasks.md
-/implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
-  /iterate-on-implementation <change-id> (optional)    → Refinement complete
-  /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)
-/cleanup-feature <change-id>                           → Done (runs deploy + security validation before merge)
-
-# Roadmap orchestration (multi-change decomposition + iterative execution)
-/plan-roadmap <proposal-path>                          → Decompose proposal into prioritized roadmap
-/autopilot-roadmap <workspace-path>                    → Execute roadmap items with learning feedback
-```
-
-Validation is automatic: `/implement-feature` runs environment-safe checks (spec, evidence), `/cleanup-feature` and `/merge-pull-requests` run Docker-dependent checks (deploy, smoke, security, E2E) before merge. Both delegate to `/validate-feature` with `--phase` selectors. `/validate-feature` can also be invoked directly for a full manual pass.
-
-Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (e.g., "parallel plan feature" triggers `/plan-feature` with at least local-parallel tier).
-
-### Infrastructure Skills
-
-- **`coordination-bridge`** — Coordinator detection (`check_coordinator.py`) and HTTP fallback bridge
-- **`parallel-infrastructure`** — Shared parallel execution scripts: DAG scheduler, review dispatcher, consensus synthesizer, scope checker
-- **`roadmap-runtime`** — Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization, context assembly
-- **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
-- **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and autopilot)
-- **`coordinator-task-status-renderer`** — Renders the coordinator-owned status block inside `openspec/changes/<id>/tasks.md`. The block (between `<!-- GENERATED: begin coordinator:tasks-status -->` / `end` markers) is an *informational projection* of coordinator state; the hand-authored checkboxes outside the block remain the authoritative source. Wired into `.githooks/pre-commit` (re-render on staged tasks.md), `.githooks/post-merge` (refresh after merges that touch tasks.md), and `/plan-feature` Gate 2 (seeds coordinator issues on Approve).
-
-See [Parallel Agentic Development](docs/parallel-agentic-development.md) for the full implementation reference.
-
-### Observability Frontends
-
-- **`apps/kanban-viz`** — Real-time Kanban board for coordinator work-queue state. Connects to the coordinator API via SSE for live updates; shows vendor swimlanes, sync-point gate banner, and saved views. This is an observability surface, not a skill — it lives in `apps/` not `skills/`. Dev server: `cd apps/kanban-viz && npm run dev`. See [`docs/kanban-viz/README.md`](docs/kanban-viz/README.md).
+Unified skills with tiered execution (coordinated / local-parallel / sequential). Skills auto-select tier at startup based on coordinator availability and feature complexity.
+See [full workflow guide](docs/guides/workflow.md) for skill commands, infrastructure skills, and observability frontends.
 
 ## Python Environment
 
-- **uv for all Python environments**: Use `uv` (not pip, pipenv, or poetry) for dependency management and virtual environments across all Python projects. CI uses `astral-sh/setup-uv@v5`.
-- **agent-coordinator**: `cd agent-coordinator && uv sync --all-extras` to install. Venv at `agent-coordinator/.venv`.
-- **skills (infrastructure)**: `cd skills && uv sync --all-extras` to install. Venv at `skills/.venv`. Covers worktree, validation, architecture, and other infrastructure skill scripts.
-- **Running tools**: Activate the relevant venv first (`source .venv/bin/activate`) or use the venv's Python directly (e.g., `skills/.venv/bin/python -m pytest`).
+Use `uv` for all Python environments. Two venvs: `agent-coordinator/.venv` and `skills/.venv`.
+See [Python environment guide](docs/guides/python-environment.md) for install commands and running tools.
 
 ## Git Conventions
 
-- **Branch naming**: `openspec/<change-id>` for OpenSpec-driven features
-- **Commit format**: Reference the OpenSpec change-id in commit messages
-- **Commit quality**: Agent-authored PRs use rebase-merge (commits appear individually on main). Write logical, conventional commits — one per task, no WIP fragments. Use `feat(scope):`, `fix(scope):`, `test(scope):`, `docs(scope):` prefixes.
-- **Merge strategy (hybrid)**: Strategy varies by PR origin. Agent PRs (`openspec`, `codex`) default to **rebase-merge** to preserve granular history. Dependency updates (`dependabot`, `renovate`) and automation PRs (`sentinel`, `bolt`, `palette`) default to **squash-merge**. Manual PRs default to squash. Operator can override per-PR via `--strategy` flag.
-- **PR template**: Include link to `openspec/changes/<change-id>/proposal.md`
-- **Plan refinement branches**: `/iterate-on-plan` commits to the proposal/feature branch from a managed worktree. Planning artifacts land on main only through PR review and a sync-point merge.
-- **Rebase ours/theirs inversion**: During `git rebase`, `--ours` = the branch being rebased ONTO (upstream), `--theirs` = the commit being replayed. This is the opposite of `git merge`. When resolving rebase conflicts to keep upstream, use `git checkout --ours`.
-
-### Save Point Pattern and Change Summary template
-
-**Save Point Pattern**: While iterating on a complex change, commit at each working slice (use `wip:` prefix). Squash before final merge. Lets you revert to a known-good state without losing progress.
-
-**Change Summary template**: Include in every agent-authored PR description:
-
-```
-CHANGES MADE: <bullet list>
-DIDN'T TOUCH: <out-of-scope items intentionally not addressed>
-CONCERNS: <known issues, follow-ups, things reviewers should challenge>
-```
-
-For the full pattern, see `skills/merge-pull-requests/SKILL.md`.
+Branch naming: `openspec/<change-id>`. Commit format: conventional commits with `feat(scope):` prefixes. Hybrid merge strategy (rebase for agent PRs, squash for deps/automation).
+See [git conventions guide](docs/guides/git-conventions.md) for save-point pattern, change summary template, and merge details.
 
 ## Skills
 
-- **Canonical source**: `skills/` at repo root. ALWAYS edit skills here.
-- **Runtime copies**: `.claude/skills/` and `.agents/skills/` are generated by `skills/install.sh` and will be **overwritten** on next sync. Current Codex repo-scoped skill discovery uses `.agents/skills/`. NEVER edit these directly — changes will be lost.
-- **Sync command**: `bash skills/install.sh --mode rsync --deps none --python-tools none` (add `--force` only if destinations have conflicting types, e.g. symlinks from old installs)
-- **Tests**: Place at `skills/tests/<skill-name>/` (not inside skill directories). This keeps shipped skill dirs clean — `install.sh` excludes `tests/` and `__pycache__/` during rsync. Run all skill tests: `skills/.venv/bin/python -m pytest skills/tests/`
+Canonical source: `skills/` at repo root. Runtime copies (`.claude/skills/`, `.agents/skills/`) are overwritten by `install.sh`. Tests go in `skills/tests/<skill-name>/`.
+See [skills guide](docs/guides/skills.md) for sync commands and conventions.
 
 ## Worktree Management
 
-- **Launcher invariant**: In local CLI execution, the shared checkout is an orchestration surface, not a work surface. Every skill that creates, modifies, deletes, formats, commits, pushes, or otherwise mutates repository files or git state MUST work in a managed worktree, never the shared checkout, unless it is an explicit sync-point skill. In cloud-harness environments (each agent gets its own ephemeral container), this invariant is provided by the container itself — see **Execution-environment detection** below; worktree write ops become no-ops and skills operate directly on the harness-provided checkout.
-- **Location**: `.git-worktrees/<change-id>/` for single-agent, `.git-worktrees/<change-id>/<agent-id>/` for parallel
-- **Registry**: `.git-worktrees/.registry.json` tracks owner, branch, heartbeat, pin status
-- **Commands**: `python3 skills/worktree/scripts/worktree.py setup|teardown|status|detect|heartbeat|list|pin|unpin|gc`
-- **Merge**: `python3 skills/worktree/scripts/merge_worktrees.py <change-id> <pkg-id>...` merges package branches into feature branch
-- **Agent-id**: Pass `--agent-id` for parallel disambiguation. Omit for single-agent (backward compatible)
-- **Pin**: Use `pin` to protect worktrees from GC during overnight pauses or waiting on input
-- **GC**: Default 24h stale threshold. Pinned worktrees survive GC unless `--force`
-- **Branch naming**: Agent branches use `--` separator: `openspec/<change-id>--<agent-id>`. Git cannot have both `refs/heads/a/b` and `refs/heads/a/b/c`, so `/` between change-id and agent-id would conflict with the feature branch `openspec/<change-id>`.
-- **Rule**: One agent, one worktree, one branch. Never share a worktree between agents
-- **Operator branch override**: Set `OPENSPEC_BRANCH_OVERRIDE=<branch>` in the environment to force `worktree.py setup` to use that branch instead of the default `openspec/<change-id>`. This is how the Claude cloud harness (or any operator) mandates a specific branch like `claude/fix-<slug>` for an entire session.
-  - **Precedence**: explicit `--branch` flag > `OPENSPEC_BRANCH_OVERRIDE` env var > `openspec/<change-id>` default.
-  - **Session stability**: The override must stay set for every phase (plan → implement → cleanup) or phases will diverge onto different branches.
-  - **Agent-id composition**: When both the override AND `--agent-id` are passed, they compose as `<override>--<agent-id>` (e.g. `claude/op-9P9o1--wp-backend`). This preserves the existing parallel-disambiguation scheme so work-package agents don't clobber each other's commits. The `--` separator avoids the git ref storage collision that `/` would cause.
-  - **Parent vs agent branch**: Two branch variables matter for skills that operate on both:
-    - `$WORKTREE_BRANCH` (emitted by `worktree.py setup` via stdout `eval`) — this worktree's own branch, which for parallel agents is `<parent>--<agent-id>`.
-    - `$FEATURE_BRANCH` (query via `worktree.py resolve-branch <change-id> --parent`) — the PARENT feature/session branch, used for `git push`, `gh pr create/merge`, `git branch -d`, and lock cleanup.
-    In single-agent mode they're equal; in parallel mode they differ.
-  - **Branch resolution sharing**: `merge_worktrees.py` imports `resolve_branch`/`resolve_parent_branch` from `worktree.py` so both scripts always agree on what branch a given `(change-id, agent-id)` pair resolves to. Don't introduce a third copy of this logic elsewhere — call into `worktree.py` or use the `resolve-branch` CLI subcommand.
-- **Execution-environment detection**: `skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with `isolation_provided: bool`. When true (cloud harness, Codespaces, K8s pod), every `worktree.py` write command (`setup|teardown|pin|unpin|heartbeat|gc`) and `merge_worktrees.py` short-circuit to a silent success. Read-only commands (`list|status|resolve-branch`) are unchanged. Detection precedence: `AGENT_EXECUTION_ENV` (cloud|local) → coordinator `GET /agents/<id>` → `/.dockerenv`/`KUBERNETES_SERVICE_HOST`/`CODESPACES` heuristic → default false. Set `WORKTREE_DEBUG=1` to see the decision layer. Full operator guide: [docs/cloud-vs-local-execution.md](docs/cloud-vs-local-execution.md). `OPENSPEC_BRANCH_OVERRIDE` remains orthogonal — it controls branch naming, not whether worktrees are created.
-- **Mutation guard**: Mutating skills SHOULD call `skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation` after `worktree.py setup` and before their first write. The guard allows isolated harnesses, managed local worktrees, and explicit sync-point operations; it rejects local shared-checkout mutation.
-
-### Sync-Point Skills
-
-Some skills operate directly on the shared checkout / main branch rather than in worktrees. These are **sync-point skills** — convergence operations that integrate work back into main.
-
-| Skill | Why main is safe |
-|---|---|
-| `/merge-pull-requests` | User-invoked merge of approved PRs; inherently sequential |
-| `/update-specs` | Post-merge documentation commit; no concurrent conflict risk |
-| `/cleanup-feature` | Uses a worktree internally but touches main at the end |
-
-**Contract for sync-point skills:**
-- **Exclusive access**: Must not run while other agents hold active worktrees. Use `shared.check_no_active_agents()` to verify before proceeding.
-- **User-invoked only**: Never triggered automatically by the coordinator or other skills.
-- **Dirty-state check**: Must verify the working directory is clean before touching main.
-- **`--force` escape hatch**: Allow the user to override the active-agent guard when they know it's safe (e.g., stale registry entries from crashed agents).
-
-The active-agent guard checks `.git-worktrees/.registry.json` for non-stale entries (heartbeat within the last hour). If active agents are found, it aborts with guidance on how to proceed.
+Every mutating skill works in a managed worktree, never the shared checkout. Cloud-harness environments short-circuit worktree ops. Branch naming uses `--` separator.
+See [worktree management guide](docs/guides/worktree-management.md) for commands, sync-point skills, and execution-environment detection.
 
 ## Documentation
 
-**Foundational** — read these before contributing infrastructure changes:
-- [Parallel Agentic Development](docs/parallel-agentic-development.md) — Worktree isolation, scope discipline, parallel DAG execution (the canonical multi-agent safety reference)
-- [Mental Models](docs/mental-models.md) — Conceptual framework: orchestrators/workers/validators, scope isolation, structured handoffs
-- [Skills Workflow](docs/skills-workflow.md) — Stage-by-stage workflow guide and design principles
-- [Lessons Learned](docs/lessons-learned.md) — Skill design patterns, parallelization, OpenSpec integration, validation, cross-skill Python patterns
-
-**Discovery & reference**:
-- [Skills Catalogue](docs/skills-catalogue.md) — Discoverable index of every skill grouped by purpose; trigger + related + user_invocable per skill
-- [Agent Coordinator](docs/agent-coordinator.md) — Architecture overview, capabilities, design pointers
-- [Architecture Artifacts](docs/architecture-artifacts.md) — Auto-generated codebase analysis, key files, refresh commands
-- [Software Factory Tooling](docs/software-factory-tooling.md) — Factory intelligence patterns
-
-**Setup & deployment**:
-- [Cross-Repo Setup](docs/cross-repo-setup.md) — Using skills, scripts, and MCP servers in other repositories
-- [Cloud Deployment](docs/cloud-deployment.md) — Provisioning the coordinator and skills in cloud environments
-- [Cloud Session Hooks](docs/cloud-session-hooks.md) — Lifecycle hooks for hosted harness sessions
-- [Cloud vs Local Execution](docs/cloud-vs-local-execution.md) — Environment detection and worktree short-circuit behavior
-- [Cloudflare Setup](docs/cloudflare-setup.md) — Cloudflare integration for hosted endpoints
-- [OpenBao Secret Management](docs/openbao-secret-management.md) — Setup options, seeding, API key resolution for SDK dispatch
-
-**Coordination reference**:
-- [Lock Key Namespaces](docs/lock-key-namespaces.md) — Coordinator lock semantics and key conventions
-- [Parallel Git Config](docs/parallel-git-config.md) — Multi-agent git configuration
-- [Script/Skill Dependencies](docs/script-skill-dependencies.md) — Cross-skill Python import contract
-- [Coordination Detection Template](docs/coordination-detection-template.md) — Detecting coordinator availability
-
-**Subdirectories**:
-- `docs/architecture-analysis/` — Auto-generated architecture artifacts (regenerated by `/refresh-architecture`)
-- `docs/decisions/` — Architecture Decision Records (ADRs)
-- `docs/feature-discovery/` — `/explore-feature` outputs
-- `docs/bug-scrub/`, `docs/security-review/`, `docs/merge-logs/` — Per-run analysis logs
-- `docs/factory-intelligence/`, `docs/presentations/`, `docs/proposals/`, `docs/archive/` — Workspace and archival artifacts
+Foundational docs (read before contributing), discovery and reference, setup and deployment, coordination reference, and subdirectory index.
+See [documentation guide](docs/guides/documentation.md) for the full categorized link list.
 
 ## Landing the Plane (Session Completion)
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+Work is NOT complete until `git push` succeeds. Seven-step mandatory workflow: file issues, run quality gates, update status, push, clean up, verify, hand off.
+See [session completion guide](docs/guides/session-completion.md) for the full checklist and critical rules.

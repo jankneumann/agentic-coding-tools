@@ -13,6 +13,10 @@
 
 **Trade-offs**: Existing convergence_loop callers need to handle new configuration parameters. Accepted because backward compatibility is maintained via defaults.
 
+**Coordination risk**: PR #195 (ambient-review-ledger) plans to extract `refine-core` from `convergence_loop.py` as its Phase 0. If ambient-review-ledger lands first, WP3's file targets change (work against the extracted `refine-core` module). If harness-engineering lands first, ambient-review-ledger's Phase 0 must account for the new parameters. Recommended: land whichever is ready first; the second change rebases.
+
+**Existing infrastructure (as of June 2026)**: `convergence_loop.py` already has durable per-round checkpoints (`artifacts_dir/.review-cache/round-N/`), `max_rounds` parameter (default 3), 3-point stall detection, and `ConvergenceResult` with `escalate_findings`. This phase extends — not replaces — the existing `converge()` API.
+
 ### D2: CLAUDE.md restructure via file splitting
 
 **Decision**: Split CLAUDE.md into a ~100-line TOC at the root and topic-specific files under `docs/guides/`. Topic files: `workflow.md`, `python-environment.md`, `git-conventions.md`, `skills.md`, `worktree-management.md`, `documentation.md`, `session-completion.md`.
