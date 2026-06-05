@@ -1,0 +1,5 @@
+{"sessionId":"sess-gem-001","projectHash":"abc123hash","startTime":"2026-05-01T10:00:00Z","lastUpdated":"2026-05-01T10:05:00Z","kind":"main","messages":[]}
+{"id":"msg-001","timestamp":"2026-05-01T10:00:01Z","type":"user","content":{"text":"Create a hello world script"}}
+{"id":"msg-002","timestamp":"2026-05-01T10:00:05Z","type":"gemini","content":{"text":"I'll create a hello world script for you."},"toolCalls":[{"displayName":"write_file","description":"Write content to a file","args":{"path":"hello.py","content":"print('Hello, world!')"},"result":"File created successfully"}],"model":"gemini-3-flash","tokens":{"input":150,"output":80}}
+{"id":"msg-003","timestamp":"2026-05-01T10:00:10Z","type":"user","content":{"text":"Now add a main guard"}}
+{"id":"msg-004","timestamp":"2026-05-01T10:00:15Z","type":"gemini","content":{"text":"Added the main guard."},"toolCalls":[{"displayName":"edit_file","description":"Edit a file","args":{"path":"hello.py","content":"def main():\n    print('Hello, world!')\n\nif __name__ == '__main__':\n    main()"},"result":"File updated"}],"model":"gemini-3-flash","tokens":{"input":200,"output":100}}
