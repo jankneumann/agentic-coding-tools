@@ -21,8 +21,10 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -253,6 +255,52 @@ def _build_escalation_summary(
     }
 
 
+def _build_convergence_metrics(
+    *,
+    rounds_completed: int,
+    findings_per_round: list[int],
+    convergence_status: str,
+    total_time_seconds: float,
+    consensus_dict: dict[str, Any] | None,
+    escalation_count: int,
+) -> dict[str, Any]:
+    """Build structured convergence metrics for episodic memory.
+
+    Args:
+        rounds_completed: Number of review rounds completed.
+        findings_per_round: Blocking finding counts per round.
+        convergence_status: One of "converged", "escalated", "stalled",
+            "max_rounds".
+        total_time_seconds: Wall-clock time for the entire converge() call.
+        consensus_dict: Latest consensus report dict (for agreement rate).
+        escalation_count: Number of escalation events (0 if converged).
+
+    Returns:
+        Structured dict to be serialized as JSON for memory_callback.
+        When convergence fails, includes capability-gap tag fields
+        (failure_type, capability_gap, source) per the D4 schema.
+    """
+    metrics: dict[str, Any] = {
+        "rounds_completed": rounds_completed,
+        "findings_per_round": list(findings_per_round),
+        "convergence_status": convergence_status,
+        "total_time_seconds": round(total_time_seconds, 3),
+        "vendor_agreement_rate": _compute_vendor_agreement_rate(consensus_dict),
+        "escalation_count": escalation_count,
+    }
+
+    # Add capability-gap tag schema fields on failure
+    if convergence_status != "converged":
+        metrics["failure_type"] = "convergence_failed"
+        metrics["capability_gap"] = (
+            f"Review loop did not converge: {convergence_status} "
+            f"after {rounds_completed} rounds"
+        )
+        metrics["source"] = "self-reported"
+
+    return metrics
+
+
 # ---------------------------------------------------------------------------
 # Main convergence loop
 # ---------------------------------------------------------------------------
@@ -305,6 +353,8 @@ def converge(
     Returns:
         ConvergenceResult with convergence status and details.
     """
+    start_time = time.monotonic()
+
     # 1. Create orchestrator
     if orchestrator is None:
         if agents_yaml_path:
@@ -468,6 +518,15 @@ def converge(
                     trend=trend,
                     consensus_dict=consensus_dict,
                 ))
+            if memory_callback:
+                memory_callback(json.dumps(_build_convergence_metrics(
+                    rounds_completed=round_num,
+                    findings_per_round=trend,
+                    convergence_status="escalated",
+                    total_time_seconds=time.monotonic() - start_time,
+                    consensus_dict=consensus_dict,
+                    escalation_count=1,
+                )))
             return disagreement_result
 
         # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
@@ -498,6 +557,15 @@ def converge(
         # 2i. If no blocking → converged!
         if not blocking:
             logger.info("Converged in round %d", round_num)
+            if memory_callback:
+                memory_callback(json.dumps(_build_convergence_metrics(
+                    rounds_completed=round_num,
+                    findings_per_round=trend,
+                    convergence_status="converged",
+                    total_time_seconds=time.monotonic() - start_time,
+                    consensus_dict=consensus_dict,
+                    escalation_count=0,
+                )))
             return ConvergenceResult(
                 converged=True,
                 rounds=round_num,
@@ -530,6 +598,15 @@ def converge(
                     trend=trend,
                     consensus_dict=consensus_dict,
                 ))
+            if memory_callback:
+                memory_callback(json.dumps(_build_convergence_metrics(
+                    rounds_completed=round_num,
+                    findings_per_round=trend,
+                    convergence_status="stalled",
+                    total_time_seconds=time.monotonic() - start_time,
+                    consensus_dict=consensus_dict,
+                    escalation_count=1,
+                )))
             return stall_result
 
         # 2k. Dispatch fixes
@@ -571,4 +648,13 @@ def converge(
             trend=trend,
             consensus_dict=consensus_dict,
         ))
+    if memory_callback:
+        memory_callback(json.dumps(_build_convergence_metrics(
+            rounds_completed=max_rounds,
+            findings_per_round=trend,
+            convergence_status="max_rounds",
+            total_time_seconds=time.monotonic() - start_time,
+            consensus_dict=consensus_dict,
+            escalation_count=1,
+        )))
     return max_rounds_result

@@ -80,7 +80,7 @@
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: 1.4, 3.2
 
-- [ ] 3.4 Add convergence metrics to episodic memory — after each `converge()` call completes, invoke `memory_callback` with structured metrics: rounds completed, findings per round, final convergence status, time elapsed, vendor agreement rate, and escalation count
+- [x] 3.4 Add convergence metrics to episodic memory — after each `converge()` call completes, invoke `memory_callback` with structured metrics: rounds completed, findings per round, final convergence status, time elapsed, vendor agreement rate, and escalation count
   **Files**: `skills/autopilot/scripts/convergence_loop.py`
   **Dependencies**: 3.3
 
