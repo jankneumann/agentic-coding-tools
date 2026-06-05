@@ -888,18 +888,37 @@ def cmd_heartbeat(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_list(_args: argparse.Namespace) -> int:
+def cmd_list(args: argparse.Namespace) -> int:
     """List all registered worktrees with staleness and pin indicators."""
     cwd = os.getcwd()
     main_repo = resolve_main_repo(cwd)
     registry = load_registry(main_repo)
 
+    json_output = getattr(args, "json_output", False)
+    now = datetime.now(timezone.utc)
+    stale_threshold_hours = 1.0
+
+    if json_output:
+        out = []
+        for entry in registry["entries"]:
+            hb = datetime.fromisoformat(entry["last_heartbeat"])
+            age_hours = (now - hb).total_seconds() / 3600
+            out.append({
+                "change_id": entry["change_id"],
+                "agent_id": entry.get("agent_id"),
+                "branch": entry["branch"],
+                "worktree_path": entry["worktree_path"],
+                "last_heartbeat": entry["last_heartbeat"],
+                "pinned": bool(entry.get("pinned")),
+                "is_stale": age_hours > stale_threshold_hours,
+                "age_hours": round(age_hours, 2),
+            })
+        print(json.dumps(out, indent=2))
+        return 0
+
     if not registry["entries"]:
         print("No active worktrees registered.")
         return 0
-
-    now = datetime.now(timezone.utc)
-    stale_threshold_hours = 1.0
 
     # Header
     print(f"{'CHANGE_ID':<30} {'AGENT_ID':<15} {'BRANCH':<40} {'STATUS':<20} {'PATH'}")
@@ -1231,6 +1250,14 @@ def main() -> int:
 
     # list
     list_parser = subparsers.add_parser("list", help="List registered worktrees")
+    list_parser.add_argument(
+        "--json", action="store_true", dest="json_output",
+        help=(
+            "Emit a JSON array of registry entries instead of the human-readable "
+            "table. Each entry includes change_id, agent_id, branch, "
+            "worktree_path, last_heartbeat, pinned, and is_stale."
+        ),
+    )
     list_parser.set_defaults(func=cmd_list)
 
     # pin
