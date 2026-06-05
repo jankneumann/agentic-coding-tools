@@ -40,7 +40,7 @@
   **Dependencies**: None
 
 - [ ] 2.2 Add evaluator agent profile — database migration seeding evaluator profile, work queue agent_type preference logic
-  **Files**: `agent-coordinator/database/migrations/017_evaluator_profile.sql`, `agent-coordinator/src/work_queue.py`, `agent-coordinator/src/profiles.py`
+  **Files**: `agent-coordinator/database/migrations/026_evaluator_profile.sql`, `agent-coordinator/src/work_queue.py`, `agent-coordinator/src/profiles.py`
   **Dependencies**: 2.1
 
 - [ ] 2.3 Write tests for session scope enforcement — verify scope grant on task claim, out-of-scope detection, warning format
@@ -64,21 +64,23 @@
 
 ## Phase 3: Review Loop Enhancement
 
-- [ ] 3.1 Write tests for convergence loop iteration control — verify iteration counting, configurable max, auto-escalation
+**Note**: `convergence_loop.py` already has durable per-round checkpoints, `max_rounds` parameter (default 3), 3-point stall detection, and `ConvergenceResult` with `escalate_findings`. This phase extends the existing infrastructure rather than building from scratch. **Coordination risk**: PR #195 (ambient-review-ledger) plans to extract `refine-core` from this same file — landing order must be coordinated.
+
+- [ ] 3.1 Write tests for human escalation pathway and author-agent autonomous response — verify that when `reason="max_rounds"` or `reason="disagreement"`, the loop produces a structured escalation summary; verify that `fix_callback` is invoked per round and that author-agent responses to "fix" findings trigger re-review
   **Spec scenarios**: harness-engineering.1 (converges within limit), harness-engineering.1 (escalates on consensus failure)
   **Design decisions**: D1 (extend convergence_loop.py)
   **Dependencies**: None
 
-- [ ] 3.2 Extend convergence_loop.py — add iteration counter, configurable max_iterations, automatic escalation on exhaustion, convergence metrics recording
+- [ ] 3.2 Add human escalation pathway and configurable convergence thresholds — extend `converge()` to accept `escalation_callback` for structured human escalation when `reason` is "max_rounds" or "disagreement"; make `BLOCKING_CRITICALITIES` and stall detection window configurable via parameters rather than hardcoded; wire `fix_callback` into an author-agent autonomous response pattern
   **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
   **Dependencies**: 3.1
 
-- [ ] 3.3 Write tests for convergence metrics recording — verify episodic memory entries with iteration count, vendor agreement rate
+- [ ] 3.3 Write tests for convergence metrics recording — verify episodic memory entries with iteration count, vendor agreement rate, convergence status
   **Spec scenarios**: harness-engineering.1 (records convergence metrics)
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: 1.4, 3.2
 
-- [ ] 3.4 Add convergence metrics to episodic memory — record iteration count, findings per iteration, convergence status, time elapsed, vendor agreement rate
+- [ ] 3.4 Add convergence metrics to episodic memory — after each `converge()` call completes, invoke `memory_callback` with structured metrics: rounds completed, findings per round, final convergence status, time elapsed, vendor agreement rate, and escalation count
   **Files**: `skills/autopilot/scripts/convergence_loop.py`
   **Dependencies**: 3.3
 
@@ -93,7 +95,7 @@
   **Files**: `skills/validate-feature/scripts/linters/dependency_direction.py`, `skills/validate-feature/scripts/linters/file_size.py`, `skills/validate-feature/scripts/linters/naming_conventions.py`, `skills/validate-feature/scripts/linters/__init__.py`
   **Dependencies**: 4.1
 
-- [ ] 4.3 Integrate linters into validate-feature —  wire linters into `--phase=architecture`, format output as review-findings
+- [ ] 4.3 Extend existing architecture phase with structural linters — the `--phase=architecture` already runs `validate_flows.py` for cross-layer flow validation; extend it to also invoke structural linters (dependency direction, file-size, naming) and merge both sets of findings into a single review-findings output
   **Files**: `skills/validate-feature/SKILL.md`, `skills/validate-feature/scripts/run_architecture_linters.py`
   **Dependencies**: 4.2
 
