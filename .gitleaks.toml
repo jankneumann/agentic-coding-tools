@@ -26,4 +26,10 @@ paths = [
 commits = [
     "0491427e75d41e48c36183d09f1e81f532ae6c2a",
     "26e4e7448129853036997bdc3fc6aaabf5ccad3a",
+    # extract-gen-eval-package PR (#194): test fixture string
+    # "NONEXISTENT_KEY_XYZ_123" — the name of an env var used in a
+    # missing-key test case for SDKBackend. Renamed at HEAD to
+    # MISSING_TEST_VAR, but the introducing commit is still in the PR's
+    # diff range so gitleaks attributes the finding to it.
+    "bcde916e524af7f1150513724afae46aa4a330d4",
 ]
