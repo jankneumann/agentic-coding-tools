@@ -43,12 +43,12 @@
   **Files**: `agent-coordinator/database/migrations/026_evaluator_profile.sql`, `agent-coordinator/src/work_queue.py`, `agent-coordinator/src/profiles.py`
   **Dependencies**: 2.1
 
-- [ ] 2.3 Write tests for session scope enforcement — verify scope grant on task claim, out-of-scope detection, warning format
+- [x] 2.3 Write tests for session scope enforcement — verify scope grant on task claim, out-of-scope detection, warning format
   **Spec scenarios**: harness-engineering.6 (scope lock on task claim), harness-engineering.6 (out-of-scope blocked)
   **Design decisions**: D6 (session scope as guardrail extension)
   **Dependencies**: None
 
-- [ ] 2.4 Implement session scope enforcement — extend guardrails to check file paths against session grants, connect work queue claim to session grant creation
+- [x] 2.4 Implement session scope enforcement — extend guardrails to check file paths against session grants, connect work queue claim to session grant creation
   **Files**: `agent-coordinator/src/guardrails.py`, `agent-coordinator/src/session_grants.py`, `agent-coordinator/src/work_queue.py`
   **Dependencies**: 2.3
 
