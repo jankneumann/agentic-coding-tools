@@ -73,6 +73,8 @@ paths:
       summary: Per-UTC-day buckets with per-vendor subtotals.
       parameters:
         - { $ref: "#/components/parameters/vendor" }
+        - { $ref: "#/components/parameters/model" }
+        - { $ref: "#/components/parameters/principal" }
         - { $ref: "#/components/parameters/since" }
         - { $ref: "#/components/parameters/until" }
       responses:
@@ -89,6 +91,8 @@ paths:
       summary: Token/cost totals grouped by model.
       parameters:
         - { $ref: "#/components/parameters/vendor" }
+        - { $ref: "#/components/parameters/model" }
+        - { $ref: "#/components/parameters/principal" }
         - { $ref: "#/components/parameters/since" }
         - { $ref: "#/components/parameters/until" }
       responses:
@@ -104,6 +108,9 @@ paths:
     get:
       summary: Token/cost totals grouped by vendor.
       parameters:
+        - { $ref: "#/components/parameters/vendor" }
+        - { $ref: "#/components/parameters/model" }
+        - { $ref: "#/components/parameters/principal" }
         - { $ref: "#/components/parameters/since" }
         - { $ref: "#/components/parameters/until" }
       responses:
@@ -115,6 +122,24 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/GroupTotal" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /events/usage:
+    get:
+      summary: Server-Sent Events stream of `usage.recorded` events.
+      description: |
+        Dedicated SSE channel for usage events (separate from `/events/work`,
+        which is keyed on a non-empty work-id). Emits a `usage.recorded`
+        event whenever a batch of new records is persisted.
+      parameters:
+        - { $ref: "#/components/parameters/vendor" }
+      responses:
+        "200":
+          description: |
+            SSE stream. Each emitted event has `event: usage.recorded` and a
+            JSON `data:` payload of `{vendors, record_count, ts}`.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
 components:
   securitySchemes:
     bearerAuth:
@@ -123,7 +148,7 @@ components:
   parameters:
     vendor:   { name: vendor,    in: query, required: false, schema: { type: string } }
     model:    { name: model,     in: query, required: false, schema: { type: string } }
-    principal:{ name: principal, in: query, required: false, schema: { type: string } }
+    principal: { name: principal, in: query, required: false, schema: { type: string } }
     since:    { name: since,     in: query, required: false, schema: { type: string, format: date-time } }
     until:    { name: until,     in: query, required: false, schema: { type: string, format: date-time } }
   responses:

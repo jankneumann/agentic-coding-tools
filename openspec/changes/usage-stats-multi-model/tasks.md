@@ -69,8 +69,13 @@ Reference. Checkpoint markers appear every 2–3 implementation tasks.
   auth) backed by `db_postgres.py` queries.
   **Spec scenarios**: usage-api (Usage Query Endpoints, Usage Ingestion Endpoint)
   **Dependencies**: 2.1
-- [ ] 2.3 (S) Wire `usage.recorded` SSE event via `coordinator_notify` on insert.
+- [ ] 2.3 (S) Add `GET /events/usage` SSE endpoint (Bearer-auth, optional
+  `vendor` filter) that publishes `usage.recorded` events with payload
+  `{vendors, record_count, ts}`. Wire the publisher to `coordinator_notify`
+  on successful batch insert. Don't reuse `/events/work` — that path is keyed
+  on a non-empty work-id and rejects empty queries.
   **Spec scenarios**: usage-api (Live Usage Event Stream)
+  **Contracts**: contracts/openapi/v1.yaml (`/events/usage`)
   **Dependencies**: 2.2
 - [ ] Checkpoint: run API + SSE tests, review diff, verify scope
 
