@@ -208,5 +208,5 @@
   **Files**: `docs/lessons-learned.md`, `docs/parallel-agentic-development.md`
   **Dependencies**: All previous tasks
 
-- [ ] 7.2 Run full validation — `openspec validate`, test suite, linter checks on all modified files
+- [x] 7.2 Run full validation — `openspec validate`, test suite, linter checks on all modified files
   **Dependencies**: 7.1
