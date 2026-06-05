@@ -130,16 +130,16 @@
 
 ## Phase 6: Session Transcript Mining
 
-- [ ] 6.1 Write tests for normalized event schema and adapter base class — fixture-based round-trip tests per adapter (fixtures live under `skills/collect-transcripts/tests/fixtures/<harness>/`)
+- [x] 6.1 Write tests for normalized event schema and adapter base class — fixture-based round-trip tests per adapter (fixtures live under `skills/collect-transcripts/tests/fixtures/<harness>/`)
   **Spec scenarios**: harness-engineering.8 (adapter discovers and normalizes)
   **Design decisions**: D8 (transcript ingestion via adapter-based skill)
   **Dependencies**: 1.4 (memory tag conventions)
 
-- [ ] 6.2 Define normalized event schema + adapter base class
+- [x] 6.2 Define normalized event schema + adapter base class
   **Files**: `skills/collect-transcripts/SKILL.md`, `skills/collect-transcripts/references/event-schema.md`, `skills/collect-transcripts/scripts/adapters/base.py`, `skills/collect-transcripts/scripts/normalize.py`
   **Dependencies**: 6.1
 
-- [ ] 6.3 Implement Claude Code CLI adapter
+- [x] 6.3 Implement Claude Code CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_cli.py`, `skills/collect-transcripts/tests/test_claude_code_cli.py`
   **Path**: `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl` — `<encoded-cwd>` is the absolute cwd with every non-alphanumeric char replaced by `-` (e.g. `/Users/me/proj` → `-Users-me-proj`). Verified — already used in `skills/session-bootstrap/scripts/calibrate_token_proxy.py::_discover_newest_transcript`.
   **Schema**: JSONL one event per line; top-level `type`, `uuid`, `parentUuid`, `timestamp`, `sessionId`, `cwd`, `gitBranch`, `version`. Message events nest content blocks under `message.content[]` with `type` ∈ `text` | `thinking` | `tool_use` (`id`, `name`, `input`) | `tool_result` (`tool_use_id`). User vs assistant distinguished by top-level `type`. Token usage at `message.usage.{input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens}`.
@@ -147,7 +147,7 @@
   **Citation**: https://code.claude.com/docs/en/agent-sdk/sessions
   **Dependencies**: 6.2
 
-- [ ] 6.4 Implement Claude Code web adapter (CLI bridge)
+- [x] 6.4 Implement Claude Code web adapter (CLI bridge)
   **Files**: `skills/collect-transcripts/scripts/adapters/claude_code_web.py`, `skills/collect-transcripts/tests/test_claude_code_web.py`
   **Approach**: NOT a direct web-API client. Implementation invokes `claude --teleport <session-id>` to pull the cloud session onto local disk, then delegates to the `claude_code_cli` adapter. The Anthropic `/v1/sessions` endpoint on `api.anthropic.com` belongs to the *separate* Managed Agents product, not Claude Code web; reverse-engineering claude.ai's private endpoints is explicitly out of scope (third-party tools doing this have repeatedly broken on unannounced API changes — see https://github.com/simonw/claude-code-transcripts).
   **Discovery**: Session ID is available in `CLAUDE_CODE_REMOTE_SESSION_ID` env var (with `cse_` prefix; URL form uses `session_` prefix).
@@ -155,7 +155,7 @@
   **Citation**: https://code.claude.com/docs/en/claude-code-on-the-web
   **Dependencies**: 6.2, 6.3
 
-- [ ] 6.5 Implement Codex CLI adapter
+- [x] 6.5 Implement Codex CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/codex_cli.py`, `skills/collect-transcripts/tests/test_codex_cli.py`
   **Path**: `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl` (default `$CODEX_HOME` = `~/.codex`). Note: `~/.codex/history.jsonl` is command history only — NOT the rollout transcript.
   **Schema**: JSONL, one `RolloutLine` per line. Each line is a `RolloutItem` enum variant: `SessionMeta` (header — `session_id`, `source`, `timestamp`, `model_provider`), `EventMsg` (UI replay events incl. `UserMessage`), `ResponseItem` (the full Responses-API turn — `message`, `function_call` with `name`/`arguments`/`call_id`, `function_call_output` matching `call_id`, `reasoning`). Distinguish: user msg = `EventMsg::UserMessage` OR `ResponseItem::message` with `role:"user"`; assistant text = `ResponseItem::message` with `role:"assistant"`; tool call = `ResponseItem::function_call`; tool result = `ResponseItem::function_call_output`.
@@ -163,14 +163,14 @@
   **Citations**: https://github.com/openai/codex/discussions/3827 ; https://github.com/openai/codex/pull/3380 ; https://github.com/openai/codex/pull/14434
   **Dependencies**: 6.2
 
-- [ ] 6.6 Implement Codex web adapter (CLI bridge)
+- [x] 6.6 Implement Codex web adapter (CLI bridge)
   **Files**: `skills/collect-transcripts/scripts/adapters/codex_web.py`, `skills/collect-transcripts/tests/test_codex_web.py`
   **Approach**: NOT a direct web-API client. The `chatgpt.com/backend-api/codex/*` endpoints are undocumented and ChatGPT-cookie-authed. Implementation invokes `codex cloud` to pull cloud-task transcripts onto local disk (where they land as standard rollout JSONL) and then delegates to the `codex_cli` adapter. Mirrors the `claude_code_web` pattern exactly.
   **Fail-soft**: skip with warning if `codex` CLI not on PATH, if not authenticated, or if `codex cloud` returns no sessions.
   **Citations**: https://developers.openai.com/codex/cloud ; https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan
   **Dependencies**: 6.2, 6.5
 
-- [ ] 6.7 Implement Gemini CLI adapter
+- [x] 6.7 Implement Gemini CLI adapter
   **Files**: `skills/collect-transcripts/scripts/adapters/gemini_cli.py`, `skills/collect-transcripts/tests/test_gemini_cli.py`
   **Path**: `~/.gemini/tmp/<project_hash>/chats/session-YYYY-MM-DDTHH-mm-<short_id>.json` (JSONL despite the `.json` extension). `<project_hash>` derived from project root path. Related sibling paths: `~/.gemini/tmp/<project_hash>/checkpoints/` (checkpoint conversation data), `~/.gemini/history/<project_hash>/` (shadow git of file state).
   **Schema**: Initial metadata record: `{sessionId, projectHash, startTime, lastUpdated, summary?, directories?, kind?:'main'|'subagent', messages:[]}`. Per-message: `MessageRecord {id, timestamp, type:'user'|'gemini', content:PartListUnion, displayContent?, toolCalls?:ToolCallRecord[], thoughts?, tokens?, model?}`. Updates appear as `{$set:{...}}`, branches as `{$rewindTo:messageId}`. `content` follows Google GenAI `Part` union (`text`, `functionCall`, `functionResponse`, `inlineData`). Tool calls in `toolCalls[]` with `displayName`, `description`, args, result.
@@ -178,25 +178,25 @@
   **Citations**: https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/session-management.md ; https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/services/chatRecordingService.ts
   **Dependencies**: 6.2
 
-- [ ] 6.8 Extend sanitizer for transcript-specific structures
+- [x] 6.8 Extend sanitizer for transcript-specific structures
   **Files**: `skills/session-log/scripts/sanitize_session_log.py`, `skills/collect-transcripts/scripts/sanitize_events.py`, `skills/session-log/tests/test_sanitize_session_log.py`
   **Notes**: Add coverage for tool-call argument blobs and tool-result outputs — common accidental-leak sites that the existing session-log sanitizer doesn't target. Existing redaction rules (secrets, high-entropy strings, env paths) must continue passing.
   **Spec scenarios**: harness-engineering.8 (sanitization precedes any LLM analysis)
   **Dependencies**: 6.2
 
-- [ ] 6.9 Implement triage pass with dry-run mode
+- [x] 6.9 Implement triage pass with dry-run mode
   **Files**: `skills/collect-transcripts/scripts/triage.py`, `skills/collect-transcripts/tests/test_triage.py`, `skills/collect-transcripts/config.yaml.example`
   **Notes**: Triage model is resolved via the archetype system — default `archetype: analyst`, default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: triage.{archetype, provider}`. Resolution uses `agents_config.resolve_model()` from the coordinator (skills can import directly OR call coordinator HTTP `/archetypes/resolve_for_phase` — pick whichever fits the skill's runtime). System prompt composed via `agents_config.compose_prompt(archetype, task_prompt)` where `task_prompt` lives in `skills/collect-transcripts/prompts/triage_v1.md` and is kept SEPARATE from the coordinator's audit-triage prompt (see D11). Configurable struggle threshold. `--dry-run` mode prints planned per-session and total estimated operation count without making any API calls. Default-off in CI.
   **Spec scenarios**: harness-engineering.8 (triage scores every ingested session), harness-engineering.8 (mining is opt-in)
   **Dependencies**: 6.2, 6.8
 
-- [ ] 6.10 Implement deep-analysis writer
+- [x] 6.10 Implement deep-analysis writer
   **Files**: `skills/collect-transcripts/scripts/deep_analyze.py`, `skills/collect-transcripts/tests/test_deep_analyze.py`
   **Notes**: Deep-analysis model resolved via archetype system — default `archetype: reviewer` (premium tier), default `provider: claude_code`, both configurable via `skills/collect-transcripts/config.yaml: deep_analysis.{archetype, provider}`. Same `agents_config.resolve_model()` + `compose_prompt()` pattern as the triage task. Task prompt lives in `skills/collect-transcripts/prompts/deep_analysis_v1.md` — kept SEPARATE from the coordinator's audit-triage prompt and from the transcript-triage prompt (see D11). Emits findings under the D4 tag schema with `source:transcript-mined`. Uses the coordinator's `remember` MCP tool.
   **Spec scenarios**: harness-engineering.8 (deep analysis runs on flagged sessions only)
   **Dependencies**: 1.4, 6.9
 
-- [ ] 6.11 Verify `/improve-harness` surfaces transcript-sourced findings end-to-end
+- [x] 6.11 Verify `/improve-harness` surfaces transcript-sourced findings end-to-end
   **Files**: `skills/improve-harness/tests/test_transcript_source.py`, `skills/collect-transcripts/tests/test_end_to_end.py`
   **Notes**: The source-attribution and multi-source-mining machinery was already built in Task 5.6. This task is the *end-to-end verification* that transcript-mined findings flow through unchanged: feed a fixture transcript through triage + deep-analyze, then run `/improve-harness` and assert the resulting report contains the finding with `source:transcript-mined` in its source list.
   **Spec scenarios**: harness-engineering.8 (improve-harness surfaces transcript-sourced findings)
