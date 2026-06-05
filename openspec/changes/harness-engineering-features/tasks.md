@@ -14,7 +14,7 @@
   **Files**: `CLAUDE.md`, `docs/guides/workflow.md`, `docs/guides/python-environment.md`, `docs/guides/git-conventions.md`, `docs/guides/skills.md`, `docs/guides/worktree-management.md`, `docs/guides/documentation.md`, `docs/guides/session-completion.md`
   **Dependencies**: 1.1
 
-- [ ] 1.3 Write tests for failure metadata recording — verify structured tags, deduplication, query by failure_type
+- [x] 1.3 Write tests for failure metadata recording — verify structured tags, deduplication, query by failure_type
   **Spec scenarios**: harness-engineering.4 (structured failure recording)
   **Design decisions**: D4 (failure metadata as episodic memory tags)
   **Dependencies**: None
