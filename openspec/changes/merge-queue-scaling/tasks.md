@@ -118,12 +118,12 @@
   **Dependencies**: 5.2
   **Size**: XS
 
-- [ ] 5.4 Write tests for coordinator metrics endpoint — verify /merge-train/metrics returns aggregated data from audit service
+- [x] 5.4 Write tests for coordinator metrics endpoint — verify /merge-train/metrics returns aggregated data from audit service
   **Spec scenarios**: merge-infrastructure.5 (coordinator endpoint)
   **Dependencies**: 5.2
   **Size**: S
 
-- [ ] 5.5 Implement /merge-train/metrics endpoint in coordination_api.py — query audit log for merge events, compute aggregated metrics, return JSON
+- [x] 5.5 Implement /merge-train/metrics endpoint in coordination_api.py — query audit log for merge events, compute aggregated metrics, return JSON
   **Dependencies**: 5.4
   **Size**: S
 
@@ -131,26 +131,26 @@
 
 ## Phase 6: Background Merge Watcher (wp-watcher)
 
-- [ ] 6.1 Write tests for merge_watcher_tick() — single-pass function that checks queue, composes trains, monitors CI, triggers auto-rebase; verify idempotent behavior, verify no-op when queue is empty
+- [x] 6.1 Write tests for merge_watcher_tick() — single-pass function that checks queue, composes trains, monitors CI, triggers auto-rebase; verify idempotent behavior, verify no-op when queue is empty
   **Spec scenarios**: merge-infrastructure.6 (watcher tick), merge-infrastructure.6 (idempotent)
   **Dependencies**: 3.2, 4.2
   **Size**: M
 
-- [ ] 6.2 Implement merge_watcher_tick() — single-pass entry point that performs one check cycle: compose_train if queued entries, monitor_ci_for_rollback for recent merges, auto_cascade_rebase for stale queued PRs
+- [x] 6.2 Implement merge_watcher_tick() — single-pass entry point that performs one check cycle: compose_train if queued entries, monitor_ci_for_rollback for recent merges, auto_cascade_rebase for stale queued PRs
   **Dependencies**: 6.1
   **Size**: M
 
-- [ ] 6.3 Write tests for coordinator watcher task — verify background asyncio task lifecycle, verify graceful shutdown, verify error isolation (single tick failure doesn't crash loop)
+- [x] 6.3 Write tests for coordinator watcher task — verify background asyncio task lifecycle, verify graceful shutdown, verify error isolation (single tick failure doesn't crash loop)
   **Spec scenarios**: merge-infrastructure.6 (coordinator background task)
   **Design decisions**: D5 (coordinator background task)
   **Dependencies**: 6.2
   **Size**: S
 
-- [ ] 6.4 Implement coordinator merge watcher background task — register in coordinator startup, run merge_watcher_tick() every MERGE_WATCHER_INTERVAL seconds, catch and log exceptions, cancel on shutdown
+- [x] 6.4 Implement coordinator merge watcher background task — register in coordinator startup, run merge_watcher_tick() every MERGE_WATCHER_INTERVAL seconds, catch and log exceptions, cancel on shutdown
   **Dependencies**: 6.3
   **Size**: M
 
-- [ ] 6.5 Create merge_watcher.py CLI entry point — `python merge_watcher.py tick` for single-pass /loop invocation, `python merge_watcher.py run` for standalone daemon mode
+- [x] 6.5 Create merge_watcher.py CLI entry point — `python merge_watcher.py tick` for single-pass /loop invocation, `python merge_watcher.py run` for standalone daemon mode
   **Dependencies**: 6.2
   **Size**: S
 
