@@ -219,8 +219,8 @@ class DiscoveryService:
                 heartbeated.  Ignored when *session_id* is provided.
                 Falls back to the coordinator's own config when both are None.
             phase_archetype: Optional resolved archetype name
-                (``architect | reviewer | implementer | analyst | runner``)
-                for the agent's current autopilot phase. When provided, the
+                (``architect | reviewer | implementer | analyst | runner |
+                gatekeeper``) for the agent's current autopilot phase. When provided, the
                 value is forwarded to the ``agent_heartbeat`` RPC and persisted
                 via ``COALESCE``-on-the-SQL-side, so passing ``None`` does
                 NOT clear an existing value (wire-autopilot-phase-subagents,

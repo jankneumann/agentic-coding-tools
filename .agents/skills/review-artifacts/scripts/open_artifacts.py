@@ -82,6 +82,27 @@ def _git_toplevel(cwd: Path) -> Path | None:
     return Path(out) if out else None
 
 
+def _git_main_checkout(cwd: Path) -> Path | None:
+    """Return the main checkout's working tree, even when called from a worktree.
+
+    From inside a linked worktree, `git rev-parse --show-toplevel` returns the
+    worktree's own path. To find sibling worktrees registered under
+    `<main-checkout>/.git-worktrees/`, we need the MAIN checkout's working tree.
+    Git's `--git-common-dir` always resolves to the main `.git/` directory;
+    its parent is the main checkout's working tree.
+    """
+    common = _git(["rev-parse", "--git-common-dir"], cwd).strip()
+    if not common:
+        return _git_toplevel(cwd)
+    common_path = Path(common)
+    if not common_path.is_absolute():
+        top = _git_toplevel(cwd)
+        if top is None:
+            return None
+        common_path = (top / common_path).resolve()
+    return common_path.parent
+
+
 def _current_branch(cwd: Path) -> str:
     return _git(["branch", "--show-current"], cwd).strip()
 
@@ -89,19 +110,21 @@ def _current_branch(cwd: Path) -> str:
 def _resolve_worktree(change_id: str, cwd: Path) -> Path | None:
     """Locate the worktree path for a change-id via worktree.py list.
 
-    Falls back to .git-worktrees/<change-id>/ relative to the repo root if
-    the helper is unavailable.
+    Looks up worktrees registered under the MAIN checkout (not the local
+    worktree, which only sees itself). Falls back to
+    `<main-checkout>/.git-worktrees/<change-id>/` when the helper is
+    unavailable or returns no match.
     """
-    top = _git_toplevel(cwd)
-    if not top:
+    main = _git_main_checkout(cwd)
+    if not main:
         return None
 
-    worktree_helper = top / "skills" / "worktree" / "scripts" / "worktree.py"
+    worktree_helper = main / "skills" / "worktree" / "scripts" / "worktree.py"
     if worktree_helper.exists():
         try:
             out = subprocess.run(
                 ["python3", str(worktree_helper), "list", "--json"],
-                cwd=str(top),
+                cwd=str(main),
                 capture_output=True,
                 text=True,
                 check=False,
@@ -110,7 +133,6 @@ def _resolve_worktree(change_id: str, cwd: Path) -> Path | None:
             if out.returncode == 0 and out.stdout.strip():
                 import json
                 data = json.loads(out.stdout)
-                # Format varies; try common shapes.
                 entries = data if isinstance(data, list) else data.get("worktrees", [])
                 for entry in entries:
                     cid = entry.get("change_id") or entry.get("id")
@@ -120,8 +142,8 @@ def _resolve_worktree(change_id: str, cwd: Path) -> Path | None:
         except (subprocess.TimeoutExpired, ValueError):
             pass
 
-    # Fallback: convention-based path
-    candidate = top / ".git-worktrees" / change_id
+    # Fallback: convention-based path under the main checkout
+    candidate = main / ".git-worktrees" / change_id
     if candidate.is_dir():
         # Single-agent worktree
         if (candidate / ".git").exists():

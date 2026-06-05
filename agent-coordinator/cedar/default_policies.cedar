@@ -102,6 +102,22 @@ permit(
 
 permit(
     principal,
+    action == Action::"register_feature",
+    resource
+) when {
+    principal.trust_level >= 2
+};
+
+permit(
+    principal,
+    action == Action::"deregister_feature",
+    resource
+) when {
+    principal.trust_level >= 2
+};
+
+permit(
+    principal,
     action == Action::"check_guardrails",
     resource
 ) when {

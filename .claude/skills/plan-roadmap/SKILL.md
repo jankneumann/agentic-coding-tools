@@ -13,6 +13,8 @@ triggers:
 
 Decompose a long-form markdown proposal into a prioritized set of OpenSpec change candidates, each with a dependency DAG, effort estimate, and acceptance outcomes. Produces a `roadmap.yaml` artifact and optionally scaffolds the approved changes as OpenSpec change directories.
 
+The decomposition itself is done by a premium model: the orchestrator dispatches a generator (a Claude subagent by default, or an external vendor such as `gpt-5.5` / `gemini-3.1-pro`) that reads the **entire** proposal against an explicit output contract and returns a `roadmap.yaml`. Python's role is the deterministic backstop — proposal-readiness checks before generation, and schema / dependency / DAG validation afterwards.
+
 When no proposal yet exists, the skill scaffolds one from the template at `openspec/schemas/roadmap/templates/proposal.md` so the operator (or the agent itself, in `--draft` mode) can fill it in before decomposition.
 
 ## Arguments
@@ -29,14 +31,20 @@ When no proposal yet exists, the skill scaffolds one from the template at `opens
    Same as form 2, but the agent expands the pitch into a full draft (Capabilities, Constraints, Phases) using its own reasoning rather than leaving placeholders. The operator still reviews before re-running for decomposition.
 
 Optional flags:
+- `--vendor <claude|codex|gemini>` — Choose the generator. Default `claude` dispatches a Claude subagent via the Agent tool. `codex` / `gemini` route through the shared CLI dispatcher to the external vendor (`gpt-5.5` / `gemini-3.1-pro`).
 - `--workspace <path>` — Override the default output workspace (default: `openspec/roadmaps/<roadmap_id>/`).
 - `--force` — Overwrite an existing `roadmap.yaml` at the target. Without this, `/plan-roadmap` aborts on collision to protect operator edits to `status` / `priority`.
 
-## Agent as the LLM
+## Generation and dispatch
 
-This skill runs inside Claude Code, which already has direct access to a model. **Do not call out to external LLM APIs** (Anthropic SDK, OpenAI, etc.) — the agent IS the LLM consumer. The Python scripts handle deterministic structural work (parsing, table extraction, archive cross-check, schema validation, file I/O); the agent itself does the semantic work (capability classification, dependency inference, draft proposal expansion) directly through its own reasoning.
+The semantic work — reading the proposal and deciding what the items, dependencies, efforts, and acceptance outcomes are — is done by a premium model, never by keyword parsing. The orchestrator (the agent running this skill) **dispatches** that work rather than importing an LLM SDK:
 
-The legacy `semantic_decomposer.py` and `llm_client.py` modules date from the external-API era and are pending removal. New work should follow the agent-as-LLM pattern documented in the steps below.
+- **Default (`--vendor claude`):** spawn a Claude subagent with the Agent tool, handing it the filled generation prompt. The subagent reads the proposal and returns the `roadmap.yaml` body.
+- **External (`--vendor codex|gemini`):** route through `skills/parallel-infrastructure/scripts/review_dispatcher.py` (`ReviewOrchestrator`) using the `alternative` dispatch mode, which shells out to the vendor CLI configured in `agent-coordinator/agents.yaml`. Models resolve to `gpt-5.5` (codex) / `gemini-3.1-pro` (gemini) with the fallbacks declared there.
+
+**No LLM SDK calls inside this skill's Python.** The scripts stay deterministic (readiness check, schema/DAG validation, file I/O). This mirrors the host-assisted invariant enforced for `autopilot-roadmap`: semantic reasoning is delegated to the orchestrator or a dispatched agent, not embedded in `scripts/`.
+
+The generator's instructions and the exact output contract live in `templates/generation-prompt.md`. The orchestrator fills its `{{PROPOSAL_TEXT}}`, `{{SOURCE_PROPOSAL_PATH}}`, and `{{ROADMAP_ID}}` placeholders before dispatch.
 
 ## Local CLI Mutation Boundary
 
@@ -82,17 +90,17 @@ Scaffolded per-item change directories remain at `openspec/changes/<change-id>/`
 
 ## Proposal Requirements
 
-The decomposer's contract requires the proposal to contain these H2 sections (the template at `openspec/schemas/roadmap/templates/proposal.md` provides the canonical layout):
+The generator reads the full proposal as prose, so there is **no required vocabulary and no mandatory section layout** — a clearly written proposal is enough. The template at `openspec/schemas/roadmap/templates/proposal.md` is the *recommended* shape because it makes a proposal easier for both humans and the model to follow:
 
-| Section | Required? | Purpose |
+| Section | Recommended | Purpose |
 |---|---|---|
-| `## Motivation` | Yes | Why this epic exists. Read by reviewers, not by the decomposer. |
-| `## Capabilities` | Yes | One H3 per capability. Each H3 becomes a candidate roadmap item. Acceptance outcomes go in a `**Acceptance Outcomes:**` bulleted list under the H3. |
-| `## Constraints` | Recommended | Non-functional requirements using "must" / "shall" markers. |
-| `## Phases` | Optional | Temporal grouping for dependency inference. Omit if all capabilities are independent. |
-| `## Out of Scope` | Recommended | Explicit exclusions to prevent decomposer drift. |
+| `## Motivation` | Yes | Why this epic exists. Frames the generator's rationale fields. |
+| `## Capabilities` | Yes | The substance of the work — the raw material for roadmap items. |
+| `## Constraints` | Yes | Non-functional requirements; shape acceptance outcomes and ordering. |
+| `## Phases` | Optional | Temporal grouping the generator uses to infer dependencies. |
+| `## Out of Scope` | Yes | Explicit exclusions so the generator does not invent items. |
 
-Capability H3 names should use vocabulary the structural extractor recognizes — `Capability:`, `Service:`, `Adapter:`, `Pipeline:`, `Workspace:`, `Handler:`, etc. The full keyword set lives in `decomposer.py::_CAPABILITY_MARKERS`. When in doubt, lead with one of those nouns.
+The only hard requirement (checked by `validate_proposal()`) is that the proposal is non-empty and has at least one markdown heading. Everything else is a quality signal, not a gate.
 
 ## Steps
 
@@ -106,53 +114,46 @@ Parse `$ARGUMENTS` to determine which form was used:
 
 For `--new` modes: if `openspec/roadmaps/<slug>/` already exists, abort unless `--force` is set.
 
-### 1. Read Proposal and Validate Readiness
+### 1. Read Proposal and Check Readiness
 
-Load the markdown proposal from the provided path. Run `validate_proposal()` from `decomposer.py` to check minimum structural requirements (has headings, has at least one capability marker). If validation fails, abort with the error list and a pointer to the template — do not attempt to decompose a malformed proposal.
+Load the markdown proposal from the provided path. Run `validate_proposal()` from `decomposer.py` — a lightweight readiness gate that the proposal is non-empty and has at least one heading. If it returns errors, abort with the list and a pointer to the template. This gate intentionally does **not** inspect vocabulary; a well-written proposal in any style passes.
 
-### 2. Extract Structural Signals (Deterministic)
+Derive `roadmap_id` (`roadmap-<slug>` from the proposal stem) and the repo-relative `source_proposal` path (use `make_repo_relative()`).
 
-Run `decompose()` from `decomposer.py` to extract structural signals from the proposal:
-- Capability candidates from H2/H3 sections matching `_CAPABILITY_MARKERS`
-- Priority table rows
-- Phase / milestone boundaries
-- Constraint markers
-- Archive cross-check (items matching archived OpenSpec change IDs)
+### 2. Build the Generation Request
 
-These are **inputs to the agent's semantic analysis**, not the final answer. The deterministic pass is well-suited to structurally regular content (tables, fenced code awareness, archive matching) and brittle on prose vocabulary that doesn't match its keyword set.
+Load `templates/generation-prompt.md` and fill its placeholders:
+- `{{PROPOSAL_TEXT}}` ← the full proposal markdown.
+- `{{SOURCE_PROPOSAL_PATH}}` ← the repo-relative proposal path.
+- `{{ROADMAP_ID}}` ← the derived roadmap id.
 
-### 3. Detect Thin Extraction
+Strip the header section above `--- PROMPT BEGINS ---`; only the prompt body is sent to the generator.
 
-Call `diagnose_thin_output(proposal_text, len(extracted_items))` from `decomposer.py`. If the helper returns a non-None message, the structural pass produced suspiciously few items relative to the proposal's H2 count — usually a vocabulary mismatch.
+### 3. Dispatch Generation
 
-**This is a hard stop.** Surface the diagnostic to the operator and ask whether to:
-- Edit the proposal to use recognized capability vocabulary (preferred).
-- Proceed with agent-driven extraction in Step 4 anyway (the agent reads the full proposal and produces capabilities directly).
-- Abort.
+Dispatch the filled prompt to the chosen generator (see **Generation and dispatch** above):
+- `--vendor claude` (default): spawn a Claude subagent via the Agent tool.
+- `--vendor codex|gemini`: dispatch through `ReviewOrchestrator` (`alternative` mode) to the external vendor CLI.
 
-Do NOT silently continue with a thin candidate set, and do NOT route around the decomposer by hand-authoring `roadmap.yaml` — that hides the regression.
+The generator returns the `roadmap.yaml` body as raw YAML. Write it to the resolved workspace path (Step 6 decides the final location; you may write to a temp path first for validation).
 
-### 4. Agent-Driven Semantic Extraction
+### 4. Validate the Generated Roadmap (Deterministic)
 
-The agent reads the full proposal and produces the canonical capability list using its own reasoning. The deterministic signals from Step 2 are inputs (table rows, archive matches, phase ordering) that the agent reconciles with what it sees in the proposal. The agent is responsible for:
-- Identifying every capability the proposal intends, including those the structural pass missed.
-- Writing clear `description` and `rationale` for each item.
-- Extracting `acceptance_outcomes` from per-capability bullet lists.
-- Assigning `effort` (XS/S/M/L/XL) and initial `priority`.
+Run `decomposer.py validate <roadmap.yaml>` (or call `validate_roadmap(data, repo_root)` directly). This checks, in order:
+1. JSON-schema conformance (`openspec/schemas/roadmap.schema.json`).
+2. `item_id` uniqueness.
+3. `depends_on` referential integrity (every referenced id exists; no self-dependency).
+4. DAG acyclicity.
 
-### 5. Generate Dependency DAG
+**Repair loop.** If validation returns errors, re-dispatch to the generator with the original prompt plus the validator's error list (the "Repair pass" section of the generation prompt). Allow up to **2** repair attempts. If the roadmap still fails after that, stop and surface the remaining errors to the operator — do **not** hand-edit `roadmap.yaml` to force it past validation; a persistent failure signals the proposal or the generator output needs human attention.
 
-The agent infers dependencies between items based on:
-- Explicit ordering from phases/milestones
-- Keyword references between items (one item's description mentions another's key terms)
-- Constraint propagation (infrastructure items before feature items)
-- Scope overlap (when items touch the same files / locks)
+### 5. Archive Cross-Check
 
-Validate the resulting DAG is acyclic before persisting (`Roadmap.has_cycle()` returns False).
+Run `scan_archive_state(repo_root)` to map existing OpenSpec change-ids to `completed` / `in_progress`. Flag any generated item whose derived change-id matches — these likely duplicate work already done or in flight. Surface matches to the operator in Step 6 rather than silently dropping items.
 
 ### 6. Present Candidates for User Approval
 
-Display the candidate roadmap items with their dependencies, effort estimates, and acceptance outcomes. Allow the operator to approve, modify, or reject individual items before persistence.
+Display the candidate roadmap items with their dependencies, effort estimates, acceptance outcomes, and any archive-cross-check flags. Allow the operator to approve, modify, or reject individual items before persistence. Re-validate (Step 4) if the operator edits items.
 
 ### 7. Resolve Workspace Path and Write `roadmap.yaml`
 
@@ -162,11 +163,11 @@ Determine the output location:
 
 Print the resolved path, then call `save_roadmap(roadmap, path, overwrite=<force_flag>)` from `skills/roadmap-runtime/scripts/models.py`. The helper creates parent directories and raises `FileExistsError` on collision unless `overwrite=True`. On collision, surface the error verbatim and instruct the operator to re-invoke with `--force` or `--workspace`.
 
-If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadmaps/<roadmap_id>/proposal.md` — leave it in place. If decomposing an existing proposal from elsewhere, optionally copy or reference it from the workspace; the `source_proposal` field in `roadmap.yaml` records the original path either way.
+If `--new` was used in Step 0, the proposal.md already lives at `openspec/roadmaps/<roadmap_id>/proposal.md` — leave it in place. If decomposing an existing proposal from elsewhere, the `source_proposal` field in `roadmap.yaml` records the original path.
 
 ### 8. Scaffold Approved Changes as OpenSpec Change Directories
 
-For each approved item, create an OpenSpec change directory under `openspec/changes/` containing:
+For each approved item, create an OpenSpec change directory under `openspec/changes/` via `scaffold_changes()` from `scaffolder.py`, containing:
 - `proposal.md` with a `parent_roadmap` field linking back to the roadmap
 - `tasks.md` skeleton
 - `specs/` directory
@@ -186,8 +187,13 @@ Generated sections of any rendered markdown view are wrapped in `<!-- GENERATED:
 
 ## Runtime Reference
 
-Shared models and utilities are in `skills/roadmap-runtime/scripts/`. The decomposer imports `Roadmap`, `RoadmapItem`, `Effort`, `ItemStatus`, `DepEdge`, `Scope`, and related types from the runtime's `models` module.
+Shared models and utilities are in `skills/roadmap-runtime/scripts/`. `decomposer.py` imports `Roadmap`, `validate_against_schema`, and `ROADMAP_SCHEMA` from the runtime's `models` module; `scaffolder.py` imports `Roadmap`, `RoadmapItem`, `ItemStatus`. Roadmap persistence (`save_roadmap` / `load_roadmap`) lives in `models`.
 
-## Known Stress Test Inputs
+## Scripts
 
-- `docs/perplexity-feedback.md` (from `agentic-assistant` repo): 438-line proposal with priority tables, nested sub-sections, inline YAML examples, and mixed narrative. Hand-authored oracle at `openspec/roadmap.yaml` has 22 items (3 archived, 19 candidates). Run regression: `skills/.venv/bin/python -m pytest skills/tests/plan-roadmap/test_decomposer_semantic.py::TestOracleRegression -v`
+| Script | Role |
+|---|---|
+| `scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and a `validate` CLI. Contains no keyword extraction and no LLM calls. |
+| `scripts/scaffolder.py` | Scaffolds OpenSpec change directories from approved items. |
+| `scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
+| `templates/generation-prompt.md` | The model-facing generation contract dispatched in Step 3. |

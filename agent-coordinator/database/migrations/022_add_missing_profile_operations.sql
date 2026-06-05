@@ -29,3 +29,20 @@ SET allowed_operations = allowed_operations
     updated_at = now()
 WHERE trust_level >= 3
   AND NOT ('register_feature' = ANY(allowed_operations));
+
+-- Add feature registry operations to standard remote worker profiles.
+UPDATE agent_profiles
+SET allowed_operations = allowed_operations
+    || ARRAY['register_feature', 'deregister_feature'],
+    updated_at = now()
+WHERE trust_level >= 2
+  AND name IN ('claude_code_web_implementer', 'codex_cloud_worker')
+  AND NOT ('register_feature' = ANY(allowed_operations));
+
+-- Codex remote workers also need handoff operations for session continuity.
+UPDATE agent_profiles
+SET allowed_operations = allowed_operations
+    || ARRAY['write_handoff', 'read_handoff'],
+    updated_at = now()
+WHERE name = 'codex_cloud_worker'
+  AND NOT ('write_handoff' = ANY(allowed_operations));

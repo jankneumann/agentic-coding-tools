@@ -327,7 +327,8 @@ def test_validation_helper_accepts_all_five_archetypes(
             "_validate_phase_archetype helper not exposed; covered by "
             "main() integration tests above"
         )
-    for ok in ["architect", "reviewer", "implementer", "analyst", "runner"]:
+    for ok in ["architect", "reviewer", "implementer", "analyst", "runner",
+               "gatekeeper"]:
         assert helper(ok) == ok, f"{ok} should be accepted"
 
 

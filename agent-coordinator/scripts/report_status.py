@@ -36,7 +36,7 @@ from urllib.request import Request, urlopen
 # and the SQL CHECK constraint in
 # database/migrations/023_add_phase_archetype.sql.
 _VALID_PHASE_ARCHETYPES: frozenset[str] = frozenset(
-    {"architect", "reviewer", "implementer", "analyst", "runner"}
+    {"architect", "reviewer", "implementer", "analyst", "runner", "gatekeeper"}
 )
 
 logger = logging.getLogger(__name__)

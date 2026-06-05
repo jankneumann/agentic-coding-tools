@@ -240,6 +240,8 @@ class TestActionCategories:
         """Test new write operations are in WRITE_ACTIONS."""
         assert "request_approval" in WRITE_ACTIONS
         assert "request_permission" in WRITE_ACTIONS
+        assert "register_feature" in WRITE_ACTIONS
+        assert "deregister_feature" in WRITE_ACTIONS
 
     def test_rollback_policy_admin(self):
         """Test rollback_policy is an admin action requiring trust >= 3."""
@@ -279,6 +281,23 @@ class TestNativeRiskScoreAndSessionGrants:
             context={"trust_level": 2, "risk_score": 0.2},
         )
         assert result.allowed is True
+
+    @pytest.mark.asyncio
+    async def test_native_trust_two_allows_feature_registration(
+        self, mock_supabase, db_client
+    ):
+        """Trust-2 remote workers can register/deregister feature claims."""
+        engine = NativePolicyEngine(db_client)
+
+        for operation in ("register_feature", "deregister_feature"):
+            result = await engine.check_operation(
+                agent_id="remote-worker",
+                agent_type="codex",
+                operation=operation,
+                context={"trust_level": 2},
+            )
+            assert result.allowed is True
+            assert "write_permitted" in result.reason
 
     @pytest.mark.asyncio
     async def test_native_risk_score_high_allows_read(

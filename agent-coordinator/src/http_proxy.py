@@ -633,7 +633,7 @@ async def proxy_write_handoff(
 ) -> dict[str, Any]:
     """Proxy write_handoff to POST /handoffs/write."""
     body = {
-        **_agent_identity(),
+        **_agent_identity(explicit_only_when_key_bound=True),
         "summary": summary,
         "completed_work": completed_work,
         "in_progress": in_progress,
@@ -916,7 +916,7 @@ async def proxy_register_feature(
 ) -> dict[str, Any]:
     """Proxy register_feature to POST /features/register."""
     body = {
-        **_agent_identity(),
+        **_agent_identity(explicit_only_when_key_bound=True),
         "feature_id": feature_id,
         "resource_claims": resource_claims,
         "title": title,

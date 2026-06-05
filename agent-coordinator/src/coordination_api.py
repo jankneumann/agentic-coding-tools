@@ -141,15 +141,15 @@ class AuditQueryParams(BaseModel):
 
 
 class HandoffWriteRequest(BaseModel):
-    agent_id: str
-    agent_type: str
+    agent_id: str | None = None
+    agent_type: str | None = None
     session_id: str | None = None
     summary: str
-    completed_work: list[str] | None = None
-    in_progress: list[str] | None = None
-    decisions: list[str] | None = None
-    next_steps: list[str] | None = None
-    relevant_files: list[str] | None = None
+    completed_work: list[Any] | None = None
+    in_progress: list[Any] | None = None
+    decisions: list[Any] | None = None
+    next_steps: list[Any] | None = None
+    relevant_files: list[Any] | None = None
 
 
 class HandoffReadRequest(BaseModel):
@@ -227,6 +227,7 @@ class StatusReportRequest(BaseModel):
         "implementer",
         "analyst",
         "runner",
+        "gatekeeper",
     ] | None = Field(default=None)
 
 
@@ -1329,7 +1330,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Write a handoff document for session continuity."""
-        agent_id, _agent_type = resolve_identity(
+        agent_id, agent_type = resolve_identity(
             principal, request.agent_id, request.agent_type
         )
 
@@ -1338,6 +1339,7 @@ def create_coordination_api() -> FastAPI:
         result = await get_handoff_service().write(
             summary=request.summary,
             agent_name=agent_id,
+            agent_type=agent_type,
             session_id=request.session_id,
             completed_work=request.completed_work,
             in_progress=request.in_progress,

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/review-ledger.schema.json",
+  "title": "Review Ledger",
+  "description": "Local-first finding ledger. A ledger entry wraps a review finding with cross-run identity and lifecycle state. The wrapped finding conforms to review-findings.schema.json (single finding object).",
+  "type": "object",
+  "required": ["schema_version", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ledgerEntry" }
+    }
+  },
+  "$defs": {
+    "ledgerEntry": {
+      "type": "object",
+      "required": [
+        "stable_id", "lifecycle_state", "first_seen_sha",
+        "last_verified_sha", "finding", "transitions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stable_id": {
+          "type": "string",
+          "description": "Content-derived identity stable across re-reviews (D2): hash of (file_path, normalized line anchor, type, normalized description)."
+        },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["open", "addressed", "retired"]
+        },
+        "first_seen_sha": { "type": "string", "description": "Commit SHA at which the finding was first recorded." },
+        "last_verified_sha": { "type": "string", "description": "Commit SHA at which compact last re-verified the finding." },
+        "reviewer_vendor": { "type": "string" },
+        "review_type": { "type": "string", "enum": ["ambient", "plan", "implementation"] },
+        "issue_number": {
+          "type": ["integer", "null"],
+          "description": "GitHub issue number once filed (Phase 4); null until filed."
+        },
+        "synced_to_coordinator": {
+          "type": "boolean",
+          "default": false,
+          "description": "Best-effort coordinator sync status (D1). Local entry remains source of truth."
+        },
+        "finding": {
+          "type": "object",
+          "description": "A single finding per review-findings.schema.json item shape.",
+          "required": ["type", "criticality", "description", "disposition", "axis", "severity"]
+        },
+        "transitions": {
+          "type": "array",
+          "description": "Append-only lifecycle transition log.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "at_sha", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": ["string", "null"], "enum": ["open", "addressed", "retired", null] },
+              "to": { "type": "string", "enum": ["open", "addressed", "retired"] },
+              "at_sha": { "type": "string" },
+              "reason": { "type": "string" },
+              "at": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

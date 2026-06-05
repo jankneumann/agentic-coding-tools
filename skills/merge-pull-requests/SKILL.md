@@ -517,6 +517,7 @@ Merged local OpenSpec PRs eligible for post-merge cleanup:
 |----|-----------|--------|----------------|---------|
 | #42 | add-user-export | openspec/add-user-export | 2 worktree registry entries, 3 local branches | `/cleanup-feature add-user-export --post-merge --pr 42` |
 
+Before asking the operator to approve, invoke `/review-artifacts <change-id>` for each listed change-id so review artifacts are open in VS Code first.
 Ask the operator: Proceed with post-merge cleanup for these changes?
 Only run the listed cleanup commands after explicit approval.
 ```

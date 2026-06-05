@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arbitrage-signal.schema.json",
+  "title": "Arbitrage Signal Event",
+  "description": "An append-only signal event recorded by the cross-vendor arbitrage instrument. Recorded via audit_log (operation = 'arbitrage.signal.<family>') and mirrored as an OTel measurement.",
+  "type": "object",
+  "required": ["schema_version", "family", "timestamp", "vendor"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "family": {
+      "type": "string",
+      "enum": ["compliance", "cost_quota", "quality_drift", "integration_cost", "decision_provenance"],
+      "description": "Which of the five signal families this event belongs to."
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "vendor": { "type": "string", "description": "Vendor key, e.g. claude_code, codex, gemini, opencode." },
+    "model": { "type": "string" },
+    "modality": {
+      "type": "string",
+      "enum": ["internal", "programmatic-subscription", "programmatic-metered"]
+    },
+    "archetype": { "type": "string" },
+    "work_unit_id": { "type": "string", "description": "Identifier of the routed unit of work (e.g. work-package or task id)." },
+    "payload": {
+      "type": "object",
+      "description": "Family-specific fields. Examples: compliance -> {url, old_hash, new_hash} or {http_status:429, cumulative_usage}; quality_drift -> {old_fingerprint, new_fingerprint}.",
+      "additionalProperties": true
+    }
+  }
+}

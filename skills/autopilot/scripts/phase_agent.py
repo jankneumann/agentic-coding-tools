@@ -81,6 +81,7 @@ _MAX_ATTEMPTS = 3
 # list synchronized with that YAML when phase semantics change.
 _PHASE_SIGNAL_KEYS: dict[str, list[str]] = {
     "INIT":         [],
+    "GATEKEEPER":   ["gate_signals"],
     "PLAN":         ["capabilities_touched"],
     "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
     "PLAN_REVIEW":  ["proposal_loc", "capabilities_touched"],
@@ -405,6 +406,28 @@ def _safe_state_dict(state_dict: dict[str, Any]) -> dict[str, Any]:
 # a sub-agent.
 _PHASE_TASKS: dict[str, str | None] = {
     "INIT": None,  # D13: state-only — no sub-agent dispatch
+    "GATEKEEPER": (
+        "You are the autopilot gatekeeper. Decide whether this change can run\n"
+        "autonomously through implementation. Judge two things, NOT raw size:\n"
+        "  1. VERIFIABILITY — can the intended outcomes be objectively checked?\n"
+        "     Inspect state.gate_signals (has_specs, has_tasks, has_proposal,\n"
+        "     has_work_packages) and the artifacts themselves. WHEN/THEN specs,\n"
+        "     a task breakdown, and testable acceptance criteria make outcomes\n"
+        "     verifiable; a vague description does not.\n"
+        "  2. RISK — what is the blast radius and reversibility if a slice goes\n"
+        "     wrong? Weigh has_db_migration, has_security_signal,\n"
+        "     external_dep_count, and write scope.\n"
+        "Account for autopilot's downstream safeguards: multi-vendor PLAN/IMPL\n"
+        "review convergence, the VALIDATE phase, and a MANDATORY human merge\n"
+        "gate (nothing reaches main without operator approval). Bias toward\n"
+        "letting verifiable work proceed — large but well-specified changes are\n"
+        "fine. Reserve escalation for work whose outcomes cannot be verified or\n"
+        "whose risk is high AND hard to reverse.\n"
+        "Return outcome 'proceed' for verifiable, acceptable-risk work;\n"
+        "'proceed_with_review' to also enable the extra VAL_REVIEW phase; or\n"
+        "'escalate' to stop for a human when outcomes are unverifiable or the\n"
+        "risk is unacceptable."
+    ),
     "PLAN": (
         "Run /plan-feature for the change described in state.change_id.\n"
         "Produce proposal.md, design.md, tasks.md, work-packages.yaml, and\n"
@@ -913,6 +936,7 @@ def build_phase_dispatch_kwargs(
 def _expected_outcomes_for_phase(phase: str) -> list[str]:
     """Return allowed outcomes for a phase dispatch payload."""
     return {
+        "GATEKEEPER": ["proceed", "proceed_with_review", "escalate"],
         "PLAN_ITERATE": ["complete", "failed"],
         "PLAN_REVIEW": ["converged", "not_converged", "max_iter"],
         "IMPLEMENT": ["complete", "failed"],

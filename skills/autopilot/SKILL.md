@@ -19,7 +19,8 @@ Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vend
 `<change-id or description>` - Either an existing OpenSpec change-id or a feature description in quotes.
 
 Optional flags:
-- `--force` — Bypass complexity gate thresholds
+- `--force` — Skip the GATEKEEPER judge entirely (operator override of the
+  verifiability/risk gate). Also bypasses the scope-safety floor.
 - `--val-review` — Force VAL_REVIEW phase even for simple features
 - `--no-review` — Skip multi-vendor review phases (PLAN_REVIEW, IMPL_REVIEW); iterate phases still run
 
@@ -88,31 +89,47 @@ fi
 
 Pass `cli_review_enabled` to `run_loop()`. When False, PLAN_ITERATE and IMPL_ITERATE still run (self-review is always valuable), but PLAN_REVIEW and IMPL_REVIEW are skipped.
 
-Run the complexity gate:
+Run the entry gate:
 ```python
 from complexity_gate import assess_complexity
 result = assess_complexity(work_packages_path, proposal_path, force=<--force flag>)
 ```
 
-- If `result.allowed == False`: report warnings and stop (suggest `--force`)
-- If `result.val_review_enabled`: record in loop state
-- If `result.warnings`: report them but continue
-- If `result.checkpoints`: log injected checkpoints
+The gate no longer blocks on size. It does two cheap, deterministic things and
+records the result in `loop-state.json`:
+
+1. **Gather the signal profile** — `result.signals` is a risk + verifiability
+   profile (package count, LOC estimate, external deps, db/security flags, write
+   scope, and verifiability facts `has_specs` / `has_tasks` / `has_proposal`).
+   Persist it to `state.gate_signals`; the GATEKEEPER judge consumes it.
+2. **Scope-safety floor** — the ONLY remaining hard block. A package that can
+   write the whole repository (`**`, `*`, `.`) defeats worktree isolation, so
+   `result.force_required` is set; without `--force`, `result.allowed == False`
+   → report warnings and stop (suggest `--force`).
+
+Then:
+- If `result.val_review_enabled` (db-migration / security signals): record it.
+- If `result.warnings`: report them but continue.
+- If `result.checkpoints`: log injected scheduling checkpoints
+  (`wave-validation`, `limit-concurrency`, `dependency-review`,
+  `db-migration-review`, `security-review`).
 
 Gate policy:
-- Package count above `defaults.auto_loop.max_packages` is a soft scheduling
-  signal. It emits `wave-validation` and, at higher counts, `limit-concurrency`;
-  it does not require `--force` unless it exceeds
-  `defaults.auto_loop.max_roadmap_packages` (default: 12).
-- Security-sensitive signals (`auth`, `crypto`, `secret`, `token`) enable
-  validation review and `security-review` without blocking automation.
-- High-confidence risk signals still require `--force`: LOC above
-  `max_loc`, database migration signals, broad repository write scopes such as
-  `**`, and package counts above the roadmap threshold.
+- LOC, package count, and external-dependency counts are **signals, not
+  blocks**. Large but well-decomposed work is fine; high counts only emit
+  scheduling checkpoints so the DAG paces itself.
+- Database-migration and security signals (`auth`, `crypto`, `secret`,
+  `token`) enable validation review without blocking automation.
+- The only deterministic hard block is a broad repository write scope, which
+  still requires `--force`.
+- Everything else — *can outcomes be verified? is the risk acceptable?* — is
+  delegated to the GATEKEEPER judge sub-agent (Step 1.5), which weighs the
+  signals against autopilot's downstream safeguards (review convergence,
+  validation, and the mandatory human merge gate).
 
 **Record INIT phase archetype** (state-only resolver — D9). After loop-state.json
 is written, shell out to record `phase_archetype` for INIT so observability
-covers all 13 non-terminal phases, not just the 7 dispatching phases:
+covers all 14 non-terminal phases, not just the 8 dispatching phases:
 
 ```bash
 python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
@@ -122,12 +139,61 @@ python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
 Failure here is non-fatal — the helper logs a warning and writes
 `phase_archetype = null` if the coordinator is unreachable.
 
+### 1.5. GATEKEEPER Phase (Judge)
+
+Replaces deterministic complexity blocking with a model-based judgment of
+whether the change can run autonomously. **Skipped entirely when `--force` is
+set** (operator override → transitions straight to PLAN).
+
+The GATEKEEPER judge sub-agent reads `state.gate_signals` plus the available
+plan artifacts and evaluates two things — NOT raw size:
+
+1. **Verifiability** — can the intended outcomes be objectively checked?
+   WHEN/THEN specs, a task breakdown, and testable acceptance criteria make
+   outcomes verifiable; a bare description does not.
+2. **Risk** — blast radius and reversibility if a slice goes wrong (db
+   migrations, security surfaces, external deps, write scope).
+
+The judge explicitly accounts for autopilot's downstream safeguards
+(multi-vendor PLAN/IMPL review convergence, the VALIDATE phase, and a mandatory
+human merge gate) and biases toward letting verifiable work proceed — large but
+well-specified changes are acceptable.
+
+Dispatch protocol (3 steps — same provider-neutral path as other phases; read
+-only, so `isolation` is not `worktree`):
+
+1. Build kwargs:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" build-dispatch \
+     --phase GATEKEEPER --change-id <change-id>
+   ```
+2. Call the dispatch adapter with `prompt` / `model` (treat `prompt` as opaque).
+   Parse the agent's last message for `(outcome, handoff_id)`. Outcome is one of
+   `proceed`, `proceed_with_review`, or `escalate`.
+3. Apply the outcome:
+   ```bash
+   python3 "<skill-base-dir>/scripts/runner.py" apply-outcome \
+     --change-id <change-id> --phase GATEKEEPER \
+     --outcome <outcome> --handoff-id <handoff_id>
+   ```
+
+**Fallback (permissive)**: If `build-dispatch` returns `archetype: null` OR no
+dispatch adapter is available (headless CI, coordinator down), do NOT block —
+derive a permissive verdict from `state.gate_signals`: `proceed_with_review`
+when any risk signal (db migration, security, broad scope) is present,
+otherwise `proceed`. Record `phase_archetype = null` via `apply-outcome`.
+
+**If `proceed`**: transition to PLAN.
+**If `proceed_with_review`**: set `state.val_review_enabled = true`, transition to PLAN.
+**If `escalate`**: transition to ESCALATE (the change is judged unverifiable or
+too risky for autonomous execution; resolve and resume, or re-run with `--force`).
+
 ### 2. PLAN Phase
 
 **Record PLAN phase archetype** (state-only resolver — D9 / VAL_REVIEW G-V-001).
 PLAN dispatches via the `/plan-feature` slash command rather than the
 provider-neutral dispatch adapter, so it doesn't go through `runner.py build-dispatch`. To
-keep observability uniform across all 13 non-terminal phases, shell out:
+keep observability uniform across all 14 non-terminal phases, shell out:
 
 ```bash
 python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
@@ -139,6 +205,7 @@ Failure here is non-fatal — the helper logs a warning and writes
 
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
+- **Before showing/answering the proposal approval gate prompt**, **best-effort** invoke `/review-artifacts <change-id>` to open proposal/design/spec/tasks artifacts in a new VS Code review session. The helper is local-only (depends on the VS Code CLI / a desktop environment) and will be unavailable in cloud harnesses — treat its failure as non-fatal: log a short notice (`[autopilot] /review-artifacts unavailable — skipping artifact pre-open`) and continue to the approval gate.
 - Wait for proposal approval before continuing
 
 If argument was an existing change-id:
@@ -147,9 +214,9 @@ If argument was an existing change-id:
 
 ### Per-Phase Sub-Agent Dispatch Protocol
 
-The following 7 phases (PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT, IMPL_ITERATE,
-IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch through the provider-neutral
-dispatch adapter when an adapter is available. Claude Code adapters may
+The following 8 phases (GATEKEEPER, PLAN_ITERATE, PLAN_REVIEW, IMPLEMENT,
+IMPL_ITERATE, IMPL_REVIEW, VALIDATE, VAL_REVIEW) dispatch through the
+provider-neutral dispatch adapter when an adapter is available. Claude Code adapters may
 internally call the Claude harness `Agent(...)` tool; Codex and Gemini/Jules
 use their configured provider adapter or fall through to the inline path.
 Each block follows the same 3-step protocol:
@@ -537,6 +604,8 @@ Write final handoff document.
 
 **STOP — Await human approval for merge via `/cleanup-feature <change-id>`.**
 
+Before presenting merge-approval questions, **best-effort** invoke `/review-artifacts <change-id>` so the reviewer has the relevant artifacts open prior to choosing gate outcomes. The helper is local-only (VS Code CLI dependency) — when it's unavailable (cloud harness, headless CI), log a short notice and proceed to the approval prompt without it; do not block the gate on artifact pre-opening.
+
 ## Progress Reporting
 
 At each state transition, report:
@@ -566,6 +635,7 @@ phase-to-archetype mapping lives under `phase_mapping`.
 | `PLAN_REVIEW`, `IMPL_REVIEW`, `VAL_REVIEW` | `reviewer` | premium |
 | `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_FIX` | `implementer` | standard (escalates to premium on size signals) |
 | `VALIDATE`, `VAL_FIX` | `analyst` | standard |
+| `GATEKEEPER` | `gatekeeper` | premium |
 | `INIT`, `SUBMIT_PR` | `runner` | economy |
 
 **Operator override** — force a specific model for one or more phases via the

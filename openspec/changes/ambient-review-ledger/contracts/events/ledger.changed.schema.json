@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/events/ledger.changed.schema.json",
+  "title": "ledger.changed event",
+  "description": "SSE payload emitted when a review-ledger entry is added or transitions lifecycle state. Consumed by the kanban-viz review-ledger swimlane (Phase 5).",
+  "type": "object",
+  "required": ["event", "stable_id", "lifecycle_state", "severity"],
+  "additionalProperties": false,
+  "properties": {
+    "event": { "type": "string", "const": "ledger.changed" },
+    "stable_id": { "type": "string" },
+    "change_kind": { "type": "string", "enum": ["added", "transitioned", "retired", "consolidated"] },
+    "lifecycle_state": { "type": "string", "enum": ["open", "addressed", "retired"] },
+    "severity": { "type": "string", "enum": ["critical", "nit", "optional", "fyi", "none"] },
+    "reviewer_vendor": { "type": "string" },
+    "file_path": { "type": "string" },
+    "issue_number": { "type": ["integer", "null"] },
+    "at": { "type": "string", "format": "date-time" }
+  }
+}

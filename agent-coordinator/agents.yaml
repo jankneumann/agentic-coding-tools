@@ -77,7 +77,7 @@ agents:
     isolation: none
     api_key: "${CLAUDE_WEB_API_KEY}"
     openbao_role_id: claude-code-web
-    capabilities: [lock, queue, memory, guardrails, handoff, discover]
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry]
     archetypes: [analyst, implementer, reviewer, documenter]
     description: Remote Claude Code agent (runs on Anthropic infrastructure)
     cli:
@@ -147,7 +147,7 @@ agents:
     isolation: sandbox
     api_key: "${CODEX_API_KEY}"
     openbao_role_id: codex-cloud
-    capabilities: [lock, queue, memory, guardrails]
+    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry]
     archetypes: [implementer, reviewer]
     description: Remote Codex agent (runs on OpenAI infrastructure)
     cli:

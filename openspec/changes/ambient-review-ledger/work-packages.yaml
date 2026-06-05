@@ -1,0 +1,469 @@
+schema_version: 1
+
+feature:
+  id: ambient-review-ledger
+  title: "Ambient Continuous Review with a Self-Verifying Finding Ledger"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # No OpenAPI surface. README is the contracts entrypoint per repo convention.
+    primary: "openspec/changes/ambient-review-ledger/contracts/README.md"
+    files:
+      - "openspec/changes/ambient-review-ledger/contracts/README.md"
+      - "openspec/changes/ambient-review-ledger/contracts/review-ledger.schema.json"
+      - "openspec/changes/ambient-review-ledger/contracts/events/ledger.changed.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ───────────────────────────────────────────────────────────────────
+  # wp-contracts — schema deltas + new schemas (root of DAG)
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-contracts
+    title: "Schemas & contracts"
+    task_type: contracts
+    description: |
+      Add `ambient` to the review_type enum in review-findings.schema.json.
+      Publish review-ledger.schema.json and events/ledger.changed.schema.json
+      to openspec/schemas/. Establishes the coordination boundary.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/review-findings.schema.json"
+      keys:
+        - "contract:review-findings"
+        - "contract:review-ledger"
+        - "event:ledger.changed"
+      ttl_minutes: 60
+      reason: "Schema definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/schemas/review-ledger.schema.json"
+        - "openspec/schemas/events/ledger.changed.schema.json"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Schema files validate as JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json,jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(f))) for f in [\"openspec/schemas/review-findings.schema.json\",\"openspec/schemas/review-ledger.schema.json\"]]'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["schemas_valid"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: ["schemas_valid"]
+      artifacts:
+        - "openspec/schemas/review-ledger.schema.json"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-refine-core — Phase 0 (parallel-safe root; de-conflicts harness change)
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-refine-core
+    title: "Extract refine-core (Phase 0)"
+    task_type: refactor
+    description: |
+      Behavior-preserving extraction of iterate/synthesize/fix/validate from
+      convergence_loop.py into refine_core.py; converge() delegates. Covered by
+      a characterization test. De-conflicts with harness-engineering-features.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/refine_core.py"
+      keys:
+        - "feature:ambient-review-ledger:refinecore"
+        - "feature:ambient-review-ledger:convergence"
+      ttl_minutes: 120
+      reason: "Shared backbone; coordinate with harness-engineering-features owner"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/refine_core.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/tests/refine-core/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-refine-core
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "refine-core + convergence characterization tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refine-core/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["refine_core_tests_pass"]
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys: ["refine_core_tests_pass"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/refine_core.py"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-ledger — Phase 2 (dependency hub)
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-ledger
+    title: "Finding ledger + compact (Phase 2)"
+    task_type: feature
+    description: |
+      Local-first ledger library, stable-id keying, best-effort coordinator
+      sync, compact re-verification reusing consensus matching, gate warm-context
+      read, and the ledger.changed SSE emit.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/parallel-infrastructure/scripts/compact.py"
+      keys:
+        - "feature:ambient-review-ledger:ledger"
+        - "event:ledger.changed"
+      ttl_minutes: 120
+      reason: "Ledger library is the dependency hub for ambient/refine/issue/kanban"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/parallel-infrastructure/scripts/compact.py"
+        - "skills/tests/review-ledger/**"
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-ledger
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "ledger + compact tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/review-ledger/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ledger_tests_pass"]
+    metadata:
+      loc_estimate: 600
+      complexity: high
+      package_kind: data_model
+    inputs:
+      contracts: ["openspec/schemas/review-ledger.schema.json"]
+    outputs:
+      result_keys: ["ledger_tests_pass"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/parallel-infrastructure/scripts/compact.py"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-ambient — Phase 1
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-ambient
+    title: "Ambient post-commit review (Phase 1)"
+    task_type: feature
+    description: |
+      post-commit hook (fail-open), single-vendor read-only ambient runner,
+      kill-switch, hook installer wiring.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-contracts", "wp-ledger"]
+    locks:
+      files:
+        - ".githooks/post-commit"
+        - "skills/parallel-infrastructure/scripts/ambient_review.py"
+      keys:
+        - "feature:ambient-review-ledger:hook"
+        - "feature:ambient-review-ledger:ambient"
+      ttl_minutes: 90
+      reason: "Ambient trigger + runner"
+    scope:
+      write_allow:
+        - ".githooks/post-commit"
+        - "skills/parallel-infrastructure/scripts/ambient_review.py"
+        - "skills/worktree/scripts/install_githooks.sh"
+        - "skills/tests/ambient-review/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-ambient
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "hook + ambient runner tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/ambient-review/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ambient_tests_pass"]
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: integration
+    inputs:
+      contracts: ["openspec/schemas/review-findings.schema.json"]
+    outputs:
+      result_keys: ["ambient_tests_pass"]
+      artifacts:
+        - ".githooks/post-commit"
+        - "skills/parallel-infrastructure/scripts/ambient_review.py"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-refine-standalone — Phase 3
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-refine-standalone
+    title: "Standalone refine loop (Phase 3)"
+    task_type: feature
+    description: |
+      Low-ceremony fix-until-clean entry point over refine-core operating on any
+      branch/commit range, reporting terminal status and findings to the ledger.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-refine-core", "wp-ledger"]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/refine_standalone.py"
+      keys:
+        - "feature:ambient-review-ledger:refine"
+      ttl_minutes: 90
+      reason: "Standalone refine entry point"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/refine_standalone.py"
+        - "skills/tests/refine-standalone/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-refine-standalone
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "standalone refine tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refine-standalone/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["refine_standalone_tests_pass"]
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys: ["refine_standalone_tests_pass"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/refine_standalone.py"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-issue-sync — Phase 4
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-issue-sync
+    title: "Findings to GitHub issues (Phase 4)"
+    task_type: feature
+    description: |
+      File confirmed/blocking ledger findings as GitHub issues via MCP; dedup;
+      auto-close on retire; fail-open when MCP unavailable.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-ledger"]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/ledger_issue_sync.py"
+      keys:
+        - "feature:ambient-review-ledger:issuesync"
+      ttl_minutes: 90
+      reason: "GitHub issue sync"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/ledger_issue_sync.py"
+        - "skills/tests/review-issue-sync/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-issue-sync
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "issue-sync tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/review-issue-sync/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["issue_sync_tests_pass"]
+    metadata:
+      loc_estimate: 250
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["issue_sync_tests_pass"]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/ledger_issue_sync.py"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-kanban — Phase 5 (frontend, parallel-safe)
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-kanban
+    title: "Review-ledger swimlane (Phase 5)"
+    task_type: frontend
+    description: |
+      Frontend swimlane in apps/kanban-viz consuming the ledger.changed SSE
+      event; lifecycle/severity/vendor grouping; empty-state fallback.
+    role: frontend-engineer
+    priority: 3
+    depends_on: ["wp-contracts", "wp-ledger"]
+    locks:
+      files: []
+      keys:
+        - "feature:ambient-review-ledger:kanban"
+      ttl_minutes: 90
+      reason: "Frontend swimlane"
+    scope:
+      write_allow:
+        - "apps/kanban-viz/src/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-kanban
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "kanban-viz swimlane component tests"
+          kind: command
+          command: "cd apps/kanban-viz && npm test --silent"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["kanban_tests_pass"]
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: crud
+    inputs:
+      contracts: ["openspec/changes/ambient-review-ledger/contracts/events/ledger.changed.schema.json"]
+    outputs:
+      result_keys: ["kanban_tests_pass"]
+      artifacts:
+        - "apps/kanban-viz/src/components"
+
+  # ───────────────────────────────────────────────────────────────────
+  # wp-integration — Phase 6 (sink of DAG)
+  # ───────────────────────────────────────────────────────────────────
+  - package_id: wp-integration
+    title: "Integration & docs (Phase 6)"
+    task_type: integration
+    description: |
+      End-to-end commit→ambient→ledger→compact→issue→swimlane test; workflow
+      docs and kill-switch documentation.
+    role: integrator
+    priority: 4
+    depends_on:
+      - "wp-ambient"
+      - "wp-ledger"
+      - "wp-refine-standalone"
+      - "wp-issue-sync"
+      - "wp-kanban"
+    locks:
+      files:
+        - "CLAUDE.md"
+      keys:
+        - "feature:ambient-review-ledger:docs"
+      ttl_minutes: 60
+      reason: "Integration test + docs convergence"
+    scope:
+      write_allow:
+        - "skills/tests/integration/ambient-review-ledger/**"
+        - "docs/ambient-review-ledger.md"
+        - "CLAUDE.md"
+      read_allow:
+        - "**"
+    worktree:
+      name: ambient-review-ledger-wp-integration
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "end-to-end integration test"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/integration/ambient-review-ledger/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["e2e_tests_pass"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: ["e2e_tests_pass"]
+      artifacts:
+        - "docs/ambient-review-ledger.md"

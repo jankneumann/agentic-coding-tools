@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "gemini",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The introduction of a dedicated 'validator' archetype (D2) correctly separates the concerns of 'producing evidence' from 'modifying source code', resolving the contract contradiction while maintaining safety boundaries.",
+      "resolution": "no action required",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 45
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: Substring-based read-only checks (e.g., 'without making changes') in Requirement: VALIDATE-phase Archetype Must Be Write-Capable are brittle and might miss semantic equivalents or fail on harmless uses of the phrase.",
+      "resolution": "Consider augmenting the check with a more comprehensive list of forbidden phrases or documenting that the check is a heuristic for the specific failure mode observed.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 9,
+        "end": 14
+      }
+    },
+    {
+      "id": 3,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "observability",
+      "criticality": "low",
+      "description": "Nit: The error message for phase mismatch in apply-outcome (Requirement: apply-outcome rejects phase mismatch) should explicitly mention the existence of the --force flag to guide operators during manual recovery.",
+      "resolution": "Update the requirement or Task 3.2 to specify that the error message includes a hint about using --force for manual overrides.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 44,
+        "end": 51
+      }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "optional",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: The state-mutation prohibition (Layer B) is only applied to write-capable phases. While read-only phases currently map to 'analyst', applying the prohibition to all autopilot-managed sub-agents would provide better defense-in-depth against future archetype mapping changes.",
+      "resolution": "Apply the prompt prohibition in Task 4.1 to all autopilot sub-agent dispatch prompts, regardless of their current write-capability classification.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/fix-autopilot-archetype-and-apply-outcome/tasks.md",
+      "line_range": {
+        "start": 29,
+        "end": 35
+      }
+    }
+  ]
+}
