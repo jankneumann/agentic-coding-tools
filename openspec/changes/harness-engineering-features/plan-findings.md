@@ -12,3 +12,10 @@
 | 6 | consistency | medium | Contracts tag convention table missing `source:` and `prompt_version:` tags from D4/D9 | **Fixed** — added both rows |
 | 7 | completeness | medium | PR #195 coordination risk with convergence_loop.py not documented | **Fixed** — added to design.md D1 |
 | 8 | consistency | low | work-packages.yaml title doesn't reflect full 9-feature scope | **Fixed** — updated title |
+
+## Iteration 2 (2026-06-05)
+
+| # | Type | Criticality | Description | Status |
+|---|------|-------------|-------------|--------|
+| 9 | parallelizability | medium | `memory.py` write scope overlap between wp-context-architecture and wp-coordinator-extensions | **Fixed** — documented in wp-coordinator-extensions description; safe via depends_on ordering |
+| 10 | completeness | medium | Missing failure/edge scenarios: no empty-results scenario for /improve-harness, no evaluator-unavailable fallback | **Fixed** — added 2 edge-case scenarios to spec |
