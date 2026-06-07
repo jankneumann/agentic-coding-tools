@@ -527,10 +527,17 @@ class GenEvalMCPService:
                     "run_evaluation: failed (exit %d) after %.1fs",
                     proc.returncode, elapsed,
                 )
+                # Surface the report when one was written, even on non-zero
+                # exit. The CLI exits 1 when the pass-rate falls below the
+                # fail-threshold — that's still a completed run with
+                # actionable per-scenario results, and callers need them to
+                # diagnose what failed. Without this, an API caller sees
+                # "Unknown error" while a full report sits on disk.
+                summary = await self.get_report_summary()
                 return {
                     "success": False,
                     "error": stderr.decode()[-500:] if stderr else "Unknown error",
-                    "report": None,
+                    "report": summary,
                 }
         except Exception as e:
             return {"success": False, "error": str(e), "report": None}

@@ -176,16 +176,16 @@ wp-package-scaffold → wp-framework-move ──┬─→ wp-package-tests      
   **Dependencies**: 1.C, 2.C, 3.C, 4.C, 5.C, 6.C
 - [x] 7.2 Run `make architecture` to refresh `docs/architecture-analysis/` artifacts (gen-eval's component now lives under `packages/`, not `agent-coordinator/`). **(XS)**
   **Dependencies**: 4.C
-- [ ] 7.3 Run `/validate-feature extract-gen-eval-package` (full validation pass: spec, evidence, deploy smoke, security, e2e). **(M)**
+- [x] 7.3 Run `/validate-feature extract-gen-eval-package` (full validation pass: spec, evidence, deploy smoke, security, e2e). **(M)**
   **Dependencies**: 7.1, 7.2
-- [ ] 7.4 Manually verify the docker build with the **same context Railway uses after the dashboard change** (repo root, per D8 Strategy A): `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test .`. The repo-root build context is what makes `COPY packages/gen-eval/` and `COPY agent-coordinator/` both resolve and proves the Railway-compatible build path. **(S)**
-- [ ] 7.4.1 **In-container import smoke.** After 7.4 succeeds, run `docker run --rm --entrypoint python agent-coordinator:gen-eval-test -c "import gen_eval; import gen_eval.mcp_service; print(gen_eval.__file__)"`. This proves the non-editable path install survived the multi-stage Dockerfile (Codex round-3 finding: an editable install would leave a `.pth` pointing at `/workspace/packages/gen-eval/src/` which only exists in the builder stage, so `docker build` would exit 0 but `import gen_eval` would fail at runtime). The print statement SHALL emit a path under `/app/.venv/lib/python*/site-packages/gen_eval/__init__.py` — not a path under `/workspace/` and not a "module not found" error. **(S)**
+- [x] 7.4 Manually verify the docker build with the **same context Railway uses after the dashboard change** (repo root, per D8 Strategy A): `docker build -f agent-coordinator/Dockerfile -t agent-coordinator:gen-eval-test .`. The repo-root build context is what makes `COPY packages/gen-eval/` and `COPY agent-coordinator/` both resolve and proves the Railway-compatible build path. **(S)**
+- [x] 7.4.1 **In-container import smoke.** After 7.4 succeeds, run `docker run --rm --entrypoint python agent-coordinator:gen-eval-test -c "import gen_eval; import gen_eval.mcp_service; print(gen_eval.__file__)"`. This proves the non-editable path install survived the multi-stage Dockerfile (Codex round-3 finding: an editable install would leave a `.pth` pointing at `/workspace/packages/gen-eval/src/` which only exists in the builder stage, so `docker build` would exit 0 but `import gen_eval` would fail at runtime). The print statement SHALL emit a path under `/app/.venv/lib/python*/site-packages/gen_eval/__init__.py` — not a path under `/workspace/` and not a "module not found" error. **(S)**
   **Design decisions**: D5, D8
   **Dependencies**: 7.4
-- [ ] 7.5 Run one end-to-end gen-eval scenario inside the built container against a started coordinator to confirm `/gen-eval/run` works. **(S)**
+- [x] 7.5 Run one end-to-end gen-eval scenario inside the built container against a started coordinator to confirm `/gen-eval/run` works. **(S)**
   **Dependencies**: 7.4.1
 - [x] 7.6 **CI docker-build step repoint** (owned by wp-integration to avoid scope collision with wp-package-tests on `.github/workflows/ci.yml`, per D8 Strategy A). Update the existing coordinator docker-build step in `.github/workflows/ci.yml`: (a) change `context: agent-coordinator` → `context: .` and `file: Dockerfile` → `file: agent-coordinator/Dockerfile`; (b) rewrite the smoke-import list in the same step from `import evaluation.gen_eval.mcp_service` (or any variant referencing the legacy module path) to `import gen_eval.mcp_service` — the legacy module is removed by task 4.3 and the CI smoke would break in lockstep if not updated. Run the CI workflow locally with `act` (or push a draft PR) to confirm the coordinator docker-build step succeeds with the new context AND the smoke-import resolves. **(S)**
   **Design decisions**: D8, D9
   **Dependencies**: 4.5, 5.4
 
-- [ ] 7.C **Checkpoint**: all validate-feature phases green; CI green on the PR; coordinator container runs and serves gen-eval requests.
+- [x] 7.C **Checkpoint**: all validate-feature phases green; CI green on the PR; coordinator container runs and serves gen-eval requests.
