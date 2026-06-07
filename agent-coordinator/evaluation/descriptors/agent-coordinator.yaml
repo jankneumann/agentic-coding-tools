@@ -525,8 +525,10 @@ startup:
   teardown: docker-compose down -v
 
 # ── Scenario directories ────────────────────────────────────────────
+# Paths are resolved relative to this descriptor file (evaluation/descriptors/);
+# scenarios live one level up at evaluation/scenarios/.
 scenario_dirs:
-  - scenarios/
+  - ../scenarios/
 
 # ── File-to-interface mappings for change detection ─────────────────
 file_interface_map:

@@ -132,11 +132,25 @@ class InterfaceDescriptor(BaseModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> InterfaceDescriptor:
-        """Load descriptor from a YAML file."""
+        """Load descriptor from a YAML file.
+
+        Resolves any relative ``scenario_dirs`` entries against the descriptor's
+        parent directory — matching the convention used by npm/pip/docker
+        (paths in a config file are relative to the file's location, not the
+        invoking process's CWD). Absolute entries are left untouched.
+        """
         with open(path) as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
             raise ValueError(f"Expected YAML mapping in {path}, got {type(data).__name__}")
+        descriptor_dir = Path(path).resolve().parent
+        raw_dirs = data.get("scenario_dirs") or []
+        resolved: list[Path] = []
+        for entry in raw_dirs:
+            p = Path(entry)
+            resolved.append(p if p.is_absolute() else (descriptor_dir / p).resolve())
+        if resolved:
+            data["scenario_dirs"] = resolved
         return cls(**data)
 
     def all_interfaces(self) -> list[str]:
