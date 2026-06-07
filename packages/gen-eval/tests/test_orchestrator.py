@@ -146,6 +146,59 @@ class TestFullRunLifecycle:
         assert any("docker-compose down" in str(c) for c in calls)
 
 
+class TestNoServicesGate:
+    """`no_services=True` must skip _run_startup/_run_teardown but keep health check."""
+
+    @pytest.mark.asyncio
+    async def test_no_services_skips_startup_and_teardown(
+        self,
+        config: GenEvalConfig,
+        descriptor: InterfaceDescriptor,
+        mock_generator: AsyncMock,
+        mock_evaluator: AsyncMock,
+    ) -> None:
+        config.no_services = True
+        orch = GenEvalOrchestrator(
+            config=config,
+            descriptor=descriptor,
+            generator=mock_generator,
+            evaluator=mock_evaluator,
+        )
+        with patch("gen_eval.orchestrator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            await orch.run()
+
+        calls = mock_run.call_args_list
+        # Neither the startup nor the teardown shell command should fire.
+        assert not any("docker-compose up" in str(c) for c in calls)
+        assert not any("docker-compose down" in str(c) for c in calls)
+
+    @pytest.mark.asyncio
+    async def test_no_services_still_runs_health_check(
+        self,
+        config: GenEvalConfig,
+        descriptor: InterfaceDescriptor,
+        mock_generator: AsyncMock,
+        mock_evaluator: AsyncMock,
+    ) -> None:
+        """Even when services aren't started by us, we still verify they're up."""
+        config.no_services = True
+        orch = GenEvalOrchestrator(
+            config=config,
+            descriptor=descriptor,
+            generator=mock_generator,
+            evaluator=mock_evaluator,
+        )
+
+        def urlopen_side_effect(*args: Any, **kwargs: Any) -> MagicMock:
+            raise OSError("connection refused")
+
+        with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
+            with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
+                with pytest.raises(HealthCheckError):
+                    await orch.run()
+
+
 class TestHealthCheck:
     """Test health check retry with backoff."""
 
@@ -153,44 +206,42 @@ class TestHealthCheck:
     async def test_health_check_retry_succeeds_on_second(
         self, orchestrator: GenEvalOrchestrator
     ) -> None:
-        call_count = 0
+        attempt = 0
 
-        def side_effect(*args: Any, **kwargs: Any) -> MagicMock:
-            nonlocal call_count
-            call_count += 1
-            result = MagicMock()
-            # Startup call succeeds
-            if kwargs.get("shell"):
-                result.returncode = 0
-                return result
-            # Health check: fail first, succeed second
-            if call_count <= 2:  # first health check attempt
-                result.returncode = 1
-            else:
-                result.returncode = 0
-            return result
+        def urlopen_side_effect(*args: Any, **kwargs: Any) -> MagicMock:
+            nonlocal attempt
+            attempt += 1
+            if attempt == 1:
+                raise OSError("connection refused")
+            cm = MagicMock()
+            cm.__enter__ = MagicMock(return_value=MagicMock(status=200))
+            cm.__exit__ = MagicMock(return_value=False)
+            return cm
 
-        with patch("gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
-                report = await orchestrator.run()
+        with patch("gen_eval.orchestrator.subprocess.run") as mock_run:
+            # Startup/teardown still use subprocess.run; let them succeed.
+            mock_run.return_value = MagicMock(returncode=0)
+            with patch(
+                "urllib.request.urlopen", side_effect=urlopen_side_effect
+            ):
+                with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
+                    report = await orchestrator.run()
 
         assert report.total_scenarios == 1
 
     @pytest.mark.asyncio
     async def test_health_check_failure_aborts(self, orchestrator: GenEvalOrchestrator) -> None:
-        def side_effect(*args: Any, **kwargs: Any) -> MagicMock:
-            result = MagicMock()
-            if kwargs.get("shell"):
-                result.returncode = 0
-                return result
-            # All health checks fail
-            result.returncode = 1
-            return result
+        def urlopen_side_effect(*args: Any, **kwargs: Any) -> MagicMock:
+            raise OSError("connection refused")
 
-        with patch("gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
-                with pytest.raises(HealthCheckError, match="Health check failed after 3 attempts"):
-                    await orchestrator.run()
+        with patch("gen_eval.orchestrator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            with patch(
+                "urllib.request.urlopen", side_effect=urlopen_side_effect
+            ):
+                with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
+                    with pytest.raises(HealthCheckError, match="Health check failed after 3 attempts"):
+                        await orchestrator.run()
 
 
 class TestBudgetExhaustion:
@@ -414,18 +465,15 @@ class TestTeardownAlwaysRuns:
 
         orchestrator._run_teardown = track_teardown  # type: ignore[assignment]
 
-        def side_effect(*args: Any, **kwargs: Any) -> MagicMock:
-            result = MagicMock()
-            if kwargs.get("shell"):
-                result.returncode = 0
-                return result
-            result.returncode = 1
-            return result
+        def urlopen_side_effect(*args: Any, **kwargs: Any) -> MagicMock:
+            raise OSError("connection refused")
 
-        with patch("gen_eval.orchestrator.subprocess.run", side_effect=side_effect):
-            with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
-                with pytest.raises(HealthCheckError):
-                    await orchestrator.run()
+        with patch("gen_eval.orchestrator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)  # startup succeeds
+            with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
+                with patch("gen_eval.orchestrator.asyncio.sleep", new_callable=AsyncMock):
+                    with pytest.raises(HealthCheckError):
+                        await orchestrator.run()
 
         assert teardown_called
 

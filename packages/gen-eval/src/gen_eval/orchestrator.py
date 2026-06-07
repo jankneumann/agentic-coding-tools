@@ -73,8 +73,13 @@ class GenEvalOrchestrator:
         feedback: EvalFeedback | None = None
 
         try:
-            # 1. Start services
-            self._run_startup()
+            # 1. Start services (skipped when no_services=True; the operator
+            # has started services out-of-band, e.g. when gen-eval runs inside
+            # the coordinator container and `docker-compose up -d` would be
+            # both unavailable and circular). Health check still runs to
+            # verify the externally-managed services are reachable.
+            if not self.config.no_services:
+                self._run_startup()
             await self._health_check()
 
             # 2. Seed data
@@ -116,8 +121,12 @@ class GenEvalOrchestrator:
                     break
 
         finally:
-            # 9. Always teardown
-            self._run_teardown()
+            # 9. Teardown — skipped when no_services=True (we don't tear down
+            # services we didn't start, and the descriptor's teardown command
+            # would fail the same way startup does inside the coordinator
+            # container).
+            if not self.config.no_services:
+                self._run_teardown()
 
         # 8. Generate report
         duration = time.monotonic() - start_time
@@ -144,17 +153,22 @@ class GenEvalOrchestrator:
         retries = self.config.health_check_retries
         interval = self.config.health_check_interval_seconds
 
+        import urllib.error
+        import urllib.request
+
         for attempt in range(retries):
             try:
-                result = subprocess.run(
-                    ["curl", "-sf", health_target],
-                    capture_output=True,
-                    timeout=10,
-                )
-                if result.returncode == 0:
-                    logger.info("Health check passed on attempt %d", attempt + 1)
-                    return
-            except (subprocess.SubprocessError, OSError):
+                # Use urllib.request (stdlib) instead of shelling to curl, so
+                # the health check works inside minimal runtime containers
+                # (e.g. python:slim) that don't ship curl. file:// URLs are
+                # supported too — a successful open with no .status attribute
+                # (non-HTTP scheme) counts as healthy, matching `curl -sf`.
+                with urllib.request.urlopen(health_target, timeout=10) as resp:
+                    status = getattr(resp, "status", None)
+                    if status is None or 200 <= status < 300:
+                        logger.info("Health check passed on attempt %d", attempt + 1)
+                        return
+            except (urllib.error.URLError, OSError, ValueError):
                 pass
 
             if attempt < retries - 1:

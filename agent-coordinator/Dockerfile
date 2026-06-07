@@ -90,6 +90,14 @@ USER appuser
 # Default environment
 ENV DB_BACKEND=postgres \
     PYTHONPATH=/app \
+    # Prepend the venv to PATH so `python` (and other installed entry points)
+    # resolve to /app/.venv/ instead of the base image's /usr/local/bin/python.
+    # Without this, ad-hoc invocations like `docker run --entrypoint python ...`
+    # silently use system Python and report `ModuleNotFoundError: gen_eval`,
+    # even though gen_eval is correctly installed in the venv. The CMD below
+    # hard-codes the venv python so runtime is unaffected either way; this ENV
+    # only fixes operator/debug ergonomics and tightens the 7.4.1 import gate.
+    PATH=/app/.venv/bin:$PATH \
     # Point gen_eval.mcp_service at the coordinator's per-project data.
     # Resolves relative to the process cwd (/app at runtime).
     GEN_EVAL_DATA_DIR=/app/evaluation
