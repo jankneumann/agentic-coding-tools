@@ -103,7 +103,7 @@ def test_missing_transcript_no_block(isolated: tuple[Path, Path]) -> None:
 def test_below_threshold_no_block(isolated: tuple[Path, Path]) -> None:
     home, cwd = isolated
     transcript = cwd / "session.jsonl"
-    # 1000 chars = 250 tokens via proxy. Limit 200_000, threshold 70% = 140_000.
+    # 1000 chars = 250 tokens via proxy. Limit 1_000_000, threshold 40% = 400_000.
     _write_transcript(transcript, 1000)
     result = _run_hook(
         hook_input={"transcript_path": str(transcript)},
