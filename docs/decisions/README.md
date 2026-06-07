@@ -32,6 +32,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [gen-eval-framework](./gen-eval-framework.md)
 - [merge-pull-requests](./merge-pull-requests.md)
 - [observability](./observability.md)
+- [sentinel-security-eval](./sentinel-security-eval.md)
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)
 - [worktree](./worktree.md)
