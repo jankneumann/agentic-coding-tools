@@ -9,20 +9,42 @@ CLI, or SDK-driven; evaluators compose pluggable transport clients.
 
 ---
 
-## Install profiles
+## Install
 
-| Profile | Install command | Use case |
-|---------|-----------------|----------|
-| Base    | `uv add gen-eval` | Template-only test runs; no `fastmcp` dependency. |
-| MCP     | `uv add 'gen-eval[mcp]'` | Expose gen-eval via FastMCP or consume it from a coordinator. |
-
-Additional extras: `sdk` (Anthropic/OpenAI SDK generators), `db` (asyncpg for
-DB state verification), `all` (everything).
-
-Install from the repo using a relative path:
+`gen-eval` is **not published to PyPI**; it ships as a path dependency
+consumed by sibling repos in the same workspace. Install with `uv add`
+pointing at the package directory:
 
 ```bash
+# Base — template-only test runs, no fastmcp dependency
 uv add 'gen-eval @ ../agentic-coding-tools/packages/gen-eval'
+
+# With the MCP service surface (FastMCP / coordinator integration)
+uv add 'gen-eval[mcp] @ ../agentic-coding-tools/packages/gen-eval'
+
+# Everything (sdk + mcp + db extras)
+uv add 'gen-eval[all] @ ../agentic-coding-tools/packages/gen-eval'
+```
+
+Adjust the relative path to match your repo's checkout of
+`agentic-coding-tools` (siblings, parent, etc.). For a containerized consumer
+that ships gen-eval inside its own image, see
+[Running gen-eval inside your own container](#running-gen-eval-inside-your-own-container)
+below.
+
+### Extras
+
+| Extra  | Pulls in                | When you need it |
+|--------|-------------------------|------------------|
+| `mcp`  | `fastmcp`               | Expose gen-eval via FastMCP or consume from a coordinator. |
+| `sdk`  | `anthropic`, `openai`   | LLM-backed scenario generators (sdk-only mode). |
+| `db`   | `asyncpg`               | DB state verification in scenarios. |
+| `all`  | all of the above        | One-line "give me everything". |
+
+Confirm the install:
+
+```bash
+python -c "import gen_eval; print(gen_eval.__version__)"
 ```
 
 ---
@@ -88,6 +110,62 @@ The MCP service reads scenario data from the directory set by:
 1. `base_dir` constructor argument.
 2. `GEN_EVAL_DATA_DIR` environment variable.
 3. Fallback: `Path(__file__).parent` (for package-internal fixtures).
+
+---
+
+## Descriptor path conventions
+
+Paths inside descriptor YAML files are resolved **relative to the descriptor
+file's parent directory**, matching the convention used by npm, pip, and
+docker (the file is the anchor, not the invoking process's CWD). This
+applies to `scenario_dirs`.
+
+Concretely, if your descriptor lives at `evaluation/descriptors/foo.yaml`
+and scenarios at `evaluation/scenarios/`, declare:
+
+```yaml
+scenario_dirs:
+  - ../scenarios/
+```
+
+Absolute paths are left untouched.
+
+---
+
+## Running gen-eval inside your own container
+
+`gen-eval` is portable inside slim runtime images (e.g. `python:3.14-slim`):
+
+- **No `curl` required** — health checks use stdlib `urllib.request`.
+- **No `docker-compose` required** when invoked with `--no-services` — the
+  orchestrator skips `startup`/`teardown` commands and assumes the operator
+  has started services out-of-band (the health check still runs, so an
+  unreachable service is still caught).
+- **`file://` health-check URLs** are accepted (treats a successful open
+  with no HTTP status as healthy), useful for test fixtures.
+
+This means you can `pip install`/`uv add` gen-eval into a service container
+and call its CLI or HTTP/MCP surface from within that container without
+pulling in shell dependencies or running a nested Docker daemon.
+
+### In-container loopback authentication
+
+If your service exposes a `/run-evaluation`-style endpoint that spawns the
+gen-eval CLI to call back into the **same service's** HTTP API (the pattern
+used by `agent-coordinator`'s `/gen-eval/run`), set the
+`COORDINATION_API_KEY`-equivalent client-side env var that your descriptor's
+`auth.env_var` declares. Without it, all loopback requests get `401`. For
+agent-coordinator this means:
+
+```yaml
+# docker-compose.yml — coordinator service
+environment:
+  COORDINATION_API_KEYS: "${COORDINATOR_API_KEYS:-dev-key-001}"   # server allowlist
+  COORDINATION_API_KEY: "${COORDINATOR_CLIENT_API_KEY:-dev-key-001}"  # client cred
+```
+
+Apply the same pattern for your own consumer: server-side allowlist + a
+matching client-side credential the CLI subprocess can pick up.
 
 ---
 
