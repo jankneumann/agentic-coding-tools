@@ -12,25 +12,27 @@ following it you will have:
 
 ## 1. Install gen-eval
 
-From your repo root, install the base package:
+`gen-eval` is **not on PyPI** — it ships as a path-dependency that monorepo
+siblings consume directly. From your repo root, with `agentic-coding-tools`
+checked out as a sibling directory:
 
 ```bash
+# Base — template-only test runs
 uv add 'gen-eval @ ../agentic-coding-tools/packages/gen-eval'
-```
 
-Or with the optional MCP service surface (needed if you expose gen-eval over
-an MCP channel):
-
-```bash
+# With the MCP service surface (FastMCP / coordinator integration)
 uv add 'gen-eval[mcp] @ ../agentic-coding-tools/packages/gen-eval'
+
+# Everything
+uv add 'gen-eval[all] @ ../agentic-coding-tools/packages/gen-eval'
 ```
 
-Two install profiles are available:
+Adjust the relative path if `agentic-coding-tools` lives elsewhere relative
+to your repo. The `uv.lock` will pin the resolved local path; CI needs the
+same checkout layout (typically via a sibling clone step).
 
-| Profile | Command | When to use |
-|---------|---------|-------------|
-| Base    | `uv add gen-eval` | Template-only test runs; no `fastmcp` dependency required. |
-| MCP     | `uv add 'gen-eval[mcp]'` | Expose gen-eval via FastMCP or consume it from a running coordinator. |
+Extras: `mcp` (`fastmcp`), `sdk` (Anthropic/OpenAI generators), `db`
+(`asyncpg` for DB state verification), `all` (everything).
 
 Confirm the install:
 
@@ -83,6 +85,20 @@ interfaces:
 See [descriptor-template.yaml](descriptor-template.yaml) for the full annotated
 schema with all optional fields.
 
+### Where to put scenarios
+
+When you start adding scenario YAML files, point `scenario_dirs` at the
+directory using a path **relative to this descriptor file** (the package
+resolves these relative to the descriptor's parent, not your CWD — matching
+npm/pip/docker conventions). With descriptors at
+`evaluation/descriptors/agentic-assistant.yaml` and scenarios at
+`evaluation/scenarios/`:
+
+```yaml
+scenario_dirs:
+  - ../scenarios/
+```
+
 ---
 
 ## 3. Run your first scenario (template-only mode)
@@ -128,7 +144,31 @@ template-only` and `--mode cli-augmented` runs that drive services directly.
 
 ---
 
-## 5. CI integration
+## 5. Running gen-eval inside the agentic-assistant container
+
+`gen-eval` is portable inside slim runtime images — no `curl`, no
+`docker-compose` required when invoked with `--no-services`. This means you
+can ship gen-eval as part of the agentic-assistant image and expose it via
+your existing API surface (e.g. a protected `/eval/run` endpoint).
+
+Key requirements:
+
+- `--no-services` so the orchestrator doesn't try to start a nested stack
+  (it will still health-check the externally-managed service).
+- A client-side credential env var that matches your descriptor's
+  `auth.env_var` (e.g. `AGENTIC_ASSISTANT_API_KEY`), so the loopback call
+  the CLI makes back into your own API authenticates.
+- `GEN_EVAL_DATA_DIR` pointing at where you copied your descriptors and
+  scenarios into the image (e.g. `/app/evaluation`).
+
+See the [Running gen-eval inside your own container](../README.md#running-gen-eval-inside-your-own-container)
+section in the package README for the full pattern, including the
+`COORDINATION_API_KEY`-style loopback-auth recipe that
+`agent-coordinator`'s `/gen-eval/run` uses.
+
+---
+
+## 6. CI integration
 
 Add gen-eval to your CI pipeline:
 
@@ -145,7 +185,7 @@ Add gen-eval to your CI pipeline:
 
 ---
 
-## 6. Next steps
+## 7. Next steps
 
 - **Add more interfaces** to the descriptor (see [descriptor-template.yaml](descriptor-template.yaml)).
 - **Try `--mode cli-augmented`** to drive scenarios through the `claude` or `codex` CLI.
